@@ -19,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
@@ -105,6 +106,17 @@ std::unique_ptr<WebContentsView> CreateWebContentsView(
 class ScopedAllowBlockingForViewAura : public base::ScopedAllowBlocking {};
 
 namespace {
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(DragAndDropSurface)
+enum class DragAndDropSurface {
+  kDragBrowserDropSamePage = 0,
+  kDragBrowserDropOutOfPage = 1,
+  kDragSystemDropBrowser = 2,
+  kMaxValue = kDragSystemDropBrowser
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/event/enums.xml:DragAndDropSurface)
 
 using ::ui::mojom::DragOperation;
 
@@ -276,8 +288,7 @@ void PrepareDragData(const DropData& drop_data,
     provider->SetString(*drop_data.text);
   }
   if (!drop_data.url_infos.empty()) {
-    provider->SetURL(drop_data.url_infos.front().url,
-                     drop_data.url_infos.front().title);
+    provider->SetURLs(drop_data.url_infos);
   }
   if (drop_data.html && !drop_data.html->empty())
     provider->SetHtml(*drop_data.html, drop_data.html_base_url);
@@ -732,7 +743,21 @@ void WebContentsViewAura::PrepareDropData(
   if (std::optional<std::vector<ui::FileInfo>> filenames = data.GetFilenames();
       filenames.has_value()) {
     drop_data->filenames = filenames.value();
-  } else {
+  }
+#if BUILDFLAG(IS_WIN)
+  // Get a list of virtual files for later retrieval when a drop is performed.
+  // Returns empty vector if there are any non-virtual files in the data store.
+  if (ShouldIncludeVirtualFiles(*drop_data)) {
+    if (std::optional<std::vector<ui::FileInfo>> virtual_filenames =
+            data.GetVirtualFilenames();
+        virtual_filenames.has_value()) {
+      std::ranges::move(virtual_filenames.value(),
+                        std::back_inserter(drop_data->filenames));
+    }
+  }
+#endif
+
+  if (drop_data->filenames.empty()) {
     // Only add FileContents if Filenames is empty to avoid duplicates
     // (https://crbug.com/1251482). We prefer filenames since it supports
     // multiple files and does not send all file data upfront. Do not add
@@ -758,20 +783,6 @@ void WebContentsViewAura::PrepareDropData(
       }
     }
   }
-
-#if BUILDFLAG(IS_WIN)
-  // Get a list of virtual files for later retrieval when a drop is performed
-  // (will return empty vector if there are any non-virtual files in the data
-  // store).
-  if (ShouldIncludeVirtualFiles(*drop_data)) {
-    if (std::optional<std::vector<ui::FileInfo>> virtual_filenames =
-            data.GetVirtualFilenames();
-        virtual_filenames.has_value()) {
-      std::ranges::move(virtual_filenames.value(),
-                        std::back_inserter(drop_data->filenames));
-    }
-  }
-#endif
 
   if (std::optional<base::Pickle> pickle =
           data.GetPickledData(GetFileSystemFileFormatType());
@@ -826,6 +837,15 @@ void WebContentsViewAura::EndDrag(
             client_loc,
             static_cast<RenderWidgetHostViewBase*>(source_rwh->GetView()),
             &transformed_point);
+  }
+
+  if (op != DragOperation::kNone) {
+    // TODO(crbug.com/467379870): Implement in non-aura platforms.
+    base::UmaHistogramEnumeration(
+        "Event.DragDrop.Surface",
+        (dropped_in_this_web_contents_
+             ? DragAndDropSurface::kDragBrowserDropSamePage
+             : DragAndDropSurface::kDragBrowserDropOutOfPage));
   }
 
   web_contents_->DragSourceEndedAt(transformed_point.x(), transformed_point.y(),
@@ -1373,6 +1393,7 @@ void WebContentsViewAura::DragEnteredCallback(
     base::WeakPtr<RenderWidgetHostViewBase> target,
     std::optional<gfx::PointF> transformed_pt) {
   drag_in_progress_ = true;
+  dropped_in_this_web_contents_ = false;
   if (!target) {
     return;
   }
@@ -1764,6 +1785,14 @@ WebContentsViewAura::GetDropCallback(const ui::DropTargetEvent& event) {
 
 void WebContentsViewAura::CompleteDrop(OnPerformingDropContext drop_context) {
   web_contents_->Focus();
+
+  dropped_in_this_web_contents_ = true;
+  // Drops that originated in a renderer process will be reported by the
+  // drag initiator.
+  if (!drop_context.drop_data->did_originate_from_renderer) {
+    base::UmaHistogramEnumeration("Event.DragDrop.Surface",
+                                  DragAndDropSurface::kDragSystemDropBrowser);
+  }
 
   const int key_modifiers =
       ui::EventFlagsToWebEventModifiers(drop_context.drop_metadata.flags);

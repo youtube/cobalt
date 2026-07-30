@@ -47,13 +47,16 @@ class ContextualSearchService : public KeyedService {
       const std::string& locale);
   ~ContextualSearchService() override;
 
+  // KeyedService:
+  void Shutdown() override;
+
   // Register profile related prefs.
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
   // Check whether contextual search is enabled.
   static bool IsContextSharingEnabled(const PrefService* prefs);
 
   // Creates a new session and returns a handle to it.
-  std::unique_ptr<ContextualSearchSessionHandle> CreateSession(
+  virtual std::unique_ptr<ContextualSearchSessionHandle> CreateSession(
       std::unique_ptr<ContextualSearchContextController::ConfigParams>
           query_controller_config_params,
       ContextualSearchSource source);
@@ -85,9 +88,6 @@ class ContextualSearchService : public KeyedService {
 
   // Called by SessionHandle to manage ref counts.
   void ReleaseSession(const SessionId& session_id);
-
-  // KeyedService:
-  void Shutdown() override;
 
   // Map of active sessions, keyed by the session ID.
   std::map<SessionId, ContextualSearchSessionEntry> sessions_;

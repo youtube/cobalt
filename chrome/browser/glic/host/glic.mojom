@@ -51,6 +51,9 @@ struct ProfileEnablement {
 
   // Whether the user has passed the FRE.
   bool not_consented;
+
+  // Whether live (audio) functionality is disallowed for this account type.
+  bool live_disallowed;
 };
 
 // The ready state of the profile.
@@ -410,6 +413,10 @@ struct WebClientInitialState {
   bool enable_trust_first_onboarding;
   // Whether the user has completed the onboarding flow.
   bool onboarding_completed;
+  // Whether the skills feature is enabled.
+  bool enable_skills;
+  // The initial list of skill previews.
+  array<SkillPreview> skill_previews;
 };
 
 // Options for getting tab context.
@@ -551,6 +558,49 @@ struct SuggestionContent {
   string suggestion;
 };
 
+// @generate glic_api
+// Enum to specify the source of the Skill.
+[Stable, Extensible]
+enum SkillSource {
+  [Default] kUnknown = 0,
+  // Skill created by Google.
+  kFirstParty = 1,
+  // Skill created by an end-user.
+  kUserCreated = 2,
+};
+
+// A single skill preview.
+struct SkillPreview {
+  // The unique identifier of the skill which is an UUID.
+  string id;
+  // The name of the skill.
+  string name;
+  // The icon of the skill, which is an emoji.
+  string icon;
+  // The source of the skill which can be 1P or user created.
+  SkillSource source;
+};
+
+// A single skill.
+struct Skill {
+  // The preview of the skill which contains the basic information of the skill.
+  SkillPreview preview;
+  // The prompt of the skill.
+  string prompt;
+};
+
+// Request to create a skill.
+struct CreateSkillRequest {
+  // A prompt for the skill which can be an empty string.
+  string prompt;
+};
+
+// Request to update a skill.
+struct UpdateSkillRequest {
+  // The unique identifier of the skill to be updated.
+  string id;
+};
+
 // A list of suggestions for the currently focused tab.
 struct ZeroStateSuggestions {
   // The list of suggestions to present to the user.
@@ -628,6 +678,22 @@ enum UnpinTrigger {
 // Options for unpinning tabs.
 struct UnpinTabsOptions {
   UnpinTrigger unpin_trigger;
+};
+
+// @generate glic_api
+// Result of CancelActions().
+[Stable, Extensible]
+enum CancelActionsResult {
+  // Do not manually use this value. Fail safe when an old client receives an
+  // extended new enum.
+  [Default] kUnknown = 0,
+  // Actions were successfully cancelled.
+  kSuccess = 1,
+  // The task was not found.
+  kTaskNotFound = 2,
+  // Could not cancel the actions for other reasons (e.g., the task is already
+  // completed).
+  kFailed = 3,
 };
 
 // Access to the browser from the web client by proxy through the WebUI.
@@ -735,6 +801,20 @@ interface WebClientHandler {
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   UnpinAllTabs(UnpinTabsOptions? options);
 
+  // Initiates the creation of a skill by opening a modal dialog. It returns a
+  // boolean indicating whether the modal dialog was opened successfully.
+  // TODO(crbug.com/471796872): Add the actual c++ implementation.
+  CreateSkill(CreateSkillRequest request) => (bool modal_opened);
+
+  // Initiates the update of a skill by opening a modal dialog. It returns a
+  // boolean indicating whether the modal dialog was opened successfully.
+  // TODO(crbug.com/471796872): Add the actual c++ implementation.
+  UpdateSkill(UpdateSkillRequest request) => (bool modal_opened);
+
+  // Gets a skill by its id. Returns null if the skill does not exist.
+  // TODO(crbug.com/471796872): Add the actual c++ implementation.
+  GetSkill(string id) => (Skill? skill);
+
   // Subscribes to receive updates on pin candidates.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   SubscribeToPinCandidates(GetPinCandidatesOptions options,
@@ -752,6 +832,10 @@ interface WebClientHandler {
   // It is an error to act with a paused task.
   PerformActions(array<uint8> actions_proto)
       => result<mojo_base.mojom.ProtoWrapper, PerformActionsErrorReason>;
+
+  // Cancel the actions for the specified actor task. Does not revert actions
+  // already taken. Returns an error if the task is not found.
+  CancelActions(int32 task_id) => (CancelActionsResult result);
 
   // Immediately stops the actor from taking any further actions associated with
   // the given id and exits acting mode. The stop_reason indicates the reason
@@ -1087,6 +1171,8 @@ struct PanelOpeningData {
   // If set, the textbox for user input will be populated with the given string
   // before the panel opens.
   string? prompt_suggestion;
+  // An optional Skill object. If provided, the Gemini app should auto-run it.
+  Skill? skill_to_invoke;
   // Up to 3 most recently active conversations, ordered by most recently active
   // first.
   array<ConversationInfo>? recently_active_conversations;
@@ -1325,6 +1411,15 @@ interface WebClient {
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   NotifyPinnedTabDataChanged(TabData tab_data);
 
+  // Notify that the skills previews have changed.
+  NotifySkillPreviewsChanged(array<SkillPreview> skill_previews);
+
+  // Notify that a skill preview has changed.
+  NotifySkillPreviewChanged(SkillPreview skill_preview);
+
+  // Notify that the skill to invoke has changed.
+  NotifySkillToInvokeChanged(Skill skill);
+
   // Informs the client that the zero state suggestions have changed.
   NotifyZeroStateSuggestionsChanged(ZeroStateSuggestionsV2? suggestions,
                                     ZeroStateSuggestionsOptions options);
@@ -1391,6 +1486,10 @@ interface WebClient {
 
   // The onboarding completed state has changed.
   NotifyOnboardingCompletedChanged(bool completed);
+
+  // Notifies the client that the user has clicked on a row in the actor task
+  // list bubble.
+  NotifyActorTaskListRowClicked(int32 task_id);
 };
 
 // Information extracted from a tab.

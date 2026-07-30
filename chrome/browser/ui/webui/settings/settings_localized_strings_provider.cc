@@ -167,6 +167,7 @@
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #endif
@@ -867,8 +868,6 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SETTINGS_GLIC_PERMISSIONS_TAB_ACCESS_CONSIDER_1_LEARN_MORE_LABEL},
       {"glicDefaultTabAccessWhenOn1",
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_WHEN_ON_1},
-      {"glicDefaultTabAccessWhenOn2",
-       IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_WHEN_ON_2},
       {"glicDefaultTabAccessConsider1",
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_CONSIDER_1},
       {"glicDefaultTabAccessConsider2",
@@ -887,6 +886,12 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_1},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
+
+  html_source->AddLocalizedString(
+      "glicDefaultTabAccessWhenOn2",
+      glic::GlicEnabling::EnablementForProfile(profile).EligibleForLive()
+          ? IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_WHEN_ON_2
+          : IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_WHEN_ON_2_NO_LIVE);
 
   auto* command_line = base::CommandLine::ForCurrentProcess();
   bool has_url =
@@ -950,6 +955,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
                           IsWebActuationDisabledForEnterprise(profile));
   html_source->AddBoolean("glicActorEnabled",
                           base::FeatureList::IsEnabled(features::kGlicActor));
+  html_source->AddBoolean(
+      "glicCanUseLive",
+      glic::GlicEnabling::EnablementForProfile(profile).EligibleForLive());
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -1546,6 +1554,10 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"benefitsTermsTagForCreditCardListEntry",
        IDS_AUTOFILL_SETTINGS_PAGE_BENEFITS_TERMS_TAG_FOR_CREDIT_CARD_LIST_ENTRY},
       {"cardBenefitsLabel", IDS_AUTOFILL_SETTINGS_PAGE_CARD_BENEFITS_LABEL},
+      {"autofillAiAuthenticationToggleTitle",
+       IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_TITLE},
+      {"autofillAiAuthenticationToggleSubtitle",
+       IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_SUBTITLE},
       {"autofillAiPageTitle", IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE},
       {"autofillAiDescription", IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION},
       {"autofillAiDescriptionFeatureOn",
@@ -1778,6 +1790,10 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                          chrome::kGoogleAccountWorkAddressURL);
   html_source->AddString("googleAccountNameEmailAddressEditUrl",
                          chrome::kGoogleAccountNameEmailAddressEditURL);
+
+  html_source->AddBoolean("autofillAiReauthOnViewingSensitiveDataEnabled",
+                          base::FeatureList::IsEnabled(
+                              autofill::features::kAutofillAiReauthRequired));
 }
 
 void AddSignOutDialogStrings(content::WebUIDataSource* html_source,
@@ -2896,8 +2912,6 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_ALLOW_RADIO_LABEL},
       {"thirdPartyCookiesPageBlockRadioLabel",
        IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_BLOCK_RADIO_LABEL},
-      {"thirdPartyCookiesLinkRowSublabelLimited",
-       IDS_SETTINGS_THIRD_PARTY_COOKIES_LINK_ROW_SUB_LABEL_LIMITED},
       {"thirdPartyCookiesPageDescription",
        IDS_SETTINGS_THIRD_PARTY_COOKIES_PAGE_DESCRIPTION},
       {"cookiePageRwsLabel",

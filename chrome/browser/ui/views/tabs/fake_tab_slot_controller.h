@@ -12,6 +12,7 @@
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/gfx/color_palette.h"
 
+class BrowserWindowInterface;
 class TabContainer;
 class TabStripController;
 
@@ -75,7 +76,6 @@ class FakeTabSlotController : public TabSlotController {
   void HideHover(Tab* tab, TabStyle::HideHoverStyle style) override {}
   int GetStrokeThickness() const override;
   bool CanPaintThrobberToLayer() const override;
-  bool HasVisibleBackgroundTabShapes() const override;
   SkColor GetTabSeparatorColor() const override;
   std::optional<int> GetCustomBackgroundId(
       BrowserFrameActiveState active_state) const override;
@@ -95,6 +95,7 @@ class FakeTabSlotController : public TabSlotController {
   void ShiftGroupLeft(const tab_groups::TabGroupId& group) override {}
   void ShiftGroupRight(const tab_groups::TabGroupId& group) override {}
   Browser* GetBrowser() override;
+  BrowserWindowInterface* GetBrowserWindowInterface() override;
   bool IsFrameCondensed() const override;
   TabGroup* GetTabGroup(const tab_groups::TabGroupId& group_id) const override;
 

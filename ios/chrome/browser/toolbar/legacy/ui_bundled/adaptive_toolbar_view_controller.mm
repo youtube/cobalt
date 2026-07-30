@@ -18,8 +18,8 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_menus_provider.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_view.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/adaptive_toolbar_view_controller_delegate.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_button.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_button_factory.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/legacy_toolbar_button.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/legacy_toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_configuration.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_tab_grid_button.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_tab_group_state.h"
@@ -70,11 +70,11 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 
 #pragma mark - Public
 
-- (ToolbarButton*)tabGridButton {
+- (LegacyToolbarButton*)tabGridButton {
   return self.view.tabGridButton;
 }
 
-- (ToolbarButton*)toolsMenuButton {
+- (LegacyToolbarButton*)toolsMenuButton {
   return self.view.toolsMenuButton;
 }
 
@@ -206,6 +206,19 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
   // TODO(crbug.com/41413004): Remove this call once iPad trait collection
   // override issue is fixed.
   [self updateAllButtonsVisibility];
+  if (@available(iOS 26, *)) {
+    // There is a bug on iOS 26 when transitioning from windowed to
+    // fullscreen where the layout is incorrectly considered as (isCompactWidth
+    // && isCompactHeight).
+    if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+      __weak __typeof(self) weakSelf = self;
+      dispatch_after(
+          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+          dispatch_get_main_queue(), ^{
+            [weakSelf updateAllButtonsVisibility];
+          });
+    }
+  }
 }
 
 - (void)didMoveToParentViewController:(UIViewController*)parent {
@@ -245,7 +258,7 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
   [self.view setLocationBarHeight:height];
 }
 
-#pragma mark - ToolbarConsumer
+#pragma mark - LegacyToolbarConsumer
 
 - (void)setCanGoForward:(BOOL)canGoForward {
   self.view.forwardButton.enabled = canGoForward;
@@ -476,14 +489,14 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 // Updates all buttons visibility to match any recent WebState or SizeClass
 // change.
 - (void)updateAllButtonsVisibility {
-  for (ToolbarButton* button in self.view.allButtons) {
+  for (LegacyToolbarButton* button in self.view.allButtons) {
     [button updateHiddenInCurrentSizeClass];
   }
 }
 
 // Registers the actions which will be triggered when tapping a button.
 - (void)addStandardActionsForAllButtons {
-  for (ToolbarButton* button in self.view.allButtons) {
+  for (LegacyToolbarButton* button in self.view.allButtons) {
     if (button != self.view.toolsMenuButton &&
         button != self.view.openNewTabButton) {
       [button addTarget:self.omniboxCommandsHandler

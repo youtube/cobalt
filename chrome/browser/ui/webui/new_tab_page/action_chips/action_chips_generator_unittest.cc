@@ -100,7 +100,7 @@ class MockRemoteSuggestionsServiceSimple
   ~MockRemoteSuggestionsServiceSimple() override = default;
 
   MOCK_METHOD(std::unique_ptr<network::SimpleURLLoader>,
-              GetActionChipSuggestionsForTab,
+              GetDeepdiveChipSuggestionsForTab,
               (const std::u16string_view title,
                const GURL& url,
                base::OnceCallback<void(ActionChipSuggestionsResult&&)>),
@@ -196,15 +196,23 @@ class GeneratorFixture {
     auto service = std::make_unique<MockRemoteSuggestionsServiceSimple>();
     mock_service_ = service.get();
 
+    // Preferences are read at object initialization and thus must be set up
+    // before the eligibility service is instantiated.
+    AimEligibilityService::RegisterProfilePrefs(pref_service_.registry());
+
+    mock_aim_eligibility_service_ = std::make_unique<MockAimEligibilityService>(
+        pref_service_, nullptr, nullptr, nullptr, false);
+
     generator_ = std::make_unique<ActionChipsGeneratorImpl>(
         FakeTabIdGenerator::Get(), &mock_optimization_guide_,
-        &mock_aim_eligibility_service_, std::move(client), std::move(service));
+        mock_aim_eligibility_service_.get(), std::move(client),
+        std::move(service));
 
     ON_CALL(*fake_client_, IsPersonalizedUrlDataCollectionActive())
         .WillByDefault(Return(true));
-    ON_CALL(mock_aim_eligibility_service_, IsDeepSearchEligible)
+    ON_CALL(*mock_aim_eligibility_service_, IsDeepSearchEligible)
         .WillByDefault(Return(true));
-    ON_CALL(mock_aim_eligibility_service_, IsCreateImagesEligible)
+    ON_CALL(*mock_aim_eligibility_service_, IsCreateImagesEligible)
         .WillByDefault(Return(true));
   }
 
@@ -236,7 +244,7 @@ class GeneratorFixture {
   }
 
   MockAimEligibilityService& mock_aim_eligibility_service() {
-    return mock_aim_eligibility_service_;
+    return *mock_aim_eligibility_service_;
   }
 
   // Makes the optimization guide's mock permissive. i.e., after the call to
@@ -254,14 +262,13 @@ class GeneratorFixture {
  private:
   // generator_ must be declared first so raw_ptr's check does not detect
   // the use-after-free issue.
-  std::unique_ptr<ActionChipsGeneratorImpl> generator_;
-  raw_ptr<FakeAutocompleteProviderClient> fake_client_ = nullptr;
-  raw_ptr<MockRemoteSuggestionsServiceSimple> mock_service_ = nullptr;
   testing::StrictMock<MockOptimizationGuideKeyedService>
       mock_optimization_guide_;
   TestingPrefServiceSyncable pref_service_;
-  MockAimEligibilityService mock_aim_eligibility_service_{
-      pref_service_, nullptr, nullptr, nullptr, false};
+  std::unique_ptr<MockAimEligibilityService> mock_aim_eligibility_service_;
+  std::unique_ptr<ActionChipsGeneratorImpl> generator_;
+  raw_ptr<FakeAutocompleteProviderClient> fake_client_ = nullptr;
+  raw_ptr<MockRemoteSuggestionsServiceSimple> mock_service_ = nullptr;
 };
 
 using ActionChipGeneratorWithNoRecentTabTest = ::testing::TestWithParam<bool>;
@@ -517,7 +524,7 @@ TEST_P(ActionChipsGeneratorDeepDiveTest, GenerateChips) {
   TabFixture tab_fixture(page_url, page_title);
   GeneratorFixture generator_fixture;
   EXPECT_CALL(generator_fixture.mock_service(),
-              GetActionChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
+              GetDeepdiveChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
       .Times(GetParam().expect_deep_dive ? 1 : 0)
       .WillOnce(WithArg<2>(
           [](base::OnceCallback<void(
@@ -581,7 +588,7 @@ TEST(ActionChipGeneratorTest,
   generator_fixture.MakeOptimizationGuidePermissive();
 
   EXPECT_CALL(generator_fixture.mock_service(),
-              GetActionChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
+              GetDeepdiveChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
       .WillOnce(WithArg<2>(
           [](base::OnceCallback<void(
                  RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
@@ -589,6 +596,45 @@ TEST(ActionChipGeneratorTest,
             std::move(callback).Run(
                 base::unexpected(RemoteSuggestionsServiceSimple::NetworkError{
                     .net_error = net::ERR_TIMED_OUT}));
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextShowDeepDiveSuggestionsParam.name, "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  ActionChipPtr most_resent_tab_chip =
+      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(most_resent_tab_chip)),
+                          Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
+}
+
+TEST(ActionChipGeneratorTest,
+     DeepDiveChipGenerationFallsBackToStaticChipsWhenRemoteCallIsEmpty) {
+  EnvironmentFixture env;
+  const GURL page_url("https://en.wikipedia.org/wiki/Mathematics");
+  const std::u16string page_title(u"Mathematics - Wikipedia");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+  generator_fixture.MakeOptimizationGuidePermissive();
+
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetDeepdiveChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
+      .WillOnce(WithArg<2>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{});
             return nullptr;
           }));
 
@@ -622,7 +668,7 @@ TEST(ActionChipGeneratorTest,
   generator_fixture.MakeOptimizationGuidePermissive();
 
   EXPECT_CALL(generator_fixture.mock_service(),
-              GetActionChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
+              GetDeepdiveChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
       .Times(0);
 
   base::test::ScopedFeatureList list;

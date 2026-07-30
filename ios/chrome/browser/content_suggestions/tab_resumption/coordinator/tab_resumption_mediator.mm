@@ -75,8 +75,8 @@
 #import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/price_tracked_items_commands.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
@@ -238,8 +238,7 @@ void ConfigureTabResumptionItemForShopCard(
       decisionWithMetadata.metadata
           .ParsedMetadata<commerce::PriceTrackingData>();
 
-  if ((base::Contains(commerce::kShopCardVariation.Get(),
-                      commerce::kShopCardArm3) ||
+  if ((commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3) ||
        commerce::kShopCardVariation.Get() == commerce::kShopCardArm6) &&
       HasPriceDropDataForTabResumption(price_tracking_data)) {
     item.shopCardData = [[ShopCardData alloc] init];
@@ -298,8 +297,8 @@ void ConfigureTabResumptionItemForShopCard(
 
 bool IsShopCardImpressionLimitsEnabled() {
   return base::FeatureList::IsEnabled(commerce::kShopCardImpressionLimits) &&
-         (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm3) ||
+         (commerce::kShopCardVariation.Get().contains(
+              commerce::kShopCardArm3) ||
           commerce::kShopCardVariation.Get() == commerce::kShopCardArm4 ||
           commerce::kShopCardVariation.Get() == commerce::kShopCardArm5);
 }
@@ -311,8 +310,7 @@ int GetImpressionLimit() {
 }
 
 const char* GetImpressionLimitPref() {
-  if (base::Contains(commerce::kShopCardVariation.Get(),
-                     commerce::kShopCardArm3)) {
+  if (commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3)) {
     return tab_resumption_prefs::kTabResumptionWithPriceDropUrlImpressions;
   } else if (commerce::kShopCardVariation.Get() == commerce::kShopCardArm4) {
     return tab_resumption_prefs::kTabResumptionWithPriceTrackableUrlImpressions;
@@ -883,8 +881,7 @@ class TabResumptionMediatorProxy {
 
   item.consumerSource = self;
 
-  if (base::Contains(commerce::kShopCardVariation.Get(),
-                     commerce::kShopCardArm3) ||
+  if (commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3) ||
       commerce::kShopCardVariation.Get() == commerce::kShopCardArm4) {
     GURL url = resumptionURL;
     __weak __typeof(self) weakSelf = self;

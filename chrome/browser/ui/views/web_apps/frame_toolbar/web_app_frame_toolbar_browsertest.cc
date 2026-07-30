@@ -68,6 +68,7 @@
 #include "chrome/browser/ui/web_applications/web_app_menu_model.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
+#include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/scope_extension_info.h"
@@ -1158,8 +1159,6 @@ class WebAppFrameToolbarBrowserTest_WindowControlsOverlay
 
   webapps::AppId InstallAndLaunchWCOWebApp(GURL start_url,
                                            std::u16string app_title) {
-    std::vector<blink::mojom::DisplayMode> display_overrides;
-    display_overrides.push_back(web_app::DisplayMode::kWindowControlsOverlay);
     auto web_app_info =
         web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
     web_app_info->scope = start_url.GetWithoutFilename();
@@ -1167,7 +1166,8 @@ class WebAppFrameToolbarBrowserTest_WindowControlsOverlay
     web_app_info->display_mode = web_app::DisplayMode::kStandalone;
     web_app_info->user_display_mode =
         web_app::mojom::UserDisplayMode::kStandalone;
-    web_app_info->display_override = display_overrides;
+    web_app_info->display_override = {web_app::DisplayOverride::Create(
+        web_app::DisplayMode::kWindowControlsOverlay)};
 
     return helper()->InstallAndLaunchCustomWebApp(
         browser(), std::move(web_app_info), start_url);
@@ -2634,6 +2634,49 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(helper()->browser_view()->IsFullscreen());
   EXPECT_TRUE(helper()->browser_view()->browser()->SupportsWindowFeature(
       Browser::WindowFeature::kFeatureTitleBar));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
+    DisplayStateMediaQueryEventListenersCalled) {
+  InstallAndLaunchWebApp();
+  auto* web_contents = helper()->browser_view()->GetActiveWebContents();
+  auto setup_media_query_event =
+      [](const content::ToRenderFrameHost& execution_target,
+         std::string target_display_state) {
+        constexpr char script[] = R"(
+          window.mqPromise = new Promise((resolve, reject) => {
+            const mq = window.matchMedia('(display-state: $1)');
+            if (mq.matches) {
+              reject('display-state: already matches $1');
+            } else {
+              mq.addEventListener('change', (e) => { resolve(e.matches); });
+            }
+          });
+        )";
+        return content::ExecJs(
+            execution_target,
+            base::ReplaceStringPlaceholders(
+                script, {std::move(target_display_state)}, nullptr),
+            content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES);
+      };
+  EXPECT_TRUE(setup_media_query_event(web_contents, "maximized"));
+  helper()->browser_view()->GetWidget()->Maximize();
+  EXPECT_TRUE(content::ExecJs(web_contents, "window.mqPromise"));
+
+  EXPECT_TRUE(setup_media_query_event(web_contents, "normal"));
+  helper()->browser_view()->GetWidget()->Restore();
+  EXPECT_TRUE(content::ExecJs(web_contents, "window.mqPromise"));
+
+  EXPECT_TRUE(setup_media_query_event(web_contents, "fullscreen"));
+  ToggleBrowserFullscreen(/*user_initiated=*/false);
+  EXPECT_TRUE(content::ExecJs(web_contents, "window.mqPromise"));
+
+  ToggleBrowserFullscreen(/*user_initiated=*/false);
+
+  EXPECT_TRUE(setup_media_query_event(web_contents, "minimized"));
+  helper()->browser_view()->GetWidget()->Minimize();
+  EXPECT_TRUE(content::ExecJs(web_contents, "window.mqPromise"));
 }
 
 IN_PROC_BROWSER_TEST_F(

@@ -105,9 +105,6 @@ BASE_DECLARE_FEATURE(kUseFusedLocationProvider);
 
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdate);
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV2);
-#if BUILDFLAG(IS_IOS)
-BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV3);
-#endif  // BUILDFLAG(IS_IOS)
 
 // Omnibox suggestions tuning
 BASE_DECLARE_FEATURE(kNumNtpZpsRecentSearches);
@@ -131,9 +128,6 @@ BASE_DECLARE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy);
 
 // Preconnect/prerender behavior for suggestions
 BASE_DECLARE_FEATURE(kPreconnectNonSearchOmniboxSuggestions);
-
-// Adds an aim shortcut shortcut in the typed state.
-BASE_DECLARE_FEATURE(kOmniboxAimShortcutTypedState);
 
 // When enabled, unblocks omnibox height on small form factor devices, allowing
 // users to type in multiline / longer text.

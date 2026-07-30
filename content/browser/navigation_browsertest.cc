@@ -11,7 +11,6 @@
 #include <string_view>
 
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -49,7 +48,6 @@
 #include "content/common/content_navigation_policy.h"
 #include "content/common/features.h"
 #include "content/common/frame_messages.mojom.h"
-#include "content/common/navigation_client.mojom-forward.h"
 #include "content/common/navigation_client.mojom.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -2016,8 +2014,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest, AddRequestHeaderOnRedirect) {
   // 1) There is no "header_name" header in the initial request.
   shell()->LoadURL(embedded_test_server()->GetURL("/doc"));
   response_1.WaitForRequest();
-  EXPECT_FALSE(
-      base::Contains(response_1.http_request()->headers, "header_name"));
+  EXPECT_FALSE(response_1.http_request()->headers.contains("header_name"));
   response_1.Send(
       "HTTP/1.1 302 Moved Temporarily\r\nLocation: /new_doc\r\n\r\n");
   response_1.Done();
@@ -2116,8 +2113,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 
   // 2) The header is removed from the second request after the redirect.
   response_2.WaitForRequest();
-  EXPECT_FALSE(
-      base::Contains(response_2.http_request()->headers, "header_name"));
+  EXPECT_FALSE(response_2.http_request()->headers.contains("header_name"));
 }
 
 // Test NavigationRequest::CheckAboutSrcDoc()
@@ -5312,7 +5308,7 @@ class SubresourceLoadingTest : public NavigationBrowserTest {
       WebContents* current_contents =
           WebContents::FromRenderFrameHost(current_frame);
       DCHECK(current_contents);
-      if (base::Contains(visited_contents, current_contents)) {
+      if (visited_contents.contains(current_contents)) {
         break;
       }
       visited_contents.insert(current_contents);
@@ -7710,26 +7706,25 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
   EXPECT_THAT(
       associated_cookies,
       testing::Pointee(testing::UnorderedElementsAre(
-          base::test::IsSupersetOfValue(base::test::ParseJsonDict(R"({
+          base::test::IsSupersetOfValue(R"({
                             "blockedReasons": [ "AnonymousContext" ],
                             "cookie" : {
                               "name": "name",
                               "value": "main"
                             }
-                        })")),
-          testing::AllOf(
-              base::test::IsSupersetOfValue(base::test::ParseJsonDict(R"({
+                        })"),
+          testing::AllOf(base::test::IsSupersetOfValue(R"({
                         "blockedReasons": [ ],
                         "cookie" : {
                           "name": "name",
                           "value": "credentialless"
                         }
-                      })")),
-              testing::ResultOf(
-                  [](const base::Value& dict) {
-                    return dict.GetDict().FindList("blockedReasons");
-                  },
-                  testing::Pointee(testing::IsEmpty()))))));
+                      })"),
+                         testing::ResultOf(
+                             [](const base::Value& dict) {
+                               return dict.GetDict().FindList("blockedReasons");
+                             },
+                             testing::Pointee(testing::IsEmpty()))))));
 
   fenced_frame_devtools_client.DetachProtocolClient();
 }
@@ -10188,6 +10183,35 @@ IN_PROC_BROWSER_TEST_F(HstsUpgradeBrowserTest, UpgradeTopLevelOnly) {
 
   ASSERT_TRUE(fenced_frame);
   EXPECT_EQ(url_of_hsts_frame_http, fenced_frame->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       ProgressIsResetWhenInterceptedNavigationIsAborted) {
+  ASSERT_TRUE(NavigateToURL(shell()->web_contents(),
+                            embedded_test_server()->GetURL("/title1.html")));
+
+  ASSERT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
+                     R"({
+      (()=>{
+        const done = Promise.withResolvers();
+        window.navigation.addEventListener("navigate", e => {
+          e.intercept({
+            handler: () => new Promise(resolve => setTimeout(() => {
+              history.pushState({}, "", "?push");
+              resolve();
+              setTimeout(done.resolve, 100);
+            }))
+          })
+        }, { once: true });
+
+        window.navigation.navigate("?nav");
+
+        return done.promise;
+      })();
+    })"));
+  ASSERT_FALSE(shell()->web_contents()->IsLoading());
+  ASSERT_EQ(shell()->web_contents()->GetURL(),
+            embedded_test_server()->GetURL("/title1.html?push"));
 }
 
 }  // namespace content

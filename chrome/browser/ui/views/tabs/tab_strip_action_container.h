@@ -30,7 +30,9 @@ namespace glic {
 class GlicButton;
 class GlicActorTaskIcon;
 }
+class BrowserWindowInterface;
 class ProductSpecificationsButton;
+class GlicAndActorButtonsContainer;
 
 class TabStripActionContainer : public views::View,
                                 public TabDeclutterObserver,
@@ -90,6 +92,7 @@ class TabStripActionContainer : public views::View,
     // track animations to delay posting calls that might delete this class.
     bool is_executing_show_or_hide_ = false;
   };
+
   explicit TabStripActionContainer(
       TabStripController* tab_strip_controller,
       tabs::TabDeclutterController* tab_declutter_controller,
@@ -115,10 +118,6 @@ class TabStripActionContainer : public views::View,
 
   glic::GlicActorTaskIcon* glic_actor_task_icon() {
     return glic_actor_task_icon_;
-  }
-
-  views::FlexLayoutView* glic_actor_button_container() {
-    return glic_actor_button_container_;
   }
 
   ProductSpecificationsButton* GetProductSpecificationsButton() {
@@ -147,6 +146,7 @@ class TabStripActionContainer : public views::View,
   void HideGlicActorTaskIcon();
   bool GetIsShowingGlicActorTaskIconNudge();
 #if BUILDFLAG(ENABLE_GLIC)
+  views::FlexLayoutView* glic_actor_button_container();
   void TriggerGlicActorNudge(const std::u16string nudge_text);
   void ShowGlicActorNudge(const std::u16string nudge_text);
 #endif
@@ -185,7 +185,8 @@ class TabStripActionContainer : public views::View,
   // Container to store the GlicButton and GlicActorTaskIcon when a task is
   // active.
   // Adds a toggle-like background.
-  std::unique_ptr<views::FlexLayoutView> CreateGlicActorButtonContainer();
+  std::unique_ptr<GlicAndActorButtonsContainer>
+  CreateGlicActorButtonContainer();
   // Update the Glic and GlicActor button borders when showing or hiding the
   // task icon container.
   void UpdateGlicActorButtonContainerBorders();
@@ -239,13 +240,11 @@ class TabStripActionContainer : public views::View,
 
   raw_ptr<views::Separator> separator_ = nullptr;
 
-  raw_ptr<views::FlexLayoutView> glic_actor_button_container_ = nullptr;
+  raw_ptr<GlicAndActorButtonsContainer> glic_actor_button_container_ = nullptr;
   raw_ptr<glic::GlicButton> glic_button_ = nullptr;
   raw_ptr<glic::GlicActorTaskIcon> glic_actor_task_icon_ = nullptr;
 
-  raw_ptr<const Browser> browser_;
-
-  const raw_ptr<TabStripController> tab_strip_controller_ = nullptr;
+  const raw_ptr<BrowserWindowInterface> browser_window_interface_ = nullptr;
 
   // Timer for hiding tab_strip_nudge_button_ after show.
   base::OneShotTimer hide_tab_strip_nudge_timer_;

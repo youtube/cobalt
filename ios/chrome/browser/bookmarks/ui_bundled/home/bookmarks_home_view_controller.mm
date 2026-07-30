@@ -72,8 +72,8 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/ui/elements/home_waiting_view.h"
@@ -1862,7 +1862,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
       [[BookmarksHomeViewController alloc] initWithBrowser:_browser.get()];
   controller.displayedFolderNode = displayedFolderNode;
   controller.homeDelegate = self.homeDelegate;
-  controller.applicationCommandsHandler = self.applicationCommandsHandler;
+  controller.sceneHandler = self.sceneHandler;
   controller.snackbarCommandsHandler = self.snackbarCommandsHandler;
 
   return controller;
@@ -1884,7 +1884,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
     BookmarksHomeNodeItem* nodeItem =
         base::apple::ObjCCastStrict<BookmarksHomeNodeItem>(item);
     const BookmarkNode* node = nodeItem.bookmarkNode;
-    if (base::Contains(self.mediator.selectedNodesForEditMode, node)) {
+    if (self.mediator.selectedNodesForEditMode.contains(node)) {
       newEditNodes.insert(node);
       // Reselect the row of this node.
       NSIndexPath* itemPath = [self.tableViewModel indexPathForItem:nodeItem];
@@ -2031,7 +2031,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   } else {
     // Create a vector of edit nodes in the same order as the nodes in folder.
     for (const auto& child : self.mediator.displayedNode->children()) {
-      if (base::Contains(self.mediator.selectedNodesForEditMode, child.get())) {
+      if (self.mediator.selectedNodesForEditMode.contains(child.get())) {
         nodes.push_back(child.get());
       }
     }
@@ -2056,15 +2056,23 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   [tableView addSubview:scrimView];
   // We attach our constraints to the superview because the tableView is
   // a scrollView and it seems that we get an empty frame when attaching to it.
-  [NSLayoutConstraint activateConstraints:@[
-    [scrimView.leadingAnchor constraintEqualToAnchor:superview.leadingAnchor],
-    [scrimView.trailingAnchor constraintEqualToAnchor:superview.trailingAnchor],
-    [scrimView.bottomAnchor constraintEqualToAnchor:superview.bottomAnchor],
-    [scrimView.topAnchor
-        constraintEqualToAnchor:self.navigationController.navigationBar
-                                    .bottomAnchor],
-
-  ]];
+  if (@available(iOS 26, *)) {
+    // On iOS 26+, the search bar won't be obscured by the scrim view even when
+    // the scrim view's top constraint is aligned with the superview's top,
+    // likely due to changes in UIKit's layout system or view hierarchy
+    // handling.
+    AddSameConstraints(scrimView, superview);
+  } else {
+    [NSLayoutConstraint activateConstraints:@[
+      [scrimView.leadingAnchor constraintEqualToAnchor:superview.leadingAnchor],
+      [scrimView.trailingAnchor
+          constraintEqualToAnchor:superview.trailingAnchor],
+      [scrimView.bottomAnchor constraintEqualToAnchor:superview.bottomAnchor],
+      [scrimView.topAnchor
+          constraintEqualToAnchor:self.navigationController.navigationBar
+                                      .bottomAnchor],
+    ]];
+  }
   tableView.accessibilityElementsHidden = YES;
   tableView.scrollEnabled = NO;
   [UIView animateWithDuration:kTableViewNavigationScrimFadeDuration
@@ -2488,7 +2496,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
     titleString = GetNSString(IDS_IOS_CONTENT_CONTEXT_OPENINNEWWINDOW);
     auto action = ^{
       [weakSelf dismissActionSheetCoordinator];
-      [weakSelf.applicationCommandsHandler
+      [weakSelf.sceneHandler
           openNewWindowWithActivity:ActivityToLoadURL(
                                         WindowActivityBookmarksOrigin,
                                         nodeURL)];

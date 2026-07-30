@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Kada je uključeno, web lokacije mogu zatražiti da upravljaju prozorima na svim vašim ekranima. Kada je isključeno, web lokacije ne mogu zatražiti da upravljaju prozorima na svim vašim ekranima.</translation>
 <translation id="1738912554587725807">Donja tabela kolekcija tema izgleda stranice Nova kartica</translation>
 <translation id="1743802530341753419">Web lokacije moraju tražiti dozvolu za povezivanje na uređaj (preporučeno)</translation>
+<translation id="1766455884659449403">Dobijajte obavještenja o savjetima za Chrome</translation>
 <translation id="1777815584158991902">Donja tabela sažetka sadržaja Discover</translation>
 <translation id="1779089405699405702">Dekoder slike</translation>
 <translation id="1785415724048343560">Preporučeno za najbolje iskustvo</translation>
@@ -188,11 +189,9 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="2903493209154104877">Adrese</translation>
 <translation id="2910701580606108292">Web lokacije moraju tražiti dozvolu za reprodukciju zaštićenog sadržaja</translation>
 <translation id="2918484639460781603">Idi u postavke</translation>
-<translation id="293060180538644702">Dobijajte obavještenja sa savjetima za Chrome</translation>
 <translation id="2932883381142163287">Prijavite zloupotrebu</translation>
 <translation id="2939338015096024043">Kada je postavka uključena, web lokacije mogu zatražiti da prate položaj vaše kamere i saznaju više o vašem okruženju. Kada je postavka isključena, web lokacije ne mogu pratiti položaj vaše kamere niti saznati više o vašem okruženju.</translation>
 <translation id="2968755619301702150">Preglednik certifikata</translation>
-<translation id="2979365474350987274">Kolačići trećih strana su ograničeni</translation>
 <translation id="2990583317361835189">Nemoj dozvoliti web lokacijama korištenje senzora kretanja</translation>
 <translation id="3004438526346162184">Web lokacije mogu koristiti ovu funkciju da upravljaju prozorima na svim vašim ekranima</translation>
 <translation id="3008272652534848354">Poništi odobrenja</translation>
@@ -220,7 +219,6 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="3223425961342298674">Lokacija nije dozvoljena</translation>
 <translation id="3227137524299004712">Mikrofon</translation>
 <translation id="3232293466644486101">Izbrišite podatke pregledanja…</translation>
-<translation id="3241320538788585298">Mreža s povratnom petljom</translation>
 <translation id="3242646949159196181">Kada je postavka uključena, web lokacije mogu reproducirati zvuk. Kada je postavka isključena, web lokacije ne mogu reproducirati zvuk.</translation>
 <translation id="3273479183583863618">Padovi cijena na karticama</translation>
 <translation id="3277252321222022663">Dozvolite web lokacijama pristup senzorima (preporučeno)</translation>
@@ -403,6 +401,7 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="5246825184569358663">Ova radnja će izbrisati sve lokalne podatke, uključujući kolačiće, i poništiti sva odobrenja za domenu <ph name="DOMAIN" /> i sve web lokacije na njoj</translation>
 <translation id="5264323282659631142">Uklanjanje stavke "<ph name="CHIP_LABEL" />"</translation>
 <translation id="528192093759286357">Povucite s vrha i dodirnite dugme za nazad da napustite prikaz preko cijelog ekrana.</translation>
+<translation id="5286194356314741248">Skeniranje</translation>
 <translation id="5300589172476337783">Prikaži</translation>
 <translation id="5301954838959518834">Uredu, razumijem</translation>
 <translation id="5317780077021120954">Sačuvaj</translation>
@@ -631,7 +630,6 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="7835852323729233924">Reproduciranje medija</translation>
 <translation id="783819812427904514">Uključi zvuk videozapisa</translation>
 <translation id="7846076177841592234">Otkazivanje odabira</translation>
-<translation id="7881140103901777395">Chrome ograničava većini web lokacija da koriste kolačiće trećih strana. Međutim, kolačići trećih strana su dozvoljeni na ovoj web lokaciji jer se ona oslanja na njih radi pružanja osnovnih usluga.\n\nIdite u postavke da <ph name="BEGIN_LINK" />upravljate pristupom kolačićima trećih strana<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Omogućavanje zvuka za određenu web lokaciju.</translation>
 <translation id="7891547341794213004">Sakrij karticu Nastavi s ovom karticom</translation>
 <translation id="789722939441020330">Nemoj dozvoliti web lokacijama automatsko preuzimanje više fajlova</translation>

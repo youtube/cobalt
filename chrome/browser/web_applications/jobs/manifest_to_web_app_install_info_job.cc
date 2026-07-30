@@ -32,6 +32,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/web_applications/icons/trusted_icon_filter.h"
+#include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_icon_operations.h"
@@ -50,7 +51,6 @@
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
-#include "third_party/blink/public/mojom/manifest/manifest.mojom-data-view.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -68,7 +68,7 @@ constexpr SquareSizePx kMaxIconSize =
     webapps::InstallableEvaluator::kMaximumIconSizeInPx;
 
 // Matches a localized text object from a map based on |application_locale|.
-const blink::mojom::ManifestLocalizedTextObject* MatchLocalizedText(
+blink::mojom::ManifestLocalizedTextObjectPtr MatchLocalizedText(
     const base::flat_map<icu::Locale,
                          blink::mojom::ManifestLocalizedTextObjectPtr>&
         localized_map,
@@ -79,27 +79,28 @@ const blink::mojom::ManifestLocalizedTextObject* MatchLocalizedText(
 
   auto it = localized_map.find(application_locale);
   if (it != localized_map.end()) {
-    return it->second.get();
+    return it->second.Clone();
   }
 
   // Fall back to language-only ("en") match if no exact match ("en-US") found.
   icu::Locale language_only(application_locale.getLanguage());
   it = localized_map.find(language_only);
   if (it != localized_map.end()) {
-    return it->second.get();
+    return it->second.Clone();
   }
   return nullptr;
 }
 
 LocalizedText GetLocalizedTitleFromManifestFields(
     const blink::mojom::Manifest& manifest) {
-  if (base::FeatureList::IsEnabled(features::kWebAppManifestLocalization)) {
+  if (base::FeatureList::IsEnabled(
+          blink::features::kWebAppManifestLocalization)) {
     const icu::Locale application_locale(g_browser_process->GetFeatures()
                                              ->application_locale_storage()
                                              ->Get()
                                              .c_str());
 
-    const blink::mojom::ManifestLocalizedTextObject* localized_name = nullptr;
+    blink::mojom::ManifestLocalizedTextObjectPtr localized_name;
     if (manifest.name_localized.has_value()) {
       localized_name =
           MatchLocalizedText(*manifest.name_localized, application_locale);
@@ -122,6 +123,35 @@ LocalizedText GetLocalizedTitleFromManifestFields(
     result = name;
   } else if (manifest.short_name) {
     result = *manifest.short_name;
+  }
+  return result;
+}
+
+LocalizedText GetLocalizedDescriptionFromManifestFields(
+    const blink::mojom::Manifest& manifest) {
+  if (base::FeatureList::IsEnabled(
+          blink::features::kWebAppManifestLocalization)) {
+    const icu::Locale application_locale(g_browser_process->GetFeatures()
+                                             ->application_locale_storage()
+                                             ->Get()
+                                             .c_str());
+
+    if (manifest.description_localized.has_value()) {
+      blink::mojom::ManifestLocalizedTextObjectPtr localized_description =
+          MatchLocalizedText(*manifest.description_localized,
+                             application_locale);
+      if (localized_description && !localized_description->value.empty()) {
+        return LocalizedText(localized_description->value,
+                             localized_description->lang,
+                             localized_description->dir);
+      }
+    }
+  }
+  // Fall back to non-localized field. Use assignment operator which handles
+  // clearing lang/dir fields.
+  LocalizedText result;
+  if (manifest.description.has_value()) {
+    result = *manifest.description;
   }
   return result;
 }
@@ -682,7 +712,10 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
     install_info().display_mode = manifest_->display;
   }
   for (const auto& override_item : manifest_->display_override) {
-    install_info().display_override.push_back(override_item.display());
+    install_info().display_override.push_back(
+        override_item.display() == DisplayMode::kBorderless
+            ? DisplayOverride::CreateUnframed(override_item.url_patterns())
+            : DisplayOverride::Create(override_item.display()));
     if (override_item.display() == DisplayMode::kBorderless &&
         !override_item.url_patterns().empty()) {
       // TODO(crbug.com/467939520): Remove `borderless_url_patterns`.
@@ -752,8 +785,11 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
   }
 
   install_info().launch_handler = manifest_->launch_handler;
-  if (manifest_->description.has_value()) {
-    install_info().description = manifest_->description.value();
+
+  LocalizedText description =
+      GetLocalizedDescriptionFromManifestFields(*manifest_);
+  if (!description.empty()) {
+    install_info().description = std::move(description);
   }
 
   install_info().translations = ToWebAppTranslations(manifest_->translations);

@@ -34,8 +34,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/web_applications/commands/manifest_silent_update_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-data-view.h"
-#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
@@ -314,7 +312,7 @@ std::optional<webapps::AppId> WebAppRegistrar::LookupPlaceholderAppId(
       continue;
     }
 
-    if (base::Contains(it->second.install_urls, install_url) &&
+    if (it->second.install_urls.contains(install_url) &&
         it->second.is_placeholder) {
       return web_app.app_id();
     }
@@ -460,6 +458,17 @@ void WebAppRegistrar::NotifyPendingUpdateInfoChanged(
   }
 }
 
+void WebAppRegistrar::NotifyWebAppPendingMigrationInfoChanged(
+    const webapps::AppId& app_id,
+    bool has_pending_migration,
+    PendingMigrationInfoChangePassKey) {
+  DVLOG(1) << "NotifyWebAppPendingMigrationInfoChanged " << app_id << ", "
+           << has_pending_migration;
+  for (WebAppRegistrarObserver& observer : observers_) {
+    observer.OnWebAppPendingMigrationInfoChanged(app_id, has_pending_migration);
+  }
+}
+
 base::flat_map<webapps::AppId, base::flat_set<GURL>>
 WebAppRegistrar::GetExternallyInstalledApps(
     ExternalInstallSource install_source) const {
@@ -489,7 +498,8 @@ std::optional<webapps::AppId> WebAppRegistrar::LookupExternalAppId(
 
 bool WebAppRegistrar::HasExternalApp(const webapps::AppId& app_id) const {
   if (!IsInstallState(app_id,
-                      {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+                      {proto::InstallState::SUGGESTED_FROM_MIGRATION,
+                       proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
                        proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
                        proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
     return false;
@@ -505,15 +515,15 @@ bool WebAppRegistrar::HasExternalAppWithInstallSource(
     const webapps::AppId& app_id,
     ExternalInstallSource install_source) const {
   if (!IsInstallState(app_id,
-                      {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+                      {proto::InstallState::SUGGESTED_FROM_MIGRATION,
+                       proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
                        proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
                        proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
     return false;
   }
 
   const WebApp* web_app = GetAppById(app_id);
-  return web_app &&
-         base::Contains(web_app->management_to_external_config_map(),
+  return web_app && web_app->management_to_external_config_map().contains(
                         ConvertExternalInstallSourceToSource(install_source));
 }
 
@@ -915,7 +925,7 @@ std::optional<webapps::AppId> WebAppRegistrar::LookUpAppIdByInstallUrl(
     const GURL& install_url) const {
   for (const WebApp& web_app : GetApps()) {
     for (const auto& it : web_app.management_to_external_config_map()) {
-      if (base::Contains(it.second.install_urls, install_url)) {
+      if (it.second.install_urls.contains(install_url)) {
         return web_app.app_id();
       }
     }
@@ -931,7 +941,7 @@ const WebApp* WebAppRegistrar::LookUpAppByInstallSourceInstallUrl(
         app.management_to_external_config_map();
     auto it = config_map.find(install_source);
     if (it != config_map.end()) {
-      if (base::Contains(it->second.install_urls, install_url)) {
+      if (it->second.install_urls.contains(install_url)) {
         return &app;
       }
     }
@@ -990,6 +1000,10 @@ bool WebAppRegistrar::AppMatches(const webapps::AppId& app_id,
   std::optional<proto::InstallState> install_state = GetInstallState(app_id);
   if (install_state == std::nullopt) {
     return false;
+  }
+
+  if (install_state == proto::SUGGESTED_FROM_MIGRATION) {
+    return filter.is_app_suggested_from_migration_;
   }
 
   if (install_state == proto::SUGGESTED_FROM_ANOTHER_DEVICE) {
@@ -1083,6 +1097,11 @@ std::optional<webapps::AppId> WebAppRegistrar::FindBestAppWithUrlInScope(
       continue;
     }
 
+    if (GetInstallState(app_id) == proto::SUGGESTED_FROM_MIGRATION &&
+        !filter.is_app_suggested_from_migration_) {
+      continue;
+    }
+
     if (GetInstallState(app_id) == proto::SUGGESTED_FROM_ANOTHER_DEVICE &&
         !filter.is_suggested_app_) {
       continue;
@@ -1160,7 +1179,8 @@ bool WebAppRegistrar::IsUninstalling(const webapps::AppId& app_id) const {
 bool WebAppRegistrar::IsInstalledByDefaultManagement(
     const webapps::AppId& app_id) const {
   if (!IsInstallState(
-          app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+          app_id, {proto::InstallState::SUGGESTED_FROM_MIGRATION,
+                   proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
                    proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
                    proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION})) {
     return false;
@@ -1216,15 +1236,15 @@ bool WebAppRegistrar::IsAllowedLaunchProtocol(
     const std::string& protocol_scheme) const {
   const WebApp* web_app = GetAppById(app_id);
   return web_app &&
-         base::Contains(web_app->allowed_launch_protocols(), protocol_scheme);
+         web_app->allowed_launch_protocols().contains(protocol_scheme);
 }
 
 bool WebAppRegistrar::IsDisallowedLaunchProtocol(
     const webapps::AppId& app_id,
     const std::string& protocol_scheme) const {
   const WebApp* web_app = GetAppById(app_id);
-  return web_app && base::Contains(web_app->disallowed_launch_protocols(),
-                                   protocol_scheme);
+  return web_app &&
+         web_app->disallowed_launch_protocols().contains(protocol_scheme);
 }
 
 bool WebAppRegistrar::IsRegisteredLaunchProtocol(
@@ -1599,7 +1619,8 @@ WebAppRegistrar::GetAllAppsControllingUrl(
 
 bool WebAppRegistrar::IsDiyApp(const webapps::AppId& app_id) const {
   if (!IsInstallState(app_id,
-                      {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+                      {proto::InstallState::SUGGESTED_FROM_MIGRATION,
+                       proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
                        proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
                        proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
     return false;
@@ -1839,8 +1860,14 @@ std::optional<mojom::UserDisplayMode> WebAppRegistrar::GetAppUserDisplayMode(
 std::vector<DisplayMode> WebAppRegistrar::GetAppDisplayModeOverride(
     const webapps::AppId& app_id) const {
   auto* web_app = GetAppById(app_id);
-  return web_app ? web_app->display_mode_override()
-                 : std::vector<DisplayMode>();
+  if (!web_app) {
+    return std::vector<DisplayMode>();
+  }
+  std::vector<DisplayMode> display_mode_overrides;
+  for (const auto& item : web_app->display_mode_override()) {
+    display_mode_overrides.push_back(item.display_mode());
+  }
+  return display_mode_overrides;
 }
 
 base::flat_set<ScopeExtensionInfo> WebAppRegistrar::GetScopeExtensions(

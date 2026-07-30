@@ -15,6 +15,7 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/host/context/glic_delegating_sharing_manager.h"
+#include "chrome/browser/glic/host/context/glic_pinned_tab_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -24,11 +25,11 @@
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 
+class GlobalBrowserCollection;
 class Profile;
 
 namespace tabs {
@@ -52,7 +53,7 @@ class GlicZeroStateSuggestionsManager;
 // different GlicUiEmbedders during its lifetime.
 class GlicInstanceImpl : public GlicInstance,
                          public GlicInstanceHelper::Instance,
-                         public BrowserListObserver,
+                         public BrowserCollectionObserver,
                          public Host::InstanceDelegate,
                          public Host::Observer,
                          public GlicSharingManagerProvider,
@@ -80,7 +81,7 @@ class GlicInstanceImpl : public GlicInstance,
     virtual void OnWillCreateFloaty() = 0;
 
     virtual std::vector<glic::mojom::ConversationInfoPtr>
-    GetRecentlyActiveConversations() = 0;
+    GetRecentlyActiveConversations(size_t limit) = 0;
 
     // Called when the context access indicator changes on the instance.
     virtual void ContextAccessIndicatorChanged(
@@ -109,7 +110,8 @@ class GlicInstanceImpl : public GlicInstance,
 
   void NotifyInstanceActivationChanged(bool is_active);
 
-  base::TimeTicks GetLastActiveTime() const override;
+  base::Time GetLastActivationTimestamp() const override;
+  base::TimeDelta GetTimeSinceLastActive() const override;
 
   bool IsHibernated() const;
 
@@ -133,11 +135,12 @@ class GlicInstanceImpl : public GlicInstance,
   // This method will either show an embedder or create an inactive embedder and
   // bind a tab to conversation.
   void Show(const ShowOptions& options) override;
-  void Close(EmbedderKey key);
+  void Close(EmbedderKey key, const CloseOptions& options = {});
   // Returns true when toggle shows the instance and false when it is closed.
   bool Toggle(ShowOptions&& options,
               bool prevent_close,
-              glic::mojom::InvocationSource source);
+              glic::mojom::InvocationSource source,
+              std::optional<std::string> prompt_suggestion);
 
   void UnbindEmbedder(EmbedderKey key);
   GlicUiEmbedder* GetEmbedderForTab(tabs::TabInterface* tab);
@@ -168,6 +171,9 @@ class GlicInstanceImpl : public GlicInstance,
   void PerformActions(
       const std::vector<uint8_t>& actions_proto,
       mojom::WebClientHandler::PerformActionsCallback callback) override;
+  void CancelActions(
+      actor::TaskId task_id,
+      mojom::WebClientHandler::CancelActionsCallback callback) override;
   void StopActorTask(actor::TaskId task_id,
                      mojom::ActorTaskStopReason stop_reason) override;
   void PauseActorTask(actor::TaskId task_id,
@@ -220,8 +226,8 @@ class GlicInstanceImpl : public GlicInstance,
   void AddStateObserver(PanelStateObserver* observer) override;
   void RemoveStateObserver(PanelStateObserver* observer) override;
 
-  // BrowserListObserver:
-  void OnBrowserSetLastActive(Browser* browser) override;
+  // BrowserCollectionObserver:
+  void OnBrowserActivated(BrowserWindowInterface* browser) override;
 
   // Host::Observer
   void ClientReadyToShow(const mojom::OpenPanelInfo& open_info) override;
@@ -231,7 +237,6 @@ class GlicInstanceImpl : public GlicInstance,
   glic::GlicInstanceMetrics* metrics() { return &instance_metrics_; }
 
   // Test support.
-  void CloseAllEmbeddersForTesting();
 #if !BUILDFLAG(IS_ANDROID)
   views::View* GetActiveEmbedderGlicViewForTesting();
 #endif
@@ -302,7 +307,8 @@ class GlicInstanceImpl : public GlicInstance,
   void SetActiveEmbedderAndNotifyStateChange(
       std::optional<EmbedderKey> new_key);
   void ClearActiveEmbedderAndNotifyStateChange();
-  void MaybeShowHostUi(GlicUiEmbedder* embedder);
+  void MaybeShowHostUi(GlicUiEmbedder* embedder,
+                       std::optional<std::string> prompt_suggestion);
   void OnBoundTabDestroyed(tabs::TabInterface* tab);
   void OnBoundTabActivated(tabs::TabInterface* tab);
   bool ShouldDoAutomaticActivation() const;
@@ -322,9 +328,14 @@ class GlicInstanceImpl : public GlicInstance,
   EmbedderEntry& BindTab(tabs::TabInterface* tab, GlicPinTrigger pin_trigger);
   // For any pinned tab not already bound to a conversation bind it to this one.
   void OnTabPinningStatusChanged(tabs::TabInterface* tab, bool pinned);
-  void NotifyPanelWillOpen(mojom::InvocationSource invocation_source);
+  void NotifyPanelWillOpen(mojom::InvocationSource invocation_source,
+                           std::optional<std::string> prompt_suggestion);
 
   void UpdateSharingManagerDelegate();
+
+  void MaybeShowShortcutToastPromo();
+
+  void MaybeShowShortcutSnoozePromo();
 
   using StateChangeCallbackList =
       base::RepeatingCallbackList<void(bool, mojom::CurrentView view)>;
@@ -359,7 +370,7 @@ class GlicInstanceImpl : public GlicInstance,
   // The pinned tab manager for the instance.
   // TODO (crbug.com/452150693): move ownership of this instance into the
   // GlicStablePinningDelegatingSharingManager.
-  GlicPinnedTabManager pinned_tab_manager_;
+  std::unique_ptr<GlicPinnedTabManager> pinned_tab_manager_;
 
   // The sharing manager used internally for detached mode.
   GlicSharingManagerImpl detached_mode_sharing_manager_;
@@ -383,8 +394,8 @@ class GlicInstanceImpl : public GlicInstance,
       mojom::PanelStateKind::kAttached;
   mojom::WebClientMode interaction_mode_ = mojom::WebClientMode::kText;
 
-  base::ScopedObservation<BrowserList, BrowserListObserver>
-      browser_list_observation_{this};
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
   base::ScopedObservation<Host, Host::Observer> host_observation_{this};
 
   std::unique_ptr<GlicZeroStateSuggestionsManager>
@@ -393,7 +404,8 @@ class GlicInstanceImpl : public GlicInstance,
   base::CallbackListSubscription pinned_tabs_change_subscription_;
 
   base::OneShotTimer inactivity_timer_;
-  base::TimeTicks last_active_time_;
+  base::Time last_activation_timestamp_;
+  base::TimeTicks last_deactivation_timestamp_;
 
   base::OneShotTimer remove_blank_instance_timer_;
 

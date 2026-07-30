@@ -66,15 +66,13 @@ std::vector<float> GetParameterizedFloats() {
 
 }  // namespace
 
-AnimatedEffectView::AnimatedEffectView(Browser* browser,
+AnimatedEffectView::AnimatedEffectView(Profile* profile,
                                        std::unique_ptr<Tester> tester)
-    : browser_(browser),
-      creation_time_(base::TimeTicks::Now()),
+    : creation_time_(base::TimeTicks::Now()),
       tester_(std::move(tester)),
       colors_(GetEffectColors()),
       floats_(GetParameterizedFloats()),
-      theme_service_(
-          ThemeServiceFactory::GetForProfile(browser->GetProfile())) {
+      theme_service_(ThemeServiceFactory::GetForProfile(profile)) {
   auto* gpu_data_manager = content::GpuDataManager::GetInstance();
   has_hardware_acceleration_ =
       gpu_data_manager->IsGpuRasterizationForUIEnabled();
@@ -236,6 +234,9 @@ void AnimatedEffectView::Show() {
   if (compositor_) {
     // The user can click on the glic icon after the window is shown. The
     // animation is already playing at that time.
+    // TODO(crbug.com/469102481): Remove logs after missing underlines cause is
+    // found.
+    VLOG(1) << "Show no-op, existing compositor";
     return;
   }
 
@@ -272,6 +273,7 @@ void AnimatedEffectView::Show() {
 
 void AnimatedEffectView::StopShowing() {
   if (!compositor_) {
+    VLOG(1) << "StopShowing no-op, no compositor";
     return;
   }
 

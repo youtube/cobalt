@@ -271,6 +271,7 @@
 <translation id="3885770153807205175">Språkvelger</translation>
 <translation id="3889417619312448367">Avinstaller Google Chrome</translation>
 <translation id="3892148308691398805">Kopier teksten</translation>
+<translation id="3893985792899396936">Chrome-tips: Søk med Lens</translation>
 <translation id="3906096710440765802">Logg på Chrome for å hente passordene og bokmerkene dine og mer på alle enheter</translation>
 <translation id="3921132130819999051">La Chrome surfe for deg</translation>
 <translation id="3941890832296813527">Installasjonsfeil: Navnet på installasjonsprogrammet er ugyldig eller støttes ikke.</translation>
@@ -312,7 +313,6 @@
 <translation id="4329315893554541805">For å få personlig tilpasning og andre funksjoner må du inkludere Chrome i Nett- og appaktivitet og tilknyttede Google-tjenester</translation>
 <translation id="4334241893986177674">Søk i dette skjermbildet</translation>
 <translation id="4334294535648607276">Nedlastingen er fullført.</translation>
-<translation id="4337324600316876133">For å få fremtidige Google Chrome-oppdateringer må du ha macOS 12 eller nyere. Denne datamaskinen bruker macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> er lagt til i Chrome</translation>
 <translation id="4344128547036991536">Når du åpner Google Lens, sendes sidetittel, nettadresse og innhold, inkludert PDF-filer, automatisk til Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">For å få personlig tilpasning må du inkludere Chrome i Nett- og appaktivitet</translation>
@@ -483,6 +483,7 @@
 <translation id="6180522807229584611">Denne fanen bruker ekstra ressurser. For å få bedre ytelse kan du la Chrome gjøre den inaktiv.</translation>
 <translation id="6182736845697986886">Installasjonen mislyktes på grunn av en intern feil i oppdateringstjeneren.</translation>
 <translation id="6183773856988300112">Gemini i Chrome bruker automatisk surfing for å jobbe i fanene dine og fullføre oppgaver du gir den. <ph name="LINK_BEGIN" />Finn ut mer<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome-tips: Lagre passord</translation>
 <translation id="6192058120268468905">Kontoen din i Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> har lagt til en utvidelse som kan endre måten Chrome fungerer på.
 
@@ -621,6 +622,7 @@
 <translation id="7627609214560473136">Du kan beskytte dataene dine ved å la Chrome fjerne tillatelser fra nettsteder du ikke har besøkt nylig.</translation>
 <translation id="7629695634924605473">Med Chrome får du beskjed hvis passordene dine noensinne utsettes for sikkerhetsbrudd</translation>
 <translation id="7641148173327520642">Systemadministratoren din har konfigurert Google Chrome til å åpne <ph name="ALTERNATIVE_BROWSER_NAME" /> for å få tilgang til <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Chrome-tips: Safe Browsing med økt beskyttelse</translation>
 <translation id="7649070708921625228">Hjelp</translation>
 <translation id="7651907282515937834">Chrome Enterprise-logo</translation>
 <translation id="76531479118467370">Chrome har blokkert denne nedlastingen fordi du har slått av Safe Browsing, så filen kan ikke bekreftes</translation>

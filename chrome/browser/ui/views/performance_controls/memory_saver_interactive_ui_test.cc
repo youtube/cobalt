@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/callback_list.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -413,7 +413,7 @@ class MemorySaverChipInteractiveTest
   }
 
   // Sets discard usage on the active tab for deterministic UI testing.
-  auto SetTabPreDiscardMemoryUsage(size_t index, base::ByteCount usage) {
+  auto SetTabPreDiscardMemoryUsage(size_t index, base::ByteSize usage) {
     return Do(base::BindLambdaForTesting([=, this]() {
       content::WebContents* web_contents =
           browser()->tab_strip_model()->GetWebContentsAt(index);
@@ -606,7 +606,7 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest, CloseBubbleOnTabSwitch) {
 IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
                        BubbleCorrectlyReportingMemorySaved) {
   // Simulate a page larger than the threshold for showing savings UI.
-  static constexpr base::ByteCount kMemoryUsage = base::GiB(1);
+  static constexpr base::ByteSize kMemoryUsage = base::GiBU(1);
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
       NavigateWebContents(kFirstTabContents, GetURL()),
@@ -734,7 +734,7 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
       NavigateWebContents(kFirstTabContents, GetURL()),
       AddInstrumentedTab(kSecondTabContents, GURL(kOtherPage)),
       ForceRefreshMemoryMetrics(), DiscardAndReloadTab(0, kFirstTabContents),
-      SetTabPreDiscardMemoryUsage(0, base::MiB(135)), PressPageActionButton(),
+      SetTabPreDiscardMemoryUsage(0, base::MiBU(135)), PressPageActionButton(),
       WaitForShow(
           MemorySaverBubbleView::kMemorySaverDialogResourceViewElementId),
       Screenshot(MemorySaverBubbleView::kMemorySaverDialogResourceViewElementId,

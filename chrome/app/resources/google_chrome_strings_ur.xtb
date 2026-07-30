@@ -274,6 +274,7 @@
 <translation id="3885770153807205175">زبان منتخب کنندہ</translation>
 <translation id="3889417619312448367">‏Google Chrome کو اَن انسٹال کریں</translation>
 <translation id="3892148308691398805">ٹیکسٹ کاپی کریں</translation>
+<translation id="3893985792899396936">‏‫Chrome تجویز: لینز کے ساتھ تلاش کریں</translation>
 <translation id="3906096710440765802">‏اپنے سبھی آلات پر اپنے پاس ورڈز، بُک مارکس وغیرہ حاصل کرنے کیلئے Chrome میں سائن ان کریں</translation>
 <translation id="3921132130819999051">‏‫Chrome کو آپ کے لیے براؤز کرنے دیں</translation>
 <translation id="3941890832296813527">انسٹال سے متعلق خرابی: انسٹالر فائل کا نام غلط یا غیر تعاون یافتہ ہے۔</translation>
@@ -315,7 +316,6 @@
 <translation id="4329315893554541805">‏ذاتی نوعيت سازی اور ديگر خصوصيات حاصل کرنے کے ليے ويب اور ايپ سرگرمی اور لنک کردہ Google سروسز ميں Chrome شامل کريں</translation>
 <translation id="4334241893986177674">اس اسکرین شاٹ کو تلاش کریں</translation>
 <translation id="4334294535648607276">ڈاؤن لوڈ مکمل ہوگیا۔</translation>
-<translation id="4337324600316876133">‏مستقبل میں Google Chrome اپ ڈیٹس حاصل کرنے کے لیے آپ کو macOS 12 یا اس کے بعد کے ورژن کی ضرورت ہوگی۔ یہ کمپیوٹر macOS 11 کا استعمال کر رہا ہے۔</translation>
 <translation id="4343195214584226067">‏<ph name="EXTENSION_NAME" /> کو Chrome میں شامل کر دیا گیا ہے</translation>
 <translation id="4344128547036991536">‏جب آپ Google لینز کھولتے ہیں تو صفحہ کا عنوان، URL اور مواد، بشمول PDFs، خودکار طور پر Google کو بھیجے جائیں گے۔ <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">‏ذاتی نوعیت سازی حاصل کرنے کے لیے Chrome کو ویب اور ایپ سرگرمی میں شامل کریں</translation>
@@ -372,6 +372,7 @@
 <translation id="5003967926796347400">‏"Google پاس ورڈ مینیجر" پر کلک کریں</translation>
 <translation id="5043786843026425788">‏‫Chrome میں Google لینز کی مدد سے تلاش کرنے کے بارے میں مزید جانیں</translation>
 <translation id="504867494566807945">‏کسی بھی ایپ سے Chrome میں لنکس کھولیں۔ اس کے علاوہ آسان رسائی کے لیے، یہ آپ کے ٹاسک بار میں پن ہو جاتا ہے۔</translation>
+<translation id="5105120510934353742">‏مستقبل میں Google Chrome اپ ڈیٹس حاصل کرنے کے لیے، آپ کو macOS 13 یا اس کے بعد کے ورژن کی ضرورت ہوگی۔ یہ کمپیوٹر macOS 12 کا استعمال کر رہا ہے۔</translation>
 <translation id="5114340746415930644">‏اپنے اکاؤنٹ، <ph name="USER_EMAIL" /> میں Chrome ڈیٹا کا استعمال کرنے اور محفوظ کرنے کے لیے اپنا پاس فریز درج کریں</translation>
 <translation id="5120334927898581447">‏دیگر Google سروسز میں سائن ان کرتے وقت Chrome میں سائن ان کریں</translation>
 <translation id="5126049312684316860">‏Chrome ایسے اور بھی مزید صفحات کو پیشگی لوڈ کرتا ہے جنہیں آپ ممکنہ طور پر ملاحظہ کر سکتے ہیں، تاکہ وہ آپ کے ملاحظہ کرتے وقت مزید تیزی سے لوڈ ہو سکیں</translation>
@@ -490,6 +491,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="6180522807229584611">‏یہ ٹیب اضافی وسائل کا استعمال کر رہا ہے۔ اپنی کارکردگی کو بہتر بنانے کیلئے، Chrome کو اسے غیر فعال کرنے کی اجازت دیں۔</translation>
 <translation id="6182736845697986886">اپ ڈیٹ سرور کی اندرونی خرابی کی وجہ سے انسٹالیشن ناکام ہو گئی۔</translation>
 <translation id="6183773856988300112">‏‫Chrome میں Gemini آپ کے ٹیبز میں کام کرنے اور آپ کے دیے گئے ٹاسکس کو مکمل کرنے کے لیے خودکار براؤز کا استعمال کرتا ہے۔ <ph name="LINK_BEGIN" />مزید جانیں<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">‏‫Chrome کی تجویز: پاس ورڈز محفوظ کریں</translation>
 <translation id="6192058120268468905">‏‫Chrome میں آپ کا اکاؤنٹ</translation>
 <translation id="6220551899604141979">‏‫<ph name="PARTNER_NAME" /> نے ایک ایکسٹینشن شامل کی ہے جو Chrome کے کام کرنے کے طریقے کو تبدیل کر سکتی ہے۔
 
@@ -628,6 +630,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7627609214560473136">‏اپنے ڈیٹا کی حفاظت کے لیے، Chrome کو ان سائٹس سے اجازتیں ہٹانے کی اجازت دیں جنہیں آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔</translation>
 <translation id="7629695634924605473">‏Chrome آپ کو بتاتا ہے کہ آیا آپ کے پاس ورڈز کے ساتھ کبھی چھیڑ چھاڑ کی گئی ہے</translation>
 <translation id="7641148173327520642">‏آپ کے سسٹم کے منتظم نے <ph name="TARGET_URL_HOSTNAME" /> تک رسائی حاصل کرنے کیلئے Google Chrome کو <ph name="ALTERNATIVE_BROWSER_NAME" /> کھولنے کیلئے کنفیگر کیا ہے۔</translation>
+<translation id="7641448682796883218">‏‫Chrome کی تجویز: بہتر کردہ محفوظ براؤزنگ</translation>
 <translation id="7649070708921625228">مدد</translation>
 <translation id="7651907282515937834">‏Chrome انٹرپرائز کا لوگو</translation>
 <translation id="76531479118467370">‏Chrome نے اس ڈاؤن لوڈ کو مسدود کر دیا کیونکہ آپ نے محفوظ براؤزنگ کو آف کر دیا ہے اور فائل کی تصدیق نہیں ہو سکتی</translation>

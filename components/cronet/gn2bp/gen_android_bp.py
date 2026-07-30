@@ -287,42 +287,6 @@ android_protobuf_src = 'external/protobuf/src'
 # put all args on a new line for better diffs.
 NEWLINE = ' " +\n         "'
 
-# Compiler flags which are passed through to the blueprint.
-cflag_allowlist = [
-    # needed for zlib:zlib
-    "-mpclmul",
-    # needed for zlib:zlib
-    "-mssse3",
-    # needed for zlib:zlib
-    "-msse3",
-    # needed for zlib:zlib
-    "-msse4.2",
-    # flags to reduce binary size
-    "-O1",
-    "-O2",
-    "-O3",
-    "-Oz",
-    "-g1",
-    "-g2",
-    "-fdata-sections",
-    "-ffunction-sections",
-    "-fvisibility=hidden",
-    "-fvisibility-inlines-hidden",
-    "-fstack-protector",
-    "-mno-outline",
-    "-mno-outline-atomics",
-    "-fno-asynchronous-unwind-tables",
-    "-fno-unwind-tables",
-]
-
-# Linker flags which are passed through to the blueprint.
-ldflag_allowlist = [
-    # flags to reduce binary size
-    "-Wl,--as-needed",
-    "-Wl,--gc-sections",
-    "-Wl,--icf=all",
-]
-
 
 def get_linker_script_ldflag(script_path):
   return f'-Wl,--script,{tree_path}/{script_path}'
@@ -396,11 +360,17 @@ def enable_boringssl(module, arch):
     return
   if arch == 'common':
     shared_libs = module.shared_libs
+    static_libs = module.static_libs
+    whole_static_libs = module.whole_static_libs
   else:
     shared_libs = module.target[arch].shared_libs
+    static_libs = module.target[arch].static_libs
+    whole_static_libs = module.target[arch].whole_static_libs
   shared_libs.add(f'{MODULE_PREFIX}libcrypto')
-  shared_libs.add(f'{MODULE_PREFIX}libssl')
-  shared_libs.add(f'{MODULE_PREFIX}libpki')
+  if module.type == "cc_library_static":
+    static_libs.add(f'{MODULE_PREFIX}ssl_and_pki')
+  else:
+    whole_static_libs.add(f'{MODULE_PREFIX}ssl_and_pki')
 
 
 def add_androidx_experimental_java_deps(module, _):
@@ -611,13 +581,26 @@ builtin_deps = {
 
 # Same as _builtin_deps but will only apply what is explicitly specified.
 builtin_deps.update({
-    '//third_party/boringssl:boringssl': enable_boringssl,
     '//third_party/boringssl:boringssl_asm':
     # Due to FIPS requirements, downstream BoringSSL has a different "shape" than upstream's.
     # We're guaranteed that if X depends on :boringssl it will also depend on :boringssl_asm.
     # Hence, always drop :boringssl_asm and handle the translation entirely in :boringssl.
     always_disable,
 })
+
+# Declares internal modules that are processed by GN but excluded from the final Android.bp.
+# While GN traverses the graph, the Soong crawler does not visit these dependencies,
+# which prevents them from being written to the output file.
+#
+# When referenced as a dependency, a custom handler is invoked (e.g., via `replace_deps`)
+# instead of the usual code flow.
+#
+# The benefit of using |replace_deps| over |builtin_deps| is that some of the module's
+# attributes can be reused / copied as the module is created in memory. unlike |builtin_deps|
+# which never visits the target itself.
+replace_deps = {
+    '//third_party/boringssl:boringssl': enable_boringssl,
+}
 
 # Name of tethering apex module
 tethering_apex = "com.android.tethering"
@@ -1082,7 +1065,8 @@ class Blueprint:
     if self._license_module:
       self._license_module.to_string(ret)
     for m in sorted(self.modules.values(), key=lambda m: m.name):
-      if m.type != "cc_library_static" or m.has_input_files():
+      if (m.type != "cc_library_static"
+          or m.has_input_files()) and m.gn_target not in replace_deps.keys():
         # Don't print cc_library_static with empty srcs. These attributes are already
         # propagated up the tree. Printing them messes the presubmits because
         # every module is compiled while those targets are not reachable in
@@ -2646,8 +2630,47 @@ def create_jni_zero_proxy_only_module(jni_zero_generator_module):
   return proxy_only_module
 
 
+def _is_cflag_allowed(cflag):
+  if cflag.startswith("-Wno-"):
+    # Allow all -Wno- flags as those demote errors to warning.
+    return True
+  return all(not cflag.startswith(denied_prefix) for denied_prefix in [
+      # Soong handles this according to the module's attributes.
+      "--sysroot=",
+      # Soong handles this according to the architecture.
+      "--target=",
+      "--warning-suppression-mappings=",
+      # Remove all promotions of warning to errors. The code is developed in
+      # chromium, and the checks should be there.
+      "-W",
+      # Soong handles this according to the module's attributes.
+      "-isystem",
+      # Best handled by Soong according to the build configuration.
+      '-fcrash-diagnostics-dir=',
+      # Enabled by default in Soong.
+      '-flto',
+      # Enabled by default in Soong.
+      '-fsplit-lto-unit',
+      # Enabled by a special attribute instead.
+      '-fwhole-program-vtables',
+      # LLVM in AOSP fails when this is added. It's mostly used to warn
+      # against non-standard compiler extensions. It's forbidden by Soong as it's
+      # in the list of the IllegalFlags: http://ac/build/soong/cc/config/global.go?l=405-413
+      '-pedantic',
+      # Same as above.
+      '-w',
+      # This is used by a clang-plugin to show errors / warning for unsafe buffers during
+      # compilation. We don't care about static analysis errors / warnings as they're
+      # shown on the Chromium side. The reason why we're excluding this flag is because
+      # it introduces build breakages as clang's toolchain does not understand the
+      # pragma enabled by this define.
+      '-DUNSAFE_BUFFERS_BUILD',
+      '-Wunsafe-buffer-usage',
+      '-Wno-error=unsafe-buffer-usage',
+  ])
+
 def _get_cflags(cflags, defines):
-  cflags = [flag for flag in cflags if flag in cflag_allowlist]
+  cflags = [flag for flag in cflags if _is_cflag_allowed(flag)]
 
   # Android _may_ set a platform default for _LIBCPP_HARDENING_MODE. If that
   # conflicts with the level specified on this target, we'll get build errors.
@@ -2683,12 +2706,79 @@ def _get_cpp_std(cflags: List[str]) -> Union[str, None]:
   return None
 
 
-def configure_cc_module(module, cflags, defines, ldflags, libs, main_module):
-  module.cflags.extend(_get_cflags(cflags, defines))
-  module.ldflags.extend([
-      flag for flag in ldflags
-      if flag in ldflag_allowlist or flag.startswith("-Wl,-wrap,")
+def _extract_linker_script(ldflags):
+  new_ldflags = []
+  linker_script = None
+  for flag in ldflags:
+    if flag.startswith("-Wl,--version-script="):
+      # Everything after the = is the path and delete all leading ../
+      linker_path = re.sub('^(\.\./)+', '', flag.split("=", maxsplit=2)[1])
+      assert linker_script is None, f"Found two different linker script for a single target! First script: {linker_script}, Second script: {linker_path}"
+      linker_script = linker_path
+    else:
+      new_ldflags.append(flag)
+  return new_ldflags, linker_script
+
+
+def _create_linker_script_filegroup(linker_script_path):
+  filegroup_name = linker_script_path.replace('/', '_').replace('.', '_')
+  filegroup_module = Module("filegroup",
+                            f"{MODULE_PREFIX}{filegroup_name}_filegroup",
+                            f"Created to reference {linker_script_path}")
+  filegroup_module.srcs = [linker_script_path]
+  # TODO(aymanm): Change the default for build_file_path to be top-level.
+  filegroup_module.build_file_path = ""
+  return filegroup_module
+
+
+def _is_allowed_ldflag(flag):
+  return all(not flag.startswith(denied_prefix) for denied_prefix in [
+      # Already applied by Soong according to module's attributes.
+      "--sysroot=",
+      # Already applied by Soong.
+      "--target=",
+      # Throws an error for some unknown reason?
+      "--unwindlib=",
+      # Tries to write to disk which is disallowed by Soong. It also
+      # simply controls the caching behaviour of thinLTO which is
+      # not essential.
+      "-Wl,--thinlto-cache-dir=",
+      # Controls the caching behaviour of thinLTO which is
+      # not essential.
+      "-Wl,--thinlto-cache-policy=",
+      # Controls the threading behaviour of thinLTO which is
+      # not essential.
+      "-Wl,--thinlto-jobs=",
+      # Applied by Soong by default
+      "-flto=",
+      # Throws an error currently because GNU_PROPERTY_AARCH64_FEATURE_1_BTI is
+      # not defined in some object files. This requires further investigation
+      # to enable. It's fine to disable for now as it has never been enabled in
+      # HttpEngine.
+      "-Wl,-z,force-bti",
+      # Soong handles this automatically based on the lunch options.
+      "-Wl,-z,max-page-size=",
+      # Let Soong handle the stripping of debug library according to the
+      # lunch configuration.
+      "-Wl,--strip-debug",
+      # Android is experimenting with XOM(crbug.com/379071663) which conflicts with
+      # rosegment flag. Disable this flag until XOM has landed, and we have
+      # an attribute which we can use to enable --no-rosegment.
+      "-Wl,--no-rosegment",
   ])
+
+
+def configure_cc_module(module, cflags, defines, ldflags, libs, main_module,
+                        blueprint):
+  module.cflags = _get_cflags(cflags, defines)
+  ldflags, linker_script = _extract_linker_script(ldflags)
+  module.ldflags = [flag for flag in ldflags if _is_allowed_ldflag(flag)]
+  if linker_script:
+    # Unfortunately, Soong does not allow accessing linker scripts from parent
+    # path. So create a filegroup at the top-level Android.bp and reference it instead.
+    filegroup_module = _create_linker_script_filegroup(linker_script)
+    blueprint.add_module(filegroup_module)
+    module.version_script = f":{filegroup_module.name}"
   _set_linker_script(module, libs)
   for lib in libs:
     # Generally library names should be mangled as 'libXXX', unless they
@@ -2943,13 +3033,13 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
 
     if target.type in gn_utils.LINKER_UNIT_TYPES:
       configure_cc_module(module, target.cflags, target.defines, target.ldflags,
-                          target.libs, module)
+                          target.libs, module, blueprint)
       set_module_include_dirs(module, target.cflags, target.include_dirs)
       # TODO: set_module_xxx is confusing, apply similar function to module and target in better way.
       for arch_name, arch in target.get_archs().items():
         # TODO(aymanm): Make libs arch-specific.
         configure_cc_module(module.target[arch_name], arch.cflags, arch.defines,
-                            arch.ldflags, arch.libs, module)
+                            arch.ldflags, arch.libs, module, blueprint)
         # -Xclang -target-feature -Xclang +mte are used to enable MTE (Memory Tagging Extensions).
         # Flags which does not start with '-' could not be in the cflags so enabling MTE by
         # -march and -mcpu Feature Modifiers. MTE is only available on arm64. This is needed for
@@ -3028,6 +3118,10 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
     for arch_name, arch in target.arch.items():
       all_deps += [(dep_name, arch_name) for dep_name in arch.deps]
 
+    if gn_target_name in replace_deps:
+      # Do not recurse into replace_deps target's dependencies.
+      return (module, )
+
     # Sort deps before iteration to make result deterministic.
     for (dep_name, arch_name) in sorted(all_deps):
       module_target = module.target[
@@ -3042,6 +3136,12 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
 
       for dep_module in create_modules_from_target(blueprint, gn, dep_name,
                                                    target.type, is_test_target):
+        if dep_name in replace_deps:
+          replace_deps[dep_name](module.java_unfiltered_module if
+                                 module.is_java_top_level_module() else module,
+                                 arch_name)
+          continue
+
         if dep_module is None:
           continue
 
@@ -3337,7 +3437,6 @@ def create_cc_defaults_module():
       # broken by changes to Chromium cflags, e.g. https://crbug.com/406704769.
       # Ideally this list should be deduced from GN cflags.
       '-DGOOGLE_PROTOBUF_NO_RTTI',
-      '-DBORINGSSL_SHARED_LIBRARY',
       '-Wno-error=return-type',
       '-Wno-non-virtual-dtor',
       '-Wno-macro-redefined',
@@ -3419,6 +3518,65 @@ def apply_post_processing(module):
       raise Exception('Unimplemented type %r of additional_args: %r' %
                       (type(add_val), key))
 
+
+def make_cc_defaults_from_boringssl(boringssl_module: Module) -> Module:
+  module_name = boringssl_module.name + "__flags"
+  cc_default_flags_module = Module(
+      "cc_defaults", module_name,
+      "Flags auto-extracted from BoringSSL GN rules, to be used in manually maintained BoringSSL Android.bp rules"
+  )
+
+  libcrypto_cc_defaults_flags_module = Module(
+      "cc_defaults", f'{module_name}_libcrypto',
+      f"""This cc_defaults inherits the same flags from {module_name} except some flags that breaks FIPS compliance."""
+  )
+
+  def _get_libcrypto_cflags(cflags):
+    return [
+        cflag for cflag in cflags
+        if all(not cflag.startswith(denied_prefix) for denied_prefix in [
+            # Breaks FIPS compliance as this is used by the linker's `--gc-sections` to remove
+            # unused sections which breaks the hash. `-fno-*-sections` is intentionally not
+            # added here as those flags are used to build all of boringSSL, while only
+            # boringCrypto(libcrypto) requires it.
+            "-ffunction-sections",
+            "-fdata-sections",
+            # Causes 'tot_cronet_bcm_object.o:(.text): multiple relocation sections to one section are not supported'
+            # during linking stage.
+            "-fno-unique-section-names",
+        ])
+    ]
+
+  def _get_libcrypto_ldflags(ldflags):
+    return [
+        ldflag for ldflag in ldflags
+        if all(not ldflag.startswith(denied_prefix) for denied_prefix in [
+            # -Wl, --gc-sections is effectively useless when '-ffunctions-sections' and
+            # '-fdata-sections' are not used. Hence remove it.
+            "-Wl,--gc-sections",
+        ])
+    ]
+
+  cc_default_flags_module.cflags = boringssl_module.cflags
+  cc_default_flags_module.ldflags = boringssl_module.ldflags
+  libcrypto_cc_defaults_flags_module.cflags = _get_libcrypto_cflags(
+      boringssl_module.cflags)
+  libcrypto_cc_defaults_flags_module.ldflags = _get_libcrypto_ldflags(
+      boringssl_module.ldflags)
+  for arch, variant in boringssl_module.target.items():
+    cc_default_flags_module.target[arch].cflags = variant.cflags
+    cc_default_flags_module.target[arch].ldflags = variant.ldflags
+    libcrypto_cc_defaults_flags_module.target[
+        arch].cflags = _get_libcrypto_cflags(variant.cflags)
+    libcrypto_cc_defaults_flags_module.target[
+        arch].ldflags = _get_libcrypto_ldflags(variant.ldflags)
+
+  cc_default_flags_module.build_file_path = ""
+  libcrypto_cc_defaults_flags_module.build_file_path = ""
+  cc_default_flags_module.defaults = [cc_defaults_module]
+  libcrypto_cc_defaults_flags_module.defaults = [cc_defaults_module]
+  return (cc_default_flags_module, libcrypto_cc_defaults_flags_module)
+
 def create_blueprint_for_targets(gn, targets, test_targets):
   """Generate a blueprint for a list of GN targets."""
   blueprint = Blueprint()
@@ -3448,6 +3606,9 @@ def create_blueprint_for_targets(gn, targets, test_targets):
   for module in blueprint.modules.values():
     apply_post_processing(module)
 
+  for module in make_cc_defaults_from_boringssl(blueprint.modules[
+      label_to_module_name("//third_party/boringssl:boringssl")]):
+    blueprint.add_module(module)
   return blueprint
 
 

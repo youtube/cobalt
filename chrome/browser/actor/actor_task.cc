@@ -21,10 +21,9 @@
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/actor.mojom-data-view.h"
-#include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/page.h"
@@ -286,6 +285,16 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
     return;
   }
 
+  if (state_ == State::kWaitingOnUser) {
+    journal_->Log(
+        GURL(), id(), "ActorTask::Act",
+        JournalDetailsBuilder().AddError("Task is Waiting for User").Build());
+    std::move(callback).Run(
+        MakeResult(mojom::ActionResultCode::kInvalidTaskStateForAct),
+        std::nullopt, {});
+    return;
+  }
+
   ResetToObserveTabsSet();
 
   SetState(State::kActing);
@@ -346,29 +355,15 @@ void ActorTask::Stop(StoppedReason stop_reason) {
              /*action_results=*/{});
   }
 
+  // TODO(bokan): execution_engine_ is always passed in constructor and never
+  // reset so we should be able to CHECK and assume it's non-null.
   if (execution_engine_) {
     execution_engine_->CancelOngoingActions(
         mojom::ActionResultCode::kTaskWentAway);
     execution_engine_->RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
   }
   end_time_ = base::Time::Now();
-  State final_state;
-  switch (stop_reason) {
-    case StoppedReason::kUserStartedNewChat:
-    case StoppedReason::kUserLoadedPreviousChat:
-    case StoppedReason::kStoppedByUser:
-    case StoppedReason::kTabDetached:
-    case StoppedReason::kShutdown:
-      final_state = State::kCancelled;
-      break;
-    case StoppedReason::kTaskComplete:
-      final_state = State::kFinished;
-      break;
-    case StoppedReason::kModelError:
-    case StoppedReason::kChromeFailure:
-      final_state = State::kFailed;
-      break;
-  }
+  State final_state = GetTaskStateFromStoppedReason(stop_reason);
   stopped_reason_ = stop_reason;
   // Remove all the tabs from the task.
   tabs::TabHandle last_tab_handle;
@@ -377,6 +372,8 @@ void ActorTask::Stop(StoppedReason stop_reason) {
     RemoveTab(controlled_tabs_.begin()->first);
   }
 
+  SetState(final_state);
+
   if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
     ui_event_dispatcher_->OnActorTaskSyncChange(ui::UiEventDispatcher::StopTask{
         .task_id = id_,
@@ -384,7 +381,6 @@ void ActorTask::Stop(StoppedReason stop_reason) {
         .title = title_,
         .last_acted_on_tab_handle = last_tab_handle});
   }
-  SetState(final_state);
 }
 
 void ActorTask::Pause(bool from_actor) {
@@ -404,6 +400,8 @@ void ActorTask::Pause(bool from_actor) {
              /*index_of_failed_action=*/std::nullopt, /*action_results=*/{});
   }
 
+  // TODO(bokan): execution_engine_ is always passed in constructor and never
+  // reset so we should be able to CHECK and assume it's non-null.
   if (execution_engine_) {
     execution_engine_->CancelOngoingActions(
         mojom::ActionResultCode::kTaskPaused);
@@ -437,6 +435,21 @@ void ActorTask::Uninterrupt(State resumed_state) {
     return;
   }
   SetState(resumed_state);
+
+  // TODO(bokan): execution_engine_ is always passed in constructor and never
+  // reset so we should be able to CHECK and assume it's non-null.
+  if (execution_engine_) {
+    execution_engine_->DidUninterruptTask();
+  }
+}
+
+bool ActorTask::CancelOngoingActions() {
+  if (!execution_engine_ || IsCompleted()) {
+    return false;
+  }
+  execution_engine_->CancelOngoingActions(
+      mojom::ActionResultCode::kActionsCancelled);
+  return true;
 }
 
 bool ActorTask::IsUnderUserControl() const {
@@ -788,6 +801,29 @@ void ActorTask::SetExecutionEngineForTesting(
     std::unique_ptr<ExecutionEngine> engine) {
   execution_engine_.reset(std::move(engine.release()));
   execution_engine_->SetOwner(this);
+}
+
+// static
+ActorTask::State ActorTask::GetTaskStateFromStoppedReason(
+    StoppedReason stopped_reason) {
+  State final_state;
+  switch (stopped_reason) {
+    case StoppedReason::kUserStartedNewChat:
+    case StoppedReason::kUserLoadedPreviousChat:
+    case StoppedReason::kStoppedByUser:
+    case StoppedReason::kTabDetached:
+    case StoppedReason::kShutdown:
+      final_state = State::kCancelled;
+      break;
+    case StoppedReason::kTaskComplete:
+      final_state = State::kFinished;
+      break;
+    case StoppedReason::kModelError:
+    case StoppedReason::kChromeFailure:
+      final_state = State::kFailed;
+      break;
+  }
+  return final_state;
 }
 
 }  // namespace actor

@@ -277,7 +277,7 @@ void FakeBaseTabStripController::CreateNewTab(NewTabTypes context) {
   AddTab(num_tabs_, TabActive::kActive);
 }
 
-void FakeBaseTabStripController::OnStartedDragging(bool dragging_window) {}
+void FakeBaseTabStripController::OnStartedDragging() {}
 
 void FakeBaseTabStripController::OnStoppedDragging() {}
 
@@ -288,21 +288,8 @@ bool FakeBaseTabStripController::IsFrameCondensed() const {
   return false;
 }
 
-bool FakeBaseTabStripController::HasVisibleBackgroundTabShapes() const {
-  return false;
-}
-
 bool FakeBaseTabStripController::EverHasVisibleBackgroundTabShapes() const {
   return false;
-}
-
-bool FakeBaseTabStripController::CanDrawStrokes() const {
-  return false;
-}
-
-SkColor FakeBaseTabStripController::GetFrameColor(
-    BrowserFrameActiveState active_state) const {
-  return gfx::kPlaceholderColor;
 }
 
 std::optional<int> FakeBaseTabStripController::GetCustomBackgroundId(
@@ -325,16 +312,8 @@ void FakeBaseTabStripController::SetFocusedGroup(
   focused_group_ = group;
 }
 
-Profile* FakeBaseTabStripController::GetProfile() const {
-  return nullptr;
-}
-
 BrowserWindowInterface*
 FakeBaseTabStripController::GetBrowserWindowInterface() {
-  return nullptr;
-}
-
-Browser* FakeBaseTabStripController::GetBrowser() {
   return nullptr;
 }
 

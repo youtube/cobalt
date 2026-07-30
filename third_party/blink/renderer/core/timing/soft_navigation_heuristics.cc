@@ -405,29 +405,17 @@ void SoftNavigationHeuristics::MaybeCommitNavigationOrEmitSoftNavigationEntry(
 
 void SoftNavigationHeuristics::EmitSoftNavigationEntry(
     SoftNavigationContext* context) {
-  CHECK(context->HasFirstContentfulPaint());
-  CHECK(!context->WasEmitted());
-  context->MarkEmitted();
+  context->EmitSoftNavigation();
+
   // Since this is used for metrics reporting and sent as part of the
   // SoftNavigationMetrics record, we must increment it before calling
   // ReportSoftNavigationToMetrics.
   soft_navigation_count_++;
 
-  WindowPerformance* performance = DOMWindowPerformance::performance(*window_);
-  CHECK(performance);
-  performance->AddSoftNavigationEntry(
-      AtomicString(context->AttributionUrl()), context->TimeOrigin(),
-      context->FirstContentfulPaintTimingInfo(), context->NavigationId());
   ReportSoftNavigationToMetrics(context);
-
-  TRACE_EVENT_INSTANT(
-      "scheduler,devtools.timeline,loading", "SoftNavigationStart",
-      perfetto::Track::FromPointer(context), context->TimeOrigin(), "context",
-      *context, "frame", GetFrameIdForTracing(window_->GetFrame()));
-
-  // LCP calculation is now unblocked, so update/emit the buffered LCP
-  // candidate, if possible.
-  UpdateSoftLcpCandidateForContext(context);
+  // Emitting the entry unblocks reporting the current ICP to metrics, so update
+  // metrics now.
+  UpdateSoftLcpMetricsForContext(context);
 }
 
 SoftNavigationContext*
@@ -458,6 +446,28 @@ void SoftNavigationHeuristics::OnInputOrScroll() {
 }
 
 void SoftNavigationHeuristics::UpdateSoftLcpCandidate() {
+  // First, update the LCP candidate and emit an ICP entry for the active
+  // context, if any. We do this before unblocking entries waiting for FCP
+  // below, since that also emits and updates metrics.
+  //
+  // Note: this is called from PaintTimingMixin on every paint timing update,
+  // without feature flag check. We shouldn't have a url context without the
+  // feature.
+  //
+  // TODO(crbug.com/434151263): Consider emitting ICP entries for all committed
+  // `SoftNavigationContext`s, not just the `context_for_current_url_`.
+  for (const auto& context : potential_soft_navigations_) {
+    if (context->TryUpdateLcpCandidate()) {
+      // LCP candidate information is updated before emitting the soft nav entry
+      // to buffer the most recent ICP candidate, in order to capture
+      // information at the relevant time. But we don't want to update metrics
+      // until the `context` is considered a soft nav.
+      if (context == context_for_current_url_ && context->WasEmitted()) {
+        UpdateSoftLcpMetricsForContext(context);
+      }
+    }
+  }
+
   // If we're waiting on FCP presentation feedback to emit entries, check if we
   // can emit now.
   if (!contexts_waiting_for_paint_timestamp_.empty()) {
@@ -468,31 +478,16 @@ void SoftNavigationHeuristics::UpdateSoftLcpCandidate() {
     contexts_waiting_for_paint_timestamp_.erase_if(
         [&](const auto& context) { return context->WasEmitted(); });
   }
-
-  // This is called from PaintTimingMixin on every paint timing update, without
-  // feature flag check. We shouldn't have a url context without the feature.
-  //
-  // TODO(crbug.com/434151263): Consider emitting ICP entries for all committed
-  // `SoftNavigationContext`s, not just the `context_for_current_url_`.
-  if (!context_for_current_url_) {
-    return;
-  }
-  UpdateSoftLcpCandidateForContext(context_for_current_url_);
 }
 
-void SoftNavigationHeuristics::UpdateSoftLcpCandidateForContext(
+void SoftNavigationHeuristics::UpdateSoftLcpMetricsForContext(
     SoftNavigationContext* context) {
-  CHECK(RuntimeEnabledFeatures::SoftNavigationDetectionEnabled(window_));
-
-  if (!context->TryUpdateLcpCandidate()) {
+  // We only support updating metrics for the current URL, even if new paints
+  // associated with previous interactions are detected.
+  if (context != context_for_current_url_) {
     return;
   }
-
-  // Performance timeline won't allow emitting soft-LCP entries without this
-  // flag, but we can save some needless work by just not even trying to report.
-  if (RuntimeEnabledFeatures::SoftNavigationHeuristicsEnabled(window_)) {
-    context->UpdateWebExposedLargestContentfulPaintIfNeeded();
-  }
+  CHECK(context->WasEmitted());
 
   LocalFrame* frame = window_->GetFrame();
   // We should not be running paint timing callbacks for detached frames.
@@ -546,44 +541,15 @@ void SoftNavigationHeuristics::Trace(Visitor* visitor) const {
   visitor->Trace(paint_attribution_tracker_);
   visitor->Trace(contexts_waiting_for_paint_timestamp_);
   visitor->Trace(interaction_effects_monitors_);
-  // Register a custom weak callback, which runs after processing weakness for
-  // the container. This allows us to observe the collection becoming empty
-  // without needing to observe individual element disposal.
-  visitor->RegisterWeakCallbackMethod<
-      SoftNavigationHeuristics,
-      &SoftNavigationHeuristics::ProcessCustomWeakness>(this);
+  visitor->Trace(potential_soft_navigations_);
 }
 
-void SoftNavigationHeuristics::ProcessCustomWeakness(
-    const LivenessBroker& info) {
-  if (potential_soft_navigations_.empty()) {
-    return;
-  }
-  // When all the soft navigation tasks were garbage collected, that means that
-  // all their descendant tasks are done, and there's no need to continue
-  // searching for soft navigation signals, at least not until the next user
-  // interaction.
-  //
-  // Note: This is not allowed to do Oilpan allocations. If that's needed, this
-  // can schedule a task or microtask to reset the heuristic.
-  const auto required_paint_area = CalculateRequiredPaintArea();
-  potential_soft_navigations_.erase_if([&](const auto& context) {
-    if (!info.IsHeapObjectAlive(context)) {
-      OnSoftNavigationContextWasExhausted(
-          *context.Get(), CalculateViewportArea(), required_paint_area);
-      return true;
-    }
-    return false;
-  });
-
-  // The set should not become empty if we're still tracking contexts for the
-  // current interaction of current URL change.
-  // TODO(crbug.com/416706750, crbug.com/420402247): Consider enabling some
-  // mechanism for eventually resetting things.
-  CHECK(!potential_soft_navigations_.empty() || !active_interaction_context_,
-        base::NotFatalUntil::M142);
-  CHECK(!potential_soft_navigations_.empty() || !context_for_current_url_,
-        base::NotFatalUntil::M142);
+void SoftNavigationHeuristics::OnContextDisposed(
+    SoftNavigationContext* context) {
+  // This is only called if the context wasn't explicitly shut down, in which
+  // case we want to record metrics for it.
+  OnSoftNavigationContextWasExhausted(*context, CalculateViewportArea(),
+                                      CalculateRequiredPaintArea());
 }
 
 SoftNavigationHeuristics::EventScope SoftNavigationHeuristics::CreateEventScope(

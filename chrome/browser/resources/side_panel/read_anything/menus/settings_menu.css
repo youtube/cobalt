@@ -25,7 +25,7 @@
   --iron-icon-height: 16px;
 }
 
-.menu-row:hover {
+.menu-row:hover, .active {
   background-color: var(--cr-hover-background-color);
 }
 
@@ -44,6 +44,10 @@
   --cr-icon-color: var(--cr-secondary-text-color);
 }
 
+:host-context([dir='rtl']) .end-icon {
+  transform: scaleX(-1);
+}
+
 .menu-row cr-toggle {
   margin-inline-start: 16px;
 }
@@ -51,8 +55,22 @@
 #settings-menu-dialog::part(dialog) {
   border-radius: var(--cornerRadii-medium-small, 12px);
   width: clamp(92px, 100%, 340px);
+  z-index: 9999;
 }
 
 .hr {
   border-top: var(--cr-separator-line);
+}
+
+@media (forced-colors: active) {
+   /* The color menu should not be shown when in high contrast mode because
+    * reading mode doesn't override system forced colors.
+    */
+   #color {
+    display: none;
+  }
+
+   .menu-row {
+    color: LinkText;
+  }
 }

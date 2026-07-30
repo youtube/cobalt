@@ -215,6 +215,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures));
   source->AddBoolean("ntpNextShowSimplificationUIEnabled",
                      ntp_features::kNtpNextShowSimplificationUIParam.Get());
+  source->AddBoolean("ntpNextShowDismissalUIEnabled",
+                     ntp_features::kNtpNextShowDismissalUIParam.Get());
   source->AddBoolean(
       "oneGoogleBarEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpOneGoogleBar));
@@ -268,7 +270,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("expandedSearchboxShowVoiceSearch",
                      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
                          ntp_realbox::kShowVoiceSearchInExpandedRealbox.Get());
-  source->AddBoolean("multiLineEnabled", ntp_realbox::kMultiLineEnabled.Get());
+  source->AddBoolean("multiLineEnabled",
+                     ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
+                         ntp_realbox::kMultiLineEnabled.Get());
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"doneButton", IDS_DONE},
@@ -539,6 +543,10 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       {"mobilePromoHeader", IDS_NTP_MOBILE_PROMO_HEADER},
       {"mobilePromoQrCode", IDS_NTP_MOBILE_PROMO_QR_CODE_LABEL},
 
+      // Threads rail.
+      {"aimThreadsHistoryLabel", IDS_NTP_THREADS_HISTORY_LABEL},
+      {"aimThreadsNewSearchLabel", IDS_NTP_THREADS_NEW_SEARCH_LABEL},
+
       // Webstore toast.
       {"webstoreThemesToastMessage", IDS_NTP_WEBSTORE_TOAST_MESSAGE},
       {"webstoreThemesToastButtonText", IDS_NTP_WEBSTORE_TOAST_BUTTON_TEXT},
@@ -689,6 +697,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       ntp_composebox::kAddTabUploadDelayOnRecentTabChipClick.Get());
   source->AddBoolean("enableModalComposebox",
                      ntp_composebox::kEnableModalComposebox.Get());
+  source->AddBoolean("enableThreadsRail",
+                     ntp_composebox::kEnableThreadsRail.Get());
 
   // Action Chips LoadTimeData
   bool action_chips_eligible =
@@ -1346,11 +1356,11 @@ void NewTabPageUI::UpdateMostVisitedTileTypes() {
     most_visited_page_handler_->EnableTileTypes(
         ntp_tiles::MostVisitedSites::EnableTileTypesOptions()
             .with_top_sites(
-                base::Contains(enabled_types, ntp_tiles::TileType::kTopSites))
-            .with_custom_links(base::Contains(
-                enabled_types, ntp_tiles::TileType::kCustomLinks))
-            .with_enterprise_shortcuts(base::Contains(
-                enabled_types, ntp_tiles::TileType::kEnterpriseShortcuts)));
+                enabled_types.contains(ntp_tiles::TileType::kTopSites))
+            .with_custom_links(
+                enabled_types.contains(ntp_tiles::TileType::kCustomLinks))
+            .with_enterprise_shortcuts(enabled_types.contains(
+                ntp_tiles::TileType::kEnterpriseShortcuts)));
   }
 }
 

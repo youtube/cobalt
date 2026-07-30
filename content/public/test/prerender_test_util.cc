@@ -150,6 +150,12 @@ PrerenderHostRegistry& GetPrerenderHostRegistry(WebContents* web_contents) {
 }
 
 PrerenderHost* GetPrerenderHostById(WebContents* web_contents,
+                                    PrerenderHostId host_id) {
+  auto& registry = GetPrerenderHostRegistry(web_contents);
+  return registry.FindNonReservedHostById(host_id);
+}
+
+PrerenderHost* GetPrerenderHostById(WebContents* web_contents,
                                     FrameTreeNodeId host_id) {
   auto& registry = GetPrerenderHostRegistry(web_contents);
   return registry.FindNonReservedHostById(host_id);
@@ -291,6 +297,14 @@ base::flat_set<GURL> PrerenderHostRegistryObserver::GetTriggeredUrls() const {
 class PrerenderHostObserverImpl : public PrerenderHost::Observer {
  public:
   PrerenderHostObserverImpl(WebContents& web_contents,
+                            PrerenderHostId host_id) {
+    PrerenderHost* host = GetPrerenderHostById(&web_contents, host_id);
+    DCHECK(host)
+        << "A PrerenderHost with the given id does not, or no longer, exists.";
+    StartObserving(*host);
+  }
+
+  PrerenderHostObserverImpl(WebContents& web_contents,
                             FrameTreeNodeId host_id) {
     PrerenderHost* host = GetPrerenderHostById(&web_contents, host_id);
     DCHECK(host)
@@ -419,6 +433,11 @@ class PrerenderHostObserverImpl : public PrerenderHost::Observer {
 };
 
 PrerenderHostObserver::PrerenderHostObserver(WebContents& web_contents,
+                                             PrerenderHostId host_id)
+    : impl_(
+          std::make_unique<PrerenderHostObserverImpl>(web_contents, host_id)) {}
+
+PrerenderHostObserver::PrerenderHostObserver(WebContents& web_contents,
                                              FrameTreeNodeId prerender_host)
     : impl_(std::make_unique<PrerenderHostObserverImpl>(web_contents,
                                                         prerender_host)) {}
@@ -454,13 +473,13 @@ bool PrerenderHostObserver::WasHostReused() const {
 
 PrerenderHostCreationWaiter::PrerenderHostCreationWaiter() {
   PrerenderHost::SetHostCreationCallbackForTesting(
-      base::BindLambdaForTesting([&](FrameTreeNodeId host_id) {
+      base::BindLambdaForTesting([&](PrerenderHostId host_id) {
         created_host_id_ = host_id;
         run_loop_.QuitClosure().Run();
       }));
 }
 
-FrameTreeNodeId PrerenderHostCreationWaiter::Wait() {
+PrerenderHostId PrerenderHostCreationWaiter::Wait() {
   EXPECT_TRUE(created_host_id_.is_null());
   run_loop_.Run();
   EXPECT_TRUE(created_host_id_);
@@ -517,38 +536,38 @@ void PrerenderTestHelper::RegisterServerRequestMonitor(
 }
 
 // static
-FrameTreeNodeId PrerenderTestHelper::GetHostForUrl(WebContents& web_contents,
+PrerenderHostId PrerenderTestHelper::GetHostForUrl(WebContents& web_contents,
                                                    const GURL& url) {
   auto* host =
       GetPrerenderHostRegistry(&web_contents).FindHostByUrlForTesting(url);
-  return host ? host->frame_tree_node_id() : FrameTreeNodeId();
+  return host ? host->prerender_host_id() : PrerenderHostId();
 }
 
-FrameTreeNodeId PrerenderTestHelper::GetHostForUrl(const GURL& url) {
+PrerenderHostId PrerenderTestHelper::GetHostForUrl(const GURL& url) {
   return GetHostForUrl(*GetWebContents(), url);
 }
 
 // static
-FrameTreeNodeId PrerenderTestHelper::GetPrewarmSearchResultHost(
+PrerenderHostId PrerenderTestHelper::GetPrewarmSearchResultHost(
     WebContents& web_contents,
     const GURL& prewarm_url) {
   auto* host = GetPrerenderHostRegistry(&web_contents)
                    .FindPrewarmSearchResultHostForTesting(prewarm_url);
-  return host ? host->frame_tree_node_id() : FrameTreeNodeId();
+  return host ? host->prerender_host_id() : PrerenderHostId();
 }
 
-FrameTreeNodeId PrerenderTestHelper::GetPrewarmSearchResultHost(
+PrerenderHostId PrerenderTestHelper::GetPrewarmSearchResultHost(
     const GURL& url) {
   return GetPrewarmSearchResultHost(*GetWebContents(), url);
 }
 
-bool PrerenderTestHelper::HasNewTabHandle(FrameTreeNodeId host_id) {
+bool PrerenderTestHelper::HasNewTabHandle(PrerenderHostId host_id) {
   PrerenderHostRegistry& registry = GetPrerenderHostRegistry(GetWebContents());
   return registry.HasNewTabHandleByIdForTesting(host_id);
 }
 
 void PrerenderTestHelper::WaitForPrerenderLoadCompletion(
-    FrameTreeNodeId host_id) {
+    PrerenderHostId host_id) {
   TRACE_EVENT("test", "PrerenderTestHelper::WaitForPrerenderLoadCompletion",
               "host_id", host_id);
   auto* host = GetPrerenderHostById(GetWebContents(), host_id);
@@ -581,13 +600,13 @@ void PrerenderTestHelper::WaitForPrerenderLoadCancellation(const GURL& url) {
   WaitForPrerenderLoadCancellation(*GetWebContents(), url);
 }
 
-FrameTreeNodeId PrerenderTestHelper::AddPrerender(const GURL& prerendering_url,
+PrerenderHostId PrerenderTestHelper::AddPrerender(const GURL& prerendering_url,
                                                   int32_t world_id) {
   return AddPrerender(prerendering_url, /*eagerness=*/std::nullopt,
                       /*target_hint=*/"", world_id);
 }
 
-FrameTreeNodeId PrerenderTestHelper::AddPrerender(
+PrerenderHostId PrerenderTestHelper::AddPrerender(
     const GURL& prerendering_url,
     std::optional<blink::mojom::SpeculationEagerness> eagerness,
     const std::string& target_hint,
@@ -597,7 +616,7 @@ FrameTreeNodeId PrerenderTestHelper::AddPrerender(
                       /*ruleset_tag=*/std::nullopt, world_id);
 }
 
-FrameTreeNodeId PrerenderTestHelper::AddPrerender(
+PrerenderHostId PrerenderTestHelper::AddPrerender(
     const GURL& prerendering_url,
     std::optional<blink::mojom::SpeculationEagerness> eagerness,
     std::optional<std::string> no_vary_search_hint,
@@ -630,7 +649,7 @@ FrameTreeNodeId PrerenderTestHelper::AddPrerender(
   }
 
   WaitForPrerenderLoadCompletion(*prerender_web_contents, prerendering_url);
-  FrameTreeNodeId host_id =
+  PrerenderHostId host_id =
       GetHostForUrl(*prerender_web_contents, prerendering_url);
   EXPECT_TRUE(host_id);
   return host_id;
@@ -751,14 +770,14 @@ PrerenderTestHelper::AddEmbedderTriggeredPrerenderAsync(
       embedder_histogram_suffix, page_transition);
 }
 
-void PrerenderTestHelper::NavigatePrerenderedPage(FrameTreeNodeId host_id,
+void PrerenderTestHelper::NavigatePrerenderedPage(PrerenderHostId host_id,
                                                   const GURL& url) {
   TRACE_EVENT("test", "PrerenderTestHelper::NavigatePrerenderedPage", "host_id",
               host_id, "url", url);
 
   // Take RenderFrameHost corresponding to the main frame of the prerendered
   // page.
-  auto* prerender_web_contents = WebContents::FromFrameTreeNodeId(host_id);
+  auto* prerender_web_contents = GetPrerenderWebContents(host_id);
   auto* prerender_host = GetPrerenderHostById(prerender_web_contents, host_id);
   ASSERT_NE(prerender_host, nullptr);
   RenderFrameHostImpl* prerender_render_frame_host =
@@ -775,7 +794,7 @@ void PrerenderTestHelper::NavigatePrerenderedPage(FrameTreeNodeId host_id,
       ExecJs(prerender_render_frame_host, JsReplace("location = $1", url));
 }
 
-void PrerenderTestHelper::CancelPrerenderedPage(FrameTreeNodeId host_id) {
+void PrerenderTestHelper::CancelPrerenderedPage(PrerenderHostId host_id) {
   PrerenderHostRegistry& registry = GetPrerenderHostRegistry(GetWebContents());
   registry.CancelHost(host_id, PrerenderFinalStatus::kDestroyed);
 }
@@ -889,9 +908,17 @@ void PrerenderTestHelper::SetHoldback(std::string_view preloading_type,
 }
 
 // static
+WebContents* PrerenderTestHelper::GetPrerenderWebContents(
+    PrerenderHostId host_id) {
+  FrameTreeNodeId prerender_frame_tree_node_id =
+      PrerenderHost::GetFrameTreeNodeIdForId(host_id);
+  return WebContents::FromFrameTreeNodeId(prerender_frame_tree_node_id);
+}
+
+// static
 RenderFrameHost* PrerenderTestHelper::GetPrerenderedMainFrameHost(
     WebContents& web_contents,
-    FrameTreeNodeId host_id) {
+    PrerenderHostId host_id) {
   auto* prerender_host = GetPrerenderHostById(&web_contents, host_id);
   EXPECT_NE(prerender_host, nullptr);
   return prerender_host->GetPrerenderedMainFrameHost();
@@ -907,7 +934,7 @@ RenderFrameHost* PrerenderTestHelper::GetPrerenderedMainFrameHost(
 }
 
 RenderFrameHost* PrerenderTestHelper::GetPrerenderedMainFrameHost(
-    FrameTreeNodeId host_id) {
+    PrerenderHostId host_id) {
   return GetPrerenderedMainFrameHost(*GetWebContents(), host_id);
 }
 
@@ -927,7 +954,7 @@ net::test_server::HttpRequest::HeaderMap PrerenderTestHelper::GetRequestHeaders(
   EXPECT_TRUE(content::BrowserThread::CurrentlyOn(BrowserThread::UI));
   base::AutoLock auto_lock(lock_);
   std::string path = url.PathForRequest();
-  DCHECK(base::Contains(request_headers_by_path_, path)) << path;
+  DCHECK(request_headers_by_path_.contains(path)) << path;
   return request_headers_by_path_[path];
 }
 

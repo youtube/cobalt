@@ -230,7 +230,7 @@ All changes to this list should go through Blink's feature review process: http:
     grid-column-end
     grid-column-start
     grid-lanes-direction
-    grid-lanes-fill
+    grid-lanes-pack
     grid-row-end
     grid-row-start
     grid-template-areas
@@ -320,12 +320,10 @@ All changes to this list should go through Blink's feature review process: http:
     overflow-x
     overflow-y
     overlay
-    overscroll-area
     overscroll-behavior-block
     overscroll-behavior-inline
     overscroll-behavior-x
     overscroll-behavior-y
-    overscroll-position
     padding-block-end
     padding-block-start
     padding-bottom
@@ -335,6 +333,7 @@ All changes to this list should go through Blink's feature review process: http:
     padding-right
     padding-top
     page
+    page-margin-safety
     page-orientation
     paint-order
     perspective
@@ -447,11 +446,11 @@ All changes to this list should go through Blink's feature review process: http:
     text-wrap-mode
     text-wrap-style
     timeline-scope
-    timeline-trigger-exit-range-end
-    timeline-trigger-exit-range-start
+    timeline-trigger-active-range-end
+    timeline-trigger-active-range-start
+    timeline-trigger-entry-range-end
+    timeline-trigger-entry-range-start
     timeline-trigger-name
-    timeline-trigger-range-end
-    timeline-trigger-range-start
     timeline-trigger-source
     top
     touch-action
@@ -652,9 +651,15 @@ All changes to this list should go through Blink's feature review process: http:
         column-rule-color
         column-rule-style
         column-rule-width
+    column-rule-edge-inset
+        column-rule-edge-inset-end
+        column-rule-edge-inset-start
     column-rule-inset
         column-rule-edge-inset-end
         column-rule-edge-inset-start
+        column-rule-interior-inset-end
+        column-rule-interior-inset-start
+    column-rule-interior-inset
         column-rule-interior-inset-end
         column-rule-interior-inset-start
     columns
@@ -765,12 +770,8 @@ All changes to this list should go through Blink's feature review process: http:
         grid-column-start
     grid-lanes
         grid-lanes-direction
-        grid-lanes-fill
         grid-template-areas
         grid-template-columns
-    grid-lanes-flow
-        grid-lanes-direction
-        grid-lanes-fill
     grid-row
         grid-row-end
         grid-row-start
@@ -877,9 +878,15 @@ All changes to this list should go through Blink's feature review process: http:
         row-rule-color
         row-rule-style
         row-rule-width
+    row-rule-edge-inset
+        row-rule-edge-inset-end
+        row-rule-edge-inset-start
     row-rule-inset
         row-rule-edge-inset-end
         row-rule-edge-inset-start
+        row-rule-interior-inset-end
+        row-rule-interior-inset-start
+    row-rule-interior-inset
         row-rule-interior-inset-end
         row-rule-interior-inset-start
     rule
@@ -895,6 +902,11 @@ All changes to this list should go through Blink's feature review process: http:
     rule-color
         column-rule-color
         row-rule-color
+    rule-edge-inset
+        column-rule-edge-inset-end
+        column-rule-edge-inset-start
+        row-rule-edge-inset-end
+        row-rule-edge-inset-start
     rule-inset
         column-rule-edge-inset-end
         column-rule-edge-inset-start
@@ -902,6 +914,11 @@ All changes to this list should go through Blink's feature review process: http:
         column-rule-interior-inset-start
         row-rule-edge-inset-end
         row-rule-edge-inset-start
+        row-rule-interior-inset-end
+        row-rule-interior-inset-start
+    rule-interior-inset
+        column-rule-interior-inset-end
+        column-rule-interior-inset-start
         row-rule-interior-inset-end
         row-rule-interior-inset-start
     rule-style
@@ -953,18 +970,18 @@ All changes to this list should go through Blink's feature review process: http:
         text-wrap-mode
         text-wrap-style
     timeline-trigger
-        timeline-trigger-exit-range-end
-        timeline-trigger-exit-range-start
+        timeline-trigger-active-range-end
+        timeline-trigger-active-range-start
+        timeline-trigger-entry-range-end
+        timeline-trigger-entry-range-start
         timeline-trigger-name
-        timeline-trigger-range-end
-        timeline-trigger-range-start
         timeline-trigger-source
-    timeline-trigger-exit-range
-        timeline-trigger-exit-range-end
-        timeline-trigger-exit-range-start
-    timeline-trigger-range
-        timeline-trigger-range-end
-        timeline-trigger-range-start
+    timeline-trigger-active-range
+        timeline-trigger-active-range-end
+        timeline-trigger-active-range-start
+    timeline-trigger-entry-range
+        timeline-trigger-entry-range-end
+        timeline-trigger-entry-range-start
     transition
         transition-behavior
         transition-delay

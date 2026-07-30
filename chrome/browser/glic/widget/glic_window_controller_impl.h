@@ -87,7 +87,7 @@ class GlicWindowControllerImpl
   void Shutdown() override;
   void MaybeSetWidgetCanResize() override;
   gfx::Size GetPanelSize() override;
-  void Close() override;
+  void Close(const CloseOptions& options) override;
   void CloseInstanceWithFrame(
       content::RenderFrameHost* render_frame_host) override;
   void CloseAndShutdownInstanceWithFrame(
@@ -151,12 +151,11 @@ class GlicWindowControllerImpl
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
               base::OnceClosure callback) override;
-  void SetDraggableAreas(
-      const std::vector<gfx::Rect>& draggable_areas) override;
   void EnableDragResize(bool enabled) override;
   void Attach() override;
   void Detach() override;
   void ClosePanel() override;
+  void OnReload() override;
   void SetMinimumWidgetSize(const gfx::Size& size) override;
   bool IsShowing() const override;
   void SwitchConversation(
@@ -183,12 +182,17 @@ class GlicWindowControllerImpl
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
   void CreateNewConversationForTabs(
       const std::vector<tabs::TabInterface*>& tabs) override;
+  void MoveTabsToConversation(const std::vector<tabs::TabInterface*>& tabs,
+                              const std::string& conversation_id) override;
+  std::vector<ConversationInfo> GetRecentConversations(size_t limit) override;
 
   // GlicInstance implementation
   Host& host() override;
   const InstanceId& id() const override;
   std::optional<std::string> conversation_id() const override;
-  base::TimeTicks GetLastActiveTime() const override;
+  base::Time GetLastActivationTimestamp() const override;
+
+  base::TimeDelta GetTimeSinceLastActive() const override;
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
   base::CallbackListSubscription

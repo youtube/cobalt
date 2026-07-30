@@ -13,8 +13,10 @@
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -50,46 +52,34 @@ void ActorTaskListBubbleController::ShowBubble(views::View* anchor_view) {
     // Only show the bubble in the active window.
     return;
   }
-  auto task_id_to_state = tabs::GlicActorTaskIconManagerFactory::GetForProfile(
-                              browser_->GetProfile())
-                              ->GetActorTaskListBubbleRows();
-  std::vector<ActorTaskListBubbleRowButtonParams> param_list;
-  for (const auto& task : task_id_to_state) {
-    param_list.emplace_back(CreateRowButtonParamsForTask(task.first));
-  }
-  const size_t param_list_size = param_list.size();
+
+  const auto& task_id_to_state =
+      tabs::GlicActorTaskIconManagerFactory::GetForProfile(
+          browser_->GetProfile())
+          ->actor_task_list_bubble_rows();
   // Do not show bubble if there are no rows to show.
-  // TODO(crbug.com/470101572): Remove when active tasks show in the bubble.
   if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator) &&
-      param_list_size < 1) {
+      task_id_to_state.empty()) {
     return;
   }
-  bubble_widget_ =
-      ActorTaskListBubble::ShowBubble(anchor_view, std::move(param_list));
+  bubble_widget_ = ActorTaskListBubble::ShowBubble(
+      browser_->GetProfile(), anchor_view, task_id_to_state,
+      base::BindRepeating(&ActorTaskListBubbleController::OnTaskRowClicked,
+                          weak_ptr_factory_.GetWeakPtr()));
+
+  // All rows may be skipped, in which case the bubble will not be shown.
+  if (!bubble_widget_) {
+    return;
+  }
+
   if (widget_observation_.IsObserving()) {
     widget_observation_.Reset();
   }
   widget_observation_.Observe(bubble_widget_);
 
-  actor::ui::RecordTaskListBubbleRows(param_list_size);
-}
+  actor::ui::RecordTaskListBubbleRows(task_id_to_state.size());
 
-ActorTaskListBubbleRowButtonParams
-ActorTaskListBubbleController::CreateRowButtonParamsForTask(
-    actor::TaskId task_id) {
-  actor::ui::ActorUiStateManagerInterface* manager =
-      actor::ActorKeyedService::Get(browser_->GetProfile())
-          ->GetActorUiStateManager();
-  // TODO(chrstne): refactor the title to check that task id exists instead.
-  return ActorTaskListBubbleRowButtonParams{
-      .title =
-          base::UTF8ToUTF16(manager->GetActorTaskTitle(task_id).value_or("")),
-      .subtitle = l10n_util::GetStringUTF16(
-          IDR_ACTOR_TASK_LIST_BUBBLE_ROW_CHECK_TASK_SUBTITLE),
-      .on_click_callback = base::BindRepeating(
-          &ActorTaskListBubbleController::GetOnTaskRowClickCallback,
-          base::Unretained(this), task_id),
-  };
+  on_bubble_shown_callback_list.Notify();
 }
 
 void ActorTaskListBubbleController::OnStateUpdate() {
@@ -115,10 +105,23 @@ void ActorTaskListBubbleController::OnStateUpdateImpl() {
 void ActorTaskListBubbleController::OnWidgetDestroyed(views::Widget* widget) {
   bubble_widget_ = nullptr;
   widget_observation_.Reset();
+
+  on_bubble_destroyed_callback_list.Notify();
 }
 
-void ActorTaskListBubbleController::GetOnTaskRowClickCallback(
-    actor::TaskId task_id) {
+base::CallbackListSubscription
+ActorTaskListBubbleController::RegisterBubbleShownCallback(
+    base::RepeatingClosure callback) {
+  return on_bubble_shown_callback_list.Add(std::move(callback));
+}
+
+base::CallbackListSubscription
+ActorTaskListBubbleController::RegisterBubbleDestroyedCallback(
+    base::RepeatingClosure callback) {
+  return on_bubble_destroyed_callback_list.Add(std::move(callback));
+}
+
+void ActorTaskListBubbleController::OnTaskRowClicked(actor::TaskId task_id) {
 #if BUILDFLAG(ENABLE_GLIC)
   Profile* profile = browser_->GetProfile();
   actor::ui::ActorUiStateManagerInterface* manager =
@@ -137,6 +140,9 @@ void ActorTaskListBubbleController::GetOnTaskRowClickCallback(
             glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile)) {
       glic_service->ToggleUI(browser_, /*prevent_close=*/true,
                              glic::mojom::InvocationSource::kActorTaskIcon);
+      if (auto* instance = glic_service->GetInstanceForTab(last_tab)) {
+        instance->host().NotifyActorTaskListRowClicked(task_id.value());
+      }
     }
   }
   // Regardless of tab navigation, process the row and close the bubble when

@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "net/base/net_export.h"
@@ -15,6 +16,8 @@
 #include "net/device_bound_sessions/session.h"
 #include "net/device_bound_sessions/session_access.h"
 #include "net/device_bound_sessions/session_challenge_param.h"
+#include "net/device_bound_sessions/session_display.h"
+#include "net/device_bound_sessions/session_event.h"
 #include "net/device_bound_sessions/session_key.h"
 #include "net/log/net_log_with_source.h"
 
@@ -32,6 +35,7 @@ namespace net::device_bound_sessions {
 class NET_EXPORT SessionService {
  public:
   using OnAccessCallback = base::RepeatingCallback<void(const SessionAccess&)>;
+  using OnEventCallback = base::RepeatingCallback<void(const SessionEvent&)>;
   using RefreshCompleteCallback = base::OnceCallback<void(RefreshResult)>;
 
   // Indicates the reason for deferring. Exactly one of
@@ -137,6 +141,12 @@ class NET_EXPORT SessionService {
   virtual void GetAllSessionsAsync(
       base::OnceCallback<void(const std::vector<SessionKey>&)> callback) = 0;
 
+  // Get all sessions and return a list of display sessions. If sessions
+  // have not yet been loaded from disk, defer until completely initialized.
+  virtual void GetAllSessionDisplaysAsync(
+      base::OnceCallback<void(const std::vector<SessionDisplay>&)>
+          callback) = 0;
+
   // Delete the session matching `session_key`, notifying
   // `per_request_callback` about any deletions.
   virtual void DeleteSessionAndNotify(
@@ -161,6 +171,10 @@ class NET_EXPORT SessionService {
   virtual base::ScopedClosureRunner AddObserver(
       const GURL& url,
       base::RepeatingCallback<void(const SessionAccess&)> callback) = 0;
+
+  // Add an observer for DBSC events. This is used for DevTools.
+  virtual base::CallbackListSubscription AddEventObserver(
+      OnEventCallback callback) = 0;
 
   // Get a session by key, or `nullptr` if no such session exists.
   virtual const Session* GetSession(const SessionKey& session_key) const = 0;

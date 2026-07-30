@@ -128,8 +128,8 @@ void BnplManager::OnDidAcceptBnplSuggestion(
       CHECK_DEREF(payments_autofill_client().GetBnplUiDelegate())
           .ShowSelectBnplIssuerUi(
               GetSortedBnplIssuerContext(), ongoing_flow_state_->app_locale,
-              base::BindOnce(&BnplManager::OnIssuerSelected,
-                             weak_factory_.GetWeakPtr()),
+              base::BindRepeating(&BnplManager::OnIssuerSelected,
+                                  weak_factory_.GetWeakPtr()),
               base::BindOnce(&BnplManager::Reset, weak_factory_.GetWeakPtr()),
               HasSeenAmountExtractionAiTerms());
 
@@ -158,8 +158,8 @@ void BnplManager::OnDidAcceptBnplSuggestion(
         CHECK_DEREF(payments_autofill_client().GetBnplUiDelegate())
             .ShowSelectBnplIssuerUi(
                 GetSortedBnplIssuerContext(), ongoing_flow_state_->app_locale,
-                base::BindOnce(&BnplManager::OnIssuerSelected,
-                               weak_factory_.GetWeakPtr()),
+                base::BindRepeating(&BnplManager::OnIssuerSelected,
+                                    weak_factory_.GetWeakPtr()),
                 base::BindOnce(&BnplManager::Reset, weak_factory_.GetWeakPtr()),
                 HasSeenAmountExtractionAiTerms());
       } else {
@@ -349,20 +349,12 @@ void BnplManager::OnAmountExtractionReturnedFromAi(
 
 bool BnplManager::AcceptTosActionRequired() const {
   return ongoing_flow_state_->issuer->payment_instrument().has_value() &&
-         base::Contains(ongoing_flow_state_->issuer->payment_instrument()
-                            ->action_required(),
-                        PaymentInstrument::ActionRequired::kAcceptTos);
+         ongoing_flow_state_->issuer->payment_instrument()
+             ->action_required()
+             .contains(PaymentInstrument::ActionRequired::kAcceptTos);
 }
 
 bool BnplManager::HasSeenAmountExtractionAiTerms() const {
-  // The testing flag acts as a testing override to force the "AI terms not
-  // seen" flow.
-  if (base::FeatureList::IsEnabled(
-          features::
-              kAutofillAiBasedAmountExtractionIgnoreSeenTermsForTesting)) {
-    return false;
-  }
-
   return payments_autofill_client()
       .GetPaymentsDataManager()
       .IsAutofillAmountExtractionAiTermsSeenPrefEnabled();

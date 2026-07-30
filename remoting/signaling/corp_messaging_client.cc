@@ -238,8 +238,15 @@ CorpMessagingClient::OpenReceiveMessagesStream(
 
 void CorpMessagingClient::OnMessageReceived(
     const internal::PeerMessageStruct& message) {
-  // TODO: joedow - Provide a valid signaling address.
-  callback_list_.Notify(SignalingAddress(), message);
+  LOG_IF(WARNING, callback_list_.empty())
+      << "No listener registered to receive signaling message.";
+
+  const auto* iq_stanza =
+      std::get_if<internal::IqStanzaStruct>(&message.payload);
+  callback_list_.Notify(
+      SignalingAddress(iq_stanza ? iq_stanza->messaging_authz_token
+                                 : std::string()),
+      message);
 }
 
 }  // namespace remoting

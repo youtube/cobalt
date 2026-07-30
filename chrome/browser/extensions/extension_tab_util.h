@@ -65,10 +65,8 @@ class ExtensionTabUtil {
   static constexpr char kWindowNotFoundError[] = "No window with id: *.";
   static constexpr char kTabStripNotEditableError[] =
       "Tabs cannot be edited right now (user may be dragging a tab).";
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   static constexpr char kTabStripDoesNotSupportTabGroupsError[] =
       "Grouping is not supported by tabs in this window.";
-#endif
   static constexpr char kJavaScriptUrlsNotAllowedInExtensionNavigations[] =
       "JavaScript URLs are not allowed in API based extension navigations. Use "
       "chrome.scripting.executeScript instead.";
@@ -204,15 +202,14 @@ class ExtensionTabUtil {
   static int GetSplitId(const split_tabs::SplitTabId& id);
 
   // Gets the metadata for the group with ID `group_id`. Sets the `error` if not
-  // found. `window`, `id`, or `visual_data` may be nullptr and will not be set
-  // within the function if so.
-  // TODO(crbug.com/405219902): Visual data is not yet supported on Android.
+  // found. `out_window`, `out_id`, or `out_visual_data` may be nullptr and will
+  // not be set within the function if so.
   static bool GetGroupById(int group_id,
                            content::BrowserContext* browser_context,
                            bool include_incognito,
-                           WindowController** window,
-                           tab_groups::TabGroupId* id,
-                           const tab_groups::TabGroupVisualData** visual_data,
+                           WindowController** out_window,
+                           tab_groups::TabGroupId* out_id,
+                           tab_groups::TabGroupVisualData* out_visual_data,
                            std::string* error);
 
   // Returns whether the group is shared or not.
@@ -225,10 +222,8 @@ class ExtensionTabUtil {
   static api::tab_groups::TabGroup CreateTabGroupObject(
       const tab_groups::TabGroupId& id,
       const tab_groups::TabGroupVisualData& visual_data);
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   static std::optional<api::tab_groups::TabGroup> CreateTabGroupObject(
       const tab_groups::TabGroupId& id);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   // Conversions between the api::tab_groups::Color enum and the TabGroupColorId
   // enum.

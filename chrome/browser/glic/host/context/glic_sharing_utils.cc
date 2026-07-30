@@ -8,15 +8,20 @@
 
 #include "base/containers/contains.h"
 #include "base/no_destructor.h"
+#include "build/build_config.h"
+#include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/browser.h"
+#endif
 
 namespace glic {
 
@@ -34,7 +39,8 @@ bool IsTabValidForSharing(content::WebContents* web_contents) {
       {GURL(), GURL(url::kAboutBlankURL),
        GURL(chrome::kChromeUINewTabPageThirdPartyURL),
        GURL(chrome::kChromeUINewTabPageURL), GURL(chrome::kChromeUINewTabURL),
-#if !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+       // NEEDS_ANDROID_IMPL: This isn't yet available on android desktop.
        // "What's New" does not exist in the form of a tab on ChromeOS.
        GURL(chrome::kChromeUIWhatsNewURL)
 #endif
@@ -63,7 +69,8 @@ GlicUnpinEvent GetEmptyUnpinEvent() {
 #if !BUILDFLAG(IS_ANDROID)
 GlicActiveTabForProfileTracker::GlicActiveTabForProfileTracker(Profile* profile)
     : active_tab_changed_callback_list_(), profile_(profile) {
-  BrowserList::AddObserver(this);
+  browser_collection_observation_.Observe(
+      GlobalBrowserCollection::GetInstance());
   // If we already have an active browser, set up active tab subscription.
   UpdateActiveTabSubscription(
       GetLastActiveBrowserWindowInterfaceWithAnyProfile());
@@ -73,13 +80,11 @@ GlicActiveTabForProfileTracker::GlicActiveTabForProfileTracker(Profile* profile)
   UpdateActiveTab();
 }
 
-GlicActiveTabForProfileTracker::~GlicActiveTabForProfileTracker() {
-  BrowserList::RemoveObserver(this);
-}
+GlicActiveTabForProfileTracker::~GlicActiveTabForProfileTracker() = default;
 
 bool GlicActiveTabForProfileTracker::IsBrowserActiveForProfile(
     BrowserWindowInterface* browser) {
-  return browser && browser->GetProfile() == profile_ && browser->IsActive();
+  return browser && browser->GetProfile() == profile_ && IsActive(browser);
 }
 
 void GlicActiveTabForProfileTracker::UpdateActiveTabSubscription(
@@ -93,12 +98,14 @@ void GlicActiveTabForProfileTracker::UpdateActiveTabSubscription(
   }
 }
 
-void GlicActiveTabForProfileTracker::OnBrowserSetLastActive(Browser* browser) {
+void GlicActiveTabForProfileTracker::OnBrowserActivated(
+    BrowserWindowInterface* browser) {
   UpdateActiveTabSubscription(browser);
   UpdateActiveTab();
 }
 
-void GlicActiveTabForProfileTracker::OnBrowserNoLongerActive(Browser* browser) {
+void GlicActiveTabForProfileTracker::OnBrowserDeactivated(
+    BrowserWindowInterface* browser) {
   active_tab_subscription_ = {};
 
   UpdateActiveTab();

@@ -7,11 +7,17 @@
 
 #import <UIKit/UIKit.h>
 
+#import <memory>
+
 #import "base/memory/raw_ptr.h"
+#import "base/time/time.h"
 #import "base/types/expected.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller_observer.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper_observer.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 
 class Browser;
 
@@ -30,60 +36,90 @@ class PageContext;
 @class BWGPageStateChangeHandler;
 @class BWGSessionHandler;
 @class GeminiPageContext;
+@class GeminiViewStateChangeHandler;
 @class GeminiSuggestionHandler;
 
 @protocol BWGGatewayProtocol;
 
-// A browser agent responsible for presenting the BWG overlay and managing
+// A browser agent responsible for presenting the floaty and managing
 // its protocol handlers.
 class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
-                        FullscreenControllerObserver {
+                        FullscreenControllerObserver,
+                        public TabsDependencyInstaller,
+                        public GeminiTabHelperObserver {
  public:
   BwgBrowserAgent(const BwgBrowserAgent&) = delete;
   BwgBrowserAgent& operator=(const BwgBrowserAgent&) = delete;
 
   ~BwgBrowserAgent() override;
 
-  // Starts the Gemini flow on a given view controller and with an optional
-  // given image attachment.
-  // TODO(crbug.com/465535924): Have this method handle complete or pending
-  // PageContext extraction internally, and show the FRE if needed.
-  void StartGeminiFlow(UIViewController* base_view_controller,
-                       UIImage* image_attachment = nil);
+  // TabsDependencyInstaller:
+  void OnWebStateInserted(web::WebState* web_state) override;
+  void OnWebStateRemoved(web::WebState* web_state) override;
+  void OnWebStateDeleted(web::WebState* web_state) override;
+  void OnActiveWebStateChanged(web::WebState* old_active,
+                               web::WebState* new_active) override;
 
-  // Presents the BWG overlay on a given view controller with a given expected
+  // GeminiTabHelperObserver:
+  void OnPageContextUpdated(web::WebState* web_state) override;
+  void OnGeminiTabHelperDestroyed(BwgTabHelper* tab_helper) override;
+
+  // Checks if the FRE needs to be shown and start the Gemini flow
+  // accordingly.
+  void StartGeminiFlow(UIViewController* base_view_controller,
+                       UIImage* image_attachment,
+                       gemini::EntryPoint entry_point);
+
+  // Presents the floaty on a given view controller with a given expected
   // PageContext.
   // TODO(crbug.com/465535924): Deprecated, new callers should use
   // `StartGeminiFlow` instead.
-  void PresentBwgOverlay(
+  void PresentFloatyWithPageContext(
       UIViewController* base_view_controller,
       base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                      PageContextWrapperError> expected_page_context);
 
-  // Presents the BWG overlay on a given view controller in a pending state
+  // Presents the floaty on a given view controller in a pending state
   // with a partial PageContext.
   // TODO(crbug.com/465535924): Deprecated, new callers should use
   // `StartGeminiFlow` instead.
-  void PresentPendingBwgOverlay(
+  void PresentFloatyWithPendingContext(
       UIViewController* base_view_controller,
       std::unique_ptr<optimization_guide::proto::PageContext> page_context);
 
-  // Updates the page context for the BWG overlay.
+  // Updates the page context for the floaty.
   // TODO(crbug.com/465535924): Deprecated, new callers should use
   // `StartGeminiFlow` instead (and let this be handled internally within the
   // browser agent).
-  void UpdateBwgOverlayPageContext(
+  void UpdateFloatyPageContext(
       base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                      PageContextWrapperError> expected_page_context);
+
+  // Called when the Gemini view state expands.
+  void OnGeminiViewStateExpanded();
+
+  // Dismisses the floaty and resets the Gemini flow.
+  void DismissFloaty();
 
  private:
   explicit BwgBrowserAgent(Browser* browser);
   friend class BrowserUserData<BwgBrowserAgent>;
 
-  // Presents the BWG overlay on a given view controller with page context,
+  // Starts the Gemini session (prepares context and shows overlay).
+  void PresentFloaty(UIViewController* base_view_controller,
+                     UIImage* image_attachment,
+                     gemini::EntryPoint entry_point,
+                     bool first_run_shown);
+
+  // Presents the floaty on a given view controller in a pending state
+  // with partial PageContext and optional image attachment.
+  void PresentFloatyWithPendingContext(UIViewController* base_view_controller,
+                                       UIImage* image_attachment);
+
+  // Presents the floaty on a given view controller with page context,
   // given specific computation state and optional image attachment (can be
   // nil).
-  void PresentBwgOverlayWithState(
+  void PresentFloatyWithState(
       UIViewController* base_view_controller,
       std::unique_ptr<optimization_guide::proto::PageContext>
           page_context_proto,
@@ -97,14 +133,32 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // prefs.
   void ApplyUserPrefsToPageContext(GeminiPageContext* gemini_page_context);
 
+  // Callback for when the page context is ready.
+  void OnPageContextReady(
+      UIViewController* base_view_controller,
+      UIImage* image_attachment,
+      base::TimeTicks start_time,
+      bool first_run_shown,
+      gemini::EntryPoint entry_point,
+      base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
+                     PageContextWrapperError> response);
+
   // Sets the UI command handlers on the session handler. This cannot be called
   // in the constructor because some objects fail the protocol conformance test
   // at that time.
   void SetSessionCommandHandlers();
 
+  // Helper to get the BwgTabHelper for the active web state if it matches the
+  // provided web state.
+  BwgTabHelper* GetActiveTabHelper(web::WebState* web_state);
+
   // FullscreenControllerObserver:
   void FullscreenProgressUpdated(FullscreenController* controller,
                                  CGFloat progress) override;
+  void FullscreenWillAnimate(FullscreenController* controller,
+                             FullscreenAnimator* animator) override;
+  void FullscreenControllerWillShutDown(
+      FullscreenController* controller) override;
 
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
@@ -118,12 +172,21 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // Handler for the BWG sessions.
   __strong BWGSessionHandler* bwg_session_handler_ = nullptr;
 
+  // Delegate implementation for BWGSessionHandler.
+  __strong GeminiViewStateChangeHandler* gemini_view_state_handler_ = nullptr;
+
   // Handler for Gemini suggestion chips.
   __strong GeminiSuggestionHandler* gemini_suggestion_handler_ = nullptr;
 
   // Reference to fullscreen controller. Used to observe fullscreen progress
   // updates related to the Gemini overlay.
   raw_ptr<FullscreenController> fullscreen_controller_ = nullptr;
+
+  // Returns true if the user has completed the FRE.
+  bool HasCompletedFirstRun();
+
+  // Weak pointer factory.
+  base::WeakPtrFactory<BwgBrowserAgent> weak_factory_{this};
 };
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_BWG_BROWSER_AGENT_H_

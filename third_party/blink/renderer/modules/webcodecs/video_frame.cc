@@ -351,25 +351,16 @@ class CanvasSnapshotProviderCache
   CanvasSnapshotProviderCache(const CanvasSnapshotProviderCache&) = delete;
 
   CanvasSnapshotProvider* CreateProvider(const media::VideoFrame& frame) {
-    const auto alpha_type = media::IsOpaque(frame.format())
-                                ? kOpaque_SkAlphaType
-                                : kPremul_SkAlphaType;
-    const auto dest_color_space = frame.CompatRGBColorSpace();
-
-    // TODO(https://crbug.com/40230609): N32 may be incorrect when drawing high
-    // bit depth frames destined for a high bit depth canvas.
-    const auto image_format = GetN32FormatForCanvas();
-
     if (providers_.empty()) {
       PostMonitoringTask();
     }
 
     last_access_time_ = base::TimeTicks::Now();
 
+    auto required_provider_info =
+        CreateSnapshotProviderInfoForVideoFrame(frame);
     for (const auto& provider : providers_) {
-      if (provider->IsValid() && provider->Size() == frame.natural_size() &&
-          provider->GetColorSpace() == dest_color_space &&
-          provider->GetAlphaType() == alpha_type) {
+      if (required_provider_info.Matches(*provider)) {
         return provider.get();
       }
     }
@@ -378,9 +369,8 @@ class CanvasSnapshotProviderCache
       providers_.clear();
     }
 
-    auto provider = CreateSnapshotProviderForVideoFrame(
-        frame.natural_size(), image_format, alpha_type, dest_color_space,
-        GetRasterContextProvider().get());
+    auto provider = CreateSnapshotProviderForVideo(
+        required_provider_info, GetRasterContextProvider().get());
     auto* result = provider.get();
     providers_.emplace_back(std::move(provider));
     return result;
@@ -832,10 +822,12 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
 
     auto client_shared_image = sbi->GetSharedImage();
     CHECK(client_shared_image);
+    auto shared_image_cs = client_shared_image->color_space();
     frame = media::VideoFrame::WrapSharedImage(
         format, std::move(client_shared_image), sbi->GetSyncToken(),
         std::move(release_cb), coded_size, parsed_init.visible_rect,
         parsed_init.display_size, timestamp);
+    frame->set_color_space(shared_image_cs);
 
     // Note: We could add the StaticBitmapImage to the VideoFrameHandle so we
     // can round trip through VideoFrame back to canvas w/o any copies, but

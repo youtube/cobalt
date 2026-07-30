@@ -8,8 +8,6 @@
 #include <utility>
 
 #include "base/functional/callback.h"
-#include "base/memory/memory_pressure_listener.h"
-#include "base/memory/memory_pressure_monitor.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -89,7 +87,10 @@ PaintPreviewTabService::PaintPreviewTabService(
     : PaintPreviewBaseService(std::move(file_mixin),
                               std::move(policy),
                               is_off_the_record),
-      cache_ready_(false) {
+      cache_ready_(false),
+      memory_pressure_listener_registration_(
+          base::MemoryPressureListenerTag::kPaintPreviewTabService,
+          this) {
   GetFileMixin()->GetTaskRunner()->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&FileManager::ListUsedKeys,
@@ -132,11 +133,7 @@ void PaintPreviewTabService::CaptureTab(int tab_id,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // If the system is under memory pressure don't try to capture.
-  auto* memory_monitor = base::MemoryPressureMonitor::Get();
-  if (memory_monitor &&
-      memory_monitor->GetCurrentPressureLevel(
-          base::MemoryPressureMonitorTag::kPaintPreviewTabService) >=
-          base::MEMORY_PRESSURE_LEVEL_MODERATE) {
+  if (memory_pressure_level() >= base::MEMORY_PRESSURE_LEVEL_MODERATE) {
     return;
   }
 
@@ -224,15 +221,14 @@ void PaintPreviewTabService::CaptureTabAndroid(
     JNIEnv* env,
     jint j_tab_id,
     const base::android::JavaRef<jobject>& j_web_contents,
-    jboolean j_accessibility_enabled,
+    bool j_accessibility_enabled,
     jfloat j_page_scale_factor,
     jint j_x,
     jint j_y,
     const base::android::JavaRef<jobject>& j_callback) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(j_web_contents);
-  CaptureTab(static_cast<int>(j_tab_id), web_contents,
-             static_cast<bool>(j_accessibility_enabled),
+  CaptureTab(static_cast<int>(j_tab_id), web_contents, j_accessibility_enabled,
              static_cast<float>(j_page_scale_factor), static_cast<int>(j_x),
              static_cast<int>(j_y),
              base::BindOnce(
@@ -246,9 +242,9 @@ void PaintPreviewTabService::TabClosedAndroid(JNIEnv* env, jint j_tab_id) {
   TabClosed(static_cast<int>(j_tab_id));
 }
 
-jboolean PaintPreviewTabService::HasCaptureForTabAndroid(JNIEnv* env,
-                                                         jint j_tab_id) {
-  return static_cast<jboolean>(HasCaptureForTab(static_cast<int>(j_tab_id)));
+bool PaintPreviewTabService::HasCaptureForTabAndroid(JNIEnv* env,
+                                                     jint j_tab_id) {
+  return static_cast<bool>(HasCaptureForTab(static_cast<int>(j_tab_id)));
 }
 
 void PaintPreviewTabService::AuditArtifactsAndroid(
@@ -259,8 +255,8 @@ void PaintPreviewTabService::AuditArtifactsAndroid(
   AuditArtifacts(tab_ids);
 }
 
-jboolean PaintPreviewTabService::IsCacheInitializedAndroid(JNIEnv* env) {
-  return static_cast<jboolean>(CacheInitialized());
+bool PaintPreviewTabService::IsCacheInitializedAndroid(JNIEnv* env) {
+  return static_cast<bool>(CacheInitialized());
 }
 
 std::string PaintPreviewTabService::GetPathAndroid(JNIEnv* env) {

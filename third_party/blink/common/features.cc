@@ -612,7 +612,7 @@ BASE_FEATURE(kDiscardInputEventsToRecentlyMovedFrames,
 // Drop input events at the browser process until the process receives the first
 // signal that the renderer has sent a frame to cc (https://crbug.com/40057499).
 BASE_FEATURE(kDropInputEventsWhilePaintHolding,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Extends console.timestamp to support adding deep-links into the DevTools
 // Performance Panel, which (when clicked) call into a DevTools extension.
@@ -1032,6 +1032,10 @@ BASE_FEATURE_ENUM_PARAM(IsolateSandboxedIframesGrouping,
                         "grouping",
                         IsolateSandboxedIframesGrouping::kPerOrigin,
                         &isolated_sandboxed_iframes_grouping_types);
+
+#if BUILDFLAG(ENABLE_JXL_DECODER)
+BASE_FEATURE(kJXLImageFormat, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kKeepAliveInBrowserMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1537,7 +1541,7 @@ BASE_FEATURE(kLowLatencyWebGLImageChromium,
 
 BASE_FEATURE(kLowPriorityAsyncScriptExecution,
 // TODO(crbug/429069717): Fix the high power consumption on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -2045,12 +2049,6 @@ BASE_FEATURE(kReducedReferrerGranularity, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kRefactorCompositorThreadEventQueue,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE_PARAM(std::string,
-                   kUserAgentFrozenBuildVersion,
-                   &kReduceUserAgentMinorVersion,
-                   "build_version",
-                   "0");
-
 // Whether `blink::MemoryCache` and `blink::ResourceFetcher` release their
 // strong references to resources on memory pressure.
 BASE_FEATURE(kReleaseResourceStrongReferencesOnMemoryPressure,
@@ -2506,6 +2504,11 @@ BASE_FEATURE(kWebAppBorderless, base::FEATURE_DISABLED_BY_DEFAULT);
 // https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
 BASE_FEATURE(kWebAppEnableScopeExtensionsBySite,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls parsing and usage of localized fields in web app manifests.
+// See spec for more information:
+// https://www.w3.org/TR/appmanifest/#x_localized-members
+BASE_FEATURE(kWebAppManifestLocalization, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls parsing of the "lock_screen" dictionary field and its "start_url"
 // entry in web app manifests.  See explainer for more information:

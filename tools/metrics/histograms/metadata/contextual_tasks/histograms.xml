@@ -141,7 +141,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextualTasks.Context.RelevantTabsCount" units="count"
-    expires_after="2026-03-22">
+    expires_after="2026-07-05">
   <owner>sophiechang@chromium.org</owner>
   <owner>abhayprakash@google.com</owner>
   <summary>
@@ -235,6 +235,17 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="ContextualTasks.WebUI.OAuthError"
+    units="GoogleServiceAuthError" expires_after="2026-06-01">
+  <owner>mercerd@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Records the OAuth error when a token is requested for use in the embedded
+    page of the WebUI. &quot;None&quot; indicates that the request was
+    successful.
+  </summary>
+</histogram>
+
 <histogram name="ContextualTasks.WebUI.UserAction{ActionType}" enum="Boolean"
     expires_after="2026-06-21">
   <owner>sophiechang@chromium.org</owner>
@@ -259,7 +270,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextualTasks.{EntrypointType}.UserAction{ActionType}"
-    enum="Boolean" expires_after="2026-03-22">
+    enum="Boolean" expires_after="2026-07-05">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-contextual-tasks-eng@google.com</owner>
   <summary>

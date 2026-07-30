@@ -85,6 +85,7 @@ import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.AllocatedIdInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.CloseWindowAppSource;
@@ -909,7 +910,15 @@ public class MultiInstanceManagerApi31UnitTest {
                 1, mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.INACTIVE).size());
 
         // Verify InstanceStateObserver is invoked.
-        verify(instanceStateObserver).onInstanceClosed();
+        ArgumentCaptor<InstanceInfo> captor = ArgumentCaptor.forClass(InstanceInfo.class);
+        verify(instanceStateObserver).onInstanceClosed(captor.capture(), eq(false));
+
+        // Verify the captured InstanceInfo.
+        InstanceInfo closedInstanceInfo = captor.getValue();
+        assertEquals("Instance ID should be 1.", 1, closedInstanceInfo.instanceId);
+        assertTrue(
+                "markedForDeletion should be true for soft closure.",
+                closedInstanceInfo.markedForDeletion);
 
         // Verify the soft-closed instance is correctly marked for deletion.
         for (InstanceInfo instanceInfo :
@@ -954,6 +963,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Config(qualifiers = "sw600dp")
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testGetInstanceInfo_filters() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowTestUtils.enableMultiInstance();
 
         // Instance 0: Active, Regular
@@ -1035,6 +1045,7 @@ public class MultiInstanceManagerApi31UnitTest {
         // Ensure the single instance at non-zero position is handled okay.
         int expected = 2;
         assertEquals(expected, allocInstanceIndex(expected, mActivityTask56));
+        mMultiInstanceManager.initialize(expected, TASK_ID_56, SupportedProfileType.MIXED);
         int id = mMultiInstanceManager.getCurrentInstanceId();
         assertEquals("Current instanceId is not as expected", expected, id);
     }
@@ -1520,8 +1531,11 @@ public class MultiInstanceManagerApi31UnitTest {
         mMultiInstanceManager.mTestBuildInstancesList = true;
         MultiWindowTestUtils.enableMultiInstance();
         // Allocate and create two instances.
-        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mTabbedActivityTask62, true));
+        assertEquals(0, allocInstanceIndex(PASSED_ID_INVALID, mCurrentActivity, true));
+        mMultiInstanceManager.initialize(0, TASK_ID_56, SupportedProfileType.MIXED);
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mTabbedActivityTask63, true));
+        var multiInstanceManager = createMultiInstanceManager(mTabbedActivityTask63);
+        multiInstanceManager.initialize(1, TASK_ID_63, SupportedProfileType.MIXED);
         assertEquals(2, mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.ANY).size());
     }
 
@@ -1539,7 +1553,7 @@ public class MultiInstanceManagerApi31UnitTest {
 
         doNothing()
                 .when(mMultiInstanceManager)
-                .openNewWindow(eq("Android.WindowManager.NewWindow2"), eq(false), anyInt());
+                .openNewWindow(eq(false), anyInt());
     }
 
     @Test
@@ -1717,7 +1731,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         eq(false),
                         eq(true),
                         anyInt());
-        verify(mMultiInstanceManager, times(1)).openNewWindow(any(), anyBoolean(), anyInt());
+        verify(mMultiInstanceManager, times(1)).openNewWindow(anyBoolean(), anyInt());
     }
 
     @Test
@@ -1732,7 +1746,7 @@ public class MultiInstanceManagerApi31UnitTest {
         verify(mMultiInstanceManager, times(0))
                 .moveAndReparentTabsToNewWindow(
                         any(), anyInt(), anyBoolean(), anyBoolean(), anyBoolean(), anyInt());
-        verify(mMultiInstanceManager, times(1)).openNewWindow(any(), anyBoolean(), anyInt());
+        verify(mMultiInstanceManager, times(1)).openNewWindow(anyBoolean(), anyInt());
     }
 
     @Test
@@ -1747,7 +1761,7 @@ public class MultiInstanceManagerApi31UnitTest {
         verify(mMultiInstanceManager, times(0))
                 .moveAndReparentTabGroupToNewWindow(
                         any(), eq(INVALID_WINDOW_ID), eq(true), eq(false), eq(true), anyInt());
-        verify(mMultiInstanceManager, times(1)).openNewWindow(any(), anyBoolean(), anyInt());
+        verify(mMultiInstanceManager, times(1)).openNewWindow(anyBoolean(), anyInt());
     }
 
     @Test
@@ -2359,6 +2373,10 @@ public class MultiInstanceManagerApi31UnitTest {
         assertEquals(1, allocInstanceIndex(PASSED_ID_INVALID, mTabbedActivityTask63));
         multiInstanceManager63.initialize(1, TASK_ID_63, SupportedProfileType.MIXED);
 
+        // Setup InstanceStateObserver for testing.
+        InstanceStateObserver instanceStateObserver = Mockito.mock(InstanceStateObserver.class);
+        multiInstanceManager62.addInstanceStateObserver(instanceStateObserver);
+
         // Setup AppTask's for both activities. Clear test AppTask ids that are set during the test
         // manager instantiation so that ids from the current mocked AppTasks are used.
         MultiInstanceManagerApi31.setAppTaskIdsForTesting(null);
@@ -2369,6 +2387,13 @@ public class MultiInstanceManagerApi31UnitTest {
             // Force destruction of |mTabbedActivityTask63|.
             destroyActivity(mTabbedActivityTask63);
         }
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(
+                                "Android.MultiWindowMode.InactiveInstanceRestore.AppSource",
+                                NewWindowAppSource.WINDOW_MANAGER)
+                        .build();
 
         // Try to restore the instance in task from |mTabbedActivityTask62|.
         multiInstanceManager62.openWindow(1, NewWindowAppSource.WINDOW_MANAGER);
@@ -2386,6 +2411,8 @@ public class MultiInstanceManagerApi31UnitTest {
             verify(mTabbedActivityTask62).startActivity(any());
             verify(appTasks.get(1)).finishAndRemoveTask();
             verify(mActivityManager, never()).moveTaskToFront(TASK_ID_63, 0);
+            verify(instanceStateObserver).onInstanceRestored(1);
+            histogramWatcher.assertExpected();
         }
     }
 
@@ -2513,7 +2540,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         .build();
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
 
-        mMultiInstanceManager.openNewWindow("", false, NewWindowAppSource.OTHER);
+        mMultiInstanceManager.openNewWindow(false, NewWindowAppSource.OTHER);
 
         verify(mCurrentActivity).startActivity(intentCaptor.capture());
         Intent intent = intentCaptor.getValue();
@@ -2653,6 +2680,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Config(qualifiers = "sw600dp")
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabsToOtherWindow_incognitoTabs_dialogShown() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setInstanceCountForTesting(1);
         MultiWindowUtils.setIncognitoInstanceCountForTesting(2);
         List<Tab> tabs = List.of(mTab1);
@@ -2670,6 +2698,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabsToOtherWindow_incognitoTabs_dialogHidden() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setIncognitoInstanceCountForTesting(1);
         List<Tab> tabs = List.of(mTab1);
         when(mTab1.isIncognitoBranded()).thenReturn(true);
@@ -2687,6 +2716,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Config(qualifiers = "sw600dp")
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabsToOtherWindow_regularTabs_dialogShown() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setInstanceCountForTesting(2);
         List<Tab> tabs = List.of(mTab1, mTab2);
         when(mTab1.isIncognitoBranded()).thenReturn(false);
@@ -2703,6 +2733,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabsToOtherWindow_regularTabs_dialogHidden() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setInstanceCountForTesting(1);
         List<Tab> tabs = List.of(mTab1, mTab2);
         when(mTab1.isIncognitoBranded()).thenReturn(false);
@@ -2841,6 +2872,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Config(qualifiers = "sw600dp")
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabGroupToOtherWindow_incognitoTabs_dialogShown() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setInstanceCountForTesting(1);
         MultiWindowUtils.setIncognitoInstanceCountForTesting(2);
 
@@ -2857,6 +2889,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabGroupToOtherWindow_incognitoTabs_dialogHidden() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setIncognitoInstanceCountForTesting(1);
         List<Tab> tabs = List.of(mTab1);
         when(mTab1.isIncognitoBranded()).thenReturn(true);
@@ -2880,6 +2913,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Config(qualifiers = "sw600dp")
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabGroupToOtherWindow_regularTabs_dialogShown() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setInstanceCountForTesting(2);
 
         mMultiInstanceManager.moveTabGroupToOtherWindow(
@@ -2895,6 +2929,7 @@ public class MultiInstanceManagerApi31UnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testMoveTabGroupToOtherWindow_regularTabs_dialogHidden() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         MultiWindowUtils.setInstanceCountForTesting(1);
         doNothing()
                 .when(mMultiInstanceManager)

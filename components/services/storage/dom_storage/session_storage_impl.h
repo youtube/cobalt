@@ -48,14 +48,14 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
                            public SessionStorageNamespaceImpl::Delegate {
  public:
   enum class BackingMode {
-    // Use an in-memory leveldb database to store our state.
+    // Use an in-memory database to store our state.
     kNoDisk,
-    // Use disk for the leveldb database, but clear its contents before we open
+    // Use disk for the database, but clear its contents before we open
     // it. This is used for platforms like Android where the session restore
     // code is never used, ScavengeUnusedNamespace is never called, and old
     // session storage data will never be reused.
     kClearDiskStateOnOpen,
-    // Use disk for the leveldb database, restore all saved namespaces from
+    // Use disk for the database, restore all saved namespaces from
     // disk. This assumes that ScavengeUnusedNamespace will eventually be called
     // to clean up unused namespaces on disk.
     kRestoreDiskState
@@ -112,11 +112,9 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void FlushAreaForTesting(const std::string& namespace_id,
                            const blink::StorageKey& storage_key);
 
-  // Access the underlying DomStorageDatabaseLevelDB. May be null if the
+  // Access the underlying `AsyncDomStorageDatabase`. May be null if the
   // database is not yet open.
-  base::SequenceBound<DomStorageDatabase>& GetDatabaseForTesting() {
-    return database_->database();
-  }
+  AsyncDomStorageDatabase* GetDatabaseForTesting() { return database_.get(); }
 
   const SessionStorageMetadata& GetMetadataForTesting() const {
     return metadata_;

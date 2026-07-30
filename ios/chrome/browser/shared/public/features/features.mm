@@ -7,7 +7,6 @@
 #import <string>
 #import <vector>
 
-#import "base/containers/contains.h"
 #import "base/metrics/field_trial_params.h"
 #import "components/country_codes/country_codes.h"
 #import "components/segmentation_platform/public/features.h"
@@ -17,7 +16,6 @@
 #import "crypto/features.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
-#import "ios/chrome/browser/safety_check_notifications/utils/constants.h"
 #import "ios/chrome/common/channel_info.h"
 #import "ui/base/device_form_factor.h"
 
@@ -29,85 +27,7 @@ BASE_FEATURE(kSafetyCheckAutorunByManagerKillswitch,
 BASE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSafetyCheckNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kOmahaServiceRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
-
-const char kTipsLensShopExperimentType[] = "TipsLensShopExperimentType";
-
-const char kTipsSafeBrowsingExperimentType[] = "TipsSafeBrowsingExperimentType";
-
-const char kSafetyCheckNotificationsExperimentType[] =
-    "SafetyCheckNotificationsExperimentType";
-
-const char kSafetyCheckNotificationsImpressionTrigger[] =
-    "SafetyCheckNotificationsImpressionTrigger";
-
-const char kSafetyCheckNotificationsImpressionLimit[] =
-    "SafetyCheckNotificationsImpressionLimit";
-
-const char kSafetyCheckAllowPasswordsNotifications[] =
-    "SafetyCheckAllowPasswordsNotifications";
-
-const char kSafetyCheckAllowSafeBrowsingNotifications[] =
-    "SafetyCheckAllowSafeBrowsingNotifications";
-
-const char kSafetyCheckAllowUpdateChromeNotifications[] =
-    "SafetyCheckAllowUpdateChromeNotifications";
-
-const char kSafetyCheckNotificationsProvisionalEnabled[] =
-    "SafetyCheckNotificationsProvisionalEnabled";
-
-const char kSafetyCheckNotificationsSuppressDelayIfPresent[] =
-    "SafetyCheckNotificationsSuppressDelayIfPresent";
-
-const char kSafetyCheckNotificationsUserInactiveThreshold[] =
-    "SafetyCheckNotificationsUserInactiveThreshold";
-
-// This helper should return true by default, as this parameter primarily serves
-// as a killswitch.
-bool AreSafetyCheckPasswordsNotificationsAllowed() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kSafetyCheckNotifications, kSafetyCheckAllowPasswordsNotifications,
-      /*default_value=*/true);
-}
-
-// This helper should return true by default, as this parameter primarily serves
-// as a killswitch.
-bool AreSafetyCheckSafeBrowsingNotificationsAllowed() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kSafetyCheckNotifications, kSafetyCheckAllowSafeBrowsingNotifications,
-      /*default_value=*/true);
-}
-
-// This helper should return true by default, as this parameter primarily serves
-// as a killswitch.
-bool AreSafetyCheckUpdateChromeNotificationsAllowed() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kSafetyCheckNotifications, kSafetyCheckAllowUpdateChromeNotifications,
-      /*default_value=*/true);
-}
-
-bool ProvisionalSafetyCheckNotificationsEnabled() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kSafetyCheckNotifications, kSafetyCheckNotificationsProvisionalEnabled,
-      /*default_value=*/
-      true);
-}
-
-const base::TimeDelta SuppressDelayForSafetyCheckNotificationsIfPresent() {
-  return base::GetFieldTrialParamByFeatureAsTimeDelta(
-      kSafetyCheckNotifications,
-      kSafetyCheckNotificationsSuppressDelayIfPresent,
-      /*default_value=*/kSafetyCheckNotificationSuppressDelayIfPresent);
-}
-
-const base::TimeDelta InactiveThresholdForSafetyCheckNotifications() {
-  return base::GetFieldTrialParamByFeatureAsTimeDelta(
-      kSafetyCheckNotifications, kSafetyCheckNotificationsUserInactiveThreshold,
-      /*default_value=*/
-      kSafetyCheckNotificationDefaultDelay);
-}
 
 BASE_FEATURE(kHideToolbarsInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -143,18 +63,11 @@ BASE_FEATURE(kEnableLensInOmniboxCopiedImage,
 
 BASE_FEATURE(kEnableLensOverlay, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableLensViewFinderUnifiedExperience,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Update to the correct milestone after launch.
 // Also update in components/omnibox/browser/autocomplete_result.cc.
 const base::NotFatalUntil kLensOverlayNotFatalUntil = base::NotFatalUntil::M200;
 
 BASE_FEATURE(kLensLoadAIMInLensResultPage, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kLensOverlayEnableIPadCompatibility,
-             "EnableLensOverlayForceIPadSupport",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayEnableLandscapeCompatibility,
              "EnableLensOverlayLandscapeSupport",
@@ -300,8 +213,6 @@ constexpr base::FeatureParam<int>
         &kNonModalDefaultBrowserPromoImpressionLimit,
         /*name=*/"impression-limit", /*default_value=*/3};
 
-BASE_FEATURE(kNotificationSettingsMenuItem, base::FEATURE_ENABLED_BY_DEFAULT);
-
 const char kBottomOmniboxEvolutionParam[] = "kBottomOmniboxEvolutionParam";
 const char kBottomOmniboxEvolutionParamEditStateFollowSteadyState[] =
     "kBottomOmniboxEvolutionParamEditStateFollowSteadyState";
@@ -309,8 +220,6 @@ const char kBottomOmniboxEvolutionParamForceBottomOmniboxEditState[] =
     "kBottomOmniboxEvolutionParamForceBottomOmniboxEditState";
 
 BASE_FEATURE(kBottomOmniboxEvolution, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kOnlyAccessClipboardAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsSafetyCheckAutorunByManagerEnabled() {
   return base::FeatureList::IsEnabled(kSafetyCheckAutorunByManagerKillswitch);
@@ -321,61 +230,11 @@ bool ShouldHideSafetyCheckModuleIfNoIssues() {
       kSafetyCheckModuleHiddenIfNoIssuesKillswitch);
 }
 
-bool IsSafetyCheckNotificationsEnabled() {
-  return base::FeatureList::IsEnabled(kSafetyCheckNotifications);
-}
-
 bool IsOmahaServiceRefactorEnabled() {
   return base::FeatureList::IsEnabled(kOmahaServiceRefactor);
 }
 
-SafetyCheckNotificationsExperimentalArm
-SafetyCheckNotificationsExperimentTypeEnabled() {
-  return static_cast<SafetyCheckNotificationsExperimentalArm>(
-      base::GetFieldTrialParamByFeatureAsInt(
-          kSafetyCheckNotifications, kSafetyCheckNotificationsExperimentType,
-          /*default_value=*/
-          (int)SafetyCheckNotificationsExperimentalArm::kSuccinct));
-}
-
-SafetyCheckNotificationsImpressionTrigger
-SafetyCheckNotificationsImpressionTriggerEnabled() {
-  return static_cast<SafetyCheckNotificationsImpressionTrigger>(
-      base::GetFieldTrialParamByFeatureAsInt(
-          kSafetyCheckNotifications, kSafetyCheckNotificationsImpressionTrigger,
-          /*default_value=*/
-          (int)SafetyCheckNotificationsImpressionTrigger::kAlways));
-}
-
-int SafetyCheckNotificationsImpressionLimit() {
-  return base::GetFieldTrialParamByFeatureAsInt(
-      kSafetyCheckNotifications, kSafetyCheckNotificationsImpressionLimit,
-      /*default_value=*/
-      0);
-}
-
-bool IsTipsMagicStackEnabled() {
-  return IsSegmentationTipsManagerEnabled();
-}
-
-TipsLensShopExperimentType TipsLensShopExperimentTypeEnabled() {
-  return static_cast<
-      TipsLensShopExperimentType>(base::GetFieldTrialParamByFeatureAsInt(
-      segmentation_platform::features::kSegmentationPlatformTipsEphemeralCard,
-      kTipsLensShopExperimentType,
-      /*default_value=*/
-      (int)TipsLensShopExperimentType::kWithProductImage));
-}
-
-TipsSafeBrowsingExperimentType TipsSafeBrowsingExperimentTypeEnabled() {
-  return static_cast<
-      TipsSafeBrowsingExperimentType>(base::GetFieldTrialParamByFeatureAsInt(
-      segmentation_platform::features::kSegmentationPlatformTipsEphemeralCard,
-      kTipsSafeBrowsingExperimentType,
-      /*default_value=*/
-      (int)TipsSafeBrowsingExperimentType::kShowEnhancedSafeBrowsingPromo));
-}
-
+// TODO(crbug.com/473788390): Clean-up feature once file upload menu is ready.
 BASE_FEATURE(kIOSChooseFromDrive, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
@@ -655,11 +514,6 @@ bool IsPinnedTabsEnabled() {
 
 BASE_FEATURE(kSegmentationPlatformIosModuleRankerCaching,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsSegmentationTipsManagerEnabled() {
-  return base::FeatureList::IsEnabled(
-      segmentation_platform::features::kSegmentationPlatformTipsEphemeralCard);
-}
 
 BASE_FEATURE(kSpotlightNeverRetainIndex, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1206,4 +1060,10 @@ BASE_FEATURE(kChromeNextIa, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsChromeNextIaEnabled() {
   return base::FeatureList::IsEnabled(kChromeNextIa);
+}
+
+BASE_FEATURE(kComposeboxAIMDisabled, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsComposeboxAIMDisabled() {
+  return base::FeatureList::IsEnabled(kComposeboxAIMDisabled);
 }

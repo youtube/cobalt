@@ -274,6 +274,7 @@
 <translation id="3885770153807205175">Тіл таңдағыш</translation>
 <translation id="3889417619312448367">Google Chrome жою</translation>
 <translation id="3892148308691398805">Мәтінді көшіру</translation>
+<translation id="3893985792899396936">Chrome кеңесі: Lens арқылы іздеңіз</translation>
 <translation id="3906096710440765802">Барлық құрылғыңызға құпия сөздер, бетбелгілер мен т.б. ақпаратты алу үшін Chrome браузеріне кіріңіз.</translation>
 <translation id="3921132130819999051">Chrome сіздің орныңызға браузерді шола алады</translation>
 <translation id="3941890832296813527">Орнату қатесі: орнату файлының атауы жарамсыз немесе оған қолдау көрсетілмейді.</translation>
@@ -315,7 +316,6 @@
 <translation id="4329315893554541805">Жекелендіру мен басқа функцияларды алу үшін Chrome-ды интернет пен қолданбаларды пайдалану тарихы мен байланысқан Google қызметтеріне қосыңыз.</translation>
 <translation id="4334241893986177674">Осы скриншотты іздеу</translation>
 <translation id="4334294535648607276">Жүктеп алынды.</translation>
-<translation id="4337324600316876133">Google Chrome-ның жаңа нұсқаларын алып тұру үшін macOS 12 не одан кейінгі операциялық жүйе керек болады. Бұл компьютерде macOS 11 нұсқасы орнатылған.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> кеңейтімі Chrome браузеріне енгізілді</translation>
 <translation id="4344128547036991536">Google Lens-ді ашқан кезде, бет атауы, URL мекенжайы және контенті, сондай-ақ PDF файлдары Google-ға автоматты түрде жіберіледі. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Жекелендіру үшін Chrome-ды интернет пен қолданбаларды пайдалану тарихына қосыңыз.</translation>
@@ -490,6 +490,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="6180522807229584611">Бұл қойынды ресурстарды көп қолданып жатыр. Өнімділікті жақсарту үшін Chrome-ға оны әрекетсіз қылуға рұқсат беріңіз.</translation>
 <translation id="6182736845697986886">Орнатылмады, себебі жаңарту серверінде ішкі қате пайда болды.</translation>
 <translation id="6183773856988300112">Chrome-дағы Gemini қойындыларыңызда істеп, сіз берген тапсырмаларды орындау үшін автоматты түрде шолу функциясын пайдаланады. <ph name="LINK_BEGIN" />Толық ақпарат<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome-мен жұмыс істеу бойынша кеңес: құпия сөздерді сақтаңыз</translation>
 <translation id="6192058120268468905">Chrome-дағы аккаунтыңыз</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> кеңейтім қосты, ол Chrome жұмысын өзгертуі мүмкін.
 
@@ -517,7 +518,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="6426623519983252346">Chrome iOS браузерін келесіде ашқанда, <ph name="FEATURE_NAME" /> функциясын пайдаланып көру туралы нұсқауды көресіз.</translation>
 <translation id="6434035853014503219">Chrome-ды әдепкі браузер етіп таңдағаныңызға рақмет!</translation>
 <translation id="6438015621983209660">Телефоныңыздағы Chrome браузерімен күшейтілген Safe Browsing мүмкіндіктерін кеңейтіңіз</translation>
-<translation id="6442774133615368941">Chrome iOS қолданбасында камерамен түсірген нәрселерді сатып алуға, аударуға және анықтауға болады.</translation>
+<translation id="6442774133615368941">Chrome iOS қолданбасында камера көмегімен нәрселерді сатып алуға, аударуға және анықтауға болады.</translation>
 <translation id="6473905796280459355">"Chrome туралы ақпарат" бетіне өту</translation>
 <translation id="6481963882741794338">Жекелендіру және басқа мақсаттарды орындау үшін Chrome мен басқа Google қызметтерін байланыстырыңыз.</translation>
 <translation id="648319183876919572">Күшейтілген Safe Browsing-нің қауіпті веб-сайттар мен файлдардан қорғау қабілеті жоғарырақ.</translation>
@@ -628,6 +629,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7627609214560473136">Деректеріңізді қорғау үшін Chrome-ға сіз соңғы уақытта кірмеген сайттардың рұқсаттарын өшіруге рұқсат беріңіз.</translation>
 <translation id="7629695634924605473">Құпия сөздеріңіз ұрланған жағдайда, Chrome бұл туралы хабарлайды.</translation>
 <translation id="7641148173327520642">Жүйе әкімшісі Google Chrome браузерін <ph name="TARGET_URL_HOSTNAME" /> бетіне кіру кезінде <ph name="ALTERNATIVE_BROWSER_NAME" /> ашылатын етіп конфигурациялады.</translation>
+<translation id="7641448682796883218">Chrome-мен жұмыс істеу бойынша кеңес: Күшейтілген Safe Browsing</translation>
 <translation id="7649070708921625228">Анықтама</translation>
 <translation id="7651907282515937834">Chrome Enterprise логотипі</translation>
 <translation id="76531479118467370">Chrome жүктеп алуды блоктады, себебі Safe Browsing функциясы өшірілді және файлды растау мүмкін емес.</translation>

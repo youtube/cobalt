@@ -178,8 +178,8 @@ class TabAndroid : public tabs::TabInterface,
   bool HasParentCollection();
   void InitWebContents(
       JNIEnv* env,
-      jboolean incognito,
-      jboolean is_background_tab,
+      bool incognito,
+      bool is_background_tab,
       const base::android::JavaRef<jobject>& jweb_contents,
       const base::android::JavaRef<jobject>& jweb_contents_delegate,
       const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
@@ -188,6 +188,9 @@ class TabAndroid : public tabs::TabInterface,
       JNIEnv* env,
       const base::android::JavaRef<jobject>& jweb_contents_delegate,
       const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
+  void SendDidActivateUpdate(JNIEnv* env);
+  void SendWillDeactivateUpdate(JNIEnv* env);
+  void SendDidInsertUpdate(JNIEnv* env);
   void DestroyWebContents();
   void ReleaseWebContents();
   bool IsPhysicalBackingSizeEmpty(
@@ -200,10 +203,10 @@ class TabAndroid : public tabs::TabInterface,
                                            std::u16string& jtitle);
   void LoadOriginalImage();
   void OnShow();
-  void NotifyPinnedStateChanged(jboolean is_pinned);
+  void NotifyPinnedStateChanged(bool is_pinned);
   void NotifyTabGroupChanged(std::optional<base::Token> tab_group_id);
   bool IsDragging() const;
-  void OnDraggingStateChanged(jboolean is_dragging);
+  void OnDraggingStateChanged(bool is_dragging);
   base::CallbackListSubscription RegisterDraggingChanged(
       base::RepeatingCallback<void(TabInterface*, bool)> callback);
 
@@ -248,6 +251,8 @@ class TabAndroid : public tabs::TabInterface,
   base::CallbackListSubscription RegisterModalUIChanged(
       TabInterfaceCallback callback) override;
   bool IsInNormalWindow() const override;
+  BrowserWindowInterface* GetBrowserWindowInterface() override;
+  const BrowserWindowInterface* GetBrowserWindowInterface() const override;
   tabs::TabFeatures* GetTabFeatures() override;
   const tabs::TabFeatures* GetTabFeatures() const override;
   bool IsPinned() const override;
@@ -305,6 +310,11 @@ class TabAndroid : public tabs::TabInterface,
 
   base::RepeatingCallbackList<void(TabInterface*, bool)>
       dragging_changed_callback_list_;
+
+  base::RepeatingCallbackList<void(TabInterface*)> did_activate_callback_list_;
+  base::RepeatingCallbackList<void(TabInterface*)>
+      will_deactivate_callback_list_;
+  base::RepeatingCallbackList<void(TabInterface*)> did_insert_callback_list_;
 
   const base::WeakPtr<Profile> profile_;
   ui::UnownedUserDataHost unowned_user_data_host_;

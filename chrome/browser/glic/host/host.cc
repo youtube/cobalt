@@ -15,7 +15,6 @@
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
-#include "chrome/browser/glic/host/glic.mojom-data-view.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
@@ -28,6 +27,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
@@ -38,6 +38,8 @@
 #endif
 
 namespace glic {
+
+BASE_FEATURE(kGlicReloadUsesFreshWebContents, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool EmptyEmbedderDelegate::IsShowing() const {
   return true;
@@ -109,6 +111,12 @@ bool Host::IsWebContentPresentAndMatches(
   return false;
 }
 
+void Host::NotifyActorTaskListRowClicked(int32_t task_id) {
+  if (auto* client = GetPrimaryWebClient()) {
+    client->NotifyActorTaskListRowClicked(task_id);
+  }
+}
+
 void Host::Close() {
   delegate_->ClosePanel();
 }
@@ -118,8 +126,16 @@ void Host::Reload() {
   if (!contents) {
     return;
   }
-  contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
-                                   /*check_for_repost=*/false);
+
+  if (GlicEnabling::IsMultiInstanceEnabled() &&
+      base::FeatureList::IsEnabled(kGlicReloadUsesFreshWebContents)) {
+    Shutdown();
+    CreateContents(/*initially_hidden=*/false);
+    delegate_->OnReload();
+  } else {
+    contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
+                                     /*check_for_repost=*/false);
+  }
 }
 
 void Host::CreateContents(bool initially_hidden) {
@@ -158,6 +174,7 @@ void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
             ? mojom::PanelOpeningData::New(
                   glic_instance_->GetPanelState().Clone(), invocation_source,
                   std::move(options.prompt_suggestion),
+                  /*skill_to_invoke=*/nullptr,
                   std::move(options.recently_active_conversations),
                   std::move(options.conversation_info))
             : mojom::PanelOpeningData::New(),
@@ -340,6 +357,7 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
             glic_instance_ ? glic_instance_->GetPanelState().Clone()
                            : mojom::PanelState::New(),
             *invocation_source_, std::move(prompt_suggestion),
+            /*skill_to_invoke=*/nullptr,
             std::move(recently_active_conversations),
             std::move(conversation_info)),
         base::BindOnce(
@@ -537,9 +555,7 @@ void Host::ClosePanel(GlicPageHandler* page_handler) {
 void Host::SetPanelDraggableAreas(
     GlicPageHandler* page_handler,
     const std::vector<gfx::Rect>& draggable_areas) {
-  if (handler_info_ && handler_info_->page_handler == page_handler) {
-    delegate_->SetDraggableAreas(draggable_areas);
-  }
+  // TODO(b:469211337): Remove it from glic api.
 }
 
 void Host::SetMinimumWidgetSize(GlicPageHandler* page_handler,

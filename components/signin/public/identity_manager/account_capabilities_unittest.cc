@@ -4,7 +4,6 @@
 
 #include "components/signin/public/identity_manager/account_capabilities.h"
 
-#include "base/containers/contains.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "components/signin/internal/identity_manager/account_capabilities_constants.h"
@@ -31,38 +30,6 @@ TEST_F(AccountCapabilitiesTest, GetSupportedAccountCapabilityNames) {
   EXPECT_THAT(names, Contains(kCanUseModelExecutionFeaturesName));
 }
 
-// The tests below validate that the ACCOUNT_CAPABILITY_F macro works correctly.
-//
-// Due to the way capabilities are defined, it is not possible to use fake
-// test capabilities; instead a real flag-guarded capability is used. Once this
-// capability is fully launched, these tests should be removed.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-TEST_F(AccountCapabilitiesTest,
-       GetSupportedAccountCapabilityNames_FlagDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      switches::kGlicEligibilitySeparateAccountCapability);
-
-  auto names =
-      AccountCapabilities::GetSupportedAccountCapabilityNamesInternal();
-
-  // Check one of the existing expected account capabilities.
-  EXPECT_THAT(names, Not(Contains(kCanUseGeminiInChromeCapabilityName)));
-}
-
-TEST_F(AccountCapabilitiesTest,
-       GetSupportedAccountCapabilityNames_FlagEnabled) {
-  base::test::ScopedFeatureList feature_list{
-      switches::kGlicEligibilitySeparateAccountCapability};
-
-  auto names =
-      AccountCapabilities::GetSupportedAccountCapabilityNamesInternal();
-
-  // Check one of the existing expected account capabilities.
-  EXPECT_THAT(names, Contains(kCanUseGeminiInChromeCapabilityName));
-}
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-
 TEST_F(AccountCapabilitiesTest, CanFetchFamilyMemberInfo) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_fetch_family_member_info(),
@@ -78,6 +45,7 @@ TEST_F(AccountCapabilitiesTest, CanFetchFamilyMemberInfo) {
             signin::Tribool::kFalse);
 }
 
+#if !BUILDFLAG(IS_IOS)
 TEST_F(AccountCapabilitiesTest, CanHaveEmailAddressDisplayed) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_have_email_address_displayed(),
@@ -92,6 +60,7 @@ TEST_F(AccountCapabilitiesTest, CanHaveEmailAddressDisplayed) {
   EXPECT_EQ(capabilities.can_have_email_address_displayed(),
             signin::Tribool::kFalse);
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
 #if !BUILDFLAG(IS_ANDROID)
 TEST_F(AccountCapabilitiesTest, CanMakeChromeSearchEngineChoiceScreenChoice) {
@@ -197,6 +166,7 @@ TEST_F(AccountCapabilitiesTest, CanUseDevToolsGenerativeAiFeatures) {
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
+#if !BUILDFLAG(IS_IOS)
 TEST_F(AccountCapabilitiesTest, CanUseEduFeatures) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_use_edu_features(), signin::Tribool::kUnknown);
@@ -208,6 +178,7 @@ TEST_F(AccountCapabilitiesTest, CanUseEduFeatures) {
   mutator.set_can_use_edu_features(false);
   EXPECT_EQ(capabilities.can_use_edu_features(), signin::Tribool::kFalse);
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(AccountCapabilitiesTest, CanUseMantaService) {
   AccountCapabilities capabilities;
@@ -219,19 +190,6 @@ TEST_F(AccountCapabilitiesTest, CanUseMantaService) {
 
   mutator.set_can_use_manta_service(false);
   EXPECT_EQ(capabilities.can_use_manta_service(), signin::Tribool::kFalse);
-}
-
-TEST_F(AccountCapabilitiesTest, CanUseCopyEditorFeature) {
-  AccountCapabilities capabilities;
-  EXPECT_EQ(capabilities.can_use_copyeditor_feature(),
-            signin::Tribool::kUnknown);
-
-  AccountCapabilitiesTestMutator mutator(&capabilities);
-  mutator.set_can_use_copyeditor_feature(true);
-  EXPECT_EQ(capabilities.can_use_copyeditor_feature(), signin::Tribool::kTrue);
-
-  mutator.set_can_use_copyeditor_feature(false);
-  EXPECT_EQ(capabilities.can_use_copyeditor_feature(), signin::Tribool::kFalse);
 }
 
 TEST_F(AccountCapabilitiesTest, CanUseModelExecutionFeatures) {
@@ -324,6 +282,7 @@ TEST_F(AccountCapabilitiesTest, CanUseSpeakerLabelInRecorderApp) {
             signin::Tribool::kFalse);
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(AccountCapabilitiesTest, CanUseGenerativeAiInRecorderApp) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_use_generative_ai_in_recorder_app(),
@@ -338,7 +297,9 @@ TEST_F(AccountCapabilitiesTest, CanUseGenerativeAiInRecorderApp) {
   EXPECT_EQ(capabilities.can_use_generative_ai_in_recorder_app(),
             signin::Tribool::kFalse);
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(AccountCapabilitiesTest, CanUseGenerativeAiPhotoEditing) {
   AccountCapabilities capabilities;
   EXPECT_EQ(capabilities.can_use_generative_ai_photo_editing(),
@@ -353,6 +314,7 @@ TEST_F(AccountCapabilitiesTest, CanUseGenerativeAiPhotoEditing) {
   EXPECT_EQ(capabilities.can_use_generative_ai_photo_editing(),
             signin::Tribool::kFalse);
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
 TEST_F(AccountCapabilitiesTest, CanUseGenerativeAi) {

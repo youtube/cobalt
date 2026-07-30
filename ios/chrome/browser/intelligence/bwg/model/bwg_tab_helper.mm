@@ -10,8 +10,10 @@
 #import "base/memory/weak_ptr.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
 #import "base/values.h"
+#import "components/favicon/ios/web_favicon_driver.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/google/core/common/google_util.h"
@@ -19,10 +21,12 @@
 #import "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #import "components/optimization_guide/core/hints/optimization_metadata.h"
 #import "components/optimization_guide/proto/contextual_cueing_metadata.pb.h"
+#import "components/optimization_guide/proto/features/zero_state_suggestions.pb.h"
 #import "components/prefs/pref_service.h"
 #import "components/prefs/scoped_user_pref_update.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -135,11 +139,26 @@ BwgTabHelper::BwgTabHelper(web::WebState* web_state) : web_state_(web_state) {
 }
 
 BwgTabHelper::~BwgTabHelper() {
+  for (auto& observer : observers_) {
+    observer.OnGeminiTabHelperDestroyed(this);
+  }
   if (web_state_) {
     web_state_->RemoveObserver(this);
     web_state_ = nullptr;
   }
   optimization_guide_decider_ = nullptr;
+}
+
+void BwgTabHelper::AddObserver(GeminiTabHelperObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void BwgTabHelper::RemoveObserver(GeminiTabHelperObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+bool BwgTabHelper::HasObserver(GeminiTabHelperObserver* observer) {
+  return observers_.HasObserver(observer);
 }
 
 void BwgTabHelper::GeneratePageContext(
@@ -254,6 +273,21 @@ NSString* BwgTabHelper::GetContextualCueLabel() {
 
 void BwgTabHelper::SetContextualCueLabel(NSString* cue_label) {
   contextual_cue_label_ = cue_label;
+}
+
+GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
+  GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
+  gemini_page_context.BWGPageContextComputationState =
+      ios::provider::BWGPageContextComputationState::kPending;
+  gemini_page_context.favicon = current_favicon_;
+
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::make_unique<optimization_guide::proto::PageContext>();
+  page_context->set_url(current_url_.spec());
+  page_context->set_title(base::UTF16ToUTF8(current_title_));
+  gemini_page_context.uniquePageContext = std::move(page_context);
+
+  return gemini_page_context;
 }
 
 bool BwgTabHelper::GetIsBwgSessionActiveInBackground() {
@@ -391,12 +425,38 @@ void BwgTabHelper::DidStartNavigation(
       ProfileIOS* profile =
           ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
       if (profile->GetPrefs()->GetBoolean(prefs::kIOSBWGPageContentSetting)) {
-        optimization_guide_decider_->CanApplyOptimization(
-            current_url, optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
-            base::BindOnce(
-                &BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
-                weak_ptr_factory_.GetWeakPtr(), current_url));
+        bool can_request_metadata = optimization_guide::
+            IsUserPermittedToFetchFromRemoteOptimizationGuide(
+                profile->IsOffTheRecord(), profile->GetPrefs());
+        if (can_request_metadata) {
+          optimization_guide_decider_->CanApplyOptimization(
+              current_url,
+              optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
+              base::BindOnce(
+                  &BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
+                  weak_ptr_factory_.GetWeakPtr(), current_url));
+        } else {
+          optimization_guide_decider_->CanApplyOptimizationOnDemand(
+              {current_url},
+              {optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS},
+              optimization_guide::proto::RequestContext::
+                  CONTEXT_GLIC_ZERO_STATE_SUGGESTIONS,
+              base::BindRepeating(
+                  &BwgTabHelper::OnCanApplyZeroStateSuggestionsOnDemandDecision,
+                  weak_ptr_factory_.GetWeakPtr()),
+              std::nullopt);
+        }
       }
+    }
+  }
+
+  if (IsGeminiCopresenceEnabled()) {
+    const GURL& new_url = navigation_context->GetUrl();
+    if (new_url != current_url_) {
+      current_url_ = new_url;
+    }
+    for (auto& observer : observers_) {
+      observer.OnPageContextUpdated(web_state_);
     }
   }
 }
@@ -404,28 +464,44 @@ void BwgTabHelper::DidStartNavigation(
 void BwgTabHelper::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
-  if (!IsAskGeminiChipEnabled()) {
+
+  const GURL& current_url = navigation_context->GetUrl().GetWithoutRef();
+  if (previous_main_frame_url_ == current_url) {
     return;
   }
 
-  const GURL& current_url = navigation_context->GetUrl().GetWithoutRef();
-  if (previous_main_frame_url_ == current_url ||
-      navigation_context->IsSameDocument()) {
-    return;
+  if (IsGeminiCopresenceEnabled()) {
+    current_title_ = web_state->GetTitle();
+    for (auto& observer : observers_) {
+      observer.OnPageContextUpdated(web_state_);
+    }
   }
 
   previous_main_frame_url_ = current_url;
-  latest_load_contextual_cueing_metadata_.reset();
-
-  if (!optimization_guide_decider_ || !current_url.SchemeIsHTTPOrHTTPS()) {
-    return;
-  }
 
   if (IsAskGeminiChipEnabled()) {
+    latest_load_contextual_cueing_metadata_.reset();
+
+    if (!optimization_guide_decider_ || !current_url.SchemeIsHTTPOrHTTPS()) {
+      return;
+    }
+
     optimization_guide_decider_->CanApplyOptimization(
         current_url, optimization_guide::proto::GLIC_CONTEXTUAL_CUEING,
         base::BindOnce(&BwgTabHelper::OnCanApplyContextualCueingDecision,
                        weak_ptr_factory_.GetWeakPtr(), current_url));
+  }
+}
+
+void BwgTabHelper::TitleWasSet(web::WebState* web_state) {
+  if (IsGeminiCopresenceEnabled()) {
+    const std::u16string& new_title = web_state->GetTitle();
+    if (new_title != current_title_) {
+      current_title_ = new_title;
+      for (auto& observer : observers_) {
+        observer.OnPageContextUpdated(web_state);
+      }
+    }
   }
 }
 
@@ -438,6 +514,39 @@ void BwgTabHelper::PageLoaded(
 
   if (IsWebPageReportedImagesSheetEnabled()) {
     PrepareWebPageReportedImagesSnackbar();
+  }
+}
+
+void BwgTabHelper::FaviconUrlUpdated(
+    web::WebState* web_state,
+    const std::vector<web::FaviconURL>& candidates) {
+  if (IsGeminiCopresenceEnabled()) {
+    favicon::WebFaviconDriver* driver =
+        favicon::WebFaviconDriver::FromWebState(web_state);
+    if (!driver) {
+      return;
+    }
+
+    UIImage* new_favicon = nil;
+    gfx::Image cached_favicon = driver->GetFavicon();
+    if (!cached_favicon.IsEmpty()) {
+      new_favicon = cached_favicon.ToUIImage();
+    } else {
+      UIImageConfiguration* configuration = [UIImageSymbolConfiguration
+          configurationWithPointSize:gfx::kFaviconSize
+                              weight:UIImageSymbolWeightBold
+                               scale:UIImageSymbolScaleMedium];
+      new_favicon =
+          DefaultSymbolWithConfiguration(kGlobeAmericasSymbol, configuration);
+    }
+
+    if (new_favicon != current_favicon_ &&
+        ![new_favicon isEqual:current_favicon_]) {
+      current_favicon_ = new_favicon;
+      for (auto& observer : observers_) {
+        observer.OnPageContextUpdated(web_state_);
+      }
+    }
   }
 }
 
@@ -621,8 +730,39 @@ void BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision(
     return;
   }
 
+  if (decision != optimization_guide::OptimizationGuideDecision::kTrue) {
+    zero_state_suggestions_->can_apply = true;
+    return;
+  }
+
+  optimization_guide::OptimizationMetadata mutable_metadata = metadata;
+  auto suggestions_metadata = mutable_metadata.ParsedMetadata<
+      optimization_guide::proto::GlicZeroStateSuggestionsMetadata>();
+  if (!suggestions_metadata) {
+    zero_state_suggestions_->can_apply = true;
+    return;
+  }
   zero_state_suggestions_->can_apply =
-      decision == optimization_guide::OptimizationGuideDecision::kTrue;
+      suggestions_metadata->contextual_suggestions_eligible();
+}
+
+void BwgTabHelper::OnCanApplyZeroStateSuggestionsOnDemandDecision(
+    const GURL& url,
+    const base::flat_map<
+        optimization_guide::proto::OptimizationType,
+        optimization_guide::OptimizationGuideDecisionWithMetadata>& decisions) {
+  auto it =
+      decisions.find(optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS);
+  if (it == decisions.end()) {
+    // If the optimization type is missing, treat it as kTrue.
+    OnCanApplyZeroStateSuggestionsDecision(
+        url, optimization_guide::OptimizationGuideDecision::kTrue,
+        optimization_guide::OptimizationMetadata());
+    return;
+  }
+
+  OnCanApplyZeroStateSuggestionsDecision(url, it->second.decision,
+                                         it->second.metadata);
 }
 
 void BwgTabHelper::ParseSuggestionsResponse(

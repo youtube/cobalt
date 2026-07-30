@@ -36,6 +36,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.reorder.ReorderDele
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -123,7 +124,8 @@ public abstract class ReorderStrategyTestBase {
 
     protected StripLayoutTab buildStripTab(int id, int x) {
         StripLayoutTab tab =
-                new StripLayoutTab(mActivity, id, null, null, null, null, false, false);
+                new StripLayoutTab(
+                        mActivity, id, null, null, null, null, false, false, MediaState.NONE);
         setDrawProperties(tab, x);
         return tab;
     }
@@ -139,14 +141,13 @@ public abstract class ReorderStrategyTestBase {
         view.setVisible(true);
     }
 
-    protected void mockTabGroup(Token groupId, int rootId, Tab... tabs) {
+    protected void mockTabGroup(Token groupId, Tab... tabs) {
         List<Tab> tabList = List.of(tabs);
         for (Tab tab : tabList) {
             when(mTabGroupModelFilter.isTabInTabGroup(tab)).thenReturn(true);
             when(mTabGroupModelFilter.getRelatedTabList(tab.getId())).thenReturn(tabList);
             when(mTabGroupModelFilter.getTabsInGroup(groupId)).thenReturn(tabList);
             tab.setTabGroupId(groupId);
-            tab.setRootId(rootId);
         }
         when(mTabGroupModelFilter.getTabCountForGroup(groupId)).thenReturn(tabList.size());
         when(mTabGroupModelFilter.getGroupLastShownTabId(groupId))

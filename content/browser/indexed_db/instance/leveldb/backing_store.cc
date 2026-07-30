@@ -284,12 +284,13 @@ std::tuple<bool, Status> AreSchemasKnown(TransactionalLevelDBDatabase* db) {
   if (!found) {
     return {true, s};
   }
-  if (raw_db_data_version < 0) {
+  std::optional<IndexedDBDataFormatVersion> db_data_version =
+      IndexedDBDataFormatVersion::Decode(raw_db_data_version);
+  if (!db_data_version) {
     return {false, Status::Corruption("Invalid IndexedDB data version.")};
   }
 
-  return {IndexedDBDataFormatVersion::GetCurrent().IsAtLeast(
-              IndexedDBDataFormatVersion::Decode(raw_db_data_version)),
+  return {IndexedDBDataFormatVersion::GetCurrent().IsAtLeast(*db_data_version),
           s};
 }
 
@@ -1232,7 +1233,13 @@ Status BackingStore::Initialize(bool clean_active_journal) {
       INTERNAL_CONSISTENCY_ERROR(SET_UP_METADATA);
       return InternalInconsistencyStatus();
     }
-    db_data_version = IndexedDBDataFormatVersion::Decode(raw_db_data_version);
+    std::optional<IndexedDBDataFormatVersion> decoded =
+        IndexedDBDataFormatVersion::Decode(raw_db_data_version);
+    if (!decoded) {
+      INTERNAL_CONSISTENCY_ERROR(SET_UP_METADATA);
+      return InternalInconsistencyStatus();
+    }
+    db_data_version = *decoded;
   }
   if (latest_known_data_version == db_data_version) {
     // Up to date. Nothing to do.
@@ -1842,7 +1849,7 @@ Status BackingStore::Transaction::CreateObjectStore(
     blink::IndexedDBKeyPath key_path,
     bool auto_increment) {
   CHECK_EQ(mode(), blink::mojom::IDBTransactionMode::VersionChange);
-  if (base::Contains(database_->metadata().object_stores, object_store_id)) {
+  if (database_->metadata().object_stores.contains(object_store_id)) {
     return Status::InvalidArgument("Invalid object_store_id");
   }
 
@@ -2305,8 +2312,10 @@ StatusOr<BackingStore::RecordIdentifier> BackingStore::Transaction::PutRecord(
   std::string v;
   EncodeVarInt(version, &v);
   // The value must fit inline as larger values would have gotten wrapped.
-  CHECK_EQ(value.bits.storage_type(),
-           mojo_base::BigBuffer::StorageType::kBytes);
+  if (value.bits.storage_type() != mojo_base::BigBuffer::StorageType::kBytes) {
+    return base::unexpected(
+        Status::InvalidArgument("Value bits must be inlined"));
+  }
   v.append(value.bits.begin(), value.bits.end());
 
   s = leveldb_transaction->Put(object_store_data_key, &v);

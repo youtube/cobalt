@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_DELEGATE_DESKTOP_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_handler.h"
 #include "content/public/browser/web_contents.h"
@@ -35,9 +36,11 @@ class ExtensionsMenuDelegateDesktop : public ExtensionsMenuViewModel::Delegate,
                                       public ExtensionsMenuViewModel::Observer,
                                       public ExtensionsMenuHandler {
  public:
-  ExtensionsMenuDelegateDesktop(Browser* browser,
-                                ExtensionsContainerViews* extensions_container,
-                                views::View* bubble_contents);
+  ExtensionsMenuDelegateDesktop(
+      Browser* browser,
+      ExtensionsContainer* extensions_container,
+      ExtensionsContainerViews* extensions_container_views,
+      views::View* bubble_contents);
   ExtensionsMenuDelegateDesktop(const ExtensionsMenuDelegateDesktop&) = delete;
   const ExtensionsMenuDelegateDesktop& operator=(
       const ExtensionsMenuDelegateDesktop&) = delete;
@@ -49,14 +52,13 @@ class ExtensionsMenuDelegateDesktop : public ExtensionsMenuViewModel::Delegate,
 
   // ExtensionsMenuViewModel::Observer:
   void OnActiveWebContentsChanged(content::WebContents* web_contents) override;
-  void OnHostAccessRequestAddedOrUpdated(
-      const extensions::ExtensionId& extension_id,
-      content::WebContents* web_contents) override;
-  void OnHostAccessRequestRemoved(
-      const extensions::ExtensionId& extension_id) override;
+  void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
+                                int index) override;
+  void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
+                                  int index) override;
+  void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
+                                  int index) override;
   void OnHostAccessRequestsCleared() override;
-  void OnHostAccessRequestDismissedByUser(
-      const extensions::ExtensionId& extension_id) override;
   void OnShowHostAccessRequestsInToolbarChanged(
       const extensions::ExtensionId& extension_id,
       bool can_show_requests) override;
@@ -101,36 +103,28 @@ class ExtensionsMenuDelegateDesktop : public ExtensionsMenuViewModel::Delegate,
   // Updates current_page for the given `web_contents`.
   void UpdatePage(content::WebContents* web_contents);
 
-  // Updates `main_page` for the given `web_contents`.
-  void UpdateMainPage(ExtensionsMenuMainPageView* main_page,
-                      content::WebContents* web_contents);
+  // Updates the menu's main page.
+  void UpdateMainPage(ExtensionsMenuMainPageView* main_page);
 
   // Updates `site_permissions_page` for the given `web_contents`.
   void UpdateSitePermissionsPage(
       ExtensionsMenuSitePermissionsPageView* site_permissions_page,
       content::WebContents* web_contents);
 
-  // Populates menu items in `main_page`.
+  // Populates menu entries in `main_page`.
   void PopulateMainPage(ExtensionsMenuMainPageView* main_page);
 
-  // Inserts a menu item for `extension_id` in `main_page` at `index`.
-  void InsertMenuItemMainPage(ExtensionsMenuMainPageView* main_page,
-                              ExtensionActionViewModel* action_model,
-                              int index);
-
-  // Adds or updates a request access entry for `extension_id` in `main_page` at
-  // `index`.
-  void AddOrUpdateExtensionRequestingAccess(
-      ExtensionsMenuMainPageView* main_page,
-      const extensions::ExtensionId& extension_id,
-      int index,
-      content::WebContents* web_contents);
+  // Inserts an entry for `extension_id` in `main_page` at `index`.
+  void InsertMenuEntry(ExtensionsMenuMainPageView* main_page,
+                       ExtensionActionViewModel* action_model,
+                       int index);
 
   // Returns the currently active web contents.
   content::WebContents* GetActiveWebContents() const;
 
   const raw_ptr<Browser> browser_;
-  const raw_ptr<ExtensionsContainerViews> extensions_container_;
+  const raw_ref<ExtensionsContainer> extensions_container_;
+  const raw_ptr<ExtensionsContainerViews> extensions_container_views_;
   const raw_ptr<views::View> bubble_contents_;
 
   // The platform-agnostic menu view model.

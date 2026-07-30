@@ -128,6 +128,7 @@
 <translation id="5446043142172831860">Quitar pestaña y salir del grupo</translation>
 <translation id="5490235265819901748">Grupo de pestañas desplegado</translation>
 <translation id="5494920125229734069">Seleccionar todo</translation>
+<translation id="5505998972479309757">{LIMIT_COUNT,plural, =1{Añade <ph name="LIMIT_COUNT_ONE" /> archivo, pestaña o imagen como máximo}other{Añade <ph name="LIMIT_COUNT_MANY" /> archivos, pestañas o imágenes como máximo}}</translation>
 <translation id="5551694449008560081">{NUMBER_OF_TABS,plural, =1{Cerrar el grupo de pestañas con <ph name="TABS_COUNT_ONE" /> pestaña de color <ph name="COLOR_NAME" />.}other{Cerrar el grupo de pestañas con <ph name="TABS_COUNT_MANY" /> pestañas de color <ph name="COLOR_NAME" />.}}</translation>
 <translation id="5556417849629758491">Ver información de la tienda, opción disponible cerca de la parte superior de la pantalla</translation>
 <translation id="5627941783489838464">No hay actualizaciones de pestañas</translation>
@@ -147,7 +148,7 @@
 <translation id="6228793724645064692">(valoración de la tienda)</translation>
 <translation id="6251046978189636310">Reproduciendo audio</translation>
 <translation id="625996437999624951">{TAB_COUNT,plural, =1{Quitar pestaña del grupo}other{Quitar pestañas del grupo}}</translation>
-<translation id="6313830465749181217">{TABS_COUNT,plural, =1{Añadir pestaña al nuevo grupo}other{Añadir pestañas al nuevo grupo}}</translation>
+<translation id="6313830465749181217">{TABS_COUNT,plural, =1{Añadir pestaña a nuevo grupo}other{Añadir pestañas a nuevo grupo}}</translation>
 <translation id="6333260925957816943">Información sobre esta tienda</translation>
 <translation id="6344715021569694246">{TABS_COUNT,plural, =1{Fijar <ph name="TABS_COUNT_ONE" /> pestaña seleccionada}other{Fijar <ph name="TABS_COUNT_MANY" /> pestañas seleccionadas}}</translation>
 <translation id="6381032505162537930">Aquí verás tus grupos de pestañas</translation>
@@ -223,7 +224,6 @@
 <translation id="8428213095426709021">Configuración</translation>
 <translation id="855081842937141170">Fijar pestaña</translation>
 <translation id="8633025649649592204">Actividad reciente</translation>
-<translation id="8635822281281406185">Añade hasta 10 archivos, pestañas o imágenes</translation>
 <translation id="8712637175834984815">Entendido</translation>
 <translation id="8714939927607906138">Precio más bajo</translation>
 <translation id="8730621377337864115">Hecho</translation>

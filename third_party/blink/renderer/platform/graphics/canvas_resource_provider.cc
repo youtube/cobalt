@@ -148,7 +148,6 @@ Canvas2DResourceProviderBitmap::Canvas2DResourceProviderBitmap(
                              format,
                              alpha_type,
                              color_space,
-                             /*context_provider_wrapper=*/nullptr,
                              delegate) {}
 
 scoped_refptr<StaticBitmapImage> Canvas2DResourceProviderBitmap::Snapshot(
@@ -228,16 +227,16 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
                              format,
                              alpha_type,
                              color_space,
-                             std::move(context_provider_wrapper),
                              delegate),
-      raster_context_provider_(base::WrapRefCounted(
-          ContextProviderWrapper()->ContextProvider().RasterContextProvider())),
+      context_provider_wrapper_(std::move(context_provider_wrapper)),
+      raster_context_provider_(
+          base::WrapRefCounted(context_provider_wrapper_->ContextProvider()
+                                   .RasterContextProvider())),
       is_accelerated_(is_accelerated),
       shared_image_usage_flags_(shared_image_usage_flags) {
-  if (ContextProviderWrapper()) {
+  if (context_provider_wrapper_) {
     // Graphite can handle a large buffer size.
-    if (ContextProviderWrapper()
-            ->ContextProvider()
+    if (context_provider_wrapper_->ContextProvider()
             .GetGpuFeatureInfo()
             .status_values[gpu::GPU_FEATURE_TYPE_SKIA_GRAPHITE] ==
         gpu::kGpuFeatureStatusEnabled) {
@@ -246,7 +245,7 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
       recorder_->DisableLineDrawingAsPaths();
     }
 
-    ContextProviderWrapper()->AddObserver(this);
+    context_provider_wrapper_->AddObserver(this);
   }
 
   if (raster_context_provider_) {
@@ -273,7 +272,6 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
                              format,
                              alpha_type,
                              color_space,
-                             /*context_provider_wrapper=*/nullptr,
                              delegate),
       shared_image_interface_provider_(
           shared_image_interface_provider
@@ -297,8 +295,8 @@ CanvasResourceProviderSharedImage::~CanvasResourceProviderSharedImage() {
     return;
   }
 
-  if (ContextProviderWrapper()) {
-    ContextProviderWrapper()->RemoveObserver(this);
+  if (context_provider_wrapper_) {
+    context_provider_wrapper_->RemoveObserver(this);
   }
 
   if (raster_context_provider_) {
@@ -306,6 +304,16 @@ CanvasResourceProviderSharedImage::~CanvasResourceProviderSharedImage() {
   }
 
   GetFlushForImageListener()->RemoveObserver(this);
+
+  // Last chance for outstanding GPU timers to record metrics.
+  if (RasterInterface()) {
+    CheckGpuTimers(RasterInterface());
+  }
+}
+
+ScopedRasterTimer CanvasResourceProviderSharedImage::CreateScopedRasterTimer() {
+  return ScopedRasterTimer(IsAccelerated() ? RasterInterface() : nullptr, *this,
+                           always_enable_raster_timers_for_testing_);
 }
 
 void CanvasResourceProviderSharedImage::OnContextDestroyed() {
@@ -336,7 +344,7 @@ CanvasResourceProviderSharedImage::CreateResource() {
 
   return CanvasResourceSharedImage::Create(
       Size(), GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
-      ContextProviderWrapper(), CreateWeakPtr(), is_accelerated_,
+      context_provider_wrapper_, CreateWeakPtr(), is_accelerated_,
       shared_image_usage_flags_);
 }
 
@@ -349,9 +357,7 @@ void CanvasResourceProviderSharedImage::OnContextLost() {
   // lost. The call is done in a separate task, so that the owner can delete
   // this resource provider if needed.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&CanvasResourceProvider::NotifyGpuContextLostTask,
-                     CreateWeakPtr()));
+      FROM_HERE, base::BindOnce(&NotifyGpuContextLostTask, CreateWeakPtr()));
   notified_context_lost_ = true;
 }
 
@@ -364,9 +370,7 @@ void CanvasResourceProviderSharedImage::OnGpuChannelLost() {
   // lost. The call is done in a separate task, so that the owner can delete
   // this resource provider if needed.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&CanvasResourceProvider::NotifyGpuContextLostTask,
-                     CreateWeakPtr()));
+      FROM_HERE, base::BindOnce(&NotifyGpuContextLostTask, CreateWeakPtr()));
   notified_context_lost_ = true;
 }
 
@@ -981,7 +985,7 @@ void CanvasResourceProviderSharedImage::RasterRecord(
 
   const bool can_use_lcd_text = GetAlphaType() == kOpaque_SkAlphaType;
   const auto& caps =
-      ContextProviderWrapper()->ContextProvider().GetCapabilities();
+      context_provider_wrapper_->ContextProvider().GetCapabilities();
   bool use_msaa = !caps.msaa_is_slow && !caps.avoid_stencil_buffers;
   ri->BeginRasterCHROMIUM(
       background_color, needs_clear,
@@ -1162,7 +1166,7 @@ CanvasResourceProvider::CreateSharedImageProvider(
 
   const bool is_accelerated = raster_mode == RasterMode::kGPU;
 
-  // TODO(https://crbug.com/1210946): Pass in info as is for all cases.
+  // TODO(crbug.com/40767377): Pass in info as is for all cases.
   // Overriding the info to use RGBA instead of N32 is needed because code
   // elsewhere assumes RGBA. OTOH the software path seems to be assuming N32
   // somewhere in the later pipeline but for offscreen canvas only.
@@ -1395,10 +1399,8 @@ CanvasResourceProvider::CanvasResourceProvider(
     viz::SharedImageFormat format,
     SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space,
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     Delegate* delegate)
     : type_(type),
-      context_provider_wrapper_(std::move(context_provider_wrapper)),
       info_(SkImageInfo::Make(size.width(),
                               size.height(),
                               viz::ToClosestSkColorType(format),
@@ -1419,11 +1421,6 @@ CanvasResourceProvider::CanvasResourceProvider(
 
 CanvasResourceProvider::~CanvasResourceProvider() {
   CanvasMemoryDumpProvider::Instance()->UnregisterClient(this);
-
-  // Last chance for outstanding GPU timers to record metrics.
-  if (RasterInterface()) {
-    CheckGpuTimers(RasterInterface());
-  }
 }
 
 std::unique_ptr<MemoryManagedPaintRecorder>
@@ -1516,18 +1513,18 @@ CanvasResourceProviderSharedImage::GetOrCreateCanvasImageProvider() {
 
   // Callsites are responsible for checking this before invoking this
   // method.
-  CHECK(ContextProviderWrapper());
+  CHECK(context_provider_wrapper_);
 
   // Create an ImageDecodeCache for half float images only if the canvas is
   // using half float back storage.
   cc::ImageDecodeCache* cache_f16 = nullptr;
   if (GetSharedImageFormat() == viz::SinglePlaneFormat::kRGBA_F16) {
-    cache_f16 = ContextProviderWrapper()->ContextProvider().ImageDecodeCache(
+    cache_f16 = context_provider_wrapper_->ContextProvider().ImageDecodeCache(
         kRGBA_F16_SkColorType);
   }
 
   cc::ImageDecodeCache* cache_rgba8 =
-      ContextProviderWrapper()->ContextProvider().ImageDecodeCache(
+      context_provider_wrapper_->ContextProvider().ImageDecodeCache(
           kN32_SkColorType);
 
   canvas_image_provider_ = std::make_unique<CanvasImageProvider>(
@@ -1606,7 +1603,8 @@ CanvasResourceProvider::UnacceleratedSnapshot(ImageOrientation orientation) {
   return snapshot;
 }
 
-gpu::raster::RasterInterface* CanvasResourceProvider::RasterInterface() const {
+gpu::raster::RasterInterface*
+CanvasResourceProviderSharedImage::RasterInterface() const {
   if (!context_provider_wrapper_)
     return nullptr;
   return context_provider_wrapper_->ContextProvider().RasterInterface();
@@ -1617,13 +1615,17 @@ SkSurfaceProps CanvasResourceProvider::GetSkSurfaceProps() const {
   return skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
 }
 
+ScopedRasterTimer CanvasResourceProvider::CreateScopedRasterTimer() {
+  return ScopedRasterTimer(nullptr, *this,
+                           always_enable_raster_timers_for_testing_);
+}
+
 std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
     FlushReason reason /*=FlushReason::kOther*/) {
   if (!recorder_->HasReleasableDrawOps()) {
     return std::nullopt;
   }
-  ScopedRasterTimer timer(IsAccelerated() ? RasterInterface() : nullptr, *this,
-                          always_enable_raster_timers_for_testing_);
+  auto timer = CreateScopedRasterTimer();
   bool want_to_print = (IsPrinting() && reason != FlushReason::kClear) ||
                        reason == FlushReason::kPrinting ||
                        reason == FlushReason::kCanvasPushFrameWhilePrinting;
@@ -1657,18 +1659,14 @@ void CanvasResourceProvider::UnacceleratedRasterRecord(
   skgpu::ganesh::FlushAndSubmit(GetSkSurface());
 }
 
-bool CanvasResourceProvider::IsGpuContextLost() const {
+bool CanvasResourceProviderSharedImage::IsGpuContextLost() const {
   auto* raster_interface = RasterInterface();
   return !raster_interface ||
          raster_interface->GetGraphicsResetStatusKHR() != GL_NO_ERROR;
 }
 
-bool CanvasResourceProvider::IsSoftwareSharedImageGpuChannelLost() const {
-  return false;
-}
-
-void CanvasResourceProvider::NotifyGpuContextLostTask(
-    base::WeakPtr<CanvasResourceProvider> provider) {
+void CanvasResourceProviderSharedImage::NotifyGpuContextLostTask(
+    base::WeakPtr<CanvasResourceProviderSharedImage> provider) {
   if (provider && provider->delegate_) {
     // Move `provider` as hint that it shouldn't be reused after this point.
     // The `delegate` owns the provider and can delete it in
@@ -1773,7 +1771,7 @@ size_t CanvasResourceProvider::GetSize() const {
   return ComputeSurfaceSize();
 }
 
-void CanvasResourceProvider::DisableLineDrawingAsPathsIfNecessary() {
+void CanvasResourceProviderSharedImage::DisableLineDrawingAsPathsIfNecessary() {
   if (context_provider_wrapper_ &&
       context_provider_wrapper_->ContextProvider()
               .GetGpuFeatureInfo()
@@ -1799,7 +1797,7 @@ Canvas2DResourceProviderBitmap::CreateForTesting(
       color_params.GetGfxColorSpace(), initialize_provider, delegate);
 }
 
-std::unique_ptr<CanvasResourceProvider>
+std::unique_ptr<CanvasResourceProviderSharedImage>
 CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
     gfx::Size size,
     const Canvas2DColorParams& color_params,

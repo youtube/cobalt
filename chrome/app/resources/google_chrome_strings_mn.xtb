@@ -274,6 +274,7 @@
 <translation id="3885770153807205175">Хэл сонгогч</translation>
 <translation id="3889417619312448367">Google Chrome-ыг устгах</translation>
 <translation id="3892148308691398805">Текстийг хуулах</translation>
+<translation id="3893985792899396936">Chrome-н зөвлөгөө: Lens-р хайх</translation>
 <translation id="3906096710440765802">Нууц үг, хавчуурга болон бусад зүйлээ бүх төхөөрөмж дээрээ авахын тулд Chrome-д нэвтэрнэ үү</translation>
 <translation id="3921132130819999051">Chrome-д танд зориулж үзэхийг зөвшөөрөх</translation>
 <translation id="3941890832296813527">Суулгах үед алдаа гарлаа: Суулгагчийн файлын нэр буруу эсвэл дэмжигдээгүй.</translation>
@@ -315,7 +316,6 @@
 <translation id="4329315893554541805">Хувийн болгох болон бусад онцлогийг авахын тулд Chrome-г Веб, аппын үйл ажиллагаа болон Google-н холбосон үйлчилгээнүүдэд оруулна уу</translation>
 <translation id="4334241893986177674">Энэ дэлгэцийн агшнаас хайх</translation>
 <translation id="4334294535648607276">Татаж дууслаа.</translation>
-<translation id="4337324600316876133">Google Chrome-н цаашдын шинэчлэлтийг авахын тулд танд macOS 12 эсвэл түүнээс хойших хувилбар хэрэг болно. Энэ компьютер macOS 11 хувилбарыг ашиглаж байна.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" />-г Chrome-д нэмсэн</translation>
 <translation id="4344128547036991536">Таныг Google Lens-г нээхэд хуудасны гарчиг, URL болон PDF зэрэг контентыг Google рүү автоматаар илгээнэ. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Хувийн болгох онцлогийг авахын тулд Chrome-г Веб, аппын үйл ажиллагаанд оруулна уу</translation>
@@ -372,6 +372,7 @@
 <translation id="5003967926796347400">“Google Password Manager”-г товшино уу</translation>
 <translation id="5043786843026425788">Chrome-д Google Lens-р хайх талаар нэмэлт мэдээлэл авах</translation>
 <translation id="504867494566807945">Дурын аппаас холбоосыг Chrome-д нээнэ үү. Түүнчлэн хялбар хандахад зориулж үүнийг таны ажлын хэсэгт бэхэлдэг.</translation>
+<translation id="5105120510934353742">Google Chrome-н цаашдын шинэчлэлтийг авахын тулд танд macOS 13 эсвэл түүнээс хойших хувилбар хэрэг болно. Энэ компьютер macOS 12 хувилбарыг ашиглаж байна.</translation>
 <translation id="5114340746415930644"><ph name="USER_EMAIL" /> бүртгэлдээ Chrome-н өгөгдлийг ашиглах, хадгалахын тулд нэвтрэх үгээ оруулна уу</translation>
 <translation id="5120334927898581447">Та Google-н бусад үйлчилгээнд нэвтрэх үедээ Chrome-д нэвтэрнэ үү</translation>
 <translation id="5126049312684316860">Chrome таны зочлох магадлалтай илүү олон хуудсыг урьдчилан ачаалах бөгөөд ингэснээр тэдгээр нь таныг зочлох үед илүү хурдан ачаална</translation>
@@ -490,6 +491,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="6180522807229584611">Энэ таб нэмэлт нөөц ашиглаж байна. Гүйцэтгэлээ сайжруулахын тулд Chrome-д энэ табыг идэвхгүй болгохыг зөвшөөрнө үү.</translation>
 <translation id="6182736845697986886">Шинэчлэлтийн серверийн дотоод алдааны улмаас суулгалт амжилтгүй болсон.</translation>
 <translation id="6183773856988300112">Chrome дахь Gemini таны табд ажиллаж, таны өгсөн даалгаврыг гүйцэтгэхийн тулд автоматаар үзэх онцлогийг ашигладаг. <ph name="LINK_BEGIN" />Нэмэлт мэдээлэл авах<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Chrome-н зөвлөгөө: Нууц үгийг хадгалаарай</translation>
 <translation id="6192058120268468905">Таны Chrome дахь бүртгэл</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> Chrome-н ажиллах зарчмыг өөрчилж болох өргөтгөл нэмсэн.
 
@@ -628,6 +630,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7627609214560473136">Өгөгдлөө хамгаалахын тулд Chrome-д таны сүүлийн үед зочлоогүй сайтын зөвшөөрлийг хасахыг зөвшөөрнө үү.</translation>
 <translation id="7629695634924605473">Хэрэв таны нууц үг алдагдсан байвал Chrome танд мэдэгдэнэ</translation>
 <translation id="7641148173327520642">Таны системийн админ Google Chrome-г <ph name="TARGET_URL_HOSTNAME" />-д хандахын тулд <ph name="ALTERNATIVE_BROWSER_NAME" />-г нээхээр тохируулсан байна.</translation>
+<translation id="7641448682796883218">Chrome-н зөвлөгөө: Сайжруулсан аюулгүй хөтөч</translation>
 <translation id="7649070708921625228">Тусламж</translation>
 <translation id="7651907282515937834">Chrome-н байгууллагын лого</translation>
 <translation id="76531479118467370">Та Safe Browsing-г унтраасан бөгөөд файлыг баталгаажуулах боломжгүй тул Chrome энэ таталтыг блоклосон</translation>

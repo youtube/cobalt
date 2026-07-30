@@ -439,9 +439,7 @@ void OpenPageSecurityInfoBubble() {
 void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
   [ChromeEarlGrey waitForWebStateContainingText:kContentToKeep];
 
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(
-                                          distillable_url.GetContent())]
-      assertWithMatcher:grey_notNil()];
+  [ChromeEarlGrey waitForWebStateVisibleURL:distillable_url];
 
   // Test that the offline and online pages are properly displayed.
   if (online) {
@@ -574,9 +572,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
   // Check that navigating forward navigates to the correct page.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::ForwardButton()]
       performAction:grey_tap()];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(
-                                          nonDistillablePageURL.GetContent())]
-      assertWithMatcher:grey_notNil()];
+  [ChromeEarlGrey waitForWebStateVisibleURL:nonDistillablePageURL];
 }
 
 // Tests that sharing a web page to the Reading List results in a snackbar
@@ -1225,8 +1221,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
   // TODO(crbug.com/433982582): This test fails on iPad iOS 18 with multitasking
   // enabled.
   if (!@available(iOS 26, *)) {
-    if ([ChromeEarlGrey isNewOverflowMenuEnabled] &&
-        [ChromeEarlGrey isIPadIdiom] && [ChromeEarlGrey isCompactWidth]) {
+    if ([ChromeEarlGrey isIPadIdiom] && [ChromeEarlGrey isCompactWidth]) {
       EARL_GREY_TEST_DISABLED(@"Disabled for iPad multitasking.");
     }
   }
@@ -1354,8 +1349,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
   }
   if (!@available(iOS 26, *)) {
     // This test fails on iPad iOS 18 with multitasking enabled.
-    if ([ChromeEarlGrey isNewOverflowMenuEnabled] &&
-        [ChromeEarlGrey isIPadIdiom] && [ChromeEarlGrey isCompactWidth]) {
+    if ([ChromeEarlGrey isIPadIdiom] && [ChromeEarlGrey isCompactWidth]) {
       EARL_GREY_TEST_DISABLED(@"Disabled for iPad multitasking.");
     }
   }
@@ -1822,8 +1816,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
   // TODO(crbug.com/433982582): This test fails on iPad iOS 18 with multitasking
   // enabled.
   if (!@available(iOS 26, *)) {
-    if ([ChromeEarlGrey isNewOverflowMenuEnabled] &&
-        [ChromeEarlGrey isIPadIdiom] && [ChromeEarlGrey isCompactWidth]) {
+    if ([ChromeEarlGrey isIPadIdiom] && [ChromeEarlGrey isCompactWidth]) {
       EARL_GREY_TEST_DISABLED(@"Disabled for iPad multitasking.");
     }
   }

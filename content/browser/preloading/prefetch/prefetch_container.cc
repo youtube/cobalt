@@ -785,23 +785,17 @@ void PrefetchContainer::UpdateResourceRequest(
   // There are sometimes other headers that are modified during navigation
   // redirects; see |NavigationRequest::OnRedirectChecksComplete| (including
   // some which are added by throttles). These aren't yet supported for
-  // prefetch, including browsing topics and client hints.
-  // TODO(crbug.com/441612842): Support User-Agent overrides.
+  // prefetch, including browsing topics.
   net::HttpRequestHeaders updated_headers;
-  std::vector<std::string> headers_to_remove = {variations::kClientDataHeader};
+  std::vector<std::string> headers_to_remove;
+
+  // ------------------------------------------------------------------------
+  // `Sec-Purpose`:
   updated_headers.SetHeader(blink::kSecPurposeHeaderName,
                             GetSecPurposeHeaderValue(redirect_info.new_url));
 
-  // Remove any existing client hints headers (except, below, if we still want
-  // to send this particular hint).
-  if (base::FeatureList::IsEnabled(features::kPrefetchClientHints)) {
-    const auto& client_hints = network::GetClientHintToNameMap();
-    headers_to_remove.reserve(headers_to_remove.size() + client_hints.size());
-    for (const auto& [_, header] : client_hints) {
-      headers_to_remove.push_back(header);
-    }
-  }
-
+  // ------------------------------------------------------------------------
+  // `Sec-Speculation-Tags`:
   // Sec-Speculation-Tags is set only when the prefetch is triggered
   // by speculation rules and it is not cross-site prefetch redirection.
   // To see more details:
@@ -816,10 +810,27 @@ void PrefetchContainer::UpdateResourceRequest(
                               serialized_list.value());
   }
 
-  // Then add the client hints that are appropriate for the redirect.
-  AddClientHintsHeaders(url::Origin::Create(redirect_info.new_url),
-                        &updated_headers);
+  // ------------------------------------------------------------------------
+  // WebContents override (`User-Agent`):
+  // TODO(crbug.com/441612842): Support User-Agent overrides, which is applied
+  // for the initial request by `MaybeApplyOverrideForUserAgentHeader()`.
 
+  // ------------------------------------------------------------------------
+  // Client Hints:
+  // DevTools overrides (Client Hints, `User-Agent`, `Accept`):
+  // Remove any existing client hints headers, then (re-)add the new client
+  // hints that are appropriate for the redirect.
+  if (base::FeatureList::IsEnabled(features::kPrefetchClientHints)) {
+    const auto& client_hints = network::GetClientHintToNameMap();
+    headers_to_remove.reserve(headers_to_remove.size() + client_hints.size());
+    for (const auto& [_, header] : client_hints) {
+      headers_to_remove.push_back(header);
+    }
+    AddClientHintsHeaders(url::Origin::Create(redirect_info.new_url),
+                          &updated_headers);
+  }
+
+  // ------------------------------------------------------------------------
   // To avoid spurious reordering, don't remove headers that will be updated
   // anyway.
   std::erase_if(headers_to_remove, [&](const std::string& header) {
@@ -849,6 +860,23 @@ void PrefetchContainer::UpdateResourceRequest(
   resource_request_->referrer = GURL(redirect_info.new_referrer);
   resource_request_->referrer_policy = redirect_info.new_referrer_policy;
 
+  // Remove `variations::kClientDataHeader` from `resource_request_->headers`,
+  // to keep the existing behavior. While `AddXClientDataHeader()` adds
+  // `variations::kClientDataHeader` to `resource_request->cors_exempt_headers`,
+  // it's also possible that `variations::kClientDataHeader` is added to
+  // `resource_request_->headers` via `request().additional_headers()`.
+  //
+  // TODO(crbug.com/467177773): The processing of
+  // `variations::kClientDataHeader` is separated from other headers, to keep
+  // the behavior of `variations::kClientDataHeader` during the main fixes for
+  // crbug.com/467177773. The behavior of `variations::kClientDataHeader` should
+  // be fixed together with other related bugs, by e.g. restructuring
+  // `variations::AppendVariationsHeader()` and plumbing the
+  // `variations::kClientDataHeader` removal and modification to
+  // `FollowRedirect()`.
+  // TODO(crbug.com/454082776): Remove `variations::kClientDataHeader` from
+  // `resource_request->cors_exempt_headers`.
+  resource_request_->headers.RemoveHeader(variations::kClientDataHeader);
   AddXClientDataHeader(*resource_request_.get());
 }
 

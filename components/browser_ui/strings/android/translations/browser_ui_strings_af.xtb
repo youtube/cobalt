@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Wanneer dit aan is, kan werwe vra om vensters op al jou skerms te bestuur. Wanneer dit af is, kan werwe nie vensters op al jou skerms bestuur nie.</translation>
 <translation id="1738912554587725807">Die voorkoms vir die temaversamelings van die Nuwe Oortjie-bladsy se onderste blad</translation>
 <translation id="1743802530341753419">Vra voordat werwe toegelaat word om aan 'n toestel te koppel (aanbeveel)</translation>
+<translation id="1766455884659449403">Kry kennisgewings vir Chrome-wenke</translation>
 <translation id="1777815584158991902">Onderste blad van Ontdek-stroom</translation>
 <translation id="1779089405699405702">Prentdekodeerder</translation>
 <translation id="1785415724048343560">Aanbeveel vir beste ervaring</translation>
@@ -188,11 +189,9 @@ Gevorderde Beskerming beheer hierdie Chrome-instellings:
 <translation id="2903493209154104877">Adresse</translation>
 <translation id="2910701580606108292">Vra voordat werwe toegelaat word om beskermde inhoud te speel</translation>
 <translation id="2918484639460781603">Gaan na instellings</translation>
-<translation id="293060180538644702">Kry Chrome-wenke-kennisgewings</translation>
 <translation id="2932883381142163287">Gee misbruik aan</translation>
 <translation id="2939338015096024043">Wanneer dit aan is, kan werwe vra om jou kameraposisie na te spoor en meer te leer oor jou omgewing. Wanneer dit af is, kan werwe nie jou kameraposisie naspoor of meer oor jou omgewing leer nie.</translation>
 <translation id="2968755619301702150">Sertifikaatbekyker</translation>
-<translation id="2979365474350987274">Derdepartywebkoekies is beperk</translation>
 <translation id="2990583317361835189">Moenie werwe toelaat om bewegingsensors te gebruik nie</translation>
 <translation id="3004438526346162184">Werwe kan hierdie kenmerk gebruik om vensters op al jou skerms te bestuur</translation>
 <translation id="3008272652534848354">Stel toestemmings terug</translation>
@@ -220,7 +219,6 @@ Gevorderde Beskerming beheer hierdie Chrome-instellings:
 <translation id="3223425961342298674">Ligging nie toegelaat nie</translation>
 <translation id="3227137524299004712">Mikrofoon</translation>
 <translation id="3232293466644486101">Vee blaaierdata uit …</translation>
-<translation id="3241320538788585298">Teruglusnetwerk</translation>
 <translation id="3242646949159196181">Wanneer dit aan is, kan werwe klank speel. Wanneer dit af is, kan werwe nie klank speel nie.</translation>
 <translation id="3273479183583863618">Prysdalings op oortjies</translation>
 <translation id="3277252321222022663">Laat werwe toegang tot sensors toe (aanbeveel)</translation>
@@ -403,6 +401,7 @@ Gevorderde Beskerming beheer hierdie Chrome-instellings:
 <translation id="5246825184569358663">Hierdie handeling sal alle plaaslike data uitvee, webkoekies ingesluit, en alle toestemmings terugstel vir <ph name="DOMAIN" /> en alle werwe onder dit</translation>
 <translation id="5264323282659631142">Verwyder "<ph name="CHIP_LABEL" />"</translation>
 <translation id="528192093759286357">Sleep van bo af en raak die terugknoppie om volskerm te verlaat.</translation>
+<translation id="5286194356314741248">Skandeer tans</translation>
 <translation id="5300589172476337783">Wys</translation>
 <translation id="5301954838959518834">OK, het dit</translation>
 <translation id="5317780077021120954">Berg</translation>
@@ -631,7 +630,6 @@ Gevorderde Beskerming beheer hierdie Chrome-instellings:
 <translation id="7835852323729233924">Speel tans media</translation>
 <translation id="783819812427904514">Ontdemp video</translation>
 <translation id="7846076177841592234">Kanselleer keuse</translation>
-<translation id="7881140103901777395">Chrome beperk die meeste werwe om derdepartywebkoekies te gebruik. Maar derdepartywebkoekies word op hierdie werf toegelaat omdat dit daarop staatmaak om basiese dienste te verskaf.\n\nBesoek instellings om <ph name="BEGIN_LINK" />toegang tot derdepartywebkoekies te bestuur<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Laat klank toe vir 'n spesifieke werf.</translation>
 <translation id="7891547341794213004">Versteek Gaan voort met hierdie Oortjie-kaart</translation>
 <translation id="789722939441020330">Moenie werwe toelaat om outomaties veelvuldige lêers af te laai nie</translation>

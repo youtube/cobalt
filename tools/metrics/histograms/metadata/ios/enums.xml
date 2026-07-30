@@ -644,6 +644,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="FilePicker"/>
   <int value="1" label="PhotoPicker"/>
   <int value="2" label="Camera"/>
+  <int value="3" label="DriveFilePicker"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelContextMenuActionVariant) -->
@@ -651,8 +652,11 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(IOSFileUploadPanelContextMenuVariant) -->
 
 <enum name="IOSFileUploadPanelContextMenuVariant">
-  <int value="0" label="PhotoPickerAndCameraAndFilePicker"/>
-  <int value="1" label="PhotoPickerAndFilePicker"/>
+  <int value="0" label="PhotoPickerAndFilePicker"/>
+  <int value="1" label="PhotoPickerAndCameraAndFilePicker"/>
+  <int value="2" label="FilePickerAndDriveFilePicker"/>
+  <int value="3" label="PhotoPickerAndFilePickerAndDriveFilePicker"/>
+  <int value="4" label="PhotoPickerAndCameraAndFilePickerAndDriveFilePicker"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/file_upload_panel/ui/constants.h:FileUploadPanelContextMenuVariant) -->
@@ -716,6 +720,17 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFREAction) -->
+
+<!-- LINT.IfChange(IOSGeminiSettingsItem) -->
+
+<enum name="IOSGeminiSettingsItem">
+  <int value="0" label="GeminiAppsActivity"/>
+  <int value="1" label="Personalization"/>
+  <int value="2" label="Extensions"/>
+  <int value="3" label="Unknown"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/settings/ui_bundled/bwg/utils/gemini_settings_metrics.h:IOSGeminiSettingsItem) -->
 
 <enum name="IOSHomeActionType">
   <int value="0" label="Most Visited Tiles"/>
@@ -1682,6 +1697,9 @@ chromium-metrics-reviews@google.com.
   <int value="17" label="Reminder"/>
   <int value="18" label="Commerce"/>
   <int value="19" label="Content"/>
+  <int value="20" label="Passwords [Cross Platform Promos]"/>
+  <int value="21" label="Safe Browsing [Cross Platform Promos]"/>
+  <int value="22" label="Lens [Cross Platform Promos]"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:NotificationType) -->

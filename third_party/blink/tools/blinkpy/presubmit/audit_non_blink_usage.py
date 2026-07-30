@@ -337,7 +337,6 @@ _CONFIG = [
 
             # Byte order
             'base::(numerics::)?((I|U)(8|16|32|64)|(Float|Double))(To|From)(Big|Little|Native)Endian',
-            'base::(numerics::)?ByteSwap',
             'base::BigEndian(Reader|Writer)',
 
             # (Cryptographic) random number generation
@@ -373,17 +372,6 @@ _CONFIG = [
             'base::UnsafeSharedMemoryRegion',
             'base::WritableSharedMemoryMapping',
             'base::subtle::SharedAtomic',
-
-            # Std.
-            'std::get',
-            'std::get_if',
-            'std::holds_alternative',
-            'std::in_place',
-            'std::in_place_type',
-            'std::monostate',
-            'std::to_underlying',
-            'std::variant',
-            'std::visit',
 
             # tracing
             'perfetto::.+',

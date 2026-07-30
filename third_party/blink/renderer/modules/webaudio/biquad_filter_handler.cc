@@ -8,6 +8,7 @@
 
 #include "base/containers/span.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node_input.h"
@@ -21,9 +22,9 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
-#ifdef __SSE2__
-#include <immintrin.h>
-#elif defined(__ARM_NEON__)
+#if defined(ARCH_CPU_X86_FAMILY)
+#include <xmmintrin.h>
+#elif defined(CPU_ARM_NEON)
 #include <arm_neon.h>
 #endif
 
@@ -31,7 +32,6 @@ namespace blink {
 
 namespace {
 
-constexpr unsigned kRenderQuantumFramesExpected = 128;
 constexpr unsigned kDefaultNumberOfOutputChannels = 1;
 
 // TODO(crbug.com/40268882): A reasonable upper limit for the tail time. While
@@ -60,7 +60,7 @@ bool HasConstantValues(base::span<float> values) {
             static_cast<size_t>(std::numeric_limits<int>::max()));
   const int values_size = static_cast<int>(values.size());
 
-#if defined(__SSE2__)
+#if defined(ARCH_CPU_X86_FAMILY)
   // Process 4 floats at a time using SIMD
   __m128 value_vec = _mm_set1_ps(value);
   // Start at 0 for byte alignment
@@ -75,7 +75,7 @@ bool HasConstantValues(base::span<float> values) {
       return false;
     }
   }
-#elif defined(__ARM_NEON__)
+#elif defined(CPU_ARM_NEON)
   // Process 4 floats at a time using SIMD
   float32x4_t value_vec = vdupq_n_f32(value);
   // Start at 0 for byte alignment
@@ -171,7 +171,11 @@ BiquadFilterHandler::BiquadFilterHandler(AudioNode& node,
       parameter_detune_(&detune),
       sample_rate_(sample_rate),
       nyquist_(0.5 * sample_rate),
-      render_quantum_frames_(node.context()->renderQuantumSize()) {
+      render_quantum_frames_(node.context()->renderQuantumSize()),
+      cutoff_frequency_sample_accurate_values_(render_quantum_frames_),
+      q_sample_accurate_values_(render_quantum_frames_),
+      gain_sample_accurate_values_(render_quantum_frames_),
+      detune_sample_accurate_values_(render_quantum_frames_) {
   DCHECK(Context());
   DCHECK(Context()->GetExecutionContext());
 
@@ -309,56 +313,48 @@ void BiquadFilterHandler::Process(uint32_t frames_to_process) {
         }
       }
 
-      // Recompute filter coefficients if any of the parameters have changed.
-      // FIXME: as an optimization, implement a way that a Biquad object can
-      // simply copy its internal filter coefficients from another Biquad
-      // object.  Then re-factor this code to only run for the first
       // BiquadDSPKernel of each BiquadProcessor.
 
       if (are_filter_coefficients_dirty) {
-        // TODO(crbug.com/40637820): Eventually, the render quantum size
-        // will no longer be hardcoded as 128. At that point, we'll need to
-        // switch from stack allocation to heap allocation.
-        CHECK_EQ(render_quantum_frames_, kRenderQuantumFramesExpected);
-        float cutoff_frequency_data[kRenderQuantumFramesExpected];
-        float q_data[kRenderQuantumFramesExpected];
-        float gain_data[kRenderQuantumFramesExpected];
-        float detune_data[kRenderQuantumFramesExpected];  // in Cents
-        base::span<float> cutoff_frequency(cutoff_frequency_data);
-        base::span<float> q(q_data);
-        base::span<float> gain(gain_data);
-        base::span<float> detune(detune_data);
-
         SECURITY_CHECK(static_cast<unsigned>(frames_to_process) <=
                        render_quantum_frames_);
 
         if (has_sample_accurate_values && is_audio_rate) {
           parameter_cutoff_frequency_->CalculateSampleAccurateValues(
-              cutoff_frequency.first(static_cast<size_t>(frames_to_process)));
+              cutoff_frequency_sample_accurate_values_.as_span().first(
+                  static_cast<size_t>(frames_to_process)));
           parameter_q_->CalculateSampleAccurateValues(
-              q.first(static_cast<size_t>(frames_to_process)));
+              q_sample_accurate_values_.as_span().first(
+                  static_cast<size_t>(frames_to_process)));
           parameter_gain_->CalculateSampleAccurateValues(
-              gain.first(static_cast<size_t>(frames_to_process)));
+              gain_sample_accurate_values_.as_span().first(
+                  static_cast<size_t>(frames_to_process)));
           parameter_detune_->CalculateSampleAccurateValues(
-              detune.first(static_cast<size_t>(frames_to_process)));
+              detune_sample_accurate_values_.as_span().first(
+                  static_cast<size_t>(frames_to_process)));
 
           // If all the values are actually constant for this render (or the
           // automation rate is "k-rate" for all of the AudioParams), we
           // don't need to compute filter coefficients for each frame since
           // they would be the same as the first.
-          bool is_constant = HasConstantValues(cutoff_frequency) &&
-                             HasConstantValues(q) && HasConstantValues(gain) &&
-                             HasConstantValues(detune);
-          size_t needed_frames = is_constant ? 1 : std::size(cutoff_frequency);
+          bool is_constant =
+              HasConstantValues(
+                  cutoff_frequency_sample_accurate_values_.as_span()) &&
+              HasConstantValues(q_sample_accurate_values_.as_span()) &&
+              HasConstantValues(gain_sample_accurate_values_.as_span()) &&
+              HasConstantValues(detune_sample_accurate_values_.as_span());
+          size_t needed_frames = is_constant ? 1 : render_quantum_frames_;
           // Convert from Hertz to normalized frequency 0 -> 1.
           for (const auto& biquad : biquads_) {
             biquad->SetHasSampleAccurateValues(needed_frames > 1);
 
             for (size_t k = 0; k < needed_frames; ++k) {
-              const double normalized_frequency =
-                  NormalizeFrequency(cutoff_frequency[k], nyquist_, detune[k]);
+              const double normalized_frequency = NormalizeFrequency(
+                  cutoff_frequency_sample_accurate_values_[k], nyquist_,
+                  detune_sample_accurate_values_[k]);
               SetBiquadParams(biquad.get(), type_, k, normalized_frequency,
-                              q[k], gain[k]);
+                              q_sample_accurate_values_[k],
+                              gain_sample_accurate_values_[k]);
             }
           }
           const int coef_index = needed_frames - 1;
@@ -368,17 +364,20 @@ void BiquadFilterHandler::Process(uint32_t frames_to_process) {
               sample_rate_;
           tail_time_ = ClampTo(tail, 0.0, kMaxTailTime);
         } else {
-          cutoff_frequency[0] = parameter_cutoff_frequency_->FinalValue();
-          q[0] = parameter_q_->FinalValue();
-          gain[0] = parameter_gain_->FinalValue();
-          detune[0] = parameter_detune_->FinalValue();
+          cutoff_frequency_sample_accurate_values_[0] =
+              parameter_cutoff_frequency_->FinalValue();
+          q_sample_accurate_values_[0] = parameter_q_->FinalValue();
+          gain_sample_accurate_values_[0] = parameter_gain_->FinalValue();
+          detune_sample_accurate_values_[0] = parameter_detune_->FinalValue();
           for (const auto& biquad : biquads_) {
             // Convert from Hertz to normalized frequency 0 -> 1.
             biquad->SetHasSampleAccurateValues(false);
             const double normalized_frequency =
-                NormalizeFrequency(cutoff_frequency[0], nyquist_, detune[0]);
-            SetBiquadParams(biquad.get(), type_, 0, normalized_frequency, q[0],
-                            gain[0]);
+                NormalizeFrequency(cutoff_frequency_sample_accurate_values_[0],
+                                   nyquist_, detune_sample_accurate_values_[0]);
+            SetBiquadParams(biquad.get(), type_, 0, normalized_frequency,
+                            q_sample_accurate_values_[0],
+                            gain_sample_accurate_values_[0]);
           }
           DCHECK(!biquads_.empty());
           const double tail =
@@ -424,23 +423,16 @@ void BiquadFilterHandler::ProcessOnlyAudioParams(uint32_t frames_to_process) {
     return;
   }
 
-  // TODO(crbug.com/40637820): Eventually, the render quantum size will no
-  // longer be hardcoded as 128. At that point, we'll need to switch from
-  // stack allocation to heap allocation.
-  CHECK_EQ(render_quantum_frames_, kRenderQuantumFramesExpected);
+  DCHECK_LE(frames_to_process, render_quantum_frames_);
 
-  DCHECK_LE(frames_to_process, kRenderQuantumFramesExpected);
+  // Reuse one of the existing arrays as temporary space.
+  auto temp_span = cutoff_frequency_sample_accurate_values_.as_span().first(
+      frames_to_process);
 
-  float values[kRenderQuantumFramesExpected];
-
-  parameter_cutoff_frequency_->CalculateSampleAccurateValues(
-      base::span(values).first(frames_to_process));
-  parameter_q_->CalculateSampleAccurateValues(
-      base::span(values).first(frames_to_process));
-  parameter_gain_->CalculateSampleAccurateValues(
-      base::span(values).first(frames_to_process));
-  parameter_detune_->CalculateSampleAccurateValues(
-      base::span(values).first(frames_to_process));
+  parameter_cutoff_frequency_->CalculateSampleAccurateValues(temp_span);
+  parameter_q_->CalculateSampleAccurateValues(temp_span);
+  parameter_gain_->CalculateSampleAccurateValues(temp_span);
+  parameter_detune_->CalculateSampleAccurateValues(temp_span);
 }
 
 // Nice optimization in the very common case allowing for "in-place" processing

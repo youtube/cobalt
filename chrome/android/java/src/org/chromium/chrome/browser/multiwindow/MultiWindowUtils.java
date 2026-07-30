@@ -553,6 +553,8 @@ public class MultiWindowUtils implements ActivityStateListener {
 
     static boolean isRestorableInstance(int index) {
         return MultiInstancePersistentStore.readNormalTabCount(index) != 0
+                || (IncognitoUtils.shouldOpenIncognitoAsWindow()
+                        && MultiInstancePersistentStore.readIncognitoTabCount(index) != 0)
                 || MultiInstancePersistentStore.readTaskId(index) != INVALID_TASK_ID;
     }
 
@@ -650,6 +652,14 @@ public class MultiWindowUtils implements ActivityStateListener {
             return supportedProfileType == SupportedProfileType.MIXED
                     || supportedProfileType == SupportedProfileType.REGULAR;
         }
+    }
+
+    /**
+     * @param instanceId The id of the instance.
+     * @return The {@link SupportedProfileType} of the instance.
+     */
+    public static @SupportedProfileType int readProfileType(int instanceId) {
+        return MultiInstancePersistentStore.readProfileType(instanceId);
     }
 
     /**
@@ -1002,9 +1012,10 @@ public class MultiWindowUtils implements ActivityStateListener {
      *
      * @param intent The intent to launch.
      * @param instanceId ID of the instance to launch the intent in.
+     * @return Whether the intent was launched successfully.
      */
-    public static void launchIntentInInstance(Intent intent, int instanceId) {
-        MultiInstanceManagerApi31.launchIntentInExistingActivity(intent, instanceId);
+    public static boolean launchIntentInInstance(Intent intent, int instanceId) {
+        return MultiInstanceManagerApi31.launchIntentInExistingActivity(intent, instanceId);
     }
 
     /**

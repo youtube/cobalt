@@ -1215,9 +1215,7 @@ void RTCVideoEncoder::Impl::Enqueue(FrameChunk frame_chunk) {
         if (use_native_input_) {
           use_native_input_ = false;
         }
-      } else if (frame->storage_type() ==
-                     media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE ||
-                 frame->HasSharedImage()) {
+      } else if (frame->HasSharedImage()) {
         if (!use_native_input_) {
           use_native_input_ = true;
           // TODO(https://issuetracker.google.com/issues/337130619): Ideally
@@ -2366,9 +2364,9 @@ void RTCVideoEncoder::Impl::EncodeOneFrameWithNativeInput(
 
     // A SI-backed video frame can be sent to the VEA encoder directly if VEA
     // reports it as supported, we just need to verify the sync token.
-    bool shared_image_encoding =
-        vea_supports_shared_images_ && !frame->HasNativeGpuMemoryBuffer() &&
-        !frame->HasMappableSharedImage() && frame->HasSharedImage();
+    bool shared_image_encoding = vea_supports_shared_images_ &&
+                                 !frame->HasMappableSharedImage() &&
+                                 frame->HasSharedImage();
     if (shared_image_encoding) {
       TRACE_EVENT0("webrtc",
                    "RTCVideoEncoder::Impl::EncodeOneFrameWithNativeInput::"
@@ -2380,9 +2378,8 @@ void RTCVideoEncoder::Impl::EncodeOneFrameWithNativeInput(
             token);
         frame->UpdateAcquireSyncToken(token);
       }
-    } else if (frame->storage_type() !=
-               media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE) {
-      // If the frame is not backed by a GPU memory buffer and the VEA does not
+    } else if (!frame->HasMappableSharedImage()) {
+      // If the frame is not backed by a mappable SI and the VEA does not
       // support SI encoding, we need to guarantee the frame must be converted
       // to a mappable frame.
       if (MaybeConvertRGBAToNV12AndEncode(frame_chunk, frame)) {
@@ -2393,8 +2390,7 @@ void RTCVideoEncoder::Impl::EncodeOneFrameWithNativeInput(
       if (!frame) {
         return;
       }
-      CHECK_EQ(frame->storage_type(),
-               media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE);
+      CHECK(frame->HasMappableSharedImage());
     }
   }
   DoNativeEncodeWithNativeInput(frame_chunk, frame);

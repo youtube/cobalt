@@ -248,7 +248,7 @@ search-animated-glow {
 #input {
   background-color: inherit;
   border: none;
-  caret-color: var(--google-blue-500);
+  caret-color: var(--color-composebox-font-light);
   color: var(--color-composebox-font-light);
   field-sizing: content;
   mask-image: linear-gradient(transparent 7px, black calc(var(--text-input-top-spacing) + 7px));
@@ -258,7 +258,8 @@ search-animated-glow {
   resize: none;
 }
 
-#input:focus {
+:host(:not([disable-caret-color-animation])) #input:focus {
+  caret-color: var(--google-blue-500);
   animation: color-change 5s infinite;
 }
 
@@ -457,6 +458,18 @@ search-animated-glow {
   opacity: 30%; /* For Lens side panel. */
   top: 2px;
   transition: var(--submit-enabled-transition);
+}
+
+#submitContainer:has(#submitIcon[disabled]) {
+  cursor: not-allowed;
+}
+
+#submitContainer:has(#submitIcon[disabled]):hover #submitOverlay {
+  background-color: transparent;
+}
+
+#submitContainer #submitIcon[disabled] {
+  opacity: 0.4;
 }
 
 #submitContainer:focus-visible {
@@ -660,7 +673,7 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
 }
 
 :host([show-submit_][submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]) #submitContainer {
-  top: 58px;
+  top: var(--cr-composebox-submit-container-top, 58px);
 }
 
 :host([show-submit_][submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_][context-files-size_="0"]) contextual-entrypoint-and-carousel::part(carousel-divider) {
@@ -682,7 +695,7 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
 
 :host([show-submit_][submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]) contextual-entrypoint-and-carousel::part(voice-icon) {
   bottom: unset;
-  top: 60px;
+  top: var(--cr-composebox-voice-icon-top, 60px);
 }
 
 :host([searchbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {

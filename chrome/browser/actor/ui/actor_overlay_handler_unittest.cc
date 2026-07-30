@@ -6,8 +6,8 @@
 
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
-#include "chrome/browser/actor/ui/mocks/fake_actor_overlay_page.h"
-#include "chrome/browser/actor/ui/mocks/mock_actor_ui_tab_controller.h"
+#include "chrome/browser/actor/ui/test_support/fake_actor_overlay_page.h"
+#include "chrome/browser/actor/ui/test_support/mock_actor_ui_tab_controller.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_util_desktop.h"
@@ -116,13 +116,18 @@ TEST_F(ActorOverlayHandlerTest, SetBorderGlowVisibility) {
 }
 
 TEST_F(ActorOverlayHandlerTest, OnThemeChanged) {
+  // Setting up the first time calls set theme once so we reset the counters.
+  fake_page_.FlushForTesting();
+  fake_page_.ResetCounters();
   // Flag off
   {
+    base::test::ScopedFeatureList scoped_features;
+    scoped_features.InitAndDisableFeature(features::kActorUiThemed);
     webui::GetNativeThemeDeprecated(web_contents_.get())
         ->NotifyOnNativeThemeUpdated();
     fake_page_.FlushForTesting();
 
-    EXPECT_EQ(fake_page_.set_theme_call_count(), 0);
+    EXPECT_EQ(fake_page_.theme_call_count(), 0);
   }
   // Flag on
   {
@@ -133,7 +138,7 @@ TEST_F(ActorOverlayHandlerTest, OnThemeChanged) {
         ->NotifyOnNativeThemeUpdated();
     fake_page_.FlushForTesting();
 
-    EXPECT_EQ(fake_page_.set_theme_call_count(), 1);
+    EXPECT_EQ(fake_page_.theme_call_count(), 1);
   }
 }
 
@@ -163,6 +168,16 @@ TEST_F(ActorOverlayHandlerTest, HandlesNullTab) {
   EXPECT_CALL(*mock_actor_ui_tab_controller(), GetCurrentUiTabState()).Times(0);
   handler_->GetCurrentBorderGlowVisibility(future.GetCallback());
   EXPECT_FALSE(future.Take());
+}
+
+TEST_F(ActorOverlayHandlerTest, TriggerClickAnimation) {
+  base::test::TestFuture<void> future;
+
+  handler_->TriggerClickAnimation(future.GetCallback());
+  fake_page_.FlushForTesting();
+
+  EXPECT_TRUE(future.Wait());
+  EXPECT_EQ(fake_page_.trigger_click_animation_call_count(), 1);
 }
 
 }  // namespace

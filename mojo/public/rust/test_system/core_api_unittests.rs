@@ -27,7 +27,7 @@ fn test_basic_message_write_and_send() {
     //
     // In the Rust API you should never directly touch an invalid MojoHandle.
     // The MojoHandles are created under the hood here.
-    let (endpoint_a, endpoint_b) = system::mojo_types::create_message_pipe().unwrap();
+    let (endpoint_a, endpoint_b) = system::message_pipe::MessageEndpoint::create_pipe().unwrap();
 
     // In the C API this looks like:
     //   MojoMessageHandle message;
@@ -52,14 +52,13 @@ fn test_basic_message_write_and_send() {
     // * handle_signal_tracker
     // * handle_signals_state
     // * invitation (I think we're ignoring these for now?)
-    // * scope_to_messagE_pipe
+    // * scope_to_message_pipe
     // * simple_watcher
     // * string_data_source
     // * wait_set
     // * wait.
 
     // FOR_RELEASE: Implement all the above.
-    assert_eq!(0, 0);
 }
 
 #[gtest(RustSystemAPITestSuite, DataPipeWriteAndSendTest)]
@@ -79,8 +78,6 @@ fn test_data_pipe_write_and_send() {
     expect_eq!(&read_buffer[..bytes_read], hello);
 
     // TODO: implement and test two-phase read-write.
-
-    assert_eq!(0, 0);
 }
 
 #[gtest(RustSystemAPITestSuite, MessagePipes_RawTrapSignalOnReadableTest)]
@@ -90,7 +87,7 @@ fn test_raw_trap_signal_on_readable() {
     // We need a few global values to keep track of our test trap events.
     static TEST_TRAP_EVENT_LIST: LazyLock<Mutex<Vec<system::raw_trap::RawTrapEvent>>> =
         LazyLock::new(|| Mutex::new(Vec::new()));
-    static TEST_TRAP_EVENT_COND: LazyLock<Condvar> = LazyLock::new(|| Condvar::new());
+    static TEST_TRAP_EVENT_COND: LazyLock<Condvar> = LazyLock::new(Condvar::new);
 
     // Helper handler for testing.
     extern "C" fn test_trap_event_handler(event: &system::raw_trap::RawTrapEvent) {
@@ -139,7 +136,7 @@ fn test_raw_trap_signal_on_readable() {
     let trap = system::raw_trap::RawTrap::new(test_trap_event_handler).unwrap();
 
     // Make a message pipe pair and add a trigger to both ends of the pipe.
-    let (endpoint_a, endpoint_b) = system::mojo_types::create_message_pipe().unwrap();
+    let (endpoint_a, endpoint_b) = system::message_pipe::MessageEndpoint::create_pipe().unwrap();
     expect_eq!(
         system::mojo_types::MojoResult::Okay,
         trap.add_trigger(
@@ -198,7 +195,7 @@ fn test_raw_trap_signal_on_readable() {
             expect_true!(false, "trap incorrectly remained armed after event arrived")
         }
         system::raw_trap::ArmResult::Blocked(events) => {
-            let event = events.get(0).unwrap();
+            let event = events.first().unwrap();
             expect_eq!(event.trigger_context(), 1);
             expect_eq!(event.result(), system::mojo_types::MojoResult::Okay);
         }
@@ -256,10 +253,10 @@ fn test_raw_trap_signal_on_readable() {
 fn test_raw_trap_signal_on_readable() {
     test_util::init_mojo_if_needed();
 
-    let (endpoint_a, endpoint_b) = system::mojo_types::create_message_pipe().unwrap();
+    let (endpoint_a, endpoint_b) = system::message_pipe::MessageEndpoint::create_pipe().unwrap();
 
     // 1. Create the safe Trap.
-    let trap = system::safe_trap::Trap::new().expect("Failed to create safe Trap");
+    let trap = system::trap::Trap::new().expect("Failed to create safe Trap");
 
     // 2. We use a Mutex/Condvar to wait for the event in the main thread.
     let hit_count = Arc::new(Mutex::new(0));
@@ -272,7 +269,7 @@ fn test_raw_trap_signal_on_readable() {
         .add_trigger(
             &endpoint_a,
             system::mojo_types::HandleSignals::READABLE,
-            system::safe_trap::TriggerCondition::SignalsSatisfied,
+            system::trap::TriggerCondition::SignalsSatisfied,
             move |event| {
                 if event.result().is_ok() {
                     let mut count = hit_count_clone.lock().unwrap();
@@ -283,7 +280,7 @@ fn test_raw_trap_signal_on_readable() {
         )
         .expect("Failed to add trigger");
 
-    trap.arm(system::safe_trap::ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)
+    trap.arm(system::trap::ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)
         .expect("Failed to arm trap");
 
     let write_result = endpoint_b.write(b"hello", Vec::new());
@@ -297,39 +294,38 @@ fn test_raw_trap_signal_on_readable() {
 }
 
 #[gtest(RustSystemAPITestSuite, CloseSafeTrapWithActiveTrigger)]
-fn test_clos_safe_trap_with_active_trigger() {
+fn test_close_trap_with_active_trigger() {
     // Trap must do some lifecycle management/teardown of the pointers it encloses
     // when it is `drop`'d.
     //
     // Additionally we expect remove_trigger to be called on each active trigger,
     // and the associated callback to return TrapError::Cancelled.
     test_util::init_mojo_if_needed();
-    let trap = system::safe_trap::Trap::new().expect("Failed to create safe Trap");
-    let (ep_a, _ep_b) = system::mojo_types::create_message_pipe().unwrap();
+    let trap = system::trap::Trap::new().expect("Failed to create safe Trap");
+    let (ep_a, _ep_b) = system::message_pipe::MessageEndpoint::create_pipe().unwrap();
 
     trap.add_trigger(
         &ep_a,
         system::mojo_types::HandleSignals::READABLE,
-        system::safe_trap::TriggerCondition::SignalsSatisfied,
+        system::trap::TriggerCondition::SignalsSatisfied,
         move |event| {
             println!(
                 "Trigger fired with result {:?} and signals {:?}",
                 event.result(),
                 event.signals_state()
             );
-            expect_eq!(event.result(), Err(system::safe_trap::TrapError::Cancelled));
+            expect_eq!(event.result(), Err(system::trap::TrapError::Cancelled));
         },
     )
-    .expect(&format!("Failed to add trigger"));
+    .expect("Failed to add trigger");
     drop(trap);
     // `drop` completed without any errors wrt pointer management and such.
-    assert!(true);
 }
 
 #[gtest(RustSystemAPITestSuite, SafeTrapMultipleBlockingEvents)]
-fn test_safe_trap_multiple_blocking_events() {
+fn test_trap_multiple_blocking_events() {
     test_util::init_mojo_if_needed();
-    let trap = system::safe_trap::Trap::new().expect("Failed to create safe Trap");
+    let trap = system::trap::Trap::new().expect("Failed to create safe Trap");
     const NUM_TRIGGERS: usize = 20; // More than MAX_BLOCKING_EVENTS
 
     let callback_count = Arc::new(Mutex::new(0));
@@ -338,7 +334,7 @@ fn test_safe_trap_multiple_blocking_events() {
 
     // 1. Create NUM_TRIGGERS message pipe pairs. For each, add a trigger.
     for i in 0..NUM_TRIGGERS {
-        let (ep_a, ep_b) = system::mojo_types::create_message_pipe().unwrap();
+        let (ep_a, ep_b) = system::message_pipe::MessageEndpoint::create_pipe().unwrap();
         let ep_a_arc = Arc::new(ep_a);
 
         let callback_count_clone = Arc::clone(&callback_count);
@@ -346,7 +342,7 @@ fn test_safe_trap_multiple_blocking_events() {
         trap.add_trigger(
             &*ep_a_arc,
             system::mojo_types::HandleSignals::READABLE,
-            system::safe_trap::TriggerCondition::SignalsSatisfied,
+            system::trap::TriggerCondition::SignalsSatisfied,
             move |event| {
                 println!(
                     "Trigger {} fired with result {:?} and signals {:?}",
@@ -363,13 +359,13 @@ fn test_safe_trap_multiple_blocking_events() {
                         *count += 1;
                         ep_a_clone.read().expect("Failed to read from ep_a in callback");
                     }
-                    Err(system::safe_trap::TrapError::Cancelled) => {
+                    Err(system::trap::TrapError::Cancelled) => {
                         // Do not increase the callback count, as this is not a callback
                         // we're interested in measuring, but don't panic either.
                         // We expect this at the conclusion of our test, when Trap is dropped.
                         println!("Trigger {} was cancelled. This is expected during Trap drop.", i);
                     }
-                    Err(system::safe_trap::TrapError::FailedPrecondition) => {
+                    Err(system::trap::TrapError::FailedPrecondition) => {
                         // Since we manually Drop our Trap at the end of the test,
                         // it should not be possible for the pipes we're monitoring to
                         // close or go out of scope before the Trap does, which is
@@ -382,7 +378,7 @@ fn test_safe_trap_multiple_blocking_events() {
                 }
             },
         )
-        .expect(&format!("Failed to add trigger {}", i));
+        .unwrap_or_else(|_| panic!("Failed to add trigger {}", i));
 
         // 2. Trigger the READABLE signal on ep_a by writing to ep_b.
         // This creates a blocking event for each trigger.
@@ -393,7 +389,7 @@ fn test_safe_trap_multiple_blocking_events() {
     }
 
     // 3. Call trap.arm(). This should now handle all 20 blocking events.
-    trap.arm(system::safe_trap::ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)
+    trap.arm(system::trap::ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)
         .expect("Trap failed to arm after processing multiple blocking events");
 
     // 4. Verify that all NUM_TRIGGERS callbacks were executed.
@@ -403,7 +399,7 @@ fn test_safe_trap_multiple_blocking_events() {
     // 5. Verify the trap is now genuinely armed by calling arm again.
     // Since all blocking events have been handled, this call should immediately
     // return Armed.
-    trap.arm(system::safe_trap::ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)
+    trap.arm(system::trap::ArmingPolicyForBlockingEvents::RearmUntilNoBlockingEvents)
         .expect("Trap failed to re-arm after clearing all blocking events");
     // Manually drop our trap to ensure teardown behavior is as expected
     // (that is, Cancelled returned harmelssly for the various triggers
@@ -420,7 +416,7 @@ fn test_raw_trap_signal_on_readable() {
     // We need a few global values to keep track of our test trap events.
     static TEST_TRAP_EVENT_LIST: LazyLock<Mutex<Vec<system::raw_trap::RawTrapEvent>>> =
         LazyLock::new(|| Mutex::new(Vec::new()));
-    static TEST_TRAP_EVENT_COND: LazyLock<Condvar> = LazyLock::new(|| Condvar::new());
+    static TEST_TRAP_EVENT_COND: LazyLock<Condvar> = LazyLock::new(Condvar::new);
 
     // Helper handler for testing.
     extern "C" fn test_trap_event_handler(event: &system::raw_trap::RawTrapEvent) {
@@ -542,5 +538,5 @@ fn test_raw_trap_c_layer_attempts_to_remove_context_twice() {
 fn test_make_regular_trap() {
     test_util::init_mojo_if_needed();
 
-    let _trap = system::safe_trap::Trap::new().unwrap();
+    let _trap = system::trap::Trap::new().unwrap();
 }

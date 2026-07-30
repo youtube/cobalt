@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
@@ -153,7 +153,7 @@ void DefaultBrowserInfoBarManager::OnTabStripModelChanged(
     const TabStripSelectionChange& selection) {
   if (change.type() == TabStripModelChange::kInserted) {
     for (const auto& contents : change.GetInsert()->contents) {
-      if (!base::Contains(infobars_, contents.contents)) {
+      if (!infobars_.contains(contents.contents)) {
         CreateInfoBarForWebContents(contents.contents,
                                     tab_strip_model->profile());
       }
@@ -194,11 +194,8 @@ void DefaultBrowserInfoBarManager::OnAccept() {
   user_initiated_info_bar_close_pending_ = CloseReason::kAccept;
 
   // The controller will be destroyed once the callback is executed.
-  default_browser_controller_->OnAccepted(base::BindOnce(
-      [](std::unique_ptr<
-             default_browser::DefaultBrowserController> /*controller*/,
-         default_browser::DefaultBrowserState /*state*/) {},
-      std::move(default_browser_controller_)));
+  default_browser_controller_->OnAccepted(
+      base::DoNothingWithBoundArgs(std::move(default_browser_controller_)));
 
   if (can_pin_to_taskbar_) {
 #if BUILDFLAG(IS_WIN)

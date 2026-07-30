@@ -16,6 +16,7 @@ source_set("model") {
     "gemini_suggestion_delegate.h",
     "gemini_suggestion_handler.h",
     "gemini_suggestion_handler.mm",
+    "gemini_view_state_delegate.h",
   ]
   deps = [
     ":tab_helper",
@@ -27,6 +28,7 @@ source_set("model") {
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/url_loading/model",
+    "//ios/public/provider/chrome/browser/bwg:bwg_api",
     "//ios/web/public",
   ]
   public_deps = [ "//base" ]
@@ -37,6 +39,8 @@ source_set("browser_agent") {
   sources = [
     "bwg_browser_agent.h",
     "bwg_browser_agent.mm",
+    "gemini_view_state_change_handler.h",
+    "gemini_view_state_change_handler.mm",
   ]
   deps = [
     ":config",
@@ -47,6 +51,9 @@ source_set("browser_agent") {
     "//components/favicon/ios",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//ios/chrome/browser/fullscreen/ui_bundled",
+    "//ios/chrome/browser/fullscreen/ui_bundled:ui",
+    "//ios/chrome/browser/intelligence/bwg/metrics",
+    "//ios/chrome/browser/intelligence/bwg/utils:constants",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/intelligence/proto_wrappers",
     "//ios/chrome/browser/shared/coordinator/layout_guide",
@@ -60,6 +67,7 @@ source_set("browser_agent") {
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util:util_swift",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/tabs/model:dependency_installer",
     "//ios/chrome/browser/url_loading/model",
     "//ios/public/provider/chrome/browser/bwg:bwg_api",
     "//ui/gfx",
@@ -70,9 +78,12 @@ source_set("tab_helper") {
   sources = [
     "bwg_tab_helper.h",
     "bwg_tab_helper.mm",
+    "gemini_tab_helper_observer.h",
   ]
   deps = [
+    ":page_context",
     ":snapshot_utils",
+    "//components/favicon/ios",
     "//components/feature_engagement/public",
     "//components/google/core/common",
     "//components/optimization_guide/core",
@@ -210,6 +221,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/intelligence/bwg/utils:constants",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/intelligence/proto_wrappers",
+    "//ios/chrome/browser/intelligence/proto_wrappers:page_context_extractor_feature",
     "//ios/chrome/browser/optimization_guide/model",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
@@ -224,10 +236,17 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/browser/snapshots/model",
+    "//ios/chrome/browser/snapshots/model:snapshot_source",
+    "//ios/chrome/browser/snapshots/model:test_utils",
     "//ios/chrome/browser/url_loading/model",
     "//ios/chrome/browser/url_loading/model:test_support",
+    "//ios/chrome/browser/web/model/web_view_proxy",
     "//ios/chrome/test:test_support",
     "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ios/web/find_in_page",
+    "//ios/web/js_messaging:java_script_feature_manager_header",
+    "//ios/web/public/js_messaging",
     "//ios/web/public/test",
     "//testing/gtest",
     "//third_party/ocmock",

@@ -84,6 +84,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="193439633299369377">Chromium OS moet opnieuw worden gestart om de update uit te voeren.</translation>
 <translation id="1951406923938785464">Chromium heeft deze download geblokkeerd, omdat het bestandstype niet vaak wordt gedownload en misschien gevaarlijk is</translation>
 <translation id="1953553007165777902">Downloaden... Nog <ph name="MINUTE" /> minuten</translation>
+<translation id="1965068424387304464">Chromium-tip: Wachtwoorden opslaan</translation>
 <translation id="1966382378801805537">Chromium kan de standaardbrowser niet bepalen of instellen</translation>
 <translation id="1990262977744080398">Meer informatie over waarom Chromium bepaalde bestanden blokkeert, wordt geopend in een nieuw tabblad</translation>
 <translation id="1999715455684970349">Houdt je Chromium-software up-to-date. Als deze service is uitgezet of gestopt, wordt je Chromium-software niet up-to-date gehouden. Dit betekent dat beveiligingskwetsbaarheden die kunnen ontstaan, niet kunnen worden verholpen en dat functies misschien niet werken. De service wordt automatisch verwijderd als er geen Chromium-software is die deze gebruikt.</translation>
@@ -92,7 +93,6 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="2020032459870799438">Als je wilt checken of je andere wachtwoorden zijn beveiligd tegen gegevenslekken en andere beveiligingsproblemen, <ph name="BEGIN_LINK" />log je in bij Chromium<ph name="END_LINK" />.</translation>
 <translation id="2039417478970545937">Instellingen.</translation>
 <translation id="2049376729098081731">Kies of je de Chromium-geschiedenis wilt opnemen voor meer gepersonaliseerde functies in Google-services</translation>
-<translation id="2054039611381840095">Als je toekomstige Chromium-updates wilt krijgen, heb je macOS 12 of hoger nodig. Deze computer gebruikt macOS 11.</translation>
 <translation id="2064856577282482477">Klik op de knop Chromium aanpassen op de pagina Nieuw tabblad om Chromium een nieuwe look te geven</translation>
 <translation id="2086476982681781442">Chromium heeft deze download geblokkeerd, omdat het bestand misleidend is en onverwachte wijzigingen kan aanbrengen op je apparaat</translation>
 <translation id="208726765006323911">De volgende keer dat je Chromium iOS opent, zie je een prompt om <ph name="FEATURE_NAME" /> te proberen.</translation>
@@ -254,6 +254,7 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="3802055581630249637">Chromium laadt vooraf de pagina's die je waarschijnlijk gaat bezoeken, zodat de pagina's sneller laden als je ze bezoekt.</translation>
 <translation id="3810973564298564668">Beheren</translation>
 <translation id="3823384748599722168">Als je je opgeslagen wachtwoorden wilt gebruiken, volg je de QR-code, download je Chromium voor iOS en log je in op je Google-account</translation>
+<translation id="3837584850181228767">Chromium-tip: Uitgebreide versie van Safe Browsing</translation>
 <translation id="3846683726093018685">**Samenvatten:** Beschrijf in één zin van maximaal 30 woorden het belangrijkste onderwerp en doel van de content in het screenshot.
 
           **Vragen voorstellen:** Genereer een lijst met 3 tot 5 prikkelende vragen die een gebruiker kan stellen om het screenshot beter te begrijpen. Deze vragen moeten minstens één vraag bevatten die specifiek over een visueel object, het ontwerp of de plaatsing ervan gaat.</translation>
@@ -569,6 +570,7 @@ Chromium kan je instellingen niet herstellen.</translation>
 <translation id="7347827960336370838">Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtwoordzin wordt niet gestuurd naar of opgeslagen door Google. Als je je wachtwoordzin bent vergeten of deze instelling wilt wijzigen, moet je <ph name="BEGIN_LINK" />de Chromium-gegevens in je account verwijderen<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Je systeembeheerder heeft Chromium geconfigureerd om <ph name="ALTERNATIVE_BROWSER_NAME" /> te openen voor toegang tot <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7352651011704765696">Er is iets misgegaan</translation>
+<translation id="7368826207863345663">Als je toekomstige Chromium-updates wilt krijgen, heb je macOS 13 of hoger nodig. Deze computer gebruikt macOS 12.</translation>
 <translation id="7376384068949534168">Je bent hier niet recent geweest. Chromium heeft <ph name="PERMISSION_1" /> en <ph name="PERMISSION_2" /> verwijderd.</translation>
 <translation id="7384121030444253939">Deze extensie wordt niet meer ondersteund. Chromium raadt je aan de extensie te verwijderen.</translation>
 <translation id="7413153308467572558">Ga verder waar je gebleven was: Chromium herstelt je tabbladen elke keer dat je opnieuw opstart. Als je dit wilt uitzetten, ga je naar</translation>
@@ -716,6 +718,7 @@ Chromium kan je instellingen niet herstellen.</translation>
 <translation id="9148058034647219655">Sluiten</translation>
 <translation id="9155105544013854680">Ga verder waar je gebleven was: Chromium kan je tabbladen herstellen elke keer dat je opnieuw opstart. Als je dit wilt aanzetten, ga je naar</translation>
 <translation id="9158494823179993217">Je systeembeheerder heeft geconfigureerd dat Chromium een alternatieve browser opent voor toegang tot <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="9183331186620388872">Chromium-tip: Zoeken met Lens</translation>
 <translation id="9185526690718004400">Opnieuw starten om &amp;Chromium te updaten</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="9206863043651638213">Krijg meer als je bent ingelogd bij Chromium</translation>

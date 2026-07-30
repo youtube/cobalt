@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Når dette er på, kan nettsteder be om å få administrere vinduer på alle skjermene dine. Når dette er av, kan ikke nettsteder administrere vinduer på alle skjermene dine.</translation>
 <translation id="1738912554587725807">Feltet nederst for temasamlinger for utseende på Ny fane-side</translation>
 <translation id="1743802530341753419">Spør før nettsteder kan koble til en enhet (anbefales)</translation>
+<translation id="1766455884659449403">Få varsler om Chrome-tips</translation>
 <translation id="1777815584158991902">Feltet nederst for Discover-feeden</translation>
 <translation id="1779089405699405702">Bildedekoder</translation>
 <translation id="1785415724048343560">Anbefalt for den beste opplevelsen</translation>
@@ -188,11 +189,9 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="2903493209154104877">Adresser</translation>
 <translation id="2910701580606108292">Spør før nettsteder kan spille av beskyttet innhold</translation>
 <translation id="2918484639460781603">Gå til Innstillinger</translation>
-<translation id="293060180538644702">Få varsler om Chrome-tips</translation>
 <translation id="2932883381142163287">Rapporter uriktig bruk</translation>
 <translation id="2939338015096024043">Når dette er på, kan nettsteder be om å få spore kameraposisjonen din og finne ut mer om omgivelsene dine. Når dette er av, kan ikke nettsteder spore kameraposisjonen din eller finne ut mer om omgivelsene dine.</translation>
 <translation id="2968755619301702150">Visningsprogram for sertifikater</translation>
-<translation id="2979365474350987274">Informasjonskapsler fra tredjeparter er begrenset</translation>
 <translation id="2990583317361835189">Ikke la nettsteder bruke bevegelsessensorer</translation>
 <translation id="3004438526346162184">Nettsteder kan bruke denne funksjonen til å administrere vinduer på alle skjermene dine</translation>
 <translation id="3008272652534848354">Tilbakestill tillatelser</translation>
@@ -220,7 +219,6 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="3223425961342298674">Posisjon er ikke tillatt</translation>
 <translation id="3227137524299004712">Mikrofon</translation>
 <translation id="3232293466644486101">Slett nettlesingsdata…</translation>
-<translation id="3241320538788585298">Tilbakekoblingsnettverk</translation>
 <translation id="3242646949159196181">Når dette er på, kan nettsteder spille av lyd. Når dette er av, kan ikke nettsteder spille av lyd.</translation>
 <translation id="3273479183583863618">Avslag på faner</translation>
 <translation id="3277252321222022663">Gi nettsteder tilgang til sensorer (anbefalt)</translation>
@@ -403,6 +401,7 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="5246825184569358663">Denne handlingen sletter alle lokale data, inkludert informasjonskapsler, og tilbakestiller alle tillatelsene for <ph name="DOMAIN" /> og alle underordnede nettsteder</translation>
 <translation id="5264323282659631142">Fjern «<ph name="CHIP_LABEL" />»</translation>
 <translation id="528192093759286357">Dra ned fra toppen og trykk på tilbakeknappen for å avslutte fullskjerm.</translation>
+<translation id="5286194356314741248">Skanning</translation>
 <translation id="5300589172476337783">Vis</translation>
 <translation id="5301954838959518834">Greit</translation>
 <translation id="5317780077021120954">Lagre</translation>
@@ -631,7 +630,6 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:
 <translation id="7835852323729233924">Spiller av medier</translation>
 <translation id="783819812427904514">Slå på lyden i videoen</translation>
 <translation id="7846076177841592234">Opphev valget</translation>
-<translation id="7881140103901777395">Chrome begrenser de fleste nettsteder fra å bruke informasjonskapsler fra tredjeparter. Men informasjonskapsler fra tredjeparter er tillatt på dette nettstedet fordi det trenger dem for å kunne levere grunnleggende tjenester.\n\nGå til innstillingene for å <ph name="BEGIN_LINK" />administrere tilgangen til informasjonskapsler fra tredjeparter<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Tillat lyd for et bestemt nettsted.</translation>
 <translation id="7891547341794213004">Skjul kortet Fortsett med denne fanen</translation>
 <translation id="789722939441020330">Ikke la nettsteder laste ned flere filer automatisk</translation>

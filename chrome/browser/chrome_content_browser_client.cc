@@ -19,7 +19,6 @@
 #include "base/byte_count.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/dcheck_is_on.h"
@@ -712,7 +711,7 @@
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 #include "chrome/browser/on_device_translation/component_manager.h"
-#include "chrome/browser/on_device_translation/pref_names.h"
+#include "components/on_device_translation/pref_names.h"
 #endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
 
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
@@ -958,7 +957,7 @@ bool IsExtensionIdAllowedToUseIsolatedContext(std::string_view extension_id) {
           "bbobefdodiifgmhhdijgpelmkdaebfpn",  // Controlled Frame Service
                                                // Worker Test
       });
-  return base::Contains(kAllowedIsolatedContextExtensionIds, extension_id);
+  return kAllowedIsolatedContextExtensionIds.contains(extension_id);
 }
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -1303,6 +1302,12 @@ ProfileSelections GetHumanProfileSelections() {
       .Build();
 }
 
+bool IsPrewarmUrl(const GURL& url, const url::Origin& dse_origin) {
+  const GURL prewarm_url = GURL(features::kPrewarmUrl.Get());
+  return prewarm_url.is_valid() && url == prewarm_url &&
+         dse_origin.IsSameOriginWith(prewarm_url);
+}
+
 bool IsDefaultSearchEngine(Profile* profile, const GURL& url) {
   auto* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
@@ -1323,12 +1328,8 @@ bool IsDefaultSearchEngine(Profile* profile, const GURL& url) {
   }
 
   if (base::FeatureList::IsEnabled(features::kConsiderDSEWarmUpPageAsSRP)) {
-    const GURL prewarm_url = GURL(features::kPrewarmUrl.Get());
-    if (prewarm_url.is_valid() && url == prewarm_url &&
-        template_url_service->GetDefaultSearchProviderOrigin().IsSameOriginWith(
-            prewarm_url)) {
-      return true;
-    }
+    return IsPrewarmUrl(url,
+                        template_url_service->GetDefaultSearchProviderOrigin());
   }
 
   return false;
@@ -3668,7 +3669,21 @@ bool ChromeContentBrowserClient::IsServiceWorkerSyntheticResponseAllowed(
     return false;
   }
 
-  return IsDefaultSearchEngine(profile, url);
+  if (!IsDefaultSearchEngine(profile, url)) {
+    return false;
+  }
+
+  // Prewarm page can be treated as a DSE. As we don't want to enable synthetic
+  // response on the prewarm page, manually exclude it.
+  auto* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile);
+  CHECK(template_url_service);
+  if (IsPrewarmUrl(url,
+                   template_url_service->GetDefaultSearchProviderOrigin())) {
+    return false;
+  }
+
+  return true;
 }
 
 void ChromeContentBrowserClient::GrantCookieAccessDueToHeuristic(
@@ -6987,22 +7002,6 @@ bool ChromeContentBrowserClient::HandleWebUI(
     return true;
   }
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
-
-#if !BUILDFLAG(IS_ANDROID)
-  // Redirect from deprecated trackingProtection subpage to cookies.
-  if (url->SchemeIs(content::kChromeUIScheme) &&
-      url->GetHost() == chrome::kChromeUISettingsHost &&
-      url->GetPath() == chrome::kTrackingProtectionSubPagePath) {
-    GURL::Replacements replacements;
-    replacements.SetPathStr(chrome::kCookiesSubPagePath);
-    *url = url->ReplaceComponents(replacements);
-    base::UmaHistogramBoolean("Settings.Cookies.TrackingProtectionRedirect",
-                              true);
-  } else if (url->GetPath() == chrome::kCookiesSubPagePath) {
-    base::UmaHistogramBoolean("Settings.Cookies.TrackingProtectionRedirect",
-                              false);
-  }
-#endif
 
   if (IsDisabledInternalWebUI(*url)) {
     GURL::Replacements replacements;

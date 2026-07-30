@@ -23,6 +23,7 @@ import org.chromium.chrome.browser.signin.services.SigninPreferencesManager;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.signin.R;
 import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
+import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.CoreAccountInfo;
@@ -74,6 +75,7 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
         mPromoShowCountPreferenceName =
                 ChromePreferenceKeys.SYNC_PROMO_SHOW_COUNT.createKey(
                         SigninPreferencesManager.SigninPromoAccessPointId.BOOKMARKS);
+        // TODO(https://crbug.com/474294917): This navigation should be handled by the coordinator.
         mOnOpenSettingsClicked = onOpenSettingsClicked;
     }
 
@@ -165,16 +167,16 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
+    boolean isSeamlessSigninAllowed() {
+        return SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
+    }
+
+    @Override
     boolean refreshPromoState(@Nullable CoreAccountInfo visibleAccount) {
         @PromoState int newState = computePromoState();
         boolean wasStateChanged = mPromoState != newState;
         mPromoState = newState;
         return wasStateChanged;
-    }
-
-    @Override
-    boolean isSeamlessSigninAllowed() {
-        return SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
     }
 
     @Override
@@ -231,6 +233,13 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     @Override
     int getPromoShownCount() {
         return ChromeSharedPreferences.getInstance().readInt(mPromoShowCountPreferenceName);
+    }
+
+    @Override
+    @Nullable
+    @SigninSurveyController.SigninSurveyType
+    Integer getSurveyTriggerType() {
+        return SigninSurveyController.SigninSurveyType.BOOKMARK_PROMO;
     }
 
     private @PromoState int computePromoState() {

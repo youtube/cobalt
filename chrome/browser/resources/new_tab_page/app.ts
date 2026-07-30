@@ -11,6 +11,7 @@ import 'chrome://resources/cr_components/searchbox/searchbox.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import 'chrome://resources/cr_components/composebox/composebox.js';
+import 'chrome://resources/cr_components/composebox/threads_rail.js';
 
 import {GlifAnimationState} from '//resources/cr_components/composebox/context_menu_entrypoint.js';
 import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
@@ -326,6 +327,11 @@ export class AppElement extends AppElementBase {
       contextMenuGlifAnimationState_: {type: String},
       undoAutoRemovalCallback_: {type: Object},
       undoAutoRemovalMessage_: {type: Object},
+
+      /**
+       * Whether to show the AIM threads rail when composebox is open.
+       */
+      enableThreadsRail_: {type: Boolean},
     };
   }
 
@@ -420,6 +426,8 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('enableEphemeralContextMenuDescription') ?? false;
   protected showContextMenuDescription_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenuDescription');
+  protected accessor enableThreadsRail_: boolean =
+      loadTimeData.getBoolean('enableThreadsRail');
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -1379,6 +1387,11 @@ export class AppElement extends AppElementBase {
 
   protected isThemeDark_(): boolean {
     return !!this.theme_ && this.theme_.isDark;
+  }
+
+  protected showActionChipsBackground_(): boolean {
+    return !!this.theme_ &&
+        (!!this.theme_.backgroundImage || !this.theme_.isGm3);
   }
 
   protected showThemeAttribution_(): boolean {

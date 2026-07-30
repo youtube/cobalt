@@ -12,26 +12,26 @@
 #import "ios/chrome/browser/orchestrator/ui_bundled/location_bar_animatee.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 
-@class LayoutGuideCenter;
 @protocol ActivityServiceCommands;
-@protocol ApplicationCommands;
 @protocol BadgeViewVisibilityDelegate;
-@protocol IncognitoBadgeViewVisibilityDelegate;
 @protocol BrowserCoordinatorCommands;
 @protocol BWGCommands;
 @protocol ContextualPanelEntrypointVisibilityDelegate;
 @protocol FakeboxButtonsSnapshotProvider;
 @protocol HelpCommands;
-@class LocationBarViewController;
+@protocol IncognitoBadgeViewVisibilityDelegate;
+@class LayoutGuideCenter;
 @protocol LensCommands;
 @protocol LensOverlayCommands;
-@protocol LocationBarOffsetProvider;
 @protocol LoadQueryCommands;
+@protocol LocationBarOffsetProvider;
+@class LocationBarViewController;
 @protocol PageActionMenuCommands;
 @protocol PageActionMenuEntryPointCommands;
-@protocol ReaderModeChipVisibilityDelegate;
-@protocol TextFieldViewContaining;
 class PrefService;
+@protocol ReaderModeChipVisibilityDelegate;
+@protocol SceneCommands;
+@protocol TextFieldViewContaining;
 namespace feature_engagement {
 class Tracker;
 }
@@ -101,12 +101,12 @@ class Tracker;
 
 // The dispatcher for the share button, voice search, and long press actions.
 @property(nonatomic, weak) id<ActivityServiceCommands,
-                              ApplicationCommands,
                               BrowserCoordinatorCommands,
                               LoadQueryCommands,
                               LensCommands,
                               LensOverlayCommands,
-                              OmniboxCommands>
+                              OmniboxCommands,
+                              SceneCommands>
     dispatcher;
 
 // Delegate for this location bar view controller.
@@ -224,11 +224,6 @@ class Tracker;
 
 // Creates a visual copy of the location bar steady view.
 - (UIView*)locationBarSteadyViewVisualCopy;
-
-// Updates the text in the OmniboxTextHiddenLabel.
-// See crbug.com/465394669 for rationale.
-// TODO(crbug.com/465030009): Remove the hidden omnibox text label.
-- (void)updateOmniboxTextHiddenLabel:(NSString*)text;
 
 @end
 

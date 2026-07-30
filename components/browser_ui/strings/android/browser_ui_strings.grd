@@ -438,6 +438,9 @@
       <message name="IDS_DOWNLOAD_NOTIFICATION_RESUME_BUTTON" desc="Text on the button that resumes a paused download.">
         Resume
       </message>
+      <message name="IDS_DOWNLOAD_NOTIFICATION_SCANNING_BUTTON" desc="Text on the button that scans a in-progress download.">
+        Scanning
+      </message>
       <message name="IDS_DOWNLOAD_NOTIFICATION_DELETE_FROM_HISTORY_BUTTON" desc="Text on the button that deletes a download from history.">
         Delete from history
       </message>
@@ -604,9 +607,6 @@
       </message>
       <message name="IDS_PAGE_INFO_COOKIES_THIRD_PARTY_COOKIES_LABEL" desc="The label used in the Page Info dialog to label a toggle button that when enabled allows third-party cookies and when disabled blocks third-party cookies.">
         Third-party cookies
-      </message>
-      <message name="IDS_PAGE_INFO_TRACKING_PROTECTION_SITE_GRANT_DESCRIPTION" desc="Description text for the 'Cookies and site data' subpage in the page info view for when a site has a TPCD grant. Contains a link to the 'Third-party cookies' settings page.">
-        Chrome limits most sites from using third-party cookies. But third-party cookies are allowed on this site because it relies on them to provide basic services.\n\nVisit settings to <ph name="BEGIN_LINK">&lt;link&gt;</ph>manage access to third-party cookies<ph name="END_LINK">&lt;/link&gt;</ph>.
       </message>
       <message name="IDS_PAGE_INFO_ANDROID_LOCATION_BLOCKED" desc="The label used in the Page Info dialog to indicate that location has been been disabled for the device in Android settings">
         Turned off for this device
@@ -1300,17 +1300,11 @@
       <message name="IDS_EDUCATIONAL_TIP_HISTORY_SYNC_DESCRIPTION" desc="Description of the history sync promo that invites users to turn on history sync in the educational tip module on NTP.">
         Get your history on all your devices, so you can easily pick up where you left off
       </message>
-      <message name="IDS_EDUCATIONAL_TIP_HISTORY_SYNC_BUTTON_TURN_ON" desc="Text on the clickable button on the history sync promo that invites users to turn on history sync in the educational tip module on NTP.">
-        Turn on
-      </message>
       <message name="IDS_EDUCATIONAL_TIP_HISTORY_SYNC_BUTTON_LETS_GO" desc="Text on the clickable button on the history sync promo that invites users to turn on history sync in the educational tip module on NTP.">
         Let’s go
       </message>
-      <message name="IDS_EDUCATIONAL_TIP_HISTORY_SYNC_BUTTON_CONTINUE" desc="Text on the clickable button on the history sync promo that invites users to turn on history sync in the educational tip module on NTP.">
-        Continue
-      </message>
       <message name="IDS_EDUCATIONAL_TIP_TIPS_NOTIFICATIONS_TITLE" desc="Title of the tips notifications promo that invites users to turn on tips notifications in the educational tip module on NTP.">
-        Get Chrome Tips notifications
+        Get Chrome tips notifications
       </message>
       <message name="IDS_EDUCATIONAL_TIP_TIPS_NOTIFICATIONS_DESCRIPTION" desc="Description of the tips notifications promo that invites users to turn on tips notifications in the educational tip module on NTP.">
         Turn on notifications for useful tips to help you get the best of Chrome

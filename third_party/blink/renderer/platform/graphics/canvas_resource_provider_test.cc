@@ -203,7 +203,6 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderAcceleratedOverlay) {
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
   EXPECT_TRUE(provider->IsAccelerated());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
   EXPECT_TRUE(provider->IsSingleBuffered());
   // As it is an CanvasResourceProviderSharedImage and an accelerated canvas, it
   // will internally force it to RGBA8 on MacOS, or otherwise RGBA8 if not on
@@ -234,7 +233,6 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderTexture) {
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
   EXPECT_TRUE(provider->IsAccelerated());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
   EXPECT_FALSE(provider->IsSingleBuffered());
   // As it is an CanvasResourceProviderSharedImage and an accelerated canvas, it
   // will internally force it to kRGBA8
@@ -262,7 +260,6 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnacceleratedOverlay) {
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
   EXPECT_FALSE(provider->IsAccelerated());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
 
   // We do not support single buffering for unaccelerated low latency canvas.
   EXPECT_FALSE(provider->IsSingleBuffered());
@@ -288,7 +285,8 @@ std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvasResourceProvider(
       context_provider_wrapper, raster_mode, shared_image_usage_flags);
 }
 
-scoped_refptr<CanvasResource> UpdateResource(CanvasResourceProvider* provider) {
+scoped_refptr<CanvasResource> UpdateResource(
+    CanvasResourceProviderSharedImage* provider) {
   provider->ProduceCanvasResource(FlushReason::kOther);
   // Resource updated after draw.
   provider->Canvas().clear(SkColors::kWhite);
@@ -544,10 +542,7 @@ TEST_F(CanvasResourceProviderTest, Canvas2DResourceProviderBitmap) {
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
   EXPECT_FALSE(provider->IsAccelerated());
-  EXPECT_FALSE(provider->SupportsDirectCompositing());
   EXPECT_TRUE(provider->GetSkImageInfo() == kInfo);
-
-  EXPECT_FALSE(provider->IsSingleBuffered());
 }
 
 TEST_F(CanvasResourceProviderTest,
@@ -588,7 +583,6 @@ TEST_F(CanvasResourceProviderTest,
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
   EXPECT_FALSE(provider->IsAccelerated());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
   EXPECT_TRUE(provider->GetSkImageInfo() == kInfo);
 
   EXPECT_FALSE(provider->IsSingleBuffered());
@@ -614,7 +608,6 @@ TEST_F(CanvasResourceProviderTest,
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
   EXPECT_TRUE(provider->IsAccelerated());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
   EXPECT_TRUE(provider->IsSingleBuffered());
   // As it is an CanvasResourceProviderSharedImage and an accelerated canvas, it
   // will internally force it to RGBA8 on MacOS, or otherwise RGBA8 if not on
@@ -637,15 +630,15 @@ TEST_F(CanvasResourceProviderTest, DimensionsExceedMaxTextureSize_Bitmap) {
   auto provider = Canvas2DResourceProviderBitmap::CreateForTesting(
       gfx::Size(kMaxTextureSize - 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear);
-  EXPECT_FALSE(provider->SupportsDirectCompositing());
+  EXPECT_TRUE(provider && provider->IsValid());
   provider = Canvas2DResourceProviderBitmap::CreateForTesting(
       gfx::Size(kMaxTextureSize, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear);
-  EXPECT_FALSE(provider->SupportsDirectCompositing());
+  EXPECT_TRUE(provider && provider->IsValid());
   provider = Canvas2DResourceProviderBitmap::CreateForTesting(
       gfx::Size(kMaxTextureSize + 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear);
-  EXPECT_FALSE(provider->SupportsDirectCompositing());
+  EXPECT_TRUE(provider && provider->IsValid());
 }
 
 TEST_F(CanvasResourceProviderTest, DimensionsExceedMaxTextureSize_SharedImage) {
@@ -656,19 +649,19 @@ TEST_F(CanvasResourceProviderTest, DimensionsExceedMaxTextureSize_SharedImage) {
       gfx::Size(kMaxTextureSize - 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
+  EXPECT_TRUE(provider && provider->IsValid());
   provider = CanvasResourceProvider::CreateSharedImageProvider(
       gfx::Size(kMaxTextureSize, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
-  EXPECT_TRUE(provider->SupportsDirectCompositing());
+  EXPECT_TRUE(provider && provider->IsValid());
   provider = CanvasResourceProvider::CreateSharedImageProvider(
       gfx::Size(kMaxTextureSize + 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
-  // The CanvasResourceProvider for SharedImage should not be created or valid
-  // if the texture size is greater than the maximum value
-  EXPECT_TRUE(!provider || !provider->IsValid());
+  // The CanvasResourceProvider for SharedImage should not be created
+  // if the texture size is greater than the maximum value.
+  EXPECT_FALSE(provider);
 }
 
 TEST_F(CanvasResourceProviderTest, FlushForImage) {

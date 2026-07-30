@@ -7,10 +7,11 @@
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_mediator.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_view_controller.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
-#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/tab_grid_scene_agent.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 
 @implementation AppBarCoordinator {
   AppBarViewController* _viewController;
@@ -31,10 +32,10 @@
 
 - (void)start {
   _viewController = [[AppBarViewController alloc] init];
-  // It is ok to use the regular browser here as the Application commands are
+  // It is ok to use the regular browser here as the Scene commands are
   // handled by the same object for both modes.
-  _viewController.applicationHandler = HandlerForProtocol(
-      _regularBrowser->GetCommandDispatcher(), ApplicationCommands);
+  _viewController.sceneHandler = HandlerForProtocol(
+      _regularBrowser->GetCommandDispatcher(), SceneCommands);
   _viewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
 
   _mediator = [[AppBarMediator alloc]
@@ -43,7 +44,7 @@
   _mediator.consumer = _viewController;
 
   SceneState* sceneState = _regularBrowser->GetSceneState();
-  [[TabGridSceneAgent agentFromScene:sceneState] addObserver:_mediator];
+  [sceneState.tabGridState addObserver:_mediator];
 
   _viewController.mutator = _mediator;
 }

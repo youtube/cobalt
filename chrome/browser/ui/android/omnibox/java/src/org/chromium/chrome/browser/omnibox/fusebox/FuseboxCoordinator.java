@@ -13,7 +13,6 @@ import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -146,7 +145,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         var popup = new FuseboxPopup(mContext, popupWindowBuilder.build(), popupView);
         mViewHolder = new FuseboxViewHolder(parent, popup);
 
-        var adapter = new FuseboxAttachmentRecyclerViewAdapter(mModelList);
+        var adapter = mModelList.getAdapter();
         mViewHolder.attachmentsView.setAdapter(adapter);
 
         mModel =
@@ -254,10 +253,12 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
 
         boolean isSupportedPageClass =
                 switch (pageClass) {
+                    // LINT.IfChange(FuseboxSupportedPageClassifications)
                     case PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE,
                             PageClassification.SEARCH_RESULT_PAGE_NO_SEARCH_TERM_REPLACEMENT_VALUE,
                             PageClassification.OTHER_VALUE ->
                             true;
+                    // LINT.ThenChange(/components/omnibox/browser/android/java/src/org/chromium/components/omnibox/AutocompleteInput.java:FuseboxSupportedPageClassifications)
                     default -> false;
                 };
 
@@ -401,7 +402,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         }
 
         @Override
-        public void onConfigurationChanged(@NonNull Configuration configuration) {
+        public void onConfigurationChanged(Configuration configuration) {
             updateRect();
         }
 

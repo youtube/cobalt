@@ -503,7 +503,7 @@ StyleRule::~StyleRule() {
     if (is_last) {
       break;
     }
-    UNSAFE_TODO(++selector);
+    UNSAFE_BUFFERS(++selector);
   }
 }
 
@@ -529,7 +529,7 @@ void StyleRule::WrapperRemoveRule(CSSStyleSheet* parent_sheet, unsigned index) {
   if (parent_sheet) {
     parent_sheet->Contents()->NotifyRuleChanged((*child_rules_)[index]);
   }
-  child_rules_->erase(UNSAFE_TODO(child_rules_->begin() + index));
+  child_rules_->erase(UNSAFE_BUFFERS(child_rules_->begin() + index));
 }
 
 bool StyleRule::PropertiesHaveFailedOrCanceledSubresources() const {
@@ -552,7 +552,7 @@ void StyleRule::TraceAfterDispatch(blink::Visitor* visitor) const {
   const CSSSelector* current = SelectorArray();
   do {
     visitor->Trace(*current);
-  } while (!(UNSAFE_TODO(current++))->IsLastInSelectorListForOilpan());
+  } while (!(UNSAFE_BUFFERS(current++))->IsLastInSelectorListForOilpan());
 
   StyleRuleBase::TraceAfterDispatch(visitor);
 }
@@ -1033,7 +1033,7 @@ void StyleRuleContainer::SetConditionText(
   if (const ConditionalExpNode* exp_node = parser.ParseCondition(value)) {
     condition_text_ = exp_node->Serialize();
 
-    ContainerSelector selector(container_query_->Selector().Name(), *exp_node);
+    ContainerSelector selector(container_query_->Selector().Name(), exp_node);
     container_query_ =
         MakeGarbageCollected<ContainerQuery>(std::move(selector), exp_node);
 

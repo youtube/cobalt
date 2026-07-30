@@ -178,14 +178,15 @@ class MockBnplUiDelegate : public BnplUiDelegate {
   MockBnplUiDelegate() = default;
   ~MockBnplUiDelegate() override = default;
 
-  MOCK_METHOD(void,
-              ShowSelectBnplIssuerUi,
-              (std::vector<BnplIssuerContext> bnpl_issuer_context,
-               std::string app_locale,
-               base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
-               base::OnceClosure cancel_callback,
-               bool has_seen_ai_terms),
-              (override));
+  MOCK_METHOD(
+      void,
+      ShowSelectBnplIssuerUi,
+      (std::vector<BnplIssuerContext> bnpl_issuer_context,
+       std::string app_locale,
+       base::RepeatingCallback<void(BnplIssuer)> selected_issuer_callback,
+       base::OnceClosure cancel_callback,
+       bool has_seen_ai_terms),
+      (override));
   MOCK_METHOD(void,
               UpdateBnplIssuerDialogUi,
               (std::vector<BnplIssuerContext> bnpl_issuer_context),
@@ -2138,10 +2139,10 @@ TEST_F(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
-  EXPECT_TRUE(autofill_client()
-                  .GetPersonalDataManager()
-                  .payments_data_manager()
-                  .IsAutofillAmountExtractionAiTermsSeenPrefEnabled());
+  EXPECT_FALSE(autofill_client()
+                   .GetPersonalDataManager()
+                   .payments_data_manager()
+                   .IsAutofillAmountExtractionAiTermsSeenPrefEnabled());
   EXPECT_FALSE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
 }
 

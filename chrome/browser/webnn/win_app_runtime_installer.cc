@@ -27,9 +27,14 @@
 #include "chrome/common/chrome_paths.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "services/webnn/buildflags.h"
 #include "services/webnn/public/cpp/platform_functions_win.h"
 #include "services/webnn/public/cpp/win_app_runtime_package_info.h"
 #include "services/webnn/public/mojom/features.mojom-features.h"
+
+#if BUILDFLAG(WEBNN_INSTALL_RUNTIME_IN_CHROME_INSTALLER)
+#include "chrome/installer/util/helper.h"  // nogncheck
+#endif  // BUILDFLAG(WEBNN_INSTALL_RUNTIME_IN_CHROME_INSTALLER)
 
 namespace webnn {
 
@@ -264,8 +269,6 @@ void StartInstallation() {
   CHECK_EQ(hr, S_OK);
 
   Microsoft::WRL::ComPtr<AppInstallAsyncOp> async_op;
-  // This operation runs in the background and continues even after process
-  // termination.
   hr = app_install_manager_3->StartProductInstallAsync(
       base::win::HStringReference(kWinAppRuntimeProductId.c_str()).Get(),
       /*catalogId=*/nullptr, /*flightId=*/nullptr, /*clientId=*/nullptr,
@@ -348,8 +351,27 @@ void SchedulePlatformRuntimeInstallationIfRequired() {
     return;
   }
 
+#if BUILDFLAG(WEBNN_INSTALL_RUNTIME_IN_CHROME_INSTALLER)
+  // Check if the browser process was installed by the Chrome installer. If so,
+  // skip the installation check here as the installer is responsible for
+  // handling this. The installation in the browser process is only for
+  // developer builds.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::BindOnce(&installer::IsCurrentProcessInstalled),
+      base::BindOnce([](bool is_browser_process_installed) {
+        if (is_browser_process_installed) {
+          return;
+        }
+        content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+            ->PostTask(FROM_HERE, base::BindOnce(&EnsureInstallation));
+      }));
+#else
   content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
       ->PostTask(FROM_HERE, base::BindOnce(&EnsureInstallation));
+#endif  // BUILDFLAG(WEBNN_INSTALL_RUNTIME_IN_CHROME_INSTALLER)
 }
 
 }  // namespace webnn

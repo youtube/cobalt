@@ -86,25 +86,21 @@ class WebHistoryService : public KeyedService {
     QueryHistoryResult(QueryHistoryResult&&);
     ~QueryHistoryResult();
 
-    struct Event {
-      Event();
-      Event(const Event&);
-      Event(Event&&);
-      ~Event();
-
-      struct Visit {
-        base::Time timestamp;
-        std::string client_id;
-      };
+    struct Visit {
+      Visit();
+      Visit(const Visit&);
+      Visit(Visit&&);
+      ~Visit();
 
       GURL url;
       std::string title;
       GURL favicon_url;
-      std::vector<Visit> visits;
+      std::string client_id;
+      base::Time timestamp;
     };
 
-    std::vector<Event> events;
-    std::string continuation_token;
+    std::vector<Visit> visits;
+    bool has_more_results = false;
   };
 
   // Callback with the result of a call to QueryHistory().

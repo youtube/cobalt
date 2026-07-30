@@ -1070,6 +1070,10 @@ void ReadAnythingAppController::ScreenAIServiceReady() {
   distiller_->ScreenAIServiceReady();
 }
 
+void ReadAnythingAppController::TogglePinState() {
+  page_handler_->TogglePinState();
+}
+
 const gin::WrapperInfo* ReadAnythingAppController::wrapper_info() const {
   return &kWrapperInfo;
 }
@@ -1155,6 +1159,11 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("lineFocusCursorLine",
                    &ReadAnythingAppController::LineFocusCursorLine)
       .SetProperty("maxLineWidth", &ReadAnythingAppController::MaxLineWidth)
+      .SetProperty("inSidePanelPresentationState",
+                   &ReadAnythingAppController::InSidePanelPresentationState)
+      .SetProperty(
+          "inImmersiveOverlayPresentationState",
+          &ReadAnythingAppController::InImmersiveOverlayPresentationState)
       .SetProperty("speechRate", &ReadAnythingAppController::SpeechRate)
       .SetProperty("isGoogleDocs", &ReadAnythingAppController::IsGoogleDocs)
       .SetProperty("isReadAloudEnabled",
@@ -1298,7 +1307,10 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                  &ReadAnythingAppController::SendGetPresentationStateRequest)
       .SetMethod("togglePresentation",
                  &ReadAnythingAppController::TogglePresentation)
-      .SetMethod("close", &ReadAnythingAppController::CloseUI);
+      .SetMethod("close", &ReadAnythingAppController::CloseUI)
+      .SetMethod("togglePinState", &ReadAnythingAppController::TogglePinState)
+      .SetMethod("sendPinStateRequest",
+                 &ReadAnythingAppController::SendPinStateRequest);
 }
 
 ui::AXNodeID ReadAnythingAppController::RootId() const {
@@ -1350,6 +1362,11 @@ bool ReadAnythingAppController::ImagesFeatureEnabled() const {
 
 bool ReadAnythingAppController::IsPhraseHighlightingEnabled() const {
   return features::IsReadAnythingReadAloudPhraseHighlightingEnabled();
+}
+
+void ReadAnythingAppController::OnPinStatusReceived(bool pin_state) {
+  ExecuteJavaScript("chrome.readingMode.onPinStateReceived(" +
+                    base::ToString(pin_state) + ")");
 }
 
 int ReadAnythingAppController::LetterSpacing() const {
@@ -1536,6 +1553,16 @@ int ReadAnythingAppController::MaxLineWidth() const {
   return a11y::kMaxLineWidth;
 }
 
+int ReadAnythingAppController::InSidePanelPresentationState() const {
+  return std::to_underlying(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+}
+
+int ReadAnythingAppController::InImmersiveOverlayPresentationState() const {
+  return std::to_underlying(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+}
+
 std::vector<ui::AXNodeID> ReadAnythingAppController::GetChildren(
     ui::AXNodeID ax_node_id) const {
   std::vector<ui::AXNodeID> child_ids;
@@ -1544,7 +1571,7 @@ std::vector<ui::AXNodeID> ReadAnythingAppController::GetChildren(
   const std::set<ui::AXNodeID>* node_ids = model_.GetCurrentlyVisibleNodes();
   for (auto it = ax_node->UnignoredChildrenBegin();
        it != ax_node->UnignoredChildrenEnd(); ++it) {
-    if (base::Contains(*node_ids, it->id())) {
+    if (node_ids->contains(it->id())) {
       child_ids.push_back(it->id());
     }
   }
@@ -1613,15 +1640,13 @@ std::string ReadAnythingAppController::GetTextDirection(
 std::string ReadAnythingAppController::GetUrl(ui::AXNodeID ax_node_id) const {
   ui::AXNode* ax_node = model_.GetAXNode(ax_node_id);
   DCHECK(ax_node);
-  const char* url =
-      ax_node->GetStringAttribute(ax::mojom::StringAttribute::kUrl).c_str();
+  const std::string& url =
+      ax_node->GetStringAttribute(ax::mojom::StringAttribute::kUrl);
 
   // Prevent XSS from href attribute, which could be set to a script instead
   // of a valid website.
-  if (url::FindAndCompareScheme(url, static_cast<int>(strlen(url)), "http",
-                                nullptr) ||
-      url::FindAndCompareScheme(url, static_cast<int>(strlen(url)), "https",
-                                nullptr)) {
+  if (url::FindAndCompareScheme(url, "http", nullptr) ||
+      url::FindAndCompareScheme(url, "https", nullptr)) {
     return url;
   }
   return "";
@@ -1640,6 +1665,10 @@ void ReadAnythingAppController::OnGetPresentationState(
   ExecuteJavaScript("chrome.readingMode.onPresentationStateReceived(" +
                     base::ToString(static_cast<int>(presentation_state)) +
                     ");");
+}
+
+void ReadAnythingAppController::SendPinStateRequest() {
+  page_handler_->SendPinStateRequest();
 }
 
 void ReadAnythingAppController::SendGetVoicePackInfoRequest(
@@ -1752,7 +1781,7 @@ std::string ReadAnythingAppController::GetValidatedFontName(
   if (font == "Serif" || font == "Sans-serif") {
     return base::ToLowerASCII(font);
   }
-  return base::Contains(font, ' ') ? base::StrCat({"\"", font, "\""}) : font;
+  return font.contains(' ') ? base::StrCat({"\"", font, "\""}) : font;
 }
 
 std::vector<std::string> ReadAnythingAppController::GetAllFonts() const {
@@ -2212,6 +2241,7 @@ void ReadAnythingAppController::OnTtsEngineInstalled() {
 #endif
 
 void ReadAnythingAppController::OnReadingModeHidden(bool tab_active) {
+  page_handler_->AckReadingModeHidden();
   model_.set_will_hide(true);
   // If the tab is not active but RM is hidden, then the tab was switched and
   // speech was not stopped. If the tab is still active and RM is hidden, then

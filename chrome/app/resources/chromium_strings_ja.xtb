@@ -82,6 +82,7 @@
 <translation id="193439633299369377">更新を適用するには、Chromium OS を再起動する必要があります。</translation>
 <translation id="1951406923938785464">このダウンロードは Chromium でブロックされました。ファイル形式が一般的にダウンロードされるものではなく、危害を及ぼす可能性があります</translation>
 <translation id="1953553007165777902">ダウンロードしています... 残り <ph name="MINUTE" /> 分です</translation>
+<translation id="1965068424387304464">Chromium のヒント: パスワードを保存</translation>
 <translation id="1966382378801805537">Chromium では既定のブラウザを判定または設定できません</translation>
 <translation id="1990262977744080398">新しいタブを開いて、Chromium で一部のファイルがブロックされる理由を確認します</translation>
 <translation id="1999715455684970349">Chromium ソフトウェアを最新の状態に保ちます。このサービスを無効にしたり停止したりすると、Chromium ソフトウェアが最新の状態に保たれなくなります。その結果、セキュリティ上の脆弱性が見つかっても修正できず、機能が動作しなくなる可能性があります。このサービスを使用する Chromium ソフトウェアがなくなると、このサービスは自動的にアンインストールされます。</translation>
@@ -90,7 +91,6 @@
 <translation id="2020032459870799438">他のパスワードにデータ侵害などセキュリティに関する問題がないかどうかを確認するには、<ph name="BEGIN_LINK" />Chromium にログイン<ph name="END_LINK" />してください。</translation>
 <translation id="2039417478970545937">設定に移動。</translation>
 <translation id="2049376729098081731">Chromium の履歴を含めて、Google サービスのパーソナライズに使用するかどうかを選択してください</translation>
-<translation id="2054039611381840095">今後、Chromium のアップデートを受信するには、macOS 12 以降が必要となります。このコンピュータでは macOS 11 が実行されています。</translation>
 <translation id="2064856577282482477">新しいタブページで [Chromium をカスタマイズ] ボタンをクリックして、Chromium のレイアウトを変更できます</translation>
 <translation id="2086476982681781442">このダウンロードは Chromium でブロックされました。ファイルが虚偽のもので、デバイスに予期しない変更を加える可能性があります</translation>
 <translation id="208726765006323911">次回 Chromium iOS を開いたときに、<ph name="FEATURE_NAME" /> を試すよう求めるメッセージが表示されます。</translation>
@@ -250,6 +250,7 @@
 <translation id="3802055581630249637">アクセスする可能性の高いページがプリロードされ、該当のページにアクセスしたときにページの読み込み速度が向上します。</translation>
 <translation id="3810973564298564668">管理</translation>
 <translation id="3823384748599722168">保存したパスワードを使用するには、QR コードのサイトから iOS 版 Chromium をダウンロードして Google アカウントにログインします</translation>
+<translation id="3837584850181228767">Chromium のヒント: セーフ ブラウジング保護強化機能</translation>
 <translation id="3846683726093018685">**要約:** スクリーンショットのコンテンツの主なテーマと目的を 30 語以内の 1 文で説明します。
 
           **質問の提案:** スクリーンショットの理解を深めるためにユーザーが質問しそうな項目を箇条書きで 3～5 つ生成します。視覚的なオブジェクトやそのデザイン、または配置に関する具体的な質問が 1 つ以上含まれます。</translation>
@@ -561,6 +562,7 @@
 <translation id="7347827960336370838">パスフレーズを知っているユーザーだけが暗号化されたデータを見ることができます。パスフレーズは Google には送信されず、保存されることもありません。パスフレーズを忘れた場合や、この設定を変更する場合は、<ph name="BEGIN_LINK" />アカウントの Chromium データを削除<ph name="END_LINK" />する必要があります。</translation>
 <translation id="7349591376906416160">システム管理者が、<ph name="TARGET_URL_HOSTNAME" /> へのアクセスに <ph name="ALTERNATIVE_BROWSER_NAME" /> を開くよう Chromium を設定しています。</translation>
 <translation id="7352651011704765696">問題が発生しました</translation>
+<translation id="7368826207863345663">今後、Chromium のアップデートを受信するには、macOS 13 以降が必要となります。このコンピュータでは macOS 12 が実行されています。</translation>
 <translation id="7376384068949534168">最近アクセスしていないため、Chromium で <ph name="PERMISSION_1" /> と <ph name="PERMISSION_2" /> の権限を削除しました。</translation>
 <translation id="7384121030444253939">この拡張機能は現在サポートされていません。代わりに削除することをおすすめします。</translation>
 <translation id="7413153308467572558">前回開いていたページを開く: Chromium で再起動するたびにタブが復元されます。この機能をオフにするには、</translation>
@@ -708,6 +710,7 @@
 <translation id="9148058034647219655">終了</translation>
 <translation id="9155105544013854680">前回開いていたページを開く: Chromium で再起動するたびにタブを復元できます。この機能をオンにするには、</translation>
 <translation id="9158494823179993217">システム管理者が、<ph name="TARGET_URL_HOSTNAME" /> へのアクセスに代替ブラウザを開くよう Chromium を設定しています。</translation>
+<translation id="9183331186620388872">Chromium のヒント: レンズで検索</translation>
 <translation id="9185526690718004400">再起動して Chromium を更新(&amp;C)</translation>
 <translation id="9190841055450128916">Chromium（mDNS インバウンド）</translation>
 <translation id="9206863043651638213">Chromium にログインしてさらに便利に</translation>

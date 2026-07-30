@@ -5,15 +5,21 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_VIEW_H_
 
+#include <vector>
+
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
+#include "chrome/common/buildflags.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/layout/delegating_layout_manager.h"
+#include "ui/views/layout/flex_layout.h"
 #include "ui/views/masked_targeter_delegate.h"
 #include "ui/views/view.h"
 
@@ -25,6 +31,12 @@ class TabIcon;
 namespace views {
 class Label;
 }
+
+#if BUILDFLAG(ENABLE_GLIC)
+namespace glic {
+class TabUnderlineView;
+}
+#endif
 
 // View for a vertical tabstrip's tab.
 class VerticalTabView : public views::View,
@@ -44,8 +56,10 @@ class VerticalTabView : public views::View,
   void UpdateHovered(bool hovered);
 
   void OnTabDragOver();
-
+  const TabStyle* tab_style() { return tab_style_; }
+  const TabRendererData& tab_data() const { return tab_data_; }
   TabCloseButton* close_button_for_testing() { return close_button_; }
+  float radial_highlight_opacity() { return radial_highlight_opacity_; }
 
  private:
   // views::View
@@ -54,14 +68,26 @@ class VerticalTabView : public views::View,
   bool OnMousePressed(const ui::MouseEvent& event) override;
   void OnMouseReleased(const ui::MouseEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
-  bool OnMouseDragged(const ui::MouseEvent& event) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
+  bool OnMouseDragged(const ui::MouseEvent& event) override;
   void OnPaint(gfx::Canvas* canvas) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   void OnThemeChanged() override;
+
+  struct TabChildConfig {
+    raw_ptr<views::View> view;
+    int min_width;
+    int padding;
+    bool align_leading;
+    bool expand;
+  };
+
+  gfx::Rect GetChildBounds(const gfx::Rect& container,
+                           const TabChildConfig& config,
+                           const bool center) const;
 
   // views::LayoutDelegate
   views::ProposedLayout CalculateProposedLayout(
@@ -109,6 +135,8 @@ class VerticalTabView : public views::View,
 
   raw_ptr<TabCollectionNode> collection_node_ = nullptr;
 
+  std::vector<TabChildConfig> tab_children_configs_;
+
   const raw_ptr<const TabStyle> tab_style_;
 
   const raw_ptr<TabIcon> icon_;
@@ -116,10 +144,15 @@ class VerticalTabView : public views::View,
   const raw_ptr<AlertIndicatorButton> alert_indicator_;
   const raw_ptr<TabCloseButton> close_button_;
 
+#if BUILDFLAG(ENABLE_GLIC)
+  raw_ptr<glic::TabUnderlineView> glic_tab_underline_view_ = nullptr;
+#endif
+
   base::CallbackListSubscription node_destroyed_subscription_;
   base::CallbackListSubscription data_changed_subscription_;
   base::CallbackListSubscription paint_as_active_subscription_;
 
+  TabRendererData tab_data_;
   bool active_ = false;
   bool selected_ = false;
   bool hovered_ = false;

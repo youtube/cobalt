@@ -181,7 +181,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.Cold.TimeToFirstFrame" units="ms"
-    expires_after="2026-05-05">
+    expires_after="2026-07-05">
   <owner>nafisabedin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -521,7 +521,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.GURLEnsureMainDexInitialized" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>mthiesse@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -569,7 +569,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.Android.MainIntentIsColdStart" enum="Boolean"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>nafisabedin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -642,7 +642,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.BrowserMainRunnerImplInitializeLongTime" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2026-07-05">
   <owner>robliao@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>
@@ -758,7 +758,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.BrowserWindow.FirstPaint{StartupTemperature}"
-    units="ms" expires_after="2026-05-03">
+    units="ms" expires_after="2026-07-05">
   <owner>gab@chromium.org</owner>
 <!-- expires-never: used to diagnose regressions to Startup.FirstWebContents.NonEmptyPaint3 -->
 
@@ -855,6 +855,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     [IOS] The number of time +load was called but no scene was activated.
     Recorded when first scene is becomes active.
+  </summary>
+</histogram>
+
+<histogram name="Startup.CrashBubbleShown" enum="BooleanShown"
+    expires_after="2026-06-06">
+  <owner>spvm@chromium.org</owner>
+  <owner>etienneb@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Whether the session restore crash bubble was shown on startup. Recorded once
+    every startup, during early startup, when initializing the infobar. Recorded
+    only on platforms with the crash bubble (i.e. desktop).
   </summary>
 </histogram>
 

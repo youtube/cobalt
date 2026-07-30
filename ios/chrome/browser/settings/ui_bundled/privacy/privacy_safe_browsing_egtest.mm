@@ -10,7 +10,6 @@
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/authentication/test/signin_matchers.h"
-#import "ios/chrome/browser/popup_menu/overflow_menu/public/feature_flags.h"
 #import "ios/chrome/browser/settings/ui_bundled/privacy/privacy_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/privacy/safe_browsing/safe_browsing_constants.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
@@ -106,9 +105,6 @@ void PressInfoButtonForCell(NSString* cellId) {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-  // TODO: crbug.com/336547987 - Remove when this is fully deployed.
-  config.features_enabled.push_back(
-      safe_browsing::kExtendedReportingRemovePrefDependencyIos);
   // TODO: crbug.com/444244681 - Remove this and tests when fully deployed.
   config.features_enabled.push_back(
       safe_browsing::kMovePasswordLeakDetectionToggleIos);
@@ -340,59 +336,11 @@ void PressInfoButtonForCell(NSString* cellId) {
 
 @end
 
-@interface SafeBrowsingExtendedReportingDeprecationDisabled : ChromeTestCase
-@end
-@implementation SafeBrowsingExtendedReportingDeprecationDisabled
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config;
-  config.features_disabled.push_back(
-      safe_browsing::kExtendedReportingRemovePrefDependencyIos);
-  return config;
-}
-
-- (void)testSBERCellIsPresent {
-  OpenPrivacySafeBrowsingSettings();
-  PressInfoButtonForCell(kSettingsSafeBrowsingStandardProtectionCellId);
-  [ElementInteractionWithGreyMatcher(
-      grey_accessibilityID(kSafeBrowsingExtendedReportingCellId),
-      grey_accessibilityID(kSafeBrowsingStandardProtectionTableViewId))
-      assertWithMatcher:grey_notNil()];
-}
-@end
-
-@interface SafeBrowsingExtendedReportingDeprecationEnabled : ChromeTestCase
-@end
-@implementation SafeBrowsingExtendedReportingDeprecationEnabled
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config;
-  // TODO: crbug.com/444243524 - Remove when this is fully deployed.
-  config.features_enabled.push_back(
-      safe_browsing::kExtendedReportingRemovePrefDependencyIos);
-  // TODO: crbug.com/444244681 - Remove when this is fully deployed.
-  config.features_enabled.push_back(
-      safe_browsing::kMovePasswordLeakDetectionToggleIos);
-  return config;
-}
-
-- (void)testSBERCellIsRemoved {
-  OpenPrivacySafeBrowsingSettings();
-  [[EarlGrey
-      selectElementWithMatcher:
-          grey_allOf(grey_ancestor(grey_accessibilityID(
-                         kSettingsSafeBrowsingStandardProtectionCellId)),
-                     grey_accessibilityID(kTableViewCellInfoButtonViewId), nil)]
-      assertWithMatcher:grey_notVisible()];
-}
-@end
-
 @interface SafeBrowsingPasswordLeakCheckToggleMoveDisabled : ChromeTestCase
 @end
 @implementation SafeBrowsingPasswordLeakCheckToggleMoveDisabled
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-  // TODO: crbug.com/444243524 - Remove after the SBER deprecation rolls out.
-  config.features_enabled.push_back(
-      safe_browsing::kExtendedReportingRemovePrefDependencyIos);
   // TODO: crbug.com/444244681 - Remove when this is fully deployed.
   config.features_disabled.push_back(
       safe_browsing::kMovePasswordLeakDetectionToggleIos);
@@ -439,9 +387,6 @@ void PressInfoButtonForCell(NSString* cellId) {
 @implementation SafeBrowsingPasswordLeakCheckToggleMoveEnabled
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-  // TODO: crbug.com/444243524 - Remove when this is fully deployed.
-  config.features_enabled.push_back(
-      safe_browsing::kExtendedReportingRemovePrefDependencyIos);
   // TODO: crbug.com/444244681 - Remove when this is fully deployed.
   config.features_enabled.push_back(
       safe_browsing::kMovePasswordLeakDetectionToggleIos);

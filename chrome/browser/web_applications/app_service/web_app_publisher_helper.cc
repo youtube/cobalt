@@ -704,6 +704,7 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
                                       : apps::Readiness::kReady);
       break;
     case proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE:
+    case proto::InstallState::SUGGESTED_FROM_MIGRATION:
       readiness = apps::Readiness::kDisabledByUser;
   }
 
@@ -876,9 +877,7 @@ void WebAppPublisherHelper::UninstallWebApp(
           : std::make_unique<ScopedProfileKeepAlive>(
                 profile_, ProfileKeepAliveOrigin::kWebAppUninstall);
   // Ensure profile is kept alive until ClearSiteData is done.
-  auto callback = base::BindOnce(
-      [](std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive) {},
-      std::move(profile_keep_alive));
+  auto callback = base::DoNothingWithBoundArgs(std::move(profile_keep_alive));
   content::ClearSiteData(
       profile()->GetWeakPtr(),
       /*storage_partition_config=*/std::nullopt, origin,

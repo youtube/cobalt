@@ -1683,23 +1683,24 @@ Your Google account may have other forms of browsing history like searches and a
         =1 {Chrome found a reused password that you could improve}
         other {Chrome found # reused passwords that you could improve}}
       </message>
-      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_TITLE" desc="Title for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
-        {NUM_REVOKED_PERMISSIONS, plural,
-        =1 {Unsubscribed from one unused site}
-        other {Unsubscribed from # unused sites}}
+       <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_DISRUPTIVE_AND_SUSPICIOUS_NOTIFICATIONS_NOTIFICATION_TITLE_SINGULAR" desc="Title for the notification sent from Safety Hub for telling the user that the site's notifications have been unsubscribed.">
+        Unsubscribed from <ph name="DOMAIN">%1$s<ex>example.com</ex></ph>
       </message>
-       <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_DISRUPTIVE_AND_SUSPICIOUS_NOTIFICATIONS_NOTIFICATION_TITLE" desc="Title for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
-        {NUM_REVOKED_PERMISSIONS, plural,
-        =1 {Unsubscribed from one site}
-        other {Unsubscribed from # sites}}
+      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_DISRUPTIVE_AND_SUSPICIOUS_NOTIFICATIONS_NOTIFICATION_TITLE_PLURAL" desc="Title for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
+        Unsubscribed from <ph name="COUNT">%1$d<ex>2</ex></ph> sites
       </message>
-      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_MESSAGE" desc="Message for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed." meaning="This message informs about notification permissions having been revoked from one or more sites and explains that the user can review and manage [those notification permission revocations] by either clicking on this message or on the Review button below it.">
-        {NUM_REVOKED_PERMISSIONS, plural,
-        =1 {Chrome stopped notifications from this site. You can review and manage.}
-        other {Chrome stopped notifications from these sites. You can review and manage.}}
+      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_DISRUPTIVE_AND_SUSPICIOUS_NOTIFICATIONS_NOTIFICATION_MESSAGE" desc="Message for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed, due to disruptive and suspicious content." meaning="This message informs about notification permissions having been revoked from one or more sites and explains that the user can review and manage [those notification permission revocations] by either clicking on this message or on the Review button below it.">
+        Chrome stopped abusive and unused sites from sending notifications
       </message>
-      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_ACK" desc="Button to acknowledge the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
-        Got it
+      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_DISRUPTIVE_NOTIFICATIONS_NOTIFICATION_MESSAGE" desc="Message for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed, due to disruptive content." meaning="This message informs about notification permissions having been revoked from one or more sites and explains that the user can review and manage [those notification permission revocations] by either clicking on this message or on the Review button below it.">
+        {NUM_REVOKED_PERMISSIONS, plural,
+        =1 {Chrome stopped a site you haven’t visited recently from sending you notifications}
+        other {Chrome stopped sites you haven’t visited recently from sending you notifications}}
+      </message>
+      <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_SUSPICIOUS_NOTIFICATIONS_NOTIFICATION_MESSAGE" desc="Message for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed, due to suspicious content." meaning="This message informs about notification permissions having been revoked from one or more sites and explains that the user can review and manage [those notification permission revocations] by either clicking on this message or on the Review button below it.">
+        {NUM_REVOKED_PERMISSIONS, plural,
+        =1 {Chrome stopped this site from sending notifications because of spam or deceptive content}
+        other {Chrome stopped these sites from sending notifications because of spam or deceptive content}}
       </message>
       <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_REVIEW" desc="Button to review revoked notifications on the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
         Review
@@ -3407,6 +3408,13 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_DOWNLOAD_MANAGER_DANGEROUS_BLOCKED" desc="Caption shown below a file that was blocked for being dangerous.">
         Dangerous download blocked
       </message>
+      <message name="IDS_DOWNLOAD_MANAGER_ASYNC_SCANNING_TITLE" desc="Title shown for a download that is currently being scanned for its content.">
+        Scanning <ph name="FILE_NAME">%1$s<ex>test.pdf</ex></ph>
+      </message>
+      <message name="IDS_DOWNLOAD_MANAGER_ASYNC_SCANNING_DESCRIPTION" desc="Description on download home showing below the download about that the download is undergoing content check due to enterpise policies.">
+        Your download will complete if the file meets your organization’s policies
+      </message>
+
 
       <!-- Browsing History UI -->
       <message name="IDS_HISTORY_MANAGER_EMPTY_STATE" desc="Indicates that there are no browsing history items.">
@@ -5707,6 +5715,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_KEYBOARD_SHORTCUT_NEW_INCOGNITO_TAB" desc="A text label that appears next to a keyboard shortcut to open a new tab in Incognito mode in Chrome. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
         Open a new tab in Incognito mode
       </message>
+      <message name="IDS_KEYBOARD_SHORTCUT_NEW_INCOGNITO_WINDOW" desc="A text label that appears next to a keyboard shortcut to open a new window in Incognito mode in Chrome. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
+        Open a new window in Incognito mode
+      </message>
        <message name="IDS_KEYBOARD_SHORTCUT_SPECIFIC_TAB" desc="A text label that appears next to the keyboard shortcut that will move the user to a specific tab in the Chrome app. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
         Jump to a specific tab (1&#8211;8)
       </message>
@@ -5851,6 +5862,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_INSTANCE_SWITCHER_TABS_INACTIVE" desc="The title of the inactive instances tab header on the multi-instance switcher dialog.">
         Inactive (<ph name="ITEM_COUNT">%1$s<ex>2</ex></ph>)
+      </message>
+      <message name="IDS_INSTANCE_SWITCHER_NO_INACTIVE_WINDOWS" desc="Text shown in the instance switcher when there are no inactive windows.">
+        No inactive windows
       </message>
       <message name="IDS_INSTANCE_SWITCHER_ENTRY_EMPTY_WINDOW" desc="Title of an instance entry that has no tabs in it.">
         Empty window
@@ -7462,7 +7476,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Tips notifications opt in opened at full height
       </message>
       <message name="IDS_TIPS_OPT_IN_BOTTOM_SHEET_POSITIVE_BUTTON_TEXT" desc="Button text for the Tips Opt In bottom sheet to go to the notifications settings page.">
-        Turn on Tips notifications
+        Turn on tips notifications
       </message>
       <message name="IDS_TIPS_OPT_IN_BOTTOM_SHEET_NEGATIVE_BUTTON_TEXT" desc="Button text for the Tips Opt In bottom sheet to exit the promo.">
         Close

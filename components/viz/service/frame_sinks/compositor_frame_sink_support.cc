@@ -514,19 +514,22 @@ void CompositorFrameSinkSupport::ReceiveFromChild(
   surface_resource_holder_.ReceiveFromChild(resources);
 }
 
-std::vector<PendingCopyOutputRequest>
+std::vector<std::unique_ptr<PendingCopyOutputRequest>>
 CompositorFrameSinkSupport::TakeCopyOutputRequests(
     const LocalSurfaceId& latest_local_id) {
-  std::vector<PendingCopyOutputRequest> results;
+  std::vector<std::unique_ptr<PendingCopyOutputRequest>> results;
   for (auto it = copy_output_requests_.begin();
        it != copy_output_requests_.end();) {
+    if ((*it)->IsTimedOut()) {
+      it = copy_output_requests_.erase(it);
+    }
     // Pick up the requests that require an exact `LocalSurfaceId` match.
-    if (it->capture_exact_surface_id) {
+    else if ((*it)->capture_exact_surface_id) {  // NOLINT
       // `ui::DelegatedFrameHostAndroid` won't send a `CopyOutputRequest`
       // without a valid `LocalSurfaceId`. This is guaranteed as we can't
       // serialize/deserialize an empty `LocalSurfaceId`.
-      CHECK(it->local_surface_id.is_valid());
-      if (it->local_surface_id == latest_local_id) {
+      CHECK((*it)->local_surface_id.is_valid());
+      if ((*it)->local_surface_id == latest_local_id) {
         results.push_back(std::move(*it));
         it = copy_output_requests_.erase(it);
       } else {
@@ -535,9 +538,17 @@ CompositorFrameSinkSupport::TakeCopyOutputRequests(
     }
     // Requests with a non-valid local id should be satisfied as soon as
     // possible.
-    else if (!it->local_surface_id.is_valid() ||  // NOLINT
-             it->local_surface_id <= latest_local_id) {
+    else if (!(*it)->local_surface_id.is_valid() ||  // NOLINT
+             latest_local_id.IsSameOrNewerThan((*it)->local_surface_id)) {
       results.push_back(std::move(*it));
+      it = copy_output_requests_.erase(it);
+    } else if (latest_local_id.IsNewerThanIgnoringEmbedToken(
+                   (*it)->local_surface_id) &&
+               latest_local_id.embed_token() !=
+                   (*it)->local_surface_id.embed_token()) {
+      // This must be that the embedding changed, so discard.
+      (*it)->copy_output_request->SendError(
+          CopyOutputResult::Error::kEmbeddingTokenChanged);
       it = copy_output_requests_.erase(it);
     } else {
       ++it;
@@ -912,10 +923,10 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
       copy_request->set_result_task_runner(
           base::SequencedTaskRunner::GetCurrentDefault());
 
-      RequestCopyOfOutput(
-          PendingCopyOutputRequest(last_created_surface_id_.local_surface_id(),
-                                   SubtreeCaptureId{}, std::move(copy_request),
-                                   /*capture_exact_id=*/true));
+      RequestCopyOfOutput(std::make_unique<PendingCopyOutputRequest>(
+          last_created_surface_id_.local_surface_id(), SubtreeCaptureId{},
+          std::move(copy_request),
+          /*capture_exact_id=*/true));
     }
 
     if (!create_surface_return.has_value()) {
@@ -1390,7 +1401,7 @@ CompositorFrameSinkSupport::GetRequestRegionProperties(
 }
 
 void CompositorFrameSinkSupport::RequestCopyOfOutput(
-    PendingCopyOutputRequest pending_copy_output_request) {
+    std::unique_ptr<PendingCopyOutputRequest> pending_copy_output_request) {
   copy_output_requests_.push_back(std::move(pending_copy_output_request));
   if (last_activated_surface_id_.is_valid()) {
     BeginFrameAck ack;
@@ -1592,6 +1603,15 @@ void CompositorFrameSinkSupport::ProcessCompositorFrameTransitionDirective(
         return;
       }
 
+      if (features::ShouldAckCOREarlyForViewTransition() &&
+          !directive.maybe_cross_frame_sink() &&
+          directive.delay_layer_tree_view_deletion()) {
+        // Register the token for same-doc transitions to ensure
+        // CopyOutputRequest can complete.
+        frame_sink_manager_->RegisterSameDocViewTransitionToken(
+            transition_token);
+      }
+
       view_transition_token_to_animation_manager_[transition_token] =
           SurfaceAnimationManager::CreateWithSave(
               directive, surface,
@@ -1651,6 +1671,8 @@ void CompositorFrameSinkSupport::ProcessCompositorFrameTransitionDirective(
           directive.transition_token());
       view_transition_token_to_animation_manager_.erase(
           directive.transition_token());
+      frame_sink_manager_->ClearSameDocViewTransitionToken(
+          directive.transition_token());
       break;
   }
 }
@@ -1691,21 +1713,23 @@ bool CompositorFrameSinkSupport::IsEvicted(
 void CompositorFrameSinkSupport::ClearAllPendingCopyOutputRequests() {
   CHECK(surface_manager_);
   for (auto& request : copy_output_requests_) {
-    // If the frame sink is getting destroyed while there are still
-    // outstanding `CopyOutputRequest`s to capture an associated surface,
-    // transfer these requests to the corresponding `Surface`s.
-    //
-    // Resources reclamation: once frame sink is destroyed, the `Surface`s
-    // won't be able to notify the client code (the renderer's
-    // `cc::LayerTreeHostImpl`) to reclaim the resources. This is fine,
-    // because the destruction of the renderer and its CC (as part of a
-    // cross-RenderFrame navigation) will implicitly reclaim all the
-    // resources. The `Surface` kept alive will still have a reference to
-    // the underlying GPU resources. The GPU resources will finally be
-    // released when the `Surface` is destroyed (in this case, after the
-    // CopyOutputRequest is fulfilled).
-    if (request.capture_exact_surface_id) {
-      const SurfaceId target_id(frame_sink_id_, request.local_surface_id);
+    if (request->IsTimedOut()) {
+      // Do nothing, request will be discarded.
+    } else if (request->capture_exact_surface_id) {
+      // If the frame sink is getting destroyed while there are still
+      // outstanding `CopyOutputRequest`s to capture an associated surface,
+      // transfer these requests to the corresponding `Surface`s.
+      //
+      // Resources reclamation: once frame sink is destroyed, the `Surface`s
+      // won't be able to notify the client code (the renderer's
+      // `cc::LayerTreeHostImpl`) to reclaim the resources. This is fine,
+      // because the destruction of the renderer and its CC (as part of a
+      // cross-RenderFrame navigation) will implicitly reclaim all the
+      // resources. The `Surface` kept alive will still have a reference to
+      // the underlying GPU resources. The GPU resources will finally be
+      // released when the `Surface` is destroyed (in this case, after the
+      // CopyOutputRequest is fulfilled).
+      const SurfaceId target_id(frame_sink_id_, request->local_surface_id);
       auto* target_surface = surface_manager_->GetSurfaceForId(target_id);
       if (target_surface) {
         target_surface->RequestCopyOfOutput(std::move(request));

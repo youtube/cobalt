@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/content_suggestions/magic_stack/ui/magic_stack_context_menu_interaction_handler.h"
 
-#import "base/containers/contains.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/commerce/core/commerce_feature_list.h"
@@ -57,8 +56,8 @@ NSString* GetContextMenuTitleForType(ContentSuggestionsModuleType type,
     case ContentSuggestionsModuleType::kTabResumption: {
       TabResumptionItem* tabResumptionItemConfig =
           static_cast<TabResumptionItem*>(config);
-      if ((base::Contains(commerce::kShopCardVariation.Get(),
-                          commerce::kShopCardArm3) ||
+      if ((commerce::kShopCardVariation.Get().contains(
+               commerce::kShopCardArm3) ||
            commerce::kShopCardVariation.Get() == commerce::kShopCardArm4) &&
           tabResumptionItemConfig.shopCardData) {
         if (tabResumptionItemConfig.shopCardData.shopCardItemType ==
@@ -186,18 +185,14 @@ NSString* GetContextMenuHideDescriptionForType(
 - (NSArray<UIMenuElement*>*)menuElements {
   NSMutableArray<UIAction*>* actions = [[NSMutableArray alloc] init];
 
-  BOOL canShowTipsNotificationsOptIn = IsTipsModuleType(self.type);
-
-  BOOL canShowSafetyCheckNotificationsOptIn =
-      self.type == ContentSuggestionsModuleType::kSafetyCheck &&
-      IsSafetyCheckNotificationsEnabled();
-
-  if (canShowTipsNotificationsOptIn || canShowSafetyCheckNotificationsOptIn) {
+  // Currently, only Tips and Safety Check modules support the notifications
+  // opt-in/out toggle.
+  if (IsTipsModuleType(self.type) ||
+      self.type == ContentSuggestionsModuleType::kSafetyCheck) {
     [actions addObject:[self toggleNotificationsActionForModuleType:self.type]];
   }
 
   [actions addObject:[self hideAction]];
-
   [actions addObject:[self customizeCardAction]];
 
   return actions;

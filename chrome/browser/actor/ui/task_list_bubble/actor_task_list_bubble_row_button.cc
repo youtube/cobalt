@@ -10,6 +10,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/vector_icon_types.h"
@@ -23,26 +24,76 @@ namespace {
 const int kBubbleRowIconSize = 16;
 const int kRedirectIconSize = 20;
 
-const gfx::VectorIcon& GetRowIcon() {
+const gfx::VectorIcon& GetRowIcon(actor::ActorTask::State state) {
 #if BUILDFLAG(ENABLE_GLIC)
   if (base::FeatureList::IsEnabled(features::kGlicActorUiTaskIconV2)) {
+    if (tabs::GlicActorTaskIconManager::RequiresAttention(state)) {
+      return kHourglassIcon;
+    } else if (state == actor::ActorTask::State::kFinished) {
+      return kTaskSparkIcon;
+    }
     return glic::GlicVectorIconManager::GetVectorIcon(
         IDR_ACTOR_AUTO_BROWSE_ICON);
   }
 #endif
   return kScreensaverAutoIcon;
 }
+
+ui::ColorId GetRowColor(actor::ActorTask::State state,
+                        bool requires_processing) {
+#if BUILDFLAG(ENABLE_GLIC)
+  if (requires_processing &&
+      tabs::GlicActorTaskIconManager::RequiresAttention(state)) {
+    return ui::kColorSysPrimary;
+  }
+#endif
+  return ui::kColorMenuIcon;
+}
+
+std::u16string GetRowSubtitle(actor::ActorTask::State state, bool has_tab) {
+  if (!has_tab) {
+    return l10n_util::GetStringUTF16(
+        IDR_ACTOR_TASK_LIST_BUBBLE_ROW_TAB_CLOSED_SUBTITLE);
+  }
+#if BUILDFLAG(ENABLE_GLIC)
+  if (tabs::GlicActorTaskIconManager::RequiresAttention(state)) {
+    return l10n_util::GetStringUTF16(
+        IDR_ACTOR_TASK_LIST_BUBBLE_ROW_CHECK_TASK_SUBTITLE);
+  }
+#endif
+  if (state == actor::ActorTask::State::kFinished) {
+    return l10n_util::GetStringUTF16(
+        IDR_ACTOR_TASK_LIST_BUBBLE_ROW_COMPLETED_TASK_SUBTITLE);
+  } else if (state == actor::ActorTask::State::kFailed) {
+    return l10n_util::GetStringUTF16(
+        IDR_ACTOR_TASK_LIST_BUBBLE_ROW_FAILED_TASK_SUBTITLE);
+  } else if (state == actor::ActorTask::State::kPausedByUser) {
+    return l10n_util::GetStringUTF16(
+        IDR_ACTOR_TASK_LIST_BUBBLE_ROW_PAUSED_TASK_SUBTITLE);
+  }
+  return l10n_util::GetStringUTF16(
+      IDR_ACTOR_TASK_LIST_BUBBLE_ROW_ACTING_TASK_SUBTITLE);
+}
+
 }  // namespace
 
 ActorTaskListBubbleRowButton::ActorTaskListBubbleRowButton(
-    ActorTaskListBubbleRowButtonParams params)
-    : RichHoverButton(std::move(params.on_click_callback),
+    views::Button::PressedCallback on_row_clicked,
+    actor::ActorTask::State state,
+    std::u16string title,
+    bool requires_processing,
+    bool has_tab)
+    : RichHoverButton(std::move(on_row_clicked),
                       /*icon=*/
-                      ui::ImageModel::FromVectorIcon(GetRowIcon(),
-                                                     ui::kColorMenuIcon,
-                                                     kBubbleRowIconSize),
-                      /*title_text=*/params.title,
-                      /*subtitle_text=*/params.subtitle) {
+                      ui::ImageModel::FromVectorIcon(
+                          GetRowIcon(state),
+                          GetRowColor(state, requires_processing),
+                          kBubbleRowIconSize),
+                      /*title_text=*/title,
+                      /*subtitle_text=*/GetRowSubtitle(state, has_tab)),
+      has_tab_(has_tab) {
+  SetSubtitleTextStyleAndColor(/*default_style*/ views::style::STYLE_BODY_5,
+                               GetRowColor(state, requires_processing));
   if (subtitle()) {
     // TODO(crbug.com/460121008): Revisit when investigating a custom layout for
     // the row button. Hovering over the subtitle should also hover the row.
@@ -54,6 +105,9 @@ ActorTaskListBubbleRowButton::~ActorTaskListBubbleRowButton() = default;
 
 void ActorTaskListBubbleRowButton::OnMouseEntered(const ui::MouseEvent& event) {
   View::OnMouseEntered(event);
+  if (!has_tab_) {
+    return;
+  }
   SetState(Button::STATE_HOVERED);
   SetActionIcon(ui::ImageModel::FromVectorIcon(
       vector_icons::kLaunchIcon, ui::kColorMenuIcon, kRedirectIconSize));
@@ -61,6 +115,9 @@ void ActorTaskListBubbleRowButton::OnMouseEntered(const ui::MouseEvent& event) {
 
 void ActorTaskListBubbleRowButton::OnMouseExited(const ui::MouseEvent& event) {
   View::OnMouseExited(event);
+  if (!has_tab_) {
+    return;
+  }
   SetState(Button::STATE_NORMAL);
   SetActionIcon(ui::ImageModel());
 }

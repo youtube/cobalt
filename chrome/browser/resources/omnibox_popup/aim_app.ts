@@ -40,6 +40,10 @@ export class OmniboxAimAppElement extends CrLitElement {
 
   protected searchboxLayoutMode_: string =
       loadTimeData.getString('searchboxLayoutMode');
+  protected disableCaretColorAnimation_: boolean =
+      loadTimeData.getBoolean('caretColorAnimationDisabled');
+  protected disableComposeboxAnimation_: boolean =
+      loadTimeData.getBoolean('composeboxAnimationDisabled');
 
   private isDebug_: boolean =
       new URLSearchParams(window.location.search).has('debug');

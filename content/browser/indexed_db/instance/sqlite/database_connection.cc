@@ -955,10 +955,12 @@ Status DatabaseConnection::Init(std::optional<std::u16string_view> name) {
       return Fatal(Status::Corruption("Missing data format version"),
                    SpecificEvent::kV8FormatTooNewOrMissing);
     }
-    if (!current_data_format.IsAtLeast(
-            IndexedDBDataFormatVersion::Decode(data_format_version))) {
+    std::optional<IndexedDBDataFormatVersion> decoded =
+        IndexedDBDataFormatVersion::Decode(data_format_version);
+    if (!decoded || !current_data_format.IsAtLeast(*decoded)) {
       return Fatal(
-          Status::NotFound("Unintelligible data format version: too new"),
+          Status::NotFound(
+              "Unintelligible data format version: invalid or too new"),
           SpecificEvent::kV8FormatTooNewOrMissing);
     }
   }
@@ -1353,7 +1355,8 @@ Status DatabaseConnection::DeleteObjectStore(
     base::PassKey<BackingStoreTransactionImpl>,
     int64_t object_store_id) {
   CHECK(HasActiveVersionChangeTransaction());
-  CHECK(metadata_.object_stores.contains(object_store_id));
+  auto it = metadata_.object_stores.find(object_store_id);
+  CHECK(it != metadata_.object_stores.end());
   {
     sql::Statement statement(db_->GetCachedStatement(
         SQL_FROM_HERE,
@@ -1379,7 +1382,7 @@ Status DatabaseConnection::DeleteObjectStore(
     statement.BindInt64(0, object_store_id);
     RETURN_STATUS_ON_ERROR(statement.Run());
   }
-  CHECK(metadata_.object_stores.erase(object_store_id) == 1);
+  metadata_.object_stores.erase(it);
   return Status::OK();
 }
 
@@ -1388,14 +1391,15 @@ Status DatabaseConnection::RenameObjectStore(
     int64_t object_store_id,
     const std::u16string& new_name) {
   CHECK(HasActiveVersionChangeTransaction());
-  CHECK(metadata_.object_stores.contains(object_store_id));
+  auto it = metadata_.object_stores.find(object_store_id);
+  CHECK(it != metadata_.object_stores.end());
 
   sql::Statement statement(db_->GetCachedStatement(
       SQL_FROM_HERE, "UPDATE object_stores SET name = ? WHERE id = ?"));
   statement.BindBlob(0, new_name);
   statement.BindInt64(1, object_store_id);
   RETURN_STATUS_ON_ERROR(statement.Run());
-  metadata_.object_stores.at(object_store_id).name = new_name;
+  it->second.name = new_name;
   return Status::OK();
 }
 
@@ -1404,10 +1408,10 @@ Status DatabaseConnection::CreateIndex(
     int64_t object_store_id,
     blink::IndexedDBIndexMetadata index) {
   CHECK(HasActiveVersionChangeTransaction());
-  CHECK(metadata_.object_stores.contains(object_store_id));
+  auto object_stores_it = metadata_.object_stores.find(object_store_id);
+  CHECK(object_stores_it != metadata_.object_stores.end());
 
-  blink::IndexedDBObjectStoreMetadata& object_store =
-      metadata_.object_stores.at(object_store_id);
+  blink::IndexedDBObjectStoreMetadata& object_store = object_stores_it->second;
   int64_t index_id = index.id;
   CHECK(!object_store.indexes.contains(index_id));
   CHECK_GT(index_id, object_store.max_index_id);

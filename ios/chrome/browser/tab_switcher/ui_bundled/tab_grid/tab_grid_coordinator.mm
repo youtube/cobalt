@@ -63,6 +63,7 @@
 #import "ios/chrome/browser/shared/coordinator/default_browser_promo/non_modal_default_browser_promo_scheduler_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
@@ -73,7 +74,6 @@
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/browser_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bring_android_tabs_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
@@ -83,6 +83,7 @@
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reading_list_add_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
@@ -98,7 +99,6 @@
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/synced_sessions/model/distant_session.h"
 #import "ios/chrome/browser/synced_sessions/model/synced_sessions_util.h"
-#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/tab_grid_scene_agent.h"
 #import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui/base_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_commands.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
@@ -291,21 +291,21 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 // Ivars are not auto-synthesized when accessors are overridden.
 @synthesize regularBrowser = _regularBrowser;
 
-- (instancetype)initWithApplicationCommandEndpoint:
-                    (id<ApplicationCommands>)applicationCommandEndpoint
-                                    regularBrowser:(Browser*)regularBrowser
-                                   inactiveBrowser:(Browser*)inactiveBrowser
-                                  incognitoBrowser:(Browser*)incognitoBrowser {
+- (instancetype)initWithSceneCommandsEndpoint:
+                    (id<SceneCommands>)sceneCommandsEndpoint
+                               regularBrowser:(Browser*)regularBrowser
+                              inactiveBrowser:(Browser*)inactiveBrowser
+                             incognitoBrowser:(Browser*)incognitoBrowser {
   if ((self = [super init])) {
     CHECK(inactiveBrowser->IsInactive());
     CHECK(!regularBrowser->IsInactive());
     _dispatcher = [[CommandDispatcher alloc] init];
-    [_dispatcher startDispatchingToTarget:applicationCommandEndpoint
-                              forProtocol:@protocol(ApplicationCommands)];
+    [_dispatcher startDispatchingToTarget:sceneCommandsEndpoint
+                              forProtocol:@protocol(SceneCommands)];
     // -startDispatchingToTarget:forProtocol: doesn't pick up protocols the
     // passed protocol conforms to, so SettingsCommands is explicitly dispatched
     // to the endpoint as well.
-    [_dispatcher startDispatchingToTarget:applicationCommandEndpoint
+    [_dispatcher startDispatchingToTarget:sceneCommandsEndpoint
                               forProtocol:@protocol(SettingsCommands)];
 
     _regularBrowser = regularBrowser;
@@ -419,7 +419,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   [_mediator setActivePage:page];
 
   SceneState* sceneState = self.regularBrowser->GetSceneState();
-  [[TabGridSceneAgent agentFromScene:sceneState] willEnterTabGrid];
+  sceneState.tabGridState.tabGridVisible = YES;
 
   BOOL animated = !self.animationsDisabledForTesting;
 
@@ -573,7 +573,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   DCHECK(viewController || self.bvcContainer);
 
   SceneState* sceneState = self.regularBrowser->GetSceneState();
-  [[TabGridSceneAgent agentFromScene:sceneState] willExitTabGrid];
+  sceneState.tabGridState.tabGridVisible = NO;
 
   __weak TabGridCoordinator* weakSelf = self;
 
@@ -931,15 +931,14 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                                    GetForProfile(profile)
                     modeHolder:_modeHolder];
 
-  _mediator.sceneAgent =
-      [TabGridSceneAgent agentFromScene:_regularBrowser->GetSceneState()];
+  _mediator.tabGridState = _regularBrowser->GetSceneState().tabGridState;
 
-  id<ApplicationCommands> applicationCommandsHandler =
-      HandlerForProtocol(self.dispatcher, ApplicationCommands);
+  id<SceneCommands> sceneHandler =
+      HandlerForProtocol(self.dispatcher, SceneCommands);
 
   TabGridViewController* baseViewController = [[TabGridViewController alloc]
       initWithPageConfiguration:_pageConfiguration];
-  baseViewController.handler = applicationCommandsHandler;
+  baseViewController.handler = sceneHandler;
   baseViewController.tabPresentationDelegate = self;
   baseViewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
   baseViewController.delegate = self;
@@ -1120,7 +1119,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   SceneState* sceneState = self.regularBrowser->GetSceneState();
   [sceneState removeObserver:self];
 
-  // The TabGridViewController may still message its application commands
+  // The TabGridViewController may still message its scene commands
   // handler after this coordinator has stopped; make this action a no-op by
   // setting the handler to nil.
   self.baseViewController.handler = nil;
@@ -1128,7 +1127,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   self.sharingCoordinator = nil;
   [self.incognitoBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
   [self.regularBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
-  [self.dispatcher stopDispatchingForProtocol:@protocol(ApplicationCommands)];
+  [self.dispatcher stopDispatchingForProtocol:@protocol(SceneCommands)];
   [self.dispatcher stopDispatchingForProtocol:@protocol(SettingsCommands)];
 
   [_toolbarsCoordinator stop];
@@ -1317,8 +1316,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 #pragma mark - TabGridViewControllerDelegate
 
 - (void)openLinkWithURL:(const GURL&)URL {
-  id<ApplicationCommands> handler =
-      HandlerForProtocol(self.dispatcher, ApplicationCommands);
+  id<SceneCommands> handler =
+      HandlerForProtocol(self.dispatcher, SceneCommands);
   [handler openURLInNewTab:[OpenNewTabCommand commandWithURLFromChrome:URL]];
 }
 

@@ -28,20 +28,16 @@
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enums.h"
-#include "chrome/browser/glic/glic_metrics.h"
-#include "chrome/browser/glic/glic_occlusion_notifier.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/auth_controller.h"
 #include "chrome/browser/glic/host/context/glic_active_instance_sharing_manager.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
-#include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_share_image_handler.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/context/glic_tab_data_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
-#include "chrome/browser/glic/host/glic_region_capture_controller.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
@@ -50,8 +46,6 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
-#include "chrome/browser/glic/widget/glic_widget.h"
-#include "chrome/browser/glic/widget/glic_window_controller_impl.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -79,6 +73,14 @@
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/glic_metrics.h"
+#include "chrome/browser/glic/glic_occlusion_notifier.h"
+#include "chrome/browser/glic/host/glic_region_capture_controller.h"
+#include "chrome/browser/glic/widget/glic_widget.h"
+#include "chrome/browser/glic/widget/glic_window_controller_impl.h"
+#endif
+
 namespace glic {
 
 namespace {
@@ -94,9 +96,11 @@ base::TimeDelta GetWarmingDelay() {
   return delay_start;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 bool UseDefaultWindowController() {
   return !GlicEnabling::IsMultiInstanceEnabled();
 }
+#endif
 
 std::unique_ptr<GlicWindowController> CreateWindowController(
     Profile* profile,
@@ -111,10 +115,12 @@ std::unique_ptr<GlicWindowController> CreateWindowController(
   GlicEnabling::GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(
       profile);
 
+#if !BUILDFLAG(IS_ANDROID)
   if (UseDefaultWindowController()) {
     return std::make_unique<GlicWindowControllerImpl>(
         profile, identity_manager, glic_service, glic_enabling);
   }
+#endif
   return std::make_unique<GlicInstanceCoordinatorImpl>(
       profile, identity_manager, glic_service, glic_enabling,
       contextual_cueing_service);
@@ -125,11 +131,13 @@ std::unique_ptr<GlicSharingManager> CreateSharingManager(
     GlicWindowController* window_controller,
     GlicMetrics* metrics,
     GlicEnabling* glic_enabling) {
+#if !BUILDFLAG(IS_ANDROID)
   if (UseDefaultWindowController()) {
     return std::make_unique<GlicSharingManagerImpl>(
         profile, static_cast<GlicWindowControllerImpl*>(window_controller),
         metrics);
   }
+#endif
 
   return std::make_unique<GlicActiveInstanceSharingManager>(
       profile, glic_enabling,
@@ -149,7 +157,9 @@ GlicKeyedService::GlicKeyedService(
       enabling_(std::make_unique<GlicEnabling>(
           profile,
           &profile_manager->GetProfileAttributesStorage())),
+#if !BUILDFLAG(IS_ANDROID)
       metrics_(std::make_unique<GlicMetrics>(profile, enabling_.get())),
+#endif
       fre_controller_(
           std::make_unique<GlicFreController>(profile, identity_manager)),
       window_controller_(CreateWindowController(profile,
@@ -161,23 +171,30 @@ GlicKeyedService::GlicKeyedService(
                                             &window_controller(),
                                             metrics_.get(),
                                             enabling_.get())),
+#if !BUILDFLAG(IS_ANDROID)
       region_capture_controller_(
           std::make_unique<GlicRegionCaptureController>()),
+#endif
       auth_controller_(std::make_unique<AuthController>(profile,
                                                         identity_manager,
                                                         /*use_for_fre=*/false)),
+#if !BUILDFLAG(IS_ANDROID)
       occlusion_notifier_(UseDefaultWindowController()
                               ? std::make_unique<GlicOcclusionNotifier>(
                                     GetSingleInstanceWindowController())
                               : nullptr),
+#endif
       actor_task_manager_(std::make_unique<GlicActorTaskManager>(profile)),
       tab_data_observer_(std::make_unique<GlicTabDataObserver>()),
       web_contents_warming_pool_(
           std::make_unique<GlicWebContentsWarmingPool>(profile)),
       contextual_cueing_service_(contextual_cueing_service) {
   CHECK(GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(profile)));
+#if !BUILDFLAG(IS_ANDROID)
   CHECK(actor_keyed_service);
+#endif
 
+#if !BUILDFLAG(IS_ANDROID)
   if (UseDefaultWindowController()) {
     // TODO: Create the zero state suggestions manager on each instance.
     zero_state_suggestions_manager_ =
@@ -185,7 +202,6 @@ GlicKeyedService::GlicKeyedService(
             sharing_manager_.get(), &GetSingleInstanceWindowController(),
             contextual_cueing_service);
   }
-
   if (UseDefaultWindowController()) {
     metrics_->SetControllers(&GetSingleInstanceWindowController(),
                              sharing_manager_.get());
@@ -194,6 +210,7 @@ GlicKeyedService::GlicKeyedService(
     // instance.
     metrics_->ClearControllers();
   }
+#endif
 
   memory_pressure_listener_registration_ =
       std::make_unique<base::MemoryPressureListenerRegistration>(
@@ -224,9 +241,11 @@ GlicKeyedService::~GlicKeyedService() {
   metrics_->SetControllers(nullptr, nullptr);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 GlicRegionCaptureController& GlicKeyedService::region_capture_controller() {
   return *region_capture_controller_;
 }
+#endif
 
 // static
 GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
@@ -317,7 +336,7 @@ void GlicKeyedService::CloseAndShutdown(
 }
 
 void GlicKeyedService::CloseFloatingPanel() {
-  window_controller().Close();
+  window_controller().Close({});
 }
 
 void GlicKeyedService::PrepareForOpen() {
@@ -342,11 +361,13 @@ GlicWindowController& GlicKeyedService::window_controller() const {
   return *window_controller_.get();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 GlicWindowControllerInterface&
 GlicKeyedService::GetSingleInstanceWindowController() const {
   CHECK(UseDefaultWindowController());
   return static_cast<GlicWindowControllerInterface&>(window_controller());
 }
+#endif
 
 GlicFreController& GlicKeyedService::fre_controller() {
   CHECK(fre_controller_);
@@ -428,12 +449,17 @@ void GlicKeyedService::GuestAdded(content::WebContents* guest_contents) {
 }
 
 bool GlicKeyedService::IsWindowShowing() const {
+#if !BUILDFLAG(IS_ANDROID)
   if (UseDefaultWindowController()) {
     return GetSingleInstanceWindowController().IsShowing();
   }
-  // TODO: Investigate if this is needed for multi-instance.
-  NOTIMPLEMENTED_LOG_ONCE()
-      << "IsWindowShowing not implemented for multi-instance.";
+#endif
+
+  for (const auto* instance : window_controller().GetInstances()) {
+    if (instance && instance->IsShowing()) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -515,6 +541,12 @@ void GlicKeyedService::PerformActions(
   actor_task_manager_->PerformActions(actions_proto, std::move(callback));
 }
 
+void GlicKeyedService::CancelActions(
+    actor::TaskId task_id,
+    mojom::WebClientHandler::CancelActionsCallback callback) {
+  actor_task_manager_->CancelActions(task_id, std::move(callback));
+}
+
 void GlicKeyedService::StopActorTask(actor::TaskId task_id,
                                      mojom::ActorTaskStopReason stop_reason) {
   actor_task_manager_->StopActorTask(task_id, stop_reason);
@@ -553,9 +585,11 @@ void GlicKeyedService::CreateActorTab(
                                       std::move(callback));
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void GlicKeyedService::OnTabAddedToTask(
     actor::TaskId task_id,
     const tabs::TabInterface::Handle& tab_handle) {}
+#endif
 
 void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
   user_input_submitted_callback_list_.Notify();
@@ -566,11 +600,13 @@ base::CallbackListSubscription GlicKeyedService::AddUserInputSubmittedCallback(
   return user_input_submitted_callback_list_.Add(std::move(callback));
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void GlicKeyedService::CaptureRegion(
     content::WebContents* web_contents,
     mojo::PendingRemote<mojom::CaptureRegionObserver> observer) {
   region_capture_controller_->CaptureRegion(web_contents, std::move(observer));
 }
+#endif
 
 void GlicKeyedService::ShareContextImage(tabs::TabInterface* tab,
                                          content::RenderFrameHost* frame,
@@ -767,6 +803,7 @@ bool GlicKeyedService::IsActive() {
   return sharing_manager().GetFocusedBrowser();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void GlicKeyedService::RequestToShowCredentialSelectionDialog(
     actor::TaskId task_id,
     const base::flat_map<std::string, gfx::Image>& icons,
@@ -812,5 +849,6 @@ void GlicKeyedService::RequestToShowAutofillSuggestionsDialog(
   window_controller_impl->host().RequestToShowAutofillSuggestionsDialog(
       task_id, std::move(requests), std::move(callback));
 }
+#endif
 
 }  // namespace glic

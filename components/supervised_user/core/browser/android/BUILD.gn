@@ -16,8 +16,11 @@ source_set("android") {
   deps = [
     "//base",
     "//components/keyed_service/core",
+    "//components/policy/core/common:common_constants",
     "//components/prefs",
     "//components/supervised_user/android:jni_headers",
+    "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/browser:device_parental_controls",
     "//components/supervised_user/core/common",
   ]
 }
@@ -34,6 +37,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/prefs:test_support",
     "//components/supervised_user/core/browser",
+    "//components/supervised_user/core/browser:device_parental_controls",
     "//components/supervised_user/core/common",
     "//components/supervised_user/core/common:features",
     "//testing/gmock",

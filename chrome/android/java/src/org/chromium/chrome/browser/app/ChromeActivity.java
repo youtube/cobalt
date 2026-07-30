@@ -25,6 +25,7 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.os.SystemClock;
 import android.text.format.DateUtils;
 import android.util.Pair;
@@ -643,6 +644,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             Intent intent = getIntent();
             if (0 != (intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)) {
                 getLaunchCauseMetrics().onLaunchFromRecents();
+            } else if (getSavedInstanceState() != null
+                    && getSavedInstanceState()
+                            .getBoolean(ChromeActivity.IS_FROM_RECREATING, false)) {
+                getLaunchCauseMetrics().onRecreated();
             } else {
                 getLaunchCauseMetrics().onReceivedIntent();
             }
@@ -1044,18 +1049,23 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             TabModel currentTabModel,
             @Nullable MultiInstanceManager multiInstanceManager) {
         try (TraceEvent e = TraceEvent.scoped("ChromeActivity.initializeChromeAndroidTask")) {
-            // Initialize PopupCreator early so that ChromeAndroidTaskTracker can use it
-            // to create intents for popup windows.
+            // 1. Initialize PopupCreator early so that ChromeAndroidTaskTracker can use it to
+            // create intents for popup windows.
             PopupCreator.initializePopupIntentCreator();
-            // 1. Obtain a ChromeAndroidTask that represents the Task (window) for this Activity.
+
             var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
             if (chromeAndroidTaskTracker == null) {
                 return;
             }
 
+            // 2. Obtain ChromeAndroidTask dependencies.
             var activityWindowAndroid = getWindowAndroid();
             assert activityWindowAndroid != null
                     : "ChromeAndroidTask must be initialized after Java WindowAndroid is created.";
+
+            assert mRootUiCoordinator != null
+                    : "ChromeAndroidTask must be initialized after RootUiCoordinator";
+            var desktopWindowStateManager = mRootUiCoordinator.getDesktopWindowStateManager();
 
             int pendingIdExtraValue =
                     IntentUtils.safeGetIntExtra(
@@ -1064,19 +1074,23 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             /* defaultValue= */ -1);
             Integer pendingId = pendingIdExtraValue == -1 ? null : pendingIdExtraValue;
 
+            // 3. Obtain a ChromeAndroidTask that represents the Task (window) for this Activity.
             var chromeAndroidTask =
                     chromeAndroidTaskTracker.obtainTask(
                             browserWindowType,
                             new ChromeAndroidTask.ActivityScopedObjects(
-                                    activityWindowAndroid, currentTabModel, multiInstanceManager),
+                                    activityWindowAndroid,
+                                    currentTabModel,
+                                    desktopWindowStateManager,
+                                    multiInstanceManager),
                             pendingId);
 
-            // 2. Add windowing features.
+            // 4. Add windowing features.
             chromeAndroidTask.addFeature(
                     ExtensionWindowControllerBridge.class,
                     () -> ExtensionWindowControllerBridgeFactory.create(chromeAndroidTask));
 
-            // 3. Make the ChromeAndroidTask available via OneshotSupplier.
+            // 5. Make the ChromeAndroidTask available via OneshotSupplier.
             mChromeAndroidTaskSupplier.set(chromeAndroidTask);
         }
     }
@@ -1107,6 +1121,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
 
         mRootUiCoordinator.restoreUiState(getSavedInstanceState());
+        mRootUiCoordinator.restorePersistentUiState(getPersistentInstanceState());
 
         if (mFullscreenVideoPictureInPictureController != null) {
             mFullscreenVideoPictureInPictureController.onStart();
@@ -1732,6 +1747,15 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
         outState.putBoolean(IS_FROM_RECREATING, mIsRecreating);
         mRootUiCoordinator.onSaveInstanceState(outState);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
+        super.onSaveInstanceState(outState, outPersistentState);
+
+        if (shouldPersistAcrossReboots()) {
+            mRootUiCoordinator.onSavePersistentState(outPersistentState);
+        }
     }
 
     /**

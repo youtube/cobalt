@@ -122,6 +122,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       // specifically to Omnibox Searchbox in compact mode, as opposed to the
       // AIM composebox where the entrypoint is always visible.
       hideEntrypointButton: {type: Boolean},
+      inComposebox: {type: Boolean},
 
       // =========================================================================
       // Protected properties
@@ -170,6 +171,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   accessor showRecentTabChip: boolean = false;
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
+  accessor inComposebox: boolean = false;
 
   protected accessor attachmentFileTypes_: string =
       loadTimeData.getString('composeboxAttachmentFileTypes');
@@ -238,9 +240,21 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         (this.shouldShowRecentTabChip_ || this.shouldShowLensSearchChip_);
   }
 
-  protected get shouldShowToolChips_(): boolean {
+  protected get shouldShowToolChipsForTallMode_(): boolean {
     return this.searchboxLayoutMode !== 'Compact' ||
         this.shouldShowContextualChipsForCompactMode_;
+  }
+
+  protected get toolChipsVisible_(): boolean {
+    return this.shouldShowRecentTabChip_ || this.shouldShowLensSearchChip_ ||
+        this.inDeepSearchMode_ || this.inCreateImageMode_;
+  }
+
+  protected get shouldShowToolChipsForCompactMode_(): boolean {
+    return this.searchboxLayoutMode === 'Compact' && this.toolChipsVisible_ &&
+        ((this.entrypointName !== 'Omnibox') ||
+         (this.entrypointName === 'Omnibox' &&
+          this.searchboxLayoutMode === 'Compact' && this.inComposebox));
   }
 
   protected get shouldShowDivider_(): boolean {
@@ -398,18 +412,19 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     return {file, errorMessage};
   }
 
-  resetContextFiles() {
-    // Only keep files that are not deletable.
+  resetContextFiles(): string[] {
+    // Only keep files that are not deletable. Return remaining files IDs.
     const undeletableFiles =
         Array.from(this.files_.values()).filter(file => !file.isDeletable);
 
     if (undeletableFiles.length === this.files_.size) {
-      return;
+      return [...this.files_.keys()];
     }
 
     this.files_ = new Map(undeletableFiles.map(file => [file.uuid, file]));
     this.addedTabsIds_ = new Map(undeletableFiles.filter(file => file.tabId)
                                      .map(file => [file.tabId!, file.uuid]));
+    return [...this.files_.keys()];
   }
 
   resetModes() {

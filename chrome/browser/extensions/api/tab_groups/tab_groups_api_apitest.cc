@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/containers/contains.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/api/tab_groups/tab_groups_api.h"
@@ -13,6 +12,7 @@
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/extensions/api/tab_groups.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+#include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
@@ -74,6 +74,10 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, GetFunction) {
   std::optional<tab_groups::TabGroupId> group = tab_list->CreateTabGroup(tabs);
   ASSERT_TRUE(group.has_value());
 
+  tab_groups::TabGroupVisualData visual_data(
+      u"Title", tab_groups::TabGroupColorId::kCyan, /*is_collapsed=*/true);
+  tab_list->SetTabGroupVisualData(*group, visual_data);
+
   // Call the chrome.tabGroups.get() function with a valid group id.
   auto extension = CreateTabGroupsExtension();
   int group_id = ExtensionTabUtil::GetGroupId(*group);
@@ -87,6 +91,9 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, GetFunction) {
   EXPECT_EQ(ExtensionTabUtil::GetWindowId(browser_window_interface()),
             *group_info.FindInt("windowId"));
   EXPECT_FALSE(*group_info.FindBool("shared"));
+  EXPECT_EQ("Title", *group_info.FindString("title"));
+  EXPECT_EQ("cyan", *group_info.FindString("color"));
+  EXPECT_TRUE(*group_info.FindBool("collapsed"));
 }
 
 IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, GetFunctionInvalidGroup) {
@@ -129,8 +136,8 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, TestTabGroupEventsAcrossProfiles) {
   TestEventRouterObserver event_observer(EventRouter::Get(profile()));
 
   browser()->tab_strip_model()->AddToNewGroup({0});
-  ASSERT_TRUE(base::Contains(event_observer.events(),
-                             api::tab_groups::OnCreated::kEventName));
+  ASSERT_TRUE(
+      event_observer.events().contains(api::tab_groups::OnCreated::kEventName));
   Event* normal_event =
       event_observer.events().at(api::tab_groups::OnCreated::kEventName).get();
   EXPECT_EQ(normal_event->restrict_to_browser_context, profile());
@@ -138,8 +145,8 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, TestTabGroupEventsAcrossProfiles) {
   event_observer.ClearEvents();
 
   incognito_browser->tab_strip_model()->AddToNewGroup({0});
-  ASSERT_TRUE(base::Contains(event_observer.events(),
-                             api::tab_groups::OnCreated::kEventName));
+  ASSERT_TRUE(
+      event_observer.events().contains(api::tab_groups::OnCreated::kEventName));
   Event* incognito_event =
       event_observer.events().at(api::tab_groups::OnCreated::kEventName).get();
   EXPECT_EQ(incognito_event->restrict_to_browser_context,
@@ -168,8 +175,8 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, TestGroupDetachedAndReInserted) {
       browser()->tab_strip_model()->DetachTabGroupForInsertion(*group);
 
   event_observer.WaitForEventWithName(api::tab_groups::OnRemoved::kEventName);
-  EXPECT_TRUE(base::Contains(event_observer.events(),
-                             api::tab_groups::OnRemoved::kEventName));
+  EXPECT_TRUE(
+      event_observer.events().contains(api::tab_groups::OnRemoved::kEventName));
 
   event_observer.ClearEvents();
 
@@ -180,10 +187,10 @@ IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, TestGroupDetachedAndReInserted) {
   event_observer.WaitForEventWithName(api::tab_groups::OnCreated::kEventName);
   event_observer.WaitForEventWithName(api::tab_groups::OnUpdated::kEventName);
 
-  EXPECT_TRUE(base::Contains(event_observer.events(),
-                             api::tab_groups::OnCreated::kEventName));
-  EXPECT_TRUE(base::Contains(event_observer.events(),
-                             api::tab_groups::OnUpdated::kEventName));
+  EXPECT_TRUE(
+      event_observer.events().contains(api::tab_groups::OnCreated::kEventName));
+  EXPECT_TRUE(
+      event_observer.events().contains(api::tab_groups::OnUpdated::kEventName));
 }
 
 IN_PROC_BROWSER_TEST_F(TabGroupsApiTest, SetGroupTitleToEmoji) {

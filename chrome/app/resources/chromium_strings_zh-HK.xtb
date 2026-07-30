@@ -84,6 +84,7 @@
 <translation id="193439633299369377">必須重新啟動 Chromium 作業系統，才能套用更新。</translation>
 <translation id="1951406923938785464">由於此檔案類型不是常見的下載項目，可能含有危險內容，因此 Chromium 已禁止下載</translation>
 <translation id="1953553007165777902">正在下載… 剩餘 <ph name="MINUTE" /> 分鐘</translation>
+<translation id="1965068424387304464">Chromium 提示：儲存密碼</translation>
 <translation id="1966382378801805537">Chromium 無法偵測或設定預設瀏覽器</translation>
 <translation id="1990262977744080398">了解 Chromium 封鎖部分檔案嘅原因，喺新分頁打開</translation>
 <translation id="1999715455684970349">確保 Chromium 軟件為最新版本。如果此服務停用或停止，Chromium 軟件就無法保持最新狀態，導致潛在安全漏洞無法修正，功能也可能無法正常運作。如果沒有用於任何 Chromium 軟件，此服務會自行解除安裝。</translation>
@@ -92,7 +93,6 @@
 <translation id="2020032459870799438">如要檢查其他密碼是否安全，且未受資料外洩或其他安全性問題影響，請<ph name="BEGIN_LINK" />登入 Chromium<ph name="END_LINK" />。</translation>
 <translation id="2039417478970545937">「設定」。</translation>
 <translation id="2049376729098081731">選擇是否包含 Chromium 記錄，以便在 Google 服務中享有更個人化的體驗</translation>
-<translation id="2054039611381840095">如要取得日後的 Chromium 更新，你需要 macOS 12 或以上版本。此電腦正在使用 macOS 11。</translation>
 <translation id="2064856577282482477">按一下「新分頁」上的「自訂 Chromium」按鈕，即可變更 Chromium 外觀</translation>
 <translation id="2086476982681781442">由於此檔案是欺詐檔案，可能會對裝置造成非預期的變更，因此 Chromium 已禁止下載</translation>
 <translation id="208726765006323911">下次開啟 iOS 版 Chromium 時，系統會提示你試用「<ph name="FEATURE_NAME" />」。</translation>
@@ -254,6 +254,7 @@
 <translation id="3802055581630249637">Chromium 會預先載入你可能瀏覽的頁面，以便在你瀏覽時更快載入</translation>
 <translation id="3810973564298564668">管理</translation>
 <translation id="3823384748599722168">如要使用已儲存的密碼，請掃瞄 QR 碼下載 iOS 版 Chromium，並登入 Google 帳戶</translation>
+<translation id="3837584850181228767">Chromium 提示：強化安全瀏覽</translation>
 <translation id="3846683726093018685">**摘要：**以不多於 30 個字的一句話，描述螢幕截圖的主體及內容目的。
 
           **建議問題：**以項目符號清單形式生成 3 至 5 條可以啟發思考的問題，幫助使用者深入瞭解螢幕截圖。應該有至少一條具體關於可視物件、其設計或位置的問題。</translation>
@@ -567,6 +568,7 @@ Chromium 無法復原您的設定。</translation>
 <translation id="7347827960336370838">只有知道密碼短語的使用者，才能讀取已加密的資料。系統不會將密碼短語傳送給 Google，Google 亦不會儲存密碼短語。如果忘記密碼短語或想變更此設定，你需要<ph name="BEGIN_LINK" />刪除帳戶中的 Chromium 資料<ph name="END_LINK" /></translation>
 <translation id="7349591376906416160">系統管理員已設定由 Chromium 開啟 <ph name="ALTERNATIVE_BROWSER_NAME" /> 以存取 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="7352651011704765696">發生問題</translation>
+<translation id="7368826207863345663">如要取得日後的 Chromium 更新，你需要 macOS 13 或以上版本。此電腦正在使用 macOS 12。</translation>
 <translation id="7376384068949534168">由於最近沒有瀏覽記錄，Chromium 已移除<ph name="PERMISSION_1" />和<ph name="PERMISSION_2" />權限。</translation>
 <translation id="7384121030444253939">此擴充程式不再受支援，Chromium 建議你將其移除。</translation>
 <translation id="7413153308467572558">開啟上次瀏覽的內容：Chromium 會在每次重新啟動後還原分頁。如要關閉此功能，請前往</translation>
@@ -714,6 +716,7 @@ Chromium 無法復原您的設定。</translation>
 <translation id="9148058034647219655">結束</translation>
 <translation id="9155105544013854680">開啟上次瀏覽的內容：Chromium 可以在每次重新啟動後還原分頁。如要開啟此功能，請前往</translation>
 <translation id="9158494823179993217">系統管理員已設定 Chromium 開啟替代瀏覽器來存取 <ph name="TARGET_URL_HOSTNAME" />。</translation>
+<translation id="9183331186620388872">Chromium 提示：使用「智能鏡頭」搜尋</translation>
 <translation id="9185526690718004400">重新啟動以更新 &amp;Chromium</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="9206863043651638213">登入 Chromium 後可享更多功能</translation>

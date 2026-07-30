@@ -20,9 +20,8 @@
 #include "chrome/browser/actor/actor_task_delegate.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/tools/tool_request.h"
-#include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
-#include "chrome/common/actor_webui.mojom.h"
+#include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/common/buildflags.h"
@@ -129,6 +128,9 @@ class ActorTask {
   void Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
            ActCallback callback);
 
+  // Converts stopped_reason to the final state of the task.
+  static State GetTaskStateFromStoppedReason(StoppedReason stopped_reason);
+
   // Sets State to `stop_reason` and cancels any pending actions.
   // TODO(bokan): It's important that Stop only be called from ActorKeyedService
   // since that has to clean up actor tasks. Add a PassKey.
@@ -149,6 +151,10 @@ class ActorTask {
 
   // Uninterrupt from waiting on user input.
   void Uninterrupt(State resumed_state);
+
+  // Cancels any pending actions. Returns true if the task is still running, and
+  // false otherwise.
+  bool CancelOngoingActions();
 
   // Returns true if the task hasn't completed and is under control of the user.
   // That is, the actor cannot send actions and the user is able to interact

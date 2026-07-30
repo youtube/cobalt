@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Kad šis slēdzis ir ieslēgts, vietnes var pieprasīt atļauju pārvaldīt logus visos jūsu displejos. Kad šis slēdzis ir izslēgts, vietnes nevar pārvaldīt logus visos jūsu displejos.</translation>
 <translation id="1738912554587725807">Jaunas cilnes lapas izskata motīvu kolekciju ekrāna apakšdaļas lapa</translation>
 <translation id="1743802530341753419">Jautāt, pirms atļaut vietnēm izveidot savienojumu ar ierīci (ieteicams)</translation>
+<translation id="1766455884659449403">Saņemiet paziņojumus par Chrome padomiem</translation>
 <translation id="1777815584158991902">Discover plūsmas ekrāna apakšdaļas lapa</translation>
 <translation id="1779089405699405702">Attēlu dekodētājs</translation>
 <translation id="1785415724048343560">Ieteicams labākai pieredzei</translation>
@@ -188,11 +189,9 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="2903493209154104877">Adreses</translation>
 <translation id="2910701580606108292">Jautāt, pirms atļaut vietnēm atskaņot aizsargātu saturu</translation>
 <translation id="2918484639460781603">Pāriet uz iestatījumiem</translation>
-<translation id="293060180538644702">Saņemiet paziņojumus par Chrome padomiem</translation>
 <translation id="2932883381142163287">Ziņot par ļaunprātīgu izmantošanu</translation>
 <translation id="2939338015096024043">Kad šis slēdzis ir ieslēgts, vietnes var pieprasīt atļauju izsekot kameras pozīciju un iegūt informāciju par jūsu apkārtni. Kad šis slēdzis ir izslēgts, vietnes nevar izsekot kameras pozīciju un iegūt informāciju par jūsu apkārtni.</translation>
 <translation id="2968755619301702150">Sertifikātu skatītājs</translation>
-<translation id="2979365474350987274">Trešo pušu sīkfailu izmantošana ir ierobežota</translation>
 <translation id="2990583317361835189">Neļaut vietnēm izmantot kustību sensorus</translation>
 <translation id="3004438526346162184">Vietnes var izmantot šo funkciju, lai pārvaldītu logus visos jūsu displejos.</translation>
 <translation id="3008272652534848354">Atiestatīt atļaujas</translation>
@@ -220,7 +219,6 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="3223425961342298674">Piekļuve atrašanās vietai nav atļauta</translation>
 <translation id="3227137524299004712">Mikrofons</translation>
 <translation id="3232293466644486101">Dzēst pārlūkošanas datus…</translation>
-<translation id="3241320538788585298">Atgriezeniskās cilpas tīkls</translation>
 <translation id="3242646949159196181">Kad šis slēdzis ir ieslēgts, vietnēs var atskaņot skaņu. Kad šis slēdzis ir izslēgts, vietnēs nevar atskaņot skaņu.</translation>
 <translation id="3273479183583863618">Cenu kritums cilnēs</translation>
 <translation id="3277252321222022663">Atļaut vietnēm piekļūt sensoriem (ieteicams)</translation>
@@ -403,6 +401,7 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="5246825184569358663">Veicot šo darbību, tiks dzēsti visi lokālie dati, tostarp sīkfaili, un atiestatītas visas atļaujas vietnē <ph name="DOMAIN" /> un visās tai pakārtotajās vietnēs.</translation>
 <translation id="5264323282659631142">Noņemt žetonu <ph name="CHIP_LABEL" /></translation>
 <translation id="528192093759286357">Lai izietu no pilnekrāna režīma, velciet no augšas un pieskarieties pogai Atpakaļ.</translation>
+<translation id="5286194356314741248">Notiek skenēšana</translation>
 <translation id="5300589172476337783">Rādīt</translation>
 <translation id="5301954838959518834">Labi, sapratu</translation>
 <translation id="5317780077021120954">Saglabāt</translation>
@@ -631,7 +630,6 @@ Papildu aizsardzība pārvalda tālāk norādītos Chrome iestatījumus
 <translation id="7835852323729233924">Multivides atskaņošana</translation>
 <translation id="783819812427904514">Ieslēgt video skaņu</translation>
 <translation id="7846076177841592234">Atcelt atlasi</translation>
-<translation id="7881140103901777395">Pārlūkā Chrome lielākajai daļai vietņu tiek liegts izmantot trešo pušu sīkfailus. Tomēr šajā vietnē trešo pušu sīkfaili ir atļauti, jo vietnei tie ir nepieciešami, lai nodrošinātu pamatpakalpojumus.\n\nLai <ph name="BEGIN_LINK" />pārvaldītu piekļuvi trešo pušu sīkfailiem<ph name="END_LINK" />, pārejiet uz iestatījumiem.</translation>
 <translation id="7882806643839505685">Atļaut skaņu konkrētai vietnei</translation>
 <translation id="7891547341794213004">Paslēpt kartīti “Turpināt šajā cilnē”</translation>
 <translation id="789722939441020330">Neļaut vietnēm automātiski lejupielādēt vairākus failus</translation>

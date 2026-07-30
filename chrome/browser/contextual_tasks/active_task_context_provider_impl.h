@@ -42,6 +42,7 @@ class ActiveTaskContextProviderImpl : public ActiveTaskContextProvider,
       SessionHandleGetter session_handle_getter) override;
   void AddObserver(ActiveTaskContextProvider::Observer* observer) override;
   void RemoveObserver(ActiveTaskContextProvider::Observer* observer) override;
+  void OnFullTabStateUpdated() override;
 
   // ContextualTasksService::Observer implementation.
   void OnTaskAdded(const ContextualTask& task,
@@ -64,8 +65,6 @@ class ActiveTaskContextProviderImpl : public ActiveTaskContextProvider,
   void OnGetContextForTask(int callback_id,
                            std::unique_ptr<ContextualTaskContext> context);
 
-  void AddAssociatedTabsToSet(const base::Uuid& task_id,
-                              std::set<tabs::TabHandle>& tabs_to_underline);
   void ResetStateAndNotifyObservers();
   void OnActiveTabChanged(BrowserWindowInterface* browser_window_interface);
 

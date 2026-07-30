@@ -274,6 +274,7 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorActorUiScrimStart] = {ui::kColorSysActorUiGradientStart};
   mixer[kColorActorUiScrimMiddle] = {ui::kColorSysActorUiGradientMiddle};
   mixer[kColorActorUiScrimEnd] = {ui::kColorSysActorUiGradientEnd};
+  mixer[kColorActorUiMagicCursor] = {ui::kColorSysActorUiBorder};
   mixer[kColorAppMenuHighlightDefault] = {ui::kColorSysTonalContainer};
   mixer[kColorAppMenuHighlightSeverityLow] = {kColorAppMenuHighlightDefault};
   mixer[kColorAppMenuHighlightSeverityMedium] = {kColorAppMenuHighlightDefault};
@@ -423,4 +424,15 @@ void AddMaterialChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorToolbarTextDefault] = {ui::kColorSysOnSurfaceSecondary};
   mixer[kColorToolbarTextDisabled] = {kColorToolbarTextDisabledDefault};
   mixer[kColorToolbarTextDisabledDefault] = {ui::kColorSysStateDisabled};
+
+  // Glic colors.
+  mixer[kColorGlicActiveTabUnderlineGradient1] = {ui::kColorGlicTabUnderline1};
+  mixer[kColorGlicActiveTabUnderlineGradient2] = {ui::kColorGlicTabUnderline2};
+  mixer[kColorGlicActiveTabUnderlineGradient3] = {ui::kColorGlicTabUnderline3};
+  mixer[kColorGlicInactiveTabUnderlineGradient1] = {
+      ui::kColorGlicTabUnderline1};
+  mixer[kColorGlicInactiveTabUnderlineGradient2] = {
+      ui::kColorGlicTabUnderline2};
+  mixer[kColorGlicInactiveTabUnderlineGradient3] = {
+      ui::kColorGlicTabUnderline3};
 }

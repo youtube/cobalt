@@ -9,7 +9,9 @@
 
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
+#include "components/prefs/pref_service.h"
 #include "components/supervised_user/core/browser/android/content_filters_observer_bridge.h"
+#include "components/supervised_user/core/browser/device_parental_controls.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 
 namespace supervised_user {
@@ -17,59 +19,33 @@ namespace supervised_user {
 // Provides access to Android-specific parental controls settings through JNI
 // bridges. Translates the operating system's settings to state of the browser
 // features they control.
-class AndroidParentalControls : public ContentFiltersObserverBridge::Observer {
+class AndroidParentalControls : public DeviceParentalControls,
+                                public ContentFiltersObserverBridge::Observer {
  public:
-  class Observer {
-   public:
-    // Note: this is intermediate state of migrating away the Supervised User
-    // stack from the pref interface for url filtering. In the target layout,
-    // AndroidParentalControls will notify about change of browser
-    // feature (such as incognito mode, safe search or web filtering) rather
-    // than about change of the underlying parental control setting. Currently,
-    // the existing interface is just duplicated.
-    // TODO(crbug.com/470298260): replace low-level OS signals with high-level
-    // browser feature states.
-    virtual void OnAndroidParentalControlsSearchContentFiltersChanged() {}
-    virtual void OnAndroidParentalControlsBrowserContentFiltersChanged() {}
-  };
-
   AndroidParentalControls();
   ~AndroidParentalControls() override;
   AndroidParentalControls(const AndroidParentalControls&) = delete;
   const AndroidParentalControls& operator=(const AndroidParentalControls&) =
       delete;
 
-  // Delegates the initialization to the bridges.
-  void Init();
-
-  // TODO(crbug.com/470298260): replace low-level OS signals with high-level
-  // browser feature states (eg. IsWebFilteringEnabled, IsSafeSearchForced,
-  // IsIncognitoModeAvailable).
-  bool IsBrowserContentFiltersEnabled() const;
-  bool IsSearchContentFiltersEnabled() const;
-
-  bool IsSafeSearchForced() const;
-
-  // Add and remove observers.
-  void AddObserver(Observer* observer) const;
-  void RemoveObserver(Observer* observer) const;
-
-  void SetBrowserContentFiltersEnabledForTesting(bool enabled);
-  void SetSearchContentFiltersEnabledForTesting(bool enabled);
+  // DeviceParentalControls:
+  void Init() override;
+  bool IsWebFilteringEnabled() const override;
+  bool IsSafeSearchForced() const override;
+  bool IsEnabled() const override;
+  bool IsBrowserContentFiltersEnabled() const override;
+  bool IsSearchContentFiltersEnabled() const override;
+  void SetBrowserContentFiltersEnabledForTesting(bool enabled) override;
+  void SetSearchContentFiltersEnabledForTesting(bool enabled) override;
 
  private:
   // ContentFiltersObserverBridge::Observer:
-  void OnContentFiltersObserverEnabled(std::string_view setting_name) override;
-  void OnContentFiltersObserverDisabled(std::string_view setting_name) override;
-  void OnContentFiltersObserverChanged(std::string_view setting_name);
+  void OnContentFiltersObserverChanged(std::string_view setting_name) override;
 
   ContentFiltersObserverBridge browser_content_filters_observer_{
       kBrowserContentFiltersSettingName};
   ContentFiltersObserverBridge search_content_filters_observer_{
       kSearchContentFiltersSettingName};
-
-  // Observer list.
-  mutable base::ObserverList<Observer>::Unchecked observer_list_;
 
   base::ScopedObservation<ContentFiltersObserverBridge,
                           ContentFiltersObserverBridge::Observer>
@@ -78,6 +54,20 @@ class AndroidParentalControls : public ContentFiltersObserverBridge::Observer {
                           ContentFiltersObserverBridge::Observer>
       search_content_filters_observation_{this};
 };
+
+// Returns true if android parental controls are enabled on the device and have
+// effect on the browser features (understood as setting well-estabilished
+// general-purpose preferences that gate various features). Test util
+// specifically intended for v1 implementation where user might have enabled
+// device parental controls, but they're still ignored if Family Link parental
+// controls are enabled. It is clear from function signature that temporarily
+// the device parental controls have dependency on the profile (because Family
+// Link can overrule them).
+// TODO(crbug.com/474592052): Remove and migrate to IsEnabled() after parental
+// controls are unconditionally effective regardless of the Family Link
+// supervision status.
+bool AreAndroidParentalControlsEffectiveForTesting(
+    const PrefService& pref_service);
 
 }  // namespace supervised_user
 

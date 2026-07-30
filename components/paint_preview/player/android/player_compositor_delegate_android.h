@@ -26,18 +26,15 @@ class PlayerCompositorDelegateAndroid : public PlayerCompositorDelegate {
       jlong j_capture_result_ptr,
       const base::android::JavaRef<jstring>& j_url_spec,
       const base::android::JavaRef<jstring>& j_directory_key,
-      jboolean j_main_frame_mode,
+      bool j_main_frame_mode,
       const base::android::JavaRef<jobject>& j_compositor_error_callback,
-      jboolean j_is_low_mem);
+      bool j_is_low_mem);
 
   void OnCompositorReady(
       CompositorStatus compositor_status,
       mojom::PaintPreviewBeginCompositeResponsePtr composite_response,
       float page_scale_factor,
       std::unique_ptr<ui::AXTreeUpdate> ax_tree) override;
-
-  void OnMemoryPressure(
-      base::MemoryPressureLevel memory_pressure_level) override;
 
   base::android::ScopedJavaLocalRef<jintArray> GetRootFrameOffsets(JNIEnv* env);
 
@@ -54,7 +51,7 @@ class PlayerCompositorDelegateAndroid : public PlayerCompositorDelegate {
                      jint j_clip_width,
                      jint j_clip_height);
 
-  jboolean CancelBitmapRequest(JNIEnv* env, jint j_request_id);
+  bool CancelBitmapRequest(JNIEnv* env, jint j_request_id);
 
   void CancelAllBitmapRequests(JNIEnv* env);
 
@@ -66,7 +63,7 @@ class PlayerCompositorDelegateAndroid : public PlayerCompositorDelegate {
       jint j_y);
 
   // Called to set if compression should happen at close time.
-  void SetCompressOnClose(JNIEnv* env, jboolean compress_on_close);
+  void SetCompressOnClose(JNIEnv* env, bool compress_on_close);
 
   void Destroy(JNIEnv* env);
 

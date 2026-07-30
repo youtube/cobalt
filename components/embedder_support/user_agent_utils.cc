@@ -14,7 +14,6 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
@@ -458,8 +457,7 @@ std::string BuildOSCpuInfo(
 std::string GetProductAndVersion() {
   return base::FeatureList::IsEnabled(
              blink::features::kReduceUserAgentMinorVersion)
-             ? version_info::GetProductNameAndVersionForReducedUserAgent(
-                   blink::features::kUserAgentFrozenBuildVersion.Get())
+             ? version_info::GetProductNameAndVersionForReducedUserAgent()
              : std::string(
                    version_info::GetProductNameAndVersionForUserAgent());
 }
@@ -791,7 +789,7 @@ std::string GetCpuBitness() {
   }
   return std::string();
 #elif BUILDFLAG(IS_POSIX)
-  return base::Contains(BuildCpuInfo(), "64") ? "64" : "32";
+  return BuildCpuInfo().contains("64") ? "64" : "32";
 #else
 #error Unsupported platform
 #endif

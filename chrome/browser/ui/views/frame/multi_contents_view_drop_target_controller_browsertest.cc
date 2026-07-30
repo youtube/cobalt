@@ -43,6 +43,7 @@ class MockTabDragController : public TabDragTarget::DragController {
               (int drag_idx),
               (override));
   MOCK_METHOD(const DragSessionData&, GetSessionData, (), (const, override));
+  MOCK_METHOD(const TabDragContext*, GetAttachedContext, (), (const, override));
 };
 
 class MultiContentsViewDropTargetControllerBrowserTest
@@ -62,7 +63,9 @@ class MultiContentsViewDropTargetControllerBrowserTest
   }
 
   MultiContentsViewDropTargetController& controller() { return *controller_; }
-  TabStrip* tabstrip() { return browser()->GetBrowserView().tabstrip(); }
+  TabStrip* tabstrip() {
+    return browser()->GetBrowserView().horizontal_tab_strip_for_testing();
+  }
 
   int GetViewWidth() { return browser()->GetBrowserView().width(); }
 

@@ -44,7 +44,6 @@ import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.homepage.HomepageManager;
-import org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager;
 import org.chromium.chrome.browser.night_mode.NightModeMetrics.ThemeSettingsEntry;
 import org.chromium.chrome.browser.night_mode.settings.ThemeSettingsFragment;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
@@ -66,7 +65,6 @@ import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.sync.settings.ManageSyncSettings;
 import org.chromium.chrome.browser.sync.settings.SignInPreference;
 import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils;
-import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarStatePredictor;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment;
 import org.chromium.chrome.browser.tracing.settings.DeveloperSettings;
@@ -118,7 +116,6 @@ public class MainSettings extends ChromeBaseSettingsFragment
     public static final String PREF_PASSWORDS = "passwords";
     public static final String PREF_TABS = "tabs";
     public static final String PREF_HOMEPAGE = "homepage";
-    public static final String PREF_HOME_MODULES_CONFIG = "home_modules_config";
     public static final String PREF_TOOLBAR_SHORTCUT = "toolbar_shortcut";
     public static final String PREF_UI_THEME = "ui_theme";
     public static final String PREF_AUTOFILL_SECTION = "autofill_section";
@@ -342,21 +339,12 @@ public class MainSettings extends ChromeBaseSettingsFragment
 
         if (!shouldShowAppearancePref()) {
             removePreferenceIfPresent(PREF_APPEARANCE);
-
-            // LINT.IfChange(InitPrefToolbarShortcut)
-            new AdaptiveToolbarStatePredictor(
-                            getContext(),
-                            getProfile(),
-                            /* androidPermissionDelegate= */ null,
-                            /* behavior= */ null)
-                    .recomputeUiState(
-                            uiState -> {
-                                // Don't show toolbar shortcut settings if disabled from finch.
-                                if (!uiState.canShowUi) {
-                                    removePreferenceIfPresent(PREF_TOOLBAR_SHORTCUT);
-                                }
-                            });
-            // LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java:InitPrefToolbarShortcut)
+            AppearanceSettingsFragment.shouldShowToolbarShortcutPrefAsync(
+                    getContext(),
+                    getProfile(),
+                    (shouldShow) -> {
+                        if (!shouldShow) removePreferenceIfPresent(PREF_TOOLBAR_SHORTCUT);
+                    });
 
             // LINT.IfChange(InitPrefUiTheme)
             findPreference(PREF_UI_THEME)
@@ -506,12 +494,6 @@ public class MainSettings extends ChromeBaseSettingsFragment
         Preference homepagePref = addPreferenceIfAbsent(PREF_HOMEPAGE);
         setOnOffSummary(homepagePref, HomepageManager.getInstance().isHomepageEnabled());
 
-        if (shouldShowHomeModulePref()) {
-            addPreferenceIfAbsent(PREF_HOME_MODULES_CONFIG);
-        } else {
-            removePreferenceIfPresent(PREF_HOME_MODULES_CONFIG);
-        }
-
         if (shouldShowDeveloperSettings()) {
             addPreferenceIfAbsent(PREF_DEVELOPER);
         } else {
@@ -529,11 +511,6 @@ public class MainSettings extends ChromeBaseSettingsFragment
         SigninManager signinManager = IdentityServicesProvider.get().getSigninManager(profile);
         assumeNonNull(signinManager);
         return signinManager.isSigninSupported(/* requireUpdatedPlayServices= */ false);
-    }
-
-    private static boolean shouldShowHomeModulePref() {
-        return !ChromeFeatureList.isEnabled(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION)
-                && HomeModulesConfigManager.getInstance().hasModuleShownInSettings();
     }
 
     private static boolean shouldShowDeveloperSettings() {
@@ -962,8 +939,16 @@ public class MainSettings extends ChromeBaseSettingsFragment
                 @Override
                 public void updateDynamicPreferences(
                         Context context, SettingsIndexData indexData, Profile profile) {
-                    if (!shouldShowManageSyncPref(profile)) {
+                    SyncService syncService = SyncServiceFactory.getForProfile(profile);
+                    if (!shouldShowManageSyncPref(profile)
+                            || (syncService != null
+                                    && syncService.isSyncDisabledByEnterprisePolicy())) {
                         indexData.removeEntry(getUniqueId(PREF_MANAGE_SYNC));
+                    } else {
+                        String frag = MainSettings.class.getName();
+                        String targetFrag = ManageSyncSettings.class.getName();
+                        indexData.updateEntryForKey(
+                                frag, PREF_MANAGE_SYNC, R.string.sync_category_title, targetFrag);
                     }
                     indexData.removeEntry(getUniqueId(PREF_SETTINGS_PROMO_CARD));
                     if (!shouldAddPlusAddressesPref()) {
@@ -977,6 +962,17 @@ public class MainSettings extends ChromeBaseSettingsFragment
                     }
                     if (!shouldShowAppearancePref()) {
                         indexData.removeEntry(getUniqueId(PREF_APPEARANCE));
+                        AppearanceSettingsFragment.shouldShowToolbarShortcutPrefAsync(
+                                context,
+                                profile,
+                                (shouldShow) -> {
+                                    if (!shouldShow) {
+                                        String prefFragment = MainSettings.class.getName();
+                                        indexData.removeEntryForKey(
+                                                prefFragment, PREF_TOOLBAR_SHORTCUT);
+                                    }
+                                });
+
                     } else {
                         indexData.removeEntry(getUniqueId(PREF_TOOLBAR_SHORTCUT));
                         indexData.removeEntry(getUniqueId(PREF_UI_THEME));
@@ -986,9 +982,6 @@ public class MainSettings extends ChromeBaseSettingsFragment
                     }
                     if (!shouldShowSignInPref(profile)) {
                         indexData.removeEntry(getUniqueId(PREF_SIGN_IN));
-                    }
-                    if (!shouldShowHomeModulePref()) {
-                        indexData.removeEntry(getUniqueId(PREF_HOME_MODULES_CONFIG));
                     }
                     if (!shouldShowDeveloperSettings()) {
                         indexData.removeEntry(getUniqueId(PREF_DEVELOPER));

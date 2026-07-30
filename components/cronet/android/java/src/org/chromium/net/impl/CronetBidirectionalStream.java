@@ -618,11 +618,18 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
             int httpStatusCode,
             String negotiatedProtocol,
             String[] headers,
-            long receivedByteCount) {
+            long receivedByteCount,
+            @JniType("std::string") String proxyServer,
+            @JniType("bool") boolean isProxied) {
         try {
             mResponseInfo =
                     prepareResponseInfoOnNetworkThread(
-                            httpStatusCode, negotiatedProtocol, headers, receivedByteCount);
+                            httpStatusCode,
+                            negotiatedProtocol,
+                            headers,
+                            receivedByteCount,
+                            proxyServer,
+                            isProxied);
         } catch (Exception e) {
             failWithException(new CronetExceptionImpl("Cannot prepare ResponseInfo", null));
             return;
@@ -948,6 +955,7 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
         final String negotiatedProtocol;
         final int httpStatusCode;
         final boolean wasCached;
+        final Boolean isProxied = mResponseInfo != null ? mResponseInfo.isProxied() : null;
         if (mResponseInfo != null) {
             responseHeaders = mResponseInfo.getAllHeaders();
             negotiatedProtocol = mResponseInfo.getNegotiatedProtocol();
@@ -1057,7 +1065,8 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
                 mMetrics.getSSLDurationInMicroseconds(),
                 mMetrics.getConnectDurationInMicroseconds(),
                 mMetrics.getTimeToWriteFirstByteInMicroseconds(),
-                mMetrics.getTimeToReceiveHeaderLastByteMicroseconds());
+                mMetrics.getTimeToReceiveHeaderLastByteMicroseconds(),
+                isProxied);
     }
 
     public void setOnDestroyedCallbackForTesting(Runnable onDestroyedCallbackForTesting) {
@@ -1141,7 +1150,9 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
             int httpStatusCode,
             String negotiatedProtocol,
             String[] headers,
-            long receivedByteCount) {
+            long receivedByteCount,
+            String proxyServer,
+            boolean isProxied) {
         UrlResponseInfoImpl responseInfo =
                 new UrlResponseInfoImpl(
                         Arrays.asList(mInitialUrl),
@@ -1150,8 +1161,9 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
                         headersListFromStrings(headers),
                         false,
                         negotiatedProtocol,
-                        null,
-                        receivedByteCount);
+                        proxyServer,
+                        receivedByteCount,
+                        isProxied);
         return responseInfo;
     }
 

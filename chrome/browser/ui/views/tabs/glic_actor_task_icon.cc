@@ -10,8 +10,10 @@
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/views/tabs/glic_actor_constants.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/vector_icon_types.h"
@@ -50,14 +52,21 @@ GlicActorTaskIcon::GlicActorTaskIcon(TabStripController* tab_strip_controller,
       tab_strip_controller_(tab_strip_controller) {
   SetProperty(views::kElementIdentifierKey, kGlicActorTaskIconElementId);
 
-    // Explicitly overwrite the horizontal margins. The underlying
-    // TabStripNudgeButton calculates defaults that account for a close button,
-    // which is not present here.
-    label()->SetProperty(views::kMarginsKey,
-                         gfx::Insets().set_left_right(kActorNudgeLabelMargin,
-                                                      kActorNudgeLabelMargin));
+  // Explicitly overwrite the horizontal margins. The underlying
+  // TabStripNudgeButton calculates defaults that account for a close button,
+  // which is not present here.
+  label()->SetProperty(views::kMarginsKey,
+                       gfx::Insets().set_left_right(kActorNudgeLabelMargin,
+                                                    kActorNudgeLabelMargin));
 
   SetTaskIconToDefault();
+
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
+    // The task icon will only ever be shown with the GlicButton, so can always
+    // set the corner radii for split button styling.
+    SetLeftRightCornerRadii(kSplitButtonFlatEdgeRadius,
+                            kSplitButtonRoundedEdgeRadius);
+  }
   UpdateColors();
 
   SetFocusBehavior(FocusBehavior::ALWAYS);
@@ -107,13 +116,39 @@ void GlicActorTaskIcon::HighlightTaskIcon() {
       kColorTabBackgroundInactiveHoverFrameInactive);
 }
 
+void GlicActorTaskIcon::SetPressedColor(bool is_pressed) {
+  if (!base::FeatureList::IsEnabled(
+          features::kGlicActorUiGlobalTaskIndicator)) {
+    return;
+  }
+
+  SetHighlighted(is_pressed);
+  UpdateColors();
+}
+
+void GlicActorTaskIcon::NotifyClick(const ui::Event& event) {
+  // TabStripControlButton manipulates the ink drop in its NotifyClick(), so
+  // if we're using the ink drop to show the button's pressed state, skip
+  // TabStripControlButton::NotifyClick() and just call the base
+  // NotifyClick().
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
+    LabelButton::NotifyClick(event);
+  } else {
+    TabStripNudgeButton::NotifyClick(event);
+  }
+}
+
 void GlicActorTaskIcon::SetTaskIconToDefault() {
   SetText(std::u16string());
+  SetTooltipText(l10n_util::GetStringUTF16(IDS_ACTOR_TASK_INDICATOR_TOOLTIP));
   SetDefaultColors();
 }
 
 void GlicActorTaskIcon::ShowNudgeLabel(const std::u16string nudge_label) {
-  HighlightTaskIcon();
+  if (!base::FeatureList::IsEnabled(
+          features::kGlicActorUiGlobalTaskIndicator)) {
+    HighlightTaskIcon();
+  }
   SetText(nudge_label);
   SetTooltipText(nudge_label);
 }

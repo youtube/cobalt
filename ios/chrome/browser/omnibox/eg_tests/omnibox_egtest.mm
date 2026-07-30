@@ -5,7 +5,6 @@
 #import <XCTest/XCTest.h>
 
 #import "base/apple/foundation_util.h"
-#import "base/containers/contains.h"
 #import "base/functional/bind.h"
 #import "base/ios/ios_util.h"
 #import "base/strings/stringprintf.h"
@@ -14,7 +13,7 @@
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/browser_container/ui_bundled/edit_menu_app_interface.h"
+#import "ios/chrome/browser/browser_content/ui_bundled/edit_menu_app_interface.h"
 #import "ios/chrome/browser/content_suggestions/public/ntp_home_constants.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_app_interface.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_earl_grey.h"
@@ -117,7 +116,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
   if (request.relative_url == kHeaderPageURL) {
     std::string result = kHeaderPageFailure;
-    if (base::Contains(request.headers, "X-Client-Data")) {
+    if (request.headers.contains("X-Client-Data")) {
       result = kHeaderPageSuccess;
     }
     http_response->set_content("<html><body>" + result + "</body></html>");

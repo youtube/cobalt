@@ -421,6 +421,7 @@ static TEN_BOOLS_AND_A_BYTE_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
     ),
 });
 
+#[allow(clippy::too_many_arguments)]
 fn ten_bools_and_a_byte_mojom(
     b0: bool,
     b1: bool,
@@ -504,6 +505,7 @@ static TEN_BOOLS_AND_TWO_BYTES_TY: LazyLock<TestType> = LazyLock::new(|| TestTyp
     ),
 });
 
+#[allow(clippy::too_many_arguments)]
 fn ten_bools_and_two_bytes_mojom(
     b0: bool,
     b1: bool,
@@ -935,6 +937,7 @@ static WITH_MANY_UNIONS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
     ),
 });
 
+#[allow(clippy::too_many_arguments)]
 fn with_many_unions_mojom(
     u1: MojomValue,
     i1: i8,
@@ -1250,6 +1253,7 @@ static ARRAYS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
     ),
 });
 
+#[allow(clippy::too_many_arguments)]
 fn arrays_mojom(
     ints: Vec<i16>,
     ints_sized: [u64; 3],
@@ -1526,14 +1530,14 @@ fn maps_mojom(
 fn test_maps() {
     let eights_data = [(1, 2), (3, 4)];
     MAP_U8_U8_TY.validate_mojomparse::<HashMap<u8, u8>>(
-        eights_data.clone().into(),
-        map_u8_u8_mojom(eights_data.clone().into()),
+        eights_data.into(),
+        map_u8_u8_mojom(eights_data.into()),
     );
 
     let bools_data = [(true, 10), (false, 20)];
     MAP_BOOL_U16_TY.validate_mojomparse::<HashMap<bool, u16>>(
-        bools_data.clone().into(),
-        map_bool_u16_mojom(bools_data.clone().into()),
+        bools_data.into(),
+        map_bool_u16_mojom(bools_data.into()),
     );
 
     let enums_data = [(TestEnum::Zero, -1), (TestEnum::Seven, -2)];
@@ -1563,8 +1567,8 @@ fn test_maps() {
 
     MAPS_TY.validate_mojomparse(
         Maps {
-            eights: eights_data.clone().into(),
-            bools: bools_data.clone().into(),
+            eights: eights_data.into(),
+            bools: bools_data.into(),
             enums: enums_data.clone().into(),
             to_struct: to_struct_data.clone().into(),
             to_union: to_union_data.clone().into(),
@@ -1646,7 +1650,7 @@ static STRINGS_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
 });
 
 fn mojomvalue_from_str(str: &str) -> MojomValue {
-    MojomValue::String(MojomString::from_str(str))
+    MojomValue::String(str.to_string())
 }
 
 fn strings_mojom(
@@ -1683,11 +1687,10 @@ fn strings_mojom(
 fn test_strings() {
     STRINGS_TY.validate_mojomparse(
         Strings {
-            str: MojomString::from_str("test"),
-            arr: vec![MojomString::from_str("a"), MojomString::from_str("b")],
-            to_str: [(1, MojomString::from_str("one")), (2, MojomString::from_str("two"))].into(),
-            from_str: [(MojomString::from_str("three"), 3), (MojomString::from_str("four"), 4)]
-                .into(),
+            str: "test".to_string(),
+            arr: vec!["a".to_string(), "b".to_string()],
+            to_str: [(1, "one".to_string()), (2, "two".to_string())].into(),
+            from_str: [("three".to_string(), 3), ("four".to_string(), 4)].into(),
         },
         strings_mojom(
             "test",
@@ -1699,7 +1702,7 @@ fn test_strings() {
 
     STRINGS_TY.validate_mojomparse(
         Strings {
-            str: MojomString::from_str(""),
+            str: "".to_string(),
             arr: vec![],
             to_str: HashMap::new(),
             from_str: HashMap::new(),
@@ -1736,7 +1739,7 @@ static HOLDS_COMPLEX_TYPES_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
 });
 
 fn holds_complex_types_mojom_str(str: &str) -> MojomValue {
-    MojomValue::Union(0, Box::new(MojomValue::String(MojomString::from_str(str))))
+    MojomValue::Union(0, Box::new(MojomValue::String(str.to_string())))
 }
 
 fn holds_complex_types_mojom_arr(arr: Vec<i16>) -> MojomValue {
@@ -1771,12 +1774,12 @@ static COMPLEX_UNION_HOLDER_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
 fn test_complex_union() {
     // Test both the union and the union inside a struct
     HOLDS_COMPLEX_TYPES_TY.validate_mojomparse(
-        HoldsComplexTypes::str(MojomString::from_str("hello")),
+        HoldsComplexTypes::str("hello".to_string()),
         holds_complex_types_mojom_str("hello"),
     );
 
     COMPLEX_UNION_HOLDER_TY.validate_mojomparse(
-        ComplexUnionHolder { u: HoldsComplexTypes::str(MojomString::from_str("eek")) },
+        ComplexUnionHolder { u: HoldsComplexTypes::str("eek".to_string()) },
         wrap_struct_fields_value(vec![("u".to_string(), holds_complex_types_mojom_str("eek"))]),
     );
 
@@ -1908,7 +1911,7 @@ static ARRAY_NULL_EMPTY_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
 
 fn array_null_empty_mojom(elts: Vec<Option<Empty>>) -> MojomValue {
     MojomValue::Array(
-        elts.into_iter().map(|elt| nullable_val!(elt.map(|e| MojomValue::from(e)))).collect(),
+        elts.into_iter().map(|elt| nullable_val!(elt.map(MojomValue::from))).collect(),
     )
 }
 
@@ -1941,7 +1944,7 @@ static ARRAY_NULL_UNION_TY: LazyLock<TestType> = LazyLock::new(|| TestType {
 
 fn array_null_union_mojom(elts: Vec<Option<BaseUnion>>) -> MojomValue {
     MojomValue::Array(
-        elts.into_iter().map(|elt| nullable_val!(elt.map(|u| MojomValue::from(u)))).collect(),
+        elts.into_iter().map(|elt| nullable_val!(elt.map(MojomValue::from))).collect(),
     )
 }
 
@@ -2071,10 +2074,7 @@ fn union_with_nullables_mojom_e(e: Option<Empty>) -> MojomValue {
 }
 
 fn union_with_nullables_mojom_str(str: Option<&str>) -> MojomValue {
-    MojomValue::Union(
-        1,
-        Box::new(nullable_val!(str.map(|s| MojomValue::String(MojomString::from_str(s))))),
-    )
+    MojomValue::Union(1, Box::new(nullable_val!(str.map(|s| MojomValue::String(s.to_string())))))
 }
 
 fn union_with_nullables_mojom_u(u: Option<MojomValue>) -> MojomValue {
@@ -2112,10 +2112,7 @@ fn nullable_others_mojom(
     wrap_struct_fields_value(vec![
         ("u".to_string(), nullable_val!(u)),
         ("m".to_string(), nullable_val!(m.map(map_u8_u8_mojom))),
-        (
-            "str".to_string(),
-            nullable_val!(str.map(|s| MojomValue::String(MojomString::from_str(s)))),
-        ),
+        ("str".to_string(), nullable_val!(str.map(|s| MojomValue::String(s.to_string())))),
     ])
 }
 
@@ -2186,7 +2183,7 @@ fn test_nullables() {
         union_with_nullables_mojom_e(Some(Empty {})),
     );
     UNION_WITH_NULLABLES_TY.validate_mojomparse(
-        UnionWithNullables::str(Some(MojomString::from_str("hello"))),
+        UnionWithNullables::str(Some("hello".to_string())),
         union_with_nullables_mojom_str(Some("hello")),
     );
     UNION_WITH_NULLABLES_TY.validate_mojomparse(
@@ -2210,7 +2207,7 @@ fn test_nullables() {
         NullableOthers {
             u: Some(UnionWithNullables::u(Some(BaseUnion::n1(42)))),
             m: Some([(1, 2), (3, 4)].into()),
-            str: Some(MojomString::from_str("hello")),
+            str: Some("hello".to_string()),
         },
         nullable_others_mojom(
             Some(union_with_nullables_mojom_u(Some(base_union_mojom_n1(42)))),

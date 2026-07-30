@@ -22,8 +22,8 @@
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/menus/simple_menu_model.h"
 
-class Browser;
 class BrowserFrameView;
+class BrowserWindowInterface;
 class Tab;
 class TabGroup;
 
@@ -52,8 +52,6 @@ class BrowserTabStripController : public TabStripController,
   ~BrowserTabStripController() override;
 
   void InitFromModel(TabStrip* tabstrip);
-
-  TabStripModel* model() const { return model_; }
 
   // TabStripController implementation:
   ui::ListSelectionModel GetSelectionModel() const override;
@@ -93,7 +91,7 @@ class BrowserTabStripController : public TabStripController,
   int HasAvailableDragActions() const override;
   void OnDropIndexUpdate(std::optional<int> index, bool drop_before) override;
   void CreateNewTab(NewTabTypes context) override;
-  void OnStartedDragging(bool dragging_window) override;
+  void OnStartedDragging() override;
   void OnStoppedDragging() override;
   void OnKeyboardFocusedTabChanged(std::optional<int> index) override;
   std::u16string GetGroupTitle(
@@ -116,21 +114,14 @@ class BrowserTabStripController : public TabStripController,
   gfx::Range ListTabsInGroup(
       const tab_groups::TabGroupId& group_id) const override;
   bool IsFrameCondensed() const override;
-  bool HasVisibleBackgroundTabShapes() const override;
   bool EverHasVisibleBackgroundTabShapes() const override;
-  bool CanDrawStrokes() const override;
-  SkColor GetFrameColor(BrowserFrameActiveState active_state) const override;
   std::optional<int> GetCustomBackgroundId(
       BrowserFrameActiveState active_state) const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
-  Profile* GetProfile() const override;
   BrowserWindowInterface* GetBrowserWindowInterface() override;
-  Browser* GetBrowser() override;
 #if BUILDFLAG(IS_CHROMEOS)
   bool IsLockedForOnTask() override;
 #endif
-
-  const Browser* browser() const { return browser_view_->browser(); }
 
   // Test-specific methods.
   void CloseContextMenuForTesting();

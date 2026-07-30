@@ -120,7 +120,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
     kPassThrough [[deprecated]] = 7,
     kSwapChain [[deprecated]] = 8,
     kSkiaDawnSharedImage [[deprecated]] = 9,
-    kExternalBitmap = 10,
+    kExternalBitmap [[deprecated]] = 10,
     kMaxValue = kExternalBitmap,
   };
 #pragma GCC diagnostic pop
@@ -162,7 +162,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
       gpu::SharedImageUsageSet shared_image_usage_flags = {},
       Delegate* delegate = nullptr);
 
-  static std::unique_ptr<CanvasResourceProvider>
+  static std::unique_ptr<CanvasResourceProviderSharedImage>
   CreateSharedImageProviderForSoftwareCompositor(
       gfx::Size size,
       const Canvas2DColorParams& color_params,
@@ -185,12 +185,8 @@ class PLATFORM_EXPORT CanvasResourceProvider
       gpu::SharedImageUsageSet shared_image_usage_flags = {},
       Delegate* delegate = nullptr);
 
-  // Use Snapshot() for capturing a frame that is intended to be displayed via
-  // the compositor. Cases that are destined to be transferred via a
-  // TransferableResource should call ProduceCanvasResource() instead.
   // The ImageOrientationEnum conveys the desired orientation of the image, and
   // should be derived from the source of the bitmap data.
-  virtual scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) = 0;
   virtual scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault) = 0;
 
@@ -200,6 +196,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // FlushCanvas and preserve recording only if IsPrinting or
   // FlushReason indicates printing in progress.
   std::optional<cc::PaintRecord> FlushCanvas(FlushReason = FlushReason::kOther);
+  virtual ScopedRasterTimer CreateScopedRasterTimer();
 
   // TODO(crbug.com/371227617): Trim callsites of this method to those that
   // actually need to pass this info to Skia APIs and then eliminate the
@@ -216,20 +213,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   virtual base::ByteSize EstimatedSizeInBytes() const {
     return base::ByteSize(format_.EstimatedSizeInBytes(size_));
   }
-  // Returns true if the resource can be used by the display compositor.
-  virtual bool SupportsDirectCompositing() const = 0;
   uint32_t ContentUniqueID() const;
-
-  // Indicates that the compositing path is single buffered, meaning that
-  // ProduceCanvasResource() return a reference to the same resource each time,
-  // which implies that Producing an animation frame may overwrite the resource
-  // used by the previous frame. This results in graphics updates skipping the
-  // queue, thus reducing latency, but with the possible side effects of tearing
-  // (in cases where the resource is scanned out directly) and irregular frame
-  // rate.
-  virtual bool IsSingleBuffered() const = 0;
-
-  bool IsGpuContextLost() const override;
 
   virtual bool WritePixels(const SkImageInfo& orig_info,
                            const void* pixels,
@@ -269,23 +253,12 @@ class PLATFORM_EXPORT CanvasResourceProvider
  protected:
   class CanvasImageProvider;
 
-  // Returns true iff the resource provider is (a) using a GPU channel for
-  // software SharedImages and (b) that channel has been lost.
-  virtual bool IsSoftwareSharedImageGpuChannelLost() const;
-  static void NotifyGpuContextLostTask(base::WeakPtr<CanvasResourceProvider>);
-
   SkSurface* GetSkSurface() const;
   bool UnacceleratedWritePixels(const SkImageInfo& orig_info,
                                 const void* pixels,
                                 size_t row_bytes,
                                 int x,
                                 int y);
-
-  gpu::raster::RasterInterface* RasterInterface() const;
-  base::WeakPtr<WebGraphicsContext3DProviderWrapper> ContextProviderWrapper()
-      const {
-    return context_provider_wrapper_;
-  }
 
   scoped_refptr<UnacceleratedStaticBitmapImage> UnacceleratedSnapshot(
       ImageOrientation);
@@ -295,8 +268,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
                          viz::SharedImageFormat format,
                          SkAlphaType alpha_type,
                          const gfx::ColorSpace& color_space,
-                         base::WeakPtr<WebGraphicsContext3DProviderWrapper>
-                             context_provider_wrapper,
                          Delegate* delegate);
 
   virtual void RasterRecord(cc::PaintRecord) = 0;
@@ -331,9 +302,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   // Disables lines drawing as paths if necessary. Drawing lines as paths is
   // only needed for ganesh.
-  void DisableLineDrawingAsPathsIfNecessary();
-
-  base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper_;
+  virtual void DisableLineDrawingAsPathsIfNecessary() {}
 
  protected:
   // Note that `info_` should be const, but the relevant SkImageInfo
@@ -385,8 +354,7 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
 
   bool IsValid() const override { return GetSkSurface(); }
   bool IsAccelerated() const override { return false; }
-  bool SupportsDirectCompositing() const override { return false; }
-  bool IsSingleBuffered() const override { return false; }
+  bool IsGpuContextLost() const override { return true; }
   scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault) override;
 
@@ -433,11 +401,6 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
                                  const gfx::ColorSpace& color_space,
                                  Delegate* delegate);
 
-  scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) override {
-    // Production of CanvasResources is used with direct compositing, which is
-    // not supported by this class.
-    return nullptr;
-  }
   sk_sp<SkSurface> CreateSkSurface() const override;
 };
 
@@ -524,12 +487,17 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
     return this;
   }
   bool IsAccelerated() const final { return is_accelerated_; }
+  bool IsGpuContextLost() const override;
   base::ByteSize EstimatedSizeInBytes() const override;
-  bool SupportsDirectCompositing() const override { return true; }
-  scoped_refptr<CanvasResource> ProduceCanvasResource(
-      FlushReason reason) override;
+
+  gpu::raster::RasterInterface* RasterInterface() const;
+
+  // Use Snapshot() for capturing a frame that is intended to be displayed via
+  // the compositor. Cases that are destined to be transferred via a
+  // TransferableResource should call ProduceCanvasResource() instead.
+  virtual scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason);
+
   bool IsValid() const override;
-  bool IsSoftwareSharedImageGpuChannelLost() const final;
 
   // ExternalCanvasDrawHelper() is used by clients that require the invocation
   // of WillDrawIfNeeded() before obtaining a canvas and drawing on it.
@@ -545,7 +513,16 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) final;
   scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault) override;
-  bool IsSingleBuffered() const final;
+
+  // Indicates that the compositing path is single buffered, meaning that
+  // ProduceCanvasResource() return a reference to the same resource each time,
+  // which implies that Producing an animation frame may overwrite the resource
+  // used by the previous frame. This results in graphics updates skipping the
+  // queue, thus reducing latency, but with the possible side effects of tearing
+  // (in cases where the resource is scanned out directly) and irregular frame
+  // rate.
+  bool IsSingleBuffered() const;
+
   bool WritePixels(const SkImageInfo& orig_info,
                    const void* pixels,
                    size_t row_bytes,
@@ -569,6 +546,15 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
  private:
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
   scoped_refptr<CanvasResourceSharedImage> CreateResource();
+  void DisableLineDrawingAsPathsIfNecessary() override;
+  ScopedRasterTimer CreateScopedRasterTimer() override;
+
+  // Returns true iff the resource provider is (a) using a GPU channel for
+  // software SharedImages and (b) that channel has been lost.
+  bool IsSoftwareSharedImageGpuChannelLost() const;
+
+  static void NotifyGpuContextLostTask(
+      base::WeakPtr<CanvasResourceProviderSharedImage>);
 
   // The maximum number of in-flight resources waiting to be used for
   // recycling.
@@ -608,6 +594,8 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
 
   // BitmapGpuChannelLostObserver:
   void OnGpuChannelLost() final;
+
+  base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper_;
 
   // If this instance is single-buffered or |resource_recycling_enabled_| is
   // false, |unused_resources_| will be empty.

@@ -21,6 +21,7 @@ import type {ContextualTasksOnboardingTooltipElement} from './onboarding_tooltip
 export interface ContextualTasksComposeboxElement {
   $: {
     composebox: ComposeboxElement,
+    composeboxContainer: HTMLElement,
     onboardingTooltip: ContextualTasksOnboardingTooltipElement,
   };
 }
@@ -88,8 +89,6 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   private isOnboardingTooltipDismissCountBelowCap_: boolean =
       loadTimeData.getBoolean('isOnboardingTooltipDismissCountBelowCap');
   private userDismissedTooltip_: boolean = false;
-  // The resize observer is needed for horizontal changes; the
-  // composebox-resize event only emits height changes
   private resizeObserver_: ResizeObserver|null = null;
 
   constructor() {
@@ -122,7 +121,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         composebox.animationState = GlowAnimationState.NONE;
       });
       this.eventTracker_.add(composebox, 'composebox-submit', () => {
-        // Clear the composebox text after submitting.
+
         this.clearInputAndFocus(/* querySubmitted= */ true);
       });
       this.eventTracker_.add(
@@ -142,8 +141,13 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
             this.updateTooltipVisibility_();
           });
 
-      // Initial check.
+
       this.updateTooltipVisibility_();
+
+      this.resizeObserver_ = new ResizeObserver(() => {
+        this.composeboxHeight_ = composebox.offsetHeight;
+      });
+      this.resizeObserver_.observe(composebox);
     }
   }
 
@@ -196,6 +200,10 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.stopObservingResize_();
+    if (this.resizeObserver_) {
+      this.resizeObserver_.disconnect();
+      this.resizeObserver_ = null;
+    }
     this.eventTracker_.removeAll();
     this.searchboxListenerIds_.forEach(
         id => assert(this.searchboxCallbackRouter_.removeListener(id)));
@@ -222,9 +230,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   startExpandAnimation() {
     const composebox = this.$.composebox;
 
-    /* Reset state (so it goes from none to expand), then trigger
-     * expanding state
-     */
+
     composebox.animationState = GlowAnimationState.NONE;
     composebox.animationState = GlowAnimationState.EXPANDING;
   }
@@ -250,6 +256,14 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       this.resizeObserver_.disconnect();
       this.resizeObserver_ = null;
     }
+  }
+
+  get isComposeboxFocusedForTesting() {
+    return this.isComposeboxFocused_;
+  }
+
+  get composeboxHeightForTesting() {
+    return this.composeboxHeight_;
   }
 }
 

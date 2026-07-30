@@ -1675,8 +1675,7 @@ protocol::Response InspectorCSSAgent::getEnvironmentVariables(
                     UADefinedVariable::kTitlebarAreaY,
                     UADefinedVariable::kTitlebarAreaWidth,
                     UADefinedVariable::kTitlebarAreaHeight,
-                    UADefinedVariable::kPreferredTextScale,
-                    UADefinedVariable::kSafePrintableInset};
+                    UADefinedVariable::kPreferredTextScale};
   // LINT.ThenChange(//third_party/blink/renderer/core/css/style_environment_variables.h:UADefinedVariable)
 
   for (auto variable : variables) {
@@ -2553,7 +2552,7 @@ protocol::Response InspectorCSSAgent::getLonghandProperties(
   const CSSParserContext* parser_context =
       MakeGarbageCollected<CSSParserContext>(kHTMLStandardMode,
                                              SecureContextMode::kSecureContext);
-  const auto local_context =
+  auto local_context =
       CSSParserLocalContext().WithCurrentShorthand(property.PropertyID());
 
   HeapVector<CSSPropertyValue, 64> css_longhand_properties;

@@ -40,7 +40,6 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -50,6 +49,7 @@
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -83,19 +83,6 @@ const NSString* kScribbleOmniboxElementId = @"omnibox";
 // The padding to be added to the bottom of the system share icon to balance
 // the white space on top.
 const CGFloat kShareIconBalancingHeightPadding = 1;
-
-// Returns a UILabel used to contain the text that the omnibox will display when
-// focused. See crbug.com/465394669 for rationale.
-// TODO(crbug.com/465030009): Remove the hidden omnibox text label.
-UILabel* OmniboxTextHiddenLabel() {
-  UILabel* label = [[UILabel alloc] init];
-  label.translatesAutoresizingMaskIntoConstraints = NO;
-  label.accessibilityIdentifier = kOmniboxTextHiddenLabelIdentifier;
-  label.isAccessibilityElement = YES;
-  label.accessibilityElementsHidden = YES;
-  label.hidden = YES;
-  return label;
-}
 
 }  // namespace
 
@@ -173,10 +160,6 @@ UILabel* OmniboxTextHiddenLabel() {
 
   // The placeholder view that holds the DSE icon.
   UIImageView* _defaultSearchEngineIconView;
-
-  // Hidden label for omnibox text. See crbug.com/465394669 for rationale.
-  // TODO(crbug.com/465030009): Remove the hidden omnibox text label.
-  UILabel* _omniboxTextHiddenLabel;
 }
 
 #pragma mark - public
@@ -357,9 +340,6 @@ UILabel* OmniboxTextHiddenLabel() {
     [self.view addSubview:self.editView];
     self.editView.translatesAutoresizingMaskIntoConstraints = NO;
     AddSameConstraints(self.editView, self.view);
-  } else {
-    _omniboxTextHiddenLabel = OmniboxTextHiddenLabel();
-    [self.view addSubview:_omniboxTextHiddenLabel];
   }
 
   [self.view addSubview:self.locationBarSteadyView];
@@ -822,12 +802,6 @@ UILabel* OmniboxTextHiddenLabel() {
   } else {
     return l10n_util::GetNSString(IDS_OMNIBOX_EMPTY_HINT);
   }
-}
-
-// TODO(crbug.com/465030009): Remove the hidden omnibox text label.
-- (void)updateOmniboxTextHiddenLabel:(NSString*)text {
-  _omniboxTextHiddenLabel.text = text;
-  _omniboxTextHiddenLabel.accessibilityLabel = text;
 }
 
 #pragma mark - UIContextMenuInteractionDelegate

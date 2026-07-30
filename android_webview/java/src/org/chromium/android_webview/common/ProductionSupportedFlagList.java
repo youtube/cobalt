@@ -272,6 +272,9 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_IGNORE_CHECKABLE_ELEMENTS,
                 "Does not extract checkboxes and radio buttons"),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_MOVE_SMALL_FORM_LOGIC_TO_CLIENT,
+                "Moves the small form handling from Autofill server to client."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_OPTIMIZE_CACHE_UPDATES,
                 "Reduces the number of field members copied between forms during cache updates."),
         Flag.baseFeature(
@@ -500,6 +503,7 @@ public final class ProductionSupportedFlagList {
                 NetFeatures.DISK_CACHE_BACKEND_EXPERIMENT,
                 "Enables the experimental disk cache backend for HTTP Cache"),
         Flag.baseFeature("MojoIpcz"),
+        Flag.baseFeature("MojoFixGeometricBufferGrowth"),
         Flag.baseFeature(
                 "FixDataPipeTrapBug",
                 "Used to disable a specific bug fix for a long-standing bug that may"
@@ -599,6 +603,7 @@ public final class ProductionSupportedFlagList {
                 "Use buffer size from AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER for "
                         + "optimal output frame size."),
         Flag.baseFeature("AudioDecoderAudioFileReader"),
+        Flag.baseFeature("SymphoniaAudioDecoding"),
         Flag.baseFeature(
                 "AudioInputConfirmReadsViaShmem",
                 "Enables an audio input optimization that uses shared memory instead of"
@@ -918,6 +923,11 @@ public final class ProductionSupportedFlagList {
                 "When enabled, the communication between renderer and network service is "
                         + "asynchronous when setting cookies."),
         Flag.baseFeature(
+                AwFeatures.WEBVIEW_LATCHED_COOKIE_POLICY,
+                "When enabled, cookie policy settings are captured at RestrictedCookieManager "
+                        + "creation time and used throughout its lifetime. This enables shared "
+                        + "memory cookie versioning to reduce IPC overhead."),
+        Flag.baseFeature(
                 NetworkServiceFeatures.GET_COOKIES_ON_SET,
                 "When enabled, the network service returns all the cookies when setting a new "
                         + "cookie, so that it can be cached."),
@@ -1039,9 +1049,6 @@ public final class ProductionSupportedFlagList {
                 "Use madvise MADV_WILLNEED to prefetch the native library. This replaces the "
                         + "default mechanism of pre-reading the memory from a forked process."),
         Flag.baseFeature(
-                BaseFeatures.EFFECTIVE_BINDING_STATE,
-                "Use effective binding state to manage child process bindings."),
-        Flag.baseFeature(
                 CcFeatures.OVERSCROLL_BEHAVIOR_RESPECTED_ON_ALL_SCROLL_CONTAINERS,
                 "Enables overscroll-behavior to be respected on all scroll containers."),
         Flag.baseFeature(
@@ -1055,10 +1062,6 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.SEPARATE_DEFER_MODULE_SCRIPT_TASKS,
                 "Enables yielding to the event loop between executing deferred module scripts to"
                         + " improve responsiveness."),
-        Flag.baseFeature(
-                BaseFeatures.USE_IS_UNBOUND_CHECK,
-                "Use ChildServiceConnectionController.isUnbound() instead of isConnected() to check"
-                        + " the connection state in ChildProcessConnection."),
         Flag.baseFeature(
                 "ProbeStylusWritingInBackground",
                 "Offload probing of stylus writing support to a background thread."),
@@ -1133,6 +1136,27 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BaseFeatures.PARTITION_ALLOC_FREE_WITH_SIZE,
                 "Enables PartitionAlloc with the optimization of sized deallocation"),
+        Flag.baseFeature(
+                ContentFeatures.ACCESSIBILITY_ATOMIC_LIVE_REGIONS,
+                "When enabled, supports atomic announcements, meaning that when aria-atomic=true,"
+                    + " the entire live region will be announced not just the node that changed."),
+        Flag.baseFeature(
+                "LevelDBCacheSize",
+                "Reduces the size of the LevelDB cache to reduce memory usage at no expected speed"
+                        + " cost"),
+        Flag.baseFeature(
+                "VariationsStickyPersistence",
+                "Controls how prefs are written and persisted for tracking sticky study activation."
+                    + " Note: The actual behavior is controlled by a feature param, but disabling"
+                    + " the feature will use the default param value (no special persistence)."),
+        Flag.baseFeature(
+                BlinkFeatures.TEXT_SCALE_META_TAG,
+                "When enabled, <meta name=\"text-scale\" content=\"scale\"> takes effect"),
+        Flag.baseFeature(
+                CcFeatures.DROP_METRICS_FROM_NON_PRODUCED_FRAMES_ONLY_IF_THEY_HAD_NO_DAMAGE,
+                "Whether LayerTreeHostImpl::DidNotProduceFrame() should only drop event metrics"
+                        + " from frames that weren't produced due to no damage (but preserve event"
+                        + " metrics from frames that weren't produced for other reasons)."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
 
@@ -1158,5 +1182,11 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.STICKY_USER_ACTIVATION_ACROSS_SAME_ORIGIN_NAVIGATION,
                 "When enabled, sticky user activations are preserved for same-origin top frame"
                         + " navigations."),
+        Flag.baseFeature(
+                CcFeatures.THROTTLE_MAIN_FRAME_TO60_HZ_WEBVIEW,
+                "When enabled, requestAnimationFrame() and related main-thread effects are capped"
+                        + " at 60Hz on 120Hz devices."),
+        Flag.baseFeature("JobPriorityBoosting"),
+        Flag.baseFeature("IsolatesPriorityUseProcessPriority"),
     };
 }

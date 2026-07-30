@@ -13,23 +13,57 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_interactive_test_mixin.h"
+#include "chrome/common/chrome_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
+#include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/views/view.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 
 namespace {
 
-using URLs = std::vector<std::string_view>;
+using URL = std::string_view;
+using TabGroupURLs = std::vector<URL>;
+using URLs = std::vector<std::variant<URL, TabGroupURLs>>;
+
+// Returns a collection of URLs that correspond to the order of tabs.
+// Tab groups are added to a vector nested within the collection.
+// E.g., {A, {B, C}, D}
+base::RepeatingCallback<URLs()> GetTabOrder(TabStripModel* model) {
+  return base::BindRepeating(
+      [](TabStripModel* model) {
+        URLs urls;
+        std::optional<tab_groups::TabGroupId> current_group_id;
+        for (auto i = 0; i < model->count(); ++i) {
+          tabs::TabInterface* tab = model->GetTabAtIndex(i);
+          URL url = tab->GetContents()->GetURL().spec();
+          auto group_id = tab->GetGroup();
+          if (group_id.has_value()) {
+            if (group_id == current_group_id) {
+              std::get<TabGroupURLs>(urls.back()).push_back(url);
+            } else {
+              urls.push_back(TabGroupURLs{url});
+            }
+            current_group_id = *group_id;
+          } else {
+            urls.push_back(url);
+            current_group_id = std::nullopt;
+          }
+        }
+        return urls;
+      },
+      model);
+}
 
 base::RepeatingCallback<size_t()> GetBrowserCount() {
   return base::BindRepeating([]() { return chrome::GetTotalBrowserCount(); });
@@ -37,18 +71,6 @@ base::RepeatingCallback<size_t()> GetBrowserCount() {
 
 base::RepeatingCallback<bool()> GetDragActive() {
   return base::BindRepeating([]() { return TabDragController::IsActive(); });
-}
-
-base::RepeatingCallback<URLs()> GetTabOrder(TabStripModel* model) {
-  return base::BindRepeating(
-      [](TabStripModel* model) {
-        URLs urls;
-        for (auto i = 0; i < model->count(); ++i) {
-          urls.push_back(model->GetWebContentsAt(i)->GetURL().spec());
-        }
-        return urls;
-      },
-      model);
 }
 
 }  // namespace
@@ -60,10 +82,12 @@ class VerticalTabDragHandlerTest
   ~VerticalTabDragHandlerTest() override = default;
 
  protected:
-  auto DragTabTo(const std::string_view& tab_view_name,
-                 const gfx::Point& point) {
+  auto DragTabTo(int tab_index, const gfx::Point& point) {
+    const char kTabToDrag[] = "Tab to drag";
     return Steps(
-        MoveMouseTo(tab_view_name),
+        NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
+                                                  kTabToDrag, tab_index),
+        MoveMouseTo(kTabToDrag),
         ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
         Do([&]() {
           // TODO(crbug.com/40249472): Since DnD creates a blocking
@@ -90,12 +114,20 @@ class VerticalTabDragHandlerTest
     });
   }
 
-  auto MoveMouseToViewAsync(std::string_view view_id) {
-    return WithView(
-        view_id, base::BindOnce([](views::View* view) {
-          const gfx::Point point = view->GetBoundsInScreen().CenterPoint();
-          ASSERT_TRUE(ui_controls::SendMouseMove(point.x(), point.y()));
-        }));
+  auto MoveMouseToTabAsync(int tab_index) {
+    const char kTabToMoveMouseTo[] = "Tab to move mouse to";
+    return Steps(
+        NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
+                                                  kTabToMoveMouseTo, tab_index),
+        WithView(
+            kTabToMoveMouseTo, base::BindOnce([](views::View* view) {
+              const gfx::Point point = view->GetBoundsInScreen().CenterPoint();
+              ASSERT_TRUE(ui_controls::SendMouseMove(point.x(), point.y()));
+            })));
+  }
+
+  auto AddTabsToNewGroup(const std::vector<int>& indices) {
+    return Do([&]() { browser()->GetTabStripModel()->AddToNewGroup(indices); });
   }
 
   BrowserView& GetBrowserView() {
@@ -111,6 +143,9 @@ class VerticalTabDragHandlerTest
     CHECK(browser);
     return *browser;
   }
+
+  gfx::ScopedAnimationDurationScaleMode disable_animation_{
+      gfx::ScopedAnimationDurationScaleMode::ZERO_DURATION};
 };
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
@@ -132,15 +167,11 @@ DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<URLs>,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
                        MAYBE_DragToDetachIntoNewWindow) {
-  constexpr char kSecondTabName[] = "SecondTab";
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kSecondTabName, 1),
-      DragTabTo(kSecondTabName,
-                GetBrowserView().GetBoundsInScreen().top_right() +
-                    gfx::Vector2d(50, 50)),
+      DragTabTo(1, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
       PollState(kBrowserCountPoller, GetBrowserCount()),
       WaitForState(kBrowserCountPoller, 2), ReleaseMouseAsync(),
       PollState(kDragStatePoller, GetDragActive()),
@@ -164,15 +195,11 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
                        MAYBE_DragToDetachThenCancel) {
-  constexpr char kSecondTabName[] = "SecondTab";
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kSecondTabName, 1),
-      DragTabTo(kSecondTabName,
-                GetBrowserView().GetBoundsInScreen().top_right() +
-                    gfx::Vector2d(50, 50)),
+      DragTabTo(1, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
       PollState(kBrowserCountPoller, GetBrowserCount()),
       WaitForState(kBrowserCountPoller, 2), PressEscAsync(),
       WaitForState(kBrowserCountPoller, 1),
@@ -196,21 +223,13 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
                        MAYBE_DragToDetachThenReattach) {
-  constexpr char kSecondTabName[] = "SecondTab";
-  constexpr char kThirdTabName[] = "ThirdTab";
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kSecondTabName, 1),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kThirdTabName, 2),
-      DragTabTo(kThirdTabName,
-                GetBrowserView().GetBoundsInScreen().top_right() +
-                    gfx::Vector2d(50, 50)),
+      DragTabTo(2, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
       PollState(kBrowserCountPoller, GetBrowserCount()),
-      WaitForState(kBrowserCountPoller, 2),
-      MoveMouseToViewAsync(kSecondTabName),
+      WaitForState(kBrowserCountPoller, 2), MoveMouseToTabAsync(1),
       WaitForState(kBrowserCountPoller, 1), ReleaseMouseAsync(),
       PollState(kDragStatePoller, GetDragActive()),
       WaitForState(kDragStatePoller, false), Do([&]() {
@@ -230,33 +249,23 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
                        MAYBE_DragWithinUnpinnedContainer) {
-  constexpr char kFirstTabName[] = "FirstTab";
-  constexpr char kSecondTabName[] = "SecondTab";
-  constexpr char kThirdTabName[] = "ThirdTab";
   TabStripModel* tab_strip_model = browser()->GetTabStripModel();
   ASSERT_NE(nullptr, tab_strip_model);
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kFirstTabName, 0),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kSecondTabName, 1),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kThirdTabName, 2),
-      DragTabTo(kThirdTabName,
-                GetBrowserView().GetBoundsInScreen().top_right() +
-                    gfx::Vector2d(50, 50)),
+      DragTabTo(2, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
       PollState(kDragStatePoller, GetDragActive()),
       WaitForState(kDragStatePoller, true),
       PollState(kTabOrderPoller, GetTabOrder(tab_strip_model)),
 
-      MoveMouseToViewAsync(kSecondTabName),
+      MoveMouseToTabAsync(1),
       WaitForState(kTabOrderPoller,
                    URLs({url::kAboutBlankURL, chrome::kChromeUISettingsURL,
                          chrome::kChromeUIBookmarksURL})),
 
-      MoveMouseToViewAsync(kFirstTabName),
+      MoveMouseToTabAsync(0),
       WaitForState(kTabOrderPoller,
                    URLs({chrome::kChromeUISettingsURL, url::kAboutBlankURL,
                          chrome::kChromeUIBookmarksURL})),
@@ -285,26 +294,18 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
                        MAYBE_CancelDragWithinUnpinnedContainer) {
-  constexpr char kSecondTabName[] = "SecondTab";
-  constexpr char kThirdTabName[] = "ThirdTab";
   TabStripModel* tab_strip_model = browser()->GetTabStripModel();
   ASSERT_NE(nullptr, tab_strip_model);
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kSecondTabName, 1),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kThirdTabName, 2),
-      DragTabTo(kThirdTabName,
-                GetBrowserView().GetBoundsInScreen().top_right() +
-                    gfx::Vector2d(50, 50)),
+      DragTabTo(2, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
       PollState(kDragStatePoller, GetDragActive()),
       WaitForState(kDragStatePoller, true),
 
       // Move mouse over the last tab and check tab ordering.
-      MoveMouseToViewAsync(kSecondTabName),
-      PollState(kBrowserCountPoller, GetBrowserCount()),
+      MoveMouseToTabAsync(1), PollState(kBrowserCountPoller, GetBrowserCount()),
       WaitForState(kBrowserCountPoller, 1),
       PollState(kTabOrderPoller, GetTabOrder(tab_strip_model)),
       WaitForState(kTabOrderPoller,
@@ -317,6 +318,83 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
         EXPECT_EQ(GURL(chrome::kChromeUIBookmarksURL),
                   tab_strip_model->GetWebContentsAt(1)->GetURL());
         EXPECT_EQ(GURL(chrome::kChromeUISettingsURL),
+                  tab_strip_model->GetWebContentsAt(2)->GetURL());
+      }));
+}
+
+// TODO(crbug.com/40249472): Disabled because this flakes on all platforms.
+IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest, DISABLED_DragInGroup) {
+  TabStripModel* tab_strip_model = browser()->GetTabStripModel();
+  ASSERT_NE(nullptr, tab_strip_model);
+  RunTestSequence(
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
+      AddTabsToNewGroup({0, 1}),
+      AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
+      PollState(kTabOrderPoller, GetTabOrder(tab_strip_model)),
+      WaitForState(kTabOrderPoller,
+                   URLs({
+                       TabGroupURLs({url::kAboutBlankURL,
+                                     chrome::kChromeUIBookmarksURL}),
+                       chrome::kChromeUISettingsURL,
+                   })),
+      DragTabTo(2, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
+      PollState(kDragStatePoller, GetDragActive()),
+      PollState(kBrowserCountPoller, GetBrowserCount()),
+      WaitForState(kDragStatePoller, true),
+      WaitForState(kBrowserCountPoller, 2),
+
+      MoveMouseToTabAsync(1),
+      WaitForState(kTabOrderPoller, URLs({TabGroupURLs({
+                                        url::kAboutBlankURL,
+                                        chrome::kChromeUISettingsURL,
+                                        chrome::kChromeUIBookmarksURL,
+                                    })})),
+      ReleaseMouseAsync(), WaitForState(kDragStatePoller, false), Do([&]() {
+        ASSERT_EQ(3, tab_strip_model->count());
+        EXPECT_EQ(GURL(url::kAboutBlankURL),
+                  tab_strip_model->GetWebContentsAt(0)->GetURL());
+        EXPECT_EQ(GURL(chrome::kChromeUISettingsURL),
+                  tab_strip_model->GetWebContentsAt(1)->GetURL());
+        EXPECT_EQ(GURL(chrome::kChromeUIBookmarksURL),
+                  tab_strip_model->GetWebContentsAt(2)->GetURL());
+      }));
+}
+
+// TODO(crbug.com/40249472): Disabled because this flakes on all platforms.
+IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest, DISABLED_DragOutOfGroup) {
+  TabStripModel* tab_strip_model = browser()->GetTabStripModel();
+  ASSERT_NE(nullptr, tab_strip_model);
+  RunTestSequence(
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
+      AddTabsToNewGroup({0, 1}),
+      AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
+      PollState(kTabOrderPoller, GetTabOrder(tab_strip_model)),
+      WaitForState(kTabOrderPoller, URLs({
+                                        TabGroupURLs({
+                                            url::kAboutBlankURL,
+                                            chrome::kChromeUIBookmarksURL,
+                                        }),
+                                        chrome::kChromeUISettingsURL,
+                                    })),
+      DragTabTo(1, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
+      PollState(kDragStatePoller, GetDragActive()),
+      WaitForState(kDragStatePoller, true), MoveMouseToTabAsync(2),
+      WaitForState(kTabOrderPoller, URLs({
+                                        TabGroupURLs({
+                                            url::kAboutBlankURL,
+                                        }),
+                                        chrome::kChromeUISettingsURL,
+                                        chrome::kChromeUIBookmarksURL,
+                                    })),
+      ReleaseMouseAsync(), WaitForState(kDragStatePoller, false), Do([&]() {
+        ASSERT_EQ(3, tab_strip_model->count());
+        EXPECT_EQ(GURL(url::kAboutBlankURL),
+                  tab_strip_model->GetWebContentsAt(0)->GetURL());
+        EXPECT_EQ(GURL(chrome::kChromeUISettingsURL),
+                  tab_strip_model->GetWebContentsAt(1)->GetURL());
+        EXPECT_EQ(GURL(chrome::kChromeUIBookmarksURL),
                   tab_strip_model->GetWebContentsAt(2)->GetURL());
       }));
 }

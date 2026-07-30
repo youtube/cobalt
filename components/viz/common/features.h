@@ -19,7 +19,6 @@
 namespace features {
 
 #if BUILDFLAG(IS_ANDROID)
-VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidBcivBottomControls);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidBrowserControlsInViz);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidDumpForBadCompositedUiState);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -123,6 +122,9 @@ VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kEnableADPFSeparateRendererMainSession);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kEnableADPFWorkloadIncreaseOnPageLoad);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kEnableADPFWorkloadReset);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kEnableADPFScrollNoRendererMain);
+VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kEnableADPFBoostRateLimit);
+extern const VIZ_COMMON_EXPORT base::FeatureParam<base::TimeDelta>
+    kAdpfBoostRateLimitMinWait;
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseDisplaySDRMaxLuminanceNits);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kHideDelegatedFrameHostMac);
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kEvictionUnlocksResources);
@@ -173,7 +175,6 @@ VIZ_COMMON_EXPORT bool UseSurfaceLayerForVideo();
 VIZ_COMMON_EXPORT int MaxOverlaysConsidered();
 VIZ_COMMON_EXPORT bool ShouldOnBeginFrameThrottleVideo();
 VIZ_COMMON_EXPORT bool IsVSyncAlignedPresentEnabled();
-VIZ_COMMON_EXPORT bool ShouldLogFrameQuadInfo();
 VIZ_COMMON_EXPORT std::optional<uint64_t>
 NumCooldownFramesForAckOnSurfaceActivationDuringInteraction();
 VIZ_COMMON_EXPORT extern const base::FeatureParam<int>
@@ -184,7 +185,6 @@ VIZ_COMMON_EXPORT bool Use90HzSwapChainCountFor72fps();
 VIZ_COMMON_EXPORT bool IsCrosContentAdjustedRefreshRateEnabled();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_ANDROID)
-VIZ_COMMON_EXPORT bool IsBcivBottomControlsEnabled();
 VIZ_COMMON_EXPORT bool IsBrowserControlsInVizEnabled();
 
 // If the allowlist is non-empty, the soc must be in the allowlist. Blocklist

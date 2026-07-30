@@ -54,9 +54,9 @@ if (_is_default_toolchain) {
 
 # 32-bit library will have browser code in it. 64-bit is webview-only.
 if (defined(android_app_secondary_abi)) {
-  _monochrome_browser_toolchain = android_secondary_abi_toolchain
+  _trichrome_browser_toolchain = android_secondary_abi_toolchain
 } else {
-  _monochrome_browser_toolchain = default_toolchain
+  _trichrome_browser_toolchain = default_toolchain
 }
 
 if (android_64bit_target_cpu) {
@@ -178,6 +178,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/auxiliary_search:java_resources",
       "//chrome/browser/commerce/price_change/android:java_resources",
       "//chrome/browser/commerce/price_insights/android:java_resources",
+      "//chrome/browser/composeplate/android:java_resources",
       "//chrome/browser/download/android:java_resources",
       "//chrome/browser/educational_tip:java_resources",
       "//chrome/browser/feed/android:feed_java_resources",
@@ -927,6 +928,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/fast_checkout/internal:java",
       "//chrome/browser/ui/android/hats/internal:java",
       "//chrome/browser/ui/android/webid/internal:java",
+      "//chrome/browser/ui/browser_window/internal:java",
       "//components/android_autofill/browser:java",
       "//components/autofill/android:payments_autofill_java",
       "//components/browser_ui/bottomsheet/android/internal:java",
@@ -942,16 +944,11 @@ if (_is_default_toolchain) {
     ]
 
     if (is_desktop_android) {
-      deps += [
-        "//chrome/browser/ui/android/extensions/windowing/internal:java",
-        "//chrome/browser/ui/browser_window/internal:java",
-      ]
+      deps +=
+          [ "//chrome/browser/ui/android/extensions/windowing/internal:java" ]
     } else {
       # TODO(crbug.com/434123514): see if we can remove these stub targets.
-      deps += [
-        "//chrome/browser/ui/android/extensions/windowing/stub:java",
-        "//chrome/browser/ui/browser_window/stub:java",
-      ]
+      deps += [ "//chrome/browser/ui/android/extensions/windowing/stub:java" ]
     }
   }
 
@@ -1057,6 +1054,7 @@ if (_is_default_toolchain) {
       "junit:chrome_junit_tests_org.chromium.chrome.browser.omnibox",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.page_info",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.password_manager",
+      "junit:chrome_junit_tests_org.chromium.chrome.browser.permissions",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.price_tracking",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.privacy_sandbox",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.search_engines",
@@ -1180,6 +1178,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/web_app_header:junit",
       "//chrome/browser/ui/android/webid/internal:junit",
       "//chrome/browser/ui/android/whats_new:junit",
+      "//chrome/browser/ui/browser_window/internal:junit",
       "//chrome/browser/ui/messages/android:junit",
       "//chrome/browser/ui/plus_addresses/android:junit",
       "//chrome/browser/uid/android:junit",
@@ -1207,10 +1206,6 @@ if (_is_default_toolchain) {
 
     if (enable_extensions_core) {
       deps += [ "//chrome/browser/ui/android/extensions:junit" ]
-    }
-
-    if (is_desktop_android) {
-      deps += [ "//chrome/browser/ui/browser_window/internal:junit" ]
     }
   }
 
@@ -1744,11 +1739,10 @@ if (_is_default_toolchain) {
     _is_trichrome = defined(invoker.is_trichrome) && invoker.is_trichrome
     _is_bundle_module =
         defined(invoker.is_bundle_module) && invoker.is_bundle_module
+    assert(!_is_monochrome, "Monochrome is an unsupported configuration")
 
     if (_is_trichrome) {
       _variant = "trichrome_chrome"
-    } else if (_is_monochrome) {
-      _variant = "monochrome"
     } else {
       _variant = "chrome"
     }
@@ -1759,7 +1753,7 @@ if (_is_default_toolchain) {
     }
 
     if (enable_resource_allowlist_generation) {
-      if (_is_trichrome || _is_monochrome) {
+      if (_is_trichrome) {
         _lib = "libmonochrome_inputs"
       } else {
         _lib = "libchrome_inputs"
@@ -1771,76 +1765,15 @@ if (_is_default_toolchain) {
 
       generate_resource_allowlist(_resource_allowlist_target) {
         _fat_lib_toolchain = current_toolchain
-        if (_is_monochrome || _is_trichrome) {
+        if (_is_trichrome) {
           # TODO(agrieve): For 64-bit primary, using libmonochrome_64 would be
           #     more efficient.
-          _fat_lib_toolchain = _monochrome_browser_toolchain
+          _fat_lib_toolchain = _trichrome_browser_toolchain
         }
         deps = [ ":${_lib}($_fat_lib_toolchain)" ]
 
         inputs = [ get_label_info(deps[0], "root_out_dir") + _lib_path ]
         output = _resource_allowlist_file
-      }
-
-      # Use custom resource ID list instead of android_webview's compiler
-      # resource allowlist because //android_webview:generate_webui_resources
-      # and //android_webview:generate_components_resources use hand-written
-      # resource allowlists.
-      if (_is_monochrome) {
-        _locale_allowlist_target = "${_variant}_locale_allowlist"
-        _locale_allowlist_file =
-            "$target_gen_dir/${_variant}_locale_allowlist.txt"
-        _system_webview_locale_allowlist_target =
-            "${_variant}_system_webview_locale_resource_allowlist"
-        _system_webview_locale_allowlist_file =
-            "$target_gen_dir/" +
-            "${_variant}_system_webview_locale_resource_id_list.txt"
-
-        action(_system_webview_locale_allowlist_target) {
-          script = "//tools/grit/pak_util.py"
-
-          _system_webview_en_US_locale_pak =
-              "$root_out_dir/android_webview/locales/en-US.pak"
-
-          inputs = [ _system_webview_en_US_locale_pak ]
-
-          outputs = [ _system_webview_locale_allowlist_file ]
-
-          deps = [ "//android_webview:repack_locales" ]
-
-          args = [
-            "list-id",
-            "--output",
-            rebase_path(_system_webview_locale_allowlist_file, root_build_dir),
-            rebase_path(_system_webview_en_US_locale_pak, root_build_dir),
-          ]
-        }
-
-        action(_locale_allowlist_target) {
-          script = "//tools/resources/filter_resource_allowlist.py"
-
-          inputs = [
-            _resource_allowlist_file,
-            _system_webview_locale_allowlist_file,
-          ]
-
-          outputs = [ _locale_allowlist_file ]
-
-          deps = [
-            ":$_resource_allowlist_target",
-            ":$_system_webview_locale_allowlist_target",
-            "//android_webview:system_webview_pak_allowlist",
-          ]
-
-          args = [
-            "--input",
-            rebase_path(_resource_allowlist_file, root_build_dir),
-            "--filter",
-            rebase_path(_system_webview_locale_allowlist_file, root_build_dir),
-            "--output",
-            rebase_path(_locale_allowlist_file, root_build_dir),
-          ]
-        }
       }
     }
 
@@ -1857,10 +1790,6 @@ if (_is_default_toolchain) {
       if (enable_resource_allowlist_generation) {
         repack_allowlist = _resource_allowlist_file
         deps += [ ":${_resource_allowlist_target}" ]
-        if (_is_monochrome) {
-          locale_allowlist = _locale_allowlist_file
-          deps += [ ":$_locale_allowlist_target" ]
-        }
       }
     }
 
@@ -1897,26 +1826,16 @@ if (_is_default_toolchain) {
         ":${_variant}_locale_pak_assets",
         ":${_variant}_paks",
       ]
-      if (_is_monochrome) {
-        deps += [ "//android_webview:locale_pak_assets" ]
-      }
     }
   }
 
-  # Resource packaging varies with Monochrome and bundles because the pak
-  # resource allowlist is derived from the native library.
+  # Resource packaging varies with bundles because the pak resource allowlist is
+  # derived from the native library.
   resource_packaging("chrome_apk_pak_assets") {
     is_monochrome = false
   }
   resource_packaging("chrome_bundle_module_pak_assets") {
     is_monochrome = false
-    is_bundle_module = true
-  }
-  resource_packaging("monochrome_apk_pak_assets") {
-    is_monochrome = true
-  }
-  resource_packaging("monochrome_bundle_module_pak_assets") {
-    is_monochrome = true
     is_bundle_module = true
   }
   resource_packaging("trichrome_chrome_bundle_module_pak_assets") {
@@ -2057,35 +1976,6 @@ if (_is_default_toolchain) {
     bundle_name = "ChromePublic"
   }
 
-  android_library("monochrome_java") {
-    deps = [
-      ":base_module_java",
-      ":base_monochrome_module_java",
-      "//android_webview:android_webview_java",
-      "//base:base_java",
-      "//base/version_info/android:version_constants_java",
-      "//chrome/android:chrome_java",
-      "//content/public/android:content_java",
-    ]
-    sources = [
-      "java/src/org/chromium/chrome/browser/MonochromeApplicationImpl.java",
-    ]
-  }
-
-  # Monochrome equivalent of :base_module_java.
-  android_library("base_monochrome_module_java") {
-    sources = [ "java/src/org/chromium/chrome/browser/base/SplitMonochromeApplication.java" ]
-    deps = [
-      ":base_module_java",
-      "//android_webview:android_webview_no_weblayer_java",
-      "//base:base_java",
-      "//base/version_info/android:version_constants_java",
-      "//build/android:build_java",
-      "//chrome/browser/flags:java",
-      "//content/public/android:content_java",
-    ]
-  }
-
   generate_jni("base_module_jni") {
     sources = [
       "java/src/org/chromium/chrome/browser/init/InitializeFeatureList.java",
@@ -2155,14 +2045,18 @@ if (_is_default_toolchain) {
       "//chrome/browser/flags:java",
       "//chrome/browser/incognito_window:java",
       "//chrome/browser/language/android:base_module_java",
+      "//chrome/browser/policy/android:util_java",
       "//chrome/browser/preferences:java",
       "//chrome/browser/ui/android/pdf:pdf_provider_java",
       "//chrome/browser/util:java",
       "//chrome/browser/version:java",
       "//components/crash/android:java",
       "//components/embedder_support/android:application_java",
+      "//components/metrics:metrics_java",
       "//components/minidump_uploader:minidump_uploader_java",
       "//components/module_installer/android:module_installer_java",
+      "//components/policy/android:policy_java",
+      "//components/variations/android:variations_java",
       "//third_party/android_deps:playcore_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_collection_collection_java",
@@ -2251,14 +2145,6 @@ if (_is_default_toolchain) {
   }
 
   if (android_64bit_target_cpu) {
-    chrome_public_apk_or_module_tmpl("monochrome_64_public_apk") {
-      is_monochrome = true
-      apk_name = "MonochromePublic64"
-      target_type = "android_apk"
-      is_64_bit_browser = true
-      include_32_bit_webview = false
-    }
-
     trichrome_library_apk_tmpl("trichrome_library_64_apk") {
       apk_name = "TrichromeLibrary64"
       is_64_bit_browser = true
@@ -2414,6 +2300,8 @@ if (_is_default_toolchain) {
     if (is_desktop_android) {
       deps += [
         "//chrome/browser/ui/android/extensions/windowing/internal:javatests",
+
+        # TODO(crbug.com/473636857): Include in normal builds once all Android support is finished.
         "//chrome/browser/ui/browser_window/internal:javatests",
       ]
     }
@@ -2575,10 +2463,6 @@ if (_is_default_toolchain) {
       defined(expected_static_initializer_64bit_count) &&
       android_64bit_target_cpu
   if (_verify_32bit_static_initializers || _verify_64bit_static_initializers) {
-    # Old name alias to be removed after migration is done.
-    group("monochrome_static_initializers") {
-      deps = [ ":check_chrome_static_initializers" ]
-    }
     group("check_chrome_static_initializers") {
       deps = []
       if (_verify_32bit_static_initializers) {
@@ -3369,7 +3253,7 @@ if (_is_default_toolchain) {
   }
 }
 
-# Monochrome equivalent of Chrome's APK or bundle library template.
+# Trichrome equivalent of Chrome's APK or bundle library template.
 template("libmonochrome_tmpl") {
   chrome_common_shared_library(target_name) {
     sources = [ "../browser/android/monochrome_entry_point.cc" ]
@@ -3393,7 +3277,7 @@ template("libmonochrome_tmpl") {
       never_omit_switch_num = true
     }
 
-    is_monochrome = true
+    is_trichrome = true
     module_descs = chrome_module_descs
 
     forward_variables_from(invoker, "*", [ "deps" ])
@@ -3401,17 +3285,17 @@ template("libmonochrome_tmpl") {
 }
 
 libmonochrome_tmpl("libmonochrome") {
-  enable_target = current_toolchain == _monochrome_browser_toolchain
+  enable_target = current_toolchain == _trichrome_browser_toolchain
   define_unwind_table_target =
       add_unwind_tables_in_chrome_32bit_apk && current_cpu == "arm"
   if (enable_resource_allowlist_generation) {
     # Make sure allowlist_inputs is built first so when concurrent_links == 1
     # it comes before the actual (very slow) link step.
-    deps = [ ":libmonochrome_inputs($_monochrome_browser_toolchain)" ]
+    deps = [ ":libmonochrome_inputs($_trichrome_browser_toolchain)" ]
   }
 }
 
-if (current_toolchain == _monochrome_browser_toolchain) {
+if (current_toolchain == _trichrome_browser_toolchain) {
   # Avoiding a real link for this step allows the actual libmonochrome to
   # run at the same time as R8.
   libmonochrome_tmpl("libmonochrome_inputs") {

@@ -17,7 +17,6 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_tree.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -66,6 +65,7 @@
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
@@ -858,7 +858,8 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTest,
   EXPECT_TRUE(load_observer.AwaitCorrectPageLoaded());
   EXPECT_TRUE(GetManifestUpdateManager(browser()->profile())
                   .IsAppPendingPageAndManifestUrlLoadForTesting(app_id));
-  EXPECT_TRUE(GetProvider().registrar_unsafe().IsDiyApp(app_id));
+  EXPECT_FALSE(GetProvider().registrar_unsafe().AppMatches(
+      app_id, WebAppFilter::IsCraftedApp()));
 
   // Inject new manifest into the page once DidFinishLoad() is triggered. This
   // should start the manifest checking command without the need for a refresh.
@@ -871,7 +872,8 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTest,
             std::move(result_awaiter).AwaitNextResult());
   EXPECT_EQ(GetProvider().registrar_unsafe().GetAppManifestUrl(app_id),
             newly_loaded_manifest_url);
-  EXPECT_FALSE(GetProvider().registrar_unsafe().IsDiyApp(app_id));
+  EXPECT_TRUE(GetProvider().registrar_unsafe().AppMatches(
+      app_id, WebAppFilter::IsCraftedApp()));
 }
 
 IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTest,
@@ -2309,11 +2311,19 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerIsolatedWebAppBrowserTest,
   UpdateCheckResultAwaiter awaiter(
       url_info.origin().GetURL().Resolve("/index.html"));
   EXPECT_TRUE(OpenApp(url_info.app_id()));
-  EXPECT_EQ(std::move(awaiter).AwaitNextResult(),
-            ManifestUpdateResult::kAppIsIsolatedWebApp);
-
-  histogram_tester_.ExpectBucketCount(
-      kUpdateHistogramName, ManifestUpdateResult::kAppIsIsolatedWebApp, 1);
+  if (base::FeatureList::IsEnabled(features::kWebAppUsePrimaryIcon) &&
+      base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating)) {
+    // With the new update process, simply assert that no metrics are reported,
+    // as the command will report result metrics if it is run.
+    provider().command_manager().AwaitAllCommandsCompleteForTesting();
+    histogram_tester_.ExpectTotalCount(
+        "Webapp.Update.ManifestSilentUpdateCheckResult", 0);
+  } else {
+    EXPECT_EQ(std::move(awaiter).AwaitNextResult(),
+              ManifestUpdateResult::kAppIsIsolatedWebApp);
+    histogram_tester_.ExpectBucketCount(
+        kUpdateHistogramName, ManifestUpdateResult::kAppIsIsolatedWebApp, 1);
+  }
 }
 
 using ManifestUpdateManagerWebAppsBrowserTest =
@@ -2558,7 +2568,7 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   EXPECT_EQ(1u, old_file_handler.accept.size());
   auto old_extensions = old_file_handler.accept[0].file_extensions;
   EXPECT_EQ(1u, old_extensions.size());
-  EXPECT_TRUE(base::Contains(old_extensions, ".txt"));
+  EXPECT_TRUE(old_extensions.contains(".txt"));
 
   OverrideManifest(kFileHandlerManifestTemplate, {".md", kInstallableIconList});
   EXPECT_EQ(ManifestUpdateResult::kAppUpdated,
@@ -2570,7 +2580,7 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   EXPECT_EQ(1u, new_file_handler.accept.size());
   auto new_extensions = new_file_handler.accept[0].file_extensions;
   EXPECT_EQ(1u, new_extensions.size());
-  EXPECT_TRUE(base::Contains(new_extensions, ".md"));
+  EXPECT_TRUE(new_extensions.contains(".md"));
 }
 
 IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
@@ -2606,7 +2616,7 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   const WebApp* web_app = GetProvider().registrar_unsafe().GetAppById(app_id);
   const auto& old_file_handler = web_app->file_handlers()[0];
   auto old_extensions = old_file_handler.accept[0].file_extensions;
-  EXPECT_TRUE(base::Contains(old_extensions, ".txt"));
+  EXPECT_TRUE(old_extensions.contains(".txt"));
   const GURL url = GetAppURL();
   const GURL origin = url.DeprecatedGetOriginAsURL();
 
@@ -2624,8 +2634,8 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   OverrideManifest(kFileHandlerManifestTemplate, {".md\", \".txt", "red"});
   EXPECT_EQ(ManifestUpdateResult::kAppUpdated, GetResultAfterPageLoad(url));
   auto new_extensions = web_app->file_handlers()[0].accept[0].file_extensions;
-  EXPECT_TRUE(base::Contains(new_extensions, ".md"));
-  EXPECT_TRUE(base::Contains(new_extensions, ".txt"));
+  EXPECT_TRUE(new_extensions.contains(".md"));
+  EXPECT_TRUE(new_extensions.contains(".txt"));
 
   // Set back to allowed.
   EXPECT_EQ(ApiApprovalState::kRequiresPrompt,
@@ -2641,8 +2651,8 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   OverrideManifest(kFileHandlerManifestTemplate, {".md\", \".txt", "blue"});
   EXPECT_EQ(ManifestUpdateResult::kAppUpdated, GetResultAfterPageLoad(url));
   new_extensions = web_app->file_handlers()[0].accept[0].file_extensions;
-  EXPECT_TRUE(base::Contains(new_extensions, ".md"));
-  EXPECT_TRUE(base::Contains(new_extensions, ".txt"));
+  EXPECT_TRUE(new_extensions.contains(".md"));
+  EXPECT_TRUE(new_extensions.contains(".txt"));
 
   EXPECT_EQ(ApiApprovalState::kAllowed,
             GetProvider().registrar_unsafe().GetAppFileHandlerUserApprovalState(
@@ -2655,8 +2665,8 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   OverrideManifest(kFileHandlerManifestTemplate, {".txt", "blue"});
   EXPECT_EQ(ManifestUpdateResult::kAppUpdated, GetResultAfterPageLoad(url));
   new_extensions = web_app->file_handlers()[0].accept[0].file_extensions;
-  EXPECT_FALSE(base::Contains(new_extensions, ".md"));
-  EXPECT_TRUE(base::Contains(new_extensions, ".txt"));
+  EXPECT_FALSE(new_extensions.contains(".md"));
+  EXPECT_TRUE(new_extensions.contains(".txt"));
   EXPECT_EQ(ApiApprovalState::kAllowed,
             GetProvider().registrar_unsafe().GetAppFileHandlerUserApprovalState(
                 app_id));
@@ -2715,7 +2725,7 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerBrowserTestWithFileHandling,
   const auto& old_file_handler = web_app->file_handlers()[0];
   ASSERT_FALSE(old_file_handler.accept.empty());
   auto old_extensions = old_file_handler.accept[0].file_extensions;
-  EXPECT_TRUE(base::Contains(old_extensions, ".txt"));
+  EXPECT_TRUE(old_extensions.contains(".txt"));
   const GURL url = GetAppURL();
   const GURL origin = url.DeprecatedGetOriginAsURL();
 
@@ -4564,7 +4574,7 @@ IN_PROC_BROWSER_TEST_F(ManifestUpdateManagerPrerenderingBrowserTest,
 
   base::HistogramTester histogram_tester;
   const GURL prerender_url = http_server_.GetURL("/title1.html");
-  content::FrameTreeNodeId host_id =
+  content::PrerenderHostId host_id =
       prerender_helper().AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*web_contents, host_id);
   // Prerendering doesn't update the existing App ID.

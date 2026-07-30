@@ -111,10 +111,8 @@
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/policy/model/reporting/features.h"
-#import "ios/chrome/browser/popup_menu/overflow_menu/public/feature_flags.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
-#import "ios/chrome/browser/screen_time/model/screen_time_buildflags.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/public/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_ui_features.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -131,10 +129,6 @@
 #import "ios/web/common/features.h"
 #import "ios/web/common/user_agent.h"
 #import "ios/web/common/web_view_creation_util.h"
-
-#if BUILDFLAG(IOS_SCREEN_TIME_ENABLED)
-#import "ios/chrome/browser/screen_time/model/features.h"
-#endif
 
 using flags_ui::FeatureEntry;
 
@@ -608,17 +602,6 @@ const FeatureEntry::FeatureVariation kUrlScoringModelVariations[] = {
     {"Full model", nullptr, 0, "3380197"},
 };
 
-const FeatureEntry::FeatureParam kSafetyCheckNotificationsVerbose[] = {
-    {kSafetyCheckNotificationsExperimentType, "0"}};
-const FeatureEntry::FeatureParam kSafetyCheckNotificationsSuccinct[] = {
-    {kSafetyCheckNotificationsExperimentType, "1"}};
-
-const FeatureEntry::FeatureVariation kSafetyCheckNotificationsVariations[] = {
-    {"Display multiple notifications at once", kSafetyCheckNotificationsVerbose,
-     std::size(kSafetyCheckNotificationsVerbose), nullptr},
-    {"Display one notification at a time", kSafetyCheckNotificationsSuccinct,
-     std::size(kSafetyCheckNotificationsSuccinct), nullptr}};
-
 // Contextual Panel flag variations.
 const FeatureEntry::FeatureParam kContextualPanelRichIPHArms[] = {
     {"entrypoint-highlight-iph", "true"},
@@ -918,17 +901,6 @@ const FeatureEntry::FeatureVariation kIOSSoftLockVariations[] = {
     {" - No delay", kIOSSoftLockNoDelay, std::size(kIOSSoftLockNoDelay),
      nullptr}};
 
-const FeatureEntry::FeatureParam
-    kIOSStartTimeStartupRemediationsSaveNTPWebStateArm[] = {
-        {kIOSStartTimeStartupRemediationsSaveNTPWebState, "true"},
-};
-const FeatureEntry::FeatureVariation
-    kIOSStartTimeStartupRemediationsVariations[] = {
-        {" - Save NTP Web State",
-         kIOSStartTimeStartupRemediationsSaveNTPWebStateArm,
-         std::size(kIOSStartTimeStartupRemediationsSaveNTPWebStateArm),
-         nullptr}};
-
 constexpr flags_ui::FeatureEntry::FeatureParam
     kAutofillThrottleDocFormScanShortPeriodParam[] = {{"period-ms", "250"}};
 constexpr flags_ui::FeatureEntry::FeatureParam
@@ -963,26 +935,6 @@ constexpr flags_ui::FeatureEntry::FeatureVariation
          nullptr},
         {"Long period", kAutofillThrottleFilteredDocFormScanLongPeriodParam,
          std::size(kAutofillThrottleFilteredDocFormScanLongPeriodParam),
-         nullptr}};
-
-const FeatureEntry::FeatureParam
-    kIOSStartTimeBackgroundRemediationsAvoidNTPCleanupArm[] = {
-        {kIOSStartTimeBackgroundRemediationsAvoidNTPCleanup, "true"},
-        {kIOSStartTimeBrowserBackgroundRemediationsUpdateFeedRefresh, "false"}};
-const FeatureEntry::FeatureParam
-    kIOSStartTimeBrowserBackgroundRemediationsUpdateFeedRefreshArm[] = {
-        {kIOSStartTimeBrowserBackgroundRemediationsUpdateFeedRefresh, "true"},
-        {kIOSStartTimeBackgroundRemediationsAvoidNTPCleanup, "false"}};
-const FeatureEntry::FeatureVariation
-    kIOSStartTimeBrowserBackgroundRemediationsVariations[] = {
-        {" - Avoid NTP Cleanup",
-         kIOSStartTimeBackgroundRemediationsAvoidNTPCleanupArm,
-         std::size(kIOSStartTimeBackgroundRemediationsAvoidNTPCleanupArm),
-         nullptr},
-        {" - Update Feed Refresh",
-         kIOSStartTimeBrowserBackgroundRemediationsUpdateFeedRefreshArm,
-         std::size(
-             kIOSStartTimeBrowserBackgroundRemediationsUpdateFeedRefreshArm),
          nullptr}};
 
 const FeatureEntry::FeatureParam kUpdatedFirstRunSequenceArm1[] = {
@@ -1314,15 +1266,6 @@ const FeatureEntry::Choice kDataSharingVersioningStateChoices[] = {
 };
 // LINT.ThenChange(//chrome/browser/about_flags.cc:DataSharingVersioningChoices)
 
-const FeatureEntry::FeatureParam
-    kOmniboxAimShortcutTypedStateEnabledForTypedLength15[] = {
-        {OmniboxFieldTrial::kMinimumTypedCharactersToInvokeAimShortcut.name,
-         "15"}};
-const FeatureEntry::FeatureVariation kOmniboxAimShortcutTypedStateVariations[] =
-    {{"for 15+ chars", kOmniboxAimShortcutTypedStateEnabledForTypedLength15,
-      std::size(kOmniboxAimShortcutTypedStateEnabledForTypedLength15),
-      nullptr}};
-
 const FeatureEntry::FeatureParam kComposeboxDevToolsForceFailure[] = {
     {kForceUploadFailureParam, "true"}};
 const FeatureEntry::FeatureParam kComposeboxDevToolsSlowLoad[] = {
@@ -1419,6 +1362,12 @@ const FeatureEntry::FeatureParam kZeroStateSuggestionsPlacementAIHubParam[] = {
 const FeatureEntry::FeatureParam
     kZeroStateSuggestionsPlacementAskGeminiParam[] = {
         {kZeroStateSuggestionsPlacementAskGemini, "true"}};
+
+const FeatureEntry::FeatureParam kGeminiImageRemixToolShowFRERowParam[] = {
+    {kGeminiImageRemixToolShowFRERow, "true"}};
+const FeatureEntry::FeatureVariation kGeminiImageRemixToolVariations[] = {
+    {"(Show FRE Row)", kGeminiImageRemixToolShowFRERowParam,
+     std::size(kGeminiImageRemixToolShowFRERowParam), nullptr}};
 
 const FeatureEntry::FeatureVariation kZeroStateSuggestionsVariations[] = {
     {"AI Hub", kZeroStateSuggestionsPlacementAIHubParam,
@@ -1578,12 +1527,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"webpage-text-zoom-ipad", flag_descriptions::kWebPageTextZoomIPadName,
      flag_descriptions::kWebPageTextZoomIPadDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(web::kWebPageTextZoomIPad)},
-    {"omnibox-aim-shortcut-typed-state",
-     flag_descriptions::kIOSOmniboxAimShortcutName,
-     flag_descriptions::kIOSOmniboxAimShortcutDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(omnibox::kOmniboxAimShortcutTypedState,
-                                    kOmniboxAimShortcutTypedStateVariations,
-                                    "OmniboxAimShortcutTypedState")},
     {"aim-server-eligibility",
      flag_descriptions::kIOSOmniboxAimServerEligibilityName,
      flag_descriptions::kIOSOmniboxAimServerEligibilityDescription,
@@ -1613,11 +1556,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kOmniboxMobileParityUpdateV2Description,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(omnibox::kOmniboxMobileParityUpdateV2)},
-    {"omnibox-mobile-parity-update-v3",
-     flag_descriptions::kOmniboxMobileParityUpdateV3Name,
-     flag_descriptions::kOmniboxMobileParityUpdateV3Description,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(omnibox::kOmniboxMobileParityUpdateV3)},
     {"force-startup-signin-promo",
      flag_descriptions::kForceStartupSigninPromoName,
      flag_descriptions::kForceStartupSigninPromoDescription, flags_ui::kOsIos,
@@ -1625,12 +1563,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"shared-highlighting-ios", flag_descriptions::kSharedHighlightingIOSName,
      flag_descriptions::kSharedHighlightingIOSDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kSharedHighlightingIOS)},
-#if BUILDFLAG(IOS_SCREEN_TIME_ENABLED)
-    {"screen-time-integration-ios",
-     flag_descriptions::kScreenTimeIntegrationName,
-     flag_descriptions::kScreenTimeIntegrationDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kScreenTimeIntegration)},
-#endif
     {"ios-reactivation-notifications",
      flag_descriptions::kIOSReactivationNotificationsName,
      flag_descriptions::kIOSReactivationNotificationsDescription,
@@ -1688,11 +1620,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"enable-lens-overlay", flag_descriptions::kEnableLensOverlayName,
      flag_descriptions::kEnableLensOverlayDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableLensOverlay)},
-    {"enable-lens-view-finder-unified-experience",
-     flag_descriptions::kEnableLensViewFinderUnifiedExperienceName,
-     flag_descriptions::kEnableLensViewFinderUnifiedExperienceDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kEnableLensViewFinderUnifiedExperience)},
     {"ntp-view-hierarchy-repair",
      flag_descriptions::kNTPViewHierarchyRepairName,
      flag_descriptions::kNTPViewHierarchyRepairDescription, flags_ui::kOsIos,
@@ -1811,23 +1738,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"tab-grid-new-transitions", flag_descriptions::kTabGridNewTransitionsName,
      flag_descriptions::kTabGridNewTransitionsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kTabGridNewTransitions)},
-    {"iph-price-notifications-while-browsing",
-     flag_descriptions::kIPHPriceNotificationsWhileBrowsingName,
-     flag_descriptions::kIPHPriceNotificationsWhileBrowsingDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         feature_engagement::kIPHPriceNotificationsWhileBrowsingFeature)},
     {"shopping-list", commerce::flag_descriptions::kShoppingListName,
      commerce::flag_descriptions::kShoppingListDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(commerce::kShoppingList)},
-    {"notification-settings-menu-item",
-     flag_descriptions::kNotificationSettingsMenuItemName,
-     flag_descriptions::kNotificationSettingsMenuItemDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kNotificationSettingsMenuItem)},
-    {"web-feed-feedback-reroute",
-     flag_descriptions::kWebFeedFeedbackRerouteName,
-     flag_descriptions::kWebFeedFeedbackRerouteDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kWebFeedFeedbackReroute)},
     {"ios-browser-edit-menu-metrics",
      flag_descriptions::kIOSBrowserEditMenuMetricsName,
      flag_descriptions::kIOSBrowserEditMenuMetricsDescription, flags_ui::kOsIos,
@@ -1842,10 +1755,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kOmniboxGroupingFrameworkForTypedSuggestionsDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(omnibox::kGroupingFrameworkForNonZPS)},
-    {"only-access-clipboard-async",
-     flag_descriptions::kOnlyAccessClipboardAsyncName,
-     flag_descriptions::kOnlyAccessClipboardAsyncDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kOnlyAccessClipboardAsync)},
     {"spotlight-never-retain-index",
      flag_descriptions::kSpotlightNeverRetainIndexName,
      flag_descriptions::kSpotlightNeverRetainIndexDescription, flags_ui::kOsIos,
@@ -1861,10 +1770,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"ai-hub-new-badge", flag_descriptions::kAIHubNewBadgeName,
      flag_descriptions::kAIHubNewBadgeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kAIHubNewBadge)},
-    {"enable-identity-in-auth-error",
-     flag_descriptions::kEnableIdentityInAuthErrorName,
-     flag_descriptions::kEnableIdentityInAuthErrorDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(switches::kEnableIdentityInAuthError)},
     {"enable-asweb-authentication-session",
      flag_descriptions::kEnableASWebAuthenticationSessionName,
      flag_descriptions::kEnableASWebAuthenticationSessionDescription,
@@ -1887,6 +1792,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kReaderModeOmniboxEntrypointName,
      flag_descriptions::kReaderModeOmniboxEntrypointDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kEnableReaderModeOmniboxEntryPoint)},
+    {"reader-mode-omnibox-entrypoint-in-us",
+     flag_descriptions::kReaderModeOmniboxEntrypointInUSName,
+     flag_descriptions::kReaderModeOmniboxEntrypointInUSDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kEnableReaderModeOmniboxEntryPointInUS)},
     {"disable-lens-camera", flag_descriptions::kDisableLensCameraName,
      flag_descriptions::kDisableLensCameraDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kDisableLensCamera)},
@@ -1926,10 +1836,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(page_content_annotations::features::
                             kPageVisibilityPageContentAnnotations)},
-    {"enhanced-safe-browsing-promo",
-     flag_descriptions::kEnhancedSafeBrowsingPromoName,
-     flag_descriptions::kEnhancedSafeBrowsingPromoDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(safe_browsing::kEnhancedSafeBrowsingPromo)},
     {"cpe-passkey-prf-support",
      flag_descriptions::kCredentialProviderPasskeyPRFName,
      flag_descriptions::kCredentialProviderPasskeyPRFDescription,
@@ -1978,9 +1884,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kLensTranslateToggleModeEnabled,
                                     kLensTranslateToggleModeVariations,
                                     "LensTranslateToggleMode")},
-    {"ios-choose-from-drive", flag_descriptions::kIOSChooseFromDriveName,
-     flag_descriptions::kIOSChooseFromDriveDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kIOSChooseFromDrive)},
     {"omnibox-mia-zps", flag_descriptions::kOmniboxMiaZpsName,
      flag_descriptions::kOmniboxMiaZpsDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(
@@ -2027,12 +1930,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          autofill::features::kAutofillShowManualFillForVirtualCards)},
-    {"safety-check-notifications",
-     flag_descriptions::kSafetyCheckNotificationsName,
-     flag_descriptions::kSafetyCheckNotificationsDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kSafetyCheckNotifications,
-                                    kSafetyCheckNotificationsVariations,
-                                    "SafetyCheckNotifications")},
     {"app-background-refresh-ios", flag_descriptions::kAppBackgroundRefreshName,
      flag_descriptions::kAppBackgroundRefreshDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableAppBackgroundRefresh)},
@@ -2055,11 +1952,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kEnableTraitCollectionRegistrationName,
      flag_descriptions::kEnableTraitCollectionRegistrationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kEnableTraitCollectionRegistration)},
-    {"autofill-isolated-world-ios",
-     flag_descriptions::kAutofillIsolatedWorldForJavascriptIOSName,
-     flag_descriptions::kAutofillIsolatedWorldForJavascriptIOSDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAutofillIsolatedWorldForJavascriptIos)},
     {"safe-browsing-local-lists-use-sbv5",
      flag_descriptions::kSafeBrowsingLocalListsUseSBv5Name,
      flag_descriptions::kSafeBrowsingLocalListsUseSBv5Description,
@@ -2082,10 +1974,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
              kSegmentationPlatformEphemeralCardRanker,
          kEphemeralCardRankerCardOverrideOptions,
          "SegmentationPlatformEphemeralCardRanker")},
-    {"lens-overlay-enable-ipad-compatibility",
-     flag_descriptions::kLensOverlayEnableIPadCompatibilityName,
-     flag_descriptions::kLensOverlayEnableIPadCompatibilityDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kLensOverlayEnableIPadCompatibility)},
     {"lens-overlay-enable-landscape-compatibility",
      flag_descriptions::kLensOverlayEnableLandscapeCompatibilityName,
      flag_descriptions::kLensOverlayEnableLandscapeCompatibilityDescription,
@@ -2107,13 +1995,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kIOSSoftLock,
                                     kIOSSoftLockVariations,
                                     "IOSSoftLock")},
-    {"segmentation-platform-tips-ephemeral-card",
-     flag_descriptions::kSegmentationPlatformTipsEphemeralCardName,
-     flag_descriptions::kSegmentationPlatformTipsEphemeralCardDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(segmentation_platform::features::
-                            kSegmentationPlatformTipsEphemeralCard)},
-
     {"lens-unary-apis-with-http-transport-enabled",
      flag_descriptions::kLensUnaryApisWithHttpTransportEnabledName,
      flag_descriptions::kLensUnaryApisWithHttpTransportEnabledDescription,
@@ -2136,13 +2017,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kProvisionalNotificationAlertName,
      flag_descriptions::kProvisionalNotificationAlertDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kProvisionalNotificationAlert)},
-    {"ios-start-time-startup-remediations",
-     flag_descriptions::kIOSStartTimeStartupRemediationsName,
-     flag_descriptions::kIOSStartTimeStartupRemediationsDescription,
-     flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kIOSStartTimeStartupRemediations,
-                                    kIOSStartTimeStartupRemediationsVariations,
-                                    "IOSStartTimeStartupRemediations")},
     {"autofill-throttle-doc-form-scans",
      flag_descriptions::kAutofillThrottleDocumentFormScanName,
      flag_descriptions::kAutofillThrottleDocumentFormScanDescription,
@@ -2162,14 +2036,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kAutofillPaymentsSheetV2Name,
      flag_descriptions::kAutofillPaymentsSheetV2Description, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kAutofillPaymentsSheetV2Ios)},
-    {"ios-start-time-browser-background-remediations",
-     flag_descriptions::kIOSStartTimeBrowserBackgroundRemediationsName,
-     flag_descriptions::kIOSStartTimeBrowserBackgroundRemediationsDescription,
-     flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(
-         kIOSStartTimeBrowserBackgroundRemediations,
-         kIOSStartTimeBrowserBackgroundRemediationsVariations,
-         "IOSStartTimeStartupRemediations")},
     {"lens-unary-http-transport-enabled",
      flag_descriptions::kLensUnaryHttpTransportEnabledName,
      flag_descriptions::kLensUnaryHttpTransportEnabledDescription,
@@ -2411,10 +2277,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kReaderModeSupportNewFontsName,
      flag_descriptions::kReaderModeSupportNewFontsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(dom_distiller::kReaderModeSupportNewFonts)},
-    {"reader-mode-badge-support",
-     flag_descriptions::kReaderModeBadgeSupportName,
-     flag_descriptions::kReaderModeBadgeSupportDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kEnableReaderModeBadgeSupport)},
     {"reader-mode-us-enabled", flag_descriptions::kReaderModeUSEnabledName,
      flag_descriptions::kReaderModeUSEnabledDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableReaderModeInUS)},
@@ -2776,10 +2638,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kWebPageReportedImagesSheetName,
      flag_descriptions::kWebPageReportedImagesSheetDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kWebPageReportedImagesSheet)},
-    {"image-context-menu-gemini-entry-point",
-     flag_descriptions::kImageContextMenuGeminiEntryPointName,
-     flag_descriptions::kImageContextMenuGeminiEntryPointDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kImageContextMenuGeminiEntryPoint)},
     {"composebox-close-button-top-align",
      flag_descriptions::kComposeboxCloseButtonTopAlignName,
      flag_descriptions::kComposeboxCloseButtonTopAlignDescription,
@@ -2896,7 +2754,12 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_VALUE_TYPE(kChromeNextIa)},
     {"gemini-image-remix-tool", flag_descriptions::kGeminiImageRemixToolName,
      flag_descriptions::kGeminiImageRemixToolDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kGeminiImageRemixTool)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kGeminiImageRemixTool,
+                                    kGeminiImageRemixToolVariations,
+                                    "GeminiImageRemixTool")},
+    {"composebox-aim-disabled", flag_descriptions::kComposeboxAIMDisabledName,
+     flag_descriptions::kComposeboxAIMDisabledDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxAIMDisabled)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

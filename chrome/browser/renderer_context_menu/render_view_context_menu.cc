@@ -14,7 +14,6 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -2495,8 +2494,7 @@ void RenderViewContextMenu::AppendSearchProvider() {
       return;
     }
 
-    if (!base::Contains(
-            params_.properties,
+    if (!params_.properties.contains(
             prefs::kDefaultSearchProviderContextMenuAccessAllowed)) {
       return;
     }
@@ -2635,7 +2633,11 @@ void RenderViewContextMenu::AppendOtherEditableItems() {
                                     IDS_CONTENT_CONTEXT_SELECTALL);
   }
 
-  AppendReadAnythingItem();
+  if (!menu_model_.GetIndexOfCommandId(IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE)
+           .has_value()) {
+    AppendReadAnythingItem();
+  }
+
   menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
 }
 

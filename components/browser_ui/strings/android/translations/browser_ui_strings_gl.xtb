@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Cando esta opción está activada, os sitios poden pedir permiso para xestionar as ventás en todas as pantallas. Cando está desactivada, non poden xestionalas.</translation>
 <translation id="1738912554587725807">Panel inferior de coleccións de temas de aparencia da páxina Nova pestana</translation>
 <translation id="1743802530341753419">Preguntar antes de permitir que os sitios se conecten a un dispositivo (recomendado)</translation>
+<translation id="1766455884659449403">Recibe notificacións de Consellos de Chrome</translation>
 <translation id="1777815584158991902">Panel inferior do feed de Discover</translation>
 <translation id="1779089405699405702">Descodificador de imaxes</translation>
 <translation id="1785415724048343560">Recoméndase para gozar da mellor experiencia</translation>
@@ -188,11 +189,9 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="2903493209154104877">Enderezos</translation>
 <translation id="2910701580606108292">Preguntar antes de permitir que os sitios reproduzan contido protexido</translation>
 <translation id="2918484639460781603">Ir a Configuración</translation>
-<translation id="293060180538644702">Recibe notificacións de Consellos de Chrome</translation>
 <translation id="2932883381142163287">Informar de uso inadecuado</translation>
 <translation id="2939338015096024043">Cando esta opción está activada, os sitios poden pedirche permiso para facer un seguimento da posición da cámara e obter información do que te rodea. Cando esta opción está desactivada, os sitios non poden facer o seguimento da posición da cámara nin obter información do que te rodea.</translation>
 <translation id="2968755619301702150">Visor de certificados</translation>
-<translation id="2979365474350987274">As cookies de terceiros están limitadas</translation>
 <translation id="2990583317361835189">Non permitir que os sitios utilicen sensores de movemento</translation>
 <translation id="3004438526346162184">Os sitios poden usar esta función para xestionar as ventás en todas as pantallas</translation>
 <translation id="3008272652534848354">Restablecer permisos</translation>
@@ -220,7 +219,6 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="3223425961342298674">O acceso á localización non está permitido</translation>
 <translation id="3227137524299004712">Micrófono</translation>
 <translation id="3232293466644486101">Eliminar datos de navegación…</translation>
-<translation id="3241320538788585298">Rede de bucle con retorno</translation>
 <translation id="3242646949159196181">Cando esta opción está activada, os sitios poden reproducir son. Cando esta opción está desactivada, os sitios non poden reproducir son.</translation>
 <translation id="3273479183583863618">Baixadas de prezo nas pestanas</translation>
 <translation id="3277252321222022663">Permitir que os sitios accedan aos sensores (recomendado)</translation>
@@ -403,6 +401,7 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="5246825184569358663">Eliminaranse todos os datos locais, incluídas as cookies, e restableceranse todos os permisos de <ph name="DOMAIN" /> e dos seus subsitios</translation>
 <translation id="5264323282659631142">Quitar <ph name="CHIP_LABEL" /></translation>
 <translation id="528192093759286357">Arrastra desde a parte superior e toca o botón Volver para saír da pantalla completa.</translation>
+<translation id="5286194356314741248">Buscando</translation>
 <translation id="5300589172476337783">Mostrar</translation>
 <translation id="5301954838959518834">Entendido</translation>
 <translation id="5317780077021120954">Gardar</translation>
@@ -631,7 +630,6 @@ Protección avanzada controla estas opcións de configuración de Chrome:
 <translation id="7835852323729233924">Reproducindo contido multimedia</translation>
 <translation id="783819812427904514">Activar o son do vídeo</translation>
 <translation id="7846076177841592234">Cancelar selección</translation>
-<translation id="7881140103901777395">Chrome evita que a maioría dos sitios usen cookies de terceiros. Así e todo, neste sitio permítese o seu uso porque son necesarias para fornecer servizos básicos.\n\nVai á configuración para <ph name="BEGIN_LINK" />xestionar o acceso ás cookies de terceiros<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Permite o son dun sitio específico.</translation>
 <translation id="7891547341794213004">Ocultar tarxeta Continuar con esta pestana</translation>
 <translation id="789722939441020330">Non permitir que os sitios descarguen varios ficheiros de forma automática</translation>

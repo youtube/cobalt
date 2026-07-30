@@ -304,9 +304,6 @@ inline constexpr char kChromeUISystemInfoHost[] = "system";
 inline constexpr char kChromeUITermsHost[] = "terms";
 inline constexpr char kChromeUITermsURL[] = "chrome://terms/";
 inline constexpr char kChromeUIThemeHost[] = "theme";
-inline constexpr char kChromeUIReloadButtonURL[] =
-    "chrome://reload-button.top-chrome";
-inline constexpr char kChromeUIReloadButtonHost[] = "reload-button.top-chrome";
 inline constexpr char kChromeUIThemeURL[] = "chrome://theme/";
 inline constexpr char kChromeUITopChromeDomain[] = "top-chrome";
 inline constexpr char kChromeUITranslateInternalsHost[] = "translate-internals";
@@ -345,6 +342,9 @@ inline constexpr char16_t kChromeUIVersionURL16[] = u"chrome://version/";
 inline constexpr char kChromeUIWebRtcLogsHost[] = "webrtc-logs";
 inline constexpr char kChromeUIWebuiGalleryHost[] = "webui-gallery";
 inline constexpr char kChromeUIWebUITestHost[] = "webui-test";
+inline constexpr char kChromeUIWebUIToolbarURL[] =
+    "chrome://webui-toolbar.top-chrome";
+inline constexpr char kChromeUIWebUIToolbarHost[] = "webui-toolbar.top-chrome";
 
 #if BUILDFLAG(IS_ANDROID)
 inline constexpr char kChromeUIJavaCrashURL[] = "chrome://java-crash/";
@@ -418,7 +418,6 @@ inline constexpr char kChromeUIWebUIJsErrorHost[] = "webuijserror";
 inline constexpr char kChromeUIWebUIJsErrorURL[] = "chrome://webuijserror/";
 inline constexpr char kChromeUIYourSavedInfoPath[] = "/yourSavedInfo";
 inline constexpr char kCookiesSubPagePath[] = "/cookies";
-inline constexpr char kTrackingProtectionSubPagePath[] = "/trackingProtection";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -461,9 +460,6 @@ inline constexpr char16_t kChromeUICrostiniCreditsURL16[] =
 inline constexpr char kChromeUICrostiniInstallerHost[] = "crostini-installer";
 inline constexpr char kChromeUICrostiniInstallerUrl[] =
     "chrome://crostini-installer";
-inline constexpr char kChromeUICrostiniUpgraderHost[] = "crostini-upgrader";
-inline constexpr char kChromeUICrostiniUpgraderUrl[] =
-    "chrome://crostini-upgrader";
 inline constexpr char kChromeUICryptohomeHost[] = "cryptohome";
 inline constexpr char kChromeUIDeviceEmulatorHost[] = "device-emulator";
 inline constexpr char kChromeUIEmojiPickerHost[] = "emoji-picker";

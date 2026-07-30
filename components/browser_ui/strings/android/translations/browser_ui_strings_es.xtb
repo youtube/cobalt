@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Si se activa, los sitios pueden solicitar permiso para gestionar las ventanas en todas tus pantallas. Si se desactiva, los sitios no pueden gestionar las ventanas en ninguna de tus pantallas.</translation>
 <translation id="1738912554587725807">Hoja inferior de colecciones de temas del aspecto de la página Nueva pestaña</translation>
 <translation id="1743802530341753419">Preguntar antes de permitir que los sitios se conecten a un dispositivo (recomendado)</translation>
+<translation id="1766455884659449403">Recibir notificaciones de consejos de Chrome</translation>
 <translation id="1777815584158991902">Hoja inferior del feed de Discover</translation>
 <translation id="1779089405699405702">Decodificador de imágenes</translation>
 <translation id="1785415724048343560">Recomendado para disfrutar de la mejor experiencia</translation>
@@ -129,7 +130,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Precisa</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> y <ph name="NUM_MORE" /> más permitidos}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> y <ph name="NUM_MORE" /> más permitidos}}</translation>
-<translation id="2404857459073803936">Acceso a la ubicación de este sitio</translation>
+<translation id="2404857459073803936">Acceso a mi ubicación por parte de este sitio</translation>
 <translation id="2410940059315936967">Un sitio que visites puede insertar contenido de otros sitios, como imágenes, anuncios y texto. Las cookies creadas por estos sitios se denominan cookies de terceros.</translation>
 <translation id="2411116727035790889">Activar las combinaciones de teclas</translation>
 <translation id="2433507940547922241">Aspecto</translation>
@@ -188,11 +189,9 @@ Protección Avanzada controla estos ajustes de Chrome:
 <translation id="2903493209154104877">Direcciones</translation>
 <translation id="2910701580606108292">Preguntar antes de permitir que los sitios reproduzcan contenido protegido</translation>
 <translation id="2918484639460781603">Ir a Configuración</translation>
-<translation id="293060180538644702">Recibir notificaciones de consejos de Chrome</translation>
 <translation id="2932883381142163287">Denunciar abuso</translation>
 <translation id="2939338015096024043">Cuando esta opción está activada, los sitios pueden solicitar permiso para monitorizar la posición de tu cámara y obtener información sobre tu entorno. Si está desactivada, los sitios no pueden monitorizar la posición de tu cámara ni obtener información sobre tu entorno.</translation>
 <translation id="2968755619301702150">Visor de certificados</translation>
-<translation id="2979365474350987274">Las cookies de terceros están limitadas</translation>
 <translation id="2990583317361835189">No permitir que los sitios usen sensores de movimiento</translation>
 <translation id="3004438526346162184">Los sitios pueden usar esta función para gestionar las ventanas en todas tus pantallas</translation>
 <translation id="3008272652534848354">Restablecer permisos</translation>
@@ -220,7 +219,6 @@ Protección Avanzada controla estos ajustes de Chrome:
 <translation id="3223425961342298674">Ubicación no permitida</translation>
 <translation id="3227137524299004712">Micrófono</translation>
 <translation id="3232293466644486101">Eliminar datos de navegación...</translation>
-<translation id="3241320538788585298">Red de bucle invertido</translation>
 <translation id="3242646949159196181">Cuando esta opción está activada, los sitios pueden reproducir sonido. Si está desactivada, los sitios no pueden reproducir sonido.</translation>
 <translation id="3273479183583863618">Bajadas de precio en pestañas</translation>
 <translation id="3277252321222022663">Permitir que los sitios accedan a los sensores (recomendado)</translation>
@@ -403,6 +401,7 @@ Protección Avanzada controla estos ajustes de Chrome:
 <translation id="5246825184569358663">Esta acción eliminará todos los datos locales, incluidas las cookies, y restablecerá todos los permisos de <ph name="DOMAIN" /> y de todos los sitios que incluya</translation>
 <translation id="5264323282659631142">Quitar "<ph name="CHIP_LABEL" />"</translation>
 <translation id="528192093759286357">Arrastra el dedo desde la parte superior y toca el botón de retroceso para salir de la pantalla completa.</translation>
+<translation id="5286194356314741248">Buscando</translation>
 <translation id="5300589172476337783">Mostrar</translation>
 <translation id="5301954838959518834">Entendido</translation>
 <translation id="5317780077021120954">Guardar</translation>
@@ -459,7 +458,7 @@ Protección Avanzada controla estos ajustes de Chrome:
 <translation id="5877248419911025165">Ocultar todas las solicitudes</translation>
 <translation id="5878945009165002849">Bloquear notificaciones de inicio de sesión de servicios de identidad</translation>
 <translation id="588258955323874662">Pantalla completa</translation>
-<translation id="5884085660368669834">Preferencia de sitio</translation>
+<translation id="5884085660368669834">Preferencia para este sitio</translation>
 <translation id="5887687176710214216">Última visita: ayer</translation>
 <translation id="5908617755156109052">No permitir que los sitios creen un mapa 3D de tu entorno ni hacer un seguimiento de la posición de la cámara</translation>
 <translation id="5916664084637901428">Activado</translation>
@@ -631,7 +630,6 @@ Protección Avanzada controla estos ajustes de Chrome:
 <translation id="7835852323729233924">Reproduciendo contenido multimedia</translation>
 <translation id="783819812427904514">Dejar de silenciar vídeo</translation>
 <translation id="7846076177841592234">Cancelar selección</translation>
-<translation id="7881140103901777395">Chrome impide que la mayoría de los sitios usen cookies de terceros. Sin embargo, las cookies de terceros están permitidas en este sitio porque depende de ellas para prestar servicios básicos.\n\nVe a la configuración para <ph name="BEGIN_LINK" />gestionar el acceso a las cookies de terceros<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Permite que se reproduzcan sonidos en un sitio específico.</translation>
 <translation id="7891547341794213004">Ocultar tarjeta Continuar con esta pestaña</translation>
 <translation id="789722939441020330">No permitir que los sitios descarguen varios archivos automáticamente</translation>

@@ -276,11 +276,6 @@ BASE_FEATURE(kOmniboxMobileParityUpdate, ENABLED);
 // Android and iOS, V2.
 BASE_FEATURE(kOmniboxMobileParityUpdateV2, ENABLED);
 
-#if BUILDFLAG(IS_IOS)
-// Updates the search engine logo on NTP. iOS only.
-BASE_FEATURE(kOmniboxMobileParityUpdateV3, ENABLED);
-#endif  // BUILDFLAG(IS_IOS)
-
 // The features below allow tuning number of suggestions offered to users in
 // specific contexts. These features are default enabled and are used to control
 // related fieldtrial parameters.
@@ -321,10 +316,7 @@ BASE_FEATURE(kUseAgentspace25Logo, ENABLED);
 BASE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy, ENABLED);
 
 // Enables preconnecting to omnibox suggestions that are not only Search types.
-BASE_FEATURE(kPreconnectNonSearchOmniboxSuggestions, DISABLED);
-
-// Enabls adding an aim shortcut in the typed state.
-BASE_FEATURE(kOmniboxAimShortcutTypedState, DISABLED);
+BASE_FEATURE(kPreconnectNonSearchOmniboxSuggestions, ENABLED);
 
 // When enabled, unblocks omnibox height on small form factor devices, allowing
 // users to type in multiline / longer text.
@@ -379,7 +371,6 @@ static jlong JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kPostDelayedTaskFocusTab,
       &kOmniboxMobileParityUpdateV2,
       &kOmniboxSiteSearch,
-      &kOmniboxAimShortcutTypedState,
       &kOmniboxMultimodalInput,
       &kMultilineEditField,
       &kOmniboxImprovementForLFF,

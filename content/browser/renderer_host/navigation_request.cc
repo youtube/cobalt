@@ -182,10 +182,7 @@
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom.h"
-#include "services/network/public/mojom/url_response_head.mojom-forward.h"
-#include "services/network/public/mojom/url_response_head.mojom-shared.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "services/network/public/mojom/web_client_hints_types.mojom-shared.h"
 #include "services/network/public/mojom/web_client_hints_types.mojom.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom.h"
 #include "storage/browser/blob/blob_url_registry.h"
@@ -213,7 +210,6 @@
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
 #include "third_party/blink/public/mojom/loader/mixed_content.mojom.h"
 #include "third_party/blink/public/mojom/loader/transferrable_url_loader.mojom.h"
-#include "third_party/blink/public/mojom/navigation/navigation_params.mojom-shared.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom.h"
 #include "third_party/blink/public/mojom/navigation/prefetched_signed_exchange_info.mojom.h"
 #include "third_party/blink/public/mojom/runtime_feature_state/runtime_feature.mojom.h"
@@ -1450,7 +1446,11 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*should_skip_screenshot=*/false,
           /*force_new_document_sequence_number=*/false,
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
-          /*commit_target_frame_token=*/std::nullopt);
+          /*commit_target_frame_token=*/std::nullopt,
+          /*is_initial_webui=*/false);
+#if !BUILDFLAG(IS_ANDROID)
+  CHECK(!GetContentClient()->browser()->IsInitialWebUIURL(common_params->url));
+#endif
 
   // CreateRendererInitiated() should only be triggered when the navigation is
   // initiated by a frame in the same process.
@@ -1602,7 +1602,8 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*should_skip_screenshot=*/false,
           /*force_new_document_sequence_number=*/false,
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
-          /*commit_target_frame_token=*/std::nullopt);
+          /*commit_target_frame_token=*/std::nullopt,
+          /*is_initial_webui=*/false);
   blink::mojom::BeginNavigationParamsPtr begin_params =
       blink::mojom::BeginNavigationParams::New();
   std::unique_ptr<NavigationRequest> navigation_request(new NavigationRequest(
@@ -2353,7 +2354,7 @@ NavigationRequest::~NavigationRequest() {
     // Abandon the prerender host reserved for activation if it exists.
     if (IsPrerenderedPageActivation()) {
       GetPrerenderHostRegistry().OnActivationFinished(
-          prerender_frame_tree_node_id_.value());
+          activating_prerender_host_id_.value());
     }
 
     if (!HasCommitted()) {
@@ -2434,7 +2435,7 @@ void NavigationRequest::BeginNavigation() {
     return;
   }
 
-  MaybeAssignInvalidPrerenderFrameTreeNodeId();
+  MaybeAssignInvalidActivatingPrerenderHostId();
 
   // Fenced frames are not allowed to load if nested in iframes with CSPEE.
   bool is_fenced_frame = frame_tree_node_->IsFencedFrameRoot();
@@ -2512,18 +2513,6 @@ void NavigationRequest::BeginNavigation() {
       ->MaybeSendFencedFrameAutomaticReportingBeacon(
           *this, blink::mojom::AutomaticBeaconType::kTopNavigationStart);
 
-  // Log a histogram for a top-level navigation that initiates from a fenced
-  // frame or URN iframe.
-  if (GetInitiatorDocumentRenderFrameHost() &&
-      GetInitiatorDocumentRenderFrameHost()
-          ->frame_tree_node()
-          ->GetFencedFrameProperties()
-          .has_value() &&
-      IsInOutermostMainFrame()) {
-    base::UmaHistogramEnumeration(blink::kFencedFrameTopNavigationHistogram,
-                                  blink::FencedFrameNavigationState::kBegin);
-  }
-
   BeginNavigationImpl();
 }
 
@@ -2582,9 +2571,9 @@ void NavigationRequest::UpdateNavigationStartTime(const base::TimeTicks& time,
 bool NavigationRequest::MaybeStartPrerenderingActivationChecks() {
   // Find an available prerendered page for this request. If it's found, this
   // request may activate it instead of loading a page via network.
-  FrameTreeNodeId candidate_prerender_frame_tree_node_id =
+  PrerenderHostId candidate_prerender_host_id =
       GetPrerenderHostRegistry().FindPotentialHostToActivate(*this);
-  if (candidate_prerender_frame_tree_node_id.is_null()) {
+  if (candidate_prerender_host_id.is_null()) {
     return false;
   }
 
@@ -2597,7 +2586,7 @@ bool NavigationRequest::MaybeStartPrerenderingActivationChecks() {
   commit_deferrer_ = CommitDeferringConditionRunner::Create(
       *this,
       CommitDeferringCondition::NavigationType::kPrerenderedPageActivation,
-      candidate_prerender_frame_tree_node_id);
+      PrerenderHost::GetFrameTreeNodeIdForId(candidate_prerender_host_id));
   is_running_potential_prerender_activation_checks_ = true;
 
   // Post a task to run the conditions in case BeginNavigation() is not expected
@@ -2607,7 +2596,7 @@ bool NavigationRequest::MaybeStartPrerenderingActivationChecks() {
       &NavigationRequest::OnPrerenderingActivationChecksComplete,
       weak_factory_.GetWeakPtr(),
       CommitDeferringCondition::NavigationType::kPrerenderedPageActivation,
-      candidate_prerender_frame_tree_node_id);
+      candidate_prerender_host_id);
   base::SequencedTaskRunner::GetCurrentDefault()->PostNonNestableTask(
       FROM_HERE,
       base::BindOnce(&NavigationRequest::RunCommitDeferringConditions,
@@ -2618,7 +2607,7 @@ bool NavigationRequest::MaybeStartPrerenderingActivationChecks() {
 
 void NavigationRequest::OnPrerenderingActivationChecksComplete(
     CommitDeferringCondition::NavigationType navigation_type,
-    std::optional<FrameTreeNodeId> candidate_prerender_frame_tree_node_id) {
+    std::optional<PrerenderHostId> candidate_prerender_host_id) {
   TRACE_EVENT("navigation",
               "NavigationRequest::OnPrerenderingActivationChecksComplete",
               perfetto::Flow::FromPointer(this));
@@ -2626,24 +2615,26 @@ void NavigationRequest::OnPrerenderingActivationChecksComplete(
   // StartRequest().
   DCHECK_LT(state_, WILL_START_NAVIGATION);
 
-  DCHECK(candidate_prerender_frame_tree_node_id.has_value());
-  DCHECK(!prerender_frame_tree_node_id_.has_value());
+  DCHECK(candidate_prerender_host_id.has_value());
+  DCHECK(!activating_prerender_host_id_.has_value());
   DCHECK(!reserved_prerender_host_info_.has_value());
 
   // Attempt to reserve the potential PrerenderHost.
   //
   // If it has been requested to cancel prerendered page activation during
   // CommitDeferringConditions, ReserveHostToActivate() returns an invalid
-  // FrameTreeNodeId, and then NavigationRequest continues as regular
+  // PrerenderHostId, and then NavigationRequest continues as regular
   // navigation.
   reserved_prerender_host_info_ =
       GetPrerenderHostRegistry().ReserveHostToActivate(
-          *this, candidate_prerender_frame_tree_node_id.value());
-  prerender_frame_tree_node_id_ =
+          *this, candidate_prerender_host_id.value());
+
+  activating_prerender_host_id_ =
       reserved_prerender_host_info_.has_value()
-          ? reserved_prerender_host_info_->frame_tree_node_id
-          : FrameTreeNodeId();
-  if (prerender_frame_tree_node_id_.value().is_null()) {
+          ? reserved_prerender_host_info_->prerender_host_id
+          : PrerenderHostId();
+
+  if (!activating_prerender_host_id_.value()) {
     // If we ran commit deferring conditions for a potential pre-render which
     // eventually wasn't activated, abort the ViewTransition. The state was
     // cached assuming this navigation will be same-origin which might not be
@@ -2654,8 +2645,8 @@ void NavigationRequest::OnPrerenderingActivationChecksComplete(
     // reserved host may not be ready for activation yet as we haven't run
     // PrerenderCommitDeferringCondition for the host to finish navigation in
     // the prerendering main frame.
-    DCHECK_EQ(prerender_frame_tree_node_id_.value(),
-              candidate_prerender_frame_tree_node_id.value());
+    DCHECK_EQ(activating_prerender_host_id_.value(),
+              candidate_prerender_host_id.value());
   }
   is_running_potential_prerender_activation_checks_ = false;
   commit_deferrer_.reset();
@@ -3107,7 +3098,7 @@ void NavigationRequest::StartNavigation() {
          is_synchronous_renderer_commit_);
   FrameTreeNode* frame_tree_node = frame_tree_node_;
 
-  MaybeAssignInvalidPrerenderFrameTreeNodeId();
+  MaybeAssignInvalidActivatingPrerenderHostId();
 
   // This is needed to get site URLs and assign the expected RenderProcessHost.
   // This is not always the same as |source_site_instance_|, as it only depends
@@ -3330,7 +3321,7 @@ void NavigationRequest::ResetForCrossDocumentRestart() {
 
   navigation_visible_to_embedder_ = false;
 #if BUILDFLAG(IS_ANDROID)
-  if (navigation_visible_to_embedder_) {
+  if (navigation_handle_proxy_) {
     navigation_handle_proxy_.reset();
     navigation_handle_proxy_ = std::make_unique<NavigationHandleProxy>(this);
   }
@@ -4828,10 +4819,10 @@ void NavigationRequest::SelectFrameHostForOnResponseStarted(
     // Prerendering requires changing pages starting at the root node.
     DCHECK(IsInMainFrame());
 
-    render_frame_host_ = GetPrerenderHostRegistry()
-                             .GetRenderFrameHostForReservedHost(
-                                 prerender_frame_tree_node_id_.value())
-                             ->GetSafeRef();
+    render_frame_host_ =
+        GetPrerenderHostRegistry()
+            .GetRenderFrameHostForReservedHost(*activating_prerender_host_id_)
+            ->GetSafeRef();
   } else if (response_should_be_rendered_) {
     std::string* reason_output =
         (base::FeatureList::IsEnabled(
@@ -5587,10 +5578,10 @@ void NavigationRequest::OnStartChecksComplete(
                                ->Clone();
   } else if (IsPrerenderedPageActivation()) {
     loader_type = NavigationURLLoader::LoaderType::kNoopForPrerender;
-    DCHECK(prerender_frame_tree_node_id_.has_value());
+    DCHECK(activating_prerender_host_id_.has_value());
     const network::mojom::URLResponseHeadPtr& last_response_head =
         GetPrerenderHostRegistry()
-            .GetRenderFrameHostForReservedHost(*prerender_frame_tree_node_id_)
+            .GetRenderFrameHostForReservedHost(*activating_prerender_host_id_)
             ->last_response_head();
     // As PrerenderCommitDeferringCondition makes sure to finish the prerender
     // initial navigation before activation, a valid last_response_head should
@@ -6970,7 +6961,7 @@ void NavigationRequest::CommitPageActivation() {
   } else {
     std::unique_ptr<StoredPage> stored_page =
         GetPrerenderHostRegistry().ActivateReservedHost(
-            prerender_frame_tree_node_id_.value(), *this);
+            activating_prerender_host_id_.value(), *this);
     CHECK(stored_page);
 
     RenderFrameHostImpl* rfh = stored_page->render_frame_host();
@@ -9005,9 +8996,8 @@ void NavigationRequest::WriteIntoTrace(
              GetRenderFrameHostRestoredFromBackForwardCache());
   }
 
-  if (prerender_frame_tree_node_id_.has_value()) {
-    dict.Add("prerender_frame_tree_node_id",
-             prerender_frame_tree_node_id_.value());
+  if (activating_prerender_host_id_.has_value()) {
+    dict.Add("prerender_host_id", activating_prerender_host_id_.value());
   }
 }
 
@@ -9312,8 +9302,8 @@ bool NavigationRequest::IsInPrerenderedMainFrame() const {
 }
 
 bool NavigationRequest::IsPrerenderedPageActivation() const {
-  CHECK(prerender_frame_tree_node_id_.has_value());
-  return !prerender_frame_tree_node_id_.value().is_null();
+  CHECK(activating_prerender_host_id_.has_value());
+  return !activating_prerender_host_id_.value().is_null();
 }
 
 bool NavigationRequest::IsInFencedFrameTree() const {
@@ -11053,12 +11043,12 @@ NavigationRequest::ComputeWebExposedIsolationInfo() {
              : WebExposedIsolationInfo::CreateIsolated(origin);
 }
 
-void NavigationRequest::MaybeAssignInvalidPrerenderFrameTreeNodeId() {
-  if (!prerender_frame_tree_node_id_.has_value()) {
+void NavigationRequest::MaybeAssignInvalidActivatingPrerenderHostId() {
+  if (!activating_prerender_host_id_.has_value()) {
     // This navigation won't activate a prerendered page. Otherwise,
-    // `prerender_frame_tree_node_id_` should have already been set before this
+    // `activating_prerender_host_id_` should have already been set before this
     // in OnPrerenderingActivationChecksComplete().
-    prerender_frame_tree_node_id_ = FrameTreeNodeId();
+    activating_prerender_host_id_ = PrerenderHostId();
   }
 }
 

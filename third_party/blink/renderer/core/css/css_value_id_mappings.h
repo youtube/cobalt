@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/core/animation/effect_model.h"
 #include "third_party/blink/renderer/core/css/css_value_id_mappings_generated.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
+#include "third_party/blink/renderer/core/style/text_indent_flags.h"
 
 namespace blink {
 
@@ -682,6 +683,18 @@ inline CSSValueID PlatformEnumToCSSValueID(PositionAreaRegion v) {
 }
 
 template <>
+inline TextIndentFlags CssValueIDToPlatformEnum(CSSValueID v) {
+  switch (v) {
+    case CSSValueID::kEachLine:
+      return TextIndentFlags::kEachLine;
+    case CSSValueID::kHanging:
+      return TextIndentFlags::kHanging;
+    default:
+      NOTREACHED();
+  }
+}
+
+template <>
 inline TextJustify CssValueIDToPlatformEnum(CSSValueID v) {
   switch (v) {
     case CSSValueID::kNone:
@@ -708,6 +721,34 @@ inline CSSValueID PlatformEnumToCSSValueID(TextJustify v) {
       return CSSValueID::kInterWord;
     case TextJustify::kInterCharacter:
       return CSSValueID::kInterCharacter;
+  }
+  NOTREACHED();
+}
+
+template <>
+inline GridLanesOrientation CssValueIDToPlatformEnum(CSSValueID v) {
+  switch (v) {
+    case CSSValueID::kNormal:
+      return GridLanesOrientation::kNormal;
+    case CSSValueID::kRow:
+      return GridLanesOrientation::kRow;
+    case CSSValueID::kColumn:
+      return GridLanesOrientation::kColumn;
+    default:
+      break;
+  }
+  NOTREACHED();
+}
+
+template <>
+inline CSSValueID PlatformEnumToCSSValueID(GridLanesOrientation v) {
+  switch (v) {
+    case GridLanesOrientation::kNormal:
+      return CSSValueID::kNormal;
+    case GridLanesOrientation::kRow:
+      return CSSValueID::kRow;
+    case GridLanesOrientation::kColumn:
+      return CSSValueID::kColumn;
   }
   NOTREACHED();
 }

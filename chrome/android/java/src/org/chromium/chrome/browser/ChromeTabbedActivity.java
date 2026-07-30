@@ -5,9 +5,12 @@
 package org.chromium.chrome.browser;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.chrome.browser.incognito.reauth.IncognitoReauthControllerImpl.KEY_IS_INCOGNITO_REAUTH_PENDING;
+import static org.chromium.chrome.browser.incognito.reauth.IncognitoReauthControllerImpl.PREVIOUS_VERSION_CODE;
 import static org.chromium.chrome.browser.notifications.tips.TipsPromoCoordinator.INVALID_TIPS_NOTIFICATION_FEATURE_TYPE;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 import static org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlocker.IS_INCOGNITO_SELECTED;
+import static org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlocker.SUPPORTED_PROFILE_TYPE;
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.app.Activity;
@@ -72,6 +75,7 @@ import org.chromium.base.supplier.SettableObservableSupplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.UsedByReflection;
 import org.chromium.cc.input.BrowserControlsState;
@@ -126,7 +130,6 @@ import org.chromium.chrome.browser.feed.FeedSurfaceTracker;
 import org.chromium.chrome.browser.feed.FeedUma;
 import org.chromium.chrome.browser.feedback.OmniboxFeedbackSource;
 import org.chromium.chrome.browser.firstrun.FirstRunSignInProcessor;
-import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -548,7 +551,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     private final MainIntentBehaviorMetrics mMainIntentMetrics;
     private final AppLaunchDrawBlocker mAppLaunchDrawBlocker;
 
-    private @Nullable MultiInstanceManager mMultiInstanceManager;
+    private MultiInstanceManager mMultiInstanceManager;
     private TabUndoBarController mUndoBarPopupController;
     private LayoutManagerChrome mLayoutManager;
     private ViewGroup mContentContainer;
@@ -693,10 +696,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             setHasIncognitoExtra(getIntent());
         }
         super.attachBaseContext(newBase);
-        if (ChromeFeatureList.sAndroidOpenIncognitoAsWindow.isEnabled()) {
-            IncognitoUtils.initializeEligibleTabletStatus(
-                    this, MultiWindowUtils.isMultiInstanceApi31Enabled());
-        }
     }
 
     @Override
@@ -1621,7 +1620,18 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         }
 
         Bundle savedInstanceState = getSavedInstanceState();
-        if (savedInstanceState != null
+        PersistableBundle persistentState = getPersistentInstanceState();
+        if (shouldPersistAcrossReboots()
+                && persistentState != null
+                && persistentState.getBoolean(IS_INCOGNITO_SELECTED, false)) {
+            // This will be executed only once since SavedInstanceState will be reset a few lines
+            // later.
+            AndroidSessionDurationsServiceState.restoreNativeFromSerialized(
+                    persistentState,
+                    getCurrentTabModel()
+                            .getProfile()
+                            .getPrimaryOtrProfile(/* createIfNeeded= */ true));
+        } else if (savedInstanceState != null
                 && savedInstanceState.getBoolean(IS_INCOGNITO_SELECTED, false)) {
             // This will be executed only once since SavedInstanceState will be reset a few lines
             // later.
@@ -1633,6 +1643,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         }
 
         resetSavedInstanceState();
+        resetPersistentInstanceState();
         BookmarkUtils.maybeExpireLastBookmarkLocationForReadLater(
                 mInactivityTrackerSupplier.get().getTimeSinceLastBackgroundedMs());
 
@@ -2148,8 +2159,36 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             Log.i(TAG, "#initializeState");
             Intent intent = getIntent();
 
-            boolean hadCipherData =
-                    CipherLazyHolder.sCipherInstance.restoreFromBundle(getSavedInstanceState());
+            boolean hadCipherData = false;
+            PersistableBundle persistentState = getPersistentInstanceState();
+            if (shouldPersistAcrossReboots() && persistentState != null) {
+                boolean appWasUpdated =
+                        BuildConfig.VERSION_CODE
+                                != persistentState.getLong(
+                                        PREVIOUS_VERSION_CODE, BuildConfig.VERSION_CODE);
+                // Only restore incognito state if the data was persisted for an app update.
+                // It is possible for an app update to follow a device reboot, before the app is
+                // restored by the OS. In this case, the OS drops and clears the PersistableBundle
+                // from the device reboot when applying the app update. This ensures that state
+                // should not be restored incorrectly if an app update immediately after a reboot
+                // "hides" the occurrence of the reboot, as incognito state should not be restored
+                // after a reboot.
+                if (appWasUpdated) {
+                    hadCipherData =
+                            CipherLazyHolder.sCipherInstance.restoreFromPersistableBundle(
+                                    persistentState);
+                } else {
+                    // TODO(crbug.com/474346053): Refactor where the keys are declared and which
+                    //  classes handle cleaning up incognito state.
+                    CipherLazyHolder.sCipherInstance.clearPersistentIncognitoState(persistentState);
+                    persistentState.remove(KEY_IS_INCOGNITO_REAUTH_PENDING);
+                    persistentState.remove(IS_INCOGNITO_SELECTED);
+                }
+            }
+            if (!hadCipherData) {
+                hadCipherData =
+                        CipherLazyHolder.sCipherInstance.restoreFromBundle(getSavedInstanceState());
+            }
 
             boolean noRestoreState =
                     CommandLine.getInstance().hasSwitch(ChromeSwitches.NO_RESTORE_STATE);
@@ -2379,15 +2418,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             } else {
                 url = homepageGurl.getSpec();
             }
-        }
-
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.XPLAT_SYNCED_SETUP)
-                && url.equals(urlConstantResolver.getNtpUrl())
-                && FirstRunStatus.getFirstRunFlowComplete()) {
-            url +=
-                    Uri.parse(url)
-                            .buildUpon()
-                            .appendQueryParameter(NewTabPage.AFTER_FIRST_RUN_QUERY_PARAMETER, "");
         }
 
         getTabCreator(incognito).launchUrl(url, TabLaunchType.FROM_STARTUP);
@@ -3263,14 +3293,22 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         assert mSupportedProfileType != SupportedProfileType.UNSET;
 
         Bundle savedInstanceState = getSavedInstanceState();
+        PersistableBundle persistentState = getPersistentInstanceState();
 
         // We determine SupportedProfileType in onPreCreate().
         // We determine the model as soon as possible so every systems get initialized coherently.
+        boolean isIncognitoSelectedInSavedState =
+                savedInstanceState != null
+                        && savedInstanceState.getBoolean(IS_INCOGNITO_SELECTED, false);
+        boolean isIncognitoSelectedInPersistentState =
+                shouldPersistAcrossReboots()
+                        && persistentState != null
+                        && persistentState.getBoolean(IS_INCOGNITO_SELECTED, false);
         boolean startIncognito =
                 (mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD)
                         || (mSupportedProfileType == SupportedProfileType.MIXED
-                                && savedInstanceState != null
-                                && savedInstanceState.getBoolean(IS_INCOGNITO_SELECTED, false));
+                                && (isIncognitoSelectedInSavedState
+                                        || isIncognitoSelectedInPersistentState));
 
         mNextTabPolicySupplier = new ChromeNextTabPolicySupplier(mLayoutStateProviderSupplier);
 
@@ -3386,7 +3424,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         if (mTabDelegateFactory == null) {
             assert getStartupMetricsTracker() != null;
             mRecentlyClosedEntriesManager =
-                    new RecentlyClosedEntriesManager(mMultiInstanceManager, mTabModelSelector);
+                    RecentlyClosedEntriesManagerTrackerFactory.getInstance()
+                            .obtainManager(mMultiInstanceManager, mTabModelSelector);
             mTabDelegateFactory =
                     new TabbedModeTabDelegateFactory(
                             this,
@@ -3403,6 +3442,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getCompositorViewHolderSupplier(),
                             getModalDialogManagerSupplier(),
                             this::getSnackbarManager,
+                            getActivityResultTracker(),
                             getBrowserControlsManager(),
                             getActivityTabProvider(),
                             getLifecycleDispatcher(),
@@ -3556,15 +3596,16 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         int windowId = getExtraWindowIdFromIntent(intent);
         if (persistentState != null && persistentState.containsKey(WINDOW_INDEX)) {
             mWindowId = persistentState.getInt(WINDOW_INDEX, INVALID_WINDOW_ID);
-
-            assert windowId != INVALID_WINDOW_ID;
+            assert mWindowId != INVALID_WINDOW_ID;
             if (mWindowId == INVALID_WINDOW_ID) mWindowId = 0;
+            mSupportedProfileType = MultiWindowUtils.readProfileType(mWindowId);
         } else if (savedInstanceState != null && savedInstanceState.containsKey(WINDOW_INDEX)) {
             // Activity is recreated after destruction. |windowId| must not be valid in this case.
             assert windowId == INVALID_WINDOW_ID;
             Log.i(TAG_MULTI_INSTANCE, "Retrieved windowId from saved instance state.");
             mWindowId = savedInstanceState.getInt(WINDOW_INDEX, 0);
-        } else if (mMultiInstanceManager != null) {
+            mSupportedProfileType = MultiWindowUtils.readProfileType(mWindowId);
+        } else {
             // |allocInstanceId| doesn't do any disk I/O that would add a long-running task
             // to pre-inflation startup.
             boolean preferNew = MultiWindowUtils.getExtraPreferNewFromIntent(intent);
@@ -3676,8 +3717,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         }
 
         intent.putExtra(IntentHandler.EXTRA_WINDOW_ID, instanceId);
-        MultiWindowUtils.launchIntentInInstance(intent, instanceId);
-        return true;
+        return MultiWindowUtils.launchIntentInInstance(intent, instanceId);
     }
 
     private void recordMaxWindowLimitExceededHistogram(boolean limitExceeded) {
@@ -4321,14 +4361,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             super.onSaveInstanceState(outState);
             CipherLazyHolder.sCipherInstance.saveToBundle(outState);
             saveToBaseBundle(outState);
-            Boolean isIncognito = getCurrentTabModel().isIncognito();
-            outState.putBoolean(IS_INCOGNITO_SELECTED, isIncognito);
-            // If it's Incognito and native is initialized and profile exists, serialize duration
-            // service state.
-            if (isIncognito && ProfileManager.isInitialized()) {
-                AndroidSessionDurationsServiceState.serializeFromNative(
-                        outState, getCurrentTabModel().getProfile());
-            }
         }
     }
 
@@ -4337,11 +4369,23 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         super.onSaveInstanceState(outState, outPersistentState);
         if (shouldPersistAcrossReboots()) {
             saveToBaseBundle(outPersistentState);
+            CipherLazyHolder.sCipherInstance.saveToPersistableBundle(outPersistentState);
+            outPersistentState.putLong(PREVIOUS_VERSION_CODE, BuildConfig.VERSION_CODE);
         }
     }
 
     private void saveToBaseBundle(BaseBundle bundle) {
         bundle.putInt(WINDOW_INDEX, TabWindowManagerSingleton.getInstance().getIdForWindow(this));
+
+        Boolean isIncognito = getCurrentTabModel().isIncognito();
+        bundle.putBoolean(IS_INCOGNITO_SELECTED, isIncognito);
+        bundle.putInt(SUPPORTED_PROFILE_TYPE, mSupportedProfileType);
+        // If it's Incognito and native is initialized and profile exists, serialize duration
+        // service state.
+        if (isIncognito && ProfileManager.isInitialized()) {
+            AndroidSessionDurationsServiceState.serializeFromNative(
+                    bundle, getCurrentTabModel().getProfile());
+        }
     }
 
     @Override
@@ -4460,8 +4504,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         }
 
         if (mRecentlyClosedEntriesManager != null) {
-            mRecentlyClosedEntriesManager.destroy();
-            mRecentlyClosedEntriesManager = null;
+            RecentlyClosedEntriesManagerTrackerFactory.getInstance()
+                    .destroy(mRecentlyClosedEntriesManager);
         }
 
         super.onDestroyInternal();

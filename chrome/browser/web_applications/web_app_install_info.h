@@ -20,6 +20,7 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/model/localized_text.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
@@ -35,7 +36,7 @@
 #include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
-#include "third_party/blink/public/mojom/manifest/manifest_launch_handler.mojom-data-view.h"
+#include "third_party/blink/public/mojom/manifest/manifest_launch_handler.mojom-shared.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
@@ -327,8 +328,9 @@ struct WebAppInstallInfo {
   // translations and text direction information to be preserved.
   LocalizedText title;
 
-  // Description of the application.
-  std::u16string description;
+  // Description of the application, stored in a localized format to allow
+  // translations and text direction information to be preserved.
+  LocalizedText description;
 
   // The URL of the manifest.
   // https://www.w3.org/TR/appmanifest/#web-application-manifest
@@ -389,7 +391,7 @@ struct WebAppInstallInfo {
   blink::mojom::DisplayMode display_mode = blink::mojom::DisplayMode::kBrowser;
 
   // App preference to control display fallback ordering
-  std::vector<blink::mojom::DisplayMode> display_override;
+  std::vector<web_app::DisplayOverride> display_override;
 
   // User preference for whether the app should be opened as a tab or in an app
   // window. Must be either kBrowser or kStandalone, this will be checked by

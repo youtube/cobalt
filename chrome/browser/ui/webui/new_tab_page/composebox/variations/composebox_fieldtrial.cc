@@ -183,14 +183,13 @@ bool IsCreateImagesEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get()) {
+  if (kShowToolsAndModels.Get()) {
     return true;
   }
 
   AimEligibilityService* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
-  return kShowToolsAndModels.Get() && kShowCreateImageTool.Get() &&
-         aim_eligibility_service &&
+  return kShowToolsAndModels.Get() && aim_eligibility_service &&
          aim_eligibility_service->IsCreateImagesEligible();
 }
 
@@ -267,9 +266,13 @@ const base::FeatureParam<bool> kShowToolsAndModels(&kNtpComposebox,
                                                    "ShowToolsAndModels",
                                                    false);
 
-const base::FeatureParam<bool> kShowCreateImageTool(&kNtpComposebox,
-                                                    "ShowCreateImageTool",
-                                                    false);
+const base::FeatureParam<bool> kShowCanvas(&kNtpComposebox,
+                                           "ShowCanvas",
+                                           false);
+
+const base::FeatureParam<bool> kShowModelPicker(&kNtpComposebox,
+                                                "ShowModelPicker",
+                                                false);
 
 const base::FeatureParam<bool> kShowSubmit(&kNtpComposebox, "ShowSubmit", true);
 
@@ -314,10 +317,13 @@ const base::FeatureParam<bool> kCloseComposeboxByClickOutside(
 const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
     &kNtpComposebox,
     "AddTabUploadDelayOnRecentTabChipClick",
-    true);
+    false);
 const base::FeatureParam<bool> kEnableModalComposebox(&kNtpComposebox,
                                                       "EnableModalComposebox",
                                                       true);
+const base::FeatureParam<bool> kEnableThreadsRail(&kNtpComposebox,
+                                                  "EnableThreadsRail",
+                                                  false);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 

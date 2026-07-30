@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">Aktibatuta badago, webguneek pantaila guztietako leihoak kudeatzeko eska dezakete. Desaktibatuta badago, webguneek ezingo dituzte kudeatu pantaila guztietako leihoak.</translation>
 <translation id="1738912554587725807">Pantailaren behealdean ainguratutako orria, fitxa berriaren itxura aldatzeko gaien bildumak dituena</translation>
 <translation id="1743802530341753419">Webguneei gailu batera konektatzeko baimena eman aurretik, eskatu onespena (gomendatua)</translation>
+<translation id="1766455884659449403">Jaso Chrome-ri buruzko aholkuen jakinarazpenak</translation>
 <translation id="1777815584158991902">Pantailaren behealdean ainguratutako orria, Discover-en jarioari buruzkoa</translation>
 <translation id="1779089405699405702">Irudi-deskodetzailea</translation>
 <translation id="1785415724048343560">Zerbitzurik onena jasotzeko gomendatua</translation>
@@ -188,11 +189,9 @@ Babes aurreratua programak Chrome-ren ezarpen hauek kontrolatzen ditu:
 <translation id="2903493209154104877">Helbideak</translation>
 <translation id="2910701580606108292">Webguneei eduki babestua erreproduzitzeko baimena eman aurretik, eskatu onespena</translation>
 <translation id="2918484639460781603">Joan ezarpenetara</translation>
-<translation id="293060180538644702">Jaso Chrome-ri buruzko aholkuen jakinarazpenak</translation>
 <translation id="2932883381142163287">Eman erabilera okerren berri</translation>
 <translation id="2939338015096024043">Aktibatuta dagoenean, webguneek kameraren posizioaren jarraipena egiteko eta zure inguruari buruzko informazioa lortzeko baimena eska dezakete. Desaktibatuta dagoenean, webguneek ezin dute egin kameraren posizioaren jarraipena, ezta zure inguruari buruzko informazioa lortu ere.</translation>
 <translation id="2968755619301702150">Ziurtagiri-ikustailea</translation>
-<translation id="2979365474350987274">Hirugarrenen cookieek murriztapenak dituzte</translation>
 <translation id="2990583317361835189">Ez eman mugimendu-sentsoreak erabiltzeko baimena webguneei</translation>
 <translation id="3004438526346162184">Webguneek pantaila guztietako leihoak kudeatzeko erabil dezakete eginbide hau</translation>
 <translation id="3008272652534848354">Berrezarri baimenak</translation>
@@ -220,7 +219,6 @@ Babes aurreratua programak Chrome-ren ezarpen hauek kontrolatzen ditu:
 <translation id="3223425961342298674">Ukatu da kokapena erabiltzeko baimena</translation>
 <translation id="3227137524299004712">Mikrofonoa</translation>
 <translation id="3232293466644486101">Ezabatu arakatze-datuak…</translation>
-<translation id="3241320538788585298">Loopback sarea</translation>
 <translation id="3242646949159196181">Aktibatuta dagoenean, webguneek soinua erreproduzi dezakete. Desaktibatuta dagoenean, webguneek ezin dute erreproduzitu soinurik.</translation>
 <translation id="3273479183583863618">Fitxetako prezio-jaitsierak</translation>
 <translation id="3277252321222022663">Eman sentsoreak erabiltzeko baimena webguneei (gomendatua)</translation>
@@ -403,6 +401,7 @@ Babes aurreratua programak Chrome-ren ezarpen hauek kontrolatzen ditu:
 <translation id="5246825184569358663">Gailuko datu guztiak ezabatuko dira, cookieak barne, eta <ph name="DOMAIN" /> domeinuko eta haren azpiko webgune guztietako baimen guztiak berrezarriko</translation>
 <translation id="5264323282659631142">Kendu "<ph name="CHIP_LABEL" />"</translation>
 <translation id="528192093759286357">Pantaila osoko ikuspegitik irteteko, arrastatu goitik eta ukitu Atzera botoia.</translation>
+<translation id="5286194356314741248">Bilatzen</translation>
 <translation id="5300589172476337783">Erakutsi</translation>
 <translation id="5301954838959518834">Ados, ulertu dut</translation>
 <translation id="5317780077021120954">Gorde</translation>
@@ -631,7 +630,6 @@ Babes aurreratua programak Chrome-ren ezarpen hauek kontrolatzen ditu:
 <translation id="7835852323729233924">Multimedia-edukia erreproduzitzen</translation>
 <translation id="783819812427904514">Aktibatu bideoaren audioa</translation>
 <translation id="7846076177841592234">Utzi hautapena bertan behera</translation>
-<translation id="7881140103901777395">Hirugarrenen cookieak erabiltzea galarazten die Chrome-k webgune gehienei. Webgune honetan, ordea, hirugarrenen cookieak erabiltzeko baimena eman da, beharrezkoak baitira oinarrizko zerbitzuak emateko.\n\nJoan ezarpenetara <ph name="BEGIN_LINK" />hirugarrenen cookieak erabiltzeko baimena kudeatzeko<ph name="END_LINK" />.</translation>
 <translation id="7882806643839505685">Baimendu webgune jakin baten audioa.</translation>
 <translation id="7891547341794213004">Ezkutatu fitxa honekin aurrera egiteko txartela</translation>
 <translation id="789722939441020330">Ez eman hainbat fitxategi automatikoki deskargatzeko baimena webguneei</translation>

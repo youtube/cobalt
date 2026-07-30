@@ -83,6 +83,7 @@ public class TabUmaTest {
                 cta.getCompositorViewHolderSupplier(),
                 cta.getModalDialogManagerSupplier(),
                 cta::getSnackbarManager,
+                cta.getActivityResultTracker(),
                 cta.getBrowserControlsManager(),
                 cta.getActivityTabProvider(),
                 cta.getLifecycleDispatcher(),

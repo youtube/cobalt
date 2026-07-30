@@ -44,7 +44,7 @@
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
-#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-shared.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
@@ -64,7 +64,6 @@
 #include "third_party/blink/public/mojom/ai/ai_writer.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom.h"
-#include "third_party/blink/public/mojom/devtools/console_message.mojom-data-view.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 
 namespace {
@@ -88,8 +87,8 @@ const char kEmptyOutputLanguageWarning[] =
     "should be specified to ensure optimal output quality and properly attest "
     "to output safety. Please specify a supported output language code: [%s]";
 
-// Enables eagerly initializing other AI APIs when any session type is created.
-BASE_FEATURE(kBuiltInAIEagerInit, base::FEATURE_DISABLED_BY_DEFAULT);
+// Eagerly initializes other downloadable APIs when any session type is created.
+BASE_FEATURE(kBuiltInAIEagerInit, base::FEATURE_ENABLED_BY_DEFAULT);
 
 blink::mojom::ModelAvailabilityCheckResult
 ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
@@ -923,24 +922,38 @@ void AIManager::MaybeTryEagerInit() {
   if (!base::FeatureList::IsEnabled(kBuiltInAIEagerInit)) {
     return;
   }
-  // Experimentally initialize other features when one is used. This presumes a
-  // large foundational model download completed with the first feature usage,
-  // and other features just need lightweight configuration downloads to become
-  // readily available for usage on this device.
+  // Initialize other features when one is used. This presumes a large common
+  // model download completed with the first feature usage, and other features
+  // just need lightweight configuration downloads to become readily available
+  // for usage on this device.
   AIContextBoundObjectSet empty(on_device_model::mojom::Priority::kBackground);
   for (optimization_guide::mojom::OnDeviceFeature feature :
        {optimization_guide::mojom::OnDeviceFeature::kPromptApi,
         optimization_guide::mojom::OnDeviceFeature::kSummarize,
-        optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi,
-        optimization_guide::mojom::OnDeviceFeature::kProofreaderApi}) {
-    // TODO(crbug.com/442015822): Gate on availability state.
+        optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi}) {
     // TODO(crbug.com/447192715): Gate on runtime determined component size.
     if (tried_init_.insert(feature).second) {
-      // TODO(crbug.com/447174556): Init features without creating sessions.
-      model_broker_client_->CreateSession(
-          feature, ::optimization_guide::SessionConfigParams{},
-          base::DoNothing());
+      OptimizationGuideKeyedService* service =
+          OptimizationGuideKeyedServiceFactory::GetForProfile(
+              Profile::FromBrowserContext(browser_context_));
+      service->GetOnDeviceModelEligibilityAsync(
+          feature, on_device_model::Capabilities{},
+          base::BindOnce(&AIManager::MaybeTryEagerInitWithEligibility,
+                         weak_factory_.GetWeakPtr(), feature));
     }
+  }
+}
+
+void AIManager::MaybeTryEagerInitWithEligibility(
+    optimization_guide::mojom::OnDeviceFeature feature,
+    optimization_guide::OnDeviceModelEligibilityReason eligibility) {
+  if (optimization_guide::AvailabilityFromEligibilityReason(eligibility) ==
+      optimization_guide::mojom::ModelUnavailableReason::kPendingUsage) {
+    // TODO(crbug.com/447174556): Init features without creating sessions.
+    VLOG(1) << "Eagerly initializing " << base::ToString(feature);
+    model_broker_client_->CreateSession(
+        feature, ::optimization_guide::SessionConfigParams{},
+        base::DoNothing());
   }
 }
 

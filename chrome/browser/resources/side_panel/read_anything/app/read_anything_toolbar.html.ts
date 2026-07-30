@@ -6,6 +6,18 @@ import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ReadAnythingToolbarElement} from './read_anything_toolbar.js';
 
+function getRateButtonHtml(this: ReadAnythingToolbarElement) {
+  return html`
+    <cr-button class="toolbar-button" id="rate"
+        tabindex="${this.getRateTabIndex_()}"
+        aria-label="${this.getVoiceSpeedLabel_()}"
+        title="$i18n{voiceSpeedLabel}"
+        aria-haspopup="menu"
+        @click="${this.onShowRateMenuClick_}">
+        ${this.getFormattedSpeechRate_()}
+    </cr-button>`;
+}
+
 function getToolbarAudioControlsHtml(this: ReadAnythingToolbarElement) {
   const shouldBeActive = this.isSpeechActive || this.isImmersiveEnabled_;
   const prevNextAreDisabled = !this.isReadAloudPlayable ||
@@ -53,15 +65,9 @@ function getToolbarAudioControlsHtml(this: ReadAnythingToolbarElement) {
         @click="${this.onNextGranularityClick_}">
     </cr-icon-button>
   </span>
+  ${this.isImmersiveEnabled_ ? getRateButtonHtml.call(this) : ''}
 </span>
-<cr-button class="toolbar-button" id="rate"
-    tabindex="${this.getRateTabIndex_()}"
-    aria-label="${this.getVoiceSpeedLabel_()}"
-    title="$i18n{voiceSpeedLabel}"
-    aria-haspopup="menu"
-    @click="${this.onShowRateMenuClick_}">
-    ${this.getFormattedSpeechRate_()}
-</cr-button>
+${!this.isImmersiveEnabled_ ? getRateButtonHtml.call(this) : ''}
 <rate-menu
     id="rateMenu"
     .settingsPrefs="${this.settingsPrefs}"
@@ -99,14 +105,7 @@ ${getToolbarAudioControlsHtml.call(this)}
     iron-icon="read-anything:voice-selection"
     @click="${this.onVoiceSelectionMenuClick_}">
 </cr-icon-button>
-<voice-selection-menu id="voiceSelectionMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .selectedVoice="${this.selectedVoice}"
-    .availableVoices="${this.availableVoices}"
-    .enabledLangs="${this.enabledLangs}"
-    .localeToDisplayName="${this.localeToDisplayName}"
-    .previewVoicePlaying="${this.previewVoicePlaying}">
-</voice-selection-menu>
+
 <cr-icon-button class="toolbar-button" id="highlight" tabindex="-1"
     iron-icon="read-anything:highlight-on"
     title="${this.getHighlightButtonLabel_()}"
@@ -177,40 +176,6 @@ ${renderTextStyleOptions.call(this)}
 </cr-action-menu>
 `}'>
 </cr-lazy-render-lit>
-<highlight-menu
-    id="highlightMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .settingsPrefs="${this.settingsPrefs}"
-    @highlight-change="${this.onHighlightChange_}">
-</highlight-menu>
-<color-menu
-    id="colorMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .settingsPrefs="${this.settingsPrefs}">
-</color-menu>
-<line-spacing-menu
-    id="lineSpacingMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .settingsPrefs="${this.settingsPrefs}">
-</line-spacing-menu>
-<letter-spacing-menu
-    id="letterSpacingMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .settingsPrefs="${this.settingsPrefs}">
-</letter-spacing-menu>
-<font-menu
-    id="fontMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .areFontsLoaded="${this.areFontsLoaded_}"
-    .settingsPrefs="${this.settingsPrefs}"
-    .pageLanguage="${this.pageLanguage}"
-    @font-change="${this.onFontChange_}">
-</font-menu>
-<line-focus-menu
-    id="lineFocusMenu"
-    .nonModal="${this.isImmersiveEnabled_}"
-    .settingsPrefs="${this.settingsPrefs}">
-</line-focus-menu>
 <!--_html_template_end_-->`;
   // clang-format on
 }
@@ -229,8 +194,16 @@ ${renderTextStyleOptions.call(this)}
 </cr-icon-button>
 <settings-menu
   id="settingsMenu"
-  .presentationState="${this.presentationState}">
+  .presentationState="${this.presentationState}"
+  .settingsPrefs="${this.settingsPrefs}"
+  @close-all-menus="${this.onCloseAllMenus_}"
+  @open-settings-submenu="${this.onOpenSettingsSubmenu_}">
 </settings-menu>
+<presentation-menu id="presentationMenu"
+  class="settings-submenu"
+  .presentationState="${this.presentationState}"
+  @close-all-menus="${this.onCloseAllMenus_}">
+</presentation-menu>
 <!--_html_template_end_-->`;
   // clang-format on
 }
@@ -279,6 +252,62 @@ export function getHtml(this: ReadAnythingToolbarElement) {
   </cr-action-menu>
   `}'>
   </cr-lazy-render-lit>
+  <highlight-menu
+    id="highlightMenu"
+    class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+    .nonModal="${this.isImmersiveEnabled_}"
+    .settingsPrefs="${this.settingsPrefs}"
+    @highlight-change="${this.onHighlightChange_}"
+    @close-all-menus="${this.onCloseAllMenus_}">
+  </highlight-menu>
+  <color-menu
+      id="colorMenu"
+      class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+      .nonModal="${this.isImmersiveEnabled_}"
+      .settingsPrefs="${this.settingsPrefs}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </color-menu>
+  <line-spacing-menu
+      id="lineSpacingMenu"
+      class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+      .nonModal="${this.isImmersiveEnabled_}"
+      .settingsPrefs="${this.settingsPrefs}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </line-spacing-menu>
+  <letter-spacing-menu
+      id="letterSpacingMenu"
+      class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+      .nonModal="${this.isImmersiveEnabled_}"
+      .settingsPrefs="${this.settingsPrefs}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </letter-spacing-menu>
+  <font-menu
+      id="fontMenu"
+      class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+      .nonModal="${this.isImmersiveEnabled_}"
+      .areFontsLoaded="${this.areFontsLoaded_}"
+      .settingsPrefs="${this.settingsPrefs}"
+      .pageLanguage="${this.pageLanguage}"
+      @font-change="${this.onFontChange_}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </font-menu>
+  <line-focus-menu
+      id="lineFocusMenu"
+      class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+      .nonModal="${this.isImmersiveEnabled_}"
+      .settingsPrefs="${this.settingsPrefs}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </line-focus-menu>
+  <voice-selection-menu id="voiceSelectionMenu"
+      class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
+      .nonModal="${this.isImmersiveEnabled_}"
+      .selectedVoice="${this.selectedVoice}"
+      .availableVoices="${this.availableVoices}"
+      .enabledLangs="${this.enabledLangs}"
+      .localeToDisplayName="${this.localeToDisplayName}"
+      .previewVoicePlaying="${this.previewVoicePlaying}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </voice-selection-menu>
 </div>
 <!--_html_template_end_-->`;
   // clang-format on

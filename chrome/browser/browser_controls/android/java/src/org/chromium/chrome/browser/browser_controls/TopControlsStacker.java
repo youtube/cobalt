@@ -203,10 +203,12 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
      * recalculated until {@link #requestLayerUpdateSync(boolean)} is called.
      *
      * @param disabled Whether scrolling is disabled.
+     * @return Whether the lock state is changed and request update is needed.
      */
-    public void setScrollingDisabled(boolean disabled) {
-        if (mScrollingDisabled == disabled) return;
+    public boolean setScrollingDisabled(boolean disabled) {
+        if (mScrollingDisabled == disabled) return false;
         mScrollingDisabled = disabled;
+        return true;
     }
 
     /**
@@ -569,10 +571,13 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
 
         // Limit the topControlsMinHeightOffset to mMinHeight, similar to bottom controls.
         // (See crbug.com/359539294). Then, convert the minHeightOffsets (resting at |minHeight|) to
-        // be the same coordinates as topOffset (resting at 0).
+        // be the same coordinates as topOffset (resting at 0). nonScrollableYOffset should always
+        // be clamp to topControlsOffset in this algorithm since it represents the start of the
+        // browser controls.
         // When minHeight is increasing (in animation), this value should be negative value, similar
         // to top controls; when minHeight decreases, the nonScrollableYOffset is a positive value.
         int nonScrollableYOffset = Math.min(topControlsMinHeightOffset, mMinHeight) - mMinHeight;
+        nonScrollableYOffset = Math.max(nonScrollableYOffset, topControlsOffset);
         int scrollableYOffset = topControlsOffset;
 
         for (@TopControlType int type : STACK_ORDER) {

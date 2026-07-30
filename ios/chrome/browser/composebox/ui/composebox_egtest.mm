@@ -5,6 +5,7 @@
 #import <XCTest/XCTest.h>
 
 #import "components/omnibox/browser/aim_eligibility_service_features.h"
+#import "ios/chrome/browser/composebox/ui/composebox_app_interface.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -88,6 +89,25 @@ NSString* kLongText =
       assertWithMatcher:grey_notVisible()];
 }
 
+// Tests that the Composebox is hidden when not eligible.
+- (void)testComposeboxHiddenWhenNotEligible {
+  // Composebox is not available on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad as composebox is not available.");
+  }
+
+  [ComposeboxAppInterface setAimEligible:NO];
+
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // Check that Composebox elements are NOT visible.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_accessibilityID(kComposeboxPlusButtonAccessibilityIdentifier)]
+      assertWithMatcher:grey_notVisible()];
+}
+
 // Tests that typing in the Composebox shows the Send button.
 - (void)testComposeboxSendButtonVisibility {
   // Composebox is not available on iPad.
@@ -119,6 +139,113 @@ NSString* kLongText =
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
                                    kComposeboxMicButtonAccessibilityIdentifier)]
+      assertWithMatcher:grey_notVisible()];
+}
+
+// Tests that image generation action is present when eligible.
+- (void)testComposeboxCreateImageEligible {
+  // Composebox is not available on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad as composebox is not available.");
+  }
+
+  [ComposeboxAppInterface setCreateImagesEligible:YES];
+
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // Wait for the composebox to be visible.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:ComposeboxMatcher()];
+
+  // Tap the plus button.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_accessibilityID(kComposeboxPlusButtonAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Tap the "Create image" button.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_accessibilityID(
+                     kComposeboxCreateImageActionAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Verify that the image generation button is visible.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:
+          grey_accessibilityID(
+              kComposeboxImageGenerationButtonAccessibilityIdentifier)];
+}
+
+// Tests that the image generation action is not available when not eligible.
+- (void)testComposeboxCreateImageNotEligible {
+  // Composebox is not available on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad as composebox is not available.");
+  }
+
+  [ComposeboxAppInterface setCreateImagesEligible:NO];
+
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // Wait for the composebox to be visible.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:ComposeboxMatcher()];
+
+  // Tap the plus button.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_accessibilityID(kComposeboxPlusButtonAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Verify that the "Create image" action is NOT visible.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_accessibilityID(
+                     kComposeboxCreateImageActionAccessibilityIdentifier)]
+      assertWithMatcher:grey_notVisible()];
+}
+
+// Tests that the AI mode action works as expected.
+- (void)testComposeboxAIModeAction {
+  // Composebox is not available on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Skipped for iPad as composebox is not available.");
+  }
+
+  [ComposeboxAppInterface setAimEligible:YES];
+
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGreyUI focusOmnibox];
+
+  // Wait for the composebox to be visible.
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:ComposeboxMatcher()];
+
+  // Tap the plus button.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_accessibilityID(kComposeboxPlusButtonAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Tap the "AI Mode" action.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kComposeboxAIMActionAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Verify that the AI mode button is visible.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:
+          grey_accessibilityID(kComposeboxAIMButtonAccessibilityIdentifier)];
+
+  // Tap the AI mode button to disable AI mode.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kComposeboxAIMButtonAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Verify that the AI mode button disappears.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kComposeboxAIMButtonAccessibilityIdentifier)]
       assertWithMatcher:grey_notVisible()];
 }
 

@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 
+const CGFloat kOmniboxMinHeight = 44.0;
+
 NSString* const kComposeboxAccessibilityIdentifier =
     @"kComposeboxAccessibilityIdentifier";
 
@@ -17,3 +19,11 @@ NSString* const kComposeboxQRCodeButtonAccessibilityIdentifier =
     @"kComposeboxQRCodeButtonAccessibilityIdentifier";
 NSString* const kComposeboxSendButtonAccessibilityIdentifier =
     @"kComposeboxSendButtonAccessibilityIdentifier";
+NSString* const kComposeboxCreateImageActionAccessibilityIdentifier =
+    @"kComposeboxCreateImageActionAccessibilityIdentifier";
+NSString* const kComposeboxImageGenerationButtonAccessibilityIdentifier =
+    @"kComposeboxImageGenerationButtonAccessibilityIdentifier";
+NSString* const kComposeboxAIMActionAccessibilityIdentifier =
+    @"kComposeboxAIMActionAccessibilityIdentifier";
+NSString* const kComposeboxAIMButtonAccessibilityIdentifier =
+    @"kComposeboxAIMButtonAccessibilityIdentifier";

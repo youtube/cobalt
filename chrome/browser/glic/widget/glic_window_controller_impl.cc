@@ -39,6 +39,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -210,8 +211,9 @@ void GlicWindowControllerImpl::OnWidgetDestroyed(views::Widget* widget) {
   // implementation currently does not support this.
   if (IsDetached() && GetGlicWidget() == widget) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&GlicWindowControllerImpl::Close,
-                                  weak_ptr_factory_.GetWeakPtr()));
+        FROM_HERE,
+        base::BindOnce(&GlicWindowControllerImpl::Close,
+                       weak_ptr_factory_.GetWeakPtr(), CloseOptions{}));
   }
 }
 
@@ -245,11 +247,6 @@ void GlicWindowControllerImpl::OnWidgetUserResizeEnded() {
   glic_service_->metrics()->OnWidgetUserResizeEnded();
   if (GlicWebClientAccess* client = host().GetPrimaryWebClient()) {
     client->ManualResizeChanged(false);
-  }
-
-  if (GetGlicView() &&
-      !base::FeatureList::IsEnabled(features::kGlicWindowDragRegions)) {
-    GetGlicView()->UpdatePrimaryDraggableAreaOnResize();
   }
 
   if (GetGlicWidget()) {
@@ -296,7 +293,7 @@ void GlicWindowControllerImpl::Toggle(
 
   auto maybe_close = [this, prevent_close] {
     if (!prevent_close) {
-      Close();
+      Close({});
     }
   };
 
@@ -309,7 +306,7 @@ void GlicWindowControllerImpl::Toggle(
 #if BUILDFLAG(IS_WIN)
   // Clicking status tray on Windows makes floaty not active so always close.
   if (source == mojom::InvocationSource::kOsButton) {
-    Close();
+    Close({});
     return;
   }
 #endif  // BUILDFLAG(IS_WIN)
@@ -334,7 +331,7 @@ void GlicWindowControllerImpl::ToggleWhenNotAlwaysDetached(
     std::optional<std::string> prompt_suggestion) {
   auto maybe_close = [this, prevent_close] {
     if (!prevent_close) {
-      Close();
+      Close({});
     }
   };
 
@@ -461,6 +458,17 @@ GlicInstance* GlicWindowControllerImpl::GetInstanceForTab(
 void GlicWindowControllerImpl::CreateNewConversationForTabs(
     const std::vector<tabs::TabInterface*>& tabs) {
   NOTIMPLEMENTED();
+}
+
+void GlicWindowControllerImpl::MoveTabsToConversation(
+    const std::vector<tabs::TabInterface*>& tabs,
+    const std::string& conversation_id) {
+  NOTIMPLEMENTED();
+}
+
+std::vector<ConversationInfo> GlicWindowControllerImpl::GetRecentConversations(
+    size_t limit) {
+  return {};
 }
 
 bool GlicWindowControllerImpl::BeforeViewCreated(
@@ -761,7 +769,7 @@ GlicWidget* GlicWindowControllerImpl::GetGlicWidget() const {
 
 void GlicWindowControllerImpl::AttachedBrowserDidClose(
     BrowserWindowInterface* browser) {
-  Close();
+  Close({});
 }
 
 void GlicWindowControllerImpl::Attach() {
@@ -924,16 +932,6 @@ gfx::Size GlicWindowControllerImpl::GetPanelSize() {
   return browser_view->contents_height_side_panel()->size();
 }
 
-void GlicWindowControllerImpl::SetDraggableAreas(
-    const std::vector<gfx::Rect>& draggable_areas) {
-  GlicView* glic_view = GetGlicView();
-  if (!glic_view) {
-    return;
-  }
-
-  glic_view->SetDraggableAreas(draggable_areas);
-}
-
 void GlicWindowControllerImpl::SetMinimumWidgetSize(const gfx::Size& size) {
   if (!IsDetached()) {
     return;
@@ -944,7 +942,7 @@ void GlicWindowControllerImpl::SetMinimumWidgetSize(const gfx::Size& size) {
 
 void GlicWindowControllerImpl::CloseWithReason(
     views::Widget::ClosedReason reason) {
-  Close();
+  Close({});
 }
 
 bool GlicWindowControllerImpl::ActivateBrowser() {
@@ -972,7 +970,7 @@ void GlicWindowControllerImpl::ArchiveInstanceWithFrame(
   NOTREACHED();
 }
 
-void GlicWindowControllerImpl::Close() {
+void GlicWindowControllerImpl::Close(const CloseOptions& options) {
   if (state_ == State::kClosed || state_ == State::kDetaching) {
     return;
   }
@@ -1013,9 +1011,15 @@ void GlicWindowControllerImpl::CloseAndShutdownInstanceWithFrame(
 }
 
 void GlicWindowControllerImpl::ClosePanel() {
-  Close();
+  Close({});
   if (screenshot_capturer_) {
     screenshot_capturer_->CloseScreenPicker();
+  }
+}
+
+void GlicWindowControllerImpl::OnReload() {
+  if (glic_view_) {
+    glic_view_->SetWebContents(host().webui_contents());
   }
 }
 
@@ -1316,7 +1320,7 @@ GlicWindowControllerImpl::GetWeakPtr() {
 
 void GlicWindowControllerImpl::Shutdown() {
   // Hide first, then clean up (but do not animate).
-  Close();
+  Close({});
   window_activation_callback_list_.Notify(false);
 }
 
@@ -1352,8 +1356,12 @@ std::optional<std::string> GlicWindowControllerImpl::conversation_id() const {
   return std::nullopt;
 }
 
-base::TimeTicks GlicWindowControllerImpl::GetLastActiveTime() const {
-  return base::TimeTicks();
+base::Time GlicWindowControllerImpl::GetLastActivationTimestamp() const {
+  return base::Time();
+}
+
+base::TimeDelta GlicWindowControllerImpl::GetTimeSinceLastActive() const {
+  return base::TimeDelta();
 }
 
 base::CallbackListSubscription GlicWindowControllerImpl::RegisterStateChange(

@@ -31,7 +31,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/unguessable_token.h"
 #include "base/values.h"
-#include "chrome/browser/ash/magic_boost/magic_boost_controller_ash.h"
+#include "chrome/browser/ash/magic_boost/magic_boost_controller.h"
 #include "chrome/browser/ash/mahi/mahi_availability.h"
 #include "chrome/browser/ash/mahi/mahi_cache_manager.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
@@ -46,7 +46,6 @@
 #include "chromeos/components/mahi/public/cpp/mahi_media_app_content_manager.h"
 #include "chromeos/components/mahi/public/cpp/mahi_web_contents_manager.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "chromeos/crosapi/mojom/magic_boost.mojom.h"
 #include "chromeos/crosapi/mojom/mahi.mojom.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/feedback/feedback_constants.h"
@@ -805,12 +804,11 @@ void MahiManagerImpl::InterrputRequestHandlingWithDisclaimerView(
               .Then(reset_observer_closure),
           /*on_declined_closure=*/reset_observer_closure);
 
-  ash::MagicBoostControllerAsh::Get()->ShowDisclaimerUi(
-      display_id,
-      crosapi::mojom::MagicBoostController::TransitionAction::kDoNothing,
+  ash::MagicBoostController::Get()->ShowDisclaimerUi(
+      display_id, magic_boost::TransitionAction::kDoNothing,
       chromeos::MagicBoostState::Get()->ShouldIncludeOrcaInOptInSync()
-          ? OptInFeatures::kOrcaAndHmr
-          : OptInFeatures::kHmrOnly);
+          ? magic_boost::OptInFeatures::kOrcaAndHmr
+          : magic_boost::OptInFeatures::kHmrOnly);
 }
 
 void MahiManagerImpl::OnGetPageContent(

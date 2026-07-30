@@ -75,8 +75,7 @@
           "project": "chromium"
         }
       ],
-      "targets_spec_directory": "infra/config/generated/builders/ci/GPU FYI XR Win x64 Builder/targets",
-      "targets_spec_directory_relative_to_source_dir": true
+      "targets_spec_directory": "infra/config/generated/builders/ci/GPU FYI XR Win x64 Builder/targets"
     }
   },
   "$build/siso": {
@@ -87,7 +86,6 @@
     "enable_cloud_profiler": true,
     "enable_cloud_trace": true,
     "experiments": [],
-    "metrics_project": "chromium-reclient-metrics",
     "project": "rbe-chromium-trusted",
     "remote_jobs": 250
   },

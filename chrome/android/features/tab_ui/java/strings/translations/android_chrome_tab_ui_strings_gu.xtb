@@ -128,6 +128,7 @@
 <translation id="5446043142172831860">ટૅબ કાઢી નાખો અને ગ્રૂપ છોડી દો</translation>
 <translation id="5490235265819901748">ટૅબ ગ્રૂપ મોટું કરો</translation>
 <translation id="5494920125229734069">બધા પસંદ કરો</translation>
+<translation id="5505998972479309757">{LIMIT_COUNT,plural, =1{વધુમાં વધુ <ph name="LIMIT_COUNT_ONE" /> ફાઇલ, ટૅબ કે છબી ઉમેરો}one{વધુમાં વધુ <ph name="LIMIT_COUNT_MANY" /> ફાઇલ, ટૅબ અથવા છબી ઉમેરો}other{વધુમાં વધુ <ph name="LIMIT_COUNT_MANY" /> ફાઇલ, ટૅબ અથવા છબી ઉમેરો}}</translation>
 <translation id="5551694449008560081">{NUMBER_OF_TABS,plural, =1{<ph name="COLOR_NAME" /> રંગનું <ph name="TABS_COUNT_ONE" /> ટૅબ ધરાવતા ટૅબના ગ્રૂપને બંધ કરો.}one{<ph name="COLOR_NAME" /> રંગનું <ph name="TABS_COUNT_MANY" /> ટૅબ ધરાવતા ટૅબના ગ્રૂપને બંધ કરો.}other{<ph name="COLOR_NAME" /> રંગના <ph name="TABS_COUNT_MANY" /> ટૅબ ધરાવતા ટૅબના ગ્રૂપને બંધ કરો.}}</translation>
 <translation id="5556417849629758491">સ્ટોરની માહિતી જુઓ, વિકલ્પ સ્ક્રીનની ટોચની નજીક ઉપલબ્ધ છે</translation>
 <translation id="5627941783489838464">ટૅબ સંબંધી કોઈ અપડેટ નથી</translation>
@@ -223,7 +224,6 @@
 <translation id="8428213095426709021">સેટિંગ</translation>
 <translation id="855081842937141170">ટૅબ પિન કરો</translation>
 <translation id="8633025649649592204">તાજેતરની પ્રવૃત્તિ</translation>
-<translation id="8635822281281406185">વધુમાં વધુ 10 ફાઇલ, ટૅબ અથવા છબી ઉમેરો</translation>
 <translation id="8712637175834984815">સમજાઈ ગયું</translation>
 <translation id="8714939927607906138">ઓછી કિંમત</translation>
 <translation id="8730621377337864115">થઈ ગયું</translation>

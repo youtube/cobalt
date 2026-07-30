@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -55,6 +56,7 @@
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/browser/web_applications/web_app_uninstall_dialog_user_options.h"
+#include "chrome/browser/web_applications/web_app_utils.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
@@ -146,10 +148,7 @@ void UninstallWebAppWithDialogFromStartupSwitch(
     SynchronizeOsOptions synchronize_options;
     synchronize_options.force_unregister_os_integration = true;
     provider->scheduler().SynchronizeOsIntegration(
-        app_id,
-        base::BindOnce(
-            [](std::unique_ptr<ScopedKeepAlive> scoped_keep_alive) {},
-            std::move(scoped_keep_alive)),
+        app_id, base::DoNothingWithBoundArgs(std::move(scoped_keep_alive)),
         synchronize_options);
   }
 }
@@ -175,7 +174,18 @@ void WebAppUiManager::TriggerInstallNotSupportedDialog(
     content::WebContents* web_contents,
     Profile* profile,
     base::OnceClosure callback) {
-  ShowInstallNotSupportedDialog(web_contents, profile, std::move(callback));
+  NotSupportedReason reason;
+  if (profile->IsGuestSession()) {
+    reason = NotSupportedReason::kGuestMode;
+  } else if (profile->IsOffTheRecord()) {
+    reason = NotSupportedReason::kOffTheRecord;
+  } else if (!web_app::IsWebAppInstallByUserPolicyEnabled(profile)) {
+    reason = NotSupportedReason::kPolicyDisabled;
+  } else {
+    NOTREACHED();
+  }
+  ShowInstallNotSupportedDialog(web_contents, profile, reason,
+                                std::move(callback));
 }
 
 WebAppUiManagerImpl::WebAppUiManagerImpl(Profile* profile)

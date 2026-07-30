@@ -83,7 +83,8 @@ bool TouchToFillPaymentMethodControllerImpl::ShowPaymentMethods(
   }
 
   if (!view->ShowPaymentMethods(this, suggestions,
-                                delegate->ShouldShowScanCreditCard())) {
+                                delegate->ShouldShowScanCreditCard(),
+                                delegate->ShouldShowGPayLogo())) {
     ResetJavaObject();
     return false;
   }
@@ -116,7 +117,7 @@ bool TouchToFillPaymentMethodControllerImpl::ShowIbans(
   return true;
 }
 
-bool TouchToFillPaymentMethodControllerImpl::ShowLoyaltyCards(
+bool TouchToFillPaymentMethodControllerImpl::ShowAffiliatedLoyaltyCards(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
     base::WeakPtr<TouchToFillDelegate> delegate,
     base::span<const LoyaltyCard> affiliated_loyalty_cards,
@@ -133,8 +134,27 @@ bool TouchToFillPaymentMethodControllerImpl::ShowLoyaltyCards(
     return false;
   }
 
-  if (!view->ShowLoyaltyCards(this, affiliated_loyalty_cards, all_loyalty_cards,
-                              first_time_usage)) {
+  if (!view->ShowAffiliatedLoyaltyCards(this, affiliated_loyalty_cards,
+                                        all_loyalty_cards, first_time_usage)) {
+    ResetJavaObject();
+    return false;
+  }
+
+  view_ = std::move(view);
+  delegate_ = std::move(delegate);
+  return true;
+}
+
+bool TouchToFillPaymentMethodControllerImpl::ShowAllLoyaltyCards(
+    std::unique_ptr<TouchToFillPaymentMethodView> view,
+    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::span<const LoyaltyCard> all_loyalty_cards) {
+  // Abort if TTF surface is already shown.
+  if (view_) {
+    return false;
+  }
+
+  if (!view->ShowAllLoyaltyCards(this, all_loyalty_cards)) {
     ResetJavaObject();
     return false;
   }
@@ -152,7 +172,7 @@ bool TouchToFillPaymentMethodControllerImpl::OnPurchaseAmountExtracted(
     base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
     base::OnceClosure cancel_callback) {
   if (!view_ || !view_->OnPurchaseAmountExtracted(
-                    *this, bnpl_issuer_contexts, extracted_amount,
+                    bnpl_issuer_contexts, extracted_amount,
                     is_amount_supported_by_any_issuer, app_locale)) {
     return false;
   }
@@ -192,8 +212,7 @@ bool TouchToFillPaymentMethodControllerImpl::ShowBnplIssuers(
     const std::string& app_locale,
     base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
     base::OnceClosure cancel_callback) {
-  if (!view_ ||
-      !view_->ShowBnplIssuers(*this, bnpl_issuer_contexts, app_locale)) {
+  if (!view_ || !view_->ShowBnplIssuers(bnpl_issuer_contexts, app_locale)) {
     ResetJavaObject();
     return false;
   }

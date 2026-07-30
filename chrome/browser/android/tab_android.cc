@@ -42,6 +42,8 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/startup/bad_flags_prompt.h"
 #include "chrome/browser/ui/tab_helpers.h"
 #include "chrome/common/chrome_features.h"
@@ -85,6 +87,15 @@ using content::NavigationController;
 using content::WebContents;
 
 namespace {
+
+BrowserWindowInterface* FindBrowserWindowInterface(SessionID window_id) {
+  for (BrowserWindowInterface* window : GetAllBrowserWindowInterfaces()) {
+    if (window->GetSessionID() == window_id) {
+      return window;
+    }
+  }
+  return nullptr;
+}
 
 class TabAndroidHelper : public content::WebContentsUserData<TabAndroidHelper> {
  public:
@@ -373,8 +384,8 @@ bool TabAndroid::HasParentCollection() {
 
 void TabAndroid::InitWebContents(
     JNIEnv* env,
-    jboolean incognito,
-    jboolean is_background_tab,
+    bool incognito,
+    bool is_background_tab,
     const JavaRef<jobject>& jweb_contents,
     const JavaRef<jobject>& jweb_contents_delegate,
     const JavaRef<jobject>& jcontext_menu_populator_factory) {
@@ -472,6 +483,18 @@ void TabAndroid::UpdateDelegates(
       std::make_unique<android::TabWebContentsDelegateAndroid>(
           env, jweb_contents_delegate);
   web_contents()->SetDelegate(web_contents_delegate_.get());
+}
+
+void TabAndroid::SendDidActivateUpdate(JNIEnv* env) {
+  did_activate_callback_list_.Notify(this);
+}
+
+void TabAndroid::SendWillDeactivateUpdate(JNIEnv* env) {
+  will_deactivate_callback_list_.Notify(this);
+}
+
+void TabAndroid::SendDidInsertUpdate(JNIEnv* env) {
+  did_insert_callback_list_.Notify(this);
 }
 
 namespace {
@@ -590,7 +613,7 @@ void TabAndroid::OnShow() {
   web_contents_->SetTabSwitchStartTime(base::TimeTicks::Now(), loaded);
 }
 
-void TabAndroid::NotifyPinnedStateChanged(jboolean is_pinned) {
+void TabAndroid::NotifyPinnedStateChanged(bool is_pinned) {
   pinned_state_changed_callback_list_.Notify(this, is_pinned);
 }
 
@@ -605,7 +628,7 @@ bool TabAndroid::IsDragging() const {
   return Java_TabImpl_isDragging(env, weak_java_tab_.get(env));
 }
 
-void TabAndroid::OnDraggingStateChanged(jboolean is_dragging) {
+void TabAndroid::OnDraggingStateChanged(bool is_dragging) {
   dragging_changed_callback_list_.Notify(this, is_dragging);
 }
 
@@ -658,18 +681,14 @@ bool TabAndroid::IsActivated() const {
   return Java_TabImpl_isActivated(env, weak_java_tab_.get(env));
 }
 
-// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterDidActivate(
     DidActivateCallback callback) {
-  NOTIMPLEMENTED();
-  return base::CallbackListSubscription();
+  return did_activate_callback_list_.Add(std::move(callback));
 }
 
-// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterWillDeactivate(
     WillDeactivateCallback callback) {
-  NOTIMPLEMENTED();
-  return base::CallbackListSubscription();
+  return will_deactivate_callback_list_.Add(std::move(callback));
 }
 
 bool TabAndroid::IsVisible() const {
@@ -702,11 +721,9 @@ base::CallbackListSubscription TabAndroid::RegisterWillDetach(
   return base::CallbackListSubscription();
 }
 
-// TODO(crbug.com/409366905): Finish TabInterface implementation.
 base::CallbackListSubscription TabAndroid::RegisterDidInsert(
     DidInsertCallback callback) {
-  NOTIMPLEMENTED();
-  return base::CallbackListSubscription();
+  return did_insert_callback_list_.Add(std::move(callback));
 }
 
 base::CallbackListSubscription TabAndroid::RegisterPinnedStateChanged(
@@ -742,6 +759,14 @@ base::CallbackListSubscription TabAndroid::RegisterModalUIChanged(
 
 bool TabAndroid::IsInNormalWindow() const {
   return true;
+}
+
+BrowserWindowInterface* TabAndroid::GetBrowserWindowInterface() {
+  return FindBrowserWindowInterface(session_window_id_);
+}
+
+const BrowserWindowInterface* TabAndroid::GetBrowserWindowInterface() const {
+  return FindBrowserWindowInterface(session_window_id_);
 }
 
 tabs::TabFeatures* TabAndroid::GetTabFeatures() {
@@ -880,7 +905,7 @@ static base::android::ScopedJavaLocalRef<jobject> JNI_TabImpl_FromWebContents(
   return jtab;
 }
 
-static jboolean JNI_TabImpl_HandleNonNavigationAboutURL(
+static bool JNI_TabImpl_HandleNonNavigationAboutURL(
     JNIEnv* env,
     const JavaRef<jobject>& jurl) {
   GURL url = url::GURLAndroid::ToNativeGURL(env, jurl);

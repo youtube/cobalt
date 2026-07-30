@@ -8,6 +8,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
 #include "ui/gfx/native_ui_types.h"
+#include "ui/views/layout/layout_types.h"
 
 class ImmersiveModeController;
 class ExclusiveAccessBubbleViews;
@@ -40,12 +41,14 @@ class BrowserViewLayoutDelegate {
   virtual void LayoutWebAppWindowTitle(
       const gfx::Rect& available_space,
       views::Label& window_title_label) const = 0;
+  virtual views::LayoutAlignment GetWindowTitleAlignment() const = 0;
   virtual int GetTopInsetInBrowserView() const = 0;
   virtual bool IsToolbarVisible() const = 0;
   virtual bool IsBookmarkBarVisible() const = 0;
   virtual bool IsInfobarVisible() const = 0;
   virtual bool IsContentsSeparatorEnabled() const = 0;
   virtual bool IsActiveTabSplit() const = 0;
+  virtual bool IsActiveTabAtLeadingWindowEdge() const = 0;
   virtual const ImmersiveModeController* GetImmersiveModeController() const = 0;
   virtual ExclusiveAccessBubbleViews* GetExclusiveAccessBubble() const = 0;
   virtual bool IsTopControlsSlideBehaviorEnabled() const = 0;

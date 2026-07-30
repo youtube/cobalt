@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.app.tab_activity_glue;
 import static android.view.Display.INVALID_DISPLAY;
 
 import android.app.Activity;
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -17,6 +16,7 @@ import android.view.KeyEvent;
 import android.view.View;
 
 import org.chromium.base.ActivityState;
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
@@ -76,6 +76,7 @@ import org.chromium.url.GURL;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
@@ -292,6 +293,8 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
                                 .getInterceptNavigationDelegate()
                                 .shouldReparentTab(targetUrl);
 
+        final CompletableFuture<Boolean> addTabToModel =
+                CompletableFuture.completedFuture(!openingPopup && !willReparentTab);
         Tab tab =
                 tabCreator.createTabWithWebContents(
                         mTab,
@@ -299,8 +302,10 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
                         webContents,
                         TabLaunchType.FROM_LONGPRESS_FOREGROUND,
                         targetUrl,
-                        !openingPopup && !willReparentTab);
+                        addTabToModel);
         if (tab == null) return false;
+
+        assert addTabToModel.isDone();
 
         if (openingPopup) {
             assert window != null;
@@ -430,8 +435,7 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
         if (mActivity == null) return;
         if (ChromeFeatureList.isEnabled(
                 ChromeFeatureList.USE_ACTIVITY_MANAGER_FOR_TAB_ACTIVATION)) {
-            ((ActivityManager) mActivity.getSystemService(Context.ACTIVITY_SERVICE))
-                    .moveTaskToFront(mActivity.getTaskId(), 0);
+            ApiCompatibilityUtils.moveTaskToFront(mActivity, mActivity.getTaskId(), 0);
         } else {
             // This intent is sent in order to get the activity back to the foreground if it was
             // not already. The previous call will activate the right tab in the context of the

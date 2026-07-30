@@ -74,9 +74,11 @@ bool NeverPurgeDiscardedSessionsData() {
   return false;
 }
 
-bool LoadMinimalAppUI() {
+bool ShouldLoadMinimalAppUI() {
   return false;
 }
+
+void LoadMinimalAppUI(UIWindow* window) {}
 
 policy::ConfigurationPolicyProvider* GetOverriddenPlatformPolicyProvider() {
   return nullptr;
@@ -166,6 +168,11 @@ UIImage* GetPHPickerViewControllerImage() {
 
 std::unique_ptr<AimEligibilityService> CreateAimEligibilityService(
     ProfileIOS* profile) {
+  return nullptr;
+}
+
+std::unique_ptr<contextual_search::ContextualSearchService>
+CreateContextualSearchService(ProfileIOS* profile) {
   return nullptr;
 }
 

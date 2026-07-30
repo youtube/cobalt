@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/barrier_callback.h"
+#include "base/feature_list.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -17,6 +18,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/cloud_policy_service.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/prefs/pref_service.h"
@@ -37,21 +39,29 @@ bool IsExtensionInstallBlocked(
   auto* value_for_version = policy_value->GetDict().FindDict(
       extension_id_and_version.extension_version);
   if (!value_for_version) {
-    return true;
+    return false;
   }
 
-  return value_for_version->FindInt("action").value_or(
-             enterprise_management::ExtensionInstallPolicy::ACTION_ALLOW) ==
-         enterprise_management::ExtensionInstallPolicy::ACTION_BLOCK;
+  enterprise_management::ExtensionInstallPolicy::Action action =
+      static_cast<enterprise_management::ExtensionInstallPolicy::Action>(
+          value_for_version->FindInt("action").value_or(
+              enterprise_management::ExtensionInstallPolicy::ACTION_ALLOW));
+  return action == enterprise_management::ExtensionInstallPolicy::ACTION_BLOCK;
 }
 
 }  // namespace
-ExtensionInstallPolicyService::ExtensionInstallPolicyService(Profile* profile)
-    : profile_(profile) {}
 
-ExtensionInstallPolicyService::~ExtensionInstallPolicyService() = default;
+ExtensionInstallPolicyServiceImpl::ExtensionInstallPolicyServiceImpl(
+    Profile* profile)
+    : profile_(profile) {
+  CHECK(base::FeatureList::IsEnabled(
+      features::kEnableExtensionInstallPolicyFetching));
+}
 
-void ExtensionInstallPolicyService::CanInstallExtension(
+ExtensionInstallPolicyServiceImpl::~ExtensionInstallPolicyServiceImpl() =
+    default;
+
+void ExtensionInstallPolicyServiceImpl::CanInstallExtension(
     const ExtensionIdAndVersion& extension_id_and_version,
     base::OnceCallback<void(bool)> callback) {
   if (!profile_->GetPrefs()->GetBoolean(
@@ -70,10 +80,12 @@ void ExtensionInstallPolicyService::CanInstallExtension(
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
   size_t callback_count = 0;
-  if (user_cloud_policy_manager) {
+  if (user_cloud_policy_manager &&
+      user_cloud_policy_manager->core()->extension_install_service()) {
     ++callback_count;
   }
-  if (machine_cloud_policy_manager) {
+  if (machine_cloud_policy_manager &&
+      machine_cloud_policy_manager->core()->extension_install_service()) {
     ++callback_count;
   }
   if (callback_count == 0) {
@@ -100,7 +112,8 @@ void ExtensionInstallPolicyService::CanInstallExtension(
               },
               std::move(callback)));
 
-  if (user_cloud_policy_manager) {
+  if (user_cloud_policy_manager &&
+      user_cloud_policy_manager->core()->extension_install_service()) {
     user_cloud_policy_manager->core()
         ->extension_install_service()
         ->FetchExtensionInstallPolicy(
@@ -108,7 +121,8 @@ void ExtensionInstallPolicyService::CanInstallExtension(
             extension_id_and_version, PolicyFetchReason::kExtensionInstall,
             barrier_callback);
   }
-  if (machine_cloud_policy_manager) {
+  if (machine_cloud_policy_manager &&
+      machine_cloud_policy_manager->core()->extension_install_service()) {
     machine_cloud_policy_manager->core()
         ->extension_install_service()
         ->FetchExtensionInstallPolicy(
@@ -118,7 +132,7 @@ void ExtensionInstallPolicyService::CanInstallExtension(
   }
 }
 
-std::optional<bool> ExtensionInstallPolicyService::IsExtensionAllowed(
+std::optional<bool> ExtensionInstallPolicyServiceImpl::IsExtensionAllowed(
     const ExtensionIdAndVersion& extension_id_and_version) {
   auto* policy_service =
       profile_->GetProfilePolicyConnector()->policy_service();
@@ -137,13 +151,16 @@ std::optional<bool> ExtensionInstallPolicyService::IsExtensionAllowed(
 
   const PolicyMap::Entry* entry =
       extension_install_policy_map.Get(extension_id_and_version.extension_id);
-  if (!IsExtensionInstallBlocked(*entry, extension_id_and_version)) {
+  if (!entry) {
+    return true;
+  }
+
+  if (IsExtensionInstallBlocked(*entry, extension_id_and_version)) {
     return false;
   }
 
   for (const auto& conflict : entry->conflicts) {
-    if (!IsExtensionInstallBlocked(conflict.entry(),
-                                   extension_id_and_version)) {
+    if (IsExtensionInstallBlocked(conflict.entry(), extension_id_and_version)) {
       return false;
     }
   }

@@ -4,12 +4,19 @@
 
 #include "chrome/browser/ui/tabs/glic_tab_sub_menu_model.h"
 
+#include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
+#include "chrome/browser/glic/service/glic_instance_impl.h"
+#include "chrome/browser/glic/service/glic_ui_types.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -111,6 +118,21 @@ class GlicTabSubMenuModelTest : public InProcessBrowserTest {
   }
 
  protected:
+  GlicKeyedService* GetGlicKeyedService() {
+    GlicKeyedService* service = GlicKeyedService::Get(browser()->profile());
+    EXPECT_TRUE(service);
+    return service;
+  }
+
+  GlicInstanceCoordinatorImpl* GetGlicInstanceCoordinator() {
+    GlicKeyedService* service = GetGlicKeyedService();
+    if (!service) {
+      return nullptr;
+    }
+    return static_cast<GlicInstanceCoordinatorImpl*>(
+        &service->window_controller());
+  }
+
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -161,10 +183,10 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithSingleTab) {
   // Select tab 0
   tab_strip_model->ActivateTabAt(0);
 
-  GlicKeyedService* service = GlicKeyedService::Get(browser()->profile());
+  GlicKeyedService* service = GetGlicKeyedService();
   ASSERT_TRUE(service);
-  GlicWindowController& glic_instance_coordinator =
-      service->window_controller();
+  GlicInstanceCoordinatorImpl* glic_instance_coordinator =
+      GetGlicInstanceCoordinator();
   tabs::TabInterface* tab = tab_strip_model->GetTabAtIndex(0);
 
   std::vector<tabs::TabHandle> handles_to_wait_for = {tab->GetHandle()};
@@ -179,11 +201,11 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithSingleTab) {
   // Wait for the tab to be pinned.
   waiter.Wait();
 
-  GlicInstance* instance = glic_instance_coordinator.GetInstanceForTab(tab);
+  GlicInstance* instance = glic_instance_coordinator->GetInstanceForTab(tab);
 
   ASSERT_TRUE(instance);
   EXPECT_TRUE(instance->IsShowing());
-  EXPECT_EQ(glic_instance_coordinator.GetActiveInstance(), instance);
+  EXPECT_EQ(glic_instance_coordinator->GetActiveInstance(), instance);
 
   // Verify the tab is pinned with the correct trigger.
   auto pinned_tab_usage =
@@ -210,10 +232,10 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithMultipleTabs) {
   selection.set_active(1);
   tab_strip_model->SetSelectionFromModel(selection);
 
-  GlicKeyedService* service = GlicKeyedService::Get(browser()->profile());
+  GlicKeyedService* service = GetGlicKeyedService();
   ASSERT_TRUE(service);
-  GlicWindowController& glic_instance_coordinator =
-      service->window_controller();
+  GlicInstanceCoordinatorImpl* glic_instance_coordinator =
+      GetGlicInstanceCoordinator();
   tabs::TabInterface* tab0 = tab_strip_model->GetTabAtIndex(0);
   tabs::TabInterface* tab1 = tab_strip_model->GetTabAtIndex(1);
 
@@ -230,15 +252,15 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithMultipleTabs) {
   // Wait for the tabs to be pinned.
   waiter.Wait();
 
-  GlicInstance* instance1 = glic_instance_coordinator.GetInstanceForTab(tab0);
-  GlicInstance* instance2 = glic_instance_coordinator.GetInstanceForTab(tab1);
+  GlicInstance* instance1 = glic_instance_coordinator->GetInstanceForTab(tab0);
+  GlicInstance* instance2 = glic_instance_coordinator->GetInstanceForTab(tab1);
 
   ASSERT_TRUE(instance1);
   ASSERT_TRUE(instance2);
   EXPECT_EQ(instance1, instance2);
   EXPECT_TRUE(instance1->IsShowing());
   EXPECT_TRUE(instance2->IsShowing());
-  EXPECT_EQ(glic_instance_coordinator.GetActiveInstance(), instance1);
+  EXPECT_EQ(glic_instance_coordinator->GetActiveInstance(), instance1);
 
   // Verify tabs 0 and 1 are pinned with the correct trigger.
   auto pinned_tab_usage0 =
@@ -254,9 +276,206 @@ IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, CreateNewChatWithMultipleTabs) {
             glic::GlicPinTrigger::kContextMenu);
 
   // Tab 2 should not be bound or pinned to anything.
-  GlicInstance* instance3 = glic_instance_coordinator.GetInstanceForTab(
+  GlicInstance* instance3 = glic_instance_coordinator->GetInstanceForTab(
       tab_strip_model->GetTabAtIndex(2));
   EXPECT_FALSE(instance3);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, SwitchToRecentConversation) {
+  // Ensure Glic is enabled for the profile.
+  EXPECT_TRUE(GlicEnabling::IsReadyForProfile(browser()->profile()));
+
+  auto* glic_instance_coordinator = GetGlicInstanceCoordinator();
+  ASSERT_TRUE(glic_instance_coordinator);
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+
+  // Create 5 conversations by adding 5 tabs and activating the side panel for
+  // each tab.
+  for (int i = 1; i <= 5; ++i) {
+    ASSERT_TRUE(
+        AddTabAtIndex(i, GURL("about:blank"), ui::PAGE_TRANSITION_LINK));
+    tab_strip_model->ActivateTabAt(i);
+    tabs::TabInterface* current_tab = tab_strip_model->GetTabAtIndex(i);
+
+    glic_instance_coordinator->Toggle(
+        browser(),
+        /*prevent_close=*/false,
+        glic::mojom::InvocationSource::kTopChromeButton,
+        /*prompt_suggestion=*/std::nullopt);
+
+    // Wait for the instance to be shown and associated with the current tab.
+    GlicInstance* instance = nullptr;
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      instance = glic_instance_coordinator->GetInstanceForTab(current_tab);
+      return instance &&
+             glic_instance_coordinator->GetActiveInstance() == instance &&
+             instance->IsShowing();
+    }));
+
+    GlicInstanceImpl* instance_impl = static_cast<GlicInstanceImpl*>(instance);
+
+    auto info = glic::mojom::ConversationInfo::New();
+    info->conversation_id = "conv" + base::NumberToString(i);
+    info->conversation_title = "Title " + base::NumberToString(i);
+    instance_impl->RegisterConversation(std::move(info), base::DoNothing());
+
+    base::RunLoop run_loop;
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  auto recents = glic_instance_coordinator->GetRecentlyActiveConversations(10);
+  ASSERT_EQ(5u, recents.size());
+
+  auto menu = std::make_unique<TabMenuModel>(
+      /*delegate=*/nullptr, browser()->GetFeatures().tab_menu_model_delegate(),
+      tab_strip_model, /*index=*/0);
+
+  std::optional<size_t> share_index =
+      menu->GetIndexOfCommandId(TabStripModel::CommandGlicShare);
+  ASSERT_TRUE(share_index.has_value());
+
+  ui::MenuModel* submenu = menu->GetSubmenuModelAt(share_index.value());
+  ASSERT_TRUE(submenu);
+
+  // Verify all 5 conversations are present and in the correct order (most
+  // recent first).
+  for (size_t i = 0; i < 5; ++i) {
+    std::u16string expected_title =
+        base::UTF8ToUTF16("Title " + base::NumberToString(5 - i));
+    EXPECT_EQ(submenu->GetLabelAt(i), expected_title);
+  }
+
+  // Now verify that we can switch a tab to a recent conversation.
+  // Select tabs 1 and 2.
+  ui::ListSelectionModel selection;
+  selection.AddIndexToSelection(1);
+  selection.AddIndexToSelection(2);
+  selection.set_active(1);
+  tab_strip_model->SetSelectionFromModel(selection);
+
+  menu = std::make_unique<TabMenuModel>(
+      /*delegate=*/nullptr, browser()->GetFeatures().tab_menu_model_delegate(),
+      tab_strip_model, /*index=*/1);
+
+  share_index = menu->GetIndexOfCommandId(TabStripModel::CommandGlicShare);
+  ASSERT_TRUE(share_index.has_value());
+  submenu = menu->GetSubmenuModelAt(share_index.value());
+  ASSERT_TRUE(submenu);
+
+  // Select the third conversation and pin tabs to it.
+  size_t target_index = 0;
+  bool found_target = false;
+  for (size_t i = 0; i < submenu->GetItemCount(); ++i) {
+    if (submenu->GetLabelAt(i) == u"Title 3") {
+      target_index = i;
+      found_target = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(found_target);
+  submenu->ActivatedAt(target_index);
+
+  tabs::TabInterface* tab1 = tab_strip_model->GetTabAtIndex(1);
+  tabs::TabInterface* tab2 = tab_strip_model->GetTabAtIndex(2);
+
+  // Verify tabs 1 and 2 are pinned to conv3.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    auto* inst1 = glic_instance_coordinator->GetInstanceForTab(tab1);
+    auto* inst2 = glic_instance_coordinator->GetInstanceForTab(tab2);
+    // conv3
+    return inst1 &&
+           static_cast<GlicInstanceImpl*>(inst1)->conversation_id() ==
+               "conv3" &&
+           inst2 &&
+           static_cast<GlicInstanceImpl*>(inst2)->conversation_id() == "conv3";
+  }));
+}
+
+class TestMenuDelegate : public ui::SimpleMenuModel::Delegate {
+ public:
+  bool IsCommandIdChecked(int command_id) const override { return false; }
+  bool IsCommandIdEnabled(int command_id) const override { return true; }
+  void ExecuteCommand(int command_id, int event_flags) override {}
+};
+
+IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest,
+                       UnshareCommandHiddenWhenNothingIsPinned) {
+  // Ensure Glic is enabled for the profile.
+  EXPECT_TRUE(GlicEnabling::IsReadyForProfile(browser()->profile()));
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_GE(tab_strip_model->count(), 1);
+
+  // Select the first tab
+  tab_strip_model->ActivateTabAt(0);
+
+  // Open the context menu without pinning anything
+  TestMenuDelegate delegate;
+  auto menu = std::make_unique<TabMenuModel>(
+      &delegate, browser()->GetFeatures().tab_menu_model_delegate(),
+      tab_strip_model, /*index=*/0);
+
+  // Verify that the "Unshare with Gemini" command isn't shown
+  bool unshare_command_found = false;
+  for (size_t i = 0; i < menu->GetItemCount(); ++i) {
+    if (menu->GetCommandIdAt(i) == TabStripModel::CommandGlicUnshare) {
+      unshare_command_found = true;
+      break;
+    }
+  }
+  EXPECT_FALSE(unshare_command_found);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicTabSubMenuModelTest, UnshareCommandShown) {
+  // Ensure Glic is enabled for the profile.
+  EXPECT_TRUE(GlicEnabling::IsReadyForProfile(browser()->profile()));
+
+  // Add a second tab so we have one pinned and one unpinned.
+  ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_LINK));
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_GE(tab_strip_model->count(), 2);
+
+  // Select the first tab and pin it to a conversation.
+  tab_strip_model->ActivateTabAt(0);
+
+  GlicKeyedService* service = GlicKeyedService::Get(browser()->profile());
+  ASSERT_TRUE(service);
+
+  tabs::TabInterface* tab = tab_strip_model->GetTabAtIndex(0);
+
+  std::vector<tabs::TabHandle> handles_to_wait_for = {tab->GetHandle()};
+  glic::GlicTabPinningWaiter waiter(&service->sharing_manager(),
+                                    handles_to_wait_for);
+
+  service->window_controller().CreateNewConversationForTabs({tab});
+  waiter.Wait();
+
+  // Select both tabs and open the context menu.
+  ui::ListSelectionModel selection;
+  selection.AddIndexToSelection(0);
+  selection.AddIndexToSelection(1);
+  selection.set_active(0);
+  tab_strip_model->SetSelectionFromModel(selection);
+
+  TestMenuDelegate delegate;
+  auto menu = std::make_unique<TabMenuModel>(
+      &delegate, browser()->GetFeatures().tab_menu_model_delegate(),
+      tab_strip_model, /*index=*/0);
+
+  // Verify that the "Unshare with Gemini" command is shown
+  int unshare_command_index = -1;
+  for (size_t i = 0; i < menu->GetItemCount(); ++i) {
+    if (menu->GetCommandIdAt(i) == TabStripModel::CommandGlicUnshare) {
+      unshare_command_index = i;
+      break;
+    }
+  }
+  EXPECT_NE(unshare_command_index, -1);
+  EXPECT_TRUE(menu->IsEnabledAt(unshare_command_index));
 }
 
 }  // namespace glic

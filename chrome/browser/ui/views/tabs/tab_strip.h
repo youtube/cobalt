@@ -38,6 +38,7 @@
 #include "ui/views/view_model.h"
 #include "ui/views/widget/widget_observer.h"
 
+class BrowserWindowInterface;
 class Tab;
 class TabGroup;
 class TabHoverCardController;
@@ -191,9 +192,6 @@ class TabStrip : public views::View,
   // Updates the tab slot view split state and animates to bounds.
   void OnSplitContentsChanged(const std::vector<int>& split_indices);
 
-  // Returns whether or not strokes should be drawn around and under the tabs.
-  bool ShouldDrawStrokes() const;
-
   // Invoked when the selection is updated.
   void SetSelection(const ui::ListSelectionModel& new_selection);
 
@@ -240,7 +238,7 @@ class TabStrip : public views::View,
   views::View* GetDefaultFocusableChild();
 
   // The browser window interface for the hosting browser.
-  BrowserWindowInterface* GetBrowserWindowInterface();
+  BrowserWindowInterface* GetBrowserWindowInterface() const;
 
   // TabContainerController:
   bool IsValidModelIndex(int index) const override;
@@ -309,7 +307,6 @@ class TabStrip : public views::View,
   void HideHover(Tab* tab, TabStyle::HideHoverStyle style) override;
   int GetStrokeThickness() const override;
   bool CanPaintThrobberToLayer() const override;
-  bool HasVisibleBackgroundTabShapes() const override;
   SkColor GetTabSeparatorColor() const override;
   std::u16string GetAccessibleTabName(const Tab* tab) const override;
   std::optional<int> GetCustomBackgroundId(
@@ -327,6 +324,7 @@ class TabStrip : public views::View,
   void ShiftGroupLeft(const tab_groups::TabGroupId& group) override;
   void ShiftGroupRight(const tab_groups::TabGroupId& group) override;
   Browser* GetBrowser() override;
+  BrowserWindowInterface* GetBrowserWindowInterface() override;
   bool IsFrameCondensed() const override;
 #if BUILDFLAG(IS_CHROMEOS)
   bool IsLockedForOnTask() override;

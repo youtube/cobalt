@@ -108,8 +108,6 @@ const AtomicString StyleEnvironmentVariables::GetVariableName(
       return AtomicString("titlebar-area-height");
     case UADefinedVariable::kPreferredTextScale:
       return AtomicString("preferred-text-scale");
-    case UADefinedVariable::kSafePrintableInset:
-      return AtomicString("safe-printable-inset");
     default:
       break;
   }
@@ -301,8 +299,7 @@ void StyleEnvironmentVariables::ParentInvalidatedVariable(
     const AtomicString& name) {
   // If we have not overridden the variable then we should invalidate it
   // locally.
-  if (!base::Contains(data_, name) &&
-      !base::Contains(two_dimension_data_, name)) {
+  if (!data_.Contains(name) && !two_dimension_data_.Contains(name)) {
     InvalidateVariable(name);
   }
 }

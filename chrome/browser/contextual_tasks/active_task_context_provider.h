@@ -47,7 +47,14 @@ class ActiveTaskContextProvider {
   // context.
   // 1. After every tab switch with the correct state of side panel.
   // 2. Whenever the side panel is opened or closed, e.g. due to user action.
+  // 3. Whenever the auto suggested tab context suggestion is disabled.
   virtual void OnSidePanelStateUpdated() = 0;
+
+  // Called to notify of state changes of full tab tasks.
+  // On receiving this signal, the provider is supposed to recompute the
+  // context.
+  // Currently invoked when the task changes when shown in a full tab.
+  virtual void OnFullTabStateUpdated() = 0;
 
   // Sets the callback to be invoked to obtain the current task ID and session
   // handle. Must be invoked on startup.

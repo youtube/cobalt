@@ -28,6 +28,17 @@ class MultiContentsDropTargetView : public views::View,
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMultiContentsDropTargetElementId);
 
+  static constexpr int kDropTargetMinWidth = 120;
+  static constexpr int kDropTargetMaxWidth = 420;
+  static constexpr int kDropTargetTargetWidthPercentage = 30;
+  static constexpr int kDropTargetForLinkTargetWidthPercentage = 15;
+  static constexpr int kNudgeMinWidth = 80;
+  static constexpr int kNudgeMaxWidth = 200;
+  static constexpr int kNudgeTargetWidthPercentage = 5;
+  static constexpr int kNudgeToFullMinWidth = 120;
+  static constexpr int kNudgeToFullMaxWidth = 360;
+  static constexpr int kNudgeToFullTargetWidthPercentage = 15;
+
   // Represents which edge of the contents area the drop target is on.
   enum class DropSide {
     START = 0,

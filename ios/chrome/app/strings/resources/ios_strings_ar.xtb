@@ -75,6 +75,7 @@
 <translation id="1272079795634619415">إيقاف</translation>
 <translation id="1273416271143914096">{count,plural, =1{كلمة مرور واحدة ({count})}zero{{count} كلمة مرور}two{كلمتا مرور ({count})}few{{count} كلمات مرور}many{{count} كلمة مرور}other{{count} كلمة مرور}}</translation>
 <translation id="1275718070701477396">تم التحديد</translation>
+<translation id="1279024913354609713">عدم السماح</translation>
 <translation id="1285320974508926690">عدم ترجمة هذا الموقع مطلقًا</translation>
 <translation id="1287229685519872919">‏بيانات Google Workspace</translation>
 <translation id="1291506870746876680">بعد مغادرة الموقع الإلكتروني <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" />، ستتم إعادة ضبط أذوناته على وضع الإيقاف.</translation>
@@ -456,6 +457,7 @@
 <translation id="2669454659051515572">يمكن لأي شخص يستخدم هذا الجهاز الاطّلاع على الملفات التي تم تنزيلها.</translation>
 <translation id="2671423594960767771">مشاركة المجموعة</translation>
 <translation id="2673508731173059946">الانتقال إلى الرابط المنسوخ</translation>
+<translation id="2679659833697380">يتم حفظ معلوماتك على جهازك</translation>
 <translation id="2688535388040882469">بانرات</translation>
 <translation id="2690858294534178585">الكاميرا قيد الاستخدام</translation>
 <translation id="2691653761409724435">غير متاح بلا اتصال</translation>
@@ -657,7 +659,6 @@
 <translation id="3530024057633834563">ليس لديك أي كلمات مرور أو مفاتيح مرور محفوظة، ولكن يمكنك حذف قائمة المواقع الإلكترونية والتطبيقات التي اخترت عدم حفظ معلومات تسجيل الدخول إليها، ولن يتم حذف أي حساب سبق إنشاؤه للمواقع إلكترونية أو التطبيقات.</translation>
 <translation id="3530206579861815432">يمكنك العثور بسرعة على علامات التبويب المفتوحة وتلك التي تم إغلاقها مؤخرًا على جميع أجهزتك التي تمت مزامنتها.</translation>
 <translation id="3530767473765895035">إدارة الحسابات على هذا الجهاز…</translation>
-<translation id="353340646084395154">تمت إزالة الإعدادات المفضّلة لصفحة "علامة تبويب جديدة"</translation>
 <translation id="3533436815740441613">علامة تبويب جديدة</translation>
 <translation id="3540141921715814660">الإضافة إلى الإشارات المرجعية</translation>
 <translation id="3546122170015471515">‏"معاينة الخرائط" (Maps Previews) على Google.com</translation>
@@ -927,7 +928,6 @@
 <translation id="4601095002996233687">يفحص هذا الوضع عمليات التنزيل المريبة بشكل مفصَّل.</translation>
 <translation id="4606247758155004938">تتولّى مؤسستك إدارة متصفِّحك.</translation>
 <translation id="4607887340472970274">تتبُّع الأسعار</translation>
-<translation id="461440297010471931">‏البحث من خلال Google</translation>
 <translation id="4619564267100705184">إثبات هويّتك</translation>
 <translation id="4621768135601674446">فتح خيارات "وضع القراءة"</translation>
 <translation id="4627107755957573804">يمكن السماح للمواقع الإلكترونية والتطبيقات بترقية الحسابات الحالية لاستخدام مفاتيح المرور</translation>
@@ -953,6 +953,7 @@
 <translation id="4673565891421389203">يساعدك تسجيل الدخول باستخدام حسابك المُدار في فصل بيانات التصفّح المتعلقة بمؤسستك (بما في ذلك علامات التبويب والسجلّ وكلمات المرور) عن بيانات التصفّح الأخرى.
 
        يُرجى تحديد الإجراء المطلوب بخصوص بيانات التصفّح الحالية على هذا الجهاز.</translation>
+<translation id="4675298276894277358">لن يظهر هذا الموقع الإلكتروني مرة أخرى</translation>
 <translation id="4682496302933121474">هل تريد ترجمة الصفحة؟</translation>
 <translation id="4682686630151240767">‏1- فتح iPhone Settings (إعدادات iPhone)</translation>
 <translation id="4691892551491778176">‏عند استخدام هذه الميزة، يتم إرسال محتوى الصفحة وعناوين URL إلى Google، ولكنّها لن تُستخدَم لتحسين نماذج الذكاء الاصطناعي التوليدي. ويمكنك إيقاف هذا من خلال الإعدادات في أي وقت.</translation>
@@ -966,6 +967,7 @@
 <translation id="472259426228234149">السعر يتراوح من 100$ إلى 180$</translation>
 <translation id="4735849923335729414">تسجيل الدخول باستخدام حساب <ph name="EMAIL" /> الذي تديره مؤسستك</translation>
 <translation id="473775607612524610">تحديث</translation>
+<translation id="4738968082443868320">Google Drive</translation>
 <translation id="474209246745757965">تتيح لك هذه الميزة تسوّق مختلف المنتجات وترجمة النصوص</translation>
 <translation id="4742407542027196863">إدارة كلمات المرور…</translation>
 <translation id="4744428388659507035">للحصول على الإشارات المرجعية على جميع أجهزتك، فعِّل "الإشارات المرجعية" في الإعدادات.</translation>
@@ -1055,6 +1057,7 @@
 <translation id="5021500396464456616">يُرجى التواصل مع الشخص الذي أرسلَ هذا الرابط</translation>
 <translation id="5039804452771397117">سماح</translation>
 <translation id="5050810143224996149">مشاركة كلمة المرور</translation>
+<translation id="5052499409147950210">تعديل موقع إلكتروني</translation>
 <translation id="5055015094595227120">الموقع الجغرافي الدقيق</translation>
 <translation id="5055551113846164633">‏يؤدي هذا الإجراء إلى حذف العناوين المحفوظة على هذا الجهاز وفي حسابك على Google "<ph name="USER_EMAIL" />".</translation>
 <translation id="5056446788882570708">تم العثور على مشاكل <ph name="TIME" />.</translation>
@@ -1133,6 +1136,7 @@
 <translation id="5295239312320826323">هل تريد إزالة الحساب <ph name="USER_EMAIL" />؟</translation>
 <translation id="5300589172476337783">عرض</translation>
 <translation id="5311061401280561833">الوصول إلى الكاميرا والميكروفون مسموح به</translation>
+<translation id="5313967007315987356">إضافة موقع إلكتروني</translation>
 <translation id="5315870524563628285">ما مِن عناصر متاحة للاستيراد</translation>
 <translation id="5316356981864168850">‫<ph name="INDEX" /> من إجمالي <ph name="NUM_SUGGESTIONS" /></translation>
 <translation id="5317780077021120954">حفظ</translation>
@@ -1150,7 +1154,6 @@
 <translation id="537853552771686272">إدارة المواضيع والمواقع الإلكترونية التي تهمّك</translation>
 <translation id="5390458669633674385">{count,plural, =1{وتم إغلاق علامة تبويب واحدة ({count})}zero{وتم إغلاق {count} علامة تبويب}two{وتم إغلاق علامتَي تبويب ({count})}few{وتم إغلاق {count} علامات تبويب}many{وتم إغلاق {count} علامة تبويب}other{وتم إغلاق {count} علامة تبويب}}</translation>
 <translation id="5394975111793637642">إخفاء بطاقة "مراجعات المنتج المخصّصة لك"</translation>
-<translation id="5407806496954700135">تطبيق إعدادات تخصيص صفحة "علامة تبويب جديدة" من جهاز آخر؟</translation>
 <translation id="5414763847370083940">ستتلقَّى تنبيهًا في حال انخفاض السعر على أي موقع إلكتروني.</translation>
 <translation id="5415289094036440596">لا يمكن مشاركة مفاتيح المرور</translation>
 <translation id="5416455648658732408">النقل إلى مجموعة علامات التبويب</translation>
@@ -1200,7 +1203,6 @@
 <translation id="5579012242779565775">إخفاء "قائمة القراءة"</translation>
 <translation id="5581786858144165447">‏طرح سؤال في "وضع AI"</translation>
 <translation id="5585019845078534178">بطاقات</translation>
-<translation id="5589976607021609750">الصورة المرفقة</translation>
 <translation id="5595485650161345191">تعديل العنوان</translation>
 <translation id="559567008082979829">يمكنك ضبط عمليات التنزيل بحيث يتم حذفها بعد شهر واحد.</translation>
 <translation id="5596627076506792578">خيارات إضافية</translation>
@@ -1358,7 +1360,6 @@
 <translation id="6122191549521593678">متصل</translation>
 <translation id="6122831415929794347">هل المطلوب إيقاف "التصفُّح الآمن"؟</translation>
 <translation id="6123514585040403489">سيتم إغلاق علامات التبويب</translation>
-<translation id="6127379762771434464">تمت إزالة العنصر</translation>
 <translation id="6136914049981179737">قبل ثانية</translation>
 <translation id="6138324221869147340">بعض الميزات لم تعُد متوفّرة</translation>
 <translation id="6140600850356225166">طلب فتح روابط من تطبيقات أخرى في وضع التصفّح المتخفي</translation>
@@ -1794,7 +1795,6 @@
 <translation id="7696316012653762532">خيارات ترجمة الصفحة</translation>
 <translation id="7700527812567437847">‏البحث في الشاشة باستخدام "عدسة Google"</translation>
 <translation id="7701040980221191251">لا يوجد</translation>
-<translation id="7708668404222666001">تم تطبيق الإعدادات المفضّلة لصفحة "علامة تبويب جديدة"</translation>
 <translation id="7708994397325774423">الحصول على جميع كلمات المرور</translation>
 <translation id="7711440461521638739">لم يتم العثور على أي كلمات مرور مستخدَمة لحساب آخر.</translation>
 <translation id="7712361583414030698">عرض النسخة بلا إنترنت</translation>
@@ -2127,6 +2127,7 @@
 <translation id="8856643812068084733">الأرشيفات</translation>
 <translation id="8863067612494559785">جارٍ إرسال علامة التبويب إلى <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">‏الحصول على الاتجاهات والمعلومات المحلية من "خرائط Google"</translation>
+<translation id="8867879594900082274">لن يتم تطبيق التعديلات إلّا على المواقع الإلكترونية المثبَّتة على هذا الجهاز.</translation>
 <translation id="8871974300055371298">إعدادات المحتوى</translation>
 <translation id="8877788021141246043">ضبط تذكير</translation>
 <translation id="8879604564928138696">انقر مرّتين للتجربة</translation>

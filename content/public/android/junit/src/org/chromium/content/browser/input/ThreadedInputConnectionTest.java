@@ -41,6 +41,8 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.content_public.browser.ContentFeatureList;
 
 import java.util.concurrent.Callable;
 
@@ -82,10 +84,11 @@ public class ThreadedInputConnectionTest {
 
     @Test
     @Feature({"TextInput"})
+    @EnableFeatures({ContentFeatureList.ACCESSIBILITY_IME_GET_FORMATTED_TEXT})
     public void testComposeGetTextFinishGetText() {
         // IME app calls setComposingText().
         mConnection.setComposingText("hello", 1);
-        mInOrder.verify(mImeAdapter).sendCompositionToNative("hello", 1, false, 0);
+        mInOrder.verify(mImeAdapter).sendCompositionToNative("hello", 1, false, 0, false);
 
         // Renderer updates states asynchronously.
         mConnection.updateStateOnUiThread("hello", 5, 5, 0, 5, true, false);
@@ -122,10 +125,10 @@ public class ThreadedInputConnectionTest {
     public void testPressingDeadKey() {
         // On default keyboard "Alt+i" produces a dead key '\u0302'.
         mConnection.setCombiningAccentOnUiThread(0x0302);
-        mConnection.updateComposingText("\u0302", 1, true);
+        mConnection.updateComposingText("\u0302", 1, true, false);
         mInOrder.verify(mImeAdapter)
                 .sendCompositionToNative(
-                        "\u0302", 1, false, 0x0302 | KeyCharacterMap.COMBINING_ACCENT);
+                        "\u0302", 1, false, 0x0302 | KeyCharacterMap.COMBINING_ACCENT, false);
     }
 
     @Test
@@ -175,6 +178,7 @@ public class ThreadedInputConnectionTest {
 
     @Test
     @Feature({"TextInput"})
+    @EnableFeatures({ContentFeatureList.ACCESSIBILITY_IME_GET_FORMATTED_TEXT})
     @Ignore("crbug/632792")
     public void testFailToRequestToRenderer() {
         when(mImeAdapter.requestTextInputStateUpdate()).thenReturn(false);
@@ -184,6 +188,7 @@ public class ThreadedInputConnectionTest {
 
     @Test
     @Feature({"TextInput"})
+    @EnableFeatures({ContentFeatureList.ACCESSIBILITY_IME_GET_FORMATTED_TEXT})
     @Ignore("crbug/632792")
     public void testRendererCannotUpdateState() {
         when(mImeAdapter.requestTextInputStateUpdate()).thenReturn(true);
@@ -210,6 +215,7 @@ public class ThreadedInputConnectionTest {
     // crbug.com/643477
     @Test
     @Feature({"TextInput"})
+    @EnableFeatures({ContentFeatureList.ACCESSIBILITY_IME_GET_FORMATTED_TEXT})
     public void testUiThreadAccess() {
         assertTrue(mConnection.commitText("hello", 1));
         mRunningOnUiThread = true;

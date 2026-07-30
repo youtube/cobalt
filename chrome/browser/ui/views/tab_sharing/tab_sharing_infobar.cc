@@ -114,6 +114,10 @@ TabSharingInfoBar::TabSharingInfoBar(
   if (buttons & TabSharingInfoBarDelegate::kStop) {
     stop_button_ = create_button(TabSharingInfoBarDelegate::kStop,
                                  &TabSharingInfoBar::StopButtonPressed);
+    if (base::FeatureList::IsEnabled(features::kInfobarRefresh)) {
+      stop_button_->SetProperty(views::kMarginsKey,
+                                gfx::Insets::TLBR(0, 12, 0, 0));
+    }
   }
 
   if (buttons & TabSharingInfoBarDelegate::kShareThisTabInstead) {
@@ -143,13 +147,15 @@ TabSharingInfoBar::TabSharingInfoBar(
         CONTEXT_OMNIBOX_PRIMARY);
     csc_indicator_button_->SetStyle(ui::ButtonStyle::kDefault);
     csc_indicator_button_->SetCornerRadius(
-        GetLayoutConstant(TOOLBAR_CORNER_RADIUS));
+        GetLayoutConstant(LayoutConstant::kToolbarCornerRadius));
     csc_indicator_button_->SetCustomPadding(
         kCapturedSurfaceControlIndicatorButtonInsets);
     csc_indicator_button_->SetTextColor(
         views::Button::ButtonState::STATE_NORMAL, ui::kColorSysOnSurface);
 
     if (base::FeatureList::IsEnabled(features::kInfobarRefresh)) {
+      csc_indicator_button_->SetProperty(views::kMarginsKey,
+                                         gfx::Insets::TLBR(0, 12, 0, 0));
       csc_indicator_button_->SetProperty(views::kCrossAxisAlignmentKey,
                                          views::LayoutAlignment::kCenter);
     }
@@ -163,13 +169,6 @@ TabSharingInfoBar::TabSharingInfoBar(
 TabSharingInfoBar::~TabSharingInfoBar() = default;
 
 void TabSharingInfoBar::Layout(PassKey) {
-  // If Refresh is enabled, InfoBarView uses a FlexLayout that handles centering
-  // automatically.
-  if (base::FeatureList::IsEnabled(features::kInfobarRefresh)) {
-    LayoutSuperclass<InfoBarView>(this);
-    return;
-  }
-
   LayoutSuperclass<InfoBarView>(this);
 
   if (stop_button_) {
@@ -186,6 +185,12 @@ void TabSharingInfoBar::Layout(PassKey) {
 
   if (csc_indicator_button_) {
     csc_indicator_button_->SizeToPreferredSize();
+  }
+
+  // If Refresh is enabled, InfoBarView uses a FlexLayout that handles centering
+  // automatically.
+  if (base::FeatureList::IsEnabled(features::kInfobarRefresh)) {
+    return;
   }
 
   int x = GetStartX();

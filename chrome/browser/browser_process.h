@@ -80,8 +80,16 @@ namespace subresource_filter {
 class RulesetService;
 }
 
+namespace supervised_user {
+class DeviceParentalControls;
+}  // namespace supervised_user
+
 namespace variations {
 class VariationsService;
+}
+
+namespace activity_reporter {
+class ActivityReporter;
 }
 
 namespace component_updater {
@@ -216,6 +224,14 @@ class BrowserProcess {
   virtual printing::BackgroundPrintingManager*
   background_printing_manager() = 0;
 
+  // Returns a handle to the manager of device parental controls, which
+  // are independent from the profile. This handler is member of browser process
+  // directly and cannot be moved to GlobalFeatures, because it is also required
+  // early to initialize the pref service on Android.
+  // Platforms not implementing device parental control return a no-op stub.
+  virtual supervised_user::DeviceParentalControls&
+  device_parental_controls() = 0;
+
 #if !BUILDFLAG(IS_ANDROID)
   virtual IntranetRedirectDetector* intranet_redirect_detector() = 0;
 #endif
@@ -274,6 +290,8 @@ class BrowserProcess {
   // |kSwitchesToRemoveOnAutorestart| array in browser_process_impl.cc.
   virtual void StartAutoupdateTimer() = 0;
 #endif
+
+  virtual activity_reporter::ActivityReporter* activity_reporter() = 0;
 
   virtual component_updater::ComponentUpdateService* component_updater() = 0;
 

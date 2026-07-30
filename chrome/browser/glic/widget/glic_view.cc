@@ -5,7 +5,11 @@
 #include "chrome/browser/glic/widget/glic_view.h"
 
 #include "base/command_line.h"
+#include "base/metrics/user_metrics.h"
 #include "chrome/browser/file_select_helper.h"
+#include "chrome/browser/glic/fre/glic_fre_controller.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -18,6 +22,7 @@
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
@@ -25,6 +30,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_variant.h"
 #include "ui/events/event_observer.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/views/background.h"
 #include "ui/views/event_monitor.h"
@@ -51,6 +57,16 @@ GlicView::~GlicView() = default;
 
 bool GlicView::HandleKeyboardEvent(content::WebContents* source,
                                    const input::NativeWebKeyboardEvent& event) {
+  if (event.GetType() == input::NativeWebKeyboardEvent::Type::kRawKeyDown &&
+      event.windows_key_code == ui::VKEY_ESCAPE) {
+    if (auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(
+            source->GetBrowserContext())) {
+      if (glic_service->fre_controller().ShouldShowFreDialog() &&
+          glic_service->IsWindowOrFreShowing()) {
+        base::RecordAction(base::UserMetricsAction("Glic.Fre.CloseWithEsc"));
+      }
+    }
+  }
   return GetWidget() && unhandled_keyboard_event_handler_.HandleKeyboardEvent(
                             event, GetWidget()->GetFocusManager());
 }
@@ -96,30 +112,8 @@ void GlicView::DraggableRegionsChanged(
   SetDraggableRegion(sk_region);
 }
 
-void GlicView::SetDraggableAreas(
-    const std::vector<gfx::Rect>& draggable_areas) {
-  draggable_areas_.assign(draggable_areas.begin(), draggable_areas.end());
-}
-
-bool GlicView::IsPointWithinDraggableArea(const gfx::Point& point) {
-  if (base::FeatureList::IsEnabled(features::kGlicWindowDragRegions)) {
-    return draggable_region_.contains(point.x(), point.y());
-  }
-
-  for (const gfx::Rect& rect : draggable_areas_) {
-    if (rect.Contains(point)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void GlicView::UpdatePrimaryDraggableAreaOnResize() {
-  if (draggable_areas_.empty()) {
-    return;
-  }
-
-  draggable_areas_[0].set_width(width());
+bool GlicView::IsPointWithinDraggableRegion(const gfx::Point& point) {
+  return draggable_region_.contains(point.x(), point.y());
 }
 
 void GlicView::UpdateBackgroundColor() {

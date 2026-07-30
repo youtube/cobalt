@@ -40,7 +40,7 @@ import java.util.Map;
 @NullMarked
 public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
 
-    interface Observer {
+    public interface Observer {
         /** Called when detailed pane title is updated. */
         default void onTitleUpdated() {}
 
@@ -85,6 +85,8 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
 
     private InnerOnBackPressedCallback mOnBackPressedCallback;
 
+    private Runnable mOnCreateViewRunnable;
+
     private @Nullable Intent mPendingFragmentIntent;
 
     private final List<Observer> mObservers = new ArrayList<>();
@@ -127,6 +129,10 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
 
     void setPendingFragmentIntent(Intent intent) {
         mPendingFragmentIntent = intent;
+    }
+
+    void setOnCreateViewRunnable(Runnable runnable) {
+        mOnCreateViewRunnable = runnable;
     }
 
     View getHeaderView() {
@@ -256,6 +262,7 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
                         int oldBottom) -> {
                     updateHeaderLayout(v.findViewById(R.id.preferences_header));
                 });
+        if (mOnCreateViewRunnable != null) view.post(mOnCreateViewRunnable);
         return view;
     }
 

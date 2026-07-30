@@ -59,28 +59,15 @@ using testing::SizeIs;
 class FakeGlicTabStripController : public FakeBaseTabStripController {
  public:
   // `profile` must be non-null and must outlive `this`.
-  explicit FakeGlicTabStripController(TestingProfile* profile)
-      : profile_(CHECK_DEREF(profile)) {}
-
-  Profile* GetProfile() const override {
-    if (use_otr_profile_) {
-      TestingProfile* otr_profile = TestingProfile::Builder().BuildOffTheRecord(
-          &profile_.get(), Profile::OTRProfileID::CreateUniqueForTesting());
-
-      return otr_profile;
-    }
-
-    return &profile_.get();
-  }
-  void Setup() {
+  explicit FakeGlicTabStripController(bool use_otr_profile,
+                                      TestingProfile* profile)
+      : profile_(CHECK_DEREF(profile)) {
     auto browser_window = std::make_unique<TestBrowserWindow>();
-    Browser::CreateParams params(&profile_.get(), /*user_gesture*/ true);
+    Browser::CreateParams params(GetProfile(use_otr_profile),
+                                 /*user_gesture*/ true);
     params.type = Browser::TYPE_NORMAL;
     params.window = browser_window.release();
     browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
-  }
-  void ShouldUseOtrProfile(bool use_otr_profile) {
-    use_otr_profile_ = use_otr_profile;
   }
 
   BrowserWindowInterface* GetBrowserWindowInterface() override {
@@ -90,7 +77,18 @@ class FakeGlicTabStripController : public FakeBaseTabStripController {
   bool CanShowModalUI() const override { return true; }
 
  private:
-  bool use_otr_profile_ = false;
+  Profile* GetProfile(bool use_otr_profile) const {
+    if (use_otr_profile) {
+      TestingProfile* otr_profile = TestingProfile::Builder().BuildOffTheRecord(
+          &profile_.get(), Profile::OTRProfileID::CreateUniqueForTesting());
+
+      return otr_profile;
+    }
+
+    return &profile_.get();
+  }
+
+ private:
   const raw_ref<TestingProfile> profile_;
   std::unique_ptr<Browser> browser_;
 };
@@ -152,15 +150,14 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
   }
 
   void BuildGlicContainer(bool use_otr_profile) {
-    auto controller =
-        std::make_unique<FakeGlicTabStripController>(profile_.get());
-    controller->Setup();
-    controller->ShouldUseOtrProfile(use_otr_profile);
+    auto controller = std::make_unique<FakeGlicTabStripController>(
+        use_otr_profile, profile_.get());
 
     tab_strip_ = std::make_unique<TabStrip>(std::move(controller));
 
     tab_strip_model_ = std::make_unique<TabStripModel>(
-        &tab_strip_model_delegate_, tab_strip_->controller()->GetProfile());
+        &tab_strip_model_delegate_,
+        tab_strip_->GetBrowserWindowInterface()->GetProfile());
 
     tab_interface_ = std::make_unique<tabs::MockTabInterface>();
 
@@ -168,8 +165,8 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
     ON_CALL(*browser_window_interface_, GetTabStripModel())
         .WillByDefault(::testing::Return(tab_strip_model_.get()));
     ON_CALL(*browser_window_interface_, GetProfile())
-        .WillByDefault(
-            ::testing::Return(tab_strip_->controller()->GetProfile()));
+        .WillByDefault(::testing::Return(
+            tab_strip_->GetBrowserWindowInterface()->GetProfile()));
     ON_CALL(*browser_window_interface_, GetActiveTabInterface)
         .WillByDefault(::testing::Return(tab_interface_.get()));
     ON_CALL(*browser_window_interface_, CanShowCallToAction)
@@ -260,10 +257,10 @@ TEST_F(TabStripActionContainerTest,
 
   ASSERT_THAT(
       tab_strip_action_container_->glic_actor_button_container()->children(),
-      SizeIs(1));
+      SizeIs(2));
   ASSERT_EQ(tab_strip_action_container_->glic_actor_task_icon(),
             tab_strip_action_container_->glic_actor_button_container()
-                ->children()[0]);
+                ->children()[1]);
 
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
             tab_strip_action_container_->children()[3]);
@@ -290,14 +287,14 @@ TEST_F(TabStripActionContainerTest, MAYBE(OrdersButtonsCorrectlyWhenShown)) {
 
   ASSERT_THAT(
       tab_strip_action_container_->glic_actor_button_container()->children(),
-      SizeIs(2));
+      SizeIs(3));
 
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
             tab_strip_action_container_->glic_actor_button_container()
-                ->children()[0]);
+                ->children()[1]);
   ASSERT_EQ(tab_strip_action_container_->glic_actor_task_icon(),
             tab_strip_action_container_->glic_actor_button_container()
-                ->children()[1]);
+                ->children()[2]);
 
 #endif  // !BUILDFLAG(IS_MAC)
 }
@@ -361,10 +358,10 @@ TEST_F(TabStripActionContainerTestWithProduct, MAYBE(OrdersButtonsCorrectly)) {
 
   ASSERT_THAT(
       tab_strip_action_container_->glic_actor_button_container()->children(),
-      SizeIs(1));
+      SizeIs(2));
   ASSERT_EQ(tab_strip_action_container_->glic_actor_task_icon(),
             tab_strip_action_container_->glic_actor_button_container()
-                ->children()[0]);
+                ->children()[1]);
 
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
             tab_strip_action_container_->children()[4]);

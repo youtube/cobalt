@@ -200,6 +200,7 @@
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_link_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_item_element.h"
+#include "third_party/blink/renderer/core/html/html_menu_list_element.h"
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
 #include "third_party/blink/renderer/core/html/html_quote_element.h"
 #include "third_party/blink/renderer/core/html/html_script_element.h"
@@ -1990,17 +1991,11 @@ void Element::HandlePointerEventsForInterestFor(
   if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
     return;
   }
-  for (Element* element = this; element; element = element->parentElement()) {
-    if (element->InterestForElement() || element->SourceInterestInvoker() ||
-        element->GetInterestState() != InterestState::kNoInterest)
-        [[unlikely]] {
-      if (event_type == event_type_names::kPointerover) {
-        element->HandleInterestForHoverOrFocus(InterestSource::kHover);
-      } else {
-        CHECK_EQ(event_type, event_type_names::kPointerout);
-        element->HandleInterestForHoverOrFocus(InterestSource::kDeHover);
-      }
-    }
+  if (event_type == event_type_names::kPointerover) {
+    HandleInterestForHoverOrFocus(InterestSource::kHover);
+  } else {
+    CHECK_EQ(event_type, event_type_names::kPointerout);
+    HandleInterestForHoverOrFocus(InterestSource::kDeHover);
   }
 }
 
@@ -3884,7 +3879,7 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
     if (parentNode()) {
       UpdateFocusgroup(params.new_value);
     }
-  } else if (RuntimeEnabledFeatures::CSSOverscrollGesturesEnabled() &&
+  } else if (RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
              name == html_names::kOverscrollcontainerAttr) {
     if (params.new_value.IsNull() || params.old_value.IsNull()) {
       // TODO(crbug.com/467968812): We can optimize this in some cases since a
@@ -4477,9 +4472,6 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
       }
     }
 
-    NodeRareData* node_data = RareData();
-    node_data->InvalidateAssociatedAnimationEffects();
-
     if (auto* context = data->GetDisplayLockContext()) {
       context->ElementDisconnected();
     }
@@ -4517,11 +4509,11 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
   // for instance, remove the element's id first and then remove it from the
   // DOM.
   if (auto* container = OverscrollContainer()) {
-    container->OverscrollAreaTracker()->RemoveOverscroll(this);
+    container->GetOverscrollAreaTracker()->RemoveOverscroll(this);
   }
 
   // Remove all of the overscroll areas from this tracker.
-  if (auto* tracker = OverscrollAreaTracker()) {
+  if (auto* tracker = GetOverscrollAreaTracker()) {
     tracker->RemoveAllOverscroll();
   }
 }
@@ -5463,7 +5455,7 @@ StyleRecalcChange Element::RecalcOwnStyle(
   if (OverscrollContainer() &&
       (!new_style || !new_style->IsInternalOverscrollPositionAuto() ||
        OverscrollContainer() != style_recalc_context.overscroll_container)) {
-    auto* tracker = OverscrollContainer()->OverscrollAreaTracker();
+    auto* tracker = OverscrollContainer()->GetOverscrollAreaTracker();
     // We should've created a tracker when we set the OverscrollContainer on
     // `this`.
     CHECK(tracker);
@@ -6575,6 +6567,8 @@ void Element::PseudoStateChangedForTesting(CSSSelector::PseudoType pseudo) {
 void Element::PseudoStateChanged(
     CSSSelector::PseudoType pseudo,
     AffectedByPseudoStateChange&& affected_by_pseudo) {
+  DCHECK(CSSSelector::SupportsPseudoStateChange(pseudo))
+      << CSSSelector::FormatPseudoTypeForDebugging(pseudo);
   // We can't schedule invaliation sets from inside style recalc otherwise
   // we'd never process them.
   // TODO(esprehn): Make this an ASSERT and fix places that call into this
@@ -7043,14 +7037,14 @@ void Element::SetIsEligibleForElementCapture(bool value) {
         HasElementFlag(ElementFlags::kIsEligibleForElementCapture);
 
     if (value != old_value) {
-      AddConsoleMessage(
-          mojom::blink::ConsoleMessageSource::kRendering,
-          mojom::blink::ConsoleMessageLevel::kInfo,
-          String::Format("restrictTo(): Element %s restriction eligibility. "
-                         "For eligibility conditions, see "
-                         "https://screen-share.github.io/element-capture/"
-                         "#elements-eligible-for-restriction",
-                         value ? "gained" : "lost"));
+      AddConsoleMessage(mojom::blink::ConsoleMessageSource::kRendering,
+                        mojom::blink::ConsoleMessageLevel::kInfo,
+                        UNSAFE_TODO(String::Format(
+                            "restrictTo(): Element %s restriction eligibility. "
+                            "For eligibility conditions, see "
+                            "https://screen-share.github.io/element-capture/"
+                            "#elements-eligible-for-restriction",
+                            value ? "gained" : "lost")));
     }
   } else {
     // We want to issue a different log message if the element is not eligible
@@ -7247,18 +7241,16 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
           : g_null_atom;
 
   // 1. Let registry be this's custom element registry.
-  // 2. If init["customElementRegistry"] is not null
-  // 2-1. Set registry to init["customElementRegistry"].
+  // 2. If init["customElementRegistry"] exist then set registry to it.
   bool scoped_registry =
       RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
-      shadow_root_init_dict->hasCustomElementRegistry() &&
-      shadow_root_init_dict->customElementRegistry();
+      shadow_root_init_dict->hasCustomElementRegistry();
   auto* registry = scoped_registry
                        ? shadow_root_init_dict->customElementRegistry()
                        : GetTreeScope().customElementRegistry();
-  // 2-2. If registry's "is scoped" is false and registry is not this's node
-  // document's custom element registry, then throw a "NotSupportedError"
-  // DOMException.
+  // 2-1. If registry is non-null, and registry's "is scoped" is false and
+  // registry is not this's node document's custom element registry, then
+  // throw a "NotSupportedError" DOMException.
   if (registry && registry->IsGlobalRegistry() &&
       registry != GetDocument().customElementRegistry()) {
     exception_state.ThrowDOMException(
@@ -8693,9 +8685,7 @@ ColumnPseudoElement* Element::GetOrCreateColumnPseudoElementIfNeeded(
         column_pseudo_element->CustomStyleForLayoutObject(
             StyleRecalcContext::FromPseudoElementAncestors(*this,
                                                            kPseudoIdColumn));
-    if (!style) {
-      style = &GetDocument().GetStyleResolver().InitialStyle();
-    }
+    DCHECK(style);
     column_pseudo_element->SetComputedStyle(style);
     column_pseudo_element->InsertedInto(*this);
     probe::PseudoElementCreated(column_pseudo_element);
@@ -9798,6 +9788,15 @@ bool Element::ShouldStoreComputedStyle(const ComputedStyle& style) const {
   if (LayoutObjectIsNeeded(style)) {
     return true;
   }
+  if (IsColumnPseudoElement()) {
+    // Column pseudo-elements don't create layout objects, but need to store
+    // computed style regardless (display type doesn't matter here). It's the
+    // layout engine that decides whether a `::column` should exist or not. A
+    // `::column` pseudo-element may e.g. specify `scroll-snap-align`. There may
+    // also be a `::scroll-marker` child pseudo-element that inherits properties
+    // from its `::column`.
+    return true;
+  }
   if (auto* svg_element = DynamicTo<SVGElement>(this)) {
     if (!svg_element->HasSVGParent()) {
       return false;
@@ -9836,6 +9835,16 @@ bool Element::ShouldStoreComputedStyle(const ComputedStyle& style) const {
       if (!is_base_appearance) {
         return true;
       }
+    }
+  }
+
+  // The base appearance datalist element is display:none by default but also
+  // needs to have a computed appearance value, so it is given the same
+  // treatment as the select element's popover above.
+  if (RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+    if (IsA<HTMLDataListElement>(this) &&
+        SupportsBaseAppearance(style.EffectiveAppearance())) {
+      return true;
     }
   }
 
@@ -10433,6 +10442,12 @@ bool Element::PseudoElementStylesDependOnFunc(Functor& func) const {
   }
 
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
+    if (!pseudo_element->GetComputedStyle()) {
+      SCOPED_CRASH_KEY_NUMBER("Bug470512590", "pseudo_id",
+                              static_cast<int>(pseudo_element->GetPseudoId()));
+      NOTREACHED();
+    }
+
     if (func(*pseudo_element->GetComputedStyle())) {
       return true;
     }
@@ -12079,8 +12094,20 @@ Element* Element::InterestForElement() const {
           GetDocument().GetExecutionContext())) {
     return nullptr;
   }
+
   Element* target =
       GetElementAttributeResolvingReferenceTarget(html_names::kInterestforAttr);
+
+  // A `<menuitem>` can be an implicit interest invoker, if it has a command
+  // invoker pointing to a `<menulist>`. If the element has an explicit
+  // `interestfor` attribute, that overrides the implicit one provided by menus.
+  if (!target) {
+    if (auto* menu_item = DynamicTo<HTMLMenuItemElement>(this)) {
+      if (HTMLMenuListElement* sub_menu = menu_item->GetInvokedSubmenu()) {
+        target = sub_menu;
+      }
+    }
+  }
   if (!target) {
     return nullptr;
   }
@@ -12306,44 +12333,40 @@ void Element::InvalidateStyleAttribute(
 void Element::UpdateOverscrollPseudoElements(
     const StyleRecalcChange style_recalc_change,
     const StyleRecalcContext& style_recalc_context) {
-  size_t overscroll_area_count = 0;
-  if (const ComputedStyle* computed_style = GetComputedStyle()) {
-    if (const ScopedCSSNameList* overscroll_area =
-            computed_style->OverscrollArea()) {
-      overscroll_area_count = overscroll_area->GetNames().size();
+  OverscrollAreaTracker* tracker = GetOverscrollAreaTracker();
+  ElementRareDataVector* data = GetElementRareData();
+
+  if (!tracker) {
+    if (data) {
+      data->ClearOverscrollPseudoElements(/*to_keep=*/0);
     }
+    return;
   }
 
-  ElementRareDataVector* data = GetElementRareData();
-  const OverscrollAreaParentPseudoElementsVector* overscroll_elements =
-      data ? data->GetOverscrollAreaParentPseudoElements() : nullptr;
+  const VectorOf<Element>& overscroll_elements = tracker->DOMSortedElements();
 
   // Detect if the declared overscroll areas have changed.
+  const OverscrollAreaParentPseudoElementsVector* current_overscroll_elements =
+      data ? data->GetOverscrollAreaParentPseudoElements() : nullptr;
   wtf_size_t current_overscroll_area_count =
-      overscroll_elements ? overscroll_elements->size() : 0;
-  bool overscroll_areas_changed =
-      overscroll_area_count != current_overscroll_area_count;
-  if (!overscroll_areas_changed) {
+      current_overscroll_elements ? current_overscroll_elements->size() : 0;
+
+  // Detect if the declared overscroll areas have changed.
+  if (overscroll_elements.size() == current_overscroll_area_count) {
     return;
   }
 
   if (data) {
-    data->ClearOverscrollPseudoElements(/* to_keep */ 0);
-  }
-  if (overscroll_area_count == 0) {
-    return;
+    data->ClearOverscrollPseudoElements(/*to_keep=*/overscroll_elements.size());
   }
 
-  const ScopedCSSNameList* overscroll_area =
-      GetComputedStyle()->OverscrollArea();
-  wtf_size_t index = 0;
-  for (const ScopedCSSName* name : overscroll_area->GetNames()) {
+  for (wtf_size_t i = current_overscroll_area_count;
+       i < overscroll_elements.size(); ++i) {
     IndexedPseudoElement* pseudo_element =
         MakeGarbageCollected<IndexedPseudoElement>(
-            this, kPseudoIdOverscrollAreaParent, index, name->GetName());
+            this, kPseudoIdOverscrollAreaParent, i);
     CHECK(SetAssociatedPseudoElement(pseudo_element, style_recalc_context));
     pseudo_element->SetNeedsReattachLayoutTree();
-    ++index;
   }
 }
 
@@ -13363,7 +13386,7 @@ OverscrollAreaTracker& Element::EnsureOverscrollAreaTracker() {
   return EnsureElementRareData().EnsureOverscrollAreaTracker(this);
 }
 
-OverscrollAreaTracker* Element::OverscrollAreaTracker() const {
+OverscrollAreaTracker* Element::GetOverscrollAreaTracker() const {
   if (const ElementRareDataVector* data = GetElementRareData()) {
     return data->OverscrollAreaTracker();
   }

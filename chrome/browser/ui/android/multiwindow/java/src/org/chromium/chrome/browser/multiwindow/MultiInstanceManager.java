@@ -39,7 +39,7 @@ import java.util.List;
 public abstract class MultiInstanceManager {
     public static final int INVALID_TASK_ID = -1; // Defined in android.app.ActivityTaskManager.
     public static final String NEW_WINDOW_APP_SOURCE_HISTOGRAM =
-            "Android.MultiWindowMode.NewWindow.AppSource";
+            "Android.MultiWindowMode.NewWindow.AppSource2";
 
     @VisibleForTesting
     static final String CLOSE_WINDOW_APP_SOURCE_HISTOGRAM =
@@ -479,13 +479,24 @@ public abstract class MultiInstanceManager {
 
     protected ObserverList<InstanceStateObserver> mInstanceStateObservers = new ObserverList<>();
 
-    /** Observer interface to notify about instance closure events. */
+    /** Observer interface to notify about instance closure and restoration events. */
     public interface InstanceStateObserver {
         /**
-         * Notifies when an instance is closed due to activity destruction and / or an explicit user
-         * request.
+         * Notifies when an instance is closed. Closure can be system-initiated (for e.g. low-memory
+         * kill), app-initiated (for e.g. instance retention expiration) or user-initiated (for e.g.
+         * window manager closure).
+         *
+         * @param instanceInfo The {@link InstanceInfo} for the closed instance.
+         * @param isPermanentDeletion Whether the closed instance is permanently deleted.
          */
-        void onInstanceClosed();
+        void onInstanceClosed(InstanceInfo instanceInfo, boolean isPermanentDeletion);
+
+        /**
+         * Notifies when an inactive instance is restored.
+         *
+         * @param instanceId The id for the restored instance.
+         */
+        void onInstanceRestored(int instanceId);
     }
 
     /**

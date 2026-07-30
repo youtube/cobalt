@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_UI_SERVICE_H_
 
 #include <map>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
@@ -136,7 +137,14 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is to a contextual tasks WebUI page.
   bool IsContextualTasksUrl(const GURL& url);
 
-  // Returns whether the provided URL is for the search results page.
+  // Returns whether the provided URL is a Google search results page. This
+  // method does not check for the validity of any parameters that
+  // differentiate different modes or queries.
+  bool IsSearchResultsUrl(const GURL& url);
+
+  // Returns whether the provided URL is for a valid (e.g. can be loaded in
+  // the embedded page in the WebUI) search results page that contains the
+  // correct params and isn't a shopping query.
   bool IsValidSearchResultsPage(const GURL& url);
 
   // Called when the Lens overlay is shown/hidden. No-op if the active UI is not
@@ -196,14 +204,17 @@ class ContextualTasksUiService : public KeyedService {
                                  TabStripModel* tab_strip_model,
                                  const base::Uuid& task_id);
 
+  // Checks if the provided URL matches any of the allowed hosts.
+  bool IsAllowedHost(const GURL& url);
+
   const raw_ptr<Profile> profile_;
 
   raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
 
-  // The host of the AI page that is loaded into the WebUI.
-  GURL ai_page_host_;
+  // The hosts of the AI page that is loaded into the WebUI.
+  std::vector<GURL> ai_page_hosts_;
 
   // Map a task's ID to the URL that was used to create it, if it exists. This
   // is primarily used in init flows where the contextual tasks UI is

@@ -50,19 +50,17 @@ class GlicSidePanelUi
   void OnClientReady() override;
   Host::EmbedderDelegate* GetHostEmbedderDelegate() override;
   void Show(const ShowOptions& options) override;
-  void Close() override;
-  std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
+  void Close(const CloseOptions& options) override;
   void Focus() override;
   mojom::PanelState GetPanelState() const override;
   gfx::Size GetPanelSize() override;
   std::string DescribeForTesting() override;
+  std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
 
   // Host::EmbedderDelegate:
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
               base::OnceClosure callback) override;
-  void SetDraggableAreas(
-      const std::vector<gfx::Rect>& draggable_areas) override;
   void EnableDragResize(bool enabled) override;
   void Attach() override;
   void Detach() override;
@@ -77,6 +75,7 @@ class GlicSidePanelUi
   // GlicUiEmbedder and Host::Delegate:
   bool IsShowing() const override;
   void ClosePanel() override;
+  void OnReload() override;
 
   void SidePanelStateChanged(GlicSidePanelCoordinator::State state);
 

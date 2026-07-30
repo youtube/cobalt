@@ -100,6 +100,8 @@ void SupervisedUserPrefStore::Init(
         supervised_user_settings_service,
     supervised_user::SupervisedUserContentFiltersService*
         content_filters_service) {
+  settings_service_ = supervised_user_settings_service->GetWeakPtr();
+
   user_settings_subscription_ =
       supervised_user_settings_service->SubscribeForSettingsChange(
           base::BindRepeating(&SupervisedUserPrefStore::OnNewSettingsAvailable,
@@ -152,29 +154,26 @@ SupervisedUserPrefStore::~SupervisedUserPrefStore() = default;
 
 void SupervisedUserPrefStore::OnNewContentFiltersStateAvailable(
     supervised_user::SupervisedUserContentFiltersService::State state) {
-  std::unique_ptr<PrefValueMap> old_prefs = std::move(prefs_);
-  prefs_ = std::make_unique<PrefValueMap>();
-
-  if (state.incognito_disabled) {
-    prefs_->SetInteger(
-        policy::policy_prefs::kIncognitoModeAvailability,
-        static_cast<int>(policy::IncognitoModeAvailability::kDisabled));
-  }
-  if (state.safe_sites_enabled) {
-    prefs_->SetBoolean(prefs::kSupervisedUserSafeSites, true);
-  }
-  if (state.safe_search_enabled) {
-    prefs_->SetBoolean(policy::policy_prefs::kForceGoogleSafeSearch, true);
-  }
-
-  NotifyObserversAboutChanges(std::move(old_prefs));
+  device_parental_controls_state_ = state;
+  RecreatePreferences();
 }
 
 void SupervisedUserPrefStore::OnNewSettingsAvailable(
     const base::Value::Dict& settings) {
+  family_link_settings_ = settings.Clone();
+  RecreatePreferences();
+}
+
+void SupervisedUserPrefStore::RecreatePreferences() {
+  // Ignore notifications about device parental controls settings until the
+  // family link settings are ready (have emitted at least one notification).
+  if (!family_link_settings_.has_value()) {
+    return;
+  }
+
   std::unique_ptr<PrefValueMap> old_prefs = std::move(prefs_);
   prefs_ = std::make_unique<PrefValueMap>();
-  if (!settings.empty()) {
+  if (settings_service_ && settings_service_->IsActive()) {
     supervised_user::SetSupervisedUserPrefStoreDefaults(*prefs_.get());
 
 #if BUILDFLAG(IS_ANDROID)
@@ -185,7 +184,8 @@ void SupervisedUserPrefStore::OnNewSettingsAvailable(
     // Copy supervised user settings to prefs.
     for (const auto& entry :
          supervised_user::kSupervisedUserSettingsPrefMapping) {
-      const base::Value* value = settings.Find(entry.settings_name);
+      const base::Value* value =
+          family_link_settings_->Find(entry.settings_name);
       if (value) {
         prefs_->SetValue(entry.pref_name, value->Clone());
       }
@@ -204,19 +204,36 @@ void SupervisedUserPrefStore::OnNewSettingsAvailable(
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     {
       bool permissions_disallowed =
-          settings.FindBool(supervised_user::kGeolocationDisabled)
+          family_link_settings_->FindBool(supervised_user::kGeolocationDisabled)
               .value_or(false);
       prefs_->SetBoolean(prefs::kSupervisedUserExtensionsMayRequestPermissions,
                          !permissions_disallowed);
     }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+  } else {
+    if (device_parental_controls_state_.incognito_disabled) {
+      prefs_->SetInteger(
+          policy::policy_prefs::kIncognitoModeAvailability,
+          static_cast<int>(policy::IncognitoModeAvailability::kDisabled));
+    }
+    if (device_parental_controls_state_.safe_sites_enabled) {
+      prefs_->SetBoolean(prefs::kSupervisedUserSafeSites, true);
+    }
+    if (device_parental_controls_state_.safe_search_enabled) {
+      prefs_->SetBoolean(policy::policy_prefs::kForceGoogleSafeSearch, true);
+    }
   }
 
+  // Unset `old_prefs` means that this is the first notification from the
+  // supervised user (Family Link) settings service.
   if (!old_prefs) {
-    for (Observer& observer : observers_) {
-      observer.OnInitializationCompleted(true);
-    }
-    return;
+    // If this is the first notification from the settings service, notify
+    // observers about initialization completion.
+    observers_.Notify(&PrefStore::Observer::OnInitializationCompleted, true);
+
+    // Set `old_prefs` to an empty value to fulfill the contract of
+    // `NotifyObserversAboutChanges()`.
+    old_prefs = std::make_unique<PrefValueMap>();
   }
 
   NotifyObserversAboutChanges(std::move(old_prefs));
@@ -229,9 +246,7 @@ void SupervisedUserPrefStore::NotifyObserversAboutChanges(
 
   // Send out change notifications.
   for (const std::string& pref : changed_prefs) {
-    for (Observer& observer : observers_) {
-      observer.OnPrefValueChanged(pref);
-    }
+    observers_.Notify(&PrefStore::Observer::OnPrefValueChanged, pref);
   }
 }
 

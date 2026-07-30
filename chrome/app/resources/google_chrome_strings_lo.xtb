@@ -275,6 +275,7 @@
 <translation id="3885770153807205175">ຕົວເລືອກພາສາ</translation>
 <translation id="3889417619312448367">ຖອນຕິດຕັ້ງ Google Chrome</translation>
 <translation id="3892148308691398805">ສຳເນົາຂໍ້ຄວາມ</translation>
+<translation id="3893985792899396936">ເຄັດລັບສຳລັບ Chrome: ຊອກຫາດ້ວຍ Lens</translation>
 <translation id="3906096710440765802">ເຂົ້າສູ່ລະບົບ Chrome ເພື່ອຮັບລະຫັດຜ່ານ, ບຸກມາກ ແລະ ຂໍ້ມູນອື່ນໆໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ.</translation>
 <translation id="3921132130819999051">ໃຫ້ Chrome ທ່ອງເວັບແທນທ່ານ</translation>
 <translation id="3941890832296813527">ຂໍ້ຜິດພາດໃນການຕິດຕັ້ງ: ຊື່ໄຟລ໌ຂອງຕົວຕິດຕັ້ງບໍ່ຖືກຕ້ອງ ຫຼື ລະບົບບໍ່ຮອງຮັບ.</translation>
@@ -316,7 +317,6 @@
 <translation id="4329315893554541805">ເພື່ອຮັບການປັບແຕ່ງເປັນແບບສ່ວນຕົວ ແລະ ຄຸນສົມບັດອື່ນໆ, ໃຫ້ຮວມ Chrome ໄວ້ໃນການເຄື່ອນໄຫວເວັບ ແລະ ແອັບ ພ້ອມທັງບໍລິການ Google ທີ່ລິ້ງໄວ້</translation>
 <translation id="4334241893986177674">ຊອກຫາຮູບໜ້າຈໍນີ້</translation>
 <translation id="4334294535648607276">ດາວ​ໂຫຼດ​ສຳ​ເລັດ.</translation>
-<translation id="4337324600316876133">ເພື່ອຮັບການອັບເດດ Google Chrome ໃນອະນາຄົດ, ທ່ານຈະຕ້ອງໃຊ້ macOS 12 ຂຶ້ນໄປ. ຄອມພິວເຕີເຄື່ອງນີ້ກຳລັງໃຊ້ macOS 11.</translation>
 <translation id="4343195214584226067">ເພີ່ມ <ph name="EXTENSION_NAME" /> ໃສ່ Chrome ແລ້ວ</translation>
 <translation id="4344128547036991536">ເມື່ອທ່ານເປີດ Google Lens, ລະບົບຈະສົ່ງຊື່ໜ້າ, URL ແລະ ເນື້ອຫາ, ຮວມທັງ PDF ໄປຫາ Google ໂດຍອັດຕະໂນມັດ. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">ເພື່ອຮັບການປັບແຕ່ງເປັນແບບສ່ວນຕົວ, ໃຫ້ຮວມ Chrome ໄວ້ໃນການເຄື່ອນໄຫວເວັບ ແລະ ແອັບ</translation>
@@ -373,6 +373,7 @@
 <translation id="5003967926796347400">ຄລິກ “ຕົວຈັດການລະຫັດຜ່ານ Google”</translation>
 <translation id="5043786843026425788">ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຊອກຫາດ້ວຍ Google Lens ໃນ Chrome</translation>
 <translation id="504867494566807945">ເປີດລິ້ງໃນ Chrome ຈາກແອັບໃດກໍໄດ້. ພ້ອມທັງເພື່ອເຂົ້າເຖິງໄດ້ງ່າຍ, ມັນຈະຖືກປັກໝຸດໃສ່ແຖບໜ້າວຽກຂອງທ່ານ.</translation>
+<translation id="5105120510934353742">ເພື່ອຮັບການອັບເດດ Google Chrome ໃນອະນາຄົດ, ທ່ານຈະຕ້ອງໃຊ້ macOS 13 ຂຶ້ນໄປ. ຄອມພິວເຕີເຄື່ອງນີ້ກຳລັງໃຊ້ macOS 12.</translation>
 <translation id="5114340746415930644">ໃສ່ລະຫັດຜ່ານຂອງທ່ານເພື່ອໃຊ້ ແລະ ບັນທຶກຂໍ້ມູນ Chrome ໃນບັນຊີຂອງທ່ານ, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">ເຂົ້າສູ່ລະບົບ Chrome ເມື່ອທ່ານເຂົ້າສູ່ລະບົບບໍລິການອື່ນໆຂອງ Google</translation>
 <translation id="5126049312684316860">Chrome ໂຫຼດໜ້າເວັບໄວ້ກ່ອນລ່ວງໜ້າເພີ່ມຫຼາຍຂຶ້ນສຳລັບໜ້າທີ່ທ່ານອາດຈະເຂົ້າເບິ່ງ, ເພື່ອໃຫ້ພວກມັນໂຫຼດໄວຂຶ້ນເມື່ອທ່ານເຂົ້າເບິ່ງ</translation>
@@ -491,6 +492,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="6180522807229584611">ແຖບນີ້ກຳລັງໃຊ້ຊັບພະຍາກອນເພີ່ມເຕີມ. ເພື່ອປັບປຸງປະສິດທິພາບຂອງທ່ານ, ໃຫ້ Chrome ຊ່ວຍເຮັດໃຫ້ມັນບໍ່ເຮັດວຽກ.</translation>
 <translation id="6182736845697986886">ການຕິດຕັ້ງບໍ່ສຳເລັດເນື່ອງຈາກເຊີບເວີອັບເດດເກີດຂໍ້ຜິດພາດພາຍໃນ.</translation>
 <translation id="6183773856988300112">Gemini ໃນ Chrome ໃຊ້ການທ່ອງເວັບອັດຕະໂນມັດເພື່ອເຮັດວຽກໃນແຖບຂອງທ່ານ ແລະ ເຮັດໜ້າວຽກທີ່ທ່ານກຳນົດໃຫ້ສຳເລັດ. <ph name="LINK_BEGIN" />ສຶກສາເພີ່ມເຕີມ<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">ເຄັດລັບ Chrome: ບັນທຶກລະຫັດຜ່ານ</translation>
 <translation id="6192058120268468905">ບັນຊີຂອງທ່ານໃນ Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ໄດ້ເພີ່ມສ່ວນຂະຫຍາຍທີ່ອາດປ່ຽນວິທີການເຮັດວຽກຂອງ Chrome.
 
@@ -629,6 +631,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="7627609214560473136">ເພື່ອປົກປ້ອງຂໍ້ມູນຂອງທ່ານ, ກະລຸນາອະນຸຍາດໃຫ້ Chrome ລຶບການອະນຸຍາດອອກຈາກເວັບໄຊທີ່ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້.</translation>
 <translation id="7629695634924605473">Chrome ແຈ້ງໃຫ້ທ່ານຮູ້ຖ້າມີຄົນຮູ້ລະຫັດຜ່ານຂອງທ່ານ</translation>
 <translation id="7641148173327520642">ຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານໄດ້ກຳນົດຄ່າໃຫ້ Google Chrome ເປີດ <ph name="ALTERNATIVE_BROWSER_NAME" /> ເພື່ອເຂົ້າເຖິງ <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">ເຄັດລັບ Chrome: Safe Browsing ທີ່ປັບປຸງດີຂຶ້ນ</translation>
 <translation id="7649070708921625228">ຊ່ວຍ​ເຫຼືອ</translation>
 <translation id="7651907282515937834">ໂລໂກ້ Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome ບລັອກການດາວໂຫຼດນີ້ ເນື່ອງຈາກທ່ານປິດ Safe Browsing ແລະ ເຮັດໃຫ້ບໍ່ສາມາດຢັ້ງຢືນໄຟລ໌ໄດ້</translation>

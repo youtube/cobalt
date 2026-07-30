@@ -209,7 +209,6 @@
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
 #include "third_party/blink/public/mojom/image_downloader/image_downloader.mojom.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom-shared.h"
-#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
@@ -4312,12 +4311,16 @@ void WebContentsImpl::OnRenderWidgetHostDestroyed(
   DCHECK_EQ(1u, num_erased);
 }
 
+PrerenderHostId WebContentsImpl::GetPrerenderHostId() {
+  return PrerenderHostId();
+}
+
 void WebContentsImpl::AddWebContentsDestructionObserver(
     WebContentsImpl* web_contents) {
   OPTIONAL_TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("content.verbose"),
                         "WebContentsImpl::AddWebContentsDestructionObserver");
 
-  if (!base::Contains(web_contents_destruction_observers_, web_contents)) {
+  if (!web_contents_destruction_observers_.contains(web_contents)) {
     web_contents_destruction_observers_[web_contents] =
         std::make_unique<WebContentsDestructionObserver>(this, web_contents);
   }
@@ -4337,8 +4340,8 @@ void WebContentsImpl::AddRenderWidgetHostDestructionObserver(
       TRACE_DISABLED_BY_DEFAULT("content.verbose"),
       "WebContentsImpl::AddRenderWidgetHostDestructionObserver");
 
-  DCHECK(!base::Contains(render_widget_host_destruction_observers_,
-                         render_widget_host));
+  DCHECK(
+      !render_widget_host_destruction_observers_.contains(render_widget_host));
 
   render_widget_host_destruction_observers_.insert(
       {render_widget_host,
@@ -10231,6 +10234,20 @@ void WebContentsImpl::DidReceiveInputEvent(
                          WindowOpenDisposition::CURRENT_TAB);
   }
 
+  HandleUserInteractionForInputEvent(render_widget_host, event);
+}
+
+void WebContentsImpl::SimulateUserInteraction(
+    RenderWidgetHostImpl* render_widget_host,
+    const blink::WebInputEvent& event) {
+  CHECK(IsUserInteractionInputType(event.GetType()));
+
+  HandleUserInteractionForInputEvent(render_widget_host, event);
+}
+
+void WebContentsImpl::HandleUserInteractionForInputEvent(
+    RenderWidgetHostImpl* render_widget_host,
+    const blink::WebInputEvent& event) {
   if (!IsUserInteractionInputType(event.GetType())) {
     return;
   }
@@ -12169,10 +12186,8 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
                                                      preloading_attempt);
 
   if (prerender_host_id) {
-    FrameTreeNodeId frame_tree_node_id =
-        PrerenderHost::GetFrameTreeNodeIdForId(prerender_host_id);
     return std::make_unique<PrerenderHandleImpl>(
-        GetPrerenderHostRegistry()->GetWeakPtr(), frame_tree_node_id,
+        GetPrerenderHostRegistry()->GetWeakPtr(), prerender_host_id,
         prerendering_url, std::move(no_vary_search_hint));
   }
   return nullptr;
@@ -12256,8 +12271,14 @@ bool WebContentsImpl::CancelPrerendering(FrameTreeNode* frame_tree_node,
     return frame_tree_node->GetParentOrOuterDocumentOrEmbedder()
         ->CancelPrerendering(PrerenderCancellationReason(final_status));
   }
+  PrerenderHost* prerender_host =
+      GetPrerenderHostRegistry()->FindNonReservedHostById(
+          frame_tree_node->frame_tree_node_id());
+  if (!prerender_host) {
+    return false;
+  }
   return GetPrerenderHostRegistry()->CancelHost(
-      frame_tree_node->frame_tree_node_id(), final_status);
+      prerender_host->prerender_host_id(), final_status);
 }
 
 ui::mojom::VirtualKeyboardMode WebContentsImpl::GetVirtualKeyboardMode() const {

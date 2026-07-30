@@ -82,6 +82,7 @@
 <translation id="193439633299369377">Yangilanishni oʻrnatish uchun ChromeOS qayta ishga tushirilishi kerak.</translation>
 <translation id="1951406923938785464">Chromium bu yuklamani blokladi, chunki bunday turdagi fayl odatda yuklab olinmaydi va xavfli boʻlishi mumkin</translation>
 <translation id="1953553007165777902">Yuklab olinmoqda... <ph name="MINUTE" /> daqiqa qoldi</translation>
+<translation id="1965068424387304464">Chromium maslahati: Parollarni saqlang</translation>
 <translation id="1966382378801805537">Chromium asosiy brauzerni aniqlay olmadi yoki tayinlay olmadi.</translation>
 <translation id="1990262977744080398">Chromium ayrim fayllarni nega bloklashi haqida batafsil. Yangi varaqda ochiladi</translation>
 <translation id="1999715455684970349">Chromium dasturini yangilab turadi. Bu xizmat faolsizlantirilsa yoki toʻxtatilsa, Chromium dasturi yangilanmasligi, tuzatilmas zaifliklarni keltirib chiqarishi va ayrim funksiyalar ishlamay qolishi mumkin. Xizmat ishlatadigan Chromium dasturi mavjud boʻlmasa, xizmat avtomatik oʻchirib tashlanadi.</translation>
@@ -90,7 +91,6 @@
 <translation id="2020032459870799438">Parollarni axborotlar sizib chiqishi va xavfsizlikka oid boshqa muammolardan himoyalash uchun <ph name="BEGIN_LINK" />Chromium hisobingizga kiring<ph name="END_LINK" />.</translation>
 <translation id="2039417478970545937">Sozlamalar.</translation>
 <translation id="2049376729098081731">Kerak boʻlsa, Chromium tarixi yanada moslashtirilgan Google xizmatlarida ishlatilishini tanlang</translation>
-<translation id="2054039611381840095">Chromium yangilanishlari macOS 12 yoki undan yuqori versiyalarda ishlaydi. Bu kompyuterdagi versiya: macOS 11.</translation>
 <translation id="2064856577282482477">Chromiumga yangi qiyofa berish uchun yangi varaq sahifasidagi Chromiumni moslash tugmasini bosing</translation>
 <translation id="2086476982681781442">Chromium bu yuklamani blokladi, chunki fayl aldamchi va qurilmangizga kutilmagan oʻzgarishlar kiritishi mumkin</translation>
 <translation id="208726765006323911">Keyingi safar Chromium iOS ilovasini ochganingizda <ph name="FEATURE_NAME" /> sinash taklifi chiqadi.</translation>
@@ -250,6 +250,7 @@
 <translation id="3802055581630249637">Chromium siz tashrif buyurishingiz mumkin boʻlgan sahifalarni oldindan yuklaydi, shunda ular tashrif buyurganingizda tezroq yuklanadi</translation>
 <translation id="3810973564298564668">Sozlash</translation>
 <translation id="3823384748599722168">Saqlangan parollardan foydalanish uchun QR kodni kiriting, iOS uchun Chromium ilovasini yuklab oling va Google hisobingizga kiring</translation>
+<translation id="3837584850181228767">Chromium maslahati: Saytlarni kuchaytirilgan rejimda xavfsiz kezish</translation>
 <translation id="3846683726093018685">**Xulosalash:** Skrinshot kontentidagi asosiy mavzu va maqsadni 30 soʻzdan kam bitta gapda ifodalang.
 
           **Savol takliflari:** Skrinshotni yaxshiroq tushunish uchun foydalanuvchi berishi mumkin 3-5 oʻylantiruvchi savollarning markerlangan roʻyxatini yarating. Bu savollarga vizual obyekt, uning dizayni yoki joylashuvi haqida kamida bittasi kiritilishi kerak.</translation>
@@ -565,6 +566,7 @@ Chromium sozlamalaringizni qaytadan tiklay olmadi.</translation>
 <translation id="7347827960336370838">Shifrlangan maʼlumotlarni faqatgina kodli ibora yordamida oʻqish mumkin. Kodli ibora ulashilmaydi va Google serverlarida saqlanmaydi. Agar kodli iborani unutsangiz yoki bu sozlamani oʻzgartirmoqchi boʻlsangiz, <ph name="BEGIN_LINK" />hisobingizda Chromium maʼlumotlarini oʻchirishingiz<ph name="END_LINK" /> kerak.</translation>
 <translation id="7349591376906416160">Tizim administratori tomonidan Chromium brauzeri <ph name="TARGET_URL_HOSTNAME" /> sahifasini <ph name="ALTERNATIVE_BROWSER_NAME" /> orqali ochiladigan qilib sozlangan.</translation>
 <translation id="7352651011704765696">Xatolik yuz berdi.</translation>
+<translation id="7368826207863345663">Chromium yangilanishlari macOS 13 yoki undan yuqori versiyalarda ishlaydi. Bu kompyuterdagi versiya: macOS 12.</translation>
 <translation id="7376384068949534168">Yaqinda ochmagansiz. Chromium olib tashladi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /></translation>
 <translation id="7384121030444253939">Bu kengaytma endi dastaklanmaydi. Chromium uni olib tashlashni tavsiya qiladi.</translation>
 <translation id="7413153308467572558">Ishni kelgan joyidan davom ettiring: Chromium har safar qayta ishga tushganda oxirgi varaqlarni tiklashi mumkin. Faolsizlantirish uchun bu yerga kiring:</translation>
@@ -712,6 +714,7 @@ Chromium sozlamalaringizni qaytadan tiklay olmadi.</translation>
 <translation id="9148058034647219655">To‘liq ekran rejimidan chiqish</translation>
 <translation id="9155105544013854680">Ishni kelgan joyidan davom ettiring: Chromium har safar qayta ishga tushganda oxirgi varaqlarni tiklashi mumkin. Yoqish uchun bu yerga kiring:</translation>
 <translation id="9158494823179993217">Tizim administratori <ph name="TARGET_URL_HOSTNAME" /> havolasini muqobil brauzerda ochiladigan qilib sozlagan.</translation>
+<translation id="9183331186620388872">Chromium maslahati: Lens bilan qidiring</translation>
 <translation id="9185526690718004400">&amp;Chromium brauzerini yangilash uchun qayta ishga tushiring</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="9206863043651638213">Boshqa imtiyozlarni olish uchun Chromium hisobingizga kiring</translation>

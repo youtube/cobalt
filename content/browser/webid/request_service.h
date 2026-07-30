@@ -72,8 +72,6 @@ class CONTENT_EXPORT RequestService
       public IdentityRegistryDelegate,
       public webid::AutofillSource {
  public:
-  static constexpr char kWildcardDomainHint[] = "any";
-
   DOCUMENT_USER_DATA_KEY_DECL();
 
   explicit RequestService(RenderFrameHost* rfh);
@@ -256,6 +254,10 @@ class CONTENT_EXPORT RequestService
       blink::mojom::FederatedAuthRequestResult result,
       const std::optional<GURL>& selected_idp_config_url);
 
+  void FilterAccounts(const GURL& idp_config_url,
+                      const GURL& idp_login_url,
+                      std::vector<IdentityRequestAccountPtr>& accounts);
+
   void SetIdpLoginInfo(const GURL& idp_login_url,
                        const std::string& login_hint,
                        const std::string& domain_hint);
@@ -264,6 +266,10 @@ class CONTENT_EXPORT RequestService
   // Called when there is an error in fetching information to show the prompt
   // for a given IDP - `idp_info`, but we do not need to show failure UI for the
   // IDP.
+  void OnAccountsResultsReceived(
+      base::TimeTicks well_known_and_config_fetched_time,
+      std::vector<AccountsFetcher::Result> results);
+
   void OnFetchDataForIdpFailed(std::unique_ptr<IdentityProviderInfo> idp_info,
                                blink::mojom::FederatedAuthRequestResult result,
                                std::optional<RequestIdTokenStatus> token_status,
@@ -273,7 +279,7 @@ class CONTENT_EXPORT RequestService
   // fetched for `idp_info`. Accounts should be moved instead of copied to this
   // function.
   void OnFetchDataForIdpSucceeded(
-      std::vector<IdentityRequestAccountPtr> accounts,
+      IdpNetworkRequestManager::AccountsResponse accounts,
       std::unique_ptr<IdentityProviderInfo> idp_info);
 
   void MaybeShowActiveModeModalDialog(const GURL& idp_config_url,
@@ -288,18 +294,10 @@ class CONTENT_EXPORT RequestService
 
   url::Origin GetEmbeddingOrigin() const;
 
-  // TODO(crbug.com/417197032): Remove these once code has been refactored.
-  base::flat_map<GURL, IdentityProviderGetInfo>& GetTokenRequestGetInfos() {
-    return token_request_get_infos_;
-  }
   GURL login_url() { return login_url_; }
   bool HadAccountIdBeforeLogin(const std::string& account_id) {
     return account_ids_before_login_.contains(account_id);
   }
-  // Return the FedCmMetrics for use by FedCmAccountsFetcher.
-  // TODO(crbug.com/417784830): Remove this once code has been refactored and
-  // FedCmAccountsFetcher can hold a raw pointer to FedCmMetrics.
-  Metrics* fedcm_metrics() { return fedcm_metrics_.get(); }
 
   // Called when there is an error fetching information to show the prompt for a
   // given IDP, and because of the mismatch this IDP must be present in the
@@ -388,6 +386,11 @@ class CONTENT_EXPORT RequestService
       blink::mojom::IdentityProviderRequestOptionsPtr idp,
       FetchStatus status,
       const GURL& url);
+
+  void OnRedirectToResponseReceived(
+      blink::mojom::IdentityProviderRequestOptionsPtr idp,
+      FetchStatus status,
+      const GURL& redirect_to);
 
   // Called after we get at token (either from the ID assertion endpoint or
   // from IdentityProvider.resolve) to update our various permissions.
@@ -637,6 +640,10 @@ class CONTENT_EXPORT RequestService
   std::optional<VerifyingDialogResult> verifying_dialog_result_;
 
   perfetto::NamedTrack perfetto_track_;
+
+  // Whether this RequestService can make top level redirections, available
+  // currently only for interception-initiated requests.
+  bool can_accept_redirect_to_{false};
 
   mojo::Receiver<blink::mojom::FederatedAuthRequest> receiver_{this};
 

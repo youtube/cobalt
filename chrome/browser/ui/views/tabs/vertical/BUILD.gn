@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//chrome/common/features.gni")
+
 source_set("vertical") {
   sources = [
     "bottom_container_button.h",
@@ -9,10 +11,9 @@ source_set("vertical") {
     "tab_collection_animating_layout_manager.h",
     "tab_collection_node.h",
     "top_container_button.h",
+    "vertical_dragged_tabs_container.h",
     "vertical_pinned_tab_container_view.h",
     "vertical_split_tab_view.h",
-    "vertical_tab_group_header_view.h",
-    "vertical_tab_group_view.h",
     "vertical_tab_strip_bottom_container.h",
     "vertical_tab_strip_top_container.h",
     "vertical_tab_strip_view.h",
@@ -40,12 +41,15 @@ source_set("impl") {
     "tab_collection_animating_layout_manager.cc",
     "tab_collection_node.cc",
     "top_container_button.cc",
+    "vertical_dragged_tabs_container.cc",
     "vertical_pinned_tab_container_view.cc",
     "vertical_split_tab_view.cc",
     "vertical_tab_drag_handler.cc",
     "vertical_tab_drag_handler.h",
     "vertical_tab_group_header_view.cc",
+    "vertical_tab_group_header_view.h",
     "vertical_tab_group_view.cc",
+    "vertical_tab_group_view.h",
     "vertical_tab_strip_bottom_container.cc",
     "vertical_tab_strip_top_container.cc",
     "vertical_tab_strip_view.cc",
@@ -68,8 +72,18 @@ source_set("impl") {
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/tabs:utils",
     "//chrome/browser/ui/views/frame",
+    "//chrome/browser/ui/views/tabs/dragging:tab_drag_target",
     "//chrome/browser/ui/views/toolbar",
+    "//components/contextual_tasks/public:feature_list",
   ]
+
+  if (enable_glic) {
+    deps += [
+      "//chrome/browser/glic",
+      "//chrome/browser/glic/browser_ui:glow",
+      "//chrome/browser/glic/browser_ui:glow_controller",
+    ]
+  }
 
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
@@ -123,6 +137,7 @@ source_set("interactive_ui_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
+    "tab_collection_node_interactive_uitest.cc",
     "vertical_tab_drag_interactive_uitest.cc",
     "vertical_tab_strip_bottom_container_interactive_uitest.cc",
     "vertical_tab_strip_controller_interactive_uitest.cc",

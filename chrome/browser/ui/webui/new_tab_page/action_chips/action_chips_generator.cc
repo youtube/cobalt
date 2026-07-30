@@ -126,8 +126,7 @@ ActionChipPtr CreateRecentTabChip(TabInfoPtr tab, std::string_view suggestion) {
 ActionChipPtr CreateDeepSearchChip(std::string_view suggestion) {
   ActionChipPtr chip = ActionChip::New();
   chip->type = ChipType::kDeepSearch;
-  chip->title =
-      l10n_util::GetStringUTF8(IDS_NTP_COMPOSE_DEEP_SEARCH);
+  chip->title = l10n_util::GetStringUTF8(IDS_NTP_COMPOSE_DEEP_SEARCH);
   chip->suggestion =
       !suggestion.empty()
           ? suggestion
@@ -148,8 +147,7 @@ std::optional<ActionChipPtr> CreateDeepSearchChipIfEligible(
 ActionChipPtr CreateImageCreationChip(std::string_view suggestion) {
   ActionChipPtr chip = ActionChip::New();
   chip->type = ChipType::kImage;
-  chip->title =
-      l10n_util::GetStringUTF8(IDS_NTP_COMPOSE_CREATE_IMAGES);
+  chip->title = l10n_util::GetStringUTF8(IDS_NTP_COMPOSE_CREATE_IMAGES);
   chip->suggestion =
       !suggestion.empty()
           ? suggestion
@@ -297,13 +295,14 @@ void ActionChipsGeneratorImpl::GenerateActionChips(
       } else {
         content::WebContents& contents = *tab->GetContents();
         loader_ =
-            remote_suggestions_service_simple_->GetActionChipSuggestionsForTab(
-                contents.GetTitle(), contents.GetLastCommittedURL(),
-                base::BindOnce(&ActionChipsGeneratorImpl::
-                                   GenerateDeepDiveChipsFromRemoteResponse,
-                               this->weak_factory_.GetWeakPtr(),
-                               CreateTabInfo(*tab_id_generator_, *tab),
-                               std::move(callback)));
+            remote_suggestions_service_simple_
+                ->GetDeepdiveChipSuggestionsForTab(
+                    contents.GetTitle(), contents.GetLastCommittedURL(),
+                    base::BindOnce(&ActionChipsGeneratorImpl::
+                                       GenerateDeepDiveChipsFromRemoteResponse,
+                                   this->weak_factory_.GetWeakPtr(),
+                                   CreateTabInfo(*tab_id_generator_, *tab),
+                                   std::move(callback)));
       }
       break;
     }
@@ -321,7 +320,7 @@ void ActionChipsGeneratorImpl::GenerateDeepDiveChipsFromRemoteResponse(
     base::OnceCallback<void(std::vector<action_chips::mojom::ActionChipPtr>)>
         callback,
     RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&& result) {
-  if (!result.has_value()) {
+  if (!result.has_value() || result->size() == 0) {
     std::move(callback).Run(CreateChipsForSteadyState(std::move(tab),
                                                       aim_eligibility_service_,
                                                       /*options=*/{}));

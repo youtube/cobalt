@@ -11,7 +11,6 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
@@ -245,9 +244,7 @@ bool IsSimilarToIntABNF(const std::string& header_value) {
   return true;
 }
 
-// User agent minor version matches "0.X.0" which depends on reduced UA
-// through kReduceUserAgentMinorVersion experiment, currently the reduced minor
-// version is "0.0.0".
+// Checks that the user agent minor version matches "0.0.0"
 void CheckUserAgentMinorVersion(const std::string& user_agent_value,
                                 const bool expected_ua_reduced) {
   // A regular expression that matches Chrome/{major_version}.{minor_version}
@@ -256,19 +253,13 @@ void CheckUserAgentMinorVersion(const std::string& user_agent_value,
       "Chrome/[0-9]+\\.([0-9]+\\.[0-9]+\\.[0-9]+)";
   // The minor version in the reduced UA string is always "0.0.0".
   static constexpr char kReducedMinorVersion[] = "0.0.0";
-  // The minor version in the ReduceUserAgentMinorVersion experiment is always
-  // "0.X.0", where X is the frozen build version.
-  const std::string kReduceUserAgentMinorVersion =
-      "0." +
-      std::string(blink::features::kUserAgentFrozenBuildVersion.Get().data()) +
-      ".0";
 
   std::string minor_version;
   EXPECT_TRUE(re2::RE2::PartialMatch(user_agent_value, kChromeVersionRegex,
                                      &minor_version));
 
   if (expected_ua_reduced) {
-    EXPECT_EQ(minor_version, kReduceUserAgentMinorVersion);
+    EXPECT_EQ(minor_version, kReducedMinorVersion);
   } else {
     EXPECT_NE(minor_version, kReducedMinorVersion);
   }
@@ -1205,7 +1196,7 @@ class ClientHintsBrowserTest : public policy::PolicyTest {
 
     for (const auto& elem : network::GetClientHintToNameMap()) {
       const auto& header = elem.second;
-      if (base::Contains(request.headers, header)) {
+      if (request.headers.contains(header)) {
         base::AutoLock lock(count_headers_lock_);
         // The user agent hint is special:
         if (header == "sec-ch-ua") {
@@ -1241,7 +1232,7 @@ class ClientHintsBrowserTest : public policy::PolicyTest {
         continue;
       }
 
-      EXPECT_EQ(expect_client_hints, base::Contains(request.headers, header));
+      EXPECT_EQ(expect_client_hints, request.headers.contains(header));
     }
   }
 
@@ -4052,16 +4043,15 @@ class ClientHintsBrowserTestWithEmulatedMedia
   ~ClientHintsBrowserTestWithEmulatedMedia() override = default;
 
   void MonitorResourceRequest(const net::test_server::HttpRequest& request) {
-    if (base::Contains(request.headers, "sec-ch-prefers-color-scheme")) {
+    if (request.headers.contains("sec-ch-prefers-color-scheme")) {
       prefers_color_scheme_observed_ =
           request.headers.at("sec-ch-prefers-color-scheme");
     }
-    if (base::Contains(request.headers, "sec-ch-prefers-reduced-motion")) {
+    if (request.headers.contains("sec-ch-prefers-reduced-motion")) {
       prefers_reduced_motion_observed_ =
           request.headers.at("sec-ch-prefers-reduced-motion");
     }
-    if (base::Contains(request.headers,
-                       "sec-ch-prefers-reduced-transparency")) {
+    if (request.headers.contains("sec-ch-prefers-reduced-transparency")) {
       prefers_reduced_transparency_observed_ =
           request.headers.at("sec-ch-prefers-reduced-transparency");
     }

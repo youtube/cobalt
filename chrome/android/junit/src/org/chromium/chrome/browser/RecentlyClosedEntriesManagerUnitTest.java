@@ -9,26 +9,35 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.RecentlyClosedEntriesManager;
+import org.chromium.chrome.browser.RecentlyClosedEntriesManagerTrackerFactory;
+import org.chromium.chrome.browser.RecentlyClosedEntriesManagerTrackerImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.CloseWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
@@ -55,7 +64,9 @@ public class RecentlyClosedEntriesManagerUnitTest {
     @Mock TabModelSelector mTabModelSelector;
     @Mock TabModel mTabModel;
     @Mock Profile mProfile;
-    RecentlyClosedEntriesManager mRecentlyClosedEntriesManager;
+
+    private RecentlyClosedEntriesManager mRecentlyClosedEntriesManager;
+    private final CallbackHelper mEntriesUpdatedCallbackHelper = new CallbackHelper();
 
     @Before
     public void setup() {
@@ -63,7 +74,17 @@ public class RecentlyClosedEntriesManagerUnitTest {
         when(mTabModelSelector.getModel(/* incognito= */ false)).thenReturn(mTabModel);
         when(mTabModel.getProfile()).thenReturn(mProfile);
         mRecentlyClosedEntriesManager =
-                new RecentlyClosedEntriesManager(mMultiInstanceManager, mTabModelSelector);
+                RecentlyClosedEntriesManagerTrackerFactory.getInstance()
+                        .obtainManager(mMultiInstanceManager, mTabModelSelector);
+        mRecentlyClosedEntriesManager.setEntriesUpdatedCallback(
+                result -> mEntriesUpdatedCallbackHelper.notifyCalled());
+    }
+
+    @After
+    public void teardown() {
+        ((RecentlyClosedEntriesManagerTrackerImpl)
+                        RecentlyClosedEntriesManagerTrackerFactory.getInstance())
+                .setOpenMostRecentTabEntryNext(false);
     }
 
     @Test
@@ -362,6 +383,7 @@ public class RecentlyClosedEntriesManagerUnitTest {
                 assertTrue(
                         "Index " + i + " should be a RecentlyClosedEntryWindow.",
                         entry instanceof RecentlyClosedWindow);
+                numWindowEntries--;
             }
             // Assert timestamps strictly decrease.
             if (i > 0) {
@@ -371,6 +393,16 @@ public class RecentlyClosedEntriesManagerUnitTest {
                         greaterThan(entry.getDate().getTime()));
             }
         }
+
+        // Verify the excess window entries are cleaned up.
+        ArgumentCaptor<List<Integer>> listCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mMultiInstanceManager)
+                .closeWindows(listCaptor.capture(), eq(CloseWindowAppSource.RECENT_TABS));
+        assertEquals(numWindowEntries, listCaptor.getValue().size());
+
+        // Verify the excess session entries are cleaned up.
+        verify(mRecentlyClosedTabManager)
+                .clearLeastRecentlyUsedClosedEntries(eq(numSessionEntries));
     }
 
     @Test
@@ -425,6 +457,7 @@ public class RecentlyClosedEntriesManagerUnitTest {
 
         mRecentlyClosedEntriesManager.openMostRecentlyClosedEntry(
                 NewWindowAppSource.KEYBOARD_SHORTCUT);
+
         verify(mTabModel, never()).openMostRecentlyClosedEntry();
         verify(mMultiInstanceManager).openWindow(2, NewWindowAppSource.KEYBOARD_SHORTCUT);
     }
@@ -513,6 +546,227 @@ public class RecentlyClosedEntriesManagerUnitTest {
         mRecentlyClosedEntriesManager.openMostRecentlyClosedEntry(NewWindowAppSource.OTHER);
         verify(mTabModel).openMostRecentlyClosedEntry();
         verify(mMultiInstanceManager, never()).openWindow(anyInt(), anyInt());
+    }
+
+    @Test
+    public void testOpenMostRecentlyClosedEntry_TabClosureTimeIsZero() {
+        MultiWindowUtils.setInstanceCountForTesting(2);
+        MultiWindowUtils.setMaxInstancesForTesting(3);
+
+        // Assume that we have two closed windows, and tab entries with closure timestamp 0.
+        when(mTabModel.getMostRecentClosureTime()).thenReturn(0L);
+        createRecentlyClosedWindows(/* numOfWindows= */ 2);
+
+        // First request should open the most recently closed window.
+        mRecentlyClosedEntriesManager.openMostRecentlyClosedEntry(
+                NewWindowAppSource.KEYBOARD_SHORTCUT);
+        // Next request should open the tab entry with timestamp 0.
+        mRecentlyClosedEntriesManager.openMostRecentlyClosedEntry(
+                NewWindowAppSource.KEYBOARD_SHORTCUT);
+        // Next request should open the next most recently closed window.
+        mRecentlyClosedEntriesManager.openMostRecentlyClosedEntry(
+                NewWindowAppSource.KEYBOARD_SHORTCUT);
+
+        // Verify that most recent entries are opened in the expected order.
+        InOrder inOrder = inOrder(mMultiInstanceManager, mTabModel);
+        inOrder.verify(mMultiInstanceManager)
+                .openWindow(
+                        anyInt(), eq(MultiInstanceManager.NewWindowAppSource.KEYBOARD_SHORTCUT));
+        inOrder.verify(mTabModel).openMostRecentlyClosedEntry();
+        inOrder.verify(mMultiInstanceManager)
+                .openWindow(
+                        anyInt(), eq(MultiInstanceManager.NewWindowAppSource.KEYBOARD_SHORTCUT));
+    }
+
+    @Test
+    public void testOnWindowClosed_NotPermanentDeletion_AddsWindow() {
+        createRecentlyClosedWindows(/* numOfWindows= */ 1);
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+        RecentlyClosedWindow window =
+                new RecentlyClosedWindow(
+                        /* timestamp= */ 10,
+                        /* instanceId= */ 4,
+                        /* url= */ "url",
+                        /* title= */ "title",
+                        /* activeTabTitle= */ "tab title",
+                        /* tabCount= */ 1);
+        int callbackCount = mEntriesUpdatedCallbackHelper.getCallCount();
+
+        mRecentlyClosedEntriesManager.onWindowClosed(window, /* isPermanentDeletion= */ false);
+
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(2, entries.size());
+        assertEquals(window, entries.get(0));
+        assertEquals(callbackCount + 1, mEntriesUpdatedCallbackHelper.getCallCount());
+    }
+
+    @Test
+    public void testOnWindowClosed_PermanentDeletion_RemovesWindow() {
+        RecentlyClosedWindow window =
+                new RecentlyClosedWindow(
+                        /* timestamp= */ 10,
+                        /* instanceId= */ 2,
+                        /* url= */ "url",
+                        /* title= */ "title",
+                        /* activeTabTitle= */ "tab title",
+                        /* tabCount= */ 1);
+        mRecentlyClosedEntriesManager.onWindowClosed(window, /* isPermanentDeletion= */ false);
+        assertEquals(1, mRecentlyClosedEntriesManager.getRecentlyClosedEntries().size());
+        int callbackCount = mEntriesUpdatedCallbackHelper.getCallCount();
+
+        mRecentlyClosedEntriesManager.onWindowClosed(window, /* isPermanentDeletion= */ true);
+
+        assertEquals(0, mRecentlyClosedEntriesManager.getRecentlyClosedEntries().size());
+        assertEquals(callbackCount + 1, mEntriesUpdatedCallbackHelper.getCallCount());
+    }
+
+    @Test
+    public void testOnWindowClosed_MovesExistingWindowToTop() {
+        createRecentlyClosedWindows(/* numOfWindows= */ 2);
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        RecentlyClosedWindow olderWindow = (RecentlyClosedWindow) entries.get(1);
+        int callbackCount = mEntriesUpdatedCallbackHelper.getCallCount();
+
+        mRecentlyClosedEntriesManager.onWindowClosed(olderWindow, /* isPermanentDeletion= */ false);
+
+        entries = mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(2, entries.size());
+        assertEquals(olderWindow, entries.get(0));
+        assertEquals(callbackCount + 1, mEntriesUpdatedCallbackHelper.getCallCount());
+    }
+
+    @Test
+    public void testOnWindowRestored_RemovesEntry() {
+        createRecentlyClosedWindows(/* numOfWindows= */ 1);
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(1, entries.size());
+        int callbackCount = mEntriesUpdatedCallbackHelper.getCallCount();
+
+        mRecentlyClosedEntriesManager.onWindowRestored(/* instanceId= */ 2);
+
+        assertEquals(0, mRecentlyClosedEntriesManager.getRecentlyClosedEntries().size());
+        assertEquals(callbackCount + 1, mEntriesUpdatedCallbackHelper.getCallCount());
+    }
+
+    @Test
+    public void testMergeRecentlyClosedEntriesWithWindow_TabTimestampZero_WindowNewerThanNextTab() {
+        // Test merging when a tab has a timestamp of 0 and the window is newer than the next tab
+        // with a valid timestamp. The window should be prioritized.
+        createRecentlyClosedWindows(/* numOfWindows= */ 1); // timestamp = 2
+        List<RecentlyClosedEntry> sessionEntries = new ArrayList<>();
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 1, /* timestamp= */ 0));
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 2, /* timestamp= */ 1));
+        when(mRecentlyClosedTabManager.getRecentlyClosedEntries(anyInt()))
+                .thenReturn(sessionEntries);
+
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(3, entries.size());
+        assertTrue(entries.get(0) instanceof RecentlyClosedWindow);
+        assertTrue(entries.get(1) instanceof SessionRecentlyClosedEntry);
+        assertEquals(1, ((SessionRecentlyClosedEntry) entries.get(1)).getSessionId());
+        assertTrue(entries.get(2) instanceof SessionRecentlyClosedEntry);
+        assertEquals(2, ((SessionRecentlyClosedEntry) entries.get(2)).getSessionId());
+    }
+
+    @Test
+    public void testMergeRecentlyClosedEntriesWithWindow_NextTwoTabTimestampsZero() {
+        // Test merging when the next two tabs have timestamps of 0. The window should be
+        // prioritized.
+        createRecentlyClosedWindows(/* numOfWindows= */ 1); // timestamp = 2
+        List<RecentlyClosedEntry> sessionEntries = new ArrayList<>();
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 1, /* timestamp= */ 0));
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 2, /* timestamp= */ 0));
+        when(mRecentlyClosedTabManager.getRecentlyClosedEntries(anyInt()))
+                .thenReturn(sessionEntries);
+
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(3, entries.size());
+        assertTrue(entries.get(0) instanceof RecentlyClosedWindow);
+        assertTrue(entries.get(1) instanceof SessionRecentlyClosedEntry);
+        assertEquals(1, ((SessionRecentlyClosedEntry) entries.get(1)).getSessionId());
+        assertTrue(entries.get(2) instanceof SessionRecentlyClosedEntry);
+        assertEquals(2, ((SessionRecentlyClosedEntry) entries.get(2)).getSessionId());
+    }
+
+    @Test
+    public void testMergeRecentlyClosedEntriesWithWindow_TabTimestampZero_NoNextTab() {
+        // Test merging when a tab has a timestamp of 0 and there's no next tab. The window should
+        // be prioritized, and the tab with timestamp 0 should be added if there's space.
+        createRecentlyClosedWindows(/* numOfWindows= */ 1); // timestamp = 2
+        List<RecentlyClosedEntry> sessionEntries = new ArrayList<>();
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 1, /* timestamp= */ 0));
+        when(mRecentlyClosedTabManager.getRecentlyClosedEntries(anyInt()))
+                .thenReturn(sessionEntries);
+
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(2, entries.size());
+        assertTrue(entries.get(0) instanceof RecentlyClosedWindow);
+        assertTrue(entries.get(1) instanceof SessionRecentlyClosedEntry);
+    }
+
+    @Test
+    public void testMergeRecentlyClosedEntriesWithWindow_TabTimestampZero_NextTabNewerThanWindow() {
+        // Test merging when a tab has a timestamp of 0 and the next tab is newer than the window.
+        // The tab with timestamp 0 should be prioritized.
+        createRecentlyClosedWindows(/* numOfWindows= */ 1); // timestamp = 2
+
+        List<RecentlyClosedEntry> sessionEntries = new ArrayList<>();
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 1, /* timestamp= */ 0));
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 2, /* timestamp= */ 3));
+
+        when(mRecentlyClosedTabManager.getRecentlyClosedEntries(anyInt()))
+                .thenReturn(sessionEntries);
+
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+        assertEquals(3, entries.size());
+        assertTrue(entries.get(0) instanceof SessionRecentlyClosedEntry);
+        assertEquals(1, ((SessionRecentlyClosedEntry) entries.get(0)).getSessionId());
+        assertTrue(entries.get(1) instanceof SessionRecentlyClosedEntry);
+        assertEquals(2, ((SessionRecentlyClosedEntry) entries.get(1)).getSessionId());
+        assertTrue(entries.get(2) instanceof RecentlyClosedWindow);
+    }
+
+    @Test
+    public void testMergeRecentlyClosedEntriesWithWindow_TabTimestampZero_NoSpaceForTab() {
+        // Test merging when a tab has a timestamp of 0 and there is no space to add it.
+        // It should not be added.
+        RecentlyClosedEntriesManager.setMaxEntriesForTests(3);
+        createRecentlyClosedWindows(/* numOfWindows= */ 2);
+
+        List<RecentlyClosedEntry> sessionEntries = new ArrayList<>();
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 1, /* timestamp= */ 3));
+        sessionEntries.add(new SessionRecentlyClosedEntry(/* sessionId= */ 2, /* timestamp= */ 0));
+
+        when(mRecentlyClosedTabManager.getRecentlyClosedEntries(anyInt()))
+                .thenReturn(sessionEntries);
+
+        mRecentlyClosedEntriesManager.updateRecentlyClosedEntries();
+
+        List<RecentlyClosedEntry> entries =
+                mRecentlyClosedEntriesManager.getRecentlyClosedEntries();
+
+        assertEquals(3, entries.size());
+        assertTrue(entries.get(0) instanceof RecentlyClosedWindow);
+        assertTrue(entries.get(1) instanceof SessionRecentlyClosedEntry);
+        assertEquals(1, ((SessionRecentlyClosedEntry) entries.get(1)).getSessionId());
+        assertTrue(entries.get(2) instanceof RecentlyClosedWindow);
     }
 
     /**

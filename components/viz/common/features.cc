@@ -39,11 +39,6 @@ namespace features {
 // involvement. For now, this applies only to top controls.
 BASE_FEATURE(kAndroidBrowserControlsInViz, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If this flag is enabled, AndroidBrowserControlsInViz and
-// BottomControlsRefactor with the "Dispatch yOffset" variation must also be
-// enabled.
-BASE_FEATURE(kAndroidBcivBottomControls, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If this flag is enabled, a DumpWithoutCrashing() is captured when a bad
 // state is detected when moving the composited UI. For example, this could
 // mean scrolling without a resource, or OffsetTagValues trying to position
@@ -284,6 +279,18 @@ BASE_FEATURE(kEnableADPFWorkloadReset, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableADPFScrollNoRendererMain,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, Chrome sends an ADPF(Android Dynamic Performance Framework)
+// timing report with a fake actual durarion > target duration only if there
+// were no frame timing reports for `adpf_boost_rate_limit_min_wait`, instead
+// of doing it for every touch start input.
+// The goal is to avoid boosts during continuous user input to reduce power
+// consumption.
+BASE_FEATURE(kEnableADPFBoostRateLimit, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kAdpfBoostRateLimitMinWait{
+    &kEnableADPFBoostRateLimit, "adpf_boost_rate_limit_min_wait",
+    base::Milliseconds(50)};
+
 // If enabled, we immediately send acks to clients when a viz surface
 // activates. This effectively removes back-pressure. This can result in wasted
 // work and contention, but should regularize the timing of client rendering.
@@ -319,10 +326,6 @@ BASE_FEATURE(kSingleVideoFrameRateThrottling,
 // be established due to said gpu process exiting.
 BASE_FEATURE(kShutdownForFailedChannelCreation,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, info for quads from the last render pass will be reported as
-// UMAs.
-BASE_FEATURE(kShouldLogFrameQuadInfo, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, ClientResourceProvider will allow for the batching of
 // callbacks. So that the client can perform a series of individual releases,
@@ -472,10 +475,6 @@ NumCooldownFramesForAckOnSurfaceActivationDuringInteraction() {
       kNumCooldownFramesForAckOnSurfaceActivationDuringInteraction.Get());
 }
 
-bool ShouldLogFrameQuadInfo() {
-  return base::FeatureList::IsEnabled(features::kShouldLogFrameQuadInfo);
-}
-
 #if BUILDFLAG(IS_MAC)
 bool IsVSyncAlignedPresentEnabled() {
   return base::FeatureList::IsEnabled(features::kVSyncAlignedPresent);
@@ -524,10 +523,6 @@ bool ShouldRemoveRedirectionBitmap() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-bool IsBcivBottomControlsEnabled() {
-  return base::FeatureList::IsEnabled(features::kAndroidBcivBottomControls);
-}
-
 bool IsBrowserControlsInVizEnabled() {
   return base::FeatureList::IsEnabled(features::kAndroidBrowserControlsInViz);
 }

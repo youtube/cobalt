@@ -18,7 +18,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/common/read_anything/read_anything.mojom-data-view.h"
+#include "chrome/common/read_anything/read_anything.mojom-shared.h"
 #include "chrome/common/read_anything/read_anything_util.h"
 #include "chrome/renderer/accessibility/ax_tree_distiller.h"
 #include "chrome/renderer/accessibility/phrase_segmentation/dependency_parser_model.h"
@@ -31,7 +31,7 @@
 #include "services/strings/grit/services_strings.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "ui/accessibility/accessibility_features.h"
-#include "ui/accessibility/ax_enums.mojom-data-view.h"
+#include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/accessibility/ax_location_and_scroll_updates.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -142,7 +142,10 @@ class MockReadAnythingUntrustedPageHandler
               (override));
   MOCK_METHOD(void, GetPresentationState, (), (override));
   MOCK_METHOD(void, CloseUI, (), (override));
+  MOCK_METHOD(void, TogglePinState, (), (override));
   MOCK_METHOD(void, TogglePresentation, (), (override));
+  MOCK_METHOD(void, AckReadingModeHidden, (), (override));
+  MOCK_METHOD(void, SendPinStateRequest, (), (override));
 
   mojo::PendingRemote<read_anything::mojom::UntrustedPageHandler>
   BindNewPipeAndPassRemote() {
@@ -487,6 +490,11 @@ TEST_F(ReadAnythingAppControllerTest, OnIsAudioCurrentlyPlayingChanged) {
   EXPECT_CALL(page_handler_, OnReadAloudAudioStateChange(false)).Times(1);
 }
 
+TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_SendsAck) {
+  controller().OnReadingModeHidden(true);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden()).Times(1);
+}
+
 TEST_F(ReadAnythingAppControllerTest,
        OnReadingModeHidden_OnlyLogsIfSpeechPlaying) {
   read_aloud_model().SetSpeechPlaying(false);
@@ -505,6 +513,7 @@ TEST_F(ReadAnythingAppControllerTest,
   histogram_tester.ExpectUniqueSample(
       ReadAloudAppModel::kSpeechStopSourceHistogramName,
       ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode, 1);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden()).Times(3);
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -516,6 +525,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   EXPECT_EQ(0, histogram_tester.GetTotalSum(
                    ReadAloudAppModel::kSpeechStopSourceHistogramName));
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsSeen) {
@@ -525,6 +535,7 @@ TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsSeen) {
 
   histogram_tester.ExpectUniqueSample(
       ReadAnythingAppController::kWordsSeenHistogramName, 123, 1);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -535,6 +546,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   histogram_tester.ExpectUniqueSample(
       ReadAnythingAppController::kWordsSeenHistogramName, 123, 1);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsSeen) {
@@ -542,6 +554,7 @@ TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsSeen) {
   controller().OnReadingModeHidden(true);
 
   EXPECT_EQ(0, model().words_seen());
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsHeard) {
@@ -551,6 +564,7 @@ TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_LogsWordsHeard) {
 
   histogram_tester.ExpectUniqueSample(
       ReadAnythingAppController::kWordsHeardHistogramName, 123, 1);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -561,6 +575,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   histogram_tester.ExpectUniqueSample(
       ReadAnythingAppController::kWordsHeardHistogramName, 123, 1);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -573,6 +588,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   histogram_tester.ExpectTotalCount(
       ReadAnythingAppController::kWordsHeardHistogramName, 0);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsHeard) {
@@ -580,6 +596,7 @@ TEST_F(ReadAnythingAppControllerTest, OnReadingModeHidden_ResetsWordsHeard) {
   controller().OnReadingModeHidden(true);
 
   EXPECT_EQ(0, model().words_heard());
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -591,6 +608,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   histogram_tester.ExpectTotalCount(
       "Accessibility.ReadAnything.LineFocusSessionLength", 1);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -601,6 +619,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   histogram_tester.ExpectTotalCount(
       "Accessibility.ReadAnything.LineFocusSessionLength", 0);
+  EXPECT_CALL(page_handler_, AckReadingModeHidden());
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnTabWillDetach_OnlyLogsIfSpeechPlaying) {
@@ -867,10 +886,10 @@ TEST_F(ReadAnythingAppControllerTest, OnLanguagePrefChange) {
   controller().OnLanguagePrefChange(disabled_lang, false);
 
   EXPECT_CALL(page_handler_, OnLanguagePrefChange).Times(3);
-  ASSERT_TRUE(base::Contains(read_aloud_model().languages_enabled_in_pref(),
-                             enabled_lang));
-  ASSERT_FALSE(base::Contains(read_aloud_model().languages_enabled_in_pref(),
-                              disabled_lang));
+  ASSERT_TRUE(
+      read_aloud_model().languages_enabled_in_pref().contains(enabled_lang));
+  ASSERT_FALSE(
+      read_aloud_model().languages_enabled_in_pref().contains(disabled_lang));
 }
 
 TEST_F(ReadAnythingAppControllerTest, GetStoredVoice_ReturnsLatestVoice) {
@@ -1793,10 +1812,10 @@ TEST_F(ReadAnythingAppControllerTest,
   update.tree_data.sel_is_backward = false;
 
   AccessibilityEventReceived({std::move(update)});
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 1));
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 2));
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 3));
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 4));
+  EXPECT_TRUE(model().selection_node_ids().contains(1));
+  EXPECT_TRUE(model().selection_node_ids().contains(2));
+  EXPECT_TRUE(model().selection_node_ids().contains(3));
+  EXPECT_TRUE(model().selection_node_ids().contains(4));
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -1810,10 +1829,10 @@ TEST_F(ReadAnythingAppControllerTest,
   update.tree_data.sel_focus_offset = 0;
   update.tree_data.sel_is_backward = true;
   AccessibilityEventReceived({std::move(update)});
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 1));
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 2));
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 3));
-  EXPECT_TRUE(base::Contains(model().selection_node_ids(), 4));
+  EXPECT_TRUE(model().selection_node_ids().contains(1));
+  EXPECT_TRUE(model().selection_node_ids().contains(2));
+  EXPECT_TRUE(model().selection_node_ids().contains(3));
+  EXPECT_TRUE(model().selection_node_ids().contains(4));
 }
 
 TEST_F(ReadAnythingAppControllerTest, DisplayNodeIdsContains_ContentNodes) {
@@ -1829,19 +1848,19 @@ TEST_F(ReadAnythingAppControllerTest, DisplayNodeIdsContains_ContentNodes) {
   ui::AXEvent load_complete(0, ax::mojom::Event::kLoadComplete);
   AccessibilityEventReceived({std::move(update)}, {std::move(load_complete)});
   controller().OnAXTreeDistilled(tree_id_, {3});
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 1));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 2));
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 3));
+  EXPECT_TRUE(model().display_node_ids().contains(1));
+  EXPECT_FALSE(model().display_node_ids().contains(2));
+  EXPECT_TRUE(model().display_node_ids().contains(3));
   Mock::VerifyAndClearExpectations(distiller_);
 }
 
 TEST_F(ReadAnythingAppControllerTest,
        DisplayNodeIdsContains_NoSelectionOrContentNodes) {
   controller().OnAXTreeDistilled(tree_id_, {});
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 1));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 2));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 3));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 4));
+  EXPECT_FALSE(model().display_node_ids().contains(1));
+  EXPECT_FALSE(model().display_node_ids().contains(2));
+  EXPECT_FALSE(model().display_node_ids().contains(3));
+  EXPECT_FALSE(model().display_node_ids().contains(4));
 }
 
 TEST_F(ReadAnythingAppControllerTest, DoesNotCrashIfContentNodeNotFoundInTree) {
@@ -1858,10 +1877,10 @@ TEST_F(ReadAnythingAppControllerTest, Draw_RecomputeDisplayNodes) {
   model().Reset({3, 4});
   controller().Draw(/* recompute_display_nodes= */ true);
 
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 1));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 2));
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 3));
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 4));
+  EXPECT_TRUE(model().display_node_ids().contains(1));
+  EXPECT_FALSE(model().display_node_ids().contains(2));
+  EXPECT_TRUE(model().display_node_ids().contains(3));
+  EXPECT_TRUE(model().display_node_ids().contains(4));
 }
 
 TEST_F(ReadAnythingAppControllerTest, Draw_DoNotRecomputeDisplayNodesForDocs) {
@@ -1882,9 +1901,9 @@ TEST_F(ReadAnythingAppControllerTest, Draw_DoNotRecomputeDisplayNodesForDocs) {
   controller().OnAXTreeDistilled(tree_id_, {3});
   controller().OnActiveAXTreeIDChanged(id_1, ukm::kInvalidSourceId, false);
   EXPECT_TRUE(controller().IsGoogleDocs());
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 1));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 2));
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 3));
+  EXPECT_TRUE(model().display_node_ids().contains(1));
+  EXPECT_FALSE(model().display_node_ids().contains(2));
+  EXPECT_TRUE(model().display_node_ids().contains(3));
   Mock::VerifyAndClearExpectations(distiller_);
 
   ui::AXNodeData node1;
@@ -1895,10 +1914,10 @@ TEST_F(ReadAnythingAppControllerTest, Draw_DoNotRecomputeDisplayNodesForDocs) {
   SendUpdateWithNodes({std::move(node1)});
   model().Reset({3, 4});
   controller().Draw(/* recompute_display_nodes= */ true);
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 1));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 2));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 3));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 4));
+  EXPECT_FALSE(model().display_node_ids().contains(1));
+  EXPECT_FALSE(model().display_node_ids().contains(2));
+  EXPECT_FALSE(model().display_node_ids().contains(3));
+  EXPECT_FALSE(model().display_node_ids().contains(4));
 }
 
 TEST_F(ReadAnythingAppControllerTest, AccessibilityEventReceived) {
@@ -2981,13 +3000,13 @@ TEST_F(ReadAnythingAppControllerTest, DisplayNodes_WithMultipleTrees) {
 
   // Check the display nodes.
   const auto& display_node_ids = model().display_node_ids();
-  EXPECT_TRUE(base::Contains(display_node_ids, kId1));
-  EXPECT_TRUE(base::Contains(display_node_ids, kId2));
-  EXPECT_TRUE(base::Contains(display_node_ids, kId3));
+  EXPECT_TRUE(display_node_ids.contains(kId1));
+  EXPECT_TRUE(display_node_ids.contains(kId2));
+  EXPECT_TRUE(display_node_ids.contains(kId3));
 
   // The ad content from the child tree should not be in the display nodes.
-  EXPECT_FALSE(base::Contains(display_node_ids, kAdChildNodeId));
-  EXPECT_FALSE(base::Contains(display_node_ids, kAdChildRootId));
+  EXPECT_FALSE(display_node_ids.contains(kAdChildNodeId));
+  EXPECT_FALSE(display_node_ids.contains(kAdChildRootId));
 
   // The text content for the duplicate id returns the actual content, not the
   // ad content.
@@ -3208,6 +3227,11 @@ TEST_F(ReadAnythingAppControllerTest,
   controller().OnActiveAXTreeIDChanged(id, ukm::kInvalidSourceId, false);
   task_environment_.FastForwardBy(kTimeSincePageLoadForDataCollection +
                                   base::Seconds(1));
+}
+
+TEST_F(ReadAnythingAppControllerTest, ImmersiveReadAnythingTogglesPinState) {
+  controller().TogglePinState();
+  EXPECT_CALL(page_handler_, TogglePinState()).Times(1);
 }
 
 class ReadAnythingAppControllerV8SegmentationTest
@@ -3836,10 +3860,10 @@ TEST_F(ReadAnythingAppControllerV8SegmentationTest,
   controller().Draw(/* recompute_display_nodes= */ true);
 
   EXPECT_FALSE(controller().IsSpeechTreeInitialized());
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 1));
-  EXPECT_FALSE(base::Contains(model().display_node_ids(), 2));
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 3));
-  EXPECT_TRUE(base::Contains(model().display_node_ids(), 4));
+  EXPECT_TRUE(model().display_node_ids().contains(1));
+  EXPECT_FALSE(model().display_node_ids().contains(2));
+  EXPECT_TRUE(model().display_node_ids().contains(3));
+  EXPECT_TRUE(model().display_node_ids().contains(4));
 }
 
 TEST_F(ReadAnythingAppControllerV8SegmentationTest,

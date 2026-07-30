@@ -36,6 +36,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ObserverList.RewindableIterator;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.Token;
 import org.chromium.base.TraceEvent;
@@ -44,7 +45,6 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.Initializer;
@@ -176,7 +176,7 @@ class TabImpl implements Tab {
     private final Profile mProfile;
 
     /** The tab model this tab is currently attached to. */
-    private @Nullable NullableObservableSupplier<Tab> mCurrentTabSupplier;
+    private @Nullable LookAheadObservableSupplier<Tab> mCurrentTabSupplier;
 
     /** Whether or not this tab is a part of multi selection. */
     private @Nullable SelectionStateSupplier mSelectionStateSupplier;
@@ -341,6 +341,29 @@ class TabImpl implements Tab {
     private @Nullable SmoothTransitionDelegate mNativePageSmoothTransitionDelegate;
 
     private @Nullable Callback<Boolean> mIsDraggingObserver;
+
+    private @Nullable Boolean mWasLastActive;
+
+    private final Callback<@Nullable Tab> mActiveTabObserver =
+            (activeTab) -> {
+                boolean active = activeTab == this;
+
+                if (Objects.equals(mWasLastActive, active)) return;
+
+                mWasLastActive = active;
+
+                if (!active || mNativeTabAndroid == 0) return;
+                TabImplJni.get().sendDidActivateUpdate(mNativeTabAndroid);
+            };
+
+    private final Callback<@Nullable Tab> mActiveTabLookAheadObserver =
+            (activeTab) -> {
+                if (mWasLastActive == null || !mWasLastActive || mNativeTabAndroid == 0) {
+                    return;
+                }
+
+                TabImplJni.get().sendWillDeactivateUpdate(mNativeTabAndroid);
+            };
 
     /**
      * Notified when the content sensitivity changes, and sets the content sensitivity property on
@@ -2916,24 +2939,38 @@ class TabImpl implements Tab {
 
     @Override
     public void onAddedToTabModel(
-            NullableObservableSupplier<Tab> currentTabSupplier,
+            LookAheadObservableSupplier<Tab> currentTabSupplier,
             SelectionStateSupplier selectionStateSupplier) {
         // Tabs should not be attached to multiple tab models.
         assert mCurrentTabSupplier == null;
 
         mCurrentTabSupplier = currentTabSupplier;
         mSelectionStateSupplier = selectionStateSupplier;
+
+        mCurrentTabSupplier.addObserver(mActiveTabObserver);
+        mCurrentTabSupplier.addLookAheadObserver(mActiveTabLookAheadObserver);
+
+        if (mNativeTabAndroid != 0) {
+            TabImplJni.get().sendDidInsertUpdate(mNativeTabAndroid);
+        }
     }
 
     @Override
-    public void onRemovedFromTabModel(NullableObservableSupplier<Tab> currentTabSupplier) {
+    public void onRemovedFromTabModel(LookAheadObservableSupplier<Tab> currentTabSupplier) {
         // Usually mCurrentTabSupplier should equal currentTabSupplier when it's removed from the
         // TabModel. However, during reparenting it appears there are situations where the tab is
         // not removed from the original TabModel before being added to the new TabModel. In these
         // cases, mCurrentTabSupplier will be null as a result of the logic in updateAttachment().
         assert mCurrentTabSupplier == null || mCurrentTabSupplier == currentTabSupplier;
+
+        if (mCurrentTabSupplier != null) {
+            mCurrentTabSupplier.removeObserver(mActiveTabObserver);
+            mCurrentTabSupplier.removeLookAheadObserver(mActiveTabLookAheadObserver);
+        }
+
         mCurrentTabSupplier = null;
         mSelectionStateSupplier = null;
+        mWasLastActive = null;
     }
 
     @Override
@@ -2965,6 +3002,11 @@ class TabImpl implements Tab {
                 .closeTabs(
                         TabClosureParams.closeTab(tab).allowUndo(false).build(),
                         /* allowDialog= */ false);
+    }
+
+    void setNativePtrForTesting(long nativePtr) {
+        setNativePtr(nativePtr);
+        ResettersForTesting.register(this::clearNativePtr);
     }
 
     @NativeMethods
@@ -3020,6 +3062,12 @@ class TabImpl implements Tab {
                 @JniType("std::optional<base::Token>") @Nullable Token tabGroupId);
 
         void onDraggingStateChanged(long nativeTabAndroid, boolean isDragging);
+
+        void sendDidActivateUpdate(long nativeTabAndroid);
+
+        void sendWillDeactivateUpdate(long nativeTabAndroid);
+
+        void sendDidInsertUpdate(long nativeTabAndroid);
     }
 
     @VisibleForTesting

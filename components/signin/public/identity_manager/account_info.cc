@@ -261,6 +261,7 @@ signin::Tribool AccountInfo::CanApplyAccountLevelEnterprisePolicies() const {
   return IsManaged();
 }
 
+#if !BUILDFLAG(IS_IOS)
 bool AccountInfo::IsEduAccount() const {
   return capabilities.can_use_edu_features() == signin::Tribool::kTrue &&
          IsManaged() == signin::Tribool::kTrue;
@@ -272,6 +273,7 @@ bool AccountInfo::CanHaveEmailAddressDisplayed() const {
          capabilities.can_have_email_address_displayed() ==
              signin::Tribool::kUnknown;
 }
+#endif  // !BUILDFLAG(IS_IOS)
 
 AccountInfo::Builder::Builder(const GaiaId& gaia_id, std::string_view email) {
   CHECK(!gaia_id.empty());
@@ -477,7 +479,7 @@ AccountInfo ConvertFromJavaAccountInfo(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& j_account_info) {
   CHECK(j_account_info);
-  // TODO(crbug.com/348373729): Marshal account image & capabilities from Java.
+
   AccountInfo::Builder builder(
       signin::Java_CoreAccountInfo_getGaiaId(env, j_account_info),
       signin::Java_CoreAccountInfo_getEmail(env, j_account_info));
@@ -490,7 +492,7 @@ AccountInfo ConvertFromJavaAccountInfo(
   if (std::string given_name =
           signin::Java_AccountInfo_getGivenName(env, j_account_info);
       !given_name.empty()) {
-    builder.SetFullName(given_name);
+    builder.SetGivenName(given_name);
   }
   // Unknown hosted domain is represented by a null Java string which is
   // converted to an empty std::string. Do not call `SetHostedDomain()` in this
@@ -499,6 +501,23 @@ AccountInfo ConvertFromJavaAccountInfo(
           signin::Java_AccountInfo_getRawHostedDomain(env, j_account_info));
       !hosted_domain.empty()) {
     builder.SetHostedDomain(hosted_domain);
+  }
+  if (base::android::ScopedJavaLocalRef<jobject> account_image =
+          signin::Java_AccountInfo_getAccountImage(env, j_account_info);
+      !account_image.is_null()) {
+    const gfx::JavaBitmap account_image_bitmap(account_image);
+    SkBitmap avatar = gfx::CreateSkBitmapFromJavaBitmap(account_image_bitmap);
+    avatar.setImmutable();
+    const gfx::Image avatar_image = gfx::Image::CreateFrom1xBitmap(avatar);
+    builder.SetAvatarImage(avatar_image);
+  }
+  if (base::android::ScopedJavaLocalRef<jobject> j_capabilities =
+          signin::Java_AccountInfo_getAccountCapabilities(env, j_account_info);
+      !j_capabilities.is_null()) {
+    const AccountCapabilities capabilities =
+        AccountCapabilities::ConvertFromJavaAccountCapabilities(env,
+                                                                j_capabilities);
+    builder.UpdateAccountCapabilitiesWith(capabilities);
   }
   return builder.Build();
 }

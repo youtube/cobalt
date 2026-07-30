@@ -19,6 +19,9 @@ BASE_DECLARE_FEATURE(kContextualTasksContextLibrary);
 BASE_DECLARE_FEATURE(kContextualTasksContextLogging);
 BASE_DECLARE_FEATURE(kContextualTasksShowOnboardingTooltip);
 
+// Overrides the value of EntryPointEligibilitymanager::IsEligible to true.
+BASE_DECLARE_FEATURE(kContextualTasksForceEntryPointEligibility);
+
 // Enables context menu settings for contextual tasks.
 BASE_DECLARE_FEATURE(kContextualTasksContextMenu);
 
@@ -27,6 +30,11 @@ BASE_DECLARE_FEATURE(kContextualTasksSuggestionsEnabled);
 
 // Force the application locale to US and the gl query parameter to us.
 BASE_DECLARE_FEATURE(kContextualTasksForceCountryCodeUS);
+
+// Remove tasks that have no tabs or threads associated with them on tab
+// disassociation.
+BASE_DECLARE_FEATURE(
+    kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations);
 
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
@@ -107,6 +115,9 @@ extern bool GetIsSteadyComposeboxVoiceSearchEnabled();
 // Returns if voice search queries should be auto submitted.
 extern bool GetAutoSubmitVoiceSearchQuery();
 
+// Returns if the protected page error is enabled.
+extern bool GetIsProtectedPageErrorEnabled();
+
 // Returns the base URL for the AI page.
 extern std::string GetContextualTasksAiPageUrl();
 
@@ -143,6 +154,9 @@ extern std::string GetContextualTasksOnboardingTooltipHelpUrl();
 
 // Returns the help URL for the help center article from the toolbar.
 extern std::string GetContextualTasksHelpUrl();
+
+// Returns whether smart compose is enabled for Contextual Tasks.
+extern bool GetEnableContextualTasksSmartCompose();
 
 namespace flag_descriptions {
 

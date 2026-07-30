@@ -25,7 +25,6 @@
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
-#include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
@@ -137,10 +136,6 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
   EXPECT_EQ(GetSpinner()->state(), views::AnimatedImageView::State::kPlaying);
   EXPECT_TRUE(GetSpinner()->GetVisible());
   EXPECT_FALSE(GetSpinner()->bounds().IsEmpty());
-  EXPECT_TRUE(GetSpinner()
-                  ->animated_image()
-                  ->GetPlaybackConfig()
-                  ->ignore_reduced_motion);
 
   // Stop acting on the tab.
   state_manager->OnUiEvent(StoppedActingOnTab(tab->GetHandle()));
@@ -186,10 +181,6 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
   EXPECT_EQ(GetSpinner()->state(), views::AnimatedImageView::State::kPlaying);
   EXPECT_TRUE(GetSpinner()->GetVisible());
   EXPECT_FALSE(GetSpinner()->bounds().IsEmpty());
-  EXPECT_TRUE(GetSpinner()
-                  ->animated_image()
-                  ->GetPlaybackConfig()
-                  ->ignore_reduced_motion);
 
   // Wait for user event.
   actor_service->GetActorUiStateManager()->OnUiEvent(

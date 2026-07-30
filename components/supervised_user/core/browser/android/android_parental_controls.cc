@@ -4,11 +4,15 @@
 
 #include "components/supervised_user/core/browser/android/android_parental_controls.h"
 
+#include <string>
 #include <string_view>
 
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
+#include "components/policy/core/common/policy_pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "components/supervised_user/core/browser/android/content_filters_observer_bridge.h"
+#include "components/supervised_user/core/browser/supervised_user_preferences.h"
 
 namespace supervised_user {
 
@@ -27,25 +31,25 @@ void AndroidParentalControls::Init() {
 
 AndroidParentalControls::~AndroidParentalControls() = default;
 
-void AndroidParentalControls::OnContentFiltersObserverEnabled(
-    std::string_view setting_name) {
-  OnContentFiltersObserverChanged(setting_name);
+bool AndroidParentalControls::IsWebFilteringEnabled() const {
+  return IsBrowserContentFiltersEnabled();
 }
 
-void AndroidParentalControls::OnContentFiltersObserverDisabled(
-    std::string_view setting_name) {
-  OnContentFiltersObserverChanged(setting_name);
+bool AndroidParentalControls::IsSafeSearchForced() const {
+  return IsSearchContentFiltersEnabled();
+}
+
+bool AndroidParentalControls::IsEnabled() const {
+  return IsBrowserContentFiltersEnabled() || IsSearchContentFiltersEnabled();
 }
 
 void AndroidParentalControls::OnContentFiltersObserverChanged(
     std::string_view setting_name) {
   if (setting_name == browser_content_filters_observer_.GetSettingName()) {
-    observer_list_.Notify(
-        &Observer::OnAndroidParentalControlsBrowserContentFiltersChanged);
+    NotifyBrowserContentFiltersChanged();
   } else if (setting_name ==
              search_content_filters_observer_.GetSettingName()) {
-    observer_list_.Notify(
-        &Observer::OnAndroidParentalControlsSearchContentFiltersChanged);
+    NotifySearchContentFiltersChanged();
   } else {
     NOTREACHED() << "Unexpected setting name: " << setting_name;
   }
@@ -59,18 +63,6 @@ bool AndroidParentalControls::IsSearchContentFiltersEnabled() const {
   return search_content_filters_observer_.IsEnabled();
 }
 
-bool AndroidParentalControls::IsSafeSearchForced() const {
-  return IsSearchContentFiltersEnabled();
-}
-
-void AndroidParentalControls::AddObserver(Observer* observer) const {
-  observer_list_.AddObserver(observer);
-}
-
-void AndroidParentalControls::RemoveObserver(Observer* observer) const {
-  observer_list_.RemoveObserver(observer);
-}
-
 void AndroidParentalControls::SetBrowserContentFiltersEnabledForTesting(
     bool enabled) {
   browser_content_filters_observer_.SetEnabledForTesting(enabled);
@@ -81,4 +73,20 @@ void AndroidParentalControls::SetSearchContentFiltersEnabledForTesting(
   search_content_filters_observer_.SetEnabledForTesting(enabled);
 }
 
+bool AreAndroidParentalControlsEffectiveForTesting(
+    const PrefService& pref_service) {
+  if (IsSubjectToParentalControls(pref_service)) {
+    return false;
+  }
+
+  // When any device parental controls are active, they disable incognito mode.
+  // This is done by setting the `kIncognitoModeAvailability` pref, which
+  // results in `IsManagedByCustodian()` returning true for that pref.
+  // We use this as a proxy to determine if device controls are "effective".
+  // This check is only reached if Family Link supervision is not active,
+  // as determined by the `IsSubjectToParentalControls` check above.
+  return pref_service
+      .FindPreference(policy::policy_prefs::kIncognitoModeAvailability)
+      ->IsManagedByCustodian();
+}
 }  // namespace supervised_user

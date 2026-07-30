@@ -166,12 +166,6 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
-#if BUILDFLAG(IS_IOS)
-// Features to enable identities in auth error (stale token).
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kEnableIdentityInAuthError);
-#endif
-
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnableOAuthMultiloginCookiesBinding);
@@ -253,7 +247,7 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kFullscreenSignInPromoUseDate);
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
 // When enabled, GLIC will check a new CanUseGeminiInChrome account capability
 // to determine profile eligibility, instead of CanUseModelExecutionFeatures.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -264,11 +258,11 @@ BASE_DECLARE_FEATURE(kGlicEligibilitySeparateAccountCapability);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kHandleMdmErrorsForDasherAccounts);
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_IOS)
+// Follow-ups to EnableIdentityInAuthError.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kHistoryOptInEducationalTip);
-extern const base::FeatureParam<int> kHistoryOptInEducationalTipVariation;
-#endif  // BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kIdentityInAuthErrorFollowUps);
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -435,6 +429,11 @@ BASE_DECLARE_FEATURE(kSyncEnableBookmarksInTransportMode);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kUseIssueTokenToFetchAccessTokens);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+// If enabled, buttons for sign-in promos / intercepts will use consistent
+// primary - tonal button class pattern.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kUsePrimaryAndTonalButtonsForPromos);
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // If enabled, web sign-in will implicitly sign the user in.

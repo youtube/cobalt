@@ -182,9 +182,6 @@ ResourcePool::ResourcePool(
       clock_(base::DefaultTickClock::GetInstance()) {
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "cc::ResourcePool", task_runner_.get());
-  memory_pressure_listener_registration_ =
-      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
-          FROM_HERE, base::MemoryPressureListenerTag::kResourcePool, this);
 }
 
 ResourcePool::~ResourcePool() {
@@ -375,7 +372,7 @@ void ResourcePool::OnResourceReleased(size_t unique_id,
   // while it was still in use by the ResourcePool client. That would prevent
   // the client from being able to use the ResourceId on the InUsePoolResource,
   // which would be problematic!
-  DCHECK(!base::Contains(in_use_resources_, unique_id));
+  DCHECK(!in_use_resources_.contains(unique_id));
 
   // TODO(danakj): Should busy_resources be a map?
   auto busy_it =
@@ -679,18 +676,6 @@ bool ResourcePool::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
     }
   }
   return true;
-}
-
-void ResourcePool::OnMemoryPressure(base::MemoryPressureLevel level) {
-  switch (level) {
-    case base::MEMORY_PRESSURE_LEVEL_NONE:
-    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
-      break;
-    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
-      EvictResourcesNotUsedSince(base::TimeTicks() + base::TimeDelta::Max());
-      FlushEvictedResources();
-      break;
-  }
 }
 
 ResourcePool::PoolResource::PoolResource(ResourcePool* resource_pool,

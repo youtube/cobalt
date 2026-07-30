@@ -98,7 +98,8 @@ template <typename Traits>
 DecoderTemplate<Traits>::~DecoderTemplate() {
   DVLOG(1) << __func__;
   base::UmaHistogramSparse(
-      String::Format("Blink.WebCodecs.%s.FinalStatus", Traits::GetName())
+      UNSAFE_TODO(
+          String::Format("Blink.WebCodecs.%s.FinalStatus", Traits::GetName()))
           .Ascii()
           .c_str(),
       static_cast<int>(logger_->status_code()));
@@ -556,9 +557,7 @@ void DecoderTemplate<Traits>::Shutdown(DOMException* exception) {
     pending_request_.Release()->EndTracing(/*shutting_down=*/true);
   }
 
-  bool trace_enabled = false;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(kCategory, &trace_enabled);
-  if (trace_enabled) {
+  if (TRACE_EVENT_CATEGORY_ENABLED(kCategory)) {
     for (auto& pending_decode : pending_decodes_)
       pending_decode.value->decode_trace.reset();
   }

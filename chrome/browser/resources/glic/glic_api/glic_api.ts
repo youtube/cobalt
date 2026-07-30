@@ -307,6 +307,16 @@ export declare interface GlicBrowserHost {
   performActions?(actions: ArrayBuffer): Promise<ArrayBuffer>;
 
   /**
+   * Cancel the actions for the specified actor task. It does not revert actions
+   * already taken. Returns an error if the task is not found.
+   *
+   * @param taskId - The ID of the target actor task.
+   * @returns A promise resolving to a {@link CancelActionsResult}
+   *     indicating the outcome.
+   */
+  cancelActions?(taskId: number): Promise<CancelActionsResult>;
+
+  /**
    * Stops the actor task with the given ID in the browser if it exists. No-op
    * otherwise.
    *
@@ -778,6 +788,43 @@ export declare interface GlicBrowserHost {
       ObservableValue<ZeroStateSuggestionsV2>;
 
   /**
+   * Creates a skill. The request contains a prompt or an empty string.
+   * A Chrome modal will be shown to allow the user to edit and save a skill.
+   * The promise will fail if the modal is not opened.
+   */
+  createSkill?(request: CreateSkillRequest): Promise<void>;
+
+  /**
+   * Updates a skill. The request only contains a skill id.
+   * The Chrome modal will display the corresponding skill and allow the user to
+   * edit and save it. The promise will fail if the modal is not opened.
+   */
+  updateSkill?(request: UpdateSkillRequest): Promise<void>;
+
+  /**
+   * Gets a skill by id. The web client should use this method to get the
+   * full skill details including the prompt for display or run in the UI.
+   * The promise will fail if the skill is not found.
+   */
+  getSkill?(id: string): Promise<Skill>;
+
+  /**
+   * Returns an observable list of skills, which include both 1P and
+   * user-created skills. Chrome will update the list when a skill is
+   * mutated. Chrome Sync can update multiple skills at once. The web client
+   * should use this method to display the full list of skill previews in the
+   * "/" menu.
+   */
+  getSkillPreviews?(): ObservableValue<SkillPreview[]>;
+
+  /**
+   * Returns an observable skill to invoke. This happens when user chooses
+   * a skill to run in the chrome://skills page. The web client should
+   * automatically run the skill when it is received.
+   */
+  getSkillToInvoke?(): ObservableValue<Skill>;
+
+  /**
    * Returns the list of capabilities of the glic host.
    */
   getHostCapabilities?(): Set<HostCapability>;
@@ -938,6 +985,13 @@ export declare interface GlicBrowserHost {
    * allow coordination between multiple Glic instances.
    */
   isOnboardingCompleted?(): ObservableValue<boolean>;
+
+  /**
+   * Returns an observable that emits when a user interacts with the actor task
+   * list bubble and clicks on a task row (the observable emits the
+   * corresponding task id).
+   */
+  actorTaskListRowClicked?(): Observable<number>;
 }
 
 /** Information about a conversation. */
@@ -1273,6 +1327,10 @@ export declare interface PanelOpeningData {
    * before the panel opens.
    */
   promptSuggestion?: string;
+  /**
+   * An optional Skill. If provided, the Gemini app should auto-run it.
+   */
+  skillToInvoke?: Skill;
   /**
    * Up to 3 most recently active conversations, ordered by most recently active
    * first.
@@ -1994,6 +2052,36 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
+/** Represents a single skill preview. */
+export declare interface SkillPreview {
+  /** A unique identifier for the skill. */
+  id: string;
+  /** The user-facing name of the skill. */
+  name: string;
+  /** The icon for the skill. */
+  icon: string;
+  /** The source of the skill. */
+  source: SkillSource;
+}
+
+/** Represents a single skill. */
+export declare interface Skill {
+  /** A preview of the skill. */
+  preview: SkillPreview;
+  /** The underlying LLM prompt for the skill. */
+  prompt: string;
+}
+
+export declare interface CreateSkillRequest {
+  /** A prompt for the skill, which can be empty. */
+  prompt: string;
+}
+
+export declare interface UpdateSkillRequest {
+  /** The unique identifier of the skill to be updated. */
+  id: string;
+}
+
 /** Credential selection dialog. */
 
 /** A credential used for the auto-login. */
@@ -2194,6 +2282,8 @@ export interface BackwardsCompatibleTypes {
   scrollToSelector: ScrollToSelector;
   scrollToTextFragmentSelector: ScrollToTextFragmentSelector;
   scrollToTextSelector: ScrollToTextSelector;
+  skill: Skill;
+  skillPreview: SkillPreview;
   subscriber: Subscriber;
   tabContextOptions: TabContextOptions;
   tabContextResult: TabContextResult;
@@ -2238,6 +2328,7 @@ export interface ExtensibleEnums {
   UserGrantedPermissionDuration: typeof UserGrantedPermissionDuration;
   webUseCounter: typeof WebUseCounter;
   platform: typeof Platform;
+  cancelActionsResult: typeof CancelActionsResult;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2378,6 +2469,17 @@ export enum ScrollToErrorReason {
 
 ///////////////////////////////////////////////
 // WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Enum to specify the source of the Skill.
+export enum SkillSource {
+  UNKNOWN = 0,
+  // Skill created by Google.
+  FIRST_PARTY = 1,
+  // Skill created by an end-user.
+  USER_CREATED = 2,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
 // Describes what triggered the pin.
 export enum PinTrigger {
   // The pin occurred for unknown reasons. Specifies 'web client' to align with
@@ -2406,6 +2508,22 @@ export enum UnpinTrigger {
   CHIP = 2,
   // The unpin was triggered as part of actor/actuation behavior.
   ACTUATION = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Result of CancelActions().
+export enum CancelActionsResult {
+  // Do not manually use this value. Fail safe when an old client receives an
+  // extended new enum.
+  UNKNOWN = 0,
+  // Actions were successfully cancelled.
+  SUCCESS = 1,
+  // The task was not found.
+  TASK_NOT_FOUND = 2,
+  // Could not cancel the actions for other reasons (e.g., the task is already
+  // completed).
+  FAILED = 3,
 }
 
 ///////////////////////////////////////////////

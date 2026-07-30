@@ -10,9 +10,24 @@
 @class AssistantBarConfiguration;
 
 // View that contains the visual elements of the Assistant Sheet.
+//
+// The layout is structured as follows:
+//
+// +----------------------------------+
+// |            headerView            |
+// | +-------+   +------+  +--------+ |
+// | |Leading|   |Title |  |Trailing| |
+// | +-------+   +------+  +--------+ |
+// +----------------------------------+
+// |           scrollView             |
+// |  +----------------------------+  |
+// |  |        contentView         |  |
+// |  |  (Child VC View goes here) |  |
+// |  +----------------------------+  |
+// +----------------------------------+
 @interface AssistantSheetView : UIView
 
-// The navigation configuration.
+// The bar configuration.
 @property(nonatomic, strong) AssistantBarConfiguration* configuration;
 
 // The close button.

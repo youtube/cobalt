@@ -45,6 +45,7 @@
 #import "ios/chrome/browser/composebox/coordinator/composebox_constants.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_url_loader.h"
 #import "ios/chrome/browser/composebox/coordinator/web_state_deferred_executor.h"
+#import "ios/chrome/browser/composebox/public/composebox_constants.h"
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
@@ -66,6 +67,7 @@
 #import "ios/chrome/browser/url_loading/model/url_loading_util.h"
 #import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
+#import "ios/chrome/common/ui/util/image_util.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_delegate_bridge.h"
 #import "ios/web/public/web_state_observer_bridge.h"
@@ -202,6 +204,8 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL _hasText;
   // Whether a successful navigation has started.
   BOOL _inNavigation;
+  // Used to count the number of images added in the session.
+  int _imageUploadCount;
 }
 
 - (instancetype)
@@ -295,6 +299,8 @@ CreateInputDataFromAnnotatedPageContent(
       initWithComposeboxInputItemType:ComposeboxInputItemType::
                                           kComposeboxInputItemTypeImage
                               assetID:assetID];
+  item.uploadIndex = _imageUploadCount++;
+
   [_items addItem:item];
   __block base::UnguessableToken identifier = item.identifier;
 
@@ -342,49 +348,11 @@ CreateInputDataFromAnnotatedPageContent(
   [self commitUIUpdates];
 }
 
-- (void)processPDFFileURL:(GURL)PDFFileURL {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  NSString* assetID = base::SysUTF8ToNSString(PDFFileURL.spec());
-  if ([_items assetAlreadyLoaded:assetID]) {
-    return;
-  }
-
-  // Check file size.
-  NSURL* nsURL = net::NSURLWithGURL(PDFFileURL);
-  NSError* error = nil;
-  NSNumber* fileSize =
-      [[nsURL resourceValuesForKeys:@[ NSURLFileSizeKey ]
-                              error:&error] objectForKey:NSURLFileSizeKey];
-  if (fileSize && [fileSize unsignedLongLongValue] > kMaxPDFFileSize) {
-    [self.delegate showSnackbarForItemUploadDidFail];
-    return;
-  }
-
-  ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
-      initWithComposeboxInputItemType:ComposeboxInputItemType::
-                                          kComposeboxInputItemTypeFile
-                              assetID:assetID];
-  item.title = base::SysUTF8ToNSString(PDFFileURL.ExtractFileName());
-  [_items addItem:item];
-  base::UnguessableToken identifier = item.identifier;
-
-  // Read the data in the background then call `onDataReadForItem`.
-  __weak __typeof(self) weakSelf = self;
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&ReadDataFromURL, PDFFileURL),
-      base::BindOnce(^(NSData* data) {
-        [weakSelf onDataReadForItemWithIdentifier:identifier
-                                          fromURL:PDFFileURL
-                                         withData:data];
-      }));
-}
-
 - (BOOL)canAddMoreAttachments {
-  return _items.canAddMoreAttachments;
+  return [self maxNumberOfAttachmentsAllowed] > 0;
 }
 
-- (NSUInteger)maxNumberOfGalleryItemsAllowed {
+- (NSUInteger)maxNumberOfAttachmentsAllowed {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
 
   NSUInteger availableSlots = _items.availableSlots;
@@ -397,7 +365,9 @@ CreateInputDataFromAnnotatedPageContent(
     case ComposeboxMode::kImageGeneration: {
       // For ImageGeneration, allow 1 image if no images are present, otherwise
       // 0.
-      return _items.hasImage ? 0 : MIN(availableSlots, 1);
+      return _items.hasImage
+                 ? 0
+                 : MIN(availableSlots, kAttachmentLimitForImageGeneration);
     }
   }
 }
@@ -448,6 +418,44 @@ CreateInputDataFromAnnotatedPageContent(
                                             std::move(callback));
 }
 
+- (void)processPDFFileURL:(GURL)PDFFileURL {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  NSString* assetID = base::SysUTF8ToNSString(PDFFileURL.spec());
+  if ([_items assetAlreadyLoaded:assetID]) {
+    return;
+  }
+
+  // Check file size.
+  NSURL* nsURL = net::NSURLWithGURL(PDFFileURL);
+  NSError* error = nil;
+  NSNumber* fileSize =
+      [[nsURL resourceValuesForKeys:@[ NSURLFileSizeKey ]
+                              error:&error] objectForKey:NSURLFileSizeKey];
+  if (fileSize && [fileSize unsignedLongLongValue] > kMaxPDFFileSize) {
+    [self.delegate showSnackbarForItemUploadDidFail];
+    return;
+  }
+
+  ComposeboxInputItem* item = [[ComposeboxInputItem alloc]
+      initWithComposeboxInputItemType:ComposeboxInputItemType::
+                                          kComposeboxInputItemTypeFile
+                              assetID:assetID];
+  item.title = base::SysUTF8ToNSString(PDFFileURL.ExtractFileName());
+  [_items addItem:item];
+  base::UnguessableToken identifier = item.identifier;
+
+  // Read the data in the background then call `onDataReadForItem`.
+  __weak __typeof(self) weakSelf = self;
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&ReadDataFromURL, PDFFileURL),
+      base::BindOnce(^(NSData* data) {
+        [weakSelf onDataReadForItemWithIdentifier:identifier
+                                          fromURL:PDFFileURL
+                                         withData:data];
+      }));
+}
+
 #pragma mark - ComposeboxModeObserver
 
 - (void)composeboxModeDidChange:(ComposeboxMode)mode {
@@ -467,6 +475,7 @@ CreateInputDataFromAnnotatedPageContent(
         _contextualSearchSession->ClearFiles();
       }
       [_items clearItems];
+      _imageUploadCount = 0;
       break;
     case ComposeboxMode::kAIM:
       if (![self isEligibleToAIM]) {
@@ -1003,7 +1012,9 @@ CreateInputDataFromAnnotatedPageContent(
   [self.consumer updateState:item.state forItemWithIdentifier:item.identifier];
 
   if (!item.previewImage) {
-    item.previewImage = image;
+    item.previewImage =
+        ResizeImage(image, composeboxAttachments::kImageInputItemSize,
+                    ProjectionMode::kAspectFill);
     [self updateConsumerItems];
     [self commitUIUpdates];
   }
@@ -1145,18 +1156,23 @@ CreateInputDataFromAnnotatedPageContent(
       }));
 }
 
+// Checks whether the user is eligibile to share content (enterprise policy).
+- (BOOL)isContentSharingEnabled {
+  return _prefService && _contextualSearchSession &&
+         _contextualSearchSession->CheckSearchContentSharingSettings(
+             _prefService);
+}
+
 // Checks if the user is eligible for AIM, taking into account experimental
 // settings overrides.
 - (BOOL)isEligibleToAIM {
   if (experimental_flags::ShouldForceDisableComposeboxAIM()) {
     return NO;
   }
-  if (!_aimEligibilityService) {
+  if (IsComposeboxAIMDisabled()) {
     return NO;
   }
-  if (!_prefService || !_contextualSearchSession ||
-      !_contextualSearchSession->CheckSearchContentSharingSettings(
-          _prefService)) {
+  if (!_aimEligibilityService) {
     return NO;
   }
   return _aimEligibilityService->IsAimEligible();
@@ -1180,7 +1196,7 @@ CreateInputDataFromAnnotatedPageContent(
   if (experimental_flags::ShouldForceDisableComposeboxPdfUpload()) {
     return NO;
   }
-  if (!_aimEligibilityService) {
+  if (!_aimEligibilityService || ![self isContentSharingEnabled]) {
     return NO;
   }
   return _aimEligibilityService->IsPdfUploadEligible();
@@ -1349,7 +1365,8 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL alreadyProcessed =
       alreadyProcessedIDs.contains(webState->GetUniqueIdentifier());
 
-  BOOL canAttachTab = !isNTP && !alreadyProcessed;
+  BOOL canAttachTab =
+      !isNTP && !alreadyProcessed && [self isContentSharingEnabled];
   [_consumer hideAttachCurrentTabAction:!canAttachTab];
   return canAttachTab;
 }
@@ -1362,9 +1379,9 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL canSearchWithAI = [self isEligibleToAIM];
   BOOL isImageCreationMode =
       _modeHolder.mode == ComposeboxMode::kImageGeneration;
-  BOOL canAddMoreImages = [self maxNumberOfGalleryItemsAllowed] > 0;
-  BOOL attachmentsAvailable = canCreateImage || canSearchWithAI;
-  BOOL canAddMoreAttachement = [self canAddMoreAttachments];
+  BOOL attachmentsAvailable =
+      (canCreateImage || canSearchWithAI) && [self isContentSharingEnabled];
+  BOOL canAddMoreAttachments = [self canAddMoreAttachments];
 
   // Image generation action.
   [self.consumer disableCreateImageActions:hasTabOrFile];
@@ -1372,23 +1389,26 @@ CreateInputDataFromAnnotatedPageContent(
 
   // Add tabs action.
   [self.consumer
-      disableAttachTabActions:isImageCreationMode || !canAddMoreAttachement];
-  [self.consumer hideAttachTabActions:!canSearchWithAI];
+      disableAttachTabActions:isImageCreationMode || !canAddMoreAttachments];
+  [self.consumer hideAttachTabActions:!attachmentsAvailable];
 
   // Add files action.
   [self.consumer
-      disableAttachFileActions:isImageCreationMode || !canAddMoreAttachement];
-  [self.consumer hideAttachFileActions:!canUploadFiles || !canSearchWithAI];
+      disableAttachFileActions:isImageCreationMode || !canAddMoreAttachments];
+  [self.consumer
+      hideAttachFileActions:!canUploadFiles || !attachmentsAvailable];
 
   // Add pictures from user gallery action.
-  [self.consumer
-      disableGalleryActions:!canAddMoreImages || !canAddMoreAttachement];
+  [self.consumer disableGalleryActions:!canAddMoreAttachments];
   [self.consumer hideGalleryActions:!attachmentsAvailable];
 
   // Add picture from camera action.
-  [self.consumer
-      disableCameraActions:!canAddMoreImages || !canAddMoreAttachement];
+  [self.consumer disableCameraActions:!canAddMoreAttachments];
   [self.consumer hideCameraActions:!attachmentsAvailable];
+
+  // Set the number of attachments that can still be added.
+  [self.consumer
+      setRemainingAttachmentCapacity:[self maxNumberOfAttachmentsAllowed]];
 }
 
 /// Updates the consumer items and maybe trigger AIM.

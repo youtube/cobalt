@@ -923,8 +923,7 @@ std::vector<Suggestion> GetCreditCardSuggestionsForTouchToFill(
     }
     suggestion.payload = Suggestion::PaymentsPayload(
         main_text_content_description, should_display_terms_available,
-        Suggestion::Guid(credit_card.guid()),
-        credit_card.record_type() == CreditCard::RecordType::kLocalCard);
+        Suggestion::Guid(credit_card.guid()));
     if (credit_card.record_type() == CreditCard::RecordType::kVirtualCard) {
       bool acceptable =
           IsCardSuggestionAcceptable(credit_card, manager.client());
@@ -1205,8 +1204,8 @@ std::vector<CreditCard> GetOrderedCardsToSuggest(
     std::ranges::stable_sort(
         available_cards,
         [&card_linked_offers_map](const CreditCard* a, const CreditCard* b) {
-          return base::Contains(card_linked_offers_map, a->guid()) &&
-                 !base::Contains(card_linked_offers_map, b->guid());
+          return card_linked_offers_map.contains(a->guid()) &&
+                 !card_linked_offers_map.contains(b->guid());
         });
   }
   // Suppress disused credit cards when triggered from an empty field.

@@ -275,6 +275,7 @@
 <translation id="3885770153807205175">Selector de idioma</translation>
 <translation id="3889417619312448367">Desinstalar Google Chrome</translation>
 <translation id="3892148308691398805">Copiar texto</translation>
+<translation id="3893985792899396936">Consello de Chrome: Fai buscas con Lens</translation>
 <translation id="3906096710440765802">Inicia sesión en Chrome para ter os contrasinais, marcadores e outros datos en todos os teus dispositivos</translation>
 <translation id="3921132130819999051">Permitir que Chrome navegue por ti</translation>
 <translation id="3941890832296813527">Erro de instalación: O nome de ficheiro do instalador non é válido ou non se admite.</translation>
@@ -316,7 +317,6 @@
 <translation id="4329315893554541805">Para beneficiarte da personalización e doutras función, inclúe Chrome en Actividade web e das aplicacións e servizos de Google vinculados</translation>
 <translation id="4334241893986177674">Buscar esta captura de pantalla</translation>
 <translation id="4334294535648607276">Descarga completa.</translation>
-<translation id="4337324600316876133">Se queres recibir actualizacións de Google Chrome no futuro, debes instalar o sistema operativo macOS 12 ou unha versión posterior. Este ordenador ten macOS 11.</translation>
 <translation id="4343195214584226067">Engadiuse a extensión <ph name="EXTENSION_NAME" /> a Chrome</translation>
 <translation id="4344128547036991536">Cando abres Google Lens, envíanse automaticamente a Google o contido (incluídos os PDF), o URL e o título da páxina. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Para beneficiarte da personalización, inclúe Chrome en Actividade web e das aplicacións</translation>
@@ -491,6 +491,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="6180522807229584611">Esta pestana está usando recursos adicionais. Para mellorar o rendemento, permite que Chrome a desactive.</translation>
 <translation id="6182736845697986886">Produciuse un erro na instalación debido a un erro interno do servidor de actualizacións.</translation>
 <translation id="6183773856988300112">Gemini en Chrome usa a navegación automática para traballar nas túas pestanas e completar as tarefas que lle encomendes. <ph name="LINK_BEGIN" />Máis información<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Consello de Chrome: Garda os contrasinais</translation>
 <translation id="6192058120268468905">A túa conta en Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> engadiu unha extensión que pode cambiar o funcionamento de Chrome.
 
@@ -629,6 +630,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="7627609214560473136">Para protexer os teus datos, Chrome quita permisos dos sitios que leves tempo sen visitar.</translation>
 <translation id="7629695634924605473">Chrome permíteche saber se os teus contrasinais están en risco nalgún momento</translation>
 <translation id="7641148173327520642">A persoa que administra o teu sistema configurou Google Chrome para abrir o navegador <ph name="TARGET_URL_HOSTNAME" /> co obxectivo de acceder a <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
+<translation id="7641448682796883218">Consello de Chrome: Utiliza Navegación segura mellorada</translation>
 <translation id="7649070708921625228">Axuda</translation>
 <translation id="7651907282515937834">Logotipo de Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome bloqueou esta descarga porque, como desactivaches Navegación segura, non se puido verificar o ficheiro</translation>

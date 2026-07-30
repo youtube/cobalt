@@ -10,7 +10,6 @@
 #include "ash/constants/web_app_id_constants.h"
 #include "base/barrier_callback.h"
 #include "base/check_is_test.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -359,6 +358,12 @@ void WebAppInstallFinalizer::OnOriginAssociationValidated(
           proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION) {
     web_app->SetInstallState(
         proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION);
+  }
+
+  // If the app install state is explicitly set to be suggested from migration,
+  // honor that over any existing values.
+  if (options.install_state == proto::InstallState::SUGGESTED_FROM_MIGRATION) {
+    web_app->SetInstallState(proto::InstallState::SUGGESTED_FROM_MIGRATION);
   }
 
   // Set |user_display_mode| and any user-controllable fields here if this

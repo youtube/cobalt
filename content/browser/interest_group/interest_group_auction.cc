@@ -83,7 +83,6 @@
 #include "content/services/auction_worklet/public/cpp/auction_worklet_features.h"
 #include "content/services/auction_worklet/public/cpp/private_aggregation_reporting.h"
 #include "content/services/auction_worklet/public/cpp/real_time_reporting.h"
-#include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom-forward.h"
 #include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom.h"
 #include "content/services/auction_worklet/public/mojom/private_aggregation_request.mojom.h"
 #include "content/services/auction_worklet/public/mojom/real_time_reporting.mojom.h"
@@ -5602,9 +5601,8 @@ bool InterestGroupAuction::IsBuyerOptedInToRealTimeReporting(
     const url::Origin& owner) {
   return config_->non_shared_params.per_buyer_real_time_reporting_types
              .has_value() &&
-         base::Contains(
-             *config_->non_shared_params.per_buyer_real_time_reporting_types,
-             owner);
+         config_->non_shared_params.per_buyer_real_time_reporting_types
+             ->contains(owner);
 }
 
 void InterestGroupAuction::MaybeAddScriptFailureRealTimeContribution(

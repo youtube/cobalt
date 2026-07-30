@@ -4,7 +4,6 @@
 
 #import "components/webauthn/ios/passkey_tab_helper.h"
 
-#import "base/base64url.h"
 #import "base/rand_util.h"
 #import "base/strings/to_string.h"
 #import "base/test/metrics/histogram_tester.h"
@@ -68,9 +67,11 @@ PasskeyRequestParams BuildPasskeyRequestParams() {
                                              kFakeRequestId);
   device::PublicKeyCredentialRpEntity rp_entity(kRpId);
   std::vector<uint8_t> challenge;
+  PasskeyExtensionData extension_data;
   return PasskeyRequestParams(std::move(request_info), std::move(rp_entity),
                               std::move(challenge),
-                              device::UserVerificationRequirement::kPreferred);
+                              device::UserVerificationRequirement::kPreferred,
+                              std::move(extension_data));
 }
 
 // Builds RegistrationRequestParams from an exclude credentials list.
@@ -145,7 +146,8 @@ class PasskeyTabHelperTest : public PlatformTest {
   // Sets up a web frame manager with a web frame.
   void SetUpWebFramesManagerAndWebFrame() {
     auto frames_manager = std::make_unique<web::FakeWebFramesManager>();
-    frames_manager->AddWebFrame(web::FakeWebFrame::CreateMainWebFrame());
+    frames_manager->AddWebFrame(
+        web::FakeWebFrame::CreateMainWebFrame(GURL("https://example.com")));
     fake_web_state_.SetWebFramesManager(
         PasskeyJavaScriptFeature::GetInstance()->GetSupportedContentWorld(),
         std::move(frames_manager));

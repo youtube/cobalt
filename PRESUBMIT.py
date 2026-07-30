@@ -1245,6 +1245,125 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ],
     ),
     BanRule(
+        pattern=r'if consteval',
+        explanation=('Use of consteval conditional isn`t allowed. If you need '
+                     'it, contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'#warning',
+        explanation=('Use of #warning isn`t allowed. If you need it, contact '
+                     'cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/static.*operator(\(\)|\[\])',
+        explanation=('Use of static operators () and [] isn`t allowed. If you '
+                     'need it, contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'std::from_range',
+        explanation=('Use of std::from_range isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/\[\[assume[^[]*\]\]',
+        explanation=('Use of [[assume(...)]] isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <expected>',
+        explanation=('Use of <expected> isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <print>',
+        explanation=('Use of <print> isn`t allowed. If you need it, contact '
+                     'cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <generator>',
+        explanation=('Use of <generator> isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <stacktrace>',
+        explanation=('Use of <stacktrace> isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'std::move_only_function',
+        explanation=('Use of std::move_only_function isn`t allowed. If you '
+                     'need it, contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'std::unreachable',
+        explanation=('Use of std::unreachable isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <flat_(set|map)>',
+        explanation=('Use of std flat containers isn`t allowed. If you need '
+                     'it, contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <mdspan>',
+        explanation=('Use of <mdspan> isn`t allowed. If you need it, contact '
+                     'cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <spanstream>',
+        explanation=('Use of <spanstream> isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/#(include|import) <stdfloat>',
+        explanation=('Use of <stdfloat> isn`t allowed. If you need it, '
+                     'contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'/std::(in)?out_ptr',
+        explanation=('Use of std::{out_ptr,inout_ptr} isn`t allowed. If you '
+                     'need it, contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
+        pattern=r'std::start_lifetime_as',
+        explanation=('Use of std::start_lifetime_as isn`t allowed. If you '
+                     'need it, contact cxx@chromium.org.', ),
+        treat_as_error=True,
+        excluded_paths=[_THIRD_PARTY_EXCEPT_BLINK],
+    ),
+    BanRule(
         # Ban everything except specifically allowlisted constructs.
         pattern=r'/std::ranges::(?!(?:' + '|'.join((
             # From https://en.cppreference.com/w/cpp/ranges:
@@ -7349,8 +7468,13 @@ def _IsMiraclePtrDisallowed(input_api, affected_file):
     # directories, however, are specifically disallowed, for perf reasons.
     if ('third_party/blink/renderer/core/' in path
             or 'third_party/blink/renderer/platform/heap/' in path
-            or 'third_party/blink/renderer/platform/wtf/' in path
             or 'third_party/blink/renderer/platform/fonts/' in path):
+        return True
+
+    # `functional.h` contains some shared plumbing, and should not be
+    # excluded directly.
+    if ('third_party/blink/renderer/platform/wtf/' in path and
+            'third_party/blink/renderer/platform/wtf/functional' not in path):
         return True
 
     # We assume that everything else may be used outside of Renderer processes.
@@ -7365,16 +7489,18 @@ def CheckRawPtrUsage(input_api, output_api):
     errors = []
     # The regex below matches "raw_ptr<" following a word boundary, but not in a
     # C++ comment.
-    raw_ptr_matcher = input_api.re.compile(r'^((?!//).)*\braw_ptr<')
+    raw_ptr_matcher = input_api.re.compile(r'^((?!//).)*\braw_(ptr|ref|span)<')
     file_filter = lambda f: _IsMiraclePtrDisallowed(input_api, f)
     for f, line_num, line in input_api.RightHandSideLines(file_filter):
-        if raw_ptr_matcher.search(line):
+        match_result = raw_ptr_matcher.search(line)
+        if match_result:
             errors.append(
                 output_api.PresubmitError(
                     f'Problem on {f.LocalPath()}:{line_num} - '
-                    'raw_ptr<T> should not be used in this renderer code '
-                    '(as documented in the "Pointers to unprotected memory" '
-                    'section in //base/memory/raw_ptr.md)'))
+                    f'`raw_{match_result.group(2)}` should not be used in this '
+                    'renderer code (as documented in the "Pointers to '
+                    'unprotected memory" section in //base/memory/raw_ptr.md)')
+            )
     return errors
 
 

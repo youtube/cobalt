@@ -17,6 +17,9 @@ BASE_DECLARE_FEATURE(kEnableReaderModeInUS);
 // Feature to enable Reader Mode omnibox entry point.
 BASE_DECLARE_FEATURE(kEnableReaderModeOmniboxEntryPoint);
 
+// Feature to enable Reader Mode omnibox entry point in the US country code.
+BASE_DECLARE_FEATURE(kEnableReaderModeOmniboxEntryPointInUS);
+
 // Feature to enable Reader Mode translation.
 BASE_DECLARE_FEATURE(kEnableReaderModeTranslation);
 
@@ -29,9 +32,6 @@ BASE_DECLARE_FEATURE(kEnableReadabilityHeuristic);
 
 // Feature to enable optimization guide eligibility check.
 BASE_DECLARE_FEATURE(kEnableReaderModeOptimizationGuideEligibility);
-
-// Feature to enable Reader Mode badge support in the omnibox.
-BASE_DECLARE_FEATURE(kEnableReaderModeBadgeSupport);
 
 // Name to configure the duration string for heuristic page load delay. See
 // `base::TimeDeltaFromString` for valid duration string configurations.
@@ -58,8 +58,5 @@ bool IsReaderModeTranslationAvailable();
 
 // Returns whether optimization guide eligibility check is enabled.
 bool IsReaderModeOptimizationGuideEligibilityAvailable();
-
-// Returns whether the Reader Mode badge support is enabled.
-bool IsReaderModeBadgeSupportEnabled();
 
 #endif  // IOS_CHROME_BROWSER_READER_MODE_MODEL_FEATURES_H_

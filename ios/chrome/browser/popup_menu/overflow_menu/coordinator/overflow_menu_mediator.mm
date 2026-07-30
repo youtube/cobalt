@@ -56,7 +56,6 @@
 #import "ios/chrome/browser/policy/ui_bundled/user_policy_util.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/coordinator/overflow_menu_orderer.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/model/destination_usage_history.h"
-#import "ios/chrome/browser/popup_menu/overflow_menu/public/feature_flags.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_constants.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/ui/overflow_menu_metrics.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/ui/ui_swift.h"
@@ -75,7 +74,6 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
@@ -92,6 +90,7 @@
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reading_list_add_command.h"
 #import "ios/chrome/browser/shared/public/commands/reminder_notifications_commands.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
@@ -1971,7 +1970,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   _templateURLService = nullptr;
 }
 
-#pragma mark - BrowserContainerConsumer
+#pragma mark - BrowserContentConsumer
 
 - (void)setContentBlocked:(BOOL)contentBlocked {
   if (_contentBlocked == contentBlocked) {
@@ -2298,7 +2297,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   RecordAction(UserMetricsAction("MobileTabNewTab"));
 
   [self dismissMenu];
-  [self.applicationHandler
+  [self.sceneHandler
       openURLInNewTab:[OpenNewTabCommand commandWithIncognito:NO]];
 }
 
@@ -2306,7 +2305,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (void)openIncognitoTab {
   RecordAction(UserMetricsAction("MobileMenuNewIncognitoTab"));
   [self dismissMenu];
-  [self.applicationHandler
+  [self.sceneHandler
       openURLInNewTab:[OpenNewTabCommand commandWithIncognito:YES]];
 }
 
@@ -2314,7 +2313,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (void)openNewWindow {
   RecordAction(UserMetricsAction("MobileMenuNewWindow"));
   [self dismissMenu];
-  [self.applicationHandler
+  [self.sceneHandler
       openNewWindowWithActivity:ActivityToLoadURL(WindowActivityToolsOrigin,
                                                   GURL(kChromeUINewTabURL))];
 }
@@ -2490,7 +2489,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (void)reportAnIssue {
   RecordAction(UserMetricsAction("MobileMenuReportAnIssue"));
   [self dismissMenu];
-  [self.applicationHandler
+  [self.sceneHandler
       showReportAnIssueFromViewController:self.baseViewController
                                    sender:UserFeedbackSender::ToolsMenu];
 }
@@ -2551,7 +2550,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 // Creates and opens the AIPrototype UI.
 - (void)startAIPrototype {
   [self dismissMenu];
-  [self.applicationHandler openAIMenu];
+  [self.sceneHandler openAIMenu];
 }
 
 // Starts ask BWG.
@@ -2611,7 +2610,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   }
   [IntentDonationHelper donateIntent:IntentType::kViewHistory];
   [self dismissMenu];
-  [self.applicationHandler showHistory];
+  [self.sceneHandler showHistory];
 }
 
 // Dismisses the menu and opens reading list.
@@ -2682,7 +2681,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       self.incognito ? profile_metrics::BrowserProfileType::kIncognito
                      : profile_metrics::BrowserProfileType::kRegular;
   UmaHistogramEnumeration("Settings.OpenSettingsFromMenu.PerProfileType", type);
-  [self.applicationHandler
+  [self.sceneHandler
       showSettingsFromViewController:self.baseViewController
             hasDefaultBrowserBlueDot:(self.settingsDestination.badge ==
                                       BadgeTypePromo)];
@@ -2690,7 +2689,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 - (void)enterpriseLearnMore {
   [self dismissMenu];
-  [self.applicationHandler
+  [self.sceneHandler
       openURLInNewTab:[OpenNewTabCommand commandWithURLFromChrome:
                                              GURL(kChromeUIManagementURL)]];
 }
@@ -2698,7 +2697,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (void)parentLearnMore {
   [self dismissMenu];
   GURL familyLinkURL = GURL(supervised_user::kManagedByParentUiMoreInfoUrl);
-  [self.applicationHandler
+  [self.sceneHandler
       openURLInNewTab:[OpenNewTabCommand
                           commandWithURLFromChrome:familyLinkURL]];
 }

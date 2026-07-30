@@ -23,6 +23,7 @@
 #import "base/task/thread_pool.h"
 #import "base/time/default_clock.h"
 #import "base/time/default_tick_clock.h"
+#import "components/activity_reporter/activity_reporter.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/breadcrumbs/core/breadcrumbs_status.h"
 #import "components/breadcrumbs/core/crash_reporter_breadcrumb_observer.h"
@@ -44,6 +45,8 @@
 #import "components/prefs/pref_service.h"
 #import "components/sessions/core/session_id_generator.h"
 #import "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
+#import "components/supervised_user/core/browser/device_parental_controls.h"
+#import "components/supervised_user/core/browser/device_parental_controls_noop_impl.h"
 #import "components/translate/core/browser/translate_download_manager.h"
 #import "components/ukm/ukm_service.h"
 #import "components/update_client/configurator.h"
@@ -438,6 +441,15 @@ gcm::GCMDriver* ApplicationContextImpl::GetGCMDriver() {
   return gcm_driver_.get();
 }
 
+activity_reporter::ActivityReporter*
+ApplicationContextImpl::GetActivityReporter() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!activity_reporter_) {
+    activity_reporter_ = activity_reporter::CreateActivityReporter();
+  }
+  return activity_reporter_.get();
+}
+
 component_updater::ComponentUpdateService*
 ApplicationContextImpl::GetComponentUpdateService() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -594,6 +606,15 @@ ApplicationContextImpl::GetAutoDeletionService() {
         std::make_unique<auto_deletion::AutoDeletionService>(GetLocalState());
   }
   return auto_deletion_service_.get();
+}
+
+supervised_user::DeviceParentalControls&
+ApplicationContextImpl::GetDeviceParentalControls() {
+  if (!device_parental_controls_) {
+    device_parental_controls_ =
+        std::make_unique<supervised_user::DeviceParentalControlsNoOpImpl>();
+  }
+  return *device_parental_controls_;
 }
 
 optimization_guide::OptimizationGuideGlobalState*

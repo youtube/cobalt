@@ -1534,11 +1534,11 @@ interface CountQueuingStrategy
     getter highWaterMark
     getter size
     method constructor
-interface CrashReportStorage
+interface CrashReportContext
     attribute @@toStringTag
     method constructor
+    method delete
     method initialize
-    method remove
     method set
 interface CreateMonitor : EventTarget
     attribute @@toStringTag
@@ -3415,6 +3415,7 @@ interface GPUTexture
     getter label
     getter mipLevelCount
     getter sampleCount
+    getter textureBindingViewDimension
     getter usage
     getter width
     method constructor
@@ -4780,12 +4781,14 @@ interface HTMLMenuItemElement : HTMLElement
     getter commandForElement
     getter defaultChecked
     getter disabled
+    getter interestForElement
     method constructor
     setter checked
     setter command
     setter commandForElement
     setter defaultChecked
     setter disabled
+    setter interestForElement
 interface HTMLMenuListElement : HTMLElement
     attribute @@toStringTag
     method constructor
@@ -10411,12 +10414,26 @@ interface TimeRanges
     method start
 interface TimelineTrigger : AnimationTrigger
     attribute @@toStringTag
+    getter ranges
+    method constructor
+interface TimelineTriggerRange
+    attribute @@toStringTag
     getter exitRangeEnd
     getter exitRangeStart
     getter rangeEnd
     getter rangeStart
     getter timeline
     method constructor
+interface TimelineTriggerRangeList
+    attribute @@toStringTag
+    getter length
+    method @@iterator
+    method constructor
+    method entries
+    method forEach
+    method item
+    method keys
+    method values
 interface TimestampTrigger
     attribute @@toStringTag
     getter timestamp
@@ -13333,6 +13350,7 @@ namespace GPUTextureUsage
     attribute RENDER_ATTACHMENT
     attribute STORAGE_BINDING
     attribute TEXTURE_BINDING
+    attribute TRANSIENT_ATTACHMENT
 namespace Temporal
     attribute @@toStringTag
     attribute Now

@@ -24,6 +24,7 @@ import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.autofill.payments.BnplIssuerContext;
 import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
+import org.chromium.components.autofill.payments.TouchToFillDisplayOptions;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.ui.base.WindowAndroid;
@@ -74,10 +75,11 @@ class TouchToFillPaymentMethodViewBridge {
 
     @CalledByNative
     private void showPaymentMethods(
-            @JniType("std::vector") Object[] suggestions, boolean shouldShowScanCreditCard) {
+            @JniType("std::vector") Object[] suggestions,
+            TouchToFillDisplayOptions touchToFillDisplayOptions) {
         mComponent.showPaymentMethods(
                 (List<AutofillSuggestion>) (List<?>) Arrays.asList(suggestions),
-                shouldShowScanCreditCard);
+                touchToFillDisplayOptions);
     }
 
     @CalledByNative
@@ -86,11 +88,18 @@ class TouchToFillPaymentMethodViewBridge {
     }
 
     @CalledByNative
-    private void showLoyaltyCards(
+    private void showAffiliatedLoyaltyCards(
             @JniType("base::span<const LoyaltyCard>") List<LoyaltyCard> affiliatedLoyaltyCards,
             @JniType("base::span<const LoyaltyCard>") List<LoyaltyCard> allLoyaltyCards,
             boolean firstTimeUsage) {
-        mComponent.showLoyaltyCards(affiliatedLoyaltyCards, allLoyaltyCards, firstTimeUsage);
+        mComponent.showAffiliatedLoyaltyCards(
+                affiliatedLoyaltyCards, allLoyaltyCards, firstTimeUsage);
+    }
+
+    @CalledByNative
+    private void showAllLoyaltyCards(
+            @JniType("base::span<const LoyaltyCard>") List<LoyaltyCard> allLoyaltyCards) {
+        mComponent.showAllLoyaltyCards(allLoyaltyCards);
     }
 
     @CalledByNative

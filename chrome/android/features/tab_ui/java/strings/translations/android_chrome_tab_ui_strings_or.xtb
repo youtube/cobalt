@@ -128,6 +128,7 @@
 <translation id="5446043142172831860">ଟାବକୁ କାଢ଼ି ଦେଇ ଗୋଷ୍ଠୀରୁ ବାହାରି ଯାଆନ୍ତୁ</translation>
 <translation id="5490235265819901748">ଟାବ୍ ଗ୍ରୁପର ବିସ୍ତାର କରାଯାଇଛି</translation>
 <translation id="5494920125229734069">ସମସ୍ତ ଚୟନ କରନ୍ତୁ</translation>
+<translation id="5505998972479309757">{LIMIT_COUNT,plural, =1{<ph name="LIMIT_COUNT_ONE" /> ପର୍ଯ୍ୟନ୍ତ ଫାଇଲ, ଟାବ କିମ୍ବା ଇମେଜ ଯୋଗ କରନ୍ତୁ}other{<ph name="LIMIT_COUNT_MANY" /> ପର୍ଯ୍ୟନ୍ତ ଫାଇଲ, ଟାବ କିମ୍ବା ଇମେଜ ଯୋଗ କରନ୍ତୁ}}</translation>
 <translation id="5551694449008560081">{NUMBER_OF_TABS,plural, =1{<ph name="COLOR_NAME" /> ରଙ୍ଗର <ph name="TABS_COUNT_ONE" /> ଟାବ ଥିବା ଟାବ ଗ୍ରୁପକୁ ବନ୍ଦ କରନ୍ତୁ।}other{<ph name="COLOR_NAME" /> ରଙ୍ଗର <ph name="TABS_COUNT_MANY" /> ଟାବ ଥିବା ଟାବ ଗ୍ରୁପକୁ ବନ୍ଦ କରନ୍ତୁ।}}</translation>
 <translation id="5556417849629758491">ଷ୍ଟୋରର ସୂଚନା ଦେଖନ୍ତୁ, ସ୍କ୍ରିନର ଶୀର୍ଷଭାଗର ନିକଟରେ ବିକଳ୍ପ ଉପଲବ୍ଧ ଅଛି</translation>
 <translation id="5627941783489838464">କୌଣସି ଟାବ ଅପଡେଟ ନାହିଁ</translation>
@@ -223,7 +224,6 @@
 <translation id="8428213095426709021">ସେଟିଂସ୍</translation>
 <translation id="855081842937141170">ପିନ୍ ଟ୍ୟାବ୍</translation>
 <translation id="8633025649649592204">ବର୍ତ୍ତମାନର କାର୍ଯ୍ୟକଳାପ</translation>
-<translation id="8635822281281406185">10 ପର୍ଯ୍ୟନ୍ତ ଫାଇଲ, ଟାବ କିମ୍ବା ଇମେଜ ଯୋଗ କରନ୍ତୁ</translation>
 <translation id="8712637175834984815">ବୁଝିଗଲି</translation>
 <translation id="8714939927607906138">କମ୍ ଦାମ୍</translation>
 <translation id="8730621377337864115">ସମାପ୍ତ ହୋଇଛି</translation>

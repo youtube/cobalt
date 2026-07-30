@@ -128,6 +128,7 @@
 <translation id="5446043142172831860">Poista välilehti ja poistu ryhmästä</translation>
 <translation id="5490235265819901748">Välilehtiryhmä laajennettu</translation>
 <translation id="5494920125229734069">Valitse kaikki</translation>
+<translation id="5505998972479309757">{LIMIT_COUNT,plural, =1{Lisää enintään <ph name="LIMIT_COUNT_ONE" /> tiedosto, välilehti tai kuva}other{Lisää enintään <ph name="LIMIT_COUNT_MANY" /> tiedostoa, välilehteä tai kuvaa}}</translation>
 <translation id="5551694449008560081">{NUMBER_OF_TABS,plural, =1{Sulje välilehtiryhmä, jossa on <ph name="TABS_COUNT_ONE" /> välilehti, väri <ph name="COLOR_NAME" />.}other{Sulje välilehtiryhmä, jossa on <ph name="TABS_COUNT_MANY" /> välilehteä, väri <ph name="COLOR_NAME" />.}}</translation>
 <translation id="5556417849629758491">Näytä kaupan tiedot, vaihtoehto lähellä näytön yläreunaa</translation>
 <translation id="5627941783489838464">Ei välilehtipäivityksiä</translation>
@@ -223,7 +224,6 @@
 <translation id="8428213095426709021">Asetukset</translation>
 <translation id="855081842937141170">Kiinnitä välilehti</translation>
 <translation id="8633025649649592204">Uusimmat tapahtumat</translation>
-<translation id="8635822281281406185">Lisää enintään 10 tiedostoa, välilehteä tai kuvaa</translation>
 <translation id="8712637175834984815">Ymmärretty</translation>
 <translation id="8714939927607906138">Edullisempi hinta</translation>
 <translation id="8730621377337864115">Valmis</translation>

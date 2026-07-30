@@ -19,7 +19,6 @@
 #include "components/autofill/content/renderer/password_autofill_agent.h"
 #include "components/autofill/content/renderer/timing.h"
 #include "components/autofill/core/common/autofill_features.h"
-#include "components/autofill/core/common/mojom/autofill_types.mojom-data-view.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "content/public/renderer/render_frame.h"
@@ -308,8 +307,7 @@ void FormTracker::TrackAutofilledElement(const WebFormControlElement& element) {
           form_util::GetFieldRendererId(element))) {
     return;
   }
-  blink::WebFormElement form_element = element.GetOwningFormForAutofill();
-  if (form_element) {
+  if (blink::WebFormElement form_element = element.GetOwningFormForAutofill()) {
     UpdateLastInteractedElement(form_util::GetFormRendererId(form_element));
   } else {
     UpdateLastInteractedElement(form_util::GetFieldRendererId(element));
@@ -402,24 +400,28 @@ void FormTracker::FormControlDidChangeImpl(FieldRendererId element_id,
   if (!form_util::IsOwnedByFrame(element, unsafe_render_frame())) {
     return;
   }
-  blink::WebFormElement form_element = element.GetOwningFormForAutofill();
-  if (form_element) {
-    UpdateLastInteractedElement(form_util::GetFormRendererId(form_element));
+  FormRendererId form_id =
+      form_util::GetFormRendererId(element.GetOwningFormForAutofill());
+
+  // Since this function can be called asynchronously, it can be the case that
+  // the owning form element was disconnected from the DOM, which is why we make
+  // sure it isn't the case by performing the FormElement -> DomNodeId ->
+  // FormElement conversion.
+  // TODO(crbug.com/376628389): Revisit after removing the underlying
+  // asynchronicity.
+  if (form_util::GetFormByRendererId(form_id)) {
+    UpdateLastInteractedElement(form_id);
   } else {
     UpdateLastInteractedElement(form_util::GetFieldRendererId(element));
   }
   switch (change_source) {
     case SaveFormReason::kTextFieldChanged:
       autofill_agent_->OnTextFieldValueChanged(
-          element,
-          SynchronousFormCache(form_util::GetFormRendererId(form_element),
-                               provisionally_saved_form()));
+          element, SynchronousFormCache(form_id, provisionally_saved_form()));
       break;
     case SaveFormReason::kSelectChanged:
       autofill_agent_->OnSelectControlSelectionChanged(
-          element,
-          SynchronousFormCache(form_util::GetFormRendererId(form_element),
-                               provisionally_saved_form()));
+          element, SynchronousFormCache(form_id, provisionally_saved_form()));
       break;
   }
 }
@@ -746,14 +748,13 @@ void FormTracker::UpdateLastInteractedElement(
   // `document` is the WebDocument of `element_id`'s element. It is not
   // necessarily the same as the current frame's document.
   //
-  // `form` is null if `element_id` is a FieldRendererId.
+  // `form_element` is null if `element_id` is a FieldRendererId.
   auto [document, form_element] = std::visit(
       absl::Overload{
           [this](FormRendererId form_id) {
             CHECK(form_id);
             WebFormElement form = form_util::GetFormByRendererId(form_id);
-            last_interacted_.form =
-                FormRef(form_util::GetFormByRendererId(form_id));
+            last_interacted_.form = FormRef(form);
             return std::pair(form.GetDocument(), form);
           },
           [this](FieldRendererId field_id) {

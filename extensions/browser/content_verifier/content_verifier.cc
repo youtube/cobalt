@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -153,6 +152,13 @@ std::unique_ptr<ContentVerifierIOData::ExtensionData> CreateIOData(
   return result;
 }
 
+base::FilePath GetExtensionRootToUse(const base::FilePath& extension_root) {
+  return base::FeatureList::IsEnabled(
+             extensions_features::kContentVerifierCacheIncludesExtensionRoot)
+             ? extension_root
+             : base::FilePath();
+}
+
 }  // namespace
 
 struct ContentVerifier::CacheKey {
@@ -162,7 +168,7 @@ struct ContentVerifier::CacheKey {
            bool needs_force_missing_computed_hashes_creation)
       : extension_id(extension_id),
         version(version),
-        extension_root(extension_root),
+        extension_root(GetExtensionRootToUse(extension_root)),
         needs_force_missing_computed_hashes_creation(
             needs_force_missing_computed_hashes_creation) {}
 
@@ -189,7 +195,7 @@ struct ContentVerifier::CacheKey {
 //
 // This class makes sure we do not have more than one ContentHash request in
 // flight for a particular version of an extension. If a call to retrieve an
-// extensions's ContentHash is made while another retieval for the same
+// extension's ContentHash is made while another retrieval for the same
 // version of the extension is in flight, this class will queue up the
 // callback(s) and respond to all of them when ContentHash is available.
 class ContentVerifier::HashHelper {
@@ -210,8 +216,8 @@ class ContentVerifier::HashHelper {
               const base::Version& extension_version,
               const base::FilePath& extension_root) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
-    auto callback_key =
-        std::make_tuple(extension_id, extension_version, extension_root);
+    auto callback_key = std::make_tuple(extension_id, extension_version,
+                                        GetExtensionRootToUse(extension_root));
     auto iter = callback_infos_.find(callback_key);
     if (iter == callback_infos_.end())
       return;
@@ -230,7 +236,7 @@ class ContentVerifier::HashHelper {
     DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
     auto callback_key =
         std::make_tuple(fetch_key.extension_id, fetch_key.extension_version,
-                        fetch_key.extension_root);
+                        GetExtensionRootToUse(fetch_key.extension_root));
     auto iter = callback_infos_.find(callback_key);
     if (iter != callback_infos_.end()) {
       iter->second.callbacks.push_back(std::move(callback));
@@ -473,12 +479,11 @@ class ContentVerifier::VerifiedFileTypeHelper {
     if (canonical_path_value == data_->canonical_service_worker_script_path) {
       return ContentVerifier::VerifiedFileType::kServiceWorkerScript;
     }
-    if (base::Contains(data_->canonical_background_scripts_paths,
-                       canonical_path_value)) {
+    if (data_->canonical_background_scripts_paths.contains(
+            canonical_path_value)) {
       return ContentVerifier::VerifiedFileType::kBackgroundScript;
     }
-    if (base::Contains(data_->canonical_content_scripts_paths,
-                       canonical_path_value)) {
+    if (data_->canonical_content_scripts_paths.contains(canonical_path_value)) {
       return ContentVerifier::VerifiedFileType::kContentScript;
     }
 
@@ -498,14 +503,12 @@ class ContentVerifier::VerifiedFileTypeHelper {
 
     // The browser re-writes image files during extension load, so they can't
     // be verified.
-    if (base::Contains(data_->canonical_browser_image_paths,
-                       canonical_path_value)) {
+    if (data_->canonical_browser_image_paths.contains(canonical_path_value)) {
       return ContentVerifier::VerifiedFileType::kNone;
     }
 
     // Skip indexed rulesets since these are generated.
-    if (base::Contains(data_->canonical_indexed_ruleset_paths,
-                       canonical_path_value)) {
+    if (data_->canonical_indexed_ruleset_paths.contains(canonical_path_value)) {
       return ContentVerifier::VerifiedFileType::kNone;
     }
 
@@ -559,6 +562,7 @@ ContentVerifier::ContentVerifier(
     : context_(context), delegate_(std::move(delegate)) {}
 
 ContentVerifier::~ContentVerifier() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 }
 
 void ContentVerifier::Start() {
@@ -1018,9 +1022,7 @@ ContentVerifier::HashHelper* ContentVerifier::GetOrCreateHashHelper() {
   // case.
   if (!hash_helper_created_) {
     DCHECK(!hash_helper_);
-    hash_helper_ =
-        std::unique_ptr<HashHelper, content::BrowserThread::DeleteOnIOThread>(
-            new HashHelper(this));
+    hash_helper_ = std::make_unique<HashHelper>(this);
     hash_helper_created_ = true;
   }
   return hash_helper_.get();

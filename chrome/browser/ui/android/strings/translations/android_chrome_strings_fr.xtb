@@ -38,6 +38,7 @@
 <translation id="1140317858355046628">Si vous le supprimez, tout le monde perdra immédiatement l'accès au groupe d'onglets "<ph name="GROUP_NAME" />", qui sera supprimé de tous les appareils.</translation>
 <translation id="1142732900304639782">Ne pas proposer de traduire ces sites</translation>
 <translation id="1143193470214071120">Fermez une fenêtre ou gérez les fenêtres</translation>
+<translation id="1149725087019908252">Analyse du fichier <ph name="FILE_NAME" />…</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> va s'ouvrir dans Chrome. En continuant, vous acceptez les <ph name="BEGIN_LINK1" />Conditions d'utilisation de Google<ph name="END_LINK1" /> et les <ph name="BEGIN_LINK2" />Conditions d'utilisation supplémentaires de Google Chrome et Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Vous n'avez aucun mot de passe enregistré dans le Gestionnaire de mots de passe de Google.</translation>
 <translation id="115483310321669804">Utiliser le mot de passe <ph name="PASSWORD" /></translation>
@@ -49,7 +50,6 @@
 <translation id="1181037720776840403">Supprimer</translation>
 <translation id="1183189057400844278">Pour toujours pouvoir utiliser les mots de passe de votre compte Google, confirmez votre identité</translation>
 <translation id="1187810343066461819">Supprimer aussi de cette voiture les favoris, l'historique et plus</translation>
-<translation id="1193589902336218259">Activer les notifications de conseils</translation>
 <translation id="1193729455103054076">Utiliser un mot de passe sécurisé ?</translation>
 <translation id="11947597112837849">adresse e-mail</translation>
 <translation id="1197267115302279827">Déplacer les favoris</translation>
@@ -72,6 +72,7 @@
 <translation id="1263231323834454256">Liste de lecture</translation>
 <translation id="1269129608791067105">Votre historique s'affichera ici</translation>
 <translation id="1273937721055267968">Bloquer <ph name="DOMAIN" /></translation>
+<translation id="1280921956537356716">Activer les notifications d'astuces</translation>
 <translation id="1283039547216852943">Appuyer pour développer</translation>
 <translation id="1289129165308566697">Consultez votre historique sur d'autres appareils</translation>
 <translation id="129553762522093515">Récemment fermés</translation>
@@ -131,6 +132,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="1506061864768559482">Moteur de recherche</translation>
 <translation id="1513352483775369820">Favoris et historique Web</translation>
 <translation id="1515901671075971249">Raccourcis de navigation par onglet</translation>
+<translation id="1516966594427080024">Ouvrir une nouvelle fenêtre en mode navigation privée</translation>
 <translation id="1521774566618522728">Actif aujourd'hui</translation>
 <translation id="153446405401665083">Une nouvelle version de Chrome est disponible</translation>
 <translation id="1540012742443808215">Barre d'adresse actuellement en haut</translation>
@@ -197,7 +199,6 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="1829244130665387512">Rechercher sur la page</translation>
 <translation id="1832459821645506983">Oui, j'accepte</translation>
 <translation id="1845958458910716240">Pour protéger vos données, autorisez Chrome à supprimer les autorisations des sites que vous n'avez pas consultés récemment</translation>
-<translation id="1850996571200618383">{NUM_REVOKED_PERMISSIONS,plural, =1{Chrome a bloqué les notifications de ce site. Vous pouvez consulter et gérer ces paramètres.}one{Chrome a bloqué les notifications de ce site. Vous pouvez consulter et gérer ces paramètres.}other{Chrome a bloqué les notifications de ces sites. Vous pouvez consulter et gérer ces paramètres.}}</translation>
 <translation id="1871098866036088250">Ouvrir dans le navigateur Chrome</translation>
 <translation id="1877026089748256423">Chrome est obsolète</translation>
 <translation id="1877073879466606884">Le profil auquel vous êtes connecté est un profil géré. Votre administrateur peut modifier à distance les paramètres de votre profil, analyser les rapports d'informations sur le navigateur et effectuer d'autres tâches nécessaires.</translation>
@@ -995,7 +996,6 @@ Votre compte Google conserve peut-être d'autres contenus d'historique de naviga
 <translation id="5267572070504076962">Activez la navigation sécurisée pour vous protéger contre les sites dangereux</translation>
 <translation id="5271967389191913893">Impossible d'ouvrir le contenu à télécharger sur l'appareil.</translation>
 <translation id="5273031377282080577">Votre administrateur gère ce paramètre.</translation>
-<translation id="5287338992381051621">{NUM_REVOKED_PERMISSIONS,plural, =1{Désabonné d'un site inutilisé}one{Désabonné de # site inutilisé}other{Désabonné de # sites inutilisés}}</translation>
 <translation id="5292796745632149097">Envoyer sur</translation>
 <translation id="5301876394151419436">Vous êtes connecté en tant que <ph name="EMAIL" />. Vous pouvez arrêter la synchronisation à tout moment dans les paramètres. Google peut personnaliser la recherche et d'autres services en fonction de votre historique.</translation>
 <translation id="5304593522240415983">Champ obligatoire.</translation>
@@ -1489,6 +1489,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="7207760545532569765">Restaurer <ph name="TAB_COUNT" /> onglets en tant que nouveaux onglet en arrière-plan.</translation>
 <translation id="7217781228893594884">Les onglets de navigation privée seront verrouillés lorsque vous quitterez Chrome</translation>
 <translation id="7221869452894271364">Actualiser cette page</translation>
+<translation id="722681077040152344">Désabonné de <ph name="COUNT" /> sites</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 téléchargement en attente}one{# téléchargement en attente}other{# téléchargements en attente}}</translation>
 <translation id="7230064152164845085">Passer à la navigation privée</translation>
 <translation id="7237724030342645845">Le Gestionnaire de mots de passe de Google a cessé de fonctionner</translation>
@@ -1586,7 +1587,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="7612619742409846846">Connecté à Google en tant que</translation>
 <translation id="7612989789287281429">Connexion…</translation>
 <translation id="7619072057915878432">Échec du téléchargement du fichier "<ph name="FILE_NAME" />" en raison de l'échec du réseau.</translation>
-<translation id="7620958983792650214">{NUM_REVOKED_PERMISSIONS,plural, =1{Désabonné d'un site}one{Désabonné de # site}other{Désabonné de # sites}}</translation>
 <translation id="7626032353295482388">Bienvenue dans Chrome</translation>
 <translation id="7628417132421583481">Accéder au Gestionnaire de mots de passe</translation>
 <translation id="7630202231528827509">URL du fournisseur</translation>
@@ -1744,6 +1744,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8244387390464017490">Personnaliser Nouvel onglet</translation>
 <translation id="8244444485683708655">Joindre une image de la caméra</translation>
 <translation id="8250920743982581267">Documents</translation>
+<translation id="8257429805444572809">Désabonné de <ph name="DOMAIN" /></translation>
 <translation id="8258999165172757081">Ajouté</translation>
 <translation id="8259179246279078674">Les pages préchargées étant chiffrées, Google n'analyse pas leur contenu. Les serveurs de Google voient quels sites sont préchargés en mode privé. Ces informations ne servent qu'à précharger les pages et ne sont liées à aucune autre information de votre compte Google.</translation>
 <translation id="8260126382462817229">Essayez de vous connecter de nouveau à votre compte.</translation>
@@ -1799,7 +1800,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8455675988389029454">Accédez à vos favoris, à vos mots de passe et plus encore sur tous vos appareils</translation>
 <translation id="8458413889418591446">Pour revenir rapidement aux sites que vous avez consultés, synchronisez votre historique et vos onglets</translation>
 <translation id="84594714173170813">Continuez d'utiliser les données Chrome de votre compte Google</translation>
-<translation id="8460448946170646641">Examinez les paramètres clés de confidentialité et de sécurité</translation>
+<translation id="8460448946170646641">Passez en revue les principaux paramètres de confidentialité et de sécurité</translation>
 <translation id="8473863474539038330">Adresses et autres</translation>
 <translation id="847433688444405067">Naviguez sur tous vos appareils</translation>
 <translation id="8477178913400731244">Supprimer les données</translation>
@@ -1903,6 +1904,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8963117664422609631">Accéder aux paramètres des sites</translation>
 <translation id="8965591936373831584">en attente</translation>
 <translation id="8968085728801125376">{TAB_COUNT,plural, =1{<ph name="INCOGNITO_TAB_COUNT" /> onglet de navigation privée et <ph name="TAB_COUNT_ONE" /> autre onglet seront supprimés}one{<ph name="INCOGNITO_TAB_COUNT" /> onglet de navigation privée et <ph name="TAB_COUNT_MANY" /> autre onglet seront supprimés}other{<ph name="INCOGNITO_TAB_COUNT" /> onglet de navigation privée et <ph name="TAB_COUNT_MANY" /> autres onglets seront supprimés}}</translation>
+<translation id="8969796057708736017">Le téléchargement aura lieu si le fichier respecte les règles de votre organisation</translation>
 <translation id="8970887620466824814">Un problème est survenu</translation>
 <translation id="8972098258593396643">Télécharger dans le dossier par défaut ?</translation>
 <translation id="8992769679401294069">Vos données sont chiffrées avec votre phrase secrète. Saisissez-la pour utiliser et enregistrer les données Chrome dans votre compte Google.</translation>

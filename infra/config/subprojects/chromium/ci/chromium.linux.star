@@ -264,7 +264,7 @@ ci.builder(
         "local": gn_args.config(
             configs = ["debug_builder", "linux", "x64"],
         ),
-        "reclient": gn_args.config(
+        "remoteexec": gn_args.config(
             configs = ["debug_builder", "remoteexec", "linux", "x64"],
         ),
     },
@@ -482,7 +482,6 @@ ci.thin_tester(
     targets = targets.bundle(
         targets = [
             "chromium_linux_gtests",
-            "chromium_linux_gtests_once",
             "chromium_linux_rel_isolated_scripts_once",
             "gtests_once",
         ],
@@ -1164,7 +1163,7 @@ ci.builder(
     contact_team_email = "chrome-build-team@google.com",
     execution_timeout = 6 * time.hour,
     notifies = args.ignore_default([]),
-    siso_keep_going = True,
+    siso_keep_going = 0,
     siso_remote_linking = True,
 )
 

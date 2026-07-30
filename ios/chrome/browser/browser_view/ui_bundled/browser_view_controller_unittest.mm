@@ -20,7 +20,7 @@
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
-#import "ios/chrome/browser/browser_container/ui_bundled/browser_container_view_controller.h"
+#import "ios/chrome/browser/browser_content/ui_bundled/browser_content_view_controller.h"
 #import "ios/chrome/browser/browser_view/model/browser_view_visibility_notifier_browser_agent.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_view_controller+private.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/key_commands_provider.h"
@@ -56,7 +56,6 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
@@ -69,6 +68,7 @@
 #import "ios/chrome/browser/shared/public/commands/page_info_commands.h"
 #import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
 #import "ios/chrome/browser/shared/public/commands/quick_delete_commands.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
@@ -249,10 +249,10 @@ class BrowserViewControllerTest : public BlockCleanupTest {
                              forProtocol:@protocol(BWGCommands)];
 
     // Set up Applicationhander and SettingsHandler mocks.
-    mock_application_handler_ = OCMProtocolMock(@protocol(ApplicationCommands));
+    mock_application_handler_ = OCMProtocolMock(@protocol(SceneCommands));
     id mock_settings_handler = OCMProtocolMock(@protocol(SettingsCommands));
     [dispatcher startDispatchingToTarget:mock_application_handler_
-                             forProtocol:@protocol(ApplicationCommands)];
+                             forProtocol:@protocol(SceneCommands)];
     [dispatcher startDispatchingToTarget:mock_settings_handler
                              forProtocol:@protocol(SettingsCommands)];
 
@@ -283,7 +283,7 @@ class BrowserViewControllerTest : public BlockCleanupTest {
         std::make_unique<ScopedClipboardRecentContentInstaller>(
             std::make_unique<FakeClipboardRecentContent>());
 
-    container_ = [[BrowserContainerViewController alloc] init];
+    container_ = [[BrowserContentViewController alloc] init];
     key_commands_provider_ =
         [[KeyCommandsProvider alloc] initWithBrowser:browser_.get()];
     safe_area_provider_ =
@@ -329,13 +329,13 @@ class BrowserViewControllerTest : public BlockCleanupTest {
         LayoutGuideCenterForBrowser(browser_.get());
     dependencies.webStateList = browser_->GetWebStateList()->AsWeakPtr();
     dependencies.safeAreaProvider = safe_area_provider_;
-    dependencies.applicationCommandsHandler = mock_application_handler_;
+    dependencies.sceneHandler = mock_application_handler_;
     dependencies.ntpCoordinator = NTPCoordinator_;
 
     bvc_ = [[BrowserViewController alloc]
-        initWithBrowserContainerViewController:container_
-                           keyCommandsProvider:key_commands_provider_
-                                  dependencies:dependencies];
+        initWithBrowserContentViewController:container_
+                         keyCommandsProvider:key_commands_provider_
+                                dependencies:dependencies];
     bvc_.webUsageEnabled = YES;
     bvc_.browserViewVisibilityStateChangedCallback =
         BrowserViewVisibilityNotifierBrowserAgent::FromBrowser(browser_.get())
@@ -455,7 +455,7 @@ class BrowserViewControllerTest : public BlockCleanupTest {
   raw_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
   KeyCommandsProvider* key_commands_provider_;
-  BrowserContainerViewController* container_;
+  BrowserContentViewController* container_;
   BrowserViewController* bvc_;
   UIWindow* window_;
   SceneState* scene_state_;

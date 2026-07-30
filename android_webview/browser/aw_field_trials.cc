@@ -32,6 +32,7 @@
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/android/ui_android_features.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/events/features.h"
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_switches.h"
 
@@ -80,6 +81,10 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
 
   // HDR does not support webview yet. See crbug.com/1493153 for an explanation.
   aw_feature_overrides.DisableFeature(ui::kAndroidHDR);
+
+  // TODO(crbug.com/450845471): Remove this once webview experiment has
+  // concluded.
+  aw_feature_overrides.DisableFeature(ui::kCompensateGestureDetectorTimeouts);
 
   // Disable launch_handler on WebView.
   aw_feature_overrides.DisableFeature(::features::kAndroidWebAppLaunchHandler);
@@ -285,11 +290,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(
       features::kAAudioPerStreamDeviceSelection);
 
-  // WebView exposes text autosizing to apps via setLayoutAlgorithm(), so
-  // we keep text autosizing support in WebView for now. Further WebView
-  // work will take place in https://crbug.com/391990606.
-  aw_feature_overrides.DisableFeature(blink::features::kForceOffTextAutosizing);
-
   // Local Network Access restrictions should not be enforced in WebView.
   // The LNA permission is auto-granted in WebView, but the permission
   // policy currently blocks iframes from using it. crbug.com/442879527
@@ -314,4 +314,7 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // Deemed that performance benefit is not worth the stability cost.
   // See crbug.com/1309151.
   aw_feature_overrides.DisableFeature(::features::kGpuShaderDiskCache);
+
+  // Don't pass the data about browser window position on screen to WebView.
+  aw_feature_overrides.DisableFeature(ui::kAndroidUseCorrectWindowBounds);
 }

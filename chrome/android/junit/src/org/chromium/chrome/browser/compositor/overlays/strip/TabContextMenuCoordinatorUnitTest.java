@@ -50,6 +50,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.annotation.Config;
 
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -1377,6 +1378,63 @@ public class TabContextMenuCoordinatorUnitTest {
                 otherWindowItem.model.get(TITLE));
     }
 
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void testMoveToWindow_oneInstance_allTabsSelected_singleTab() {
+        MultiWindowUtils.setInstanceCountForTesting(1);
+
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+        assertEquals("Tab model should have one tab.", 1, mTabModel.getCount());
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList,
+                new AnchorInfo(
+                        TAB_OUTSIDE_OF_GROUP_ID,
+                        Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
+
+        // With only one window and all tabs selected, the "move to window" option should not show.
+        assertEquals("Number of items in the list menu is incorrect.", 4, modelList.size());
+        assertEquals(
+                "Second item should be a divider instead of 'move to window'.",
+                DIVIDER,
+                modelList.get(1).type);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void testMoveToWindow_oneInstance_allTabsSelected_multipleTabs() {
+        MultiWindowUtils.setInstanceCountForTesting(1);
+
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        assertEquals("Tab model should have two tabs.", 2, mTabModel.getCount());
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList,
+                new AnchorInfo(
+                        TAB_OUTSIDE_OF_GROUP_ID, List.of(TAB_OUTSIDE_OF_GROUP_ID, TAB_ID_2)));
+
+        // With only one window and all tabs selected, the "move to window" option should not show.
+        assertEquals("Number of items in the list menu is incorrect.", 3, modelList.size());
+        assertEquals(
+                "Second item should be a divider instead of 'move to window'.",
+                DIVIDER,
+                modelList.get(1).type);
+    }
+
     private @Nullable ListItem findItemByMenuId(ModelList modelList, int menuId) {
         for (int i = 0; i < modelList.size(); i++) {
             ListItem item = modelList.get(i);
@@ -1536,6 +1594,8 @@ public class TabContextMenuCoordinatorUnitTest {
         return modelListContents.toString();
     }
 
+    // TODO(crbug.com/450954710): This test fails on SDK 36.
+    @Config(sdk = 29)
     @Test
     @Feature("Tab Strip Context Menu")
     @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)

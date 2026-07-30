@@ -2042,8 +2042,6 @@ data/accessibility/css/carousel-positioned-buttons-expected-blink.txt
 data/accessibility/css/carousel-positioned-buttons.html
 data/accessibility/css/carousel-with-column-tabs-dynamic-expected-blink.txt
 data/accessibility/css/carousel-with-column-tabs-dynamic.html
-data/accessibility/css/carousel-with-wrapped-column-tabs-dynamic-expected-blink.txt
-data/accessibility/css/carousel-with-wrapped-column-tabs-dynamic.html
 data/accessibility/css/carousel-with-column-tabs-expected-blink.txt
 data/accessibility/css/carousel-with-column-tabs.html
 data/accessibility/css/carousel-with-links-expected-android-external.txt
@@ -2056,6 +2054,8 @@ data/accessibility/css/carousel-with-tabs-expected-android-external.txt
 data/accessibility/css/carousel-with-tabs-expected-auralinux.txt
 data/accessibility/css/carousel-with-tabs-expected-blink.txt
 data/accessibility/css/carousel-with-tabs.html
+data/accessibility/css/carousel-with-wrapped-column-tabs-dynamic-expected-blink.txt
+data/accessibility/css/carousel-with-wrapped-column-tabs-dynamic.html
 data/accessibility/css/color-expected-android-assist-data.txt
 data/accessibility/css/color-expected-android-external.txt
 data/accessibility/css/color-expected-android.txt
@@ -2773,6 +2773,12 @@ data/accessibility/event/live-region-add-live-attribute-expected-mac.txt
 data/accessibility/event/live-region-add-live-attribute-expected-uia-win.txt
 data/accessibility/event/live-region-add-live-attribute.html
 data/accessibility/event/live-region-add.html
+data/accessibility/event/live-region-atomic-add-expected-android-exp.txt
+data/accessibility/event/live-region-atomic-add-expected-android.txt
+data/accessibility/event/live-region-atomic-add.html
+data/accessibility/event/live-region-atomic-change-innertext-expected-android-exp.txt
+data/accessibility/event/live-region-atomic-change-innertext-expected-android.txt
+data/accessibility/event/live-region-atomic-change-innertext.html
 data/accessibility/event/live-region-change-expected-android-exp.txt
 data/accessibility/event/live-region-change-expected-android.txt
 data/accessibility/event/live-region-change-expected-auralinux.txt
@@ -3029,6 +3035,7 @@ data/accessibility/event/reparent-element-with-activedescendant-element-expected
 data/accessibility/event/reparent-element-with-activedescendant-element-expected-mac.txt
 data/accessibility/event/reparent-element-with-activedescendant-element-expected-win.txt
 data/accessibility/event/reparent-element-with-activedescendant-element.html
+data/accessibility/event/report-validity-invalid-field-expected-android-exp.txt
 data/accessibility/event/report-validity-invalid-field-expected-android.txt
 data/accessibility/event/report-validity-invalid-field-expected-mac.txt
 data/accessibility/event/report-validity-invalid-field-expected-uia-win.txt
@@ -8096,6 +8103,9 @@ data/media/session/video-1second.webm
 data/media/session/video-4seconds.webm
 data/media/session/video-6seconds-silent.webm
 data/media/session/video-6seconds.webm
+data/media/session/video-audible-1second.webm
+data/media/session/video-audible-4seconds.webm
+data/media/session/video-audible-6seconds.webm
 data/media/shape_detection_test.html
 data/media/too_many_web_media_players_intervention_test.html
 data/media/tulip2.webm

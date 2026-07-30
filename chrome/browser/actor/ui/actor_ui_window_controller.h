@@ -22,6 +22,10 @@
 
 class ActorOverlayWebView;
 
+namespace chrome {
+class BrowserCommandController;
+}  // namespace chrome
+
 namespace views {
 class WebView;
 }  // namespace views
@@ -62,6 +66,8 @@ class ActorUiContentsContainerController : public content::WebContentsObserver,
   void OnWebContentsDetached(views::WebView* web_view);
 
   // Called whenever the visibility of the overlay or state has changed.
+  // Note: ActorOverlayState cannot request both a mouse movement and a click in
+  // the same update.
   void OnOverlayStateChanged(bool is_visible,
                              ActorOverlayState state,
                              base::OnceClosure callback);
@@ -94,6 +100,8 @@ class ActorUiContentsContainerController : public content::WebContentsObserver,
   void NotifyTabControllerOnViewBoundsChanged();
   // Notified whenever the overlay background status changes.
   void OnActorOverlayBackgroundChange(bool is_visible);
+  // Notifies the BrowserCommandController that the overlay state has changed.
+  void UpdateFindInPageCommandState();
 
   std::vector<base::CallbackListSubscription>
       web_contents_callback_subscriptions_;
@@ -147,6 +155,8 @@ class ActorUiWindowController : public ImmersiveModeController::Observer {
   bool IsImmersiveModeEnabled() const;
   bool IsToolbarRevealed() const;
   bool IsToolbarPinned() const;
+
+  chrome::BrowserCommandController* GetCommandController();
 
  private:
   void InitializeImmersiveModeObserver();

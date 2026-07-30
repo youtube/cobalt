@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_HORIZONTAL_TAB_STRIP_REGION_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab_search_container.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -29,7 +30,7 @@ class TabSearchPositionMetricsLogger;
 // Container for the tabstrip and the other views sharing space with it -
 // with the exception of the caption buttons.
 class HorizontalTabStripRegionView final : public TabStripRegionView {
-  METADATA_HEADER(HorizontalTabStripRegionView, views::AccessiblePaneView)
+  METADATA_HEADER(HorizontalTabStripRegionView, TabStripRegionView)
 
  public:
   // These values are persisted to logs. Entries should not be renumbered and
@@ -106,10 +107,16 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   void StopAnimating() override;
   void UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) override;
   std::optional<int> GetFocusedTabIndex() const override;
+  const TabRendererData& GetTabRendererData(int tab_index) override;
   views::View* GetTabAnchorViewAt(int tab_index) override;
   views::View* GetTabGroupAnchorView(
       const tab_groups::TabGroupId& group) override;
   TabDragContext* GetDragContext() override;
+  std::optional<BrowserRootView::DropIndex> GetDropIndex(
+      const ui::DropTargetEvent& event) override;
+  BrowserRootView::DropTarget* GetDropTarget(
+      gfx::Point loc_in_local_coords) override;
+  views::View* GetViewForDrop() override;
   void SetTabStripObserver(TabStripObserver* observer) override;
 
   void LogTabSearchPositionForTesting();

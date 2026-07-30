@@ -13,14 +13,11 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/test_future.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/vpn_service_ash.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/extensions/vpn_provider/vpn_provider_api.h"
 #include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service.h"
@@ -34,7 +31,6 @@
 #include "chromeos/ash/components/dbus/shill/shill_profile_client.h"
 #include "chromeos/ash/components/network/network_configuration_handler.h"
 #include "chromeos/ash/components/network/shill_property_handler.h"
-#include "chromeos/crosapi/mojom/vpn_service.mojom.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
@@ -155,8 +151,6 @@ class VpnProviderApiTestBase : public extensions::ExtensionApiTest {
         chromeos::VpnServiceFactory::GetForBrowserContext(profile()));
   }
 
-  virtual crosapi::mojom::VpnService* service_remote() const = 0;
-
   virtual void OnPlatformMessage(const std::string& configuration_name,
                                  api_vpn::PlatformMessage) = 0;
   virtual void OnPacketReceived(const std::string& configuration_name,
@@ -186,9 +180,6 @@ class VpnProviderApiTest : public VpnProviderApiTestBase {
     VpnProviderApiTestBase::SetUpOnMainThread();
     AddNetworkProfileForUser();
   }
-  crosapi::mojom::VpnService* service_remote() const override {
-    return GetVpnServiceAsh();
-  }
   void OnPlatformMessage(const std::string& configuration_name,
                          api_vpn::PlatformMessage message) override {
     test_client_->OnPlatformMessage(
@@ -202,21 +193,16 @@ class VpnProviderApiTest : public VpnProviderApiTestBase {
   }
 
   std::string GetKey(const std::string& configuration_name) const {
-    return crosapi::VpnServiceForExtensionAsh::GetKey(extension_id(),
-                                                      configuration_name);
+    return VpnService::GetKeyForTesting(extension_id(), configuration_name);
   }
 
   bool DoesConfigExist(const std::string& configuration_name) {
-    return base::Contains(service()->key_to_configuration_map_,
-                          GetKey(configuration_name));
+    return service()->LookupConfiguration(extension_id(), configuration_name) !=
+           nullptr;
   }
 
   bool IsConfigConnected() {
-    const auto& mapping = GetVpnServiceAsh()->extension_id_to_service_;
-    if (!base::Contains(mapping, extension_id())) {
-      return false;
-    }
-    return service()->OwnsActiveConfiguration(extension_id());
+    return service()->GetActiveConfigurationForExtension(extension_id());
   }
 
   std::string GetSingleServicePath() {
@@ -278,10 +264,6 @@ class VpnProviderApiTest : public VpnProviderApiTestBase {
         kNetworkProfilePath,
         ash::ProfileHelper::GetUserIdHashFromProfile(profile()));
     content::RunAllPendingInMessageLoop();
-  }
-
-  static crosapi::VpnServiceAsh* GetVpnServiceAsh() {
-    return crosapi::CrosapiManager::Get()->crosapi_ash()->vpn_service_ash();
   }
 
   raw_ptr<TestShillThirdPartyVpnDriverClient, DanglingUntriaged> test_client_ =
@@ -456,65 +438,6 @@ IN_PROC_BROWSER_TEST_F(VpnProviderApiTest, VpnSuccess) {
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(IsConfigConnected());
-}
-
-class TestEventObserverForExtension
-    : public crosapi::mojom::EventObserverForExtension {
- public:
-  // crosapi::mojom::EventObserverForExtension:
-  void OnConfigRemoved(const std::string& configuration_name) override {}
-  void OnPlatformMessage(const std::string& configuration_name,
-                         int32_t platform_message) override {}
-  void OnPacketReceived(const std::vector<uint8_t>& data) override {}
-};
-
-using SuccessOrFailureCallback =
-    base::OnceCallback<void(crosapi::mojom::VpnErrorResponsePtr)>;
-
-void RunSuccessCallback(SuccessOrFailureCallback callback) {
-  std::move(callback).Run(nullptr);
-}
-
-void RunFailureCallback(SuccessOrFailureCallback callback,
-                        const std::string& error_name,
-                        const std::string& error_message) {
-  std::move(callback).Run(
-      crosapi::mojom::VpnErrorResponse::New(error_name, error_message));
-}
-
-// Tests that the per-extension crosapi connection between ash and browser
-// is initialized by the moment ash decides to send a platform message to the
-// browser.
-IN_PROC_BROWSER_TEST_F(VpnProviderApiTest, PlatformMessage) {
-  auto test_observer = std::make_unique<TestEventObserverForExtension>();
-  mojo::Remote<crosapi::mojom::VpnServiceForExtension> remote;
-  mojo::Receiver<crosapi::mojom::EventObserverForExtension> receiver{
-      test_observer.get()};
-  service_remote()->RegisterVpnServiceForExtension(
-      extension_id(), remote.BindNewPipeAndPassReceiver(),
-      receiver.BindNewPipeAndPassRemote());
-
-  base::test::TestFuture<crosapi::mojom::VpnErrorResponsePtr> future;
-  auto callback = future.GetCallback();
-  auto [success, failure] = base::SplitOnceCallback(std::move(callback));
-
-  service()->CreateConfiguration(
-      extension_id(), kTestConfig,
-      base::BindOnce(&RunSuccessCallback, std::move(success)),
-      base::BindOnce(&RunFailureCallback, std::move(failure)));
-
-  auto error = future.Take();
-  ASSERT_FALSE(error) << "CreateConfiguration failed with |message| = "
-                      << error->message.value_or(std::string{});
-
-  extensions::ResultCatcher catcher;
-  EXPECT_TRUE(RunTest("platformMessage"));
-  ASSERT_TRUE(catcher.GetNextResult());
-
-  OnPlatformMessage(kTestConfig, api_vpn::PlatformMessage::kConnected);
-  ASSERT_TRUE(catcher.GetNextResult());
-  OnPlatformMessage(kTestConfig, api_vpn::PlatformMessage::kDisconnected);
-  ASSERT_TRUE(catcher.GetNextResult());
 }
 
 }  // namespace chromeos

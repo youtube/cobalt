@@ -36,9 +36,18 @@ class FormStructureShouldTest : public testing::Test {
     return r;
   }
 
+  static bool ShouldBeQueried(const FormStructure& form) {
+    const bool r = autofill::ShouldBeQueried(form);
+    CHECK_EQ(r, autofill::ShouldBeQueried(form.ToFormData()))
+        << "ShouldBeQueried(FormStructure) and "
+           "ShouldBeQueried(FormData) must be equivalent";
+    return r;
+  }
+
   static bool FormIsAutofillable(const FormData& form) {
-    const RegexPredictions regex_predictions = DetermineRegexTypes(
-        GeoIpCountryCode(""), LanguageCode(""), form, nullptr);
+    const RegexPredictions regex_predictions =
+        DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""), form,
+                            nullptr, /*ignore_small_forms=*/true);
     FormStructure form_structure(form);
     regex_predictions.ApplyTo(form_structure.fields());
     form_structure.RationalizeAndAssignSections(GeoIpCountryCode(""),

@@ -12,7 +12,6 @@
 #include "device/vr/public/mojom/vr_service.mojom-blink.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
-#include "gpu/command_buffer/common/mailbox_holder.h"
 #include "mojo/public/cpp/system/platform_handle.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/dawn_control_client_holder.h"
@@ -167,14 +166,8 @@ bool XRFrameTransport::FrameSubmit(
     }
     previous_images_ = std::move(image_refs);
 
-    // Create mailbox and sync token for transfer.
-    TRACE_EVENT_BEGIN0("gpu", "XRFrameTransport::GetMailbox");
-    auto mailbox_holder = static_image->GetMailboxHolder();
-    TRACE_EVENT_END0("gpu", "XRFrameTransport::GetMailbox");
-
     TRACE_EVENT_BEGIN0("gpu", "XRFrameTransport::SubmitFrame");
-    vr_presentation_provider->SubmitFrame(vr_frame_id, mailbox_holder,
-                                          frame_wait_time_);
+    vr_presentation_provider->SubmitFrame(vr_frame_id, frame_wait_time_);
     TRACE_EVENT_END0("gpu", "XRFrameTransport::SubmitFrame");
   } else if (transport_options_->transport_method ==
              device::mojom::blink::XRPresentationTransportMethod::

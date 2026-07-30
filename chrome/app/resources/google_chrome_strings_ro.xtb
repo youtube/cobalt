@@ -271,6 +271,7 @@
 <translation id="3885770153807205175">Selector de limbă</translation>
 <translation id="3889417619312448367">Dezinstalează Google Chrome</translation>
 <translation id="3892148308691398805">Copiază textul</translation>
+<translation id="3893985792899396936">Sfat pentru Chrome: caută cu Lens</translation>
 <translation id="3906096710440765802">Conectează-te la Chrome pentru a accesa parolele, marcajele și altele pe toate dispozitivele tale</translation>
 <translation id="3921132130819999051">Permite browserului Chromium să navigheze pentru tine</translation>
 <translation id="3941890832296813527">Eroare la instalare: numele de fișier al programului de instalare nu este valid sau acceptat.</translation>
@@ -312,7 +313,6 @@
 <translation id="4329315893554541805">Pentru a beneficia de personalizare și alte funcții, include Chrome în Activitatea de pe web și din aplicații și în serviciile Google conectate</translation>
 <translation id="4334241893986177674">Caută în această captură de ecran</translation>
 <translation id="4334294535648607276">Descărcarea a fost finalizată.</translation>
-<translation id="4337324600316876133">Pentru a primi actualizările Google Chrome viitoare, vei avea nevoie de macOS 12 sau o versiune ulterioară. Acest computer folosește macOS 11.</translation>
 <translation id="4343195214584226067">Extensia <ph name="EXTENSION_NAME" /> a fost adăugată la Chrome</translation>
 <translation id="4344128547036991536">Când deschizi Google Lens, titlul paginii, adresa URL și conținutul, inclusiv PDF-urile, vor fi trimise automat la Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Pentru personalizare, include Chrome în Activitatea de pe web și din aplicații</translation>
@@ -483,6 +483,7 @@
 <translation id="6180522807229584611">Această filă folosește resurse suplimentare. Pentru a-ți îmbunătăți performanța, permite-i browserului Chrome să le dezactiveze.</translation>
 <translation id="6182736845697986886">Nu s-a instalat, din cauza unei erori interne a serverului de actualizare.</translation>
 <translation id="6183773856988300112">Gemini folosește navigarea automată în Chrome ca să lucreze în filele tale și să finalizeze activitățile pe care i le aloci. <ph name="LINK_BEGIN" />Află mai multe<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Sfat pentru Chrome: salvează parolele</translation>
 <translation id="6192058120268468905">Contul tău în Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> a adăugat o extensie care poate schimba modul în care funcționează Chrome.
 
@@ -621,6 +622,7 @@
 <translation id="7627609214560473136">Pentru a-ți proteja datele, permite browserului Chrome să elimine permisiunile de pe site-urile pe care nu le-ai accesat recent.</translation>
 <translation id="7629695634924605473">Chrome te anunță dacă parolele tale sunt compromise</translation>
 <translation id="7641148173327520642">Administratorul sistemului a configurat Google Chrome să deschidă <ph name="ALTERNATIVE_BROWSER_NAME" /> pentru a accesa <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Sfat pentru Chrome: Navigarea sigură îmbunătățită</translation>
 <translation id="7649070708921625228">Ajutor</translation>
 <translation id="7651907282515937834">Sigla Chrome Enterprise</translation>
 <translation id="76531479118467370">Chrome a blocat descărcarea, deoarece ai dezactivat Navigarea sigură și fișierul nu poate fi confirmat</translation>

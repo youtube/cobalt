@@ -270,6 +270,7 @@
 <translation id="3885770153807205175">Dil seçici</translation>
 <translation id="3889417619312448367">Google Chrome'u Kaldır</translation>
 <translation id="3892148308691398805">Metni kopyala</translation>
+<translation id="3893985792899396936">Chrome İpucu: Lens ile Arama Yapın</translation>
 <translation id="3906096710440765802">Tüm cihazlarınızda şifrelerinizi almak ve daha pek çok şey yapmak için Chrome'da oturum açın</translation>
 <translation id="3921132130819999051">Chrome'un sizin için göz atmasına izin verin</translation>
 <translation id="3941890832296813527">Yükleme hatası: Yükleyici dosya adı geçersiz veya desteklenmiyor.</translation>
@@ -311,7 +312,6 @@
 <translation id="4329315893554541805">Kişiselleştirme ve diğer özelliklerden yararlanmak için Chrome'u Web ve Uygulama Etkinliği'nin yanı sıra bağlı Google hizmetlerine ekleyin</translation>
 <translation id="4334241893986177674">Bu ekran görüntüsünde arama yapın</translation>
 <translation id="4334294535648607276">İndirme işlemi tamamlandı.</translation>
-<translation id="4337324600316876133">Gelecekteki Google Chrome güncellemelerini almak için macOS 12 veya sonraki bir sürümün yüklü olması gerekir. Bu bilgisayar macOS 11 kullanıyor.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> Chrome'a eklendi</translation>
 <translation id="4344128547036991536">Google Lens'i açtığınızda sayfa başlığı, URL'si ve içeriği (PDF'ler dahil) otomatik olarak Google'a gönderilir. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Kişiselleştirme için Chrome'u Web ve Uygulama Etkinliği'ne ekleyin</translation>
@@ -484,6 +484,7 @@ Bazı özellikler kullanılamayabilir. Lütfen farklı bir profil dizini belirti
 <translation id="6180522807229584611">Bu sekme ekstra kaynak kullanıyor. Performansınızı artırmak için Chrome'un bu sekmeleri devre dışı bırakmasına izin verin.</translation>
 <translation id="6182736845697986886">Güncelleme sunucusundaki dahili hata nedeniyle yükleme işlemi başarısız oldu.</translation>
 <translation id="6183773856988300112">Chrome'da Gemini, sekmelerinizde çalışmak ve verdiğiniz görevleri tamamlamak için otomatik göz atma özelliğini kullanır. <ph name="LINK_BEGIN" />Daha fazla bilgi edinin<ph name="LINK_END" />.</translation>
+<translation id="6187085551300363958">Chrome İpucu: Şifreleri Kaydedin</translation>
 <translation id="6192058120268468905">Chrome'daki Hesabınız</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" />, Chrome'un çalışma şeklini değiştirebilecek bir uzantı ekledi.
 
@@ -622,6 +623,7 @@ Bazı özellikler kullanılamayabilir. Lütfen farklı bir profil dizini belirti
 <translation id="7627609214560473136">Verilerinizin korunması için Chrome'un, yakın zamanda ziyaret etmediğiniz sitelerin izinlerini kaldırmasına izin verin.</translation>
 <translation id="7629695634924605473">Chrome, şifrelerinizin güvenliğinin ihlal edilip edilmediğini size bildirir</translation>
 <translation id="7641148173327520642">Sistem yöneticiniz Google Chrome'u <ph name="TARGET_URL_HOSTNAME" /> adresine erişmek için <ph name="ALTERNATIVE_BROWSER_NAME" /> tarayıcısını açacak şekilde yapılandırmış.</translation>
+<translation id="7641448682796883218">Chrome İpucu: Gelişmiş Güvenli Tarama</translation>
 <translation id="7649070708921625228">Yardım</translation>
 <translation id="7651907282515937834">Chrome Enterprise logosu</translation>
 <translation id="76531479118467370">Güvenli Tarama'yı devre dışı bıraktığınız ve dosya doğrulanamadığı için Chrome bu indirme işlemini engelledi</translation>

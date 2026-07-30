@@ -41,6 +41,8 @@ enum class AddContextButtonVariant {
 extern const base::FeatureParam<AddContextButtonVariant>
     kWebUIOmniboxAimPopupAddContextButtonVariantParam;
 BASE_DECLARE_FEATURE(kAiModeEntryPointAlwaysNavigates);
+BASE_DECLARE_FEATURE(kWebUIOmniboxDisableCaretColorAnimation);
+BASE_DECLARE_FEATURE(kWebUIOmniboxAimPopupDisableAnimation);
 BASE_DECLARE_FEATURE(kWebUIOmniboxFullPopup);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopup);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopupDebug);
@@ -76,8 +78,6 @@ extern const base::FeatureParam<bool> kShowContextMenu;
 extern const base::FeatureParam<bool> kShowContextMenuDescription;
 // Whether to show tab previews on hover for the composebox context menu.
 extern const base::FeatureParam<bool> kShowContextMenuTabPreviews;
-// Whether to show the create image button in the composebox context menu.
-extern const base::FeatureParam<bool> kShowCreateImageTool;
 // Whether to show the lens search chip in the composebox.
 extern const base::FeatureParam<bool> kShowLensSearchChip;
 // Whether to delay an upload if tab context is added from the recent tab chip.
@@ -88,8 +88,12 @@ extern const base::FeatureParam<bool> kShowRecentTabChip;
 extern const base::FeatureParam<bool> kShowSmartCompose;
 // Whether to show the submit button in the composebox.
 extern const base::FeatureParam<bool> kShowSubmit;
-// Whether to show the tools and models picker in the composebox.
+// Whether to show the tools and models in the composebox.
 extern const base::FeatureParam<bool> kShowToolsAndModels;
+// Whether to show canvas in the composebox.
+extern const base::FeatureParam<bool> kShowCanvas;
+// Whether to show the model picker in the composebox.
+extern const base::FeatureParam<bool> kShowModelPicker;
 // Whether to show the voice search button in steady state composebox.
 extern const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox;
 // Whether to show the voice search button in expanded composebox.
@@ -113,6 +117,7 @@ bool IsAimPopupFeatureEnabled();
 // checks both the base::Feature flag and all other requirements like user
 // eligibility.
 bool IsAimPopupEnabled(Profile* profile);
+bool ShouldShowAimContextMenuOption(Profile* profile);
 
 bool IsCreateImagesEnabled(Profile* profile);
 bool IsDeepSearchEnabled(Profile* profile);

@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "base/cancelable_callback.h"
+#include "base/cfi_buildflags.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
@@ -153,7 +154,6 @@
 #include "chrome/browser/extensions/extension_management_constants.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
-#include "chrome/browser/extensions/unpacked_installer.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/extension_host_test_helper.h"
@@ -164,6 +164,7 @@
 #include "extensions/browser/offscreen_document_host.h"
 #include "extensions/browser/service_worker/service_worker_test_utils.h"
 #include "extensions/browser/test_extension_registry_observer.h"
+#include "extensions/browser/unpacked_installer.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 #include "extensions/common/switches.h"
@@ -2043,8 +2044,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   GURL offscreen_url = extension->GetResourceURL("offscreen.html");
   std::unique_ptr<extensions::OffscreenDocumentHost> offscreen_document =
       std::make_unique<extensions::OffscreenDocumentHost>(
-          *extension,
-          browser()->profile(), offscreen_url);
+          *extension, browser()->profile(), offscreen_url);
   {
     extensions::ExtensionHostTestHelper offscreen_waiter(browser()->profile(),
                                                          extension->id());
@@ -2157,8 +2157,10 @@ class DevToolsExtensionFileAccessTest : public DevToolsExtensionTest {
 };
 
 // This test is flaky on Linux MSAN.
-// TODO(htt ps://crbug.com/463490299): Enable the test.
-#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+// TODO(https://crbug.com/463490299): Enable the test.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
+    BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
 #define MAYBE_CanGetFileResourceWithFileAccess \
   DISABLED_CanGetFileResourceWithFileAccess
 #else
@@ -2169,18 +2171,48 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
   Run(true, "file:///");
 }
 
+// TODO(crbug.com/463490299): Tests time out on sanitizer bots.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
+    BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
+#define MAYBE_CantGetFileResourceWithoutFileAccess \
+  DISABLED_CantGetFileResourceWithoutFileAccess
+#else
+#define MAYBE_CantGetFileResourceWithoutFileAccess \
+  CantGetFileResourceWithoutFileAccess
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
-                       CantGetFileResourceWithoutFileAccess) {
+                       MAYBE_CantGetFileResourceWithoutFileAccess) {
   Run(false, "file:///");
 }
 
+// TODO(crbug.com/463490299): Tests time out on sanitizer bots.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
+    BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
+#define MAYBE_CantGetFileResourceWithoutFileAccessNoSlashes \
+  DISABLED_CantGetFileResourceWithoutFileAccessNoSlashes
+#else
+#define MAYBE_CantGetFileResourceWithoutFileAccessNoSlashes \
+  CantGetFileResourceWithoutFileAccessNoSlashes
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
-                       CantGetFileResourceWithoutFileAccessNoSlashes) {
+                       MAYBE_CantGetFileResourceWithoutFileAccessNoSlashes) {
   Run(false, "file:");
 }
 
+// TODO(crbug.com/463490299): Tests time out on sanitizer bots.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
+    BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
+#define MAYBE_CantGetFileResourceWithoutFileAccessMixedCase \
+  DISABLED_CantGetFileResourceWithoutFileAccessMixedCase
+#else
+#define MAYBE_CantGetFileResourceWithoutFileAccessMixedCase \
+  CantGetFileResourceWithoutFileAccessMixedCase
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
-                       CantGetFileResourceWithoutFileAccessMixedCase) {
+                       MAYBE_CantGetFileResourceWithoutFileAccessMixedCase) {
   Run(false, "fILe:");
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -3018,9 +3050,15 @@ class MockWebUIProvider
 
   std::unique_ptr<content::WebUIController> NewWebUI(content::WebUI* web_ui,
                                                      const GURL& url) override {
-    content::URLDataSource::Add(
-        Profile::FromWebUI(web_ui),
-        std::make_unique<StaticURLDataSource>(source_, content_));
+    auto* profile = Profile::FromWebUI(web_ui);
+    // Use the initial value of |source_| as a flag to ensure the data source is
+    // only added once.
+    if (source_ == "dummyurl") {
+      content::URLDataSource::Add(profile,
+                                  std::make_unique<StaticURLDataSource>(
+                                      std::string(url.host()), content_));
+      source_ = "added";  // Update state to prevent re-addition.
+    }
     return std::make_unique<content::WebUIController>(web_ui);
   }
 
@@ -3032,9 +3070,7 @@ class MockWebUIProvider
 // This tests checks that window is correctly initialized when DevTools is
 // opened while navigation through history with forward and back actions.
 // (crbug.com/627407)
-// TODO(crbug.com/40267320): Deflake and re-enable this test.
-IN_PROC_BROWSER_TEST_F(DevToolsTest,
-                       DISABLED_TestWindowInitializedOnNavigateBack) {
+IN_PROC_BROWSER_TEST_F(DevToolsTest, TestWindowInitializedOnNavigateBack) {
   TestChromeWebUIControllerFactory test_factory;
   content::ScopedWebUIControllerFactoryRegistration factory_registration(
       &test_factory);
@@ -3053,7 +3089,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest,
   chrome::DuplicateTab(browser());
   chrome::SelectPreviousTab(browser());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  content::TestNavigationObserver back_navigation_observer(GetInspectedTab());
   chrome::GoBack(browser(), WindowOpenDisposition::CURRENT_TAB);
+  back_navigation_observer.Wait();
   RunTestFunction(window, "testWindowInitializedOnNavigateBack");
 
   DevToolsWindowTesting::CloseDevToolsWindowSync(window);
@@ -3371,6 +3409,7 @@ class DevToolsPolicyTest : public InProcessBrowserTest {
     policy::BrowserPolicyConnector::SetPolicyProviderForTesting(&provider_);
   }
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
+
  private:
   // TODO(https://crbug.com/423465927): Explore a better approach to make the
   // existing tests run with the prewarm feature enabled.

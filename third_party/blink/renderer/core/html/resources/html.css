@@ -2276,6 +2276,20 @@ select::-internal-select-autofill-preview-text {
   }
 }
 
+/* These style rules control whether the select's MenuListInnerElement or
+ * author provided <button> are rendered. Only one should be rendered at a
+ * time, and is based on whether the author provided a <button> and whether
+ * appearance:base-select is set. */
+select:not(:-internal-select-has-slotted-button)::-internal-select-button-slot {
+  display: none;
+}
+select:-internal-select-has-slotted-button::-internal-select-inner-element {
+  display: -internal-auto-base(block, none);
+}
+select:-internal-select-has-slotted-button::-internal-select-button-slot {
+  display: -internal-auto-base(none, contents);
+}
+
 /* These style rules switch whether <option> elements render their label text
  * via ::-internal-option-label-container or all of their children via a
  * <slot> called ::-internal-option-slot. Using the <slot> for rendering is
@@ -2380,6 +2394,15 @@ select::-internal-select-autofill-preview-text {
     padding-inline: 0;
   }
 
+  /* TODO(https://crbug.com/406566432): Should this be a descendant combinator
+   * instead? */
+  menulist > hr {
+    color: inherit;
+    margin-inline: 0;
+    border: none;
+    border-block-start: 1px solid currentColor;
+  }
+
   menuitem::checkmark {
     content: '\2713';
   }
@@ -2387,9 +2410,6 @@ select::-internal-select-autofill-preview-text {
   menuitem:not(:checked)::checkmark {
     visibility: hidden;
   }
-
-  /* TODO(https://crbug.com/406566432): Add `menulist > hr` styles for
-   * separating items and fieldsets into functional groups. */
 
   /* We can use the direct child selector for menuitems in menubars, because the
    * menubar content model does not allow for fieldset as an intermediate to

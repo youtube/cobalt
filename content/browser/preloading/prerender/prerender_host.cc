@@ -100,10 +100,17 @@ base::flat_map<PrerenderHostId, FrameTreeNodeId>& GetPrerenderHostIdMap() {
 // RenderProcessHost as the 1st SiteInstance is what makes it important to
 // carefully choose the RenderProcessHost for the 1st SiteInstance.
 BASE_FEATURE(kCreatePrerenderSiteInstanceWithURL,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             // TODO(crbug.com/444530329): Fix incompatibility with the
+             // Android-only `kProcessReuseOnPrerenderCOOPSwap` feature.
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
-base::OnceCallback<void(FrameTreeNodeId)>& GetHostCreationCallback() {
-  static base::NoDestructor<base::OnceCallback<void(FrameTreeNodeId)>>
+base::OnceCallback<void(PrerenderHostId)>& GetHostCreationCallback() {
+  static base::NoDestructor<base::OnceCallback<void(PrerenderHostId)>>
       host_creation_callback;
   return *host_creation_callback;
 }
@@ -228,6 +235,11 @@ bool PrerenderHost::PrerenderFrameTreeDelegate::
         RenderFrameProxyHost* render_frame_proxy_host,
         blink::mojom::FrameVisibility visibility) {
   return false;
+}
+
+PrerenderHostId
+PrerenderHost::PrerenderFrameTreeDelegate::GetPrerenderHostId() {
+  return prerender_host_->prerender_host_id();
 }
 
 void PrerenderHost::PrerenderFrameTreeDelegate::
@@ -424,7 +436,7 @@ bool PrerenderHost::AreHttpRequestHeadersCompatible(
 
 // static
 void PrerenderHost::SetHostCreationCallbackForTesting(
-    base::OnceCallback<void(FrameTreeNodeId host_id)> callback) {
+    base::OnceCallback<void(PrerenderHostId host_id)> callback) {
   GetHostCreationCallback() = std::move(callback);
 }
 
@@ -500,7 +512,7 @@ PrerenderHost::PrerenderHost(
 
   if (GetHostCreationCallback()) {
     CHECK_IS_TEST();
-    std::move(GetHostCreationCallback()).Run(frame_tree_node_id_);
+    std::move(GetHostCreationCallback()).Run(prerender_host_id_);
   }
 }
 
@@ -1607,7 +1619,7 @@ void PrerenderHost::Cancel(PrerenderFinalStatus status) {
   PrerenderHostRegistry* registry =
       host->delegate()->GetPrerenderHostRegistry();
   CHECK(registry);
-  registry->CancelHost(frame_tree_node_id_, status);
+  registry->CancelHost(prerender_host_id_, status);
 }
 
 void PrerenderHost::MaybeSetNoVarySearch(
@@ -1862,12 +1874,6 @@ void PrerenderHost::AddAdditionalRequestHeaders(
       !GetInitialNavigationId().has_value() && tags.has_value()) {
     headers.SetHeader(blink::kSecSpeculationTagsHeaderName,
                       tags->ConvertStringToHeaderString().value());
-  }
-}
-
-void PrerenderHost::NotifyReused() {
-  for (auto& observer : observers_) {
-    observer.OnHostReused();
   }
 }
 

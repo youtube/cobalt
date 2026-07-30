@@ -348,7 +348,7 @@ void PopulateTrustedIconsFromDownloadedBitmapsAndMetadata(
   SizeToBitmap sizes_to_icons = ConstrainBitmapsToSizes(
       square_icons_matching_infos, web_app::SizesToGenerate());
   for (auto& [size, icon] : sizes_to_icons) {
-    if (!base::Contains(output_size_to_bitmaps, size)) {
+    if (!output_size_to_bitmaps.contains(size)) {
       output_size_to_bitmaps[size] = std::move(icon);
     }
   }
@@ -466,13 +466,13 @@ void PopulateProductIcons(WebAppInstallInfo* web_app_info,
 
   // Retain any bitmaps provided as input to the installation.
   for (auto& icon : square_icons_maskable) {
-    if (!base::Contains(web_app_info->icon_bitmaps.maskable, icon.width())) {
+    if (!web_app_info->icon_bitmaps.maskable.contains(icon.width())) {
       web_app_info->icon_bitmaps.maskable[icon.width()] = std::move(icon);
     }
   }
 
   for (auto& icon : square_icons_monochrome) {
-    if (!base::Contains(web_app_info->icon_bitmaps.monochrome, icon.width())) {
+    if (!web_app_info->icon_bitmaps.monochrome.contains(icon.width())) {
       web_app_info->icon_bitmaps.monochrome[icon.width()] = std::move(icon);
     }
   }
@@ -732,7 +732,7 @@ void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
 
   web_app.SetBorderlessUrlPatterns(web_app_info.borderless_url_patterns);
 
-  web_app.SetDescription(base::UTF16ToUTF8(web_app_info.description));
+  web_app.SetDescription(base::UTF16ToUTF8(web_app_info.description.value()));
   web_app.SetLaunchQueryParams(web_app_info.launch_query_params);
   if (web_app_info.scope.is_valid()) {
     web_app.SetScope(web_app_info.scope);

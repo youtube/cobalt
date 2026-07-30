@@ -84,8 +84,8 @@ class SupervisedUserLogRecordTest : public ::testing::Test {
             identity_test_env_.identity_manager(),
             *supervised_user_test_environment_.pref_service(),
             *host_content_settings_map_,
-            supervised_user_test_environment_.service(),
-            supervised_user_test_environment_.url_filtering_service()));
+            supervised_user_test_environment_.url_filtering_service(),
+            supervised_user_test_environment_.device_parental_controls()));
   }
 
   // Creates a regular user account (most likely, an adult) with the given email
@@ -140,19 +140,19 @@ class SupervisedUserLogRecordTest : public ::testing::Test {
             identity_test_env_.identity_manager(),
             *supervised_user_test_environment_.pref_service(),
             *host_content_settings_map_,
-            supervised_user_test_environment_.service(),
-            supervised_user_test_environment_.url_filtering_service()));
+            supervised_user_test_environment_.url_filtering_service(),
+            supervised_user_test_environment_.device_parental_controls()));
   }
 
 #if BUILDFLAG(IS_ANDROID)
   void EnableSearchContentFilters() {
-    supervised_user_test_environment_.android_parental_controls()
-        ->SetSearchContentFiltersEnabledForTesting(true);
+    supervised_user_test_environment_.device_parental_controls()
+        .SetSearchContentFiltersEnabledForTesting(true);
   }
 
   void EnableBrowserContentFilters() {
-    supervised_user_test_environment_.android_parental_controls()
-        ->SetBrowserContentFiltersEnabledForTesting(true);
+    supervised_user_test_environment_.device_parental_controls()
+        .SetBrowserContentFiltersEnabledForTesting(true);
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 

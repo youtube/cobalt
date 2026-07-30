@@ -26,6 +26,7 @@ using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 using blink::WebKeyboardEvent;
 using blink::WebMouseEvent;
+using blink::WebMouseWheelEvent;
 
 namespace {
 
@@ -249,6 +250,113 @@ TEST(WebInputEventBuilderAndroidTest, WebMouseEventCoordinates) {
   EXPECT_EQ(web_event.button, blink::WebPointerProperties::Button::kLeft);
   EXPECT_EQ(web_event.TimeStamp(), event_time);
   EXPECT_EQ(web_event.force, pressure);
+}
+
+TEST(WebInputEventBuilderAndroidTest, WebMouseWheelEventScrollDirection) {
+  constexpr int kEventTimeNs = 5'000'000;
+  const base::TimeTicks event_time =
+      base::TimeTicks() + base::Nanoseconds(kEventTimeNs);
+
+  ui::test::ScopedEventTestTickClock clock;
+  clock.SetNowTicks(event_time);
+
+  const float kPixToDip = 0.5f;
+  // Android MotionEvents with positive ticks request a scroll RIGHT (X) and
+  // DOWN (Y). While vertical scrolling is already "natural" (content moves
+  // in the direction of the scroll), horizontal scrolling matches traditional
+  // desktop behavior. To align with Android's "natural" expectations, we negate
+  // the X axis, resulting in a scroll LEFT and DOWN in the WebMouseWheelEvent.
+  const float kTicksX = 10.0f;
+  const float kTicksY = 5.0f;
+  const float kTickMultiplier = 2.0f;
+
+  ui::MotionEventAndroid::Pointer p0(0, 10.f, 20.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                     ui::MotionEventAndroid::GetAndroidToolType(
+                                         ui::MotionEvent::ToolType::MOUSE));
+
+  JNIEnv* env = AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jobject> obj =
+      JNI_MotionEvent::Java_MotionEvent_obtain(
+          env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/10.f,
+          /*y=*/20.f,
+          /*metaState=*/0);
+  JNI_MotionEvent::Java_MotionEvent_setSource(env, obj, AINPUT_SOURCE_MOUSE);
+  auto motion_event = ui::MotionEventAndroidFactory::CreateFromJava(
+      env, obj, kPixToDip, kTicksX, kTicksY, kTickMultiplier, event_time,
+      AMOTION_EVENT_ACTION_HOVER_MOVE,
+      /*pointer_count=*/1,
+      /*history_size=*/0,
+      /*action_index=*/-1,
+      /*android_action_button=*/0,
+      /*android_gesture_classification=*/0,
+      /*android_button_state=*/0,
+      /*raw_offset_x_pixels=*/0.f,
+      /*raw_offset_y_pixels=*/0.f,
+      /*for_touch_handle=*/false, &p0,
+      /*pointer1=*/nullptr);
+
+  WebMouseWheelEvent web_event =
+      input::WebMouseWheelEventBuilder::Build(*motion_event);
+
+  // For Mouse, horizontal scrolling IS negated to align with Android's
+  // "natural" expectations.
+  EXPECT_EQ(web_event.delta_x, -kTicksX * kTickMultiplier * kPixToDip);
+  EXPECT_EQ(web_event.wheel_ticks_x, -kTicksX);
+  EXPECT_EQ(web_event.delta_y, kTicksY * kTickMultiplier * kPixToDip);
+  EXPECT_EQ(web_event.wheel_ticks_y, kTicksY);
+  EXPECT_EQ(web_event.TimeStamp(), event_time);
+}
+
+TEST(WebInputEventBuilderAndroidTest,
+     WebMouseWheelEventTouchpadScrollDirection) {
+  constexpr int kEventTimeNs = 5'000'000;
+  const base::TimeTicks event_time =
+      base::TimeTicks() + base::Nanoseconds(kEventTimeNs);
+
+  ui::test::ScopedEventTestTickClock clock;
+  clock.SetNowTicks(event_time);
+
+  const float kPixToDip = 0.5f;
+  const float kTicksX = 10.0f;
+  const float kTicksY = 5.0f;
+  const float kTickMultiplier = 2.0f;
+
+  ui::MotionEventAndroid::Pointer p0(0, 10.f, 20.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+                                     ui::MotionEventAndroid::GetAndroidToolType(
+                                         ui::MotionEvent::ToolType::MOUSE));
+
+  JNIEnv* env = AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jobject> obj =
+      JNI_MotionEvent::Java_MotionEvent_obtain(
+          env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/10.f,
+          /*y=*/20.f,
+          /*metaState=*/0);
+  JNI_MotionEvent::Java_MotionEvent_setSource(env, obj, AINPUT_SOURCE_TOUCHPAD);
+  auto motion_event = ui::MotionEventAndroidFactory::CreateFromJava(
+      env, obj, kPixToDip, kTicksX, kTicksY, kTickMultiplier, event_time,
+      AMOTION_EVENT_ACTION_HOVER_MOVE,
+      /*pointer_count=*/1,
+      /*history_size=*/0,
+      /*action_index=*/-1,
+      /*android_action_button=*/0,
+      /*android_gesture_classification=*/0,
+      /*android_button_state=*/0,
+      /*raw_offset_x_pixels=*/0.f,
+      /*raw_offset_y_pixels=*/0.f,
+      /*for_touch_handle=*/false, &p0,
+      /*pointer1=*/nullptr);
+
+  WebMouseWheelEvent web_event =
+      input::WebMouseWheelEventBuilder::Build(*motion_event);
+
+  // For Touchpads, horizontal scrolling is NOT negated.
+  EXPECT_EQ(web_event.delta_x, kTicksX * kTickMultiplier * kPixToDip);
+  EXPECT_EQ(web_event.wheel_ticks_x, kTicksX);
+  EXPECT_EQ(web_event.delta_y, kTicksY * kTickMultiplier * kPixToDip);
+  EXPECT_EQ(web_event.wheel_ticks_y, kTicksY);
+  EXPECT_EQ(web_event.delta_units,
+            ui::ScrollGranularity::kScrollByPrecisePixel);
+  EXPECT_EQ(web_event.TimeStamp(), event_time);
 }
 
 // TODO(crbug.com/41353469): Add more tests for WebMouseEventBuilder

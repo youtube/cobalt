@@ -14,6 +14,7 @@
 #include "base/types/expected.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
+#include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/browser_action_util.h"
@@ -23,9 +24,10 @@
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/common/actor.mojom-data-view.h"
+#include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/sessions/core/session_id.h"
@@ -178,6 +180,8 @@ void GlicActorTaskManager::DidFinishBuildObservation(
         journal_entry) {
   CHECK(result);
 
+  actor::RecordTabObservationResultHistogram(*result);
+
   if (base::FeatureList::IsEnabled(kGlicRetryFailedObservations) &&
       !attempted_observation_retry_) {
     using optimization_guide::proto::TabObservation;
@@ -208,6 +212,9 @@ void GlicActorTaskManager::DidFinishBuildObservation(
       }
     }
   }
+
+  actor::RecordObservationOutcomeHistogram(*result,
+                                           attempted_observation_retry_);
 
   std::move(callback).Run(mojo_base::ProtoWrapper(*result));
 }
@@ -311,6 +318,22 @@ void GlicActorTaskManager::PerformActions(
                      skip_async_observation_information));
 }
 
+void GlicActorTaskManager::CancelActions(
+    actor::TaskId task_id,
+    mojom::WebClientHandler::CancelActionsCallback callback) {
+  actor::ActorTask* task = actor_keyed_service_->GetTask(task_id);
+  if (!task) {
+    std::move(callback).Run(mojom::CancelActionsResult::kTaskNotFound);
+    return;
+  }
+
+  bool success = task->CancelOngoingActions();
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback),
+                                success ? mojom::CancelActionsResult::kSuccess
+                                        : mojom::CancelActionsResult::kFailed));
+}
+
 void GlicActorTaskManager::StopActorTask(
     actor::TaskId task_id,
     mojom::ActorTaskStopReason stop_reason) {
@@ -352,6 +375,12 @@ void GlicActorTaskManager::StopActorTask(
 }
 
 void GlicActorTaskManager::MaybeShowDeactivationToastUi() {
+  // If the ui is deactivated on a tab that is not actuating, don't show the
+  // toast.
+  if (!IsActuating()) {
+    return;
+  }
+
   BrowserWindowInterface* const last_active_bwi =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   actor_keyed_service_->GetActorUiStateManager()->MaybeShowToast(

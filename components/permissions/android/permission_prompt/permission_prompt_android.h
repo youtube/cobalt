@@ -55,11 +55,12 @@ class PermissionPromptAndroid : public PermissionPrompt {
 
   virtual EmbeddedPermissionPromptFlowModel::Variant GetEmbeddedPromptVariant()
       const;
-  virtual void Closing();
+  virtual void Dismiss();
   virtual void Accept();
   virtual void AcceptThisTime();
   virtual void Acknowledge() {}
   virtual void Deny();
+  virtual void Ignore();
   virtual void Resumed() {}
   virtual void SystemSettingsShown() {}
   virtual void SystemPermissionResolved(bool accepted) {}

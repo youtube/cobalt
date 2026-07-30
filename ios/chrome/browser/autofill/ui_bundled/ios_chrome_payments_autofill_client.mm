@@ -531,7 +531,13 @@ bool IOSChromePaymentsAutofillClient::ShowTouchToFillIban(
   return false;
 }
 
-bool IOSChromePaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
+bool IOSChromePaymentsAutofillClient::ShowTouchToFillAffiliatedLoyaltyCard(
+    base::WeakPtr<TouchToFillDelegate> delegate,
+    std::vector<LoyaltyCard> loyalty_cards_to_suggest) {
+  return false;
+}
+
+bool IOSChromePaymentsAutofillClient::ShowTouchToFillForAllLoyaltyCards(
     base::WeakPtr<TouchToFillDelegate> delegate,
     std::vector<LoyaltyCard> loyalty_cards_to_suggest) {
   return false;

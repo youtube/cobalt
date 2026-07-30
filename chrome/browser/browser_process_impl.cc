@@ -99,6 +99,7 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/installer/util/google_update_settings.h"
+#include "components/activity_reporter/activity_reporter.h"
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/breadcrumbs/core/application_breadcrumbs_logger.h"
 #include "components/breadcrumbs/core/breadcrumb_persistent_storage_util.h"
@@ -129,6 +130,8 @@
 #include "components/subresource_filter/content/browser/safe_browsing_ruleset_publisher.h"
 #include "components/subresource_filter/core/browser/subresource_filter_features.h"
 #include "components/subresource_filter/core/common/constants.h"
+#include "components/supervised_user/core/browser/device_parental_controls.h"
+#include "components/supervised_user/core/browser/device_parental_controls_noop_impl.h"
 #include "components/translate/core/browser/translate_download_manager.h"
 #include "components/ukm/ukm_service.h"
 #include "components/update_client/update_query_params.h"
@@ -181,6 +184,7 @@
 #include "chrome/browser/ssl/chrome_security_state_client.h"
 #include "chrome/browser/webapps/webapps_client_android.h"
 #include "chrome/browser/webauthn/android/chrome_webauthn_client_android.h"
+#include "components/supervised_user/core/browser/android/android_parental_controls.h"
 #include "components/webauthn/android/webauthn_client_android.h"
 
 namespace chrome_browser_prefs {
@@ -201,7 +205,7 @@ void OnLocalStatePrefsLoaded();
 #include "components/gcm_driver/gcm_client_factory.h"
 #include "components/gcm_driver/gcm_desktop_utils.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 #include "chrome/browser/background/extensions/background_mode_manager.h"
@@ -301,6 +305,13 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
       active_primary_accounts_metrics_recorder_(
           std::make_unique<signin::ActivePrimaryAccountsMetricsRecorder>(
               *local_state_)),
+#if BUILDFLAG(IS_ANDROID)
+      device_parental_controls_(
+          std::make_unique<supervised_user::AndroidParentalControls>()),
+#else
+      device_parental_controls_(
+          std::make_unique<supervised_user::DeviceParentalControlsNoOpImpl>()),
+#endif
       platform_part_(std::make_unique<BrowserProcessPlatformPart>()),
       network_time_tracker_(startup_data->chrome_feature_list_creator()
                                 ->TakeNetworkTimeTracker()) {
@@ -330,6 +341,10 @@ const ui::UnownedUserDataHost& BrowserProcessImpl::GetUnownedUserDataHost()
 void BrowserProcessImpl::Init() {
   features_ = GlobalFeatures::CreateGlobalFeatures();
   features_->PreBrowserProcessInit();
+
+#if BUILDFLAG(IS_ANDROID)
+  device_parental_controls_->Init();
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Forces creation of |metrics_services_manager_client_| if necessary
@@ -1070,6 +1085,12 @@ BrowserProcessImpl::background_printing_manager() {
 #endif
 }
 
+supervised_user::DeviceParentalControls&
+BrowserProcessImpl::device_parental_controls() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return *device_parental_controls_;
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 IntranetRedirectDetector* BrowserProcessImpl::intranet_redirect_detector() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1292,6 +1313,14 @@ void BrowserProcessImpl::StartAutoupdateTimer() {
                           this, &BrowserProcessImpl::OnAutoupdateTimer);
 }
 #endif
+
+activity_reporter::ActivityReporter* BrowserProcessImpl::activity_reporter() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!activity_reporter_) {
+    activity_reporter_ = activity_reporter::CreateActivityReporter();
+  }
+  return activity_reporter_.get();
+}
 
 component_updater::ComponentUpdateService*
 BrowserProcessImpl::component_updater() {

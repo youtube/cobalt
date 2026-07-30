@@ -135,8 +135,6 @@ class CONTENT_EXPORT WebContentsViewAura
   FRIEND_TEST_ALL_PREFIXES(WebContentsViewAuraTest, DragDropVirtualFiles);
   FRIEND_TEST_ALL_PREFIXES(WebContentsViewAuraTest,
                            DragDropVirtualFilesOriginateFromRenderer);
-  FRIEND_TEST_ALL_PREFIXES(WebContentsViewAuraTest,
-                           DragDropVirtualFileGetsNonEmptyContents);
   FRIEND_TEST_ALL_PREFIXES(WebContentsViewAuraTest, DragDropUrlData);
   FRIEND_TEST_ALL_PREFIXES(WebContentsViewAuraTest, DragDropOnOopif);
   FRIEND_TEST_ALL_PREFIXES(WebContentsViewAuraTest,
@@ -416,6 +414,10 @@ class CONTENT_EXPORT WebContentsViewAura
   // class. It means it gets true when drag enters and gets reset when either
   // drop happens or drag exits.
   bool drag_in_progress_;
+
+  // Used to determine which enum value to fire for the "Event.DragDrop.Surface"
+  // histogram.
+  bool dropped_in_this_web_contents_ = false;
 
   bool init_rwhv_with_null_parent_for_testing_;
 

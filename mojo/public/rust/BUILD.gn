@@ -12,6 +12,7 @@ group("all") {
   deps = [
     ":mojo_c_system_bindings",
     ":rust_mojo_tests",
+    "bindings:mojo_rust_bindings_api",
     "mojom_parser",
     "sequences",
   ]
@@ -33,9 +34,10 @@ rust_static_library("mojo_rust_system_api") {
   sources = [
     "system/data_pipe.rs",
     "system/lib.rs",
+    "system/message_pipe.rs",
     "system/mojo_types.rs",
     "system/raw_trap.rs",
-    "system/safe_trap.rs",
+    "system/trap.rs",
   ]
   allow_unsafe = true
   deps = [

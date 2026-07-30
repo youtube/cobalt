@@ -119,6 +119,10 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   bool TryToShowTouchToFill(const FormData& form,
                             const FormFieldData& field) override;
 
+  // Shows the TTF surface displaying the full list of loyalty cards.
+  bool ShowTouchToFillForAllLoyaltyCards(const FormData& form,
+                                         const FormFieldData& field) override;
+
   // Returns whether the TTF surface is currently being shown.
   bool IsShowingTouchToFill() override;
 
@@ -130,6 +134,7 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
 
   // TouchToFillDelegate:
   bool ShouldShowScanCreditCard() override;
+  bool ShouldShowGPayLogo() const override;
   void ScanCreditCard() override;
   void OnCreditCardScanned(const CreditCard& card) override;
   void ShowPaymentMethodSettings() override;
@@ -216,9 +221,9 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   DryRunResult DryRunForCreditCard(const AutofillField& field,
                                    const FormStructure& form);
 
-  // Returns a DryRunResult with the user's fillable loyalty cards, or
-  // an error reason if TTF should not be triggered.
-  DryRunResult DryRunForLoyaltyCard();
+  // Returns a DryRunResult with the user's fillable affiliated loyalty cards,
+  // or an error reason if TTF should not be triggered.
+  DryRunResult DryRunForAffiliatedLoyaltyCard();
 
   // Creates a list of booleans which denotes if credit cards are acceptable by
   // the merchant. The returned list has the same size as `credit_cards`, and

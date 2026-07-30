@@ -94,15 +94,6 @@ Als je dit beleid niet toepast, is de functie voor autocorrectie op het fysieke 
 
       Als dit beleid is ingesteld, wordt het inlogscherm altijd weergegeven in de taal die is aangegeven door de eerste waarde van dit beleid (het beleid wordt gedefinieerd als een lijst voor voorwaartse compatibiliteit). Als dit beleid niet is ingesteld of is ingesteld op een lege lijst, wordt het inlogscherm weergegeven in de taal van de laatste gebruikerssessie. Als dit beleid is ingesteld op een waarde die geen geldige taal is, wordt het inlogscherm weergegeven in een reservetaal (momenteel en-US).</translation>
 <translation id="1050158007881386475">Rapportage van moederbordstatus van apparaat uitzetten</translation>
-<translation id="1050897390688148222">Met Lensoverlay kunnen gebruikers contextuele Google-zoekopdrachten uitvoeren via een screenshot of door een vraag te stellen over de content van de huidige pagina. Voor deze functie moet de eindgebruiker zich aanmelden.
-
-Deze functie is beschikbaar voor alle gebruikers die Google als standaard zoekmachine hebben, tenzij de functie is uitgezet op basis van dit beleid.
-
-Als je het beleid instelt op 0 - Toestaan of niet instelt, is de functie beschikbaar voor gebruikers.
-
-Als je het beleid instelt op 1 - Niet toestaan, is de functie niet beschikbaar.
-
-Als je het beleid niet instelt, wordt het gedrag vanaf <ph name="PRODUCT_NAME" /> 140 bepaald door het beleid <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="1052499923181221200">Dit beleid heeft geen effect, tenzij SamlInSessionPasswordChangeEnabled is ingesteld op true.
       Als dat beleid is ingesteld op true en dit beleid bijvoorbeeld is ingesteld op 14, ontvangen SAML-gebruikers 14 dagen van tevoren een melding dat hun wachtwoord op een bepaalde datum verloopt.
       Ze kunnen dit direct oplossen door tijdens een sessie het wachtwoord te wijzigen voordat het verloopt.
@@ -411,6 +402,17 @@ Voor meer informatie over een beveiligde context ga je naar https://www.w3.org/T
 <translation id="1305400589435476516">Als je het beleid toepast, is dataroaming toegestaan voor het apparaat.
 
       Als je het beleid niet toepast of niet instelt, is dataroaming niet beschikbaar.</translation>
+<translation id="1308102257035078529">URL-patronen worden vergeleken met de URL van de pagina die wordt geïnspecteerd. Als er een overeenkomst wordt gevonden, worden de <ph name="CHROME_DEVTOOLS_NAME" /> geblokkeerd. Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor informatie over de URL-indeling.
+
+Als je het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> instelt en dit beleid niet, wordt elke URL die niet op de toelatingslijst staat, geblokkeerd.
+
+Als je dit beleid en het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> beide instelt, heeft de toelatingslijst voorrang. Als een URL overeenkomt met een patroon op de toelatingslijst, wordt deze toegestaan. Als een URL overeenkomt met een patroon op deze blokkeerlijst (maar niet op de toelatingslijst), wordt deze geblokkeerd. Als een URL met geen van beide overeenkomt, wordt het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> gebruikt als reserve.
+
+Als je geen van beide beleidsregels instelt, wordt de beschikbaarheid bepaald door het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Dit beleid is ook van toepassing op <ph name="CHROME_DEVTOOLS_NAME" /> die worden geopend voor extensies en web-apps.
+
+Dit beleid is beperkt tot 1000 items.</translation>
 <translation id="1309259005392595570">Post-quantum sleutelovereenkomst van TLS uitzetten</translation>
 <translation id="1309465583050255779">Als <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> is aangezet en je <ph name="DEFAULT_SEARCH_PROVIDER_NAME_POLICY_NAME" /> instelt, wordt de naam van de standaard zoekprovider gespecificeerd.
 
@@ -725,35 +727,6 @@ Dit beleid is beëindigd vanaf <ph name="PRODUCT_NAME" /> versie 144 met de beë
 <translation id="1542491165152947087">Sta gebruikers toe de <ph name="PRIVACY_SANDBOX_NAME" />-instelling voor advertentieonderwerpen op hun apparaat aan of uit te zetten.</translation>
 <translation id="1542958897137600427">Registratie van clientcertificaten aanzetten</translation>
 <translation id="1548431234399786388">Beheert de instellingen voor Rapportage over browsergebeurtenissen.</translation>
-<translation id="155018731031610976">Dit beleid biedt een manier om de lijst met sets te overschrijven die de browser gebruikt voor first-party sets-functies.
-
-Elke set in de lijst met first-party sets van de browser moet voldoen aan de vereisten van een first-party set.
-Een first-party set moet een primaire site en een of meer lidsites bevatten.
-Een set kan ook een lijst bevatten van servicesites waarvan de set de eigenaar is, evenals een routebeschrijving van een site naar alle ccTLD-varianten.
-Ga naar https://github.com/WICG/first-party-sets voor meer informatie over hoe <ph name="PRODUCT_NAME" /> first-party sets gebruikt.
-
-Alle sites in een first-party set moeten een registreerbaar domein zijn dat via HTTPS wordt gehost. Elke site in een first-party set moet ook uniek zijn. Dit betekent dat een site niet meer dan één keer kan worden vermeld in een first-party set.
-
-Als dit beleid een leeg woordenboek krijgt, gebruikt de browser de openbare lijst met first-party sets.
-
-Voor alle sites in een first-party set uit de lijst <ph name="REPLACEMENTS" /> geldt dat als een site ook aanwezig is in een first-party set in de lijst van de browser, die site wordt verwijderd uit de first-party set van de browser.
-Daarna wordt de first-party set van het beleid toegevoegd aan de lijst met first-party sets van de browser.
-
-Voor alle sites in een first-party set uit de lijst <ph name="ADDITIONS" /> geldt dat als een site ook aanwezig is in een first-party set in de lijst van de browser, de first-party set van de browser wordt geüpdatet zodat de nieuwe first-party set kan worden toegevoegd aan de lijst van de browser. Nadat de lijst van de browser is geüpdatet, wordt de first-party set van het beleid toegevoegd aan de lijst met first-party sets van de browser.
-
-De lijst met first-party sets van de browser vereist dat voor alle sites op de lijst geen site in meer dan één set is opgenomen. Dit is ook vereist voor zowel de lijst <ph name="REPLACEMENTS" /> als de lijst <ph name="ADDITIONS" />. Een site kan ook niet in zowel de lijst <ph name="REPLACEMENTS" /> als de lijst <ph name="ADDITIONS" /> staan.
-
-Jokertekens (*) worden zowel in first-party sets als in deze lijsten niet ondersteund als beleidswaarde.
-
-Alle sets die in dit beleid worden vermeld, moeten geldige first-party sets zijn. Zo niet, dan krijg je de relevante foutmelding.
-
-In <ph name="MS_WIN_NAME" /> is dit beleid alleen beschikbaar voor instanties die zijn gekoppeld aan een <ph name="MS_AD_NAME" />-domein of aan <ph name="MS_AAD_NAME" />, of die zijn ingeschreven voor <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-In <ph name="MAC_OS_NAME" /> is dit beleid alleen beschikbaar voor instanties die via MDM worden beheerd, via een MCX aan een domein zijn gekoppeld of zijn ingeschreven voor <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Dit is het equivalent van het beleid <ph name="RELATED_WEBSITE_SETS_OVERRIDES_POLICY_NAME" />.
-Beide beleidsregels kunnen worden gebruikt, maar dit beleid wordt binnenkort beëindigd. Daarom heeft het beleid <ph name="RELATED_WEBSITE_SETS_OVERRIDES_POLICY_NAME" /> de voorkeur.
-Ze hebben beide hetzelfde effect op het gedrag van de browser.</translation>
 <translation id="1550295162561011575">Als je dit beleid instelt, kunnen beheerders automatisering instellen om apps te starten op <ph name="PRODUCT_NAME" />-apparaten. Deze apps kunnen worden gestart nadat de gebruiker is ingelogd of kunnen gelijktijdig door de gebruiker worden gestart vanuit de launcher.</translation>
 <translation id="1551782388466447648">Het virtuele aanraaktoetsenbord aanzetten op het inlogscherm</translation>
 <translation id="1552418937045050762">Als deze instelling aanstaat, kunnen gebruikers zich aanmelden voor Dichtbij delen. Daarmee kunnen ze bestanden sturen naar en ontvangen van mensen in de buurt.
@@ -1006,6 +979,17 @@ Als je het beleid <ph name="CLOUD_PROFILE_REPORTING_ENABLED_POLICY_NAME" /> niet
 
       Als dit beleid niet is ingesteld, mislukt de installatie van <ph name="PLUGIN_VM_NAME" /> als de beschikbare vrije opslagruimte op het apparaat minder is dan 20 GB (standaardwaarde).
       Als dit beleid is ingesteld, mislukt de installatie van <ph name="PLUGIN_VM_NAME" /> als de beschikbare vrije opslagruimte op het apparaat minder is dan de waarde die wordt vereist door het beleid.</translation>
+<translation id="1682893353675650337">Met Lensoverlay kunnen gebruikers contextuele Google-zoekopdrachten uitvoeren via een screenshot of door een vraag te stellen over de content van de huidige pagina. Voor deze functie moet de eindgebruiker zich aanmelden.
+
+Deze functie is beschikbaar voor alle gebruikers die Google als standaard zoekmachine hebben, tenzij de functie is uitgezet op basis van dit beleid.
+
+Als je het beleid instelt op 0 - Toestaan of niet instelt, is de functie beschikbaar voor gebruikers.
+
+Als je het beleid instelt op 1 - Niet toestaan, is de functie niet beschikbaar.
+
+Als je het beleid niet instelt, wordt het gedrag vanaf <ph name="PRODUCT_NAME" /> 140 bepaald door het beleid <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Vanaf <ph name="PRODUCT_NAME" /> 147 wordt dit beleid beëindigd. IT-beheerders kunnen <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> gebruiken om deze functie in de toekomst te beheren.</translation>
 <translation id="1686952487081322272">Snelle antwoorden uitzetten</translation>
 <translation id="1690383938831887552">Niet toestaan dat Signed HTTP Exchanges worden geladen</translation>
 <translation id="1692325295652827195">Als je het beleid instelt op True, worden rapporten over belangrijke, op basis van beleid geactiveerde installatiegebeurtenissen voor Android-apps naar Google gestuurd.
@@ -1674,6 +1658,21 @@ Dit beleid is een tijdelijke maatregel en wordt verwijderd na <ph name="PRODUCT_
 <translation id="2180958780733364832">Gebruik van de stand zonder interface beheer</translation>
 <translation id="2182291258410176649">De gebruiker beslist of back-up maken en terugzetten moet worden aangezet</translation>
 <translation id="2183338188392346527">Runtime-tellers voor apparaat niet rapporteren</translation>
+<translation id="2183838844225082873">Als je het beleid instelt op 0 (standaardinstelling), heb je toegang tot de tools voor ontwikkelaars en de JavaScript-console, maar niet in de context van extensies die via het organisatiebeleid zijn geïnstalleerd of, sinds versie 114 en als dit een beheerde gebruiker is, extensies die in de browser zijn ingebouwd. Als je het beleid instelt op 1, heb je toegang tot de tools voor ontwikkelaars en de JavaScript-console in alle contexten, waaronder die van extensies die via het organisatiebeleid zijn geïnstalleerd. Als je het beleid instelt op 2, heb je geen toegang tot de tools voor ontwikkelaars en kun je website-elementen niet inspecteren.
+
+Met deze instelling worden sneltoetsen en menu- en contextmenu-opties uitgezet waarmee tools voor ontwikkelaars of de JavaScript-console kunnen worden geopend.
+
+Vanaf <ph name="PRODUCT_NAME" /> versie 99 beheert deze instelling ook de startpunten voor de functie Paginabron bekijken. Als je dit beleid instelt op 'DeveloperToolsDisallowed' (waarde 2), kunnen gebruikers de bron niet bekijken via een sneltoets of het contextmenu. Als je het bekijken van de bron helemaal wilt blokkeren, moet je ook 'view-source:*' toevoegen aan het beleid <ph name="URL_BLOCKLIST_POLICY_NAME" />.
+
+Vanaf <ph name="PRODUCT_NAME" /> versie 119 bepaalt deze instelling ook of de ontwikkelaarsmodus voor geïsoleerde web-apps kan worden geactiveerd en gebruikt.
+
+Vanaf <ph name="PRODUCT_NAME" /> versie 128 bepaalt deze instelling niet de ontwikkelaarsmodus op de pagina Extensies als het beleid <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> is ingesteld.
+
+De beschikbaarheid van Tools voor ontwikkelaars wordt bepaald in deze volgorde van prioriteit:
+1. Als een URL overeenkomt met een patroon in het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, zijn Tools voor ontwikkelaars toegestaan.
+2. Als je <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> instelt en <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> niet, wordt elke URL die niet op de toelatingslijst staat, geblokkeerd.
+3. Als een URL overeenkomt met een patroon in het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, worden Tools voor ontwikkelaars geblokkeerd.
+4. Als een URL niet onder de toelatingslijst of blokkeerlijst valt, is dit beleid (<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />) de reserve.</translation>
 <translation id="2187361040843865450">Just Works-koppelingsverzoeken voor bluetooth accepteren</translation>
 <translation id="2187372280917024033">De URI-template van de gewenste DNS-over-HTTPS-resolver. Als je meerdere DNS-over-HTTPS-resolvers wilt invoeren, scheid je de overeenkomstige URI-templates met een spatie. Dit beleid lijkt sterk op <ph name="DOH_TEMPLATES_POLICY_NAME" />, dat wordt overschreven als dit is gespecificeerd.
 In tegenstelling tot het beleid <ph name="DOH_TEMPLATES_POLICY_NAME" /> ondersteunt dit beleid het invoeren van identiteitsgegevens.
@@ -2222,6 +2221,17 @@ Opmerking: Als je een veld overslaat, betekent dit dat alle waarden overeenkomen
 <translation id="2568488785376704318">Dit beleid is beëindigd. Gebruik in plaats daarvan <ph name="REMOTE_ACCESS_HOST_DOMAIN_LIST_POLICY_NAME" />.</translation>
 <translation id="2570059561924004903">Gesproken feedback uitzetten</translation>
 <translation id="2570181623957732921"><ph name="DESK_API_NAME" /> aanzetten voor een lijst met domeinen van derden</translation>
+<translation id="2571353268726025696">Dit beleid wordt aangeboden als een manier om je af te melden voor de functie First-party sets (die later is omgedoopt tot de functie <ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" />).
+
+Als je dit beleid toepast of niet instelt, staat de functie First-party sets aan.
+
+Als je dit beleid niet toepast, staat de functie First-party sets uit.
+
+Het beleid bepaalt of Chrome aan first-party sets gerelateerde integraties ondersteunt.
+
+Dit is het equivalent van het beleid <ph name="RELATED_WEBSITE_SETS_ENABLED_POLICY_NAME" />.
+Beide beleidsregels kunnen worden gebruikt en hebben hetzelfde effect op het gedrag van de browser.
+Beide beleidsregels zijn beëindigd na de beëindiging van de functie <ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" /> in <ph name="PRODUCT_NAME" /> versie 144.</translation>
 <translation id="2571821662934804440">Gebruik van functie toestaan zonder AI-modellen te verbeteren</translation>
 <translation id="2573850437942404034">Niet toestaan</translation>
 <translation id="2575198840408498393">Maken van roamingprofielen uitzetten</translation>
@@ -2977,27 +2987,6 @@ Dit beleid kan alleen worden ingesteld als cloudgebruikersbeleid.</translation>
 <translation id="3072847235228302527">De Servicevoorwaarden instellen voor een apparaat-lokaal account</translation>
 <translation id="3074032542020543133">LDS-kanaal</translation>
 <translation id="3074886258920642791">Het virtuele toetsenbord voor toegankelijkheid op het inlogscherm aanzetten</translation>
-<translation id="3077650998740742747">
-Standaardgedrag (beleid niet ingesteld)
-Als een account wordt toegevoegd in het contentgedeelte, verschijnt er een klein dialoogvenster met de vraag om een nieuw profiel te maken. Dit dialoogvenster kan worden gesloten.
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />
-Als een gebruiker voor het eerst inlogt bij een Google-service in een <ph name="PRODUCT_NAME" />-browser, verschijnt een dialoogvenster met de vraag of de gebruiker een nieuw profiel wil maken voor het werkaccount. De gebruiker kan op Annuleren klikken en worden uitgelogd, of op Doorgaan om een nieuw profiel te maken. Bestaande browsegegevens worden niet toegevoegd aan het nieuwe profiel. Het nieuwe profiel mag secundaire accounts hebben: de gebruiker kan bijvoorbeeld inloggen op een ander account in het contentgedeelte.
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT" />
-Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />, behalve dat het nieuwe profiel geen secundaire accounts mag hebben.
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" />
-Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />, behalve dat er een selectievakje wordt toegevoegd aan het dialoogvenster waarmee de gebruiker lokale browsegegevens kan bewaren.
-Als de gebruiker het selectievakje aanvinkt, worden de bestaande profielgegevens gekoppeld aan het beheerde account.
-- Alle bestaande browsegegevens zijn aanwezig in het nieuwe profiel.
-- Deze gegevens omvatten o.a. bookmarks, geschiedenis, wachtwoorden, gegevens voor automatisch invullen, geopende tabbladen, cookies, cache, webopslag en extensies.
-Als de gebruiker het selectievakje niet aanvinkt, gebeurt het volgende:
-- Het oude profiel blijft bestaan en er gaan geen gegevens verloren.
-- Er wordt een nieuw profiel gemaakt.
-
-<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT_KEEP_EXISTING_DATA" />
-Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" />, behalve dat het nieuwe profiel geen secundaire accounts mag hebben.</translation>
 <translation id="3083259245974004342">Wachtwoordbeveiliging</translation>
 <translation id="308356121098374167">WebSQL in niet-beveiligde contexten is beschikbaar.</translation>
 <translation id="3086995894968271156">De Cast-receiver instellen in <ph name="PRODUCT_NAME" />.</translation>
@@ -3978,6 +3967,8 @@ Als je het beleid instelt op 2, wordt voorkomen dat geïsoleerde web-app-oorspro
           Als je dit beleid instelt, kunnen gebruikers het niet wijzigen of overschrijven.
 
           Als dit beleid niet is ingesteld, staat dicteren in eerste instantie uit op het inlogscherm. De gebruiker kan deze functie op elk gewenst moment aanzetten.</translation>
+<translation id="3811407842708673996">Als je dit beleid toepast of niet instelt, kunnen gebruikers het menu-item voor regio doorzoeken van <ph name="GOOGLE_LENS_PRODUCT_NAME" /> in het contextmenu zien en gebruiken. Als je dit beleid niet toepast, kunnen gebruikers het menu-item voor regio doorzoeken van <ph name="GOOGLE_LENS_PRODUCT_NAME" /> niet zien in het contextmenu als regio doorzoeken voor <ph name="GOOGLE_LENS_PRODUCT_NAME" /> wordt ondersteund.
+Vanaf <ph name="PRODUCT_NAME" /> 147 wordt dit beleid beëindigd. IT-beheerders kunnen <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> gebruiken om deze functie in de toekomst te beheren.</translation>
 <translation id="3811562426301733860">Advertenties toestaan op alle sites</translation>
 <translation id="3816312845600780067">Sneltoets voor automatisch inloggen aanzetten</translation>
 <translation id="3817323252437541502">Extra beveiligingsfuncties aanzetten voor gebruikers die zijn ingeschreven voor Geavanceerde beveiliging</translation>
@@ -4276,17 +4267,6 @@ Overwegingen:
       Als je het beleid hebt toegepast, heeft 'Snelle antwoorden' toegang tot geselecteerde content.
       Als je het beleid niet hebt toegepast, heeft 'Snelle antwoorden' geen toegang tot geselecteerde content.
       Als je het beleid niet instelt, kunnen gebruikers bepalen of 'Snelle antwoorden' toegang tot geselecteerde content heeft.</translation>
-<translation id="4016523784669365747">Dit beleid wordt aangeboden als een manier om je af te melden voor de functie First-party sets.
-
-Als je dit beleid toepast of niet instelt, staat de functie First-party sets aan.
-
-Als je dit beleid niet toepast, staat de functie First-party sets uit.
-
-Het beleid bepaalt of Chrome aan first-party sets gerelateerde integraties ondersteunt.
-
-Dit is het equivalent van het beleid <ph name="RELATED_WEBSITE_SETS_ENABLED_POLICY_NAME" />.
-Beide beleidsregels kunnen worden gebruikt, maar dit beleid wordt binnenkort beëindigd. Daarom heeft het beleid <ph name="RELATED_WEBSITE_SETS_ENABLED_POLICY_NAME" /> de voorkeur.
-Ze hebben beide hetzelfde effect op het gedrag van de browser.</translation>
 <translation id="4016700865356669962">Als je het beleid toepast, kunnen gebruikers templates voor bureaubladindelingen gebruiken.  Als je het beleid niet toepast of niet instelt, zijn deze templates niet beschikbaar.</translation>
 <translation id="4018536413833147396">Toestaan dat gebruikers de instelling <ph name="IP_PROTECTION_NAME" /> aan- of uitzetten op hun apparaat. De functie wordt standaard aangezet.</translation>
 <translation id="4020682745012723568">Cookies die worden overgedragen naar het profiel van de gebruiker, zijn niet toegankelijk voor Android-apps.</translation>
@@ -4806,17 +4786,6 @@ Dit is verwijderd in M112.</translation>
 <translation id="4408428864159735559">Lijst met vooraf geconfigureerde netwerkfileshares.</translation>
 <translation id="4410236409016356088">Netwerkbandbreedte beperken</translation>
 <translation id="4410361389637971319">Toestaan dat geïsoleerde web-app-oorsprongen Direct Sockets gebruiken</translation>
-<translation id="4410792459434637140">Je kunt dit beleid gebruiken om <ph name="CHROME_DEVTOOLS_NAME" /> toe te staan voor specifieke URL's.
-
-URL-patronen worden vergeleken met de URL van de pagina die wordt geïnspecteerd. Als er een overeenkomst wordt gevonden, zijn de <ph name="CHROME_DEVTOOLS_NAME" /> toegestaan. Dit geldt ook als de URL overeenkomt met het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, zelfs als het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> is ingesteld op Niet toestaan (waarde 2). Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor informatie over de URL-indeling.
-
-Als je het beleid niet instelt, heeft deze toelatingslijst geen effect. Omdat <ph name="CHROME_DEVTOOLS_NAME" /> standaard beschikbaar zijn, worden ze alleen geblokkeerd als dit is aangegeven in het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.
-
-Niet-overeenkomende URL's vallen onder het beleid voor <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
-
-Dit beleid is ook van toepassing op <ph name="CHROME_DEVTOOLS_NAME" /> die worden geopend voor extensies en web-apps.
-
-Dit beleid is beperkt tot 1000 items.</translation>
 <translation id="4411734231900934213">Het toegestane verschil tussen de klok op het apparaat van het kind en het apparaat van de ouder (in seconden).</translation>
 <translation id="441217499641439905">Google Drive in de app Bestanden van <ph name="PRODUCT_OS_NAME" /> uitzetten bij mobiele verbindingen</translation>
 <translation id="4412885120239670573">Als je het beleid toepast, wordt de interne pdf-viewer in <ph name="PRODUCT_NAME" /> uitgezet, worden pdf-bestanden als downloads behandeld en kunnen gebruikers pdf's openen met de standaard-app.
@@ -5407,6 +5376,23 @@ Als je dit beleid niet instelt, worden alle services aangezet.
 Anders worden alleen geselecteerde services aangezet.</translation>
 <translation id="4767059955897420757">Als je het beleid toepast of niet instelt, kan de promotie voor de extensie voor inloggegevensproviders aan de gebruiker worden getoond.
 Als je het beleid niet toepast, wordt de promotie voor de extensie voor inloggegevensproviders niet getoond aan de gebruiker.</translation>
+<translation id="4767618783249265266">Met dit beleid bepaal je of pagina- en bestandscontent kan worden gedeeld met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> en <ph name="GOOGLE_LENS_PRODUCT_NAME" /> via het zijvenster of de tabbladen van <ph name="PRODUCT_NAME" />.
+
+Dit beleid heeft geen invloed op <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> op het web. Het bepaalt alleen hoe gebruikers informatie met het product kunnen delen als ze <ph name="PRODUCT_NAME" /> gebruiken.
+
+0/niet ingesteld = gebruikers kunnen pagina- of bestandscontent delen met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 = gebruikers kunnen pagina- of bestandscontent niet delen met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. De startpunten voor context delen worden uitgezet of verborgen.
+
+Dit beleid wordt genegeerd als <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> niet de standaard zoekmachine van gebruikers is, omdat de functie dan uitstaat.
+
+Dit beleid is onafhankelijk van het beleid <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. Het beleid <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> bepaalt alleen startpunten in de omnibox of het zoekvak op de pagina Nieuw tabblad, terwijl dit beleid context delen via het zijvenster of tabbladen beheert.
+
+Dit beleid beheert ook niet de integratie van <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />. Deze kan worden uitgezet door <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Als je dit beleid niet instelt, wordt het gedrag bepaald door het beleid <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Ga naar https://support.google.com/chrome/a?p=generative_ai_settings voor meer informatie over gegevensverwerking voor generatieve AI-functies.</translation>
 <translation id="4768446404233019970">3DES cipher suites aanzetten in TLS</translation>
 <translation id="4770334626033858263">De configuratie die is gebruikt om de toegangscode voor ouders te genereren en te verifiëren.</translation>
 <translation id="4773997835955617342">Hiermee wordt de voorgestelde <ph name="KRB5_CONFIG" />-configuratie voor de nieuwe handmatig gemaakte tickets gewijzigd.
@@ -6427,25 +6413,6 @@ Als je het beleid instelt op Onwaar, hebben ze geen toegang tot de functie.</tra
 <translation id="5433139124622290129">Hiermee geef je een lijst met SaaS-domeinen aan waarover wordt gerapporteerd voor de beheerde browser</translation>
 <translation id="5433865420958136693">Grafische versnelling gebruiken indien beschikbaar</translation>
 <translation id="5435888298115339571">Delen van bureaublad aanzetten in de omnibox en het menu met 3 stippen</translation>
-<translation id="5435967860403961472">Hiermee bepaal je of extensies die zijn verwijderd wegens schendingen van het beleid tegen malware nog steeds kunnen worden afgedwongen in omgevingen met een laag vertrouwen.
-
-Hier vind je meer informatie over schendingen die geen malware zijn en over verwijderingen: https://developer.chrome.com/docs/webstore/review-process#warning
-
-Nadat de schending die geen malware is, is opgelost, blijft de extensie aanstaan en kan deze niet worden uitgezet of verwijderd.
-
-In <ph name="MS_WIN_NAME" /> is dit beleid niet beschikbaar voor instanties die zijn gekoppeld aan een <ph name="MS_AD_NAME" />-domein, zijn gekoppeld aan <ph name="MS_AAD_NAME" /> of zijn ingeschreven voor <ph name="CHROME_BROWSER_CLOUD_MANAGEMENT_NAME" />.
-
-In <ph name="MAC_OS_NAME" /> is dit beleid niet beschikbaar voor instanties die worden beheerd via MDM, via MCX aan een domein zijn gekoppeld of zijn ingeschreven voor <ph name="CHROME_BROWSER_CLOUD_MANAGEMENT_NAME" />.
-
-Afgedwongen geïnstalleerde extensies met schendingen die geen malware zijn, blijven in deze gevallen aanstaan.
-
-Op dit moment blijft een afgedwongen geïnstalleerde extensie met schendingen die geen malware zijn, geïnstalleerd en aangezet in Chrome.
-
-Als je het beleid toepast, blijven geforceerd geïnstalleerde extensies hetzelfde gedrag vertonen (dat wil zeggen: aanblijven) ongeacht schendingen die geen malware zijn.
-
-Als je het beleid niet toepast of niet instelt, worden geforceerd geïnstalleerde extensies met schendingen die geen malware zijn, uitgezet.
-
-Dit beleid is beschikbaar voor 3 mijlpalen.</translation>
 <translation id="5441508088704391614">Geen speciale beperkingen. Standaard.</translation>
 <translation id="5442026853063570579">Met dit beleid wordt ook de toegang tot de ontwikkelaarsopties van Android beheerd. Als je dit beleid instelt op 'DeveloperToolsDisallowed' (waarde 2), hebben gebruikers geen toegang tot ontwikkelaarsopties. Als je dit beleid instelt op een andere waarde of niet instelt, hebben gebruikers toegang tot ontwikkelaarsopties door zeven keer op het buildnummer te tikken in de app Instellingen van Android.</translation>
 <translation id="5443582909255996887">Als je dit beleid toepast, worden alle sites op Android geïsoleerd, zodat elke site zijn eigen proces uitvoert, en kunnen gebruikers kunnen deze functie niet uitzetten. Een site is een schema plus eTLD+1 (bijvoorbeeld https://example.com). Android isoleert bepaalde gevoelige sites standaard vanaf versie 77 van <ph name="PRODUCT_NAME" />. Dit beleid breidt die standaard site-isolatiemodus uit naar alle sites.
@@ -7302,6 +7269,8 @@ Als je dit beleid instelt op <ph name="DISPLAY_MANAGEMENT_LABEL_TRANSIENT_VALUE"
 
       ECH is een protocol dat nog in ontwikkeling is, dus de implementatie van <ph name="PRODUCT_NAME" /> kan veranderen. Dit beleid is daarom een tijdelijke maatregel om de eerste experimentele implementatie te beheren. Het wordt vervangen door definitieve beheeropties zodra het protocol is afgerond.</translation>
 <translation id="5939873071468124100">Beperkt accounts die de <ph name="MICROSOFT_ONE_DRIVE_NAME" />-integratie kunnen gebruiken</translation>
+<translation id="594085996886561267">Als je dit beleid toepast of niet instelt, kunnen gebruikers de <ph name="GOOGLE_LENS_PRODUCT_NAME" />-knop zien en gebruiken in het zoekvak op de pagina Nieuw tabblad. Als je dit beleid niet toepast, zien gebruikers de <ph name="GOOGLE_LENS_PRODUCT_NAME" />-knop niet in het zoekvak op de pagina Nieuw tabblad.
+Vanaf <ph name="PRODUCT_NAME" /> 147 wordt dit beleid beëindigd. IT-beheerders kunnen <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> gebruiken om deze functie in de toekomst te beheren.</translation>
 <translation id="5945312246863177268">Staat niet toe dat gebruikers op een Telefoonhub-melding klikken om de Eche-app te starten.</translation>
 <translation id="5946082169633555022">Bètakanaal</translation>
 <translation id="5946329690214660966">Custom planning instellen om te controleren op updates</translation>
@@ -7313,17 +7282,6 @@ Als je dit beleid instelt op <ph name="DISPLAY_MANAGEMENT_LABEL_TRANSIENT_VALUE"
 <translation id="5958746038080720143">WPAD-optimalisaties (Web Proxy Auto-Discovery) aanzetten</translation>
 <translation id="5961137303188584693">MAC-adres van ingebouwde NIC van apparaat</translation>
 <translation id="5962271004971310788">Extensies die de gebruiker in de incognitomodus moet toestaan om te kunnen navigeren in de incognitomodus</translation>
-<translation id="5962401339101255719">Als je het beleid instelt op 0 (standaardinstelling), heb je toegang tot de tools voor ontwikkelaars en de JavaScript-console, maar niet in de context van extensies die via het organisatiebeleid zijn geïnstalleerd of, sinds versie 114 en als dit een beheerde gebruiker is, extensies die in de browser zijn ingebouwd. Als je het beleid instelt op 1, heb je toegang tot de tools voor ontwikkelaars en de JavaScript-console in alle contexten, waaronder die van extensies die via het organisatiebeleid zijn geïnstalleerd. Als je het beleid instelt op 2, heb je geen toegang tot de tools voor ontwikkelaars en kun je website-elementen niet inspecteren.
-
-Met deze instelling worden sneltoetsen en menu- en contextmenu-opties uitgezet waarmee tools voor ontwikkelaars of de JavaScript-console kunnen worden geopend.
-
-Vanaf <ph name="PRODUCT_NAME" /> versie 99 beheert deze instelling ook de startpunten voor de functie Paginabron bekijken. Als je dit beleid instelt op 'DeveloperToolsDisallowed' (waarde 2), kunnen gebruikers de bron niet bekijken via een sneltoets of het contextmenu. Als je het bekijken van de bron helemaal wilt blokkeren, moet je ook 'view-source:*' toevoegen aan het beleid <ph name="URL_BLOCKLIST_POLICY_NAME" />.
-
-Vanaf <ph name="PRODUCT_NAME" /> versie 119 bepaalt deze instelling ook of de ontwikkelaarsmodus voor geïsoleerde web-apps kan worden geactiveerd en gebruikt.
-
-Vanaf <ph name="PRODUCT_NAME" /> versie 128 bepaalt deze instelling niet de ontwikkelaarsmodus op de pagina Extensies als het beleid <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> is ingesteld.
-
-Als je de toegang tot Ontwikkelaarstools wilt beperken op basis van de pagina-URL, gebruik je het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> en <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="5963752574792883406">poort 990 (blokkering kan worden opgeheven tot 01-02-2022)</translation>
 <translation id="596523880465577341">Dit beleid is beëindigd en wordt niet ondersteund. Gebruik in plaats daarvan het beleid <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="5966615072639944554">Extensies die toestemming hebben de API voor externe bevestiging te gebruiken</translation>
@@ -7370,7 +7328,6 @@ Als je de toegang tot Ontwikkelaarstools wilt beperken op basis van de pagina-UR
 <translation id="6011969832398368671">Sites toestaan om gebruikers schrijftoegang te vragen tot bestanden en directory's</translation>
 <translation id="601234435141599215">Poortdoorschakeling naar virtuele Linux-machines toestaan</translation>
 <translation id="6012952794649558174">Standaardgedrag van browser gebruiken.</translation>
-<translation id="6013875085491664033">Content delen met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />-integraties aanzetten</translation>
 <translation id="6015281292796053435">Met dit beleid wordt bepaald of informatie over Safe Browsing moet worden gerapporteerd, waaronder het aantal Safe Browsing-waarschuwingen en het aantal doorklikken van Safe Browsing-waarschuwingen.
 
       Als het beleid <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> niet is ingesteld of niet is toegepast, wordt dit beleid genegeerd.
@@ -7464,6 +7421,35 @@ OPMERKING: Wijzigingen in dit beleid worden alleen weergegeven in onlangs gestar
 <translation id="6083631234867522991">Windows (Windows-clients):</translation>
 <translation id="6087413944876892918">Het algoritme <ph name="HAPPY_EYEBALLS_V3" /> gebruiken</translation>
 <translation id="608788685013546076">Drempel voor stroompiekverschuiving van batterij instellen in procenten</translation>
+<translation id="6089118101413877627">Dit beleid biedt een manier om de lijst met sets te overschrijven die de browser gebruikt voor first-party sets-functies (die later is omgedoopt tot de functie <ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" />).
+
+Elke set in de lijst met first-party sets van de browser moet voldoen aan de vereisten van een first-party set.
+Een first-party set moet een primaire site en een of meer lidsites bevatten.
+Een set kan ook een lijst bevatten van servicesites waarvan de set de eigenaar is, evenals een routebeschrijving van een site naar alle ccTLD-varianten.
+Ga naar https://github.com/WICG/first-party-sets voor meer informatie over hoe <ph name="PRODUCT_NAME" /> first-party sets gebruikt.
+
+Alle sites in een first-party set moeten een registreerbaar domein zijn dat via HTTPS wordt gehost. Elke site in een first-party set moet ook uniek zijn. Dit betekent dat een site niet meer dan één keer kan worden vermeld in een first-party set.
+
+Als dit beleid een leeg woordenboek krijgt, gebruikt de browser de openbare lijst met first-party sets.
+
+Voor alle sites in een first-party set uit de lijst <ph name="REPLACEMENTS" /> geldt dat als een site ook aanwezig is in een first-party set in de lijst van de browser, die site wordt verwijderd uit de first-party set van de browser.
+Daarna wordt de first-party set van het beleid toegevoegd aan de lijst met first-party sets van de browser.
+
+Voor alle sites in een first-party set uit de lijst <ph name="ADDITIONS" /> geldt dat als een site ook aanwezig is in een first-party set in de lijst van de browser, een update voor de first-party set van de browser wordt doorgevoerd zodat de nieuwe first-party set kan worden toegevoegd aan de lijst van de browser. Nadat een update voor de lijst van de browser is doorgevoerd, wordt de first-party set van het beleid toegevoegd aan de lijst met first-party sets van de browser.
+
+De lijst met first-party sets van de browser vereist dat voor alle sites op de lijst geen site in meer dan één set is opgenomen. Dit is ook vereist voor zowel de lijst <ph name="REPLACEMENTS" /> als de lijst <ph name="ADDITIONS" />. Een site kan ook niet in zowel de lijst <ph name="REPLACEMENTS" /> als de lijst <ph name="ADDITIONS" /> staan.
+
+Jokertekens (*) worden zowel in first-party sets als in deze lijsten niet ondersteund als beleidswaarde.
+
+Alle sets die in dit beleid worden vermeld, moeten geldige first-party sets zijn. Zo niet, dan krijg je de relevante foutmelding.
+
+In <ph name="MS_WIN_NAME" /> is dit beleid alleen beschikbaar voor instanties die zijn gekoppeld aan een <ph name="MS_AD_NAME" />-domein of aan <ph name="MS_AAD_NAME" />, of die zijn ingeschreven voor <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+In <ph name="MAC_OS_NAME" /> is dit beleid alleen beschikbaar voor instanties die via MDM worden beheerd, via een MCX aan een domein zijn gekoppeld of zijn ingeschreven voor <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Dit is het equivalent van het beleid <ph name="RELATED_WEBSITE_SETS_OVERRIDES_POLICY_NAME" />.
+Beide beleidsregels kunnen worden gebruikt en hebben hetzelfde effect op het gedrag van de browser.
+Beide beleidsregels zijn beëindigd na de beëindiging van de functie <ph name="RELATED_WEBSITE_SETS_FEATURE_NAME" /> in <ph name="PRODUCT_NAME" /> versie 144.</translation>
 <translation id="6089679180657323464">Hiermee beheer je de instellingen voor wilco DTC.</translation>
 <translation id="6091233616732024397">Gebruikers dwingen in te loggen om de browser te gebruiken</translation>
 <translation id="6092073071805297119">Toestaan dat filters voor toegankelijkheidsprestaties worden gebruikt.</translation>
@@ -8029,15 +8015,6 @@ Als je het beleid niet toepast of niet instelt, bepaalt CNAME-lookup de canoniek
 Het afzonderlijke beleid <ph name="HTTP_ALLOWLIST_POLICY_NAME" /> kan worden gebruikt om te voorkomen dat specifieke hostnamen of hostnaampatronen door deze functie worden geüpgraded naar HTTPS.
 
 Zie ook het beleid <ph name="HTTPS_ONLY_MODE_POLICY_NAME" />.</translation>
-<translation id="6439002087726312326">URL-patronen worden vergeleken met de URL van de pagina die wordt geïnspecteerd. Als er een overeenkomst wordt gevonden, worden de <ph name="CHROME_DEVTOOLS_NAME" /> geblokkeerd. Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor informatie over de URL-indeling.
-
-Het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> krijgt voorrang op <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.
-
-Niet-overeenkomende URL's vallen onder het beleid voor <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
-
-Dit beleid is ook van toepassing op <ph name="CHROME_DEVTOOLS_NAME" /> die worden geopend voor extensies en web-apps.
-
-Dit beleid is beperkt tot 1000 items.</translation>
 <translation id="6440051664870270040">Toestaan dat sites tegelijkertijd kunnen navigeren en pop-ups kunnen openen</translation>
 <translation id="6441781723322254041">Afgekapte cookies toestaan</translation>
 <translation id="6446366416439249472">Google Drive-synchronisatie via mobiele verbindingen uitzetten</translation>
@@ -8081,7 +8058,6 @@ Dit beleid heeft alleen invloed op TLS 1.3 en QUIC. Het heeft geen invloed op ee
       Als je dit beleid niet toepast of niet instelt, kan het SAML-wachtwoord niet worden gewijzigd op chrome://password-change. Er wordt ook geen melding getoond als SAML-wachtwoorden bijna verlopen.</translation>
 <translation id="6457477291648119596">Type42</translation>
 <translation id="6458361632497500815">Als je het beleid toepast of niet instelt, kunnen alle gebruikers <ph name="PRODUCT_CROSTINI_NAME" /> gebruiken, zolang alle drie beleidsregels (<ph name="VIRTUAL_MACHINES_ALLOWED_POLICY_NAME" />, <ph name="CROSTINI_ALLOWED_POLICY_NAME" /> en <ph name="DEVICE_UNAFFILIATED_CROSTINI_ALLOWED_POLICY_NAME" />) zijn toegepast. Als je het beleid niet toepast, kunnen niet-aangesloten gebruikers <ph name="PRODUCT_CROSTINI_NAME" /> niet gebruiken. Als je het beleid niet toepast, wordt het beleid wel toegepast op startende nieuwe <ph name="PRODUCT_CROSTINI_NAME" />-containers en niet op containers die al actief zijn.</translation>
-<translation id="6462604655173570082">Als je dit beleid toepast of niet instelt, kunnen gebruikers de <ph name="GOOGLE_LENS_PRODUCT_NAME" />-knop zien en gebruiken in het zoekvak op de pagina Nieuw tabblad. Als je dit beleid niet toepast, zien gebruikers de <ph name="GOOGLE_LENS_PRODUCT_NAME" />-knop niet in het zoekvak op de pagina Nieuw tabblad.</translation>
 <translation id="6464074037294098618">Automatisch invullen voor adressen aanzetten</translation>
 <translation id="6464564464230511695">Als je dit beleid toepast of niet instelt, is <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> toegestaan op alle webpagina's.
 
@@ -8481,23 +8457,6 @@ Dit beleid wordt in een toekomstige release verwijderd.</translation>
 <translation id="6682305153467826752">Rapportage van informatie over machine-identificatie aanzetten</translation>
 <translation id="6684842561251679182">Aantal mijlpalen voor op de kernel gebaseerde stappen worden uitgesteld</translation>
 <translation id="6685903773201985073">Ambient-verificatie in normale en gastsessies aanzetten.</translation>
-<translation id="668721405120274587">Met dit beleid bepaal je of pagina- en bestandscontent kan worden gedeeld met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> via het zijvenster of de tabbladen van <ph name="PRODUCT_NAME" />.
-
-Dit beleid heeft geen invloed op <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> op het web. Het bepaalt alleen hoe gebruikers informatie met het product kunnen delen als ze <ph name="PRODUCT_NAME" /> gebruiken.
-
-0/niet ingesteld = gebruikers kunnen pagina- of bestandscontent delen met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
-
-1 = gebruikers kunnen pagina- of bestandscontent niet delen met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. De startpunten voor context delen worden uitgezet of verborgen.
-
-Dit beleid wordt genegeerd als <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> niet de standaard zoekmachine van gebruikers is, omdat de functie dan uitstaat.
-
-Dit beleid is onafhankelijk van het beleid <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. Het beleid <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> bepaalt alleen startpunten in de omnibox of het zoekvak op de pagina Nieuw tabblad, terwijl dit beleid context delen via het zijvenster of tabbladen beheert.
-
-Dit beleid beheert ook niet de integratie van <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />. Deze kan worden uitgezet door <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
-
-Als je dit beleid niet instelt, wordt het gedrag bepaald door het beleid <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
-
-Ga naar https://support.google.com/chrome/a?p=generative_ai_settings voor meer informatie over gegevensverwerking voor generatieve AI-functies.</translation>
 <translation id="6687291630099400188">Systeemgegevens niet weergeven op het inlogscherm</translation>
 <translation id="6689343802305995925">Er wordt geen actie uitgevoerd.</translation>
 <translation id="6689792153960219308">De hardwarestatus melden</translation>
@@ -10179,6 +10138,28 @@ Ga naar https://docs.microsoft.com/internet-explorer/ie11-deploy-guide/what-is-e
       Als je het beleid instelt op True, worden de netwerkgebeurtenissen van het apparaat gerapporteerd.</translation>
 <translation id="780629758750905699">Toevoegen van Family Link-accounts aan het apparaat toestaan</translation>
 <translation id="7807139251387225825">Lijst met typen die moeten worden uitgesloten van synchronisatie</translation>
+<translation id="7812285231594048601">Dit beleid is beëindigd. Gebruik in plaats daarvan <ph name="POLICY_VALUE_PROFILE_SEPARATION_SETTINGS_NAME" />.
+
+Standaardgedrag (beleid niet ingesteld)
+Als een account wordt toegevoegd in het contentgedeelte, verschijnt er een klein dialoogvenster met de vraag om een nieuw profiel te maken. Dit dialoogvenster kan worden gesloten.
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />
+Als een gebruiker voor het eerst inlogt bij een Google-service in een <ph name="PRODUCT_NAME" />-browser, verschijnt een dialoogvenster met de vraag of de gebruiker een nieuw profiel wil maken voor het werkaccount. De gebruiker kan op Annuleren klikken en worden uitgelogd, of op Doorgaan om een nieuw profiel te maken. Bestaande browsegegevens worden niet toegevoegd aan het nieuwe profiel. Het nieuwe profiel mag secundaire accounts hebben: de gebruiker kan bijvoorbeeld inloggen op een ander account in het contentgedeelte.
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT" />
+Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />, behalve dat het nieuwe profiel geen secundaire accounts mag hebben.
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" />
+Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT" />, behalve dat er een selectievakje wordt toegevoegd aan het dialoogvenster waarmee de gebruiker lokale browsegegevens kan bewaren.
+Als de gebruiker het selectievakje aanvinkt, worden de bestaande profielgegevens gekoppeld aan het beheerde account.
+- Alle bestaande browsegegevens zijn aanwezig in het nieuwe profiel.
+- Deze gegevens omvatten o.a. bookmarks, geschiedenis, wachtwoorden, gegevens voor automatisch invullen, geopende tabbladen, cookies, cache, webopslag en extensies.
+Als de gebruiker het selectievakje niet aanvinkt, gebeurt het volgende:
+- Het oude profiel blijft bestaan en er gaan geen gegevens verloren.
+- Er wordt een nieuw profiel gemaakt.
+
+<ph name="MANAGED_ACCOUNTS_SIGNIN_RESTRICTION_POLICY_NAME" /> = <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_STRICT_KEEP_EXISTING_DATA" />
+Dit is hetzelfde gedrag als <ph name="POLICY_VALUE_PRIMARY_ACCOUNT_KEEP_EXISTING_DATA" />, behalve dat het nieuwe profiel geen secundaire accounts mag hebben.</translation>
 <translation id="781268256210530471">Instellingen voor plug-ins</translation>
 <translation id="7816326058023670173">Geheim gedeeld tussen het apparaat van het kind en het apparaat van de ouder.</translation>
 <translation id="7818131573217430250">De standaardstatus van de modus voor hoog contrast op het inlogscherm instellen</translation>
@@ -10307,6 +10288,7 @@ Als je het beleid toepast, wordt attest op afstand voor het apparaat toegestaan.
 Als je het beleid niet toepast of niet instelt, wordt er geen certificaat gemaakt en mislukken aanroepen naar de <ph name="ENTERPRISE_PLATFORM_KEYS_API" />.</translation>
 <translation id="7906983682927840536">Keepalive-duur bij afsluiten ophalen</translation>
 <translation id="7908384265697653397">Tijd in dagen waarna de gebruiker wordt uitgelogd als de <ph name="PRODUCT_OS_NAME" />-versie lager is dan de opgegeven <ph name="CHROMEOS_VERSION_PROPERTY_NAME" /></translation>
+<translation id="7908762897332688196">Content delen met <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />- en <ph name="GOOGLE_LENS_PRODUCT_NAME" />-integraties aanzetten</translation>
 <translation id="7909751052609510518">Afdruktaken (ondersteund vanaf versie 129)</translation>
 <translation id="7909839744818798105">Verouderd gedrag voor cookiebereik aanzetten voor een lijst met domeinen</translation>
 <translation id="7911685775490889216">Hiermee stel je in met welk interval in seconden een afbeelding wordt getoond als de screensaver voor het vergrendelscherm uit meerdere afbeeldingen bestaat.
@@ -10503,6 +10485,21 @@ Ga naar https://chromeenterprise.google/policies/url-patterns voor gedetailleerd
 
 Zie https://wicg.github.io/local-network-access/ voor beperkingen voor <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="8044493735196713914">Opstartmodus van apparaat melden</translation>
+<translation id="8044943551137872312">Je kunt dit beleid gebruiken om <ph name="CHROME_DEVTOOLS_NAME" /> toe te staan voor specifieke URL's.
+
+URL-patronen worden vergeleken met de URL van de pagina die wordt geïnspecteerd. Als er een overeenkomst wordt gevonden, zijn de <ph name="CHROME_DEVTOOLS_NAME" /> toegestaan. Dit geldt ook als de URL overeenkomt met het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, zelfs als het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> is ingesteld op Niet toestaan (waarde 2). Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor informatie over de URL-indeling.
+
+Als je het beleid niet instelt, heeft deze toelatingslijst geen effect.
+
+Als je dit beleid instelt en <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> niet, wordt elke URL die niet op deze lijst staat, geblokkeerd.
+
+Als je dit beleid en het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> beide instelt, heeft deze toelatingslijst voorrang. Als een URL overeenkomt met een patroon op de toelatingslijst, wordt deze toegestaan. Als een URL overeenkomt met een patroon op de blokkeerlijst (maar niet op de toelatingslijst), wordt deze geblokkeerd. Als een URL met geen van beide overeenkomt, wordt het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> gebruikt als reserve.
+
+Als je geen van beide beleidsregels instelt, wordt de beschikbaarheid bepaald door het beleid <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Dit beleid is ook van toepassing op <ph name="CHROME_DEVTOOLS_NAME" /> die worden geopend voor extensies en web-apps.
+
+Dit beleid is beperkt tot 1000 items.</translation>
 <translation id="80453040817068401">De <ph name="LACROS_NAME" />-browser beschikbaar maken</translation>
 <translation id="804619600634661088">Het gebruik van foutopsporing op afstand toestaan</translation>
 <translation id="8047264240841615226">Instellingen voor generatieve AI-functies van <ph name="CHROME_DEVTOOLS_NAME" /></translation>
@@ -10732,7 +10729,6 @@ Als het beleid niet wordt ingesteld, worden standaard alle beschikbare netwerkin
 Zie RFC 8828 artikel 5.2 (https://tools.ietf.org/html/rfc8828.html#section-5.2) voor een gedetailleerde beschrijving van alle waarden voor verwerking.</translation>
 <translation id="8244171102276095471">RC4-coderingssuites in TLS aanzetten</translation>
 <translation id="8244525275280476362">Maximum vertraging voor ophalen na ongeldigverklaring voor beleid</translation>
-<translation id="8245574649143980200">Als je dit beleid toepast of niet instelt, kunnen gebruikers het menu-item voor regio doorzoeken van <ph name="GOOGLE_LENS_PRODUCT_NAME" /> in het contextmenu zien en gebruiken. Als je dit beleid niet toepast, kunnen gebruikers het menu-item voor regio doorzoeken van <ph name="GOOGLE_LENS_PRODUCT_NAME" /> niet zien in het contextmenu als regio doorzoeken voor <ph name="GOOGLE_LENS_PRODUCT_NAME" /> wordt ondersteund.</translation>
 <translation id="8247143534027746614">Toegang tot een lijst met URL-patronen blokkeren tijdens verificatie</translation>
 <translation id="824818544897669723">Verwijdering van browser- en downloadgeschiedenis uitzetten</translation>
 <translation id="8250048892729838843">Dit beleid is beëindigd. Als je dit beleid toepast of niet instelt, kan het apparaat opties voor gedetailleerde rapportage krijgen.

@@ -273,6 +273,7 @@
 <translation id="3885770153807205175">أداة اختيار اللغة</translation>
 <translation id="3889417619312448367">‏إزالة Google Chrome</translation>
 <translation id="3892148308691398805">نسخ النص</translation>
+<translation id="3893985792899396936">‏نصيحة من Chrome: البحث باستخدام "عدسة Google"</translation>
 <translation id="3906096710440765802">‏يُرجى تسجيل الدخول إلى Chrome للوصول إلى كلمات المرور والإشارات المرجعية وغيرها على جميع أجهزتك</translation>
 <translation id="3921132130819999051">‏ما رأيك بالاستفادة من قدرات Chrome في التصفّح؟</translation>
 <translation id="3941890832296813527">خطأ في التثبيت: اسم ملف أداة التثبيت غير صالح أو غير متوافق.</translation>
@@ -314,7 +315,6 @@
 <translation id="4329315893554541805">‏للحصول على خيارات مخصَّصة والاستفادة من ميزات أخرى، يمكنك تضمين متصفّح Chrome في "النشاط على الويب وفي التطبيقات" وخدمات Google المرتبطة</translation>
 <translation id="4334241893986177674">البحث في لقطة الشاشة هذه</translation>
 <translation id="4334294535648607276">اكتمل التنزيل.</translation>
-<translation id="4337324600316876133">‏للحصول على تحديثات Google Chrome في المستقبل، يجب استخدام جهاز يعمل بنظام التشغيل macOS 12 أو بإصدار أحدث. أما هذا الكمبيوتر، فإنّه يعمل بإصدار macOS 11.</translation>
 <translation id="4343195214584226067">‏تمت إضافة <ph name="EXTENSION_NAME" /> إلى Chrome</translation>
 <translation id="4344128547036991536">‏عند فتح "عدسة Google"، سيتم تلقائيًا إرسال عنوان الصفحة وعنوان URL والمحتوى (بما في ذلك ملفات PDF) إلى Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">‏للحصول على خيارات مخصَّصة، يمكنك تضمين متصفّح Chrome في "النشاط على الويب وفي التطبيقات"</translation>
@@ -371,6 +371,7 @@
 <translation id="5003967926796347400">‏انقر على "مدير كلمات المرور في Google".</translation>
 <translation id="5043786843026425788">‏مزيد من المعلومات حول البحث باستخدام "عدسة Google" في Chrome</translation>
 <translation id="504867494566807945">‏يمكنك فتح الروابط من أي تطبيق في Chrome، ويمكن تثبيته في شريط المهام للوصول إليه بسهولة.</translation>
+<translation id="5105120510934353742">‏للحصول على تحديثات Google Chrome في المستقبل، يجب استخدام جهاز macOS 13 أو إصدار أحدث. ويعمل هذا الكمبيوتر بنظام التشغيل macOS 12.</translation>
 <translation id="5114340746415930644">‏يجب إدخال عبارة المرور لاستخدام بيانات Chrome وحفظها في حسابك (<ph name="USER_EMAIL" />)</translation>
 <translation id="5120334927898581447">‏تسجيل الدخول إلى Chrome عند تسجيل الدخول إلى خدمات Google الأخرى</translation>
 <translation id="5126049312684316860">‏يُحمِّل Chrome مسبقًا المزيد من الصفحات التي من المرجَح أن تزورها، وذلك بهدف تحميلها بسرعة أكبر عند زيارتك لها.</translation>
@@ -487,6 +488,7 @@
 <translation id="6180522807229584611">‏تستخدم علامة التبويب هذه موارد إضافية. لتحسين أداء التصفُّح، ننصح بالسماح لمتصفّح Chrome بإيقاف علامة التبويب هذه.</translation>
 <translation id="6182736845697986886">تعذَّر تثبيت التطبيق بسبب حدوث خطأ داخلي في خادم التحديث.</translation>
 <translation id="6183773856988300112">‏يستخدم "Gemini في Chrome" ميزة التصفّح التلقائي للعمل في علامات التبويب وإكمال المهام المطلوبة منه. <ph name="LINK_BEGIN" />مزيد من المعلومات<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">‏نصيحة من Chrome: حفظ كلمات المرور أولوية</translation>
 <translation id="6192058120268468905">‏حسابك في Chrome</translation>
 <translation id="6220551899604141979">‏ثبَّت الشريك <ph name="PARTNER_NAME" /> إضافة جديدة قد تؤدي إلى تغيير طريقة عمل Chrome.
 
@@ -625,6 +627,7 @@
 <translation id="7627609214560473136">‏لحماية بياناتك، يمكنك السماح لمتصفِّح Chrome بإزالة الأذونات من المواقع الإلكترونية التي لم تتم زيارتها مؤخرًا.</translation>
 <translation id="7629695634924605473">‏يتم إعلامك من خلال Chrome في حال تم اختراق كلمات المرور في أي وقت.</translation>
 <translation id="7641148173327520642">‏ضَبَط مشرف النظام Google Chrome لفتح <ph name="ALTERNATIVE_BROWSER_NAME" /> للوصول إلى <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">‏نصيحة من Chrome: حان وقت "الحماية المحسّنة للتصفّح الآمن"</translation>
 <translation id="7649070708921625228">مساعدة</translation>
 <translation id="7651907282515937834">‏شعار Chrome Enterprise</translation>
 <translation id="76531479118467370">‏حَظَر Chrome عملية التنزيل هذه لأنّك أوقفت ميزة "التصفُّح الآمن" ولا يمكن التحقّق من الملف.</translation>

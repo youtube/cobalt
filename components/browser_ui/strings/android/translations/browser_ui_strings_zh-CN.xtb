@@ -64,6 +64,7 @@
 <translation id="1717996979683942279">开启此设置后，网站可以询问能否管理所有显示屏上的窗口。关闭此设置后，网站无法管理所有显示屏上的窗口。</translation>
 <translation id="1738912554587725807">“新标签页”页面外观主题集合底部动作条</translation>
 <translation id="1743802530341753419">需先询问，得到许可后才允许网站连接设备（推荐）</translation>
+<translation id="1766455884659449403">接收 Chrome 提示通知</translation>
 <translation id="1777815584158991902">探索信息流底部动作条</translation>
 <translation id="1779089405699405702">图片解码器</translation>
 <translation id="1785415724048343560">建议勾选此选项以获得最佳体验</translation>
@@ -188,11 +189,9 @@
 <translation id="2903493209154104877">地址</translation>
 <translation id="2910701580606108292">需先询问，得到许可后才允许网站播放受保护的内容</translation>
 <translation id="2918484639460781603">前往“设置”</translation>
-<translation id="293060180538644702">接收 Chrome 提示通知</translation>
 <translation id="2932883381142163287">举报滥用行为</translation>
 <translation id="2939338015096024043">开启此设置后，网站可以请求跟踪您的摄像头位置并了解您周围的环境。关闭此设置后，网站无法跟踪您的摄像头位置，也无法了解您周围的环境。</translation>
 <translation id="2968755619301702150">证书查看器</translation>
-<translation id="2979365474350987274">第三方 Cookie 受到限制</translation>
 <translation id="2990583317361835189">不允许网站使用移动传感器</translation>
 <translation id="3004438526346162184">网站可以使用此功能管理所有显示屏上的窗口</translation>
 <translation id="3008272652534848354">重置权限</translation>
@@ -220,7 +219,6 @@
 <translation id="3223425961342298674">已拒绝授予位置信息使用权限</translation>
 <translation id="3227137524299004712">麦克风</translation>
 <translation id="3232293466644486101">删除浏览数据…</translation>
-<translation id="3241320538788585298">环回网络</translation>
 <translation id="3242646949159196181">开启此设置后，网站可以播放声音。关闭此设置后，网站无法播放声音。</translation>
 <translation id="3273479183583863618">在标签页上显示降价通知</translation>
 <translation id="3277252321222022663">允许网站使用传感器（推荐）</translation>
@@ -403,6 +401,7 @@
 <translation id="5246825184569358663">此操作会删除所有本地数据（包括 Cookie）并重置 <ph name="DOMAIN" /> 及其下属所有网站的所有权限</translation>
 <translation id="5264323282659631142">移除“<ph name="CHIP_LABEL" />”</translation>
 <translation id="528192093759286357">从顶部向下拖动并触摸“返回”按钮，即可退出全屏模式。</translation>
+<translation id="5286194356314741248">正在扫描</translation>
 <translation id="5300589172476337783">显示</translation>
 <translation id="5301954838959518834">知道了</translation>
 <translation id="5317780077021120954">保存</translation>
@@ -631,7 +630,6 @@
 <translation id="7835852323729233924">正在播放媒体</translation>
 <translation id="783819812427904514">将视频取消静音</translation>
 <translation id="7846076177841592234">取消选择</translation>
-<translation id="7881140103901777395">Chrome 会限制大多数网站使用第三方 Cookie。不过，该网站已获准使用第三方 Cookie，因为它需要依赖这类 Cookie 来提供基本服务。\n\n访问“设置”可<ph name="BEGIN_LINK" />管理对第三方 Cookie 的使用权限<ph name="END_LINK" />。</translation>
 <translation id="7882806643839505685">允许特定网站播放声音。</translation>
 <translation id="7891547341794213004">隐藏“继续使用此标签页”卡片</translation>
 <translation id="789722939441020330">不允许网站自动下载多个文件</translation>

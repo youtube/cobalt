@@ -53,6 +53,20 @@ export class LineFocusController {
         (this.model_.getCurrentLineFocus() !== LineFocus.OFF));
   }
 
+  toggle(container: HTMLElement, height: number) {
+    if (!chrome.readingMode.isLineFocusEnabled) {
+      return;
+    }
+
+    const lastLineFocus =
+        this.model_.getLastEnabledLineFocus() || LineFocus.defaultValue();
+    const newLineFocus = this.isEnabled() ? LineFocus.OFF : lastLineFocus;
+    if (newLineFocus) {
+      this.setLineFocus_(newLineFocus, container, height);
+      chrome.readingMode.onLineFocusChanged(newLineFocus.enumValue());
+    }
+  }
+
   onScrollEnd(newScrollTop: number) {
     if (this.isEnabled()) {
       const distance = Math.abs(newScrollTop - this.model_.getLastScrollTop());
@@ -72,6 +86,21 @@ export class LineFocusController {
       chrome.readingMode.addLineFocusMouseDistance(
           Math.abs(this.model_.getY() - previousY));
     }
+  }
+
+  onMouseMoveInToolbar(y: number) {
+    if (this.isEnabled() && !this.speechController_.isSpeechActive() &&
+        !this.isStatic_()) {
+      // Store the new position, but do not notify listeners since the mouse is
+      // in the toolbar, which means they are likely trying to change some
+      // settings. onAllMenusClose will notify them of the final position when
+      // all the settings menus are closed.
+      this.setY_(Math.max(this.model_.getMinY(), y), /* quietly= */ true);
+    }
+  }
+
+  onAllMenusClose() {
+    this.listeners_.forEach(l => l.onLineFocusMove());
   }
 
   onTextLocationsChange(container: HTMLElement, height: number) {
@@ -99,10 +128,17 @@ export class LineFocusController {
 
   onLineFocusChange(
       lineFocusEnumValue: number, container: HTMLElement, height: number) {
+    const lineFocus = LineFocus.fromEnumValue(lineFocusEnumValue);
+    if (lineFocus) {
+      this.setLineFocus_(lineFocus, container, height);
+    }
+  }
+
+  private setLineFocus_(
+      lineFocus: LineFocus, container: HTMLElement, height: number) {
     const wasEnabled = this.isEnabled();
-    const lineFocus = this.getLineFocusFromEnumValue_(lineFocusEnumValue);
     this.model_.setCurrentLineFocus(lineFocus);
-    if (lineFocus.type === LineFocusType.NONE) {
+    if (lineFocus === LineFocus.OFF) {
       this.logger_.logLineFocusSession();
       this.model_.setMinY(0);
       this.model_.setMaxY(0);
@@ -119,6 +155,10 @@ export class LineFocusController {
       if (!wasEnabled) {
         chrome.readingMode.startLineFocusSession();
       }
+      // TODO(crbug.com/447427066): Store this in prefs too so if the user
+      // toggles off line focus before closing RM, we can still toggle back on
+      // their last used line focus mode.
+      this.model_.setLastEnabledLineFocus(lineFocus);
       this.calculateNewPositions_(container, height);
       if (this.isStatic_()) {
         this.setCenterY_();
@@ -204,7 +244,7 @@ export class LineFocusController {
 
   private isStatic_(): boolean {
     const lineFocus = this.model_.getCurrentLineFocus();
-    return !!lineFocus && lineFocus.isStatic;
+    return lineFocus === LineFocus.STATIC_LINE;
   }
 
   // When the current line focus mode is static, scroll the content instead of
@@ -218,19 +258,12 @@ export class LineFocusController {
     }
   }
 
-  private setY_(y: number) {
-    const oldY = this.model_.getY();
+  private setY_(y: number, quietly: boolean = false) {
     this.model_.setY(y);
-
-    const oldHeight = this.model_.getWindowHeight();
     this.calculateHeight_();
-
-    if (oldY === this.model_.getY() &&
-        oldHeight === this.model_.getWindowHeight()) {
-      return;
+    if (!quietly) {
+      this.listeners_.forEach(l => l.onLineFocusMove());
     }
-
-    this.listeners_.forEach(l => l.onLineFocusMove());
   }
 
   private calculateHeight_() {
@@ -386,23 +419,6 @@ export class LineFocusController {
 
   private setCenterY_() {
     this.setY_(this.model_.getMinY() + this.model_.getMaxY() / 2);
-  }
-
-  private getLineFocusFromEnumValue_(enumValue: number): LineFocus {
-    switch (enumValue) {
-      case chrome.readingMode.lineFocusCursorLine:
-        return LineFocus.CURSOR_LINE;
-      case chrome.readingMode.lineFocusStaticLine:
-        return LineFocus.STATIC_LINE;
-      case chrome.readingMode.lineFocusOneLineWindow:
-        return LineFocus.ONE_LINE_WINDOW;
-      case chrome.readingMode.lineFocusThreeLineWindow:
-        return LineFocus.THREE_LINE_WINDOW;
-      case chrome.readingMode.lineFocusFiveLineWindow:
-        return LineFocus.FIVE_LINE_WINDOW;
-      default:
-        return LineFocus.OFF;
-    }
   }
 
   static getInstance(): LineFocusController {

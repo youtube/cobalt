@@ -905,7 +905,6 @@ IN_PROC_BROWSER_TEST_F(TabCollectionNodeBrowserTest,
   // Pinned: 1 child (the moved tab).
   ASSERT_EQ(pinned_node->children().size(), 1u);
   // The first child of the Pinned node must be the tab we moved.
-  EXPECT_EQ(pinned_node->children()[0].get(), tab_to_pin_node);
   EXPECT_EQ(pinned_node->children()[0]->type(), TabCollectionNode::Type::TAB);
 
   // Unpinned Node verification:

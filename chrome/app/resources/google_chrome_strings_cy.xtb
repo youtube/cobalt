@@ -275,6 +275,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="3885770153807205175">Dewisydd iaith</translation>
 <translation id="3889417619312448367">Dadosod Google Chrome</translation>
 <translation id="3892148308691398805">Copïo'r testun</translation>
+<translation id="3893985792899396936">Awgrym Chrome: Chwilio â Lens</translation>
 <translation id="3906096710440765802">Mewngofnodwch i Chrome i gael eich cyfrineiriau, nodau tudalen a rhagor ar eich holl ddyfeisiau</translation>
 <translation id="3921132130819999051">Gadewch i Chrome bori i chi</translation>
 <translation id="3941890832296813527">Gwall gosod: Mae enw ffeil y gosodwr yn annilys neu heb ei gefnogi.</translation>
@@ -316,7 +317,6 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="4329315893554541805">I gael personoleiddio a nodweddion eraill, cynhwyswch Chrome yng Ngweithgarwch ar y We ac Apiau a gwasanaethau Google cysylltiedig</translation>
 <translation id="4334241893986177674">Chwilio'r sgrinlun hwn</translation>
 <translation id="4334294535648607276">Lawrlwytho wedi'i gwblhau.</translation>
-<translation id="4337324600316876133">I gael diweddariadau Google Chrome yn y dyfodol, bydd angen macOS 12 neu'n hwyrach arnoch. Mae'r cyfrifiadur hwn yn defnyddio macOS 11.</translation>
 <translation id="4343195214584226067">Mae <ph name="EXTENSION_NAME" /> wedi'i ychwanegu at Chrome</translation>
 <translation id="4344128547036991536">Pan fyddwch yn agor Google Lens, bydd teitl y dudalen, URL, a chynnwys, gan gynnwys PDFs, yn cael eu hanfon yn awtomatig at Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">I gael personoleiddio, cynhwyswch Chrome yng Ngweithgarwch ar y We ac Apiau</translation>
@@ -373,6 +373,7 @@ Mae'n bosib na fydd rhai nodweddion ar gael ac ni fydd newidiadau o ran dewisiad
 <translation id="5003967926796347400">Cliciwch 'Rheolwr Cyfrineiriau Google'</translation>
 <translation id="5043786843026425788">Dysgu rhagor am chwilio gyda Google Lens yn Chrome</translation>
 <translation id="504867494566807945">Agor dolenni yn Chrome o unrhyw ap. Hefyd, er mwyn cael mynediad hawdd, caiff ei binio i'ch bar tasgau.</translation>
+<translation id="5105120510934353742">I gael diweddariadau Google Chrome yn y dyfodol, bydd angen macOS 13 neu'n hwyrach arnoch. Mae'r cyfrifiadur hwn yn defnyddio macOS 12.</translation>
 <translation id="5114340746415930644">Rhowch eich cyfrin-ymadrodd i ddefnyddio a chadw data Chrome yn eich cyfrif, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Mewngofnodwch i Chrome pan fyddwch yn mewngofnodi i wasanaethau Google eraill</translation>
 <translation id="5126049312684316860">Mae Chrome yn rhaglwytho hyd yn oed mwy o dudalennau rydych yn debygol o ymweld â nhw, fel eu bod yn llwytho yn gyflymach pan rydych yn gwneud hynny</translation>
@@ -491,6 +492,7 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="6180522807229584611">Mae'r tab hwn yn defnyddio adnoddau ychwanegol. Er mwyn gwella eich perfformiad, gadewch i Chrome ei wneud yn anweithredol.</translation>
 <translation id="6182736845697986886">Methodd y gosodiad oherwydd gwall mewnol yn y gweinydd diweddaru.</translation>
 <translation id="6183773856988300112">Mae Gemini yn Chrome yn defnyddio pori awtomatig i weithio yn eich tabiau a chwblhau tasgau rydych yn eu rhoi iddo. <ph name="LINK_BEGIN" />Dysgu rhagor<ph name="LINK_END" /></translation>
+<translation id="6187085551300363958">Awgrym Chrome: Cadw Cyfrineiriau</translation>
 <translation id="6192058120268468905">Eich Cyfrif yn Chrome</translation>
 <translation id="6220551899604141979">Mae <ph name="PARTNER_NAME" /> wedi ychwanegu estyniad a allai newid y ffordd y mae Chrome yn gweithio.
 
@@ -629,6 +631,7 @@ Nid yw Google Chrome yn gallu adfer eich gosodiadau.</translation>
 <translation id="7627609214560473136">I ddiogelu eich data, gadewch i Chrome dynnu caniatadau o wefannau nad ydych wedi ymweld â nhw yn ddiweddar.</translation>
 <translation id="7629695634924605473">Mae Chrome yn gadael i chi wybod a yw'ch cyfrineiriau byth wedi'u darganfod</translation>
 <translation id="7641148173327520642">Mae gweinyddwr eich system wedi ffurfweddu Google Chrome i agor <ph name="ALTERNATIVE_BROWSER_NAME" /> i gael mynediad at <ph name="TARGET_URL_HOSTNAME" />.</translation>
+<translation id="7641448682796883218">Awgrym Chrome: Gwell Pori'n Ddiogel</translation>
 <translation id="7649070708921625228">Cymorth</translation>
 <translation id="7651907282515937834">Logo Chrome Enterprise</translation>
 <translation id="76531479118467370">Gwnaeth Chrome rwystro'r lawrlwythiad hwn oherwydd i chi ddiffodd Pori'n Ddiogel ac nid oes modd dilysu'r ffeil</translation>

@@ -45,7 +45,7 @@
 #include "gpu/command_buffer/client/raster_interface.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/capabilities.h"
-#include "gpu/command_buffer/common/mailbox_holder.h"
+#include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "media/base/data_buffer.h"
 #include "media/base/video_frame.h"
@@ -1341,6 +1341,10 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
   CHECK(video_frame->HasSharedImage());
   CHECK(destination_gl);
 
+  if (!raster_context_provider) {
+    return false;
+  }
+
   const auto shared_image = video_frame->shared_image();
   const auto si_format = shared_image->format();
   const bool si_format_has_single_texture =
@@ -1400,9 +1404,6 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
   }
 
   DCHECK_EQ(shared_image->surface_origin(), kTopLeft_GrSurfaceOrigin);
-  if (!raster_context_provider) {
-    return false;
-  }
   gpu::raster::RasterInterface* canvas_ri =
       raster_context_provider->RasterInterface();
   DCHECK(canvas_ri);

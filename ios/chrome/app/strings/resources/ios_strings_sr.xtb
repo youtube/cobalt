@@ -75,6 +75,7 @@
 <translation id="1272079795634619415">Заустави</translation>
 <translation id="1273416271143914096">{count,plural, =1{{count} лозинка}one{{count} лозинка}few{{count} лозинке}other{{count} лозинки}}</translation>
 <translation id="1275718070701477396">Изабрано је</translation>
+<translation id="1279024913354609713">Не дозволи</translation>
 <translation id="1285320974508926690">Никад не преводи овај сајт</translation>
 <translation id="1287229685519872919">Google Workspace подаци</translation>
 <translation id="1291506870746876680">Дозволе за <ph name="BEGIN_BOLD" /><ph name="SITE_NAME" /><ph name="END_BOLD" /> ће се ресетовати и искључити кад напустите овај сајт.</translation>
@@ -456,6 +457,7 @@
 <translation id="2669454659051515572">Свако ко користи овај уређај може да види преузете фајлове</translation>
 <translation id="2671423594960767771">Дели групу</translation>
 <translation id="2673508731173059946">Посети копирани линк</translation>
+<translation id="2679659833697380">Информације се чувају на уређају</translation>
 <translation id="2688535388040882469">Банери</translation>
 <translation id="2690858294534178585">Камера се користи</translation>
 <translation id="2691653761409724435">Није доступно офлајн</translation>
@@ -657,7 +659,6 @@
 <translation id="3530024057633834563">Немате сачуване лозинке нити приступне кључеве, али можете да избришете листу сајтова и апликација за које сте одабрали да никада не чувате податке за пријављивање. Налози које сте отворили за сајтове и апликације неће бити избрисани.</translation>
 <translation id="3530206579861815432">Брзо пронађите отворене и недавно затворене картице на синхронизованим уређајима.</translation>
 <translation id="3530767473765895035">Управљај налозима на овом уређају…</translation>
-<translation id="353340646084395154">Уклоњена су подешавања странице нове картице</translation>
 <translation id="3533436815740441613">Нова картица</translation>
 <translation id="3540141921715814660">Додај у обележиваче</translation>
 <translation id="3546122170015471515">Прегледи Мапа на Google.com</translation>
@@ -927,7 +928,6 @@
 <translation id="4601095002996233687">Детаљна скенирања сумњивих преузимања.</translation>
 <translation id="4606247758155004938">Организација управља прегледачем.</translation>
 <translation id="4607887340472970274">Праћење цена</translation>
-<translation id="461440297010471931">Претражујете помоћу Google-а</translation>
 <translation id="4619564267100705184">Потврдите идентитет</translation>
 <translation id="4621768135601674446">Отворите опције Режима читања</translation>
 <translation id="4627107755957573804">Дозволите сајтовима и апликацијама да надограђују постојеће налоге како би користили приступне кључеве</translation>
@@ -953,6 +953,7 @@
 <translation id="4673565891421389203">Пријављивање помоћу управљаног налога вам помаже да одвојите прегледање повезано са организацијом (укључујући картице, историју и лозинке) од осталог прегледања.
 
        Одаберите шта желите да урадите са постојећим подацима прегледања на овом уређају.</translation>
+<translation id="4675298276894277358">Овај сајт се више неће приказивати</translation>
 <translation id="4682496302933121474">Желите да преведете страницу?</translation>
 <translation id="4682686630151240767">1. Отворите подешавања iPhone-а</translation>
 <translation id="4691892551491778176">Када користите ову функцију, садржај и URL-ови страница се шаљу Google-у, али се неће користити за побољшање модела генеративне вештачке интелигенције. To можете да искључите у подешавањима у сваком тренутку.</translation>
@@ -966,6 +967,7 @@
 <translation id="472259426228234149">Цена 100–180 USD</translation>
 <translation id="4735849923335729414">Пријавите се преко налога <ph name="EMAIL" />, којим управља организација.</translation>
 <translation id="473775607612524610">Ажурирај</translation>
+<translation id="4738968082443868320">Google диск</translation>
 <translation id="474209246745757965">Купујте и преводите помоћу камере</translation>
 <translation id="4742407542027196863">Управљај лозинкама...</translation>
 <translation id="4744428388659507035">Да би вам обележивачи били доступни на свим уређајима, укључите Обележиваче у подешавањима.</translation>
@@ -1055,6 +1057,7 @@
 <translation id="5021500396464456616">Обратите се особи која је послала овај линк</translation>
 <translation id="5039804452771397117">Дозволи</translation>
 <translation id="5050810143224996149">Дели лозинку</translation>
+<translation id="5052499409147950210">Измените сајт</translation>
 <translation id="5055015094595227120">Прецизна локација</translation>
 <translation id="5055551113846164633">Овим се бришу адресе сачуване на овом уређају. Бришу се и адресе сачуване на Google налогу <ph name="USER_EMAIL" />.</translation>
 <translation id="5056446788882570708">Проблеми су пронађени <ph name="TIME" />.</translation>
@@ -1133,6 +1136,7 @@
 <translation id="5295239312320826323">Желите да уклоните налог <ph name="USER_EMAIL" />?</translation>
 <translation id="5300589172476337783">Прикажи</translation>
 <translation id="5311061401280561833">Приступ камери и микрофону је дозвољен</translation>
+<translation id="5313967007315987356">Додајте сајт</translation>
 <translation id="5315870524563628285">Нема ничега за увоз</translation>
 <translation id="5316356981864168850"><ph name="INDEX" /> <ph name="NUM_SUGGESTIONS" /></translation>
 <translation id="5317780077021120954">Сачувај</translation>
@@ -1150,7 +1154,6 @@
 <translation id="537853552771686272">Управљајте темама и сајтовима који вас интересују</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} затворена}one{{count} затворена}few{{count} затворене}other{{count} затворених}}</translation>
 <translation id="5394975111793637642">Сакријте картицу Рецензије производа за вас</translation>
-<translation id="5407806496954700135">Желите да примените прилагођавања странице нове картице са другог уређаја?</translation>
 <translation id="5414763847370083940">Добићете обавештење ако се цена снизи на било ком сајту.</translation>
 <translation id="5415289094036440596">Приступни кључеви не могу да се деле</translation>
 <translation id="5416455648658732408">Премести у групу картица</translation>
@@ -1202,7 +1205,6 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="5579012242779565775">Сакриј опцију Листа за читање</translation>
 <translation id="5581786858144165447">Питајте AI режим</translation>
 <translation id="5585019845078534178">Картице</translation>
-<translation id="5589976607021609750">Приложена слика</translation>
 <translation id="5595485650161345191">Измена адресе</translation>
 <translation id="559567008082979829">Подесите да се преузимања бришу после једног месеца.</translation>
 <translation id="5596627076506792578">Још опција</translation>
@@ -1360,7 +1362,6 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="6122191549521593678">Онлајн</translation>
 <translation id="6122831415929794347">Желите да искључите Безбедносно прегледање?</translation>
 <translation id="6123514585040403489">Картице ће бити затворене</translation>
-<translation id="6127379762771434464">Уклонили сте ставку</translation>
 <translation id="6136914049981179737">Малопре</translation>
 <translation id="6138324221869147340">Неке функције више нису доступне</translation>
 <translation id="6140600850356225166">Затражи отварање линкова из других апликација у режиму без архивирања</translation>
@@ -1796,7 +1797,6 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="7696316012653762532">Опције за превод странице</translation>
 <translation id="7700527812567437847">Претражи екран помоћу Google објектива</translation>
 <translation id="7701040980221191251">Ништа</translation>
-<translation id="7708668404222666001">Примењена су подешавања странице нове картице</translation>
 <translation id="7708994397325774423">Преузмите све лозинке</translation>
 <translation id="7711440461521638739">Ниједну лозинку не користите за више налога</translation>
 <translation id="7712361583414030698">Прегледате офлајн верзију</translation>
@@ -2128,6 +2128,7 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="8856643812068084733">Архиве</translation>
 <translation id="8863067612494559785">Шаље се кориснику <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Добијајте упутства и локалне информације од Google мапа</translation>
+<translation id="8867879594900082274">Измене ће се примењивати само на закачене сајтове на овом уређају.</translation>
 <translation id="8871974300055371298">Подешавања садржаја</translation>
 <translation id="8877788021141246043">Подеси подсетник</translation>
 <translation id="8879604564928138696">Двапут додирните да бисте пробали</translation>

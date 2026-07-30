@@ -43,6 +43,7 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "components/webauthn/core/browser/common_utils.h"
+#include "components/webauthn/core/browser/remote_validation.h"
 #include "components/webauthn/json/value_conversions.h"
 #include "content/browser/renderer_host/back_forward_cache_disable.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -836,8 +837,7 @@ struct AuthenticatorCommonImpl::RequestState {
       pending_proxied_request_id;
 
   // A pending remote validation of an RP ID.
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_rp_id_validation;
+  std::unique_ptr<webauthn::RemoteValidation> remote_rp_id_validation;
 
   std::optional<Mediation> mediation_;
 };
@@ -1132,8 +1132,8 @@ void AuthenticatorCommonImpl::MakeCredential(
     // WebAuthenticationDelegateBase::OriginMayUseRemoteDesktopClientOverride().
     remote_desktop_override_origin = remote_desktop_client_override->origin;
   }
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_validation = security_checker_->ValidateDomainAndRelyingPartyID(
+  std::unique_ptr<webauthn::RemoteValidation> remote_validation =
+      security_checker_->ValidateDomainAndRelyingPartyID(
           caller_origin, relying_party_id, request_type,
           remote_desktop_override_origin,
           base::BindOnce(
@@ -1472,6 +1472,30 @@ void AuthenticatorCommonImpl::GetCredential(
     return;
   }
 
+  if (!public_key_options) {
+    if (!options->password) {
+      mojo::ReportBadMessage("At least one credential type must be requested.");
+      std::move(callback).Run(AuthenticatorImpl::MakeGetAssertionResponse(
+          blink::mojom::AuthenticatorStatus::NOT_ALLOWED_ERROR, nullptr,
+          nullptr));
+      return;
+    }
+
+    if (options->mediation != Mediation::IMMEDIATE) {
+      mojo::ReportBadMessage(
+          "Password-only credentials can only be requested with immediate "
+          "mediation");
+      std::move(callback).Run(AuthenticatorImpl::MakeGetAssertionResponse(
+          blink::mojom::AuthenticatorStatus::NOT_ALLOWED_ERROR, nullptr,
+          nullptr));
+      return;
+    }
+
+    GetPasswordOnlyCredential(caller_origin, std::move(options),
+                              std::move(payment_options), std::move(callback));
+    return;
+  }
+
   req_state_ = std::make_unique<RequestState>();
   req_state_->request_key = RequestKey(next_request_key_);
 
@@ -1589,8 +1613,8 @@ void AuthenticatorCommonImpl::GetCredential(
     // WebAuthenticationDelegateBase::OriginMayUseRemoteDesktopClientOverride().
     remote_desktop_override_origin = remote_desktop_client_override->origin;
   }
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_validation = security_checker_->ValidateDomainAndRelyingPartyID(
+  std::unique_ptr<webauthn::RemoteValidation> remote_validation =
+      security_checker_->ValidateDomainAndRelyingPartyID(
           caller_origin, relying_party_id, request_type,
           remote_desktop_override_origin,
           base::BindOnce(
@@ -1604,6 +1628,104 @@ void AuthenticatorCommonImpl::GetCredential(
   if (remote_validation) {
     req_state_->remote_rp_id_validation = std::move(remote_validation);
   }
+}
+
+void AuthenticatorCommonImpl::GetPasswordOnlyCredential(
+    url::Origin caller_origin,
+    blink::mojom::GetCredentialOptionsPtr options,
+    blink::mojom::PaymentOptionsPtr payment_options,
+    GetCredentialCallback callback) {
+  req_state_ = std::make_unique<RequestState>();
+  req_state_->request_key = RequestKey(next_request_key_);
+  req_state_->response_callback = std::move(callback);
+  req_state_->mode = AuthenticationRequestMode::kImmediate;
+
+  BeginImmediateRequestTimeout();
+
+  bool is_cross_origin_iframe = false;
+  blink::mojom::AuthenticatorStatus status =
+      security_checker_->ValidateAncestorOrigins(
+          caller_origin,
+          WebAuthRequestSecurityChecker::RequestType::kGetAssertion,
+          &is_cross_origin_iframe);
+  if (status != blink::mojom::AuthenticatorStatus::SUCCESS) {
+    req_state_->request_outcome = GetAssertionOutcome::kSecurityError;
+    CompleteGetAssertionRequest(status);
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(device::kWebAuthnActorCheck) &&
+      GetContentClient()->browser()->ShouldDisallowCredentialRequest(
+          WebContents::FromRenderFrameHost(GetRenderFrameHost()))) {
+    req_state_->request_outcome = GetAssertionOutcome::kBlockedByEmbedder;
+    CompleteGetAssertionRequest(
+        blink::mojom::AuthenticatorStatus::NOT_ALLOWED_ERROR);
+    return;
+  }
+
+  req_state_->request_delegate = MaybeCreateRequestDelegate();
+  if (!req_state_->request_delegate) {
+    req_state_->request_outcome = GetAssertionOutcome::kOtherFailure;
+    CompleteGetAssertionRequest(
+        blink::mojom::AuthenticatorStatus::PENDING_REQUEST);
+    return;
+  }
+
+  // Passwords do not support virtual authenticators.
+  req_state_->request_delegate->SetVirtualEnvironment(false);
+
+  if (!disable_tls_check_ &&
+      !GetContentClient()->browser()->IsSecurityLevelAcceptableForWebAuthn(
+          GetRenderFrameHost(), caller_origin)) {
+    req_state_->request_outcome = GetAssertionOutcome::kOtherFailure;
+    CompleteGetAssertionRequest(
+        blink::mojom::AuthenticatorStatus::CERTIFICATE_ERROR);
+    return;
+  }
+
+  req_state_->caller_origin = caller_origin;
+  req_state_->relying_party_id = caller_origin.host();
+  req_state_->request_delegate->SetRelyingPartyId(req_state_->relying_party_id);
+
+  auto ui_presentation = UIPresentation::kModal;
+  if (disable_ui_) {
+    ui_presentation = UIPresentation::kDisabled;
+  } else {
+    ui_presentation = UIPresentation::kModalImmediate;
+  }
+  req_state_->request_delegate->SetUIPresentation(ui_presentation);
+  req_state_->request_delegate->SetCredentialTypes(
+      static_cast<int>(blink::mojom::CredentialTypeFlags::kPassword));
+
+  auto cancel_ui_timeout_callback =
+      base::BindOnce(&AuthenticatorCommonImpl::CancelImmediateTimeout,
+                     weak_factory_.GetWeakPtr());
+
+  req_state_->request_delegate->RegisterActionCallbacks(
+      base::BindOnce(&AuthenticatorCommonImpl::OnCancelFromUI,
+                     weak_factory_.GetWeakPtr()) /* cancel_callback */,
+      base::BindOnce(
+          &AuthenticatorCommonImpl::CancelRequestForImmediateMediation,
+          weak_factory_.GetWeakPtr()) /* immediate_not_found_callback */,
+      base::DoNothing() /* start_over_callback */,
+      base::DoNothing() /* account_preselected_callback */,
+      base::BindRepeating(
+          &AuthenticatorCommonImpl::HandlePasswordResponse,
+          weak_factory_.GetWeakPtr()) /*password_selected_callback */,
+      base::DoNothing() /* request_callback */,
+      std::move(cancel_ui_timeout_callback) /* cancel_ui_timeout_callback */,
+      base::DoNothing() /* bluetooth_adapter_power_on_callback */,
+      base::DoNothing() /* request_ble_permission_callback */);
+
+  req_state_->request_delegate->ConfigureDiscoveries(
+      req_state_->caller_origin, req_state_->relying_party_id, RequestSource(),
+      device::FidoRequestType::kGetAssertion,
+      /*resident_key_requirement=*/std::nullopt,
+      device::UserVerificationRequirement::kDiscouraged,
+      /*user_name=*/std::nullopt,
+      /*pairings_from_extension=*/{},
+      /*is_enclave_authenticator_available=*/false,
+      /*fido_discovery_factory=*/nullptr);
 }
 
 void AuthenticatorCommonImpl::ContinueGetAssertionAfterRpIdCheck(
@@ -2074,8 +2196,8 @@ void AuthenticatorCommonImpl::Report(
     CompleteReportRequest(status);
     return;
   }
-  std::unique_ptr<WebAuthRequestSecurityChecker::RemoteValidation>
-      remote_validation = security_checker_->ValidateDomainAndRelyingPartyID(
+  std::unique_ptr<webauthn::RemoteValidation> remote_validation =
+      security_checker_->ValidateDomainAndRelyingPartyID(
           req_state_->caller_origin, req_state_->relying_party_id,
           WebAuthRequestSecurityChecker::RequestType::kReport,
           /*remote_desktop_client_override_origin=*/std::nullopt,
@@ -2384,9 +2506,9 @@ void AuthenticatorCommonImpl::OnRegisterResponse(
     transports = *response_data->transports;
   }
   bool is_transport_used_internal =
-      base::Contains(transports, device::FidoTransportProtocol::kInternal);
+      transports.contains(device::FidoTransportProtocol::kInternal);
   bool is_transport_used_cable =
-      base::Contains(transports, device::FidoTransportProtocol::kHybrid);
+      transports.contains(device::FidoTransportProtocol::kHybrid);
 
   const auto attestation =
       std::get<device::CtapMakeCredentialRequest>(req_state_->ctap_request)

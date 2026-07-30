@@ -847,7 +847,7 @@ class MockAutofillClient : public TestAutofillClient {
               ShowPlusAddressEmailOverrideNotification,
               (const std::string&, AutofillClient::EmailOverrideUndoCallback),
               (override));
-  MOCK_METHOD(bool, IsActorTaskActive, (), (const override));
+  MOCK_METHOD(bool, IsTabInActorMode, (), (const override));
   MOCK_METHOD(AutofillAiManager*, GetAutofillAiManager, (), (override));
 };
 
@@ -873,10 +873,15 @@ class MockTouchToFillDelegate : public TouchToFillDelegate {
               TryToShowTouchToFill,
               (const FormData&, const FormFieldData&),
               (override));
+  MOCK_METHOD(bool,
+              ShowTouchToFillForAllLoyaltyCards,
+              (const FormData&, const FormFieldData&),
+              (override));
   MOCK_METHOD(bool, IsShowingTouchToFill, (), (override));
   MOCK_METHOD(void, HideTouchToFill, (), (override));
   MOCK_METHOD(void, Reset, (), (override));
   MOCK_METHOD(bool, ShouldShowScanCreditCard, (), (override));
+  MOCK_METHOD(bool, ShouldShowGPayLogo, (), (const, override));
   MOCK_METHOD(void, ScanCreditCard, (), (override));
   MOCK_METHOD(void, OnCreditCardScanned, (const CreditCard& card), (override));
   MOCK_METHOD(void, ShowPaymentMethodSettings, (), (override));
@@ -1152,10 +1157,10 @@ void ExpectFilledCreditCardFormElvis(const FormData& filled_form,
   ExpectFilledForm(filled_form, expected_address_fill_data, kElvisCardFillData);
 }
 
-// Returns a matcher that checks a `FormStructure`'s renderer id.
-auto FormStructureHasRendererId(FormRendererId form_renderer_id) {
-  return Pointee(Property(&FormStructure::global_id,
-                          Field(&FormGlobalId::renderer_id, form_renderer_id)));
+// Returns a matcher that checks a `FormData`'s renderer id.
+auto FormHasRendererId(FormRendererId form_renderer_id) {
+  return Property(&FormData::global_id,
+                  Field(&FormGlobalId::renderer_id, form_renderer_id));
 }
 
 Suggestion CreateUndoOrClearFormSuggestion() {
@@ -1628,14 +1633,12 @@ TEST_F(BrowserAutofillManagerTest, OnFormsSeen_DifferentFormStructures) {
        CreateTestFormField("Email", "email", "", FormControlType::kInputText)});
 
   EXPECT_CALL(crowdsourcing_manager(), StartQueryRequest).Times(AnyNumber());
-  EXPECT_CALL(
-      crowdsourcing_manager(),
-      StartQueryRequest(
-          ElementsAre(FormStructureHasRendererId(form.renderer_id())), _, _));
-  EXPECT_CALL(
-      crowdsourcing_manager(),
-      StartQueryRequest(
-          ElementsAre(FormStructureHasRendererId(form2.renderer_id())), _, _));
+  EXPECT_CALL(crowdsourcing_manager(),
+              StartQueryRequest(
+                  ElementsAre(FormHasRendererId(form.renderer_id())), _, _));
+  EXPECT_CALL(crowdsourcing_manager(),
+              StartQueryRequest(
+                  ElementsAre(FormHasRendererId(form2.renderer_id())), _, _));
   FormsSeen({form});
   FormsSeen({form2});
 }
@@ -1951,6 +1954,15 @@ TEST_F(BrowserAutofillManagerTest, WebauthnSignInWithAnotherDeviceSuggestion) {
   EXPECT_THAT(
       external_delegate()->suggestions(),
       Contains(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
+  external_delegate()->CheckSuggestions(
+      form.fields()[0].global_id(),
+      {Suggestion("buddy@gmail.com", "", Suggestion::Icon::kEmail,
+                  SuggestionType::kAddressEntry),
+       Suggestion("theking@gmail.com", "", Suggestion::Icon::kEmail,
+                  SuggestionType::kAddressEntry),
+       Suggestion(SuggestionType::kSeparator),
+       Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice),
+       CreateManageAddressesSuggestion()});
 }
 
 TEST_F(BrowserAutofillManagerTest,
@@ -1974,6 +1986,14 @@ TEST_F(BrowserAutofillManagerTest,
   EXPECT_THAT(external_delegate()->suggestions(),
               Not(Contains(Suggestion(
                   SuggestionType::kWebauthnSignInWithAnotherDevice))));
+  external_delegate()->CheckSuggestions(
+      form.fields()[0].global_id(),
+      {Suggestion("buddy@gmail.com", "", Suggestion::Icon::kEmail,
+                  SuggestionType::kAddressEntry),
+       Suggestion("theking@gmail.com", "", Suggestion::Icon::kEmail,
+                  SuggestionType::kAddressEntry),
+       Suggestion(SuggestionType::kSeparator),
+       CreateManageAddressesSuggestion()});
 }
 
 TEST_F(BrowserAutofillManagerTest,
@@ -2405,9 +2425,9 @@ TEST_F(BrowserAutofillManagerTestValuables,
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
                                     {.role = PASSWORD}}});
   auto form_structure = std::make_unique<FormStructure>(form_data);
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -2485,9 +2505,9 @@ TEST_F(BrowserAutofillManagerTestValuables,
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
                                     {.role = PASSWORD}}});
   auto form_structure = std::make_unique<FormStructure>(form_data);
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -3628,10 +3648,9 @@ TEST_F(BrowserAutofillManagerTest,
   autofill_client().SetAutofillProfileEnabled(false);
   // If the password manager is enabled, that's enough to parse the form.
   EXPECT_CALL(crowdsourcing_manager(), StartQueryRequest).Times(AnyNumber());
-  EXPECT_CALL(
-      crowdsourcing_manager(),
-      StartQueryRequest(
-          ElementsAre(FormStructureHasRendererId(form.renderer_id())), _, _));
+  EXPECT_CALL(crowdsourcing_manager(),
+              StartQueryRequest(
+                  ElementsAre(FormHasRendererId(form.renderer_id())), _, _));
   FormsSeen({form});
 }
 
@@ -4719,9 +4738,9 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -4775,9 +4794,9 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -4889,9 +4908,9 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -4992,7 +5011,7 @@ TEST_F(BrowserAutofillManagerTest, NoSaveToAutocompleteWhenActorIsActive) {
   base::test::ScopedFeatureList feature_list{
       features::kAutofillActorSuppressImport};
 
-  EXPECT_CALL(autofill_client(), IsActorTaskActive).WillOnce(Return(true));
+  EXPECT_CALL(autofill_client(), IsTabInActorMode).WillOnce(Return(true));
   FormData form = CreateTestAddressFormData();
   EXPECT_CALL(single_field_fill_router(), OnWillSubmitForm).Times(0);
   FormSubmitted(form);
@@ -5010,7 +5029,7 @@ TEST_F(BrowserAutofillManagerTest, FormSubmittedActorActive) {
       AutofillFormAndGetResults(form, form.fields()[0], kElvisProfileGuid);
   ExpectFilledAddressFormElvis(response_data, false);
 
-  EXPECT_CALL(autofill_client(), IsActorTaskActive).WillOnce(Return(true));
+  EXPECT_CALL(autofill_client(), IsTabInActorMode).WillOnce(Return(true));
   TestAddressDataManager& adm = personal_data().test_address_data_manager();
   adm.ClearProfiles();
   // Auto-accept for import is enabled for this test, so if import were on,
@@ -5256,9 +5275,9 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   // Simulate having seen this form on page load.
   auto form_structure_instance = std::make_unique<FormStructure>(form);
   FormStructure* form_structure = form_structure_instance.get();
-  RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -5281,9 +5300,9 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   auto form_structure_instance2 = std::make_unique<FormStructure>(form2);
   // This pointer is valid as long as autofill manager lives.
   FormStructure* form_structure2 = form_structure_instance2.get();
-  regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure2->ToFormData(), nullptr);
+  regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure2->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure2->fields());
   form_structure2->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                 LanguageCode(""), nullptr);
@@ -5356,9 +5375,9 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictions_ResetManager) {
   // Simulate having seen this form on page load.
   // |form_structure| will be owned by |autofill_manager()|.
   auto form_structure = std::make_unique<FormStructure>(form);
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -5412,9 +5431,9 @@ TEST_F(BrowserAutofillManagerTest, DetermineHeuristicsWithOverallPrediction) {
   FormStructure* form_structure = [&] {
     auto form_structure = std::make_unique<FormStructure>(form);
     FormStructure* ptr = form_structure.get();
-    const RegexPredictions regex_predictions =
-        DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                            form_structure->ToFormData(), nullptr);
+    const RegexPredictions regex_predictions = DetermineRegexTypes(
+        GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+        nullptr, /*ignore_small_forms=*/true);
     regex_predictions.ApplyTo(form_structure->fields());
     form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                  LanguageCode(""), nullptr);
@@ -6206,9 +6225,9 @@ TEST_F(BrowserAutofillManagerTest,
                                        FormControlType::kInputText)});
 
   auto form_structure = std::make_unique<FormStructure>(form);
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -7180,9 +7199,9 @@ TEST_F(BrowserAutofillManagerTest, AutocompleteMetrics) {
   }
   // Override the types and simulate seeing the form on page load.
   auto form_structure = std::make_unique<FormStructure>(form);
-  const RegexPredictions regex_predictions =
-      DetermineRegexTypes(GeoIpCountryCode(""), LanguageCode(""),
-                          form_structure->ToFormData(), nullptr);
+  const RegexPredictions regex_predictions = DetermineRegexTypes(
+      GeoIpCountryCode(""), LanguageCode(""), form_structure->ToFormData(),
+      nullptr, /*ignore_small_forms=*/true);
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
@@ -7718,7 +7737,8 @@ class BrowserAutofillManagerTest_MockAutofillAi
       auto fs = std::make_unique<FormStructure>(form);
       form_structure = fs.get();
       const RegexPredictions regex_predictions = DetermineRegexTypes(
-          GeoIpCountryCode(""), LanguageCode(""), fs->ToFormData(), nullptr);
+          GeoIpCountryCode(""), LanguageCode(""), fs->ToFormData(), nullptr,
+          /*ignore_small_forms=*/true);
       regex_predictions.ApplyTo(fs->fields());
       fs->RationalizeAndAssignSections(GeoIpCountryCode(""), LanguageCode(""),
                                        nullptr);

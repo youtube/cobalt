@@ -4,8 +4,6 @@
 
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {SettingsOption} from '../content/read_anything_types.js';
-
 import {SettingsItemType, type SettingsMenuElement} from './settings_menu.js';
 
 
@@ -16,8 +14,13 @@ export function getHtml(this: SettingsMenuElement) {
   <cr-action-menu id="settings-menu-dialog" non-modal>
     ${this.options_.map((item, index) => html`
       <button class="menu-row ${item.className || ''}"
+          id="${item.id}"
           role="menuitem"
           data-index="${index}"
+          title="${item.ariaLabel || item.title}"
+          aria-label="${item.ariaLabel || item.title}"
+          @pointerenter="${this.onMenuItemHover_}"
+          @pointerleave="${this.onMenuItemLeave_}"
           @click="${this.onMenuItemClick_}">
 
 
@@ -25,13 +28,18 @@ export function getHtml(this: SettingsMenuElement) {
           <cr-icon class="start-icon" icon="${item.icon}"></cr-icon>
         ` : ''}
 
-        <div class="label">${item.ariaLabel}</div>
+        <div class="label">${item.title}</div>
 
-        <!-- TODO(crbug.com/471212662): Add a designated toggle menu and delete
-        this SettingsOption.VIEW check -->
         ${item.itemType === SettingsItemType.TOGGLE ? html`
-            <cr-toggle></cr-toggle>
-        ` : item.id === SettingsOption.VIEW ? '' : html`
+            <cr-toggle
+              title="${item.ariaLabel || item.title}"
+              aria-label="${item.ariaLabel || item.title}"
+              @click="${this.onMenuItemClick_}"
+              ?checked="${item.enabled || false}"
+              data-index="${index}">
+            </cr-toggle>
+        ` : html`
+            <!-- TODO(crbug.com/473611756): Fix direction in RTL -->
             <cr-icon class="end-icon" icon="cr:chevron-right"></cr-icon>
         `}
       </button>

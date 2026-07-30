@@ -18,8 +18,11 @@ namespace {
 
 // Returns whether the user's current country code is US.
 bool IsUSCountryCode() {
-  return base::ToLowerASCII(GetCurrentCountryCode(
-             GetApplicationContext()->GetVariationsService())) == "us";
+  static const bool is_us_country_code = [] {
+    return base::ToLowerASCII(GetCurrentCountryCode(
+               GetApplicationContext()->GetVariationsService())) == "us";
+  }();
+  return is_us_country_code;
 }
 
 }  // namespace
@@ -31,6 +34,9 @@ BASE_FEATURE(kEnableReaderModeInUS, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableReaderModeOmniboxEntryPoint,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kEnableReaderModeOmniboxEntryPointInUS,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableReaderModeTranslation, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableReaderModeTranslationWithInfobar,
@@ -40,8 +46,6 @@ BASE_FEATURE(kEnableReadabilityHeuristic, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableReaderModeOptimizationGuideEligibility,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableReaderModeBadgeSupport, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kReaderModeHeuristicPageLoadDelayDurationStringName[] =
     "reader-mode-heuristic-page-load-delay-duration-string";
@@ -64,15 +68,23 @@ const base::TimeDelta ReaderModeHeuristicPageLoadDelay() {
 }
 
 bool IsReaderModeAvailable() {
-  if (IsUSCountryCode() &&
-      !experimental_flags::ShouldIgnoreDeviceLocaleConditions()) {
-    return base::FeatureList::IsEnabled(kEnableReaderMode) &&
-           base::FeatureList::IsEnabled(kEnableReaderModeInUS);
-  }
-  return base::FeatureList::IsEnabled(kEnableReaderMode);
+  static const bool is_reader_mode_available = [] {
+    if (IsUSCountryCode() &&
+        !experimental_flags::ShouldIgnoreDeviceLocaleConditions()) {
+      return base::FeatureList::IsEnabled(kEnableReaderMode) &&
+             base::FeatureList::IsEnabled(kEnableReaderModeInUS);
+    }
+    return base::FeatureList::IsEnabled(kEnableReaderMode);
+  }();
+  return is_reader_mode_available;
 }
 
 bool IsReaderModeOmniboxEntryPointEnabled() {
+  if (IsUSCountryCode() &&
+      !experimental_flags::ShouldIgnoreDeviceLocaleConditions()) {
+    return base::FeatureList::IsEnabled(kEnableReaderModeOmniboxEntryPoint) &&
+           base::FeatureList::IsEnabled(kEnableReaderModeOmniboxEntryPointInUS);
+  }
   return base::FeatureList::IsEnabled(kEnableReaderModeOmniboxEntryPoint);
 }
 
@@ -84,8 +96,4 @@ bool IsReaderModeTranslationAvailable() {
 bool IsReaderModeOptimizationGuideEligibilityAvailable() {
   return base::FeatureList::IsEnabled(
       kEnableReaderModeOptimizationGuideEligibility);
-}
-
-bool IsReaderModeBadgeSupportEnabled() {
-  return base::FeatureList::IsEnabled(kEnableReaderModeBadgeSupport);
 }

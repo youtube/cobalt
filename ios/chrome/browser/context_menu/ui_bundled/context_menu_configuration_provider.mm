@@ -50,13 +50,13 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_share_url_command.h"
-#import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/enhanced_calendar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/mini_map_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reading_list_add_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/search_image_with_lens_command.h"
 #import "ios/chrome/browser/shared/public/commands/unit_conversion_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -531,10 +531,10 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
   __weak __typeof(self) weakSelf = self;
 
   // Launch the Gemini experience with an image attached.
-  BOOL canShowGeminiElement =
-      IsImageContextMenuGeminiEntryPointEnabled() &&
-      BwgServiceFactory::GetForProfile(self.browser->GetProfile())
-          ->IsBwgAvailableForWebState(webState);
+  raw_ptr<BwgService> BWGService =
+      BwgServiceFactory::GetForProfile(self.browser->GetProfile());
+  BOOL canShowGeminiElement = IsGeminiImageRemixToolEnabled() && BWGService &&
+                              BWGService->IsBwgAvailableForWebState(webState);
   if (canShowGeminiElement) {
     ProceduralBlock geminiElementCallback = ^{
       [weakSelf openGeminiWithImageURL:imageURL referrer:referrer];
