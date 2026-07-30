@@ -5,6 +5,11 @@
 #ifndef BASE_TASK_THREAD_TYPE_H_
 #define BASE_TASK_THREAD_TYPE_H_
 
+#include <optional>
+#include <string_view>
+
+#include "base/base_export.h"
+
 namespace base {
 
 // Valid values for `thread_type` of Thread::Options, SimpleThread::Options,
@@ -43,6 +48,35 @@ enum class ThreadType : int {
   kRealtimeAudio,
   kMaxValue = kRealtimeAudio,
 };
+
+BASE_EXPORT std::string_view ThreadTypeToString(ThreadType type);
+
+namespace internal {
+
+// Returns the ThreadType that represents the importance of the executing
+// task. This will be equal to or lower than the current thread's ThreadType
+// this task executes on. This is used to influence the priority of other tasks
+// posted from the current task, but not to influence OS-thread Priority of the
+// current task.
+ThreadType GetCurrentTaskImportance();
+
+// Overrides the ThreadType returned by GetCurrentTaskImportance(). ThreadType
+// can only be lowered; a higher ThreadType will be ignored.
+class BASE_EXPORT CurrentTaskImportanceOverride {
+ public:
+  explicit CurrentTaskImportanceOverride(ThreadType override);
+
+  CurrentTaskImportanceOverride(const CurrentTaskImportanceOverride&) = delete;
+  CurrentTaskImportanceOverride& operator=(
+      const CurrentTaskImportanceOverride&) = delete;
+
+  ~CurrentTaskImportanceOverride();
+
+ private:
+  std::optional<ThreadType> previous_override_;
+};
+
+}  // namespace internal
 
 }  // namespace base
 

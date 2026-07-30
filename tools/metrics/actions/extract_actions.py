@@ -38,12 +38,11 @@ if sys.version_info.major == 2:
 else:
   from html.parser import HTMLParser
 
-import action_utils
-import actions_model
+import setup_modules
 
-# Import the metrics/common module for pretty print xml.
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common'))
-import presubmit_util
+import chromium_src.tools.metrics.actions.action_utils as action_utils
+import chromium_src.tools.metrics.actions.actions_model as actions_model
+import chromium_src.tools.metrics.common.presubmit_util as presubmit_util
 
 USER_METRICS_ACTION_RE = re.compile(
     r"""
@@ -510,7 +509,7 @@ def AddLiteralActions(actions):
   Arguments:
     actions: set of actions to add to.
   """
-  EXTENSIONS = ('.cc', '.cpp', '.mm', '.c', '.m', '.java')
+  EXTENSIONS = ('.cc', '.cpp', '.mm', '.c', '.m', '.java', '.swift')
 
   # Walk the source tree to process all files.
   ash_root = os.path.normpath(os.path.join(REPOSITORY_ROOT, 'ash'))
@@ -532,6 +531,8 @@ def AddLiteralActions(actions):
   webkit_core_root = os.path.normpath(
       os.path.join(REPOSITORY_ROOT, 'third_party/blink/renderer/core'))
   WalkDirectory(webkit_core_root, actions, EXTENSIONS, GrepForActions)
+  ios_root = os.path.normpath(os.path.join(REPOSITORY_ROOT, 'ios'))
+  WalkDirectory(ios_root, actions, EXTENSIONS, GrepForActions)
 
 
 def AddWebUIActions(actions):

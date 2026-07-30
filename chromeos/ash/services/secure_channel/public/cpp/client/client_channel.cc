@@ -9,8 +9,6 @@
 
 namespace ash::secure_channel {
 
-ClientChannel::Observer::~Observer() = default;
-
 ClientChannel::ClientChannel() = default;
 
 ClientChannel::~ClientChannel() = default;
@@ -78,7 +76,7 @@ void ClientChannel::NotifyNearbyConnectionStateChanged(
     mojom::NearbyConnectionStep step,
     mojom::NearbyConnectionStepResult result) {
   for (auto& observer : observer_list_) {
-    observer.OnNearbyConnectionStateChagned(step, result);
+    observer.OnNearbyConnectionStateChanged(step, result);
   }
 }
 

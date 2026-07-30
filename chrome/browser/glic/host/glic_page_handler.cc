@@ -96,6 +96,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/skills/public/skills_metrics.h"
 #include "components/sync/protocol/skill_specifics.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -291,22 +292,24 @@ class ActiveStateCalculator : public PanelStateObserver {
     attached_browser_subscriptions_.clear();
     attached_browser_ = attached_browser;
 
+    // attached_browser is always null in Multi-instance, and ANDROID implies
+    // Multi-instance.
+#if !BUILDFLAG(IS_ANDROID)
     if (attached_browser_ && !IsDeleteScheduled(attached_browser_)) {
-      attached_browser_subscriptions_.push_back(RegisterDidBecomeActive(
-          attached_browser_,
-          base::BindRepeating(
+      attached_browser_subscriptions_.push_back(
+          attached_browser_->RegisterDidBecomeActive(base::BindRepeating(
               &ActiveStateCalculator::AttachedBrowserActiveChanged,
               base::Unretained(this))));
-      attached_browser_subscriptions_.push_back(RegisterDidBecomeInactive(
-          attached_browser_,
-          base::BindRepeating(
+      attached_browser_subscriptions_.push_back(
+          attached_browser_->RegisterDidBecomeInactive(base::BindRepeating(
               &ActiveStateCalculator::AttachedBrowserActiveChanged,
               base::Unretained(this))));
-      attached_browser_subscriptions_.push_back(RegisterBrowserDidClose(
-          attached_browser_,
-          base::BindRepeating(&ActiveStateCalculator::AttachedBrowserDidClose,
-                              base::Unretained(this))));
+      attached_browser_subscriptions_.push_back(
+          attached_browser_->RegisterBrowserDidClose(base::BindRepeating(
+              &ActiveStateCalculator::AttachedBrowserDidClose,
+              base::Unretained(this))));
     }
+#endif
     return true;
   }
 
@@ -645,6 +648,10 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
   result->disallowed_by_remote_other = enablement.disallowed_by_remote_other;
   result->not_consented = enablement.not_consented;
   result->live_disallowed = enablement.live_disallowed;
+  result->share_image_disallowed = enablement.share_image_disallowed;
+  result->actuation_not_consented =
+      profile->GetPrefs()->GetBoolean(prefs::kGlicUserEnabledActuationOnWeb) ==
+      false;
 
   using CannotActReason = GlicActorPolicyChecker::CannotActReason;
   if (actor_policy_checker.CanActOnWeb()) {
@@ -917,6 +924,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         base::FeatureList::IsEnabled(features::kGlicScrollTo);
     state->enable_zero_state_suggestions =
         contextual_cueing::IsZeroStateSuggestionsEnabled();
+    state->enable_cached_get_user_profile_info = base::FeatureList::IsEnabled(
+        features::kGlicEnableCachedGetUserProfileInfo);
 
     local_state_pref_change_registrar_.Init(g_browser_process->local_state());
 #if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
@@ -1395,6 +1404,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           "ShowManageSkillsUi cannot be called without Skills enabled.");
       return;
     }
+    skills::RecordSkillsAction(skills::SkillsActions::kOpenedManageSkillsPage);
     NavigateParams params(profile_, GURL(chrome::kChromeUISkillsURL),
                           ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
     params.disposition = WindowOpenDisposition::SINGLETON_TAB;
@@ -1457,18 +1467,13 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void CaptureRegion(
       mojo::PendingRemote<mojom::CaptureRegionObserver> observer) override {
 #if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: CaptureRegion
-    content::WebContents* web_contents = nullptr;
     const FocusedTabData& focus = sharing_manager().GetFocusedTabData();
     // Prioritize the focused tab, but fall back to the unfocused tab if one is
     // available. This is useful in cases where the active tab is not
     // "focusable" by Glic (e.g. chrome:// pages).
     tabs::TabInterface* active_tab =
         focus.is_focus() ? focus.focus() : focus.unfocused_tab();
-
-    if (active_tab) {
-      web_contents = active_tab->GetContents();
-    }
-    glic_service_->CaptureRegion(web_contents, std::move(observer));
+    glic_service_->CaptureRegion(active_tab, std::move(observer));
 #else
     NOTIMPLEMENTED();
 #endif
@@ -2028,6 +2033,11 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         std::move(contextual_skill_previews));
   }
 
+  void Invoke(mojom::InvokeOptionsPtr options,
+              base::OnceClosure callback) override {
+    web_client_->Invoke(std::move(options), std::move(callback));
+  }
+
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
 // from Skills backend.
 #if !BUILDFLAG(IS_ANDROID)
@@ -2519,6 +2529,8 @@ void GlicPageHandler::GetInternalsDataPayload(
 
   config->autopush_guest_url = GURL(g_browser_process->local_state()->GetString(
       prefs::kGlicGuestUrlPresetAutopush));
+  config->staging_guest_url = GURL(g_browser_process->local_state()->GetString(
+      prefs::kGlicGuestUrlPresetStaging));
   config->preprod_guest_url = GURL(g_browser_process->local_state()->GetString(
       prefs::kGlicGuestUrlPresetPreprod));
   config->prod_guest_url = GURL(g_browser_process->local_state()->GetString(
@@ -2530,10 +2542,13 @@ void GlicPageHandler::GetInternalsDataPayload(
 }
 
 void GlicPageHandler::SetGuestUrlPresets(const GURL& autopush_url,
+                                         const GURL& staging_url,
                                          const GURL& preprod_url,
                                          const GURL& prod_url) {
   g_browser_process->local_state()->SetString(
       prefs::kGlicGuestUrlPresetAutopush, autopush_url.spec());
+  g_browser_process->local_state()->SetString(prefs::kGlicGuestUrlPresetStaging,
+                                              staging_url.spec());
   g_browser_process->local_state()->SetString(prefs::kGlicGuestUrlPresetPreprod,
                                               preprod_url.spec());
   g_browser_process->local_state()->SetString(prefs::kGlicGuestUrlPresetProd,

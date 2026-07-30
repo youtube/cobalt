@@ -10,7 +10,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/profiles/profile.h"
@@ -23,8 +25,10 @@
 #include "chrome/browser/ui/views/passwords/account_chooser_dialog_view.h"
 #include "chrome/browser/ui/views/passwords/auto_signin_first_run_dialog_view.h"
 #include "chrome/browser/ui/views/passwords/credential_leak_dialog_view.h"
+#include "chrome/browser/ui/views/passwords/password_combined_selector_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/mock_password_form_manager_for_ui.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -36,8 +40,11 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/ui_base_switches.h"
+#include "ui/views/controls/button/radio_button.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 using net::test_server::BasicHttpResponse;
 using net::test_server::HttpRequest;
@@ -48,6 +55,10 @@ using ::testing::Field;
 using ::testing::ReturnRef;
 
 namespace {
+
+constexpr std::u16string_view kFirstDisplayName = u"Frank Sinatra";
+constexpr std::u16string_view kFirstUsername = u"frank@sinat.ra";
+constexpr std::u16string_view kSecondUsername = u"nancy@sinat.ra";
 
 password_manager::PasswordForm CreatePasswordForm(
     const GURL& url,
@@ -72,7 +83,7 @@ class TestManagePasswordsUIController : public ManagePasswordsUIController {
       const TestManagePasswordsUIController&) = delete;
 
   void OnDialogHidden() override;
-  AccountChooserPrompt* CreateAccountChooser(
+  std::unique_ptr<AccountChooserPrompt> CreateAccountChooser(
       CredentialManagerDialogController* controller) override;
   AutoSigninFirstRunPrompt* CreateAutoSigninPrompt(
       CredentialManagerDialogController* controller) override;
@@ -81,6 +92,11 @@ class TestManagePasswordsUIController : public ManagePasswordsUIController {
 
   AccountChooserDialogView* current_account_chooser() const {
     return static_cast<AccountChooserDialogView*>(current_account_chooser_);
+  }
+
+  PasswordCombinedSelectorView* current_password_combined_selector_view()
+      const {
+    return static_cast<PasswordCombinedSelectorView*>(current_account_chooser_);
   }
 
   AutoSigninFirstRunDialogView* current_autosignin_prompt() const {
@@ -122,11 +138,12 @@ void TestManagePasswordsUIController::OnDialogHidden() {
   OnDialogClosed();
 }
 
-AccountChooserPrompt* TestManagePasswordsUIController::CreateAccountChooser(
+std::unique_ptr<AccountChooserPrompt>
+TestManagePasswordsUIController::CreateAccountChooser(
     CredentialManagerDialogController* controller) {
-  current_account_chooser_ =
-      ManagePasswordsUIController::CreateAccountChooser(controller);
-  return current_account_chooser_;
+  auto chooser = ManagePasswordsUIController::CreateAccountChooser(controller);
+  current_account_chooser_ = chooser.get();
+  return chooser;
 }
 
 AutoSigninFirstRunPrompt*
@@ -364,8 +381,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
                          url::Origin::Create(origin));
 
   EXPECT_TRUE(controller()->current_account_chooser());
-  views::BubbleDialogDelegateView* dialog =
-      controller()->current_account_chooser();
+  AccountChooserDialogView* dialog = controller()->current_account_chooser();
   views::test::WidgetDestroyedWaiter bubble_observer(dialog->GetWidget());
   EXPECT_CALL(*this, OnChooseCredential(testing::Pointee(form)));
   dialog->Accept();
@@ -626,6 +642,23 @@ void PasswordDialogViewTest::ShowUi(const std::string& name) {
     }
     SetupChooseCredentials(std::move(local_credentials),
                            url::Origin::Create(origin));
+  } else if (name == "MultipleCredentials" || name == "SingleCredential") {
+    form.url = origin;
+    form.display_name = kFirstDisplayName;
+    form.username_value = kFirstUsername;
+    form.match_type = password_manager::PasswordForm::MatchType::kExact;
+
+    local_credentials.push_back(
+        std::make_unique<password_manager::PasswordForm>(form));
+
+    if (name == "MultipleCredentials") {
+      form.username_value = kSecondUsername;
+      local_credentials.push_back(
+          std::make_unique<password_manager::PasswordForm>(form));
+    }
+
+    SetupChooseCredentials(std::move(local_credentials),
+                           url::Origin::Create(origin));
   } else {
     ADD_FAILURE() << "Unknown dialog type";
     return;
@@ -654,6 +687,156 @@ IN_PROC_BROWSER_TEST_F(
     PasswordDialogViewTest,
     InvokeUi_PopupAccountChooserWithMultipleCredentialClickSignIn) {
   ShowAndVerifyUi();
+}
+
+class PasswordCombinedSelectorViewTest : public PasswordDialogViewTest {
+ public:
+  void ShowUi(const std::string& name) override {
+    if (name == "ManyCredentials") {
+      std::vector<std::unique_ptr<password_manager::PasswordForm>>
+          local_credentials;
+      for (int i = 0; i < 5; ++i) {
+        password_manager::PasswordForm form;
+        form.url = GURL("https://example.com");
+        form.signon_realm = form.url.GetWithEmptyPath().spec();
+        form.display_name =
+            base::ASCIIToUTF16(base::StringPrintf("User %d", i));
+        form.username_value =
+            base::ASCIIToUTF16(base::StringPrintf("user%d@example.com", i));
+        form.match_type = password_manager::PasswordForm::MatchType::kExact;
+        local_credentials.push_back(
+            std::make_unique<password_manager::PasswordForm>(form));
+      }
+      SetupChooseCredentials(std::move(local_credentials),
+                             url::Origin::Create(GURL("https://example.com")));
+      return;
+    }
+    if (name == "FederatedCredentials") {
+      std::vector<std::unique_ptr<password_manager::PasswordForm>>
+          local_credentials;
+      password_manager::PasswordForm form;
+      form.url = GURL("https://example.com");
+      form.signon_realm = form.url.GetWithEmptyPath().spec();
+      form.display_name = u"Peter Pan";
+      form.username_value = u"peter@pan.test";
+      form.federation_origin =
+          url::SchemeHostPort(GURL("https://google.com/federation"));
+      form.match_type = password_manager::PasswordForm::MatchType::kExact;
+      local_credentials.push_back(
+          std::make_unique<password_manager::PasswordForm>(form));
+
+      form.display_name = u"Wendy Darling";
+      form.username_value = u"wendy@pan.test";
+      form.federation_origin =
+          url::SchemeHostPort(GURL("https://example.com/federation"));
+      local_credentials.push_back(
+          std::make_unique<password_manager::PasswordForm>(form));
+
+      SetupChooseCredentials(std::move(local_credentials),
+                             url::Origin::Create(GURL("https://example.com")));
+      return;
+    }
+    PasswordDialogViewTest::ShowUi(name);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      password_manager::features::kCredentialManagementUnifiedUi};
+};
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       InvokeUi_SingleCredential) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       InvokeUi_MultipleCredentials) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       InvokeUi_ManyCredentials) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       InvokeUi_FederatedCredentials) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       ShowMultipleCredentials) {
+  ShowUi("MultipleCredentials");
+
+  PasswordCombinedSelectorView* view =
+      controller()->current_password_combined_selector_view();
+  ASSERT_TRUE(view);
+
+  EXPECT_CALL(*this, OnChooseCredential(testing::Pointee(testing::Field(
+                         &password_manager::PasswordForm::username_value,
+                         testing::Eq(kFirstUsername)))));
+  views::test::WidgetDestroyedWaiter waiter(view->GetWidget());
+  view->Accept();
+  waiter.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       ChooseSecondCredential) {
+  ShowUi("MultipleCredentials");
+
+  PasswordCombinedSelectorView* view =
+      controller()->current_password_combined_selector_view();
+  ASSERT_TRUE(view);
+
+  const auto& radio_buttons = view->GetRadioButtonsForTesting();
+  ASSERT_EQ(2u, radio_buttons.size());
+
+  // Click the second radio button.
+  radio_buttons[1]->OnMousePressed(ui::MouseEvent(
+      ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+      base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
+  radio_buttons[1]->OnMouseReleased(ui::MouseEvent(
+      ui::EventType::kMouseReleased, gfx::Point(), gfx::Point(),
+      base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
+
+  EXPECT_CALL(*this, OnChooseCredential(testing::Pointee(testing::Field(
+                         &password_manager::PasswordForm::username_value,
+                         testing::Eq(kSecondUsername)))));
+  views::test::WidgetDestroyedWaiter waiter(view->GetWidget());
+  view->Accept();
+  waiter.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest,
+                       ShowCombinedSelectorWithSingleCredential) {
+  ShowUi("SingleCredential");
+
+  PasswordCombinedSelectorView* view =
+      controller()->current_password_combined_selector_view();
+  ASSERT_TRUE(view);
+
+  // No radio buttons should be shown for a single credential.
+  EXPECT_TRUE(view->GetRadioButtonsForTesting().empty());
+
+  EXPECT_CALL(*this, OnChooseCredential(testing::Pointee(testing::Field(
+                         &password_manager::PasswordForm::username_value,
+                         testing::Eq(kFirstUsername)))));
+  views::test::WidgetDestroyedWaiter waiter(view->GetWidget());
+  view->Accept();
+  waiter.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordCombinedSelectorViewTest, CancelDialog) {
+  ShowUi("MultipleCredentials");
+
+  PasswordCombinedSelectorView* view =
+      controller()->current_password_combined_selector_view();
+  ASSERT_TRUE(view);
+
+  EXPECT_CALL(*this, OnChooseCredential(nullptr));
+  views::test::WidgetDestroyedWaiter waiter(view->GetWidget());
+  view->GetWidget()->Close();
+  waiter.Wait();
 }
 
 }  // namespace

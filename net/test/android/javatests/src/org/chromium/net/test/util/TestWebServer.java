@@ -5,15 +5,15 @@
 package org.chromium.net.test.util;
 
 import android.util.Base64;
-import android.util.Log;
 import android.util.Pair;
 
 import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.base.Log;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -92,7 +92,7 @@ public class TestWebServer extends WebServer {
                 outputResponse(request, printStream);
             } catch (NoSuchAlgorithmException ignore) {
             } catch (IOException e) {
-                Log.w(TAG, e);
+                Log.w(TAG, "", e);
             } finally {
                 printStream.close();
             }
@@ -543,8 +543,8 @@ public class TestWebServer extends WebServer {
 
     /** Return a response for WebSocket handshake challenge. */
     private static String computeWebSocketAccept(String keyString) throws NoSuchAlgorithmException {
-        byte[] key = keyString.getBytes(Charset.forName("US-ASCII"));
-        byte[] guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11".getBytes(Charset.forName("US-ASCII"));
+        byte[] key = keyString.getBytes(StandardCharsets.US_ASCII);
+        byte[] guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11".getBytes(StandardCharsets.US_ASCII);
 
         MessageDigest md = MessageDigest.getInstance("SHA");
         md.update(key);

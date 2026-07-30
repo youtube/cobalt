@@ -52,6 +52,7 @@ class FakeSession : public Session {
   // AddPlugin() function.
   void SetAttachment(size_t round,
                      std::unique_ptr<jingle_xmpp::XmlElement> attachment);
+  void SetAttachment(size_t round, const Attachment& attachment);
 
   // Session interface.
   void SetEventHandler(EventHandler* event_handler) override;
@@ -67,12 +68,11 @@ class FakeSession : public Session {
 
  private:
   // Callback provided to the |transport_|.
-  void SendTransportInfo(
-      std::unique_ptr<jingle_xmpp::XmlElement> transport_info);
+  void SendTransportInfo(std::unique_ptr<JingleTransportInfo> transport_info);
 
   // Called by the |peer_| to deliver incoming |transport_info|.
   void ProcessTransportInfo(
-      std::unique_ptr<jingle_xmpp::XmlElement> transport_info);
+      std::unique_ptr<JingleTransportInfo> transport_info);
 
   raw_ptr<EventHandler> event_handler_ = nullptr;
   std::unique_ptr<SessionConfig> config_;
@@ -88,7 +88,7 @@ class FakeSession : public Session {
   base::WeakPtr<FakeSession> peer_;
   base::TimeDelta signaling_delay_;
 
-  std::vector<std::unique_ptr<jingle_xmpp::XmlElement>> attachments_;
+  std::vector<Attachment> attachments_;
 
   base::WeakPtrFactory<FakeSession> weak_factory_{this};
 };

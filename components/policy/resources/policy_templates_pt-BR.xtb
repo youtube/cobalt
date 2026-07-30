@@ -1735,6 +1735,7 @@ resolvedor associado ao resolvedor do sistema configurado pelo usuário.</transl
 <translation id="2158741059065130266">Se a política for definida como verdadeira, os usuários do app Arquivos do <ph name="PRODUCT_OS_NAME" /> vão poder ver uma lixeira, e os arquivos em "Meus arquivos" e "Downloads", incluindo os descendentes criados pelo usuário, vão ser enviados para lá após a exclusão.
 
       Se a política for definida como falsa, os arquivos que estavam na lixeira ainda vão estar disponíveis, mostrando os arquivos ocultos e encontrando o diretório .Trash em "Meus arquivos" ou "Downloads".</translation>
+<translation id="215891883000260452">Ativar a coleta de registros de diagnóstico do WebRTC para origens específicas</translation>
 <translation id="2159092270572925582">Permite a definição de uma lista de padrões de URL que especifica sites sem permissão para exibir conteúdo misto bloqueável (ativo), ou seja, conteúdo HTTP em sites HTTPS, e em que o conteúdo misto opcionalmente bloqueável (passivo) será desativado.
 
           Se esta política não for definida, o conteúdo misto bloqueável será bloqueado e o conteúdo misto opcionalmente bloqueável ganhará um upgrade. Além disso, o usuário poderá definir exceções para dar permissão a sites específicos.
@@ -2026,6 +2027,7 @@ No <ph name="MAC_OS_NAME" />, essa política só está disponível em instância
       Esta política substitui <ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" />, <ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" />, <ph name="WEB_USB_BLOCKED_FOR_URLS_POLICY_NAME" /> e as preferências do usuário.
 
       Ela afeta apenas o acesso aos dispositivos USB pela API WebUSB. Para conceder acesso a dispositivos USB pela API Web Serial, consulte a política <ph name="SERIAL_ALLOW_USB_DEVICES_FOR_URLS_POLICY_NAME" />.</translation>
+<translation id="2318353380372431186">Permite que usuários instalem AIWs</translation>
 <translation id="2318583605563438459">Permitir que os pais adicionem contas supervisionadas</translation>
 <translation id="2326031114717677574">Frequência de amostragem e coleta de dados de áudio. O mínimo permitido é de 1 minuto.
 
@@ -2219,6 +2221,17 @@ que uma seleção seja feita como de costume.</translation>
 <translation id="2466131534462628618">A autenticação de portal cativo ignora o proxy</translation>
 <translation id="2467181864598429837">Comportamento padrão do navegador</translation>
 <translation id="2467896267442150508">Intervalo de tempo que dura no máximo uma semana. Se o horário de início for posterior ao de término, o intervalo será contínuo.</translation>
+<translation id="2475594733565572760">Esta política define a configuração padrão para todos os recursos de IA generativa cobertos. Por exemplo, se esta política for definida com o valor 1, então 1 será a configuração padrão para todos os recursos de IA generativa cobertos. Isso não afeta os valores de política definidos manualmente. Essa configuração vai definir os padrões para os recursos de IA generativa cobertos no Chrome. Consulte https://support.google.com/chrome/a?p=generative_ai_settings para conferir a lista de recursos cobertos.
+
+Algumas políticas, como a <ph name="GEMINI_SETTINGS_POLICY_NAME" />, só aceitam as definições "Permitido" e "Não permitido". Nesse caso, se a política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> estiver definida como 0 ou 1, o recurso estará ativado. Se <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> estiver definida como 2, o recurso estará desativado. A documentação de cada recurso contém mais informações sobre a interação com os valores nesta política (por exemplo, Gemini no Chrome: https://support.google.com/chrome/a/?p=gemini_in_chrome). Isso se aplica aos seguintes recursos: Gemini no Chrome, Google Lens e Modo IA, pois estão sujeitos às próprias garantias e/ou Termos de Serviço (https://support.google.com/chrome/a/?p=genai_features_chrome).
+
+Definir a política como 0 habilita o recurso e permite que os dados relevantes sejam usados pelo Google para melhorar os modelos de IA. Esses dados podem incluir comandos, entradas, saídas, materiais de fonte e feedback por escrito, dependendo do recurso. Eles também podem ser analisados por humanos para melhorar os modelos de IA. O valor padrão é 0, exceto quando indicado de outra forma abaixo.
+
+Definir a política como 1 habilita o recurso, mas não permite que o Google use o conteúdo dos usuários para melhorar os modelos (incluindo comandos, entradas, saídas, material de fonte e feedback por escrito). O valor 1 é o padrão para usuários corporativos, gerenciados pelo <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />, e contas de ensino, gerenciadas pelo <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
+
+Definir a política como 2 não permite que o recurso seja habilitado.
+
+Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="2476249479201711962">Ativar o acesso ao menu de contexto do provedor de pesquisa padrão</translation>
 <translation id="2478756867046106663">Permitir que sites com experiências abusivas abram novas janelas ou guias</translation>
 <translation id="2479760962196319822">Esta política controla se os usuários do <ph name="PRODUCT_OS_NAME" /> podem armazenar dados localmente.
@@ -2598,6 +2611,13 @@ O sistema só consulta registros AAAA quando está acessível a um host IPv6 glo
       Observação: desde a versão M114, aplicativos de quiosque específicos podem modificar o comportamento dessa política para casos de uso especiais, como avaliações de estudantes.</translation>
 <translation id="2667894101494585925">Ativar a busca do guia de otimização</translation>
 <translation id="2669157090883237118">Não mudar a configuração recomendada do <ph name="PRODUCT_OS_NAME" />.</translation>
+<translation id="2669314653349044073">Esta política permite ativar a coleta de registros de diagnóstico do WebRTC para origens específicas.
+
+Para saber mais sobre padrões de entrada válidos, consulte https://chromeenterprise.google/policies/url-patterns. Não é possível usar <ph name="WILDCARD_VALUE" /> com esta política. Ela só considera as origens, por isso os caminhos no padrão do URL são ignorados. Esquemas e subdomínios podem ser usados.
+
+Aplicar esta política ativa a coleta dos registros de diagnóstico para origens correspondentes aos padrões na lista.
+
+Não aplicar esta política mantém a coleta dos registros de diagnóstico desativada por padrão.</translation>
 <translation id="2672012807430078509">Controles que ativam o NTLM como protocolo de autenticação para ativações de PMEs</translation>
 <translation id="2673363037046384711">O usuário final pode ativar ou desativar o modo de alta eficiência.</translation>
 <translation id="2673968385134502798">Jogos</translation>
@@ -2705,6 +2725,7 @@ Se a política for definida como desativada ou não for definida, o usuário pod
       Se a política for definida como "Desativada", o <ph name="PRODUCT_NAME" /> só poderá usar esses hosts se eles estiverem instalados no nível do sistema.</translation>
 <translation id="2753637905605932878">Restringir o alcance das portas UDP locais usadas por WebRTC</translation>
 <translation id="2755847332939882873">Permite a coleta do rastreamento de desempenho do sistema</translation>
+<translation id="2755963656455766808">Controla se o usuário poderá instalar Apps Isolados da Web manualmente</translation>
 <translation id="2757054304033424106">Tipos de extensões/aplicativos que podem ser instalados</translation>
 <translation id="275769337615229465">A maioria das origens será isolada de outras no mesmo site.</translation>
 <translation id="2759224876420453487">Controla o comportamento do usuário em uma sessão de diversos perfis</translation>
@@ -4432,6 +4453,7 @@ A política pode ser combinada com <ph name="POLICY_CLOUD_POLICY_OVERRIDES_PLATF
 <translation id="3927291637826333102">Permitir captura de área de trabalho, janela e guia por estas origens</translation>
 <translation id="3928726028264020458">Ativar relatórios de informações VPD do dispositivo</translation>
 <translation id="3935592079035695061">Milissegundos desde a meia-noite.</translation>
+<translation id="3937800910397007337">Forçar a prioridade de primeiro plano para todas as guias</translation>
 <translation id="3941289958028934630">Desativar a resposta falada na tela de login</translation>
 <translation id="3943930334592166130">Esta política controla se o usuário receberá uma solicitação para selecionar um certificado de cliente quando a <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" /> corresponder a mais de um certificado.
       Se esta política for definida como "Ativada", o usuário receberá uma solicitação para selecionar um certificado de cliente sempre que a política de seleção automática corresponder a vários certificados.
@@ -5859,6 +5881,12 @@ Essa política é temporária e será removida em 2026.</translation>
        Um nome de host pode ser permitido com uma correspondência completa do host ou qualquer correspondência do domínio. Por exemplo, os alertas de um URL como "https://foo.example.com/bar" serão suprimidos se a lista incluir "foo.example.com" ou "example.com".</translation>
 <translation id="4852900976354340846">Configurações da API Direct Sockets</translation>
 <translation id="485419696366295465">Controla políticas relacionadas ao subsistema da <ph name="BOREALIS_NAME" />.</translation>
+<translation id="4854384393031206645">Controla se o usuário poderá instalar Apps Isolados da Web (AIWs) manualmente.
+
+Definir esta política como falsa impede que os usuários instalem AIWs.
+
+Definir a política como verdadeira, ou não defini-la, permite que os usuários instalem AIWs.
+</translation>
 <translation id="4855636880814771207">Se esta política for definida como ativada ou não for definida, o usuário poderá ativar ou desativar o Bluetooth.
 
       Se a política for definida como desativada, o <ph name="PRODUCT_OS_NAME" /> desativará o Bluetooth e o usuário não poderá ativá-lo.
@@ -6299,6 +6327,7 @@ Esta política é uma solução temporária para permitir que o conteúdo da Web
       </translation>
 <translation id="5104606191349861549">Atalhos do teclado (compatível desde a versão 129)</translation>
 <translation id="5105313908130842249">Intervalo de bloqueio da tela no funcionamento com energia da bateria</translation>
+<translation id="5105593357527099243">Impede que usuários instalem AIWs</translation>
 <translation id="510604120100968366">Ativar o recurso de som de bateria fraca.
 
           Esse recurso é responsável por reproduzir o som de bateria fraca.
@@ -6446,6 +6475,7 @@ política enquanto o navegador estiver em execução.</translation>
       * moderada, os usuários poderão escolher apenas o Modo restrito moderado e o Modo restrito rigoroso no YouTube, e não poderão desativar o Modo restrito;
 
       * desativada ou se nenhum valor for definido, o Modo restrito no YouTube não será aplicado pelo Chrome. Políticas externas, como as do YouTube, ainda poderão aplicar o Modo restrito.</translation>
+<translation id="5191007233343702012">Usar a priorização padrão de guias</translation>
 <translation id="5191476996923842491">Comportamento padrão para o tempo limite mínimo da função setTimeout().</translation>
 <translation id="519247340330463721">Configura as políticas relacionadas ao Safe Browsing.</translation>
 <translation id="5192555640439947289">Se a política for ativada, o <ph name="PRODUCT_OS_NAME" /> vai pedir que os usuários desbloqueiem o dispositivo com uma senha quando ele for suspenso ou a tampa for fechada.
@@ -6653,6 +6683,13 @@ Observação: esta política não se aplica a HSTS Upgrades.</translation>
 <translation id="5303080953475303561">Se a política for definida, ela controlará a frequência com que a tela de bloqueio solicita a senha para o desbloqueio rápido. Quando a tela de bloqueio aparece, se a última senha digitada tiver sido inserida antes da janela de tempo especificada pelo valor escolhido, o desbloqueio rápido não ficará disponível. Se os usuários continuarem na tela de bloqueio após esse período, uma senha será solicitada na próxima vez que o código errado for digitado ou que eles acessarem a tela de bloqueio, o que ocorrer primeiro.
 
       Se a política não for definida, os usuários usando o desbloqueio rápido terão que inserir a senha na tela de bloqueio diariamente.</translation>
+<translation id="530488290401810961">Defina como o <ph name="PRODUCT_NAME" /> vai baixar o modelo básico de IA generativa e usá-lo para inferência local.
+
+Se a política estiver definida como Permitida (0), ou não tiver sido configurada, o modelo será baixado automaticamente e usado para inferência.
+
+Se a política estiver definida como Desativada (1), o modelo não será baixado e o anterior (se houver) será excluído.
+
+Em plataformas para computador, também é possível usar <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> para desativar o download desse modelo.</translation>
 <translation id="5306186200045823863">Ativar confiança na infraestrutura de ICP legada da Symantec Corporation</translation>
 <translation id="5307432759655324440">Disponibilidade do modo de navegação anônima</translation>
 <translation id="5308551343115571396">Após a desativação do <ph name="LACROS_NAME" />, vamos tentar manter o máximo possível de dados do usuário, removendo todos os dados do navegador.</translation>
@@ -6709,6 +6746,15 @@ As contas gerenciadas não podem participar nem criar um grupo familiar. Por iss
 <translation id="5345892164332459671">Desativar o SSO flutuante e não mover as autenticações do serviço da Web do usuário para um novo dispositivo</translation>
 <translation id="5345910753471481870">Não mostrar o botão do Google Lens na caixa de pesquisa da página "Nova guia".</translation>
 <translation id="5346587320074666194">Bloquear acesso a sensores nesses sites</translation>
+<translation id="5347735051291224683">Esta política define se o conteúdo da web em segundo plano é forçado a ser executado com prioridade de primeiro plano.
+
+Por padrão, o navegador reduz a prioridade das guias em segundo plano para otimizar recursos. Ativar esta política mudará o comportamento padrão, e as guias em segundo plano serão processadas da mesma forma que a guia ativa.
+
+Forçar a priorização do conteúdo em segundo plano pode afetar a capacidade de resposta da guia ativa.
+
+Se esta política estiver ativada, todo o conteúdo da web será executado com prioridade de primeiro plano, mesmo que esteja em outra guia.
+
+Se esta política estiver desativada ou sem uma configuração definida, o navegador determinará a prioridade de forma prática (por exemplo, desconsiderando conteúdo que não esteja visível, reproduzindo áudio ou sendo usado em videochamadas).</translation>
 <translation id="534836255587440809">Desativar o clique automático na tela de login</translation>
 <translation id="5348658899015174540">A API <ph name="GET_DISPLAY_MEDIA_SET_NAME" /> permite que aplicativos da Web capturem várias superfícies ao mesmo tempo.
       Esta política desbloqueia a propriedade <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> para aplicativos da Web em origens definidas.

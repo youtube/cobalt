@@ -593,21 +593,11 @@ AccessibilityManager::AccessibilityManager(
       base::BindRepeating(&AccessibilityManager::PostUnloadSelectToSpeak,
                           weak_ptr_factory_.GetWeakPtr())));
 
-  const bool enable_switch_access_v3_manifest =
-      ::features::IsAccessibilityManifestV3EnabledForSwitchAccess();
-  const base::FilePath::CharType* switch_access_manifest_filename =
-      enable_v3_manifest || enable_switch_access_v3_manifest
-          ? extension_misc::kSwitchAccessManifestV3Filename
-          : extension_misc::kSwitchAccessManifestFilename;
-  const base::FilePath::CharType* switch_access_guest_manifest_filename =
-      enable_v3_manifest || enable_switch_access_v3_manifest
-          ? extension_misc::kSwitchAccessGuestManifestV3Filename
-          : extension_misc::kSwitchAccessGuestManifestFilename;
-
   switch_access_loader_ = base::WrapUnique(new AccessibilityExtensionLoader(
       extension_misc::kSwitchAccessExtensionId,
       resources_path.Append(extension_misc::kSwitchAccessExtensionPath),
-      switch_access_manifest_filename, switch_access_guest_manifest_filename,
+      extension_misc::kSwitchAccessManifestV3Filename,
+      extension_misc::kSwitchAccessGuestManifestV3Filename,
       base::BindRepeating(&AccessibilityManager::PostUnloadSwitchAccess,
                           weak_ptr_factory_.GetWeakPtr())));
 
@@ -648,7 +638,7 @@ bool AccessibilityManager::ShouldShowAccessibilityMenu() {
   // enforced to always show the menu - we return true to show the menu.
   // NOTE: This includes the login screen profile, so if a feature is turned on
   // at the login screen the menu will show even if the user has no features
-  // enabled inside the session. http://crbug.com/755631
+  // enabled inside the session. http://crbug.com/41339453
 
   if (IsAnyAccessibilityFeatureEnabled(CHECK_DEREF(user_prefs::UserPrefs::Get(
           BrowserContextHelper::Get()->GetSigninBrowserContext())))) {
@@ -2124,7 +2114,7 @@ void AccessibilityManager::OnShutdown(extensions::ExtensionRegistry* registry) {
 
 void AccessibilityManager::PostLoadChromeVox() {
   // In browser_tests loading the ChromeVox extension can race with shutdown.
-  // http://crbug.com/801700
+  // http://crbug.com/41364580
   if (app_terminating_)
     return;
 

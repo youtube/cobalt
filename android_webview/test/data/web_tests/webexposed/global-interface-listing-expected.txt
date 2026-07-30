@@ -980,6 +980,10 @@ interface CSSPseudoElement
     getter parent
     getter type
     method constructor
+    method convertPointFromNode
+    method convertQuadFromNode
+    method convertRectFromNode
+    method getBoxQuads
     method pseudo
 interface CSSRGB : CSSColorValue
     attribute @@toStringTag
@@ -992,6 +996,9 @@ interface CSSRGB : CSSColorValue
     setter b
     setter g
     setter r
+interface CSSResultRule : CSSGroupingRule
+    attribute @@toStringTag
+    method constructor
 interface CSSRotate : CSSTransformComponent
     attribute @@toStringTag
     getter angle
@@ -2450,6 +2457,7 @@ interface Element : Node
     getter innerHTML
     getter lastElementChild
     getter localName
+    getter marker
     getter namespaceURI
     getter nextElementSibling
     getter onbeforecopy
@@ -2597,6 +2605,7 @@ interface Element : Node
     setter headingReset
     setter id
     setter innerHTML
+    setter marker
     setter onbeforecopy
     setter onbeforecut
     setter onbeforepaste
@@ -9324,6 +9333,7 @@ interface ShadowRoot : DocumentFragment
     getter fullscreenElement
     getter host
     getter innerHTML
+    getter marker
     getter mode
     getter onslotchange
     getter pictureInPictureElement

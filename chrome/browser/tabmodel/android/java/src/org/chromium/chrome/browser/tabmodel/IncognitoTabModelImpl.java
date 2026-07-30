@@ -120,7 +120,7 @@ class IncognitoTabModelImpl implements IncognitoTabModelInternal {
         }
         mDelegateModel
                 .getCurrentTabSupplier()
-                .addObserver(mDelegateModelCurrentTabSupplierObserver);
+                .addSyncObserverAndPostIfNonNull(mDelegateModelCurrentTabSupplierObserver);
         mDelegateModel
                 .getTabCountSupplier()
                 .addSyncObserverAndPostIfNonNull(mDelegateModelTabCountSupplierObserver);
@@ -196,6 +196,13 @@ class IncognitoTabModelImpl implements IncognitoTabModelInternal {
         assert mNativeAndroidBrowserWindow == 0;
         mNativeAndroidBrowserWindow = nativeAndroidBrowserWindow;
         mDelegateModel.associateWithBrowserWindow(nativeAndroidBrowserWindow);
+    }
+
+    @Override
+    public void dissociateWithBrowserWindow() {
+        assert mNativeAndroidBrowserWindow != 0;
+        mDelegateModel.dissociateWithBrowserWindow();
+        mNativeAndroidBrowserWindow = 0;
     }
 
     @Override

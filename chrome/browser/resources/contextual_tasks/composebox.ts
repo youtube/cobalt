@@ -8,15 +8,16 @@ import './onboarding_tooltip.js';
 
 import type {ComposeboxElement} from '//resources/cr_components/composebox/composebox.js';
 import type {ComposeboxDropdownElement} from '//resources/cr_components/composebox/composebox_dropdown.js';
-import {ComposeboxProxyImpl} from '//resources/cr_components/composebox/composebox_proxy.js';
+import {ComposeboxProxyImpl, createAutocompleteMatch} from '//resources/cr_components/composebox/composebox_proxy.js';
 import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
-import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
 import {VoiceSearchState} from './constants.js';
@@ -34,37 +35,20 @@ function recordVoiceSearchAction(voiceSearchState: VoiceSearchState) {
 }
 
 function createGhostMatch(): AutocompleteMatch {
-  return {
+  return createAutocompleteMatch({
     contents: '\u200b',
     description: '\u200b',
-
-    destinationUrl: {url: ''},
     type: 'SEARCH_SUGGEST',
     isSearchType: true,
-    // Server side for contextual tasks should always make suggestions
-    // non-deletable.
-    allowedToBeDeleted: false,
-    fillIntoEdit: '',
-    inlineAutocompletion: '',
-    imageDominantColor: '',
-    isRichSuggestion: false,
-
-    a11yLabel: '',
-    removeButtonA11yLabel: '',
-
     iconPath: '//resources/cr_components/searchbox/icons/search_spark.svg',
-    contentsClass: [],
-    descriptionClass: [],
-    swapContentsAndDescription: false,
-    supportsDeletion: false,
-  } as unknown as AutocompleteMatch;
+  });
 }
 export interface ContextualTasksComposeboxElement {
   $: {
     composebox: ComposeboxElement,
     composeboxContainer: HTMLElement,
     onboardingTooltip: ContextualTasksOnboardingTooltipElement,
-    coBrSuggestionsContainer: ComposeboxDropdownElement,
+    contextualTasksSuggestionsContainer: ComposeboxDropdownElement,
   };
 }
 
@@ -83,6 +67,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
 
   static override get properties() {
     return {
+      enableNativeZeroStateSuggestions: {type: Boolean},
       isZeroState: {
         type: Boolean,
         reflect: true,
@@ -106,10 +91,15 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         value: loadTimeData.getBoolean('showOnboardingTooltip'),
       },
       zeroStateSuggestions_: {type: Object},
-      isLoading_: {type: Boolean, reflect: true},
-      enableNativeZeroStateSuggestions: {type: Boolean},
       activeToolMode_: {
         type: Number,
+      },
+      isLoading_: {
+        type: Boolean,
+        reflect: true,
+      },
+      inputEnabled: {
+        type: Boolean,
         reflect: true,
       },
     };
@@ -118,6 +108,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   accessor enableNativeZeroStateSuggestions: boolean = false;
   accessor isZeroState: boolean = false;
   accessor isSidePanel: boolean = false;
+  accessor inputEnabled: boolean = true;
 
   protected accessor zeroStateSuggestions_: AutocompleteResult = {
     input: '',
@@ -152,8 +143,6 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   private userDismissedTooltip_: boolean = false;
   private resizeObserver_: ResizeObserver|null = null;
   private tooltipImpressionTimer_: number|null = null;
-  private composeboxShowZps: boolean =
-      loadTimeData.getBoolean('composeboxShowZps');
   private readonly tooltipImpressionDelay_: number =
       loadTimeData.getInteger('composeboxShowOnboardingTooltipImpressionDelay');
 
@@ -235,21 +224,42 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
 
       this.resizeObserver_ = new ResizeObserver(() => {
         this.composeboxHeight_ = composebox.offsetHeight;
+        this.dispatchEvent(new CustomEvent('composebox-height-update', {
+          bubbles: true,
+          composed: true,
+          detail: {height: this.composeboxHeight_},
+        }));
       });
       this.resizeObserver_.observe(composebox);
     }
   }
 
-  override willUpdate(changedProperties: PropertyValues<this>) {
-    super.willUpdate(changedProperties);
-    // Get zero state autocomplete matches. If `composeboxShowZps` is true
-    // then an autocomplete request will already be being made by
-    // cr-composebox and therefore this isn't needed here. We currently
-    // aren't showing ZPS in all cases (i.e. for context) which is why
-    // this is currently needed.
-    if (changedProperties.has('isZeroState') && this.isZeroState &&
-        !this.composeboxShowZps) {
-      this.$.composebox.queryAutocomplete(/*clearMatches=*/ false);
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.clearTooltipImpressionTimer_();
+    this.stopObservingResize_();
+    if (this.resizeObserver_) {
+      this.resizeObserver_.disconnect();
+      this.resizeObserver_ = null;
+    }
+    this.eventTracker_.removeAll();
+    this.searchboxListenerIds_.forEach(
+        id => assert(this.searchboxCallbackRouter_.removeListener(id)));
+    this.searchboxListenerIds_ = [];
+  }
+
+  // Must have `$` access in updated to avoid violating Lit contract since
+  // since `willUpdate` runs before `render`, which will cause `$`
+  // to not be populated yet.
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('isZeroState')) {
+      if (this.isZeroState && !this.isSidePanel) {
+        // Get zero state autocomplete matches. In the side panel, we wait for
+        // an update about whether an auto-chip will be added before querying
+        // autocomplete.
+        this.$.composebox.queryAutocomplete(/*clearMatches=*/ false);
+      }
     }
   }
 
@@ -315,7 +325,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     this.clearTooltipImpressionTimer_();
   }
 
-  protected onZeroStateResultReceived_(e: CustomEvent<AutocompleteResult>) {
+  protected onSuggestionsResultReceived_(e: CustomEvent<AutocompleteResult>) {
     this.isLoading_ = false;
     this.zeroStateSuggestions_ = e.detail;
   }
@@ -327,20 +337,6 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     }
   }
 
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    this.clearTooltipImpressionTimer_();
-    this.stopObservingResize_();
-    if (this.resizeObserver_) {
-      this.resizeObserver_.disconnect();
-      this.resizeObserver_ = null;
-    }
-    this.eventTracker_.removeAll();
-    this.searchboxListenerIds_.forEach(
-        id => assert(this.searchboxCallbackRouter_.removeListener(id)));
-    this.searchboxListenerIds_ = [];
-  }
-
   clearInputAndFocus(querySubmitted: boolean = false): void {
     // Clear text from composebox and focus.
     this.$.composebox.clearAllInputs(querySubmitted);
@@ -350,8 +346,6 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
 
   startExpandAnimation() {
     const composebox = this.$.composebox;
-
-
     composebox.animationState = GlowAnimationState.NONE;
     composebox.animationState = GlowAnimationState.EXPANDING;
   }

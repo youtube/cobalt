@@ -6,6 +6,7 @@
 
 #include "third_party/blink/renderer/core/css/css_gap_decoration_property_utils.h"
 #include "third_party/blink/renderer/core/layout/gap/gap_geometry.h"
+#include "third_party/blink/renderer/core/layout/gap/gap_intersection.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/paint/box_border_painter.h"
 #include "third_party/blink/renderer/core/paint/box_fragment_painter.h"
@@ -37,9 +38,11 @@ bool IsRuleSegmentVisible(const GridTrackSizingDirection track_direction,
       return !gap_state.IsEmpty();
     case RuleVisibilityItems::kBetween:
       // Paint only when both sides of the segment are occupied (i.e. gap
-      // segment state is none as it represents a segment occupied on both
-      // sides).
-      return gap_state.status_ == GapSegmentState::kNone;
+      // segment state has no empty status).
+      return !gap_state.HasEmptyStatus();
+    case RuleVisibilityItems::kAuto:
+      // `auto` should have been resolved before reaching this point.
+      NOTREACHED();
   }
 
   NOTREACHED();
@@ -56,9 +59,13 @@ bool ShouldMoveIntersectionStartForward(
     const RuleBreak rule_break,
     const RuleVisibilityItems rule_visibility,
     const GapGeometry& gap_geometry,
-    const Vector<LayoutUnit>& intersections) {
+    const Vector<GapIntersection>& intersections) {
+  const bool is_rule_segment_visible = IsRuleSegmentVisible(
+      track_direction, gap_index, start_index, rule_visibility, gap_geometry);
   if (rule_break == RuleBreak::kNone) {
-    return false;
+    // Even with no breaks at intersections, skip segments that are not visible
+    // based on `rule-visibility-items`.
+    return !is_rule_segment_visible;
   }
 
   const BlockedStatus blocked_status =
@@ -66,8 +73,7 @@ bool ShouldMoveIntersectionStartForward(
                                                 start_index, intersections);
   // Advance start if the segment it's blocked after or not visible.
   if (blocked_status.HasBlockedStatus(BlockedStatus::kBlockedAfter) ||
-      !IsRuleSegmentVisible(track_direction, gap_index, start_index,
-                            rule_visibility, gap_geometry)) {
+      !is_rule_segment_visible) {
     return true;
   }
 
@@ -85,7 +91,7 @@ bool ShouldMoveIntersectionEndForward(
     const RuleBreak rule_break,
     const RuleVisibilityItems rule_visibility,
     const GapGeometry& gap_geometry,
-    const Vector<LayoutUnit>& intersections) {
+    const Vector<GapIntersection>& intersections) {
   if (!IsRuleSegmentVisible(track_direction, gap_index, end_index,
                             rule_visibility, gap_geometry)) {
     return false;
@@ -163,7 +169,7 @@ void AdjustIntersectionIndexPair(GridTrackSizingDirection track_direction,
                                  RuleBreak rule_break,
                                  RuleVisibilityItems rule_visibility,
                                  const GapGeometry& gap_geometry,
-                                 const Vector<LayoutUnit>& intersections) {
+                                 const Vector<GapIntersection>& intersections) {
   const wtf_size_t last_intersection_index = intersection_count - 1;
 
   CHECK_LE(start, last_intersection_index);
@@ -209,12 +215,12 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
       is_column_gap ? style.ColumnRuleStyle() : style.RowRuleStyle();
   GapDataList<int> rule_widths =
       is_column_gap ? style.ColumnRuleWidth() : style.RowRuleWidth();
-  RuleBreak rule_break =
-      CSSGapDecorationUtils::ResolveRuleBreakValue(style, track_direction);
+  RuleBreak rule_break = CSSGapDecorationUtils::ResolveRuleBreakValue(
+      style, track_direction, gap_geometry.GetContainerType());
 
-  RuleVisibilityItems rule_visibility = is_column_gap
-                                            ? style.ColumnRuleVisibilityItems()
-                                            : style.RowRuleVisibilityItems();
+  RuleVisibilityItems rule_visibility =
+      CSSGapDecorationUtils::ResolveRuleVisibilityItemsValue(
+          style, gap_geometry.GetContainerType(), track_direction);
 
   WritingModeConverter converter(style.GetWritingDirection(),
                                  box_fragment_.Size());
@@ -255,7 +261,7 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
     const LayoutUnit center =
         gap_geometry.GetGapCenterOffset(track_direction, gap_index);
 
-    const Vector<LayoutUnit> intersections =
+    const Vector<GapIntersection> intersections =
         gap_geometry.GenerateIntersectionListForGap(track_direction, gap_index);
 
     const wtf_size_t last_intersection_index = intersections.size() - 1;
@@ -284,22 +290,13 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
       // for now, we continue to resolve the crossing gap width as `0` for any
       // intersection in multicol containers. Discussion about this can be found
       // in https://github.com/w3c/csswg-drafts/issues/12784.
-      // TODO(javiercon): This is only temporary. The multicol special case here
-      // will be addressed in follow up CL which will make it so that we don't
-      // need any special casing here.
       const LayoutUnit start_width =
-          (gap_geometry.GetContainerType() ==
-               GapGeometry::ContainerType::kMultiColumn &&
-           is_column_gap) ||
                   gap_geometry.IsEdgeIntersection(gap_index, start,
                                                   intersections.size(), is_main,
                                                   intersections)
               ? LayoutUnit()
               : cross_gutter_width;
       const LayoutUnit end_width =
-          (gap_geometry.GetContainerType() ==
-               GapGeometry::ContainerType::kMultiColumn &&
-           is_column_gap) ||
                   gap_geometry.IsEdgeIntersection(gap_index, end,
                                                   intersections.size(), is_main,
                                                   intersections)
@@ -330,9 +327,9 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
 
       // Compute the secondary axis values using the intersection offsets.
       const LayoutUnit secondary_start =
-          intersections[start] + decoration_start_offset;
-      const LayoutUnit secondary_size =
-          intersections[end] - secondary_start - decoration_end_offset;
+          intersections[start].GetOffset() + decoration_start_offset;
+      const LayoutUnit secondary_size = intersections[end].GetOffset() -
+                                        secondary_start - decoration_end_offset;
 
       // Columns paint a vertical strip at the center of the gap while rows
       // paint horizontal strip at the center of the gap

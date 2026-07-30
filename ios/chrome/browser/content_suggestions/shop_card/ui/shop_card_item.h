@@ -9,20 +9,19 @@
 
 @protocol ShopCardCommands;
 @class ShopCardData;
-@protocol ShopCardFaviconConsumerSource;
 
 // Item containing the configurations for the Shopcard view.
 @interface ShopCardItem : MagicStackModule
 
-// Command handler for user actions.
-@property(nonatomic, weak) id<ShopCardCommands> commandHandler;
-
+// The updates to properties must be reflected in the copy method.
+// LINT.IfChange(Copy)
 // Shopping data including the card type, and card-specific data.
 @property(nonatomic, strong) ShopCardData* shopCardData;
 
-// Consumer source (e.g. mediator) that receives the favicon update.
-@property(nonatomic, strong) id<ShopCardFaviconConsumerSource>
-    shopCardFaviconConsumerSource;
+// Command handler for user actions.
+@property(nonatomic, weak) id<ShopCardCommands> shopCardHandler;
+// LINT.ThenChange(shop_card_item.mm:Copy)
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_CONTENT_SUGGESTIONS_SHOP_CARD_UI_SHOP_CARD_ITEM_H_

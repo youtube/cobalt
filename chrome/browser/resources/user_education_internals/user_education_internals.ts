@@ -17,7 +17,7 @@ import './user_education_whats_new_internals_card.js';
 
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
-import type {CrMenuSelector} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
+import type {CrMenuSelectorElement} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -31,7 +31,7 @@ export interface UserEducationInternalsElement {
   $: {
     content: HTMLElement,
     errorMessageToast: CrToastElement,
-    menu: CrMenuSelector,
+    menu: CrMenuSelectorElement,
   };
 }
 
@@ -66,6 +66,7 @@ export class UserEducationInternalsElement extends
       featurePromos_: {type: Array},
       featurePromoErrorMessage_: {type: String},
       narrow_: {type: Boolean},
+      newBadges_: {type: Array},
 
       /**
        * Indicates if the information about session data is expanded or
@@ -86,7 +87,7 @@ export class UserEducationInternalsElement extends
   accessor filter: string = '';
   protected accessor tutorials_: FeaturePromoDemoPageInfo[] = [];
   protected accessor featurePromos_: FeaturePromoDemoPageInfo[] = [];
-  protected newBadges_: FeaturePromoDemoPageInfo[] = [];
+  protected accessor newBadges_: FeaturePromoDemoPageInfo[] = [];
   protected whatsNewModules_: WhatsNewModuleDemoPageInfo[] = [];
   protected whatsNewEditions_: WhatsNewEditionDemoPageInfo[] = [];
   protected ntpPromos_: FeaturePromoDemoPageInfo[] = [];
@@ -102,25 +103,6 @@ export class UserEducationInternalsElement extends
   constructor() {
     super();
     this.handler_ = UserEducationInternalsPageHandler.getRemote();
-  }
-
-  override updated(changedProperties: PropertyValues) {
-    super.updated(changedProperties as PropertyValues<this>);
-
-    // There is a self-referential demo IPH for showing a help bubble in a
-    // WebUI (specifically, this WebUI). Because of that, the target anchor for
-    // the help bubble needs to be registered.
-    //
-    // However, because we want to attach the help bubble to an element
-    // dynamically created, we have to wait until after the element is
-    // populated to register the anchor element.
-    if (changedProperties.has('featurePromos_')) {
-      if (this.shadowRoot.querySelector('#IPH_WebUiHelpBubbleTest')) {
-        this.registerHelpBubble(
-            'kWebUIIPHDemoElementIdentifier',
-            ['#IPH_WebUiHelpBubbleTest', '#launch']);
-      }
-    }
   }
 
   override firstUpdated() {
@@ -157,6 +139,25 @@ export class UserEducationInternalsElement extends
     this.handler_.getNtpPromoPreferences().then(({ntpPromoPreferences}) => {
       this.ntpPromoPreferences_ = ntpPromoPreferences;
     });
+  }
+
+  override updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties as PropertyValues<this>);
+
+    // There is a self-referential demo IPH for showing a help bubble in a
+    // WebUI (specifically, this WebUI). Because of that, the target anchor for
+    // the help bubble needs to be registered.
+    //
+    // However, because we want to attach the help bubble to an element
+    // dynamically created, we have to wait until after the element is
+    // populated to register the anchor element.
+    if (changedProperties.has('featurePromos_')) {
+      if (this.shadowRoot.querySelector('#IPH_WebUiHelpBubbleTest')) {
+        this.registerHelpBubble(
+            'kWebUIIPHDemoElementIdentifier',
+            ['#IPH_WebUiHelpBubbleTest', '#launch']);
+      }
+    }
   }
 
   protected onSearchChanged_(e: CustomEvent<string>) {

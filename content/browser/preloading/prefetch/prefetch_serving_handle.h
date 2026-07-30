@@ -17,7 +17,6 @@ class GURL;
 namespace content {
 
 class PrefetchContainer;
-class PrefetchNetworkContext;
 class PrefetchResponseReader;
 class PrefetchSingleRedirectHop;
 class ServiceWorkerClient;
@@ -77,8 +76,6 @@ class CONTENT_EXPORT PrefetchServingHandle final {
   // Whether or not an isolated network context is required to serve.
   bool IsIsolatedNetworkContextRequiredToServe() const;
 
-  PrefetchNetworkContext* GetCurrentNetworkContextToServe() const;
-
   bool HaveDefaultContextCookiesChanged() const;
 
   // Before a prefetch can be served, any cookies added to the isolated
@@ -135,8 +132,10 @@ class CONTENT_EXPORT PrefetchServingHandle final {
   // the current redirect hop to the default network context.
   void CopyIsolatedCookies();
 
+  // Called with the `PrefetchContainer`'s initial URL and the currently serving
+  // URL.
   using OnIsolatedCookieCopyStartCallbackForTesting =
-      base::RepeatingCallback<void(const PrefetchServingHandle&)>;
+      base::RepeatingCallback<void(const GURL&, const GURL&)>;
   static void SetOnIsolatedCookieCopyStartCallbackForTesting(
       PrefetchServingHandle::OnIsolatedCookieCopyStartCallbackForTesting
           on_isolated_cookie_copy_start_callback_for_testing);

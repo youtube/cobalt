@@ -335,11 +335,10 @@ class PrefetchURLLoaderInterceptorTestBase : public PrefetchingMetricsTestBase {
     on_isolated_cookie_copy_start_closure_[key] = std::move(closure);
   }
 
-  void OnIsolatedCookieCopyStartForTesting(
-      const PrefetchServingHandle& serving_handle) {
+  void OnIsolatedCookieCopyStartForTesting(const GURL& prefetch_url,
+                                           const GURL& redirect_url) {
     auto itr = on_isolated_cookie_copy_start_closure_.find(
-        std::make_pair(serving_handle.GetPrefetchContainer()->GetURL(),
-                       serving_handle.GetCurrentURLToServe()));
+        std::make_pair(prefetch_url, redirect_url));
     if (itr == on_isolated_cookie_copy_start_closure_.end()) {
       return;
     }
@@ -1202,7 +1201,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest, DISABLE_ASAN(HandleRedirects)) {
       kTestUrl, PrefetchType(PreloadingTriggerType::kSpeculationRule,
                              /*use_prefetch_proxy=*/true,
                              blink::mojom::SpeculationEagerness::kImmediate));
-  prefetch_container->MakeResourceRequest();
+  prefetch_container->MakeInitialResourceRequest();
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoaderWithRedirectForTest(prefetch_container.get(),
@@ -1277,7 +1276,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
       kTestUrl, PrefetchType(PreloadingTriggerType::kSpeculationRule,
                              /*use_prefetch_proxy=*/true,
                              blink::mojom::SpeculationEagerness::kImmediate));
-  prefetch_container->MakeResourceRequest();
+  prefetch_container->MakeInitialResourceRequest();
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
@@ -1342,7 +1341,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
       kTestUrl, PrefetchType(PreloadingTriggerType::kSpeculationRule,
                              /*use_prefetch_proxy=*/true,
                              blink::mojom::SpeculationEagerness::kImmediate));
-  prefetch_container->MakeResourceRequest();
+  prefetch_container->MakeInitialResourceRequest();
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoaderWithRedirectForTest(prefetch_container.get(),

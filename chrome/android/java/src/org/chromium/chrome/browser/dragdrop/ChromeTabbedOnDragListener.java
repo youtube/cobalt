@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.ClipDescription;
+import android.content.Context;
 import android.view.DragEvent;
 import android.view.View;
 import android.view.View.OnDragListener;
@@ -23,12 +24,12 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
+import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.ui.base.MimeTypeUtils;
-import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
 import org.chromium.ui.dragdrop.DragDropMetricUtils;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.DragDropResult;
@@ -47,7 +48,7 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
 
     private final MultiInstanceManager mMultiInstanceManager;
     private final TabModelSelector mTabModelSelector;
-    private final WindowAndroid mWindowAndroid;
+    private final Context mContext;
     private final Supplier<LayoutStateProvider> mLayoutStateProviderSupplier;
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private @Nullable Tab mTabToEnableFakeBox;
@@ -58,19 +59,19 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
      *
      * @param multiInstanceManager The current {@link MultiInstanceManager}.
      * @param tabModelSelector Contains tab model info {@link TabModelSelector}.
-     * @param windowAndroid The current {@link WindowAndroid}.
+     * @param context The current activity context.
      * @param desktopWindowStateManager The {@link DesktopWindowStateManager} to determine desktop
      *     windowing mode state.
      */
     public ChromeTabbedOnDragListener(
             MultiInstanceManager multiInstanceManager,
             TabModelSelector tabModelSelector,
-            WindowAndroid windowAndroid,
+            Context context,
             Supplier<LayoutStateProvider> layoutStateProviderSupplier,
             @Nullable DesktopWindowStateManager desktopWindowStateManager) {
         mMultiInstanceManager = multiInstanceManager;
         mTabModelSelector = tabModelSelector;
-        mWindowAndroid = windowAndroid;
+        mContext = context;
         mLayoutStateProviderSupplier = layoutStateProviderSupplier;
         mDesktopWindowStateManager = desktopWindowStateManager;
     }
@@ -178,13 +179,14 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
         // destination tab models match.
         final int destIndex =
                 ChromeDragDropUtils.handleDropInDifferentModel(
-                        mWindowAndroid.getActivity().get(), draggedTabIncognito, mTabModelSelector);
+                        mContext, draggedTabIncognito, mTabModelSelector);
 
         // Reparent the dragged tab to the destination window.
-        mMultiInstanceManager.moveTabsToWindow(
-                mWindowAndroid.getActivity().get(),
+        mMultiInstanceManager.moveTabsToWindowByIdChecked(
+                mMultiInstanceManager.getCurrentInstanceId(),
                 Collections.singletonList(draggedTab),
-                destIndex);
+                destIndex,
+                /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
         DragDropMetricUtils.recordDragDropType(
                 DragDropType.TAB_STRIP_TO_CONTENT,
                 isInDesktopWindow,
@@ -218,13 +220,14 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
         // destination tab models match.
         final int destIndex =
                 ChromeDragDropUtils.handleDropInDifferentModel(
-                        mWindowAndroid.getActivity().get(),
-                        draggedTabsIncognito,
-                        mTabModelSelector);
+                        mContext, draggedTabsIncognito, mTabModelSelector);
 
         // Reparent the dragged tabs to the destination window.
-        mMultiInstanceManager.moveTabsToWindow(
-                mWindowAndroid.getActivity().get(), draggedTabs, destIndex);
+        mMultiInstanceManager.moveTabsToWindowByIdChecked(
+                mMultiInstanceManager.getCurrentInstanceId(),
+                draggedTabs,
+                destIndex,
+                /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
         DragDropMetricUtils.recordDragDropType(
                 DragDropType.TAB_STRIP_TO_CONTENT,
                 isInDesktopWindow,
@@ -260,13 +263,11 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
         // and destination tab models match.
         final int destIndex =
                 ChromeDragDropUtils.handleDropInDifferentModel(
-                        mWindowAndroid.getActivity().get(),
-                        draggedTabGroupIncognito,
-                        mTabModelSelector);
+                        mContext, draggedTabGroupIncognito, mTabModelSelector);
 
         // Reparent the dragged tab group to destination window.
-        mMultiInstanceManager.moveTabGroupToWindow(
-                mWindowAndroid.getActivity().get(), tabGroupMetadata, destIndex);
+        mMultiInstanceManager.moveTabGroupToWindowByIdChecked(
+                mMultiInstanceManager.getCurrentInstanceId(), tabGroupMetadata, destIndex);
         DragDropMetricUtils.recordDragDropType(
                 DragDropType.TAB_STRIP_TO_CONTENT,
                 isInDesktopWindow,

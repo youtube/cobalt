@@ -53,10 +53,16 @@
 
 namespace blink {
 
+namespace {
+
+// Reserved ids for non-running frames.
+constexpr DOMNodeId kNormalCachedFrameId = -2;
+constexpr DOMNodeId kPausedCachedFrameId = -3;
+
 int GetRepetitionCountWithPolicyOverride(
     int actual_count,
     mojom::blink::ImageAnimationPolicy policy,
-    ImageNodeAnimationInfo* node_info) {
+    const ImageNodeAnimationInfo* node_info) {
   if (actual_count == kAnimationNone ||
       policy == mojom::blink::ImageAnimationPolicy::
                     kImageAnimationPolicyNoAnimation ||
@@ -73,6 +79,8 @@ int GetRepetitionCountWithPolicyOverride(
 
   return actual_count;
 }
+
+}  // namespace
 
 BitmapImage::BitmapImage(ImageObserver* observer, bool is_multipart)
     : Image(observer, is_multipart),
@@ -125,10 +133,11 @@ size_t BitmapImage::TotalFrameBytes() {
 }
 
 PaintImage BitmapImage::PaintImageForTesting() {
-  return CreatePaintImage();
+  return CreatePaintImage(nullptr);
 }
 
-PaintImage BitmapImage::CreatePaintImage() {
+PaintImage BitmapImage::CreatePaintImage(
+    ImageNodeAnimationInfo* image_node_animation_info) {
   sk_sp<PaintImageGenerator> generator =
       decoder_ ? decoder_->CreateGenerator() : nullptr;
   if (!generator)
@@ -140,14 +149,14 @@ PaintImage BitmapImage::CreatePaintImage() {
 
   PaintImage::Id paint_id = paint_image_id();
 
-  if (current_image_node_animation_info_) {
-    if (current_image_node_animation_info_->image_animation ==
+  if (image_node_animation_info) {
+    if (image_node_animation_info->image_animation ==
         ImageAnimationEnum::kPaused) {
       if (paused_image_paint_image_id_ < 0) {
         paused_image_paint_image_id_ = PaintImage::GetNextId();
       }
       paint_id = paused_image_paint_image_id_;
-    } else if (current_image_node_animation_info_->image_animation ==
+    } else if (image_node_animation_info->image_animation ==
                ImageAnimationEnum::kRunning) {
       paint_id = PaintImage::GetNextId();
     }
@@ -157,8 +166,7 @@ PaintImage BitmapImage::CreatePaintImage() {
       CreatePaintImageBuilder(paint_id)
           .set_paint_image_generator(std::move(generator))
           .set_repetition_count(GetRepetitionCountWithPolicyOverride(
-              RepetitionCount(), animation_policy_,
-              current_image_node_animation_info_))
+              RepetitionCount(), animation_policy_, image_node_animation_info))
           .set_is_high_bit_depth(decoder_->ImageIsHighBitDepth())
           .set_completion_state(completion_state)
           .set_reset_animation_sequence_id(reset_animation_sequence_id_);
@@ -303,6 +311,7 @@ void BitmapImage::Draw(cc::PaintCanvas* canvas,
   ImageNodeAnimationInfo node_animation_info =
       draw_options.image_node_animation_info;
 
+  PaintImage image;
   if (node_animation_info.node_id != kInvalidDOMNodeId) {
     auto it = image_animation_map_.find(node_animation_info.node_id);
     if (it != image_animation_map_.end()) {
@@ -320,12 +329,11 @@ void BitmapImage::Draw(cc::PaintCanvas* canvas,
 
     image_animation_map_.Set(node_animation_info.node_id,
                              node_animation_info.image_animation);
-    current_image_node_animation_info_ = &node_animation_info;
+
+    image = PaintImageForCurrentFrameWithInfo(&node_animation_info);
+  } else {
+    image = PaintImageForCurrentFrame();
   }
-
-  PaintImage image = PaintImageForCurrentFrame();
-
-  current_image_node_animation_info_ = nullptr;
 
   if (!image)
     return;  // It's too early and we don't have an image yet.
@@ -424,19 +432,22 @@ bool BitmapImage::IsSizeAvailable() {
   return size_available_;
 }
 
-PaintImage BitmapImage::PaintImageForCurrentFrame() {
+PaintImage BitmapImage::PaintImageForCurrentFrameWithInfo(
+    ImageNodeAnimationInfo* image_node_animation_info) {
   auto alpha_type = decoder_ ? decoder_->AlphaType() : kUnknown_SkAlphaType;
 
-  DOMNodeId id = NORMAL_CACHED_FRAME_ID;
+  DOMNodeId id = kNormalCachedFrameId;
 
-  if (current_image_node_animation_info_) {
-    if (current_image_node_animation_info_->image_animation ==
-        ImageAnimationEnum::kPaused) {
-      id = PAUSED_CACHED_FRAME_ID;
-    }
-    if (current_image_node_animation_info_->image_animation ==
-        ImageAnimationEnum::kRunning) {
-      id = current_image_node_animation_info_->node_id;
+  if (image_node_animation_info) {
+    switch (image_node_animation_info->image_animation) {
+      case ImageAnimationEnum::kPaused:
+        id = kPausedCachedFrameId;
+        break;
+      case ImageAnimationEnum::kRunning:
+        id = image_node_animation_info->node_id;
+        break;
+      case ImageAnimationEnum::kNormal:
+        break;
     }
   }
 
@@ -448,7 +459,7 @@ PaintImage BitmapImage::PaintImageForCurrentFrame() {
     }
   }
 
-  PaintImage new_frame = CreatePaintImage();
+  PaintImage new_frame = CreatePaintImage(image_node_animation_info);
 
   // BitmapImage should not be texture backed.
   DCHECK(!new_frame.IsTextureBacked());
@@ -465,6 +476,10 @@ PaintImage BitmapImage::PaintImageForCurrentFrame() {
   NotifyMemoryChanged();
 
   return new_frame;
+}
+
+PaintImage BitmapImage::PaintImageForCurrentFrame() {
+  return PaintImageForCurrentFrameWithInfo(nullptr);
 }
 
 scoped_refptr<Image> BitmapImage::ImageForDefaultFrame() {

@@ -30,6 +30,7 @@
 #include "components/history/core/browser/web_history_service_observer.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_service_observer.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "url/gurl.h"
 
 FORWARD_DECLARE_TEST(BrowsingHistoryHandlerTest, ObservingWebHistoryDeletions);
@@ -94,8 +95,9 @@ class BrowsingHistoryService : public HistoryServiceObserver,
     // The sync ID of the client on which the most recent visit occurred.
     std::string client_id;
 
-    // Timestamps of all local or remote visits the same URL on the same day.
-    std::set<base::Time> all_timestamps;
+    // Timestamps of all local or remote visits to this or similar URLs on the
+    // same day. Similar URLs are ones with matching title and host.
+    absl::flat_hash_map<GURL, std::set<base::Time>> all_timestamps;
 
     // If true, this entry is a search result.
     bool is_search_result;
@@ -203,6 +205,24 @@ class BrowsingHistoryService : public HistoryServiceObserver,
   // made against.
   static void MergeDuplicateResults(QueryHistoryState* state,
                                     std::vector<HistoryEntry>* results);
+
+  // Merges both remote and local results together from `state` while
+  // maintaining reverse chronological order and returns the final results. Any
+  // results with the same host and title will be merged together for each day.
+  // Often holds back some results in `state` from one of the two sources to
+  // ensure that they're always returned to the driver in correct order. This
+  // function also updates the end times in `state` for both sources that the
+  // next query should be made against.
+  static std::vector<HistoryEntry> GroupSimilarVisits(QueryHistoryState* state);
+
+  // Holds back some results in `state` from one of the two sources to ensure
+  // that they're always returned to the driver in correct order. This function
+  // also updates the end times in `state` for both sources that the next query
+  // should be made against.
+  static void HoldbackAndPartitionResults(QueryHistoryState* state,
+                                          const base::Time oldest_local,
+                                          const base::Time oldest_remote,
+                                          std::vector<HistoryEntry>* results);
 
   // Core implementation of history querying.
   void QueryHistoryInternal(scoped_refptr<QueryHistoryState> state);

@@ -4,7 +4,7 @@
 
 #include "chrome/test/payments/payment_request_platform_browsertest_base.h"
 #include "components/payments/content/service_worker_payment_app_finder.h"
-#include "components/payments/core/test_payment_manifest_downloader.h"
+#include "components/payments/content/test_payment_manifest_downloader.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
@@ -27,9 +27,16 @@ class EmptyParametersTest : public PaymentRequestPlatformBrowserTestBase {
   void SetDownloaderAndIgnorePortInOriginComparisonForTesting() {
     content::BrowserContext* context =
         GetActiveWebContents()->GetBrowserContext();
+    mojo::Remote<network::mojom::URLLoaderFactory> renderer_url_loader_factory;
+    GetActiveWebContents()
+        ->GetPrimaryMainFrame()
+        ->CreateNetworkServiceDefaultFactory(
+            renderer_url_loader_factory.BindNewPipeAndPassReceiver());
     auto downloader = std::make_unique<TestDownloader>(
-        GetCSPCheckerForTests(), context->GetDefaultStoragePartition()
-                                     ->GetURLLoaderFactoryForBrowserProcess());
+        GetCSPCheckerForTests(),
+        context->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        std::move(renderer_url_loader_factory));
     downloader->AddTestServerURL("https://kylepay.test/",
                                  kylepay_server_.GetURL("kylepay.test", "/"));
     ServiceWorkerPaymentAppFinder::GetOrCreateForCurrentDocument(

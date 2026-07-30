@@ -6,7 +6,11 @@
 
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "content/browser/memory_coordinator/child_memory_consumer_registry_host.h"
+#include "content/common/memory_coordinator/mojom/memory_coordinator.mojom.h"
+#include "mojo/public/cpp/bindings/message.h"
 
 namespace content {
 
@@ -25,9 +29,13 @@ BrowserMemoryCoordinator& BrowserMemoryCoordinator::Get() {
 BrowserMemoryCoordinator::BrowserMemoryCoordinator() {
   CHECK(!g_instance);
   g_instance = this;
+
+  policy_manager_.AddPolicy(&memory_pressure_listener_policy_);
 }
 
 BrowserMemoryCoordinator::~BrowserMemoryCoordinator() {
+  policy_manager_.RemovePolicy(&memory_pressure_listener_policy_);
+
   CHECK_EQ(g_instance, this);
   g_instance = nullptr;
 }
@@ -36,14 +44,31 @@ void BrowserMemoryCoordinator::Bind(
     ProcessType process_type,
     ChildProcessId child_process_id,
     mojo::PendingReceiver<mojom::ChildMemoryConsumerRegistryHost> receiver) {
-  auto host = std::make_unique<ChildMemoryConsumerRegistryHost>(
-      registry_.Get(), process_type, child_process_id);
-  auto* host_ptr = host.get();
-  mojo::ReceiverId id = hosts_.Add(std::move(host), std::move(receiver));
-  host_ptr->SetDisconnectHandler(base::BindOnce(
-      [](mojo::UniqueReceiverSet<mojom::ChildMemoryConsumerRegistryHost>* hosts,
-         mojo::ReceiverId id) { hosts->Remove(id); },
-      &hosts_, id));
+  auto [it, inserted] = hosts_.try_emplace(child_process_id);
+  if (!inserted) {
+    mojo::ReportBadMessage("Duplicate MemoryCoordinator host registration");
+    return;
+  }
+
+  it->second = std::make_unique<ChildMemoryConsumerRegistryHost>(
+      policy_manager_, process_type, child_process_id, std::move(receiver),
+      base::BindOnce(&BrowserMemoryCoordinator::OnHostDisconnected,
+                     base::Unretained(this), child_process_id));
+}
+
+void BrowserMemoryCoordinator::NotifyReleaseMemoryForTesting() {
+  policy_manager_.NotifyReleaseMemoryForTesting();
+}
+
+void BrowserMemoryCoordinator::NotifyUpdateMemoryLimitForTesting(
+    int percentage) {
+  policy_manager_.NotifyUpdateMemoryLimitForTesting(percentage);
+}
+
+void BrowserMemoryCoordinator::OnHostDisconnected(
+    ChildProcessId child_process_id) {
+  size_t removed = hosts_.erase(child_process_id);
+  CHECK_EQ(removed, 1u);
 }
 
 }  // namespace content

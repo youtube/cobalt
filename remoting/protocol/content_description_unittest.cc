@@ -9,6 +9,7 @@
 
 #include "base/logging.h"
 #include "remoting/protocol/authenticator.h"
+#include "remoting/protocol/jingle_message_xml_converter.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
@@ -22,12 +23,12 @@ TEST(ContentDescriptionTest, FormatAndParse) {
   // serialized.
   // TODO: crbug.com/375470501 - Fix the test for WebRTC.
   config->set_ice_supported(true);
-  ContentDescription description(
-      std::move(config), Authenticator::CreateEmptyAuthenticatorMessage());
-  std::unique_ptr<jingle_xmpp::XmlElement> xml(description.ToXml());
+  ContentDescription description(std::move(config), JingleAuthentication());
+  std::unique_ptr<jingle_xmpp::XmlElement> xml(
+      ContentDescriptionToXml(description));
   LOG(ERROR) << xml->Str();
   std::unique_ptr<ContentDescription> parsed(
-      ContentDescription::ParseXml(xml.get(), false));
+      ContentDescriptionFromXml(xml.get(), false));
   ASSERT_TRUE(parsed.get());
   EXPECT_TRUE(description.config()->control_configs() ==
               parsed->config()->control_configs());
@@ -54,7 +55,7 @@ TEST(ContentDescriptionTest, ParseUnknown) {
   std::unique_ptr<jingle_xmpp::XmlElement> xml(
       jingle_xmpp::XmlElement::ForStr(kTestDescription));
   std::unique_ptr<ContentDescription> parsed(
-      ContentDescription::ParseXml(xml.get(), false));
+      ContentDescriptionFromXml(xml.get(), false));
   ASSERT_TRUE(parsed.get());
   EXPECT_EQ(1U, parsed->config()->event_configs().size());
   EXPECT_TRUE(parsed->config()->event_configs().front() ==
@@ -79,7 +80,7 @@ TEST(ContentDescriptionTest, NoneTransport) {
   std::unique_ptr<jingle_xmpp::XmlElement> xml(
       jingle_xmpp::XmlElement::ForStr(kTestDescription));
   std::unique_ptr<ContentDescription> parsed(
-      ContentDescription::ParseXml(xml.get(), false));
+      ContentDescriptionFromXml(xml.get(), false));
   ASSERT_TRUE(parsed.get());
   EXPECT_EQ(1U, parsed->config()->audio_configs().size());
   EXPECT_TRUE(parsed->config()->audio_configs().front() == ChannelConfig());
@@ -101,7 +102,7 @@ TEST(ContentDescriptionTest, NoneTransportWithCodec) {
   std::unique_ptr<jingle_xmpp::XmlElement> xml(
       jingle_xmpp::XmlElement::ForStr(kTestDescription));
   std::unique_ptr<ContentDescription> parsed(
-      ContentDescription::ParseXml(xml.get(), false));
+      ContentDescriptionFromXml(xml.get(), false));
   ASSERT_TRUE(parsed.get());
   EXPECT_EQ(1U, parsed->config()->audio_configs().size());
   EXPECT_TRUE(parsed->config()->audio_configs().front() == ChannelConfig());

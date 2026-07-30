@@ -5,33 +5,22 @@
 #ifndef IOS_CHROME_BROWSER_CONTENT_SUGGESTIONS_SAFETY_CHECK_UI_SAFETY_CHECK_STATE_H_
 #define IOS_CHROME_BROWSER_CONTENT_SUGGESTIONS_SAFETY_CHECK_UI_SAFETY_CHECK_STATE_H_
 
-#import <UIKit/UIKit.h>
-
 #import <optional>
 
 #import "base/time/time.h"
-#import "ios/chrome/browser/content_suggestions/magic_stack/ui/magic_stack_module.h"
+#import "ios/chrome/browser/content_suggestions/ui/cells/icon_detail_view.h"
+#import "ios/chrome/browser/content_suggestions/ui/cells/icon_detail_view_configuration.h"
 
-@protocol SafetyCheckAudience;
-enum class UpdateChromeSafetyCheckState;
 enum class PasswordSafetyCheckState;
-enum class SafeBrowsingSafetyCheckState;
-@protocol SafetyCheckConsumerSource;
 enum class RunningSafetyCheckState;
+enum class SafeBrowsingSafetyCheckState;
+@protocol SafetyCheckAudience;
+enum class SafetyCheckItemType;
+enum class UpdateChromeSafetyCheckState;
 
 // Helper class to contain the current Safety Check state.
-@interface SafetyCheckState : MagicStackModule
-
-// Initializes a `SafetyCheckState` with `updateChromeState`, `passwordState`,
-// `safeBrowsingState`, and `runningState`.
-- (instancetype)
-    initWithUpdateChromeState:(UpdateChromeSafetyCheckState)updateChromeState
-                passwordState:(PasswordSafetyCheckState)passwordState
-            safeBrowsingState:(SafeBrowsingSafetyCheckState)safeBrowsingState
-                 runningState:(RunningSafetyCheckState)runningState;
-
-// Returns the number of check issues found.
-- (NSUInteger)numberOfIssues;
+@interface SafetyCheckState
+    : IconDetailViewConfiguration <IconDetailViewTapDelegate>
 
 // The current state of the Update Chrome check.
 @property(nonatomic, readwrite) UpdateChromeSafetyCheckState updateChromeState;
@@ -57,12 +46,29 @@ enum class RunningSafetyCheckState;
 // The last run time of the Safety Check.
 @property(nonatomic, assign) std::optional<base::Time> lastRunTime;
 
-// Safety Check model.
-@property(nonatomic, strong) id<SafetyCheckConsumerSource>
-    safetyCheckConsumerSource;
-
 // The object that should handle user events.
 @property(nonatomic, weak) id<SafetyCheckAudience> audience;
+
+// The item type that this safety check state should be configured for.
+@property(nonatomic, assign) SafetyCheckItemType itemType;
+
+// Initializes a `SafetyCheckState` with `updateChromeState`, `passwordState`,
+// `safeBrowsingState`, and `runningState`.
+- (instancetype)
+    initWithUpdateChromeState:(UpdateChromeSafetyCheckState)updateChromeState
+                passwordState:(PasswordSafetyCheckState)passwordState
+            safeBrowsingState:(SafeBrowsingSafetyCheckState)safeBrowsingState
+                 runningState:(RunningSafetyCheckState)runningState;
+
+// Returns the number of check issues found.
+- (NSUInteger)numberOfIssues;
+
+// Returns `true` if any of the safety check components are currently running.
+- (BOOL)isRunning;
+
+// Returns `true` if all of the safety check components are in the default
+// state.
+- (BOOL)isDefault;
 
 @end
 

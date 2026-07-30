@@ -126,6 +126,15 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
   void LoadBlockedPlugins(const std::string& identifier) override {}
   void SetShouldDeferMediaLoad(bool should_defer) override {}
 
+  void InitializeTool(actor::mojom::ToolInvocationPtr request,
+                      InitializeToolCallback callback) override {
+    std::move(callback).Run(
+        mojom::InitializeToolResult::NewSuccessPoint(gfx::Point(100, 100)));
+  }
+  void ExecuteTool(const actor::TaskId& task_id,
+                   ExecuteToolCallback callback) override {
+    std::move(callback).Run(MakeOkResult());
+  }
   void InvokeTool(actor::mojom::ToolInvocationPtr request,
                   InvokeToolCallback callback) override {
     std::move(callback).Run(MakeOkResult());
@@ -236,7 +245,8 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
         }));
 
     task_ = ActorTask::CreateForTesting(
-        profile(), TaskId(1), std::move(task_ui_event_dispatcher),
+        *ActorKeyedService::Get(profile()), TaskId(1),
+        std::move(task_ui_event_dispatcher),
         /*options=*/nullptr, &no_enterprise_checker_,
         mock_actor_task_delegate_.GetWeakPtr());
 
@@ -321,35 +331,7 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
   testing::NiceMock<MockActorTaskDelegate> mock_actor_task_delegate_;
 
  private:
-  struct TabState {
-    explicit TabState(content::WebContents* web_contents) {
-      ON_CALL(tab, GetContents).WillByDefault(::testing::Return(web_contents));
-      ON_CALL(tab, RegisterWillDetach)
-          .WillByDefault([this](tabs::TabInterface::WillDetach callback) {
-            return will_detach_callback_list_.Add(std::move(callback));
-          });
-      ON_CALL(tab, GetUnownedUserDataHost())
-          .WillByDefault(::testing::ReturnRef(user_data_host_));
-      tab_data_ = std::make_unique<ActorTabData>(&tab);
-    }
-
-    ~TabState() {
-      will_detach_callback_list_.Notify(
-          &tab, tabs::TabInterface::DetachReason::kDelete);
-    }
-
-    using WillDetachCallbackList =
-        base::RepeatingCallbackList<void(tabs::TabInterface*,
-                                         tabs::TabInterface::DetachReason)>;
-    WillDetachCallbackList will_detach_callback_list_;
-
-    tabs::MockTabInterface tab;
-
-   private:
-    ::ui::UnownedUserDataHost user_data_host_;
-    std::unique_ptr<ActorTabData> tab_data_;
-  };
-  std::optional<TabState> tab_state_;
+  std::optional<TestTabState> tab_state_;
 
   MockPolicyChecker no_enterprise_checker_{
       EnterprisePolicyBlockReason::kNotBlocked};
@@ -564,7 +546,13 @@ TEST_F(ExecutionEngineTest, MAYBE_ActorTaskCompletedHistogram) {
         MakeClickCallback(kFakeContentNodeId).Run();
     std::unique_ptr<ToolRequest> action2 =
         MakeClickCallback(kFakeContentNodeId).Run();
+
+    base::test::TestFuture<void> future;
+    ActorTaskStateWaiter wait_to_act(future.GetCallback(),
+                                     *ActorKeyedService::Get(profile()), *task_,
+                                     ActorTask::State::kActing);
     task_->Act(ToRequestList(action, action2), result.GetCallback());
+    ASSERT_TRUE(future.Wait());
   }
 
   // Simulate time passing before the task stops
@@ -662,7 +650,13 @@ TEST_P(ExecutionEngineStopReasonParamTest, MAYBE_ActorTaskStoppedHistogram) {
     ActResultFuture result;
     std::unique_ptr<ToolRequest> action =
         MakeClickCallback(kFakeContentNodeId).Run();
+
+    base::test::TestFuture<void> future;
+    ActorTaskStateWaiter wait_to_act(future.GetCallback(),
+                                     *ActorKeyedService::Get(profile()), *task_,
+                                     ActorTask::State::kActing);
     task_->Act(ToRequestList(action), result.GetCallback());
+    ASSERT_TRUE(future.Wait());
   }
 
   // Simulate time passing before the task is cancelled
@@ -695,7 +689,12 @@ TEST_F(ExecutionEngineTest, ActorTaskCountAndDurationHistograms) {
       MakeClickCallback(kFakeContentNodeId).Run();
   task_environment()->FastForwardBy(created_duration);
 
+  base::test::TestFuture<void> future;
+  ActorTaskStateWaiter wait_to_act(future.GetCallback(),
+                                   *ActorKeyedService::Get(profile()), *task_,
+                                   ActorTask::State::kActing);
   task_->Act(ToRequestList(action1, action2, action3), result.GetCallback());
+  ASSERT_TRUE(future.Wait());
 
   histograms_.ExpectTimeBucketCount(
       "Actor.Task.StateTransition.Duration.Created", created_duration, 1);

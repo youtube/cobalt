@@ -134,6 +134,9 @@ struct LayerTreeUpdate {
   // The tree's viewport damage rect.
   gfx.mojom.Rect viewport_damage_rect;
 
+  // Damage rect for the root layer.
+  gfx.mojom.Rect root_layer_damage_rect;
+
   // We cache a global bool for full tree damages to avoid walking the entire
   // tree.
   bool full_tree_damaged;
@@ -219,7 +222,6 @@ struct LayerTreeUpdate {
   // calculations matches it. This is used to enforce checks in Viz to make
   // sure it is in sync with Renderer's behavior.
   bool frame_has_damage;
-  uint32 damage_reasons_bit_mask;
 
   // True if this compositor frame is related to an animated or precise scroll.
   // This includes during the touch interaction just prior to the initiation of

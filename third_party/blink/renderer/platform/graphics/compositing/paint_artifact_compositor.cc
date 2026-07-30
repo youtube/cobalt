@@ -403,6 +403,11 @@ void DumpWithDifferingPaintPropertiesIncluded(const PaintChunk& previous,
   SCOPED_CRASH_KEY_STRING32("ChunkId", "id", previous.id.ToString().Utf8());
 
   base::debug::DumpWithoutCrashing();
+
+  // DCHECK added to facilitate detection by ClusterFuzz.
+  DCHECK(false) << "Paint Property Tree State differs for Paint Chunk: "
+                << "Missing call to PaintArtifactCompositor::"
+                << "SetNeedsUpdate?";
 }
 
 // True if the paint chunk change affects the result of |Update|, such as the
@@ -1077,8 +1082,16 @@ void PaintArtifactCompositor::Update(
       layer.SetElementId(effect.GetCompositorElementId());
       auto& effect_tree = host->property_trees()->effect_tree_mutable();
       auto* cc_node = effect_tree.Node(effect_id);
-      effect_tree.Node(cc_node->parent_id)->backdrop_mask_element_id =
-          effect.GetCompositorElementId();
+      auto* parent_node = effect_tree.Node(cc_node->parent_id);
+
+      // Only set backdrop_mask_element_id if the parent has backdrop_filters.
+      // When synthetic nodes are created for clipping (e.g., overflow:hidden +
+      // border-radius), the backdrop properties are transferred to the
+      // synthetic node, leaving the parent scope node without backdrop_filters.
+      // Setting the mask there causes double-masking. See crbug.com/40778541.
+      if (!parent_node->backdrop_filters.IsEmpty()) {
+        parent_node->backdrop_mask_element_id = effect.GetCompositorElementId();
+      }
     }
 
     int scroll_id =

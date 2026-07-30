@@ -194,7 +194,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncTest,
   synced_web_app.set_user_display_mode_default(
       sync_pb::WebAppSpecifics_UserDisplayMode_STANDALONE);
   synced_web_app.set_theme_color(SK_ColorRED);
-  synced_web_app.set_scope("https://example.com/scope/");
+  synced_web_app.set_scope("https://example.com/");
   synced_web_app.set_relative_manifest_id("manifest-id");
   synced_web_app.set_user_display_mode_cros(
       sync_pb::WebAppSpecifics_UserDisplayMode_STANDALONE);
@@ -508,8 +508,10 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncTest,
             webapps::ManifestId(GURL("https://example.com/explicit_id")));
   EXPECT_EQ(web_app->sync_proto().relative_manifest_id(), stripped_manifest_id);
 
+  // The `true` bucket is being measured because the WebAppSyncBridge takes care
+  // of sanitizing inputs.
   histogram_tester.ExpectUniqueSample(
-      "WebApp.ApplySyncDataToApp.ManifestIdMatch", false, 1);
+      "WebApp.ApplySyncDataToApp.ManifestIdMatch", true, 1);
 }
 
 IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncTest,

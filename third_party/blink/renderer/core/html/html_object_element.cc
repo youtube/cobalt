@@ -101,7 +101,7 @@ void HTMLObjectElement::ParseAttribute(
     FormAttributeChanged();
   } else if (name == html_names::kTypeAttr) {
     SetServiceType(params.new_value.LowerASCII());
-    wtf_size_t pos = service_type_.Find(";");
+    wtf_size_t pos = service_type_.find(";");
     if (pos != kNotFound)
       SetServiceType(service_type_.Left(pos));
     // TODO(crbug.com/572908): What is the right thing to do here? Should we
@@ -154,8 +154,9 @@ bool HTMLObjectElement::HasFallbackContent() const {
 
 bool HTMLObjectElement::HasValidClassId() const {
   if (MIMETypeRegistry::IsJavaAppletMIMEType(service_type_) &&
-      ClassId().StartsWithIgnoringASCIICase("java:"))
+      ClassId().StartsWithIgnoringAsciiCase("java:")) {
     return true;
+  }
 
   // HTML5 says that fallback content should be rendered if a non-empty
   // classid is specified for which the UA can't find a suitable plugin.

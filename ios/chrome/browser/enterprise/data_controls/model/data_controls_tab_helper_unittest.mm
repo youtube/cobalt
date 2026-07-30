@@ -28,14 +28,13 @@
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_test_utils.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
-#import "ios/chrome/browser/shared/public/commands/data_controls_commands.h"
+#import "ios/chrome/browser/shared/public/commands/enterprise_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
-#import "ios/chrome/test/fakes/fake_data_controls_commands_handler.h"
+#import "ios/chrome/test/fakes/fake_enterprise_commands_handler.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
-#import "ios/components/enterprise/data_controls/features.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -79,7 +78,6 @@ class DataControlsTabHelperTest : public PlatformTest {
             profile_.get()));
     web_state_ = std::make_unique<web::FakeWebState>();
     web_state_->SetBrowserState(profile_);
-    feature_list_.InitAndEnableFeature(kEnableClipboardDataControlsIOS);
   }
 
   void TearDown() override {
@@ -429,8 +427,8 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_Allowed) {
 TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_Warn_NotBypassed) {
   SetCopyWarnRule();
   web_state_->SetCurrentURL(GURL(kWarnUrl));
-  auto* handler = [[FakeDataControlsCommandsHandler alloc] init];
-  tab_helper()->SetDataControlsCommandsHandler(handler);
+  auto* handler = [[FakeEnterpriseCommandsHandler alloc] init];
+  tab_helper()->SetEnterpriseCommandsHandler(handler);
   EXPECT_CALL(*reporting_router_, ReportCopy(_, _)).Times(1);
   base::RunLoop run_loop;
   tab_helper()->ShouldAllowCopy(base::BindLambdaForTesting([&](bool allowed) {
@@ -468,8 +466,8 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_Warn_NotBypassed) {
 TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_Warn_Bypassed) {
   SetCopyWarnRule();
   web_state_->SetCurrentURL(GURL(kWarnUrl));
-  auto* handler = [[FakeDataControlsCommandsHandler alloc] init];
-  tab_helper()->SetDataControlsCommandsHandler(handler);
+  auto* handler = [[FakeEnterpriseCommandsHandler alloc] init];
+  tab_helper()->SetEnterpriseCommandsHandler(handler);
   EXPECT_CALL(*reporting_router_, ReportCopyWarningBypassed(_, _)).Times(1);
   base::RunLoop run_loop;
   tab_helper()->ShouldAllowCopy(base::BindLambdaForTesting([&](bool allowed) {
@@ -512,8 +510,8 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_Warn_Bypassed_WithDomain) {
       signin::ConsentLevel::kSignin);
   SetCopyWarnRule();
   web_state_->SetCurrentURL(GURL(kWarnUrl));
-  auto* handler = [[FakeDataControlsCommandsHandler alloc] init];
-  tab_helper()->SetDataControlsCommandsHandler(handler);
+  auto* handler = [[FakeEnterpriseCommandsHandler alloc] init];
+  tab_helper()->SetEnterpriseCommandsHandler(handler);
   EXPECT_CALL(*reporting_router_, ReportCopyWarningBypassed(_, _)).Times(1);
   base::RunLoop run_loop;
   tab_helper()->ShouldAllowCopy(base::BindLambdaForTesting([&](bool allowed) {
@@ -560,23 +558,6 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_OtherUrl) {
     histogram_tester_.ExpectUniqueSample(
         kIOSWebStateDataControlsClipboardCopyVerdictHistogram,
         Rule::Level::kNotSet, 1);
-    run_loop.Quit();
-  }));
-  run_loop.Run();
-}
-
-// Tests that copy is allowed when a "BLOCK" rule is set but the feature is
-// disabled.
-TEST_F(DataControlsTabHelperTest, ShouldAllowCopy_FeatureDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(kEnableClipboardDataControlsIOS);
-  SetCopyBlockRule(profile_->GetPrefs());
-  web_state_->SetCurrentURL(GURL(kDataControlsBlockedUrl));
-  base::RunLoop run_loop;
-  tab_helper()->ShouldAllowCopy(base::BindLambdaForTesting([&](bool allowed) {
-    EXPECT_TRUE(allowed);
-    histogram_tester_.ExpectTotalCount(
-        kIOSWebStateDataControlsClipboardCopyVerdictHistogram, 0);
     run_loop.Quit();
   }));
   run_loop.Run();
@@ -676,8 +657,8 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_Blocked_WithDomain) {
 TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_Warn_NotBypassed) {
   SetPasteWarnRule();
   web_state_->SetCurrentURL(GURL(kWarnUrl));
-  auto* handler = [[FakeDataControlsCommandsHandler alloc] init];
-  tab_helper()->SetDataControlsCommandsHandler(handler);
+  auto* handler = [[FakeEnterpriseCommandsHandler alloc] init];
+  tab_helper()->SetEnterpriseCommandsHandler(handler);
   EXPECT_CALL(*reporting_router_, ReportPaste(_, _)).Times(1);
   base::RunLoop run_loop;
   tab_helper()->ShouldAllowPaste(base::BindLambdaForTesting([&](bool allowed) {
@@ -715,8 +696,8 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_Warn_NotBypassed) {
 TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_Warn_Bypassed) {
   SetPasteWarnRule();
   web_state_->SetCurrentURL(GURL(kWarnUrl));
-  auto* handler = [[FakeDataControlsCommandsHandler alloc] init];
-  tab_helper()->SetDataControlsCommandsHandler(handler);
+  auto* handler = [[FakeEnterpriseCommandsHandler alloc] init];
+  tab_helper()->SetEnterpriseCommandsHandler(handler);
   EXPECT_CALL(*reporting_router_, ReportPasteWarningBypassed(_, _)).Times(1);
   base::RunLoop run_loop;
   tab_helper()->ShouldAllowPaste(base::BindLambdaForTesting([&](bool allowed) {
@@ -759,8 +740,8 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_Warn_Bypassed_WithDomain) {
       signin::ConsentLevel::kSignin);
   SetPasteWarnRule();
   web_state_->SetCurrentURL(GURL(kWarnUrl));
-  auto* handler = [[FakeDataControlsCommandsHandler alloc] init];
-  tab_helper()->SetDataControlsCommandsHandler(handler);
+  auto* handler = [[FakeEnterpriseCommandsHandler alloc] init];
+  tab_helper()->SetEnterpriseCommandsHandler(handler);
   EXPECT_CALL(*reporting_router_, ReportPasteWarningBypassed(_, _)).Times(1);
   base::RunLoop run_loop;
   tab_helper()->ShouldAllowPaste(base::BindLambdaForTesting([&](bool allowed) {
@@ -958,23 +939,6 @@ TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_BlockedToOSClipboard) {
   tab_helper()->DidFinishClipboardRead();
 
   ASSERT_TRUE(WaitForStringInPasteboard(expected_placeholder));
-}
-
-// Tests that paste is allowed when a "BLOCK" rule is set but the feature is
-// disabled.
-TEST_F(DataControlsTabHelperTest, ShouldAllowPaste_FeatureDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(kEnableClipboardDataControlsIOS);
-  SetPasteBlockRule();
-  web_state_->SetCurrentURL(GURL(kDataControlsBlockedUrl));
-  base::RunLoop run_loop;
-  tab_helper()->ShouldAllowPaste(base::BindLambdaForTesting([&](bool allowed) {
-    EXPECT_TRUE(allowed);
-    histogram_tester_.ExpectTotalCount(
-        kIOSWebStateDataControlsClipboardPasteVerdictHistogram, 0);
-    run_loop.Quit();
-  }));
-  run_loop.Run();
 }
 
 // Tests that cut is blocked when a "BLOCK" rule matches the page URL.

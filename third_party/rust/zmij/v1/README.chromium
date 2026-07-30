@@ -1,7 +1,7 @@
 Name: zmij
 URL: https://crates.io/crates/zmij
-Version: 1.0.17
-Revision: 60c35b195b3b19dc6f49f6004dad70e6457fb30c
+Version: 1.0.21
+Revision: 6531ba31ccf5d14b604ca41f6e2414a8dd779af0
 Update Mechanism: Manual (https://crbug.com/449898466)
 License: MIT
 License File: //third_party/rust/chromium_crates_io/vendor/zmij-v1/LICENSE-MIT

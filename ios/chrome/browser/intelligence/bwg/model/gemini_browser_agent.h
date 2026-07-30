@@ -11,6 +11,7 @@
 
 #import "base/memory/raw_ptr.h"
 #import "base/time/time.h"
+#import "base/timer/timer.h"
 #import "base/types/expected.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
@@ -111,6 +112,7 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Gemini instance. Passes what `source` triggered the floaty to be hidden.
   void HideFloatyIfInvoked(bool animated, gemini::FloatyUpdateSource source);
 
+  // TODO(crbug.com/483848831): Rename to a more accurate method name.
   // Show Gemini floaty with `animated` flag. Used to re-show an invoked Gemini
   // floaty with the `last_view_state_`. Passes what `source` triggered the
   // floaty to be shown.
@@ -173,6 +175,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
       base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                      PageContextWrapperError> response);
 
+  // Callback for when the page load takes too long, triggers best effort page
+  // context generation.
+  void TriggerBestEffortPageContextGeneration();
+
   // Sets the UI command handlers on the session handler. This cannot be called
   // in the constructor because some objects fail the protocol conformance test
   // at that time.
@@ -202,6 +208,24 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Returns the floaty offset from a FullscreenController.
   CGFloat GetFloatyOffsetFromFullscreenController(
       FullscreenController* controller);
+
+  // Invokes the floaty.
+  void InvokeFloaty(GeminiConfiguration* config);
+
+  // Forces the floaty to be shown if it is invoked. Can be used to set the
+  // floaty opacity to 1.0 effectively re-showing the floaty. Useful to re-show
+  // the floaty if a user is currently in fullscreen mode.
+  void ForceShowFloatyIfInvoked();
+
+  // Whether to allow the floaty to be shown given a `source`. If not allowed,
+  // the floaty state will be as if a floaty was never shown.
+  bool ShouldShowFloatyForSource(gemini::FloatyUpdateSource source);
+
+  // Creates a `GeminiPageContext` for the current web state.
+  GeminiPageContext* CreateGeminiPageContext(
+      ios::provider::GeminiPageContextComputationState computation_state,
+      std::unique_ptr<optimization_guide::proto::PageContext>
+          page_context_proto);
 
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
@@ -271,6 +295,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Called when the page content sharing preference changes.
   void OnPageContentPrefChanged();
+
+  // Timer to force page context generation if page load takes too long.
+  base::OneShotTimer page_context_timeout_timer_;
 
   // Weak pointer factory.
   base::WeakPtrFactory<GeminiBrowserAgent> weak_factory_{this};

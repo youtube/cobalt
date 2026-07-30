@@ -74,6 +74,7 @@ class VerticalUnpinnedTabContainerViewTargeter
 VerticalUnpinnedTabContainerView::VerticalUnpinnedTabContainerView(
     TabCollectionNode* collection_node)
     : VerticalDraggedTabsContainer(static_cast<views::View&>(*this),
+                                   collection_node,
                                    DragAxes::kVerticalOnly,
                                    DragLayout::kVertical),
       collection_node_(collection_node),
@@ -179,18 +180,6 @@ void VerticalUnpinnedTabContainerView::ResetCollectionNode() {
   collection_node_ = nullptr;
 }
 
-VerticalTabDragHandler& VerticalUnpinnedTabContainerView::GetDragHandler() {
-  return const_cast<VerticalTabDragHandler&>(
-      std::as_const(*this).GetDragHandler());
-}
-
-const VerticalTabDragHandler& VerticalUnpinnedTabContainerView::GetDragHandler()
-    const {
-  CHECK(collection_node_);
-  CHECK(collection_node_->GetController());
-  return collection_node_->GetController()->GetDragHandler();
-}
-
 bool VerticalUnpinnedTabContainerView::IsTabStripCollapsed() const {
   const auto* controller =
       collection_node_ ? collection_node_->GetController() : nullptr;
@@ -276,7 +265,8 @@ VerticalUnpinnedTabContainerView::GetTabDragTarget(
                             required_overlap_amount)) {
         return *group_view;
       }
-    } else if (layout.bounds.Contains(point_in_container)) {
+    } else if (layout.bounds.y() <= point_in_container.y() &&
+               layout.bounds.bottom() >= point_in_container.y()) {
       // If neither the group or this container are handling a drag and the drag
       // point falls in the group (e.g. when starting the drag), then use the
       // group.
