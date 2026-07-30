@@ -21,7 +21,7 @@ class Arguments;
 
 // On Android, this class adds a function chrome.getAndroidSandboxStatus()
 // to the chrome://sandbox/ WebUI page. This is done only after the browser
-// SandboxInternalsUI sends an IPC mesage blessing this RenderFrame.
+// SandboxInternalsUI sends an IPC message blessing this RenderFrame.
 class SandboxStatusExtension
     : public base::RefCountedThreadSafe<SandboxStatusExtension>,
       public content::RenderFrameObserver,

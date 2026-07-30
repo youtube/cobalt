@@ -129,6 +129,7 @@ public class AdaptiveToolbarUiCoordinator {
             Supplier<@Nullable ReadAloudController> readAloudControllerSupplier,
             MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
             Runnable onShareRunnable,
+            Runnable onSigninTapped,
             WindowAndroid windowAndroid,
             ActivityResultTracker activityResultTracker,
             DeviceLockActivityLauncher deviceLockActivityLauncher,
@@ -257,7 +258,8 @@ public class AdaptiveToolbarUiCoordinator {
                             profileSupplier,
                             bottomSheetController,
                             mModalDialogManagerSupplier.get(),
-                            snackbarManagerSupplier.get());
+                            snackbarManagerSupplier.get(),
+                            onSigninTapped);
             mButtonDataProviders = List.of(identityDiscController, adaptiveToolbarButtonController);
         }
     }

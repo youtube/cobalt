@@ -14,7 +14,7 @@
 #import "ios/chrome/browser/overlays/model/public/overlay_request_support.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/infobar_banner_overlay_mediator+consumer_support.h"
 #import "ios/chrome/browser/overlays/ui_bundled/overlay_request_mediator+subclassing.h"
-#import "ios/chrome/browser/passwords/model/ios_chrome_save_password_infobar_delegate.h"
+#import "ios/chrome/browser/passwords/infobars/model/ios_chrome_save_password_infobar_delegate.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/non_modal_signin_promo_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -137,15 +137,7 @@
   infobarType_ = self.config->infobar_type();
 
   NSString* title = base::SysUTF16ToNSString(delegate->GetMessageText());
-
-  std::optional<std::string> account_string =
-      delegate->GetAccountToStorePassword();
-  NSString* subtitle =
-      account_string ? l10n_util::GetNSStringF(
-                           IDS_IOS_PASSWORD_MANAGER_ON_ACCOUNT_SAVE_SUBTITLE,
-                           base::UTF8ToUTF16(*account_string))
-                     : l10n_util::GetNSString(
-                           IDS_IOS_PASSWORD_MANAGER_LOCAL_SAVE_SUBTITLE);
+  NSString* subtitle = delegate->GetSubtitle();
 
   NSString* button_text = base::SysUTF16ToNSString(
       delegate->GetButtonLabel(ConfirmInfoBarDelegate::BUTTON_OK));

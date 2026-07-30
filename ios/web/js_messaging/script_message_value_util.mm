@@ -7,28 +7,34 @@
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/values.h"
+#import "ios/web/public/js_messaging/script_message_dict_value.h"
+#import "ios/web/public/js_messaging/script_message_list_value.h"
 #import "ios/web/public/js_messaging/script_message_value.h"
 
 namespace web {
 
-std::unique_ptr<ScriptMessageValue> CreateScriptMessageValue(id element) {
+ScriptMessageValue CreateScriptMessageValue(id element) {
+  if (!element) {
+    return ScriptMessageValue();
+  }
   CFTypeID type_id = CFGetTypeID((__bridge CFTypeRef)element);
   if (type_id == CFStringGetTypeID()) {
-    return std::make_unique<ScriptMessageValue>(
-        base::SysNSStringToUTF16(element));
+    return ScriptMessageValue(base::SysNSStringToUTF8(element));
   }
   if (type_id == CFNumberGetTypeID()) {
     if (CFNumberIsFloatType((CFNumberRef)element)) {
-      return std::make_unique<ScriptMessageValue>([element doubleValue]);
+      return ScriptMessageValue([element doubleValue]);
     }
-    return std::make_unique<ScriptMessageValue>(
-        base::Value([element intValue]));
+    return ScriptMessageValue([element intValue]);
   }
   if (type_id == CFBooleanGetTypeID()) {
-    return std::make_unique<ScriptMessageValue>([element boolValue]);
+    return ScriptMessageValue([element boolValue]);
   }
   if (type_id == CFDictionaryGetTypeID()) {
-    return std::make_unique<ScriptMessageValue>((NSDictionary*)element);
+    return ScriptMessageValue(ScriptMessageDictValue(element));
+  }
+  if (type_id == CFArrayGetTypeID()) {
+    return ScriptMessageValue(ScriptMessageListValue(element));
   }
   NOTREACHED();
 }

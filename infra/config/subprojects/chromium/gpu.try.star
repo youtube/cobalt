@@ -21,8 +21,6 @@ try_.defaults.set(
     experiments = {
         "chromium_tests.resultdb_module": 100,
     },
-    # Max. pending time for builds. CQ considers builds pending >2h as timed
-    # out: http://shortn/_8PaHsdYmlq. Keep this in sync.
     expiration_timeout = 2 * time.hour,
     service_account = "chromium-try-gpu-builder@chops-service-accounts.iam.gserviceaccount.com",
     siso_project = siso.project.DEFAULT_UNTRUSTED,
@@ -398,15 +396,6 @@ def gpu_mac_builder(*, name, **kwargs):
         siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
         **kwargs
     )
-
-gpu_mac_builder(
-    name = "gpu-fyi-try-mac-amd-pro-rel",
-    mirrors = [
-        "ci/GPU FYI Mac Builder",
-        "ci/Mac Pro FYI Release (AMD)",
-    ],
-    gn_args = "ci/GPU FYI Mac Builder",
-)
 
 gpu_mac_builder(
     name = "gpu-fyi-try-mac-amd-retina-asan",

@@ -102,7 +102,8 @@ void UmaHistogramCounts10000WithBatteryStateVariant(const char* histogram_name,
 #if !BUILDFLAG(IS_ANDROID)
 void UmaHistogramCounts10000WithTabStripModeVariant(
     const char* histogram_name,
-    const TabStatsTracker::TabStripInterface& tab_strip) {
+    const TabStatsTracker::TabStripInterface& tab_strip,
+    size_t value) {
   // Guest mode and incognito should not count for the per-profile metrics
   if (tab_strip.GetProfile()->IsOffTheRecord()) {
     return;
@@ -114,8 +115,7 @@ void UmaHistogramCounts10000WithTabStripModeVariant(
                            ? ".VerticalTabStrip"
                            : ".HorizontalTabStrip";
 
-  base::UmaHistogramCounts10000(base::StrCat({histogram_name, suffix}),
-                                tab_strip.GetTabCount());
+  base::UmaHistogramCounts10000(base::StrCat({histogram_name, suffix}), value);
 }
 #endif
 
@@ -180,6 +180,12 @@ void TabStatsTracker::TabStripInterface::ForEach(
 
 size_t TabStatsTracker::TabStripInterface::GetTabCount() const {
   return browser_window_interface()->GetTabStripModel()->count();
+}
+
+size_t TabStatsTracker::TabStripInterface::GetPinnedTabCount() const {
+  return browser_window_interface()
+      ->GetTabStripModel()
+      ->IndexOfFirstNonPinnedTab();
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -256,6 +262,9 @@ const char TabStatsTracker::UmaStatsReportingDelegate::
 const char TabStatsTracker::UmaStatsReportingDelegate::
     kKeyboardTabSwitchModeHistogramName[] =
         "TabStrip.Tab.KeyboardTabSwitchMode";
+const char
+    TabStatsTracker::UmaStatsReportingDelegate::kPinnedTabCountHistogramName[] =
+        "Tabs.PinnedTabCount";
 
 // Daily discard/reload histograms.
 const char TabStatsTracker::UmaStatsReportingDelegate::
@@ -922,6 +931,7 @@ void TabStatsTracker::UmaStatsReportingDelegate::ReportHeartbeatMetrics(
                                                  tab_stats.total_tab_count);
   UmaHistogramCounts10000WithBatteryStateVariant(kWindowCountHistogramName,
                                                  tab_stats.window_count);
+
   if (base::FeatureList::IsEnabled(features::kTabDuplicateMetrics)) {
     ReportTabDuplicateMetrics(true);
     ReportTabDuplicateMetrics(false);
@@ -935,8 +945,10 @@ void TabStatsTracker::UmaStatsReportingDelegate::ReportHeartbeatMetrics(
       return;
     }
 
-    UmaHistogramCounts10000WithTabStripModeVariant(kTabCountHistogramName,
-                                                   tab_strip);
+    UmaHistogramCounts10000WithTabStripModeVariant(
+        kTabCountHistogramName, tab_strip, tab_strip.GetTabCount());
+    UmaHistogramCounts10000WithTabStripModeVariant(
+        kPinnedTabCountHistogramName, tab_strip, tab_strip.GetPinnedTabCount());
 
     auto* controller = tabs::VerticalTabStripStateController::From(
         tab_strip.browser_window_interface());

@@ -7,6 +7,7 @@
 
 #include "base/byte_size.h"
 #include "base/memory/scoped_refptr.h"
+#include "cc/layers/texture_layer_client.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_factory.h"
@@ -19,19 +20,27 @@
 
 namespace cc {
 class Layer;
+class TextureLayer;
 }
+
+namespace gpu {
+struct SyncToken;
+class ClientSharedImage;
+}  // namespace gpu
 
 namespace blink {
 
 class ExceptionState;
 class ExecutionContext;
 class ImageBitmap;
-class ImageLayerBridge;
+class WebGraphicsSharedImageInterfaceProvider;
 class V8UnionHTMLCanvasElementOrOffscreenCanvas;
+class WebGraphicsContext3DProviderWrapper;
 
 class MODULES_EXPORT ImageBitmapRenderingContext final
     : public ScriptWrappable,
-      public CanvasRenderingContext {
+      public CanvasRenderingContext,
+      public cc::TextureLayerClient {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -57,6 +66,11 @@ class MODULES_EXPORT ImageBitmapRenderingContext final
   ImageBitmapRenderingContext(CanvasRenderingContextHost*,
                               const CanvasContextCreationAttributesCore&);
 
+  static scoped_refptr<StaticBitmapImage> MakeAccelerated(
+      const scoped_refptr<StaticBitmapImage>& source,
+      base::WeakPtr<WebGraphicsContext3DProviderWrapper>
+          context_provider_wrapper);
+
   void Trace(Visitor*) const override;
 
   bindings::OptimizedReturnProxy<V8UnionHTMLCanvasElementOrOffscreenCanvas>
@@ -79,6 +93,12 @@ class MODULES_EXPORT ImageBitmapRenderingContext final
       bool& should_call_push_frame) override;
 
   cc::Layer* CcLayer() const final;
+
+  // cc::TextureLayerClient implementation.
+  bool PrepareTransferableResource(
+      viz::TransferableResource* out_resource,
+      viz::ReleaseCallback* out_release_callback) override;
+
   // TODO(junov): handle lost contexts when content is GPU-backed
   void LoseContext(LostContextMode) override {}
 
@@ -114,7 +134,36 @@ class MODULES_EXPORT ImageBitmapRenderingContext final
 
   void ResetInternalBitmapToBlackTransparent(int width, int height);
 
-  Member<ImageLayerBridge> image_layer_bridge_;
+  void SetImageInternal(scoped_refptr<StaticBitmapImage>);
+  void ResourceReleasedGpu(scoped_refptr<StaticBitmapImage>,
+                           const gpu::SyncToken&,
+                           bool lost_resource);
+
+  struct SoftwareResource {
+    SoftwareResource();
+    SoftwareResource(SoftwareResource&& other);
+    SoftwareResource& operator=(SoftwareResource&& other);
+
+    scoped_refptr<gpu::ClientSharedImage> shared_image;
+    gpu::SyncToken sync_token;
+    base::WeakPtr<blink::WebGraphicsSharedImageInterfaceProvider> sii_provider;
+  };
+
+  SoftwareResource CreateOrRecycleSoftwareResource(
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space);
+
+  void ResourceReleasedSoftware(SoftwareResource resource,
+                                const gpu::SyncToken&,
+                                bool lost_resource);
+
+  Vector<SoftwareResource> recycled_software_resources_;
+
+  scoped_refptr<StaticBitmapImage> image_;
+  bool disposed_ = false;
+  bool has_presented_since_last_set_image_ = false;
+  bool is_opaque_ = false;
+  scoped_refptr<cc::TextureLayer> layer_;
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
       resource_provider_for_offscreen_canvas_;
 };

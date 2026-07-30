@@ -201,7 +201,7 @@ void StyleResolverState::UpdateLengthConversionData() const {
       GetDocument().GetStyleEngine().GetViewportSize(),
       CSSToLengthConversionData::ContainerSizes(ContainerUnitContext()),
       CSSToLengthConversionData::AnchorData(
-          GetAnchorEvaluator(), StyleBuilder().PositionAnchor(),
+          GetAnchorEvaluator(), StyleBuilder().GetDefaultAnchorData(),
           StyleBuilder().PositionAreaOffsets()),
       StyleBuilder().EffectiveZoom(), length_conversion_flags_, &GetElement());
   if (should_update_line_height_) {
@@ -230,7 +230,7 @@ CSSToLengthConversionData StyleResolverState::UnzoomedLengthConversionData(
   CSSToLengthConversionData::ContainerSizes container_sizes(
       ContainerUnitContext());
   CSSToLengthConversionData::AnchorData anchor_data(
-      GetAnchorEvaluator(), StyleBuilder().PositionAnchor(),
+      GetAnchorEvaluator(), StyleBuilder().GetDefaultAnchorData(),
       StyleBuilder().PositionAreaOffsets());
   return CSSToLengthConversionData(StyleBuilder().GetWritingMode(), font_sizes,
                                    line_height_size, viewport_size,
@@ -383,24 +383,52 @@ void StyleResolverState::SetTextOrientation(ETextOrientation text_orientation) {
 
 void StyleResolverState::SetPositionAnchor(
     const StylePositionAnchor& position_anchor) {
-  if (StyleBuilder().PositionAnchor() != position_anchor) {
-    StyleBuilder().SetPositionAnchor(position_anchor);
-    MutableCssToLengthConversionData().SetAnchorData(
-        CSSToLengthConversionData::AnchorData(
-            GetAnchorEvaluator(), position_anchor,
-            StyleBuilder().PositionAreaOffsets()));
+  if (StyleBuilder().PositionAnchor() == position_anchor) {
+    return;
   }
+
+  StyleBuilder().SetPositionAnchor(position_anchor);
+  MutableCssToLengthConversionData().SetAnchorData(
+      CSSToLengthConversionData::AnchorData(
+          GetAnchorEvaluator(), StyleBuilder().GetDefaultAnchorData(),
+          StyleBuilder().PositionAreaOffsets()));
 }
 
-void StyleResolverState::SetPositionAreaOffsets(
-    const std::optional<PositionAreaOffsets>& position_area_offsets) {
-  if (StyleBuilder().PositionAreaOffsets() != position_area_offsets) {
-    StyleBuilder().SetPositionAreaOffsets(position_area_offsets);
-    MutableCssToLengthConversionData().SetAnchorData(
-        CSSToLengthConversionData::AnchorData(GetAnchorEvaluator(),
-                                              StyleBuilder().PositionAnchor(),
-                                              position_area_offsets));
+void StyleResolverState::SetPositionArea(PositionArea position_area) {
+  if (StyleBuilder().GetPositionArea() == position_area) {
+    return;
   }
+
+  // Update the position-area.
+  StyleBuilder().SetPositionArea(position_area);
+  MutableCssToLengthConversionData().SetAnchorData(
+      CSSToLengthConversionData::AnchorData(
+          GetAnchorEvaluator(), StyleBuilder().GetDefaultAnchorData(),
+          StyleBuilder().PositionAreaOffsets()));
+
+  if (position_area.IsNone()) {
+    return;
+  }
+  StyleBuilder().SetHasAnchorFunctions();
+
+  // Now update the position-area offsets.
+  AnchorEvaluator* evaluator = GetAnchorEvaluator();
+  if (!evaluator) {
+    return;
+  }
+
+  const std::optional<PositionAreaOffsets> position_area_offsets =
+      evaluator->ComputePositionAreaOffsetsForLayout(
+          StyleBuilder().GetDefaultAnchorData());
+  if (StyleBuilder().PositionAreaOffsets() == position_area_offsets) {
+    return;
+  }
+
+  StyleBuilder().SetPositionAreaOffsets(position_area_offsets);
+  MutableCssToLengthConversionData().SetAnchorData(
+      CSSToLengthConversionData::AnchorData(
+          evaluator, StyleBuilder().GetDefaultAnchorData(),
+          position_area_offsets));
 }
 
 WritingDirectionMode StyleResolverState::GetAnchoredContainerWritingDirection()

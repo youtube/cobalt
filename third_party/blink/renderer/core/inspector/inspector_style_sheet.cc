@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "base/containers/adapters.h"
 #include "third_party/blink/renderer/core/css/css_container_rule.h"
 #include "third_party/blink/renderer/core/css/css_counter_style_rule.h"
 #include "third_party/blink/renderer/core/css/css_font_palette_values_rule.h"
@@ -181,6 +182,61 @@ void GetClassNamesFromRule(CSSStyleRule* rule, HashSet<String>& unique_names) {
       simple_selector = simple_selector->NextSimpleSelector();
     }
   }
+}
+
+std::unique_ptr<protocol::Array<protocol::CSS::SpecificityComponent>>
+BuildSpecificityComponents(const CSSSelector* selector) {
+  // Walk the selector chain once and group simple selectors into compounds
+  // (split on a non-`kSubSelector` relation). Compounds are stored
+  // right-to-left, so iterate them reversed to emit source order; within a
+  // compound the chain is already in source order.
+  Vector<Vector<const CSSSelector*>> compounds;
+  Vector<const CSSSelector*> current_compound;
+  for (const CSSSelector* simple_selector = selector; simple_selector;
+       simple_selector = simple_selector->NextSimpleSelector()) {
+    current_compound.push_back(simple_selector);
+    if (simple_selector->Relation() != CSSSelector::kSubSelector) {
+      compounds.push_back(std::move(current_compound));
+      current_compound = Vector<const CSSSelector*>();
+    }
+  }
+  if (!current_compound.empty()) {
+    compounds.push_back(std::move(current_compound));
+  }
+  auto components =
+      std::make_unique<protocol::Array<protocol::CSS::SpecificityComponent>>();
+  for (const Vector<const CSSSelector*>& compound : base::Reversed(compounds)) {
+    for (const CSSSelector* simple_selector : compound) {
+      std::array<uint8_t, 3> tuple =
+          simple_selector->SimpleSelectorSpecificityTuple();
+      if (tuple[0] == 0 && tuple[1] == 0 && tuple[2] == 0) {
+        continue;
+      }
+      components->emplace_back(
+          protocol::CSS::SpecificityComponent::create()
+              .setText(simple_selector->SimpleSelectorTextForDebug())
+              .setA(tuple[0])
+              .setB(tuple[1])
+              .setC(tuple[2])
+              .build());
+    }
+  }
+  return components;
+}
+
+std::unique_ptr<protocol::CSS::Specificity> BuildSpecificity(
+    const CSSSelector* selector) {
+  DCHECK(selector);
+
+  std::array<uint8_t, 3> specificity_tuple = selector->SpecificityTuple();
+  std::unique_ptr<protocol::CSS::Specificity> specificity =
+      protocol::CSS::Specificity::create()
+          .setA(specificity_tuple[0])
+          .setB(specificity_tuple[1])
+          .setC(specificity_tuple[2])
+          .build();
+  specificity->setComponents(BuildSpecificityComponents(selector));
+  return specificity;
 }
 
 bool VerifyRuleText(Document* document, const String& rule_text) {
@@ -2256,12 +2312,7 @@ InspectorStyleSheet::SelectorsFromSource(CSSRuleSourceData* source_data,
             .build();
     simple_selector->setRange(BuildSourceRangeObject(range));
 
-    std::array<uint8_t, 3> specificity_tuple = obj_selector->SpecificityTuple();
-    simple_selector->setSpecificity(protocol::CSS::Specificity::create()
-                                        .setA(specificity_tuple[0])
-                                        .setB(specificity_tuple[1])
-                                        .setC(specificity_tuple[2])
-                                        .build());
+    simple_selector->setSpecificity(BuildSpecificity(obj_selector));
 
     result->emplace_back(std::move(simple_selector));
   }
@@ -2283,19 +2334,10 @@ InspectorStyleSheet::BuildObjectForSelectorList(CSSStyleRule* rule) {
     selectors = std::make_unique<protocol::Array<protocol::CSS::Value>>();
     for (const CSSSelector* selector = rule->GetStyleRule()->FirstSelector();
          selector; selector = CSSSelectorList::Next(*selector)) {
-      std::array<uint8_t, 3> specificity_tuple = selector->SpecificityTuple();
-
-      std::unique_ptr<protocol::CSS::Specificity> reworked_specificity =
-          protocol::CSS::Specificity::create()
-              .setA(specificity_tuple[0])
-              .setB(specificity_tuple[1])
-              .setC(specificity_tuple[2])
-              .build();
-
       std::unique_ptr<protocol::CSS::Value> simple_selector =
           protocol::CSS::Value::create()
               .setText(selector->SelectorText())
-              .setSpecificity(std::move(reworked_specificity))
+              .setSpecificity(BuildSpecificity(selector))
               .build();
 
       selectors->emplace_back(std::move(simple_selector));

@@ -34,10 +34,12 @@
 #include "chrome/browser/performance_manager/public/user_tuning/memory_saver_policy_handler.h"
 #include "chrome/browser/policy/annotations/blocklist_handler.h"
 #include "chrome/browser/policy/browsing_history_policy_handler.h"
+#include "chrome/browser/policy/default_sensors_setting_policy_handler.h"
 #include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/policy/drive_file_sync_available_policy_handler.h"
 #include "chrome/browser/policy/file_selection_dialogs_policy_handler.h"
 #include "chrome/browser/policy/homepage_location_policy_handler.h"
+#include "chrome/browser/policy/isolate_origins_policy_handler.h"
 #include "chrome/browser/policy/javascript_policy_handler.h"
 #include "chrome/browser/policy/local_network_access_ip_address_space_overrides_policy_handler.h"
 #include "chrome/browser/policy/power_battery_charging_optimization_policy_handler.h"
@@ -519,9 +521,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kBackForwardCacheEnabled,
     policy_prefs::kBackForwardCacheEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kIsolateOriginsAndroid,
-    prefs::kIsolateOrigins,
-    base::Value::Type::STRING },
   { key::kNTPContentSuggestionsEnabled,
     feed::prefs::kEnableSnippets,
     base::Value::Type::BOOLEAN },
@@ -748,9 +747,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kIntranetRedirectBehavior,
     omnibox::kIntranetRedirectBehavior,
     base::Value::Type::INTEGER },
-  { key::kIsolateOrigins,
-    prefs::kIsolateOrigins,
-    base::Value::Type::STRING },
   { key::kLocalFontsAllowedForUrls,
     prefs::kManagedLocalFontsAllowedForUrls,
     base::Value::Type::LIST },
@@ -1060,9 +1056,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kSharedClipboardEnabled,
     prefs::kSharedClipboardEnabled,
     base::Value::Type::BOOLEAN },
-  { key::kDefaultSensorsSetting,
-    prefs::kManagedDefaultSensorsSetting,
-    base::Value::Type::INTEGER },
+
   { key::kSensorsAllowedForUrls,
     prefs::kManagedSensorsAllowedForUrls,
     base::Value::Type::LIST },
@@ -1666,7 +1660,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kDeviceWiFiFastTransitionEnabled,
     base::Value::Type::BOOLEAN },
   { key::kNetworkThrottlingEnabled,
-    prefs::kNetworkThrottlingEnabled,
+    ash::prefs::kNetworkThrottlingEnabled,
     base::Value::Type::DICT },
   { key::kAllowScreenLock,
     ash::prefs::kAllowScreenLock,
@@ -2295,7 +2289,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 
 #if BUILDFLAG(IS_CHROMEOS)
   { key::kLensOnGalleryEnabled,
-    prefs::kMediaAppLensEnabled,
+    ash::prefs::kMediaAppLensEnabled,
     base::Value::Type::BOOLEAN },
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -2480,14 +2474,16 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN },
 #endif
 
-#if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
+// These policies are not supported on ChromeOS, so their `key::` constants
+// are only defined in non-ChromeOS builds and must be guarded accordingly.
+#if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES) && !BUILDFLAG(IS_CHROMEOS)
   { key::kProvisionManagedClientCertificateForUser,
     client_certificates::prefs::kProvisionManagedClientCertificateForUserPrefs,
     base::Value::Type::INTEGER },
   { key::kProvisionManagedClientCertificateForBrowser,
     client_certificates::prefs::kProvisionManagedClientCertificateForBrowserPrefs,
     base::Value::Type::INTEGER },
-#endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
+#endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES) && !BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
   { key::kDeviceAuthenticationFlowAutoReloadInterval,
@@ -2539,6 +2535,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 const SchemaValidatingPolicyToPreferenceMapEntry kSchemaValidatingPolicyMap[] =
     {
   // Policies for all platforms - Start.
+  { key::kAutofillSettings,
+    autofill::prefs::kAutofillTypesBlocked,
+    SCHEMA_ALLOW_UNKNOWN,
+    SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
+    SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED },
   // Policies for all platforms - End.
   // Policies for ChromeOS - Start.
 #if BUILDFLAG(IS_CHROMEOS)
@@ -2624,6 +2625,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(
       std::make_unique<
           LocalNetworkAccessIpAddressSpaceOverridesPolicyHandler>());
+  handlers->AddHandler(std::make_unique<DefaultSensorsSettingPolicyHandler>());
   handlers->AddHandler(std::make_unique<BooleanDisablingPolicyHandler>(
       key::kAutofillAddressEnabled, autofill::prefs::kAutofillProfileEnabled));
   handlers->AddHandler(std::make_unique<BooleanDisablingPolicyHandler>(
@@ -2674,6 +2676,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           enterprise_connectors::kOnFileDownloadedScopePref, chrome_schema));
 
   handlers->AddHandler(std::make_unique<DeveloperToolsPolicyHandler>());
+  handlers->AddHandler(std::make_unique<IsolateOriginsPolicyHandler>());
 
 #if !BUILDFLAG(IS_ANDROID)
   handlers->AddHandler(
@@ -3035,13 +3038,12 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       std::make_unique<URLPolicyHandler>(key::kEnterpriseLogoUrl,
                                          prefs::kEnterpriseLogoUrlForProfile)));
 
-  handlers->AddHandler(
-      std::make_unique<policy::SimpleSchemaValidatingPolicyHandler>(
-          policy::key::kEnterpriseProfileBadgeToolbarSettings,
-          prefs::kEnterpriseProfileBadgeToolbarSettings, chrome_schema,
-          policy::SchemaOnErrorStrategy::SCHEMA_STRICT,
-          policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
-          policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
+  handlers->AddHandler(std::make_unique<SimpleSchemaValidatingPolicyHandler>(
+      key::kEnterpriseProfileBadgeToolbarSettings,
+      prefs::kEnterpriseProfileBadgeToolbarSettings, chrome_schema,
+      SchemaOnErrorStrategy::SCHEMA_STRICT,
+      SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
+      SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
 
   handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
       key::kSaasUsageReportingDomainUrlsForBrowsers,
@@ -3073,7 +3075,8 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
   handlers->AddHandler(std::make_unique<extensions::ExtensionListPolicyHandler>(
       key::kDocumentScanAPITrustedExtensions,
-      prefs::kDocumentScanAPITrustedExtensions, /*allow_wildcards=*/false));
+      ash::prefs::kDocumentScanAPITrustedExtensions,
+      /*allow_wildcards=*/false));
   handlers->AddHandler(std::make_unique<NetworkAnnotationBlocklistHandler>());
 #if BUILDFLAG(USE_CUPS)
   handlers->AddHandler(std::make_unique<extensions::ExtensionListPolicyHandler>(

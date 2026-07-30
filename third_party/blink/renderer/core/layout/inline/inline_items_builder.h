@@ -198,6 +198,7 @@ class InlineItemsBuilderTemplate {
   bool has_out_of_flow_positioned_ = false;
   bool has_initial_letter_box_ = false;
   bool has_ruby_ = false;
+  bool has_text_emphasis_ = false;
   bool is_block_level_ = true;
   bool has_unicode_bidi_plain_text_ = false;
   bool is_bisect_line_break_disabled_ = false;

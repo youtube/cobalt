@@ -130,7 +130,6 @@ component("bindings_base") {
     "struct_forward.h",
     "struct_ptr.h",
     "struct_traits.h",
-    "tracing_helpers.h",
     "type_converter.h",
     "union_traits.h",
     "urgent_message_scope.cc",

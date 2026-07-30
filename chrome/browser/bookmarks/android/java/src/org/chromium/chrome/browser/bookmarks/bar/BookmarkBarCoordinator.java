@@ -468,11 +468,9 @@ public class BookmarkBarCoordinator
 
     @Override
     public void onTopControlLayerHeightChanged(int topControlsHeight, int topControlsMinHeight) {
-        // Here we are subtracting the height of the TopControl, |mView|, to bottom align the
-        // BookmarkBar relative to the other TopControls.
-        // TODO(crbug.com/417238089): We should not hardcode this offset functionality since it
-        // assumes an absolute BookmarkBar position, and fails when topControlsHeight becomes 0.
-        mMediator.setTopMargin(topControlsHeight - getTopControlHeight());
+        // Here we are using sceneLayerHeightOffset() to align the BookmarkBar relative to the other
+        // TopControls above it.
+        mMediator.setTopMargin(sceneLayerHeightOffset());
         mMediator.onBrowserControlsChanged(
                 topControlsHeight, mBrowserControlsStateProvider.getBottomControlsHeight());
         mBookmarkBarSceneLayerModel.set(
@@ -662,12 +660,7 @@ public class BookmarkBarCoordinator
     }
 
     private int sceneLayerHeightOffset() {
-        // Top controls height is the sum of all top browser control heights which includes that of
-        // the bookmark bar. Subtract the bookmark bar's height from the top controls height when
-        // calculating offset/topMargin in order to bottom align the bookmark bar relative to other
-        // top browser controls.
-        // TODO(crbug.com/454114987): Use offset from TopControlsStacker instead.
-        return mTopControlsStacker.getVisibleTopControlsTotalHeight() - getTopControlHeight();
+        return mTopControlsStacker.getHeightFromLayerToTop(TopControlType.BOOKMARK_BAR);
     }
 
     @VisibleForTesting

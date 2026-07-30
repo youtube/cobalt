@@ -103,6 +103,7 @@ interface AnimationEffect
     method updateTiming
 interface AnimationEvent : Event
     attribute @@toStringTag
+    getter animation
     getter animationName
     getter elapsedTime
     getter pseudoElement
@@ -2499,6 +2500,7 @@ interface Element : Node
     attribute @@toStringTag
     attribute @@unscopables
     getter activeViewTransition
+    getter ariaActionsElements
     getter ariaActiveDescendantElement
     getter ariaAtomic
     getter ariaAutoComplete
@@ -2680,6 +2682,7 @@ interface Element : Node
     method webkitMatchesSelector
     method webkitRequestFullScreen
     method webkitRequestFullscreen
+    setter ariaActionsElements
     setter ariaActiveDescendantElement
     setter ariaAtomic
     setter ariaAutoComplete
@@ -2765,6 +2768,7 @@ interface ElementImage
     method constructor
 interface ElementInternals
     attribute @@toStringTag
+    getter ariaActionsElements
     getter ariaActiveDescendantElement
     getter ariaAtomic
     getter ariaAutoComplete
@@ -2831,6 +2835,7 @@ interface ElementInternals
     method setFormValue
     method setToolParamSchema
     method setValidity
+    setter ariaActionsElements
     setter ariaActiveDescendantElement
     setter ariaAtomic
     setter ariaAutoComplete
@@ -3708,6 +3713,7 @@ interface HTMLAreaElement : HTMLElement
     getter host
     getter hostname
     getter href
+    getter hreflang
     getter interestForElement
     getter noHref
     getter origin
@@ -3722,6 +3728,7 @@ interface HTMLAreaElement : HTMLElement
     getter search
     getter shape
     getter target
+    getter type
     getter username
     method constructor
     method toString
@@ -3733,6 +3740,7 @@ interface HTMLAreaElement : HTMLElement
     setter host
     setter hostname
     setter href
+    setter hreflang
     setter interestForElement
     setter noHref
     setter password
@@ -3746,6 +3754,7 @@ interface HTMLAreaElement : HTMLElement
     setter search
     setter shape
     setter target
+    setter type
     setter username
 interface HTMLAudioElement : HTMLMediaElement
     attribute @@toStringTag
@@ -5491,6 +5500,7 @@ interface HTMLUserMediaElement : HTMLElement
     getter initialPermissionStatus
     getter invalidReason
     getter isValid
+    getter oncancel
     getter onerror
     getter onpromptaction
     getter onpromptdismiss
@@ -5501,6 +5511,7 @@ interface HTMLUserMediaElement : HTMLElement
     getter type
     method constructor
     method setConstraints
+    setter oncancel
     setter onerror
     setter onpromptaction
     setter onpromptdismiss
@@ -6021,14 +6032,11 @@ interface LanguageDetector
 interface LanguageModel : EventTarget
     static method availability
     static method create
-    static method params
     attribute @@toStringTag
     getter contextUsage
     getter contextWindow
     getter oncontextoverflow
     getter samplingMode
-    getter temperature
-    getter topK
     method append
     method clone
     method constructor
@@ -6037,13 +6045,6 @@ interface LanguageModel : EventTarget
     method prompt
     method promptStreaming
     setter oncontextoverflow
-interface LanguageModelParams
-    attribute @@toStringTag
-    getter defaultTemperature
-    getter defaultTopK
-    getter maxTemperature
-    getter maxTopK
-    method constructor
 interface LanguageModelToolCall
     attribute @@toStringTag
     getter arguments
@@ -9556,6 +9557,7 @@ interface SVGNumberList
 interface SVGPathElement : SVGGeometryElement
     attribute @@toStringTag
     method constructor
+    method getPathData
 interface SVGPatternElement : SVGElement
     attribute @@toStringTag
     getter height
@@ -9990,6 +9992,13 @@ interface SelectorDirective : Directive
     attribute @@toStringTag
     method constructor
     method getMatchingRange
+interface SemanticEmbedder
+    static method availability
+    static method create
+    attribute @@toStringTag
+    method constructor
+    method destroy
+    method embed
 interface Sensor : EventTarget
     attribute @@toStringTag
     getter activated
@@ -10257,7 +10266,6 @@ interface SpeechRecognition : EventTarget
     getter phrases
     getter processLocally
     getter quality
-    getter unspokenPunctuation
     method abort
     method constructor
     method start
@@ -10281,7 +10289,6 @@ interface SpeechRecognition : EventTarget
     setter phrases
     setter processLocally
     setter quality
-    setter unspokenPunctuation
 interface SpeechRecognitionErrorEvent : Event
     attribute @@toStringTag
     getter error
@@ -10776,6 +10783,7 @@ interface TransformStreamDefaultController
     method terminate
 interface TransitionEvent : Event
     attribute @@toStringTag
+    getter animation
     getter elapsedTime
     getter propertyName
     getter pseudoElement
@@ -13505,7 +13513,6 @@ interface webkitSpeechRecognition : EventTarget
     getter phrases
     getter processLocally
     getter quality
-    getter unspokenPunctuation
     method abort
     method constructor
     method start
@@ -13529,7 +13536,6 @@ interface webkitSpeechRecognition : EventTarget
     setter phrases
     setter processLocally
     setter quality
-    setter unspokenPunctuation
 interface webkitSpeechRecognitionError : Event
     attribute @@toStringTag
     getter error

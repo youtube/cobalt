@@ -243,4 +243,14 @@ TEST_F(ContextualTasksCookieSynchronizerTest, WorksAfterTimeout) {
   EXPECT_TRUE(result.Get());
 }
 
+TEST_F(ContextualTasksCookieSynchronizerTest, NullIdentityManagerDoesNotCrash) {
+  ContextualTasksCookieSynchronizerForTest synchronizer_with_null_identity(
+      &test_profile_, /*identity_manager=*/nullptr, &test_storage_partition_);
+
+  base::test::TestFuture<bool> result;
+  synchronizer_with_null_identity.SetCallback(result.GetCallback());
+  synchronizer_with_null_identity.CopyCookiesToWebviewStoragePartition();
+
+  EXPECT_FALSE(result.Get());
+}
 }  // namespace contextual_tasks

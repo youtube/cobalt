@@ -45,7 +45,7 @@ TEST_F(DTSUtilTest, IncompleteInputTestDTS) {
   ASSERT_TRUE(stream.Initialize(file_path))
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
-  size_t len = stream.length() - 1;
+  size_t len = stream.bytes().size() - 1;
   base::span<const uint8_t> data_span = stream.bytes().first(len);
   std::vector<uint8_t> input_data(len);
   base::span<uint8_t>(input_data).copy_from(data_span);
@@ -59,7 +59,7 @@ TEST_F(DTSUtilTest, IncompleteInputTestDTSXP2) {
   ASSERT_TRUE(stream.Initialize(file_path))
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
-  size_t len = stream.length() - 1;
+  size_t len = stream.bytes().size() - 1;
   base::span<const uint8_t> data_span = stream.bytes().first(len);
   std::vector<uint8_t> input_data(len);
   base::span<uint8_t>(input_data).copy_from(data_span);

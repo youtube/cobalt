@@ -24,7 +24,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -60,7 +59,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -101,7 +99,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -137,7 +134,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -172,7 +168,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -207,7 +202,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -250,7 +244,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -292,7 +285,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -330,7 +322,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -367,7 +358,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -402,7 +392,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -439,7 +428,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "cipd_packages": [
             {
@@ -488,7 +476,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "cipd_packages": [
             {
@@ -534,7 +521,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",
@@ -571,7 +557,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "device_os": "AP2A.240705.004",

@@ -7,7 +7,7 @@
 NSString* const kGeminiPromoConsentFullDetentIdentifier =
     @"GeminiPromoConsentFullDetentIdentifier";
 
-NSString* const kLottieAnimationFREBannerName = @"FRE_Banner";
+NSString* const kLottieAnimationFirstRunBannerName = @"FRE_Banner";
 
 const char kLastInteractionTimestampDictKey[] = "last_interaction_timestamp";
 const char kURLOnLastInteractionDictKey[] = "url_on_last_interaction";

@@ -1125,6 +1125,10 @@ void SetSearchBarText(UISearchBar* searchBar, NSString* text) {
   self.tableView.editing = allowsMultipleSelection;
 }
 
+- (void)setAccountButtonHidden:(BOOL)hidden {
+  _accountButton.hidden = hidden;
+}
+
 #pragma mark - UI element creation helpers
 
 // Helper to create the menu presented by `_filterButton`.

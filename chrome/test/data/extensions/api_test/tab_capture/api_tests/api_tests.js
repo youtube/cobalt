@@ -247,17 +247,24 @@ const testsToRun = [
   function getMediaStreamIdAndGetUserMediaOnDifferentTabs() {
     let currentTabId;
     let secondTabId;
+    let isComplete = false;
+
+    function onTabComplete(tabId) {
+      if (isComplete) return;
+      isComplete = true;
+      tabCapture.getMediaStreamId(
+          {consumerTabId: tabId}, function(streamId) {
+            assertGetUserMediaError(streamId);
+            chrome.tabs.remove(tabId);
+          });
+    }
 
     const listener = function(tabId, changeInfo, tab) {
       if (changeInfo.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(listener);
-        tabCapture.getMediaStreamId(
-            {consumerTabId: secondTabId}, function(streamId) {
-              chrome.tabs.get(currentTabId, function(tab) {
-                assertGetUserMediaError(streamId);
-                chrome.tabs.remove(secondTabId);
-              });
-            });
+        if (secondTabId === tabId) {
+          chrome.tabs.onUpdated.removeListener(listener);
+          onTabComplete(tabId);
+        }
       }
     };
 
@@ -266,26 +273,50 @@ const testsToRun = [
       currentTabId = tab.id;
       chrome.tabs.create({}, function(tab) {
         secondTabId = tab.id;
+        if (tab.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(listener);
+          onTabComplete(tab.id);
+        }
       });
     });
   },
 
   function getMediaStreamIdWithCallerTabWithoutSecuredUrl() {
+    let createdTabId;
+    let isComplete = false;
+
+    function onTabComplete(tabId) {
+      if (isComplete) return;
+      isComplete = true;
+      tabCapture.getMediaStreamId({consumerTabId: tabId}, function(streamId) {
+        chrome.test.assertTrue(typeof streamId === 'undefined');
+        chrome.test.assertLastError(
+            'URL scheme for the specified tab is not secure.');
+        chrome.tabs.remove(tabId);
+        chrome.test.succeed();
+      });
+    }
+
     const listener = function(tabId, changeInfo, tab) {
       if (changeInfo.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(listener);
-        tabCapture.getMediaStreamId({consumerTabId: tabId}, function(streamId) {
-          chrome.test.assertTrue(typeof streamId === 'undefined');
-          chrome.test.assertLastError(
-              'URL scheme for the specified tab is not secure.');
-          chrome.test.succeed();
-          chrome.tabs.remove(tab.id);
-        });
+        if (createdTabId === tabId) {
+          chrome.tabs.onUpdated.removeListener(listener);
+          onTabComplete(tabId);
+        } else if (createdTabId === undefined && tab.url === 'http://example.com/fun.html') {
+          chrome.tabs.onUpdated.removeListener(listener);
+          onTabComplete(tabId);
+        }
       }
     };
 
     chrome.tabs.onUpdated.addListener(listener);
-    chrome.tabs.create({url: 'http://example.com/fun.html'});
+    chrome.tabs.create({url: 'http://example.com/fun.html'}, function(tab) {
+      createdTabId = tab.id;
+      if (tab.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(listener);
+        onTabComplete(tab.id);
+      }
+    });
   },
 ];
 

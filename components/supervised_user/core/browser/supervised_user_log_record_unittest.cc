@@ -102,7 +102,7 @@ class SupervisedUserLogRecordTest : public ::testing::Test {
     AccountInfo account_info =
         GetIdentityTestEnv()->MakePrimaryAccountAvailable(
             kEmail, signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_fetch_family_member_info(true);
     mutator.set_is_subject_to_parental_controls(false);
     mutator.set_is_opted_in_to_parental_supervision(false);
@@ -121,7 +121,7 @@ class SupervisedUserLogRecordTest : public ::testing::Test {
     AccountInfo account_info =
         GetIdentityTestEnv()->MakePrimaryAccountAvailable(
             kEmail, signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_fetch_family_member_info(true);
     mutator.set_is_subject_to_parental_controls(
         is_subject_to_parental_controls);
@@ -242,7 +242,7 @@ TEST_F(SupervisedUserLogRecordTest, SupervisionEnabledByPolicy) {
 TEST_F(SupervisedUserLogRecordTest, NotSupervised) {
   AccountInfo account_info = GetIdentityTestEnv()->MakePrimaryAccountAvailable(
       kEmail, signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_parental_controls(false);
   mutator.set_is_opted_in_to_parental_supervision(false);
   GetIdentityTestEnv()->UpdateAccountInfoForAccount(account_info);
@@ -262,7 +262,7 @@ TEST_F(SupervisedUserLogRecordTest, SignedOutHasNoWebFilter) {
 TEST_F(SupervisedUserLogRecordTest, NotSupervisedHasNoWebFilter) {
   AccountInfo account_info = GetIdentityTestEnv()->MakePrimaryAccountAvailable(
       kEmail, signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_parental_controls(false);
   mutator.set_is_opted_in_to_parental_supervision(false);
   GetIdentityTestEnv()->UpdateAccountInfoForAccount(account_info);

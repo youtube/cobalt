@@ -39,8 +39,18 @@ HTMLCanvasAccessibilityManager::HTMLCanvasAccessibilityManager(
 
   ReadAriaAttributes();
 
-  SetVisible(canvas_element->IsDisplayed());
   is_initialized_ = true;
+  OnUpdate();
+}
+
+void HTMLCanvasAccessibilityManager::SetIgnored(bool is_ignored) {
+  if (is_ignored_ == is_ignored) {
+    return;
+  }
+  // The manager is only created if the canvas is initially not ignored. If it
+  // becomes ignored later, we keep it to avoid the overhead of repeated
+  // creation and destruction.
+  is_ignored_ = is_ignored;
   OnUpdate();
 }
 
@@ -55,15 +65,11 @@ void HTMLCanvasAccessibilityManager::UpdateHasFallbackElementContent() {
 }
 
 void HTMLCanvasAccessibilityManager::ReadAriaAttributes() {
-  if (canvas_element_->FastHasAttribute(html_names::kAriaHiddenAttr)) {
-    if (canvas_element_->FastGetAttribute(html_names::kAriaHiddenAttr) ==
-        "true") {
-      is_aria_hidden_ = true;
-    } else {
-      has_aria_attributes_ = true;
-    }
+  if (is_ignored_) {
+    // If the canvas is ignored, accessibility support is not needed and we
+    // don't need to check for aria attributes.
+    return;
   }
-
   if (!has_aria_attributes_) {
     has_aria_attributes_ =
         canvas_element_->FastHasAttribute(html_names::kRoleAttr) ||
@@ -73,14 +79,6 @@ void HTMLCanvasAccessibilityManager::ReadAriaAttributes() {
         canvas_element_->FastHasAttribute(html_names::kTitleAttr);
   }
 
-  OnUpdate();
-}
-
-void HTMLCanvasAccessibilityManager::SetVisible(bool is_visible) {
-  if (is_visible_ == is_visible) {
-    return;
-  }
-  is_visible_ = is_visible;
   OnUpdate();
 }
 
@@ -102,26 +100,16 @@ void HTMLCanvasAccessibilityManager::OnUpdate() {
     return;
   }
 
-  if (!is_visible_) {
-    SetHeuristicResult(HeuristicResult::kIsNotVisible);
-    return;
-  }
-
-  if (is_ignored_ || is_aria_hidden_) {
-    SetHeuristicResult(HeuristicResult::kIsIgnoredOrAriaHidden);
+  // If AX ignores the canvas, it definitely doesn't need support.
+  // Note that covers elements with aria-hidden=true, or not visible, or 1x1
+  // pixel size are ignored.
+  if (is_ignored_) {
+    SetHeuristicResult(HeuristicResult::kIsIgnored);
     return;
   }
 
   // Minimum size canvas to assume it can have text.
-  const float kMinPixelSizeForTextVisibility = 10;
-  gfx::SizeF layout_size;
-  if (auto* layout_box =
-          DynamicTo<LayoutBox>(canvas_element_->GetLayoutObject())) {
-    layout_size.set_width(layout_box->LogicalWidth().ToFloat());
-    layout_size.set_height(layout_box->LogicalHeight().ToFloat());
-  }
-  if (layout_size.width() < kMinPixelSizeForTextVisibility ||
-      layout_size.height() < kMinPixelSizeForTextVisibility) {
+  if (IsTooSmall()) {
     SetHeuristicResult(HeuristicResult::kTooSmall);
     return;
   }
@@ -142,6 +130,18 @@ void HTMLCanvasAccessibilityManager::OnUpdate() {
   }
 
   SetHeuristicResult(HeuristicResult::kNeedsA11ySupport);
+}
+
+bool HTMLCanvasAccessibilityManager::IsTooSmall() const {
+  const float kMinPixelSizeForTextVisibility = 10;
+  gfx::SizeF layout_size;
+  if (auto* layout_box =
+          DynamicTo<LayoutBox>(canvas_element_->GetLayoutObject())) {
+    layout_size.set_width(layout_box->LogicalWidth().ToFloat());
+    layout_size.set_height(layout_box->LogicalHeight().ToFloat());
+  }
+  return layout_size.width() < kMinPixelSizeForTextVisibility ||
+         layout_size.height() < kMinPixelSizeForTextVisibility;
 }
 
 void HTMLCanvasAccessibilityManager::SetHeuristicResult(

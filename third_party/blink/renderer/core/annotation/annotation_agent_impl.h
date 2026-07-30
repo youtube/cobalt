@@ -23,7 +23,6 @@ namespace blink {
 class AnnotationAgentContainerImpl;
 class AnnotationAgentImplTest;
 class AnnotationSelector;
-class Document;
 class HitTestResult;
 class RangeInFlatTree;
 

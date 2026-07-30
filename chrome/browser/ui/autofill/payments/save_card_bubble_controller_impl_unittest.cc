@@ -66,8 +66,7 @@ constexpr std::string_view kSaveCardPromptResultDesktopBaseHistogram =
 
 std::unique_ptr<KeyedService> BuildTestPersonalDataManager(
     content::BrowserContext* context) {
-  auto personal_data_manager =
-      std::make_unique<autofill::TestPersonalDataManager>();
+  auto personal_data_manager = std::make_unique<TestPersonalDataManager>();
   personal_data_manager->test_payments_data_manager()
       .SetAutofillPaymentMethodsEnabled(true);
   return personal_data_manager;
@@ -162,7 +161,7 @@ class TestBrowserWindowWithAutofillHandler : public TestBrowserWindow {
   TestBrowserWindowWithAutofillHandler& operator=(
       const TestBrowserWindowWithAutofillHandler&) = delete;
 
-  autofill::AutofillBubbleHandler* GetAutofillBubbleHandler() override {
+  AutofillBubbleHandler* GetAutofillBubbleHandler() override {
     return &handler_;
   }
 
@@ -278,8 +277,7 @@ class SaveCardBubbleControllerImplTest : public BrowserWithTestWindowTest {
                        SaveCreditCardOptions options =
                            SaveCreditCardOptions().with_show_prompt()) {
     controller()->OfferLocalSave(
-        card ? CreditCard(*card)
-             : autofill::test::GetCreditCard(),  // Visa by default
+        card ? CreditCard(*card) : test::GetCreditCard(),  // Visa by default
         options, base::BindOnce(&LocalSaveCardCallback));
   }
 
@@ -388,7 +386,7 @@ class SaveCardBubbleControllerImplTest : public BrowserWithTestWindowTest {
     did_on_confirmation_closed_callback_run_ = true;
   }
   void SetTestingFactories(content::BrowserContext* context) {
-    autofill::PersonalDataManagerFactory::GetInstance()->SetTestingFactory(
+    PersonalDataManagerFactory::GetInstance()->SetTestingFactory(
         context, base::BindRepeating(&BuildTestPersonalDataManager));
   }
 

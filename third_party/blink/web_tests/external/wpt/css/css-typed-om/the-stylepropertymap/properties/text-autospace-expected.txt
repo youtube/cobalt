@@ -1,0 +1,19 @@
+This is a testharness.js-based test.
+[FAIL] Can set 'text-autospace' to the 'ideograph-alpha' keyword: ideograph-alpha
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'text-autospace' to the 'ideograph-numeric' keyword: ideograph-numeric
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'text-autospace' to the 'insert' keyword: insert
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'text-autospace' to the 'auto' keyword: auto
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] 'text-autospace' does not support 'ideograph-alpha ideograph-numeric'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object Undefined]"
+[FAIL] 'text-autospace' does not support 'ideograph-alpha insert'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object Undefined]"
+[FAIL] 'text-autospace' does not support 'ideograph-numeric insert'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object Undefined]"
+[FAIL] 'text-autospace' does not support 'ideograph-alpha ideograph-numeric insert'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object Undefined]"
+Harness: the test ran to completion.
+

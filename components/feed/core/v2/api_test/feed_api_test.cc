@@ -148,18 +148,6 @@ feedwire::ThereAndBackAgainData MakeThereAndBackAgainData(int64_t id) {
   *msg.mutable_action_payload() = MakeFeedAction(id).action_payload();
   return msg;
 }
-std::string DatastoreEntryToString(std::string_view key,
-                                   std::string_view value) {
-  if (base::StartsWith(key, "/app/webfeed-follow-state/")) {
-    feedxsurface::WebFeedFollowState pb;
-    if (pb.ParseFromArray(value.data(), value.size())) {
-      return feedxsurface::WebFeedFollowState_FollowState_Name(
-          pb.follow_state());
-    }
-  }
-  return static_cast<std::string>(value);
-}
-
 TestSurfaceBase::TestSurfaceBase(const StreamType& stream_type,
                                  FeedStream* stream)
     : stream_type_(stream_type) {
@@ -223,7 +211,7 @@ void TestSurfaceBase::StreamUpdate(const feedui::StreamUpdate& stream_update) {
 void TestSurfaceBase::ReplaceDataStoreEntry(std::string_view key,
                                             std::string_view data) {
   described_datastore_updates_.push_back(
-      base::StrCat({"write ", key, ": ", DatastoreEntryToString(key, data)}));
+      base::StrCat({"write ", key, ": ", data}));
   data_store_entries_[static_cast<std::string>(key)] =
       static_cast<std::string>(data);
 }
@@ -263,8 +251,7 @@ std::map<std::string, std::string> TestSurfaceBase::GetDataStoreEntries()
 std::string TestSurfaceBase::DescribeDataStore() const {
   std::stringstream ss;
   for (std::pair<std::string, std::string> entry : data_store_entries_) {
-    ss << entry.first << ": "
-       << DatastoreEntryToString(entry.first, entry.second) << '\n';
+    ss << entry.first << ": " << entry.second << '\n';
   }
   return ss.str();
 }
@@ -395,13 +382,6 @@ void TestReliabilityLoggingBridge::LogActionsUploadRequestStart(
     NetworkRequestId id,
     base::TimeTicks timestamp) {
   events_.push_back(base::StrCat({"LogActionsUploadRequestStart id=",
-                                  base::NumberToString(id.GetUnsafeValue())}));
-}
-
-void TestReliabilityLoggingBridge::LogWebFeedRequestStart(
-    NetworkRequestId id,
-    base::TimeTicks timestamp) {
-  events_.push_back(base::StrCat({"LogWebFeedRequestStart id=",
                                   base::NumberToString(id.GetUnsafeValue())}));
 }
 
@@ -897,6 +877,7 @@ void FeedApiTest::SetUp() {
   feed::prefs::RegisterFeedSharedProfilePrefs(profile_prefs_.registry());
   feed::RegisterProfilePrefs(profile_prefs_.registry());
   profile_prefs_.registry()->RegisterBooleanPref(::prefs::kSigninAllowed, true);
+  profile_prefs_.registry()->RegisterBooleanPref(kFeedbackAllowedPref, true);
   metrics_reporter_ = std::make_unique<TestMetricsReporter>(&profile_prefs_);
 
   shared_url_loader_factory_ =
@@ -979,6 +960,7 @@ void FeedApiTest::CreateStream(
   chrome_info.version = base::Version({99, 1, 9911, 2});
   chrome_info.is_new_tab_search_engine_url_android_enabled =
       is_new_tab_search_engine_url_android_enabled;
+  chrome_info.user_feedback_allowed_pref_key = kFeedbackAllowedPref;
   stream_ = std::make_unique<FeedStream>(
       &refresh_scheduler_, metrics_reporter_.get(), this, &profile_prefs_,
       &network_, image_fetcher_.get(), store_.get(),

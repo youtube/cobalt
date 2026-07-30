@@ -274,7 +274,7 @@ class NET_EXPORT HostResolver {
     // equivalent to checking the staleness from GetStaleInfo() while the
     // request isn't final. This can be changed over time while resolution is
     // still ongoing.
-    virtual bool IsStaleWhileRefresing() const = 0;
+    virtual bool IsStaleWhileRefreshing() const = 0;
 
     // Change the priority of this request.
     virtual void ChangeRequestPriority(RequestPriority priority) = 0;

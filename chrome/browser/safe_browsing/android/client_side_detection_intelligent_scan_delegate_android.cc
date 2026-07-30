@@ -392,7 +392,8 @@ bool ClientSideDetectionIntelligentScanDelegateAndroid::ShouldShowScamWarning(
   if (!verdict.has_value() ||
       *verdict ==
           IntelligentScanVerdict::INTELLIGENT_SCAN_VERDICT_UNSPECIFIED ||
-      *verdict == IntelligentScanVerdict::INTELLIGENT_SCAN_VERDICT_SAFE) {
+      *verdict == IntelligentScanVerdict::INTELLIGENT_SCAN_VERDICT_SAFE ||
+      *verdict == IntelligentScanVerdict::SCAM_EXPERIMENT_CATCH_ALL_TELEMETRY) {
     return false;
   }
 

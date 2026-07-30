@@ -87,11 +87,17 @@ public interface SideUiContainer {
      * the window becomes large enough again, the container can be re-shown.
      *
      * <p>This method won't be called if a window size change doesn't affect the container's
-     * visibility.
      *
+     * <p>TODO(https://crbug.com/478338737): Delete this API.
+     *
+     * @deprecated New {@link SideUiContainer}s should <i>not</i> implement this API as it is only
+     *     invoked for {@link SideUiId#SIDE_PANEL}. We'll create a new API to support all {@link
+     *     SideUiContainer}s (see <a href="https://crbug.com/478338737#comment6">the tracking
+     *     bug</a>).
      * @param canShowSideUi Whether this container <i>can</i> be shown after a window size change.
      *     This parameter doesn't mean this container <i>must</i> be shown or hidden. The final
      *     decision should be made by this container.
      */
-    void onWindowResized(boolean canShowSideUi);
+    @Deprecated
+    default void onWindowResized(boolean canShowSideUi) {}
 }

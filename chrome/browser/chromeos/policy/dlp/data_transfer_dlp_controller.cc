@@ -180,7 +180,7 @@ DlpRulesManager::Level IsDataTransferAllowed(
 // `should_proceed`. It is used as a callback in `PasteIfAllowed` to handle
 // warning proceeded clipboard events.
 void MaybeReportWarningProceededEventAndPaste(
-    base::OnceCallback<void(void)> reporting_cb,
+    base::OnceClosure reporting_cb,
     base::OnceCallback<void(bool)> paste_cb,
     bool should_proceed) {
   if (should_proceed) {

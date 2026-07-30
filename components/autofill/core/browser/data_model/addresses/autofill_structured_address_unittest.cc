@@ -881,12 +881,12 @@ class MergeStatesWithCanonicalNamesTest
     AlternativeStateNameMap::GetInstance()
         ->ClearAlternativeStateNameMapForTesting();
 
-    autofill::test::PopulateAlternativeStateNameMapForTesting(
+    test::PopulateAlternativeStateNameMapForTesting(
         "XX", "CS",
         {{.canonical_name = "CanonicalState",
           .abbreviations = {"AS"},
           .alternative_names = {"CoolState"}}});
-    autofill::test::PopulateAlternativeStateNameMapForTesting(
+    test::PopulateAlternativeStateNameMapForTesting(
         "XX", "OS",
         {{.canonical_name = "OtherState",
           .abbreviations = {"OS"},

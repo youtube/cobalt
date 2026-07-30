@@ -277,7 +277,7 @@ function testAutosizeBeforeNavigation() {
 
 // This test verifies that a lengthy page with autosize enabled will report
 // the correct height in the sizechanged event.
-function testAutosizeHeight() {
+function testAutosizeHeight(expectedWidth) {
   const webview = document.createElement('webview');
 
   webview.autosize = true;
@@ -287,7 +287,6 @@ function testAutosizeHeight() {
   webview.maxheight = 200;
 
   let step = 1;
-  const finalWidth = 200;
   const finalHeight = 50;
   webview.addEventListener('sizechanged', function(e) {
     embedder.test.assertTrue(e.newHeight >= webview.minheight);
@@ -299,7 +298,7 @@ function testAutosizeHeight() {
     }
 
     // We are done once the size settles on the final width and height.
-    if (e.newHeight === finalHeight && e.newWidth === finalWidth) {
+    if (e.newHeight === finalHeight && e.newWidth === expectedWidth) {
       embedder.test.succeed();
     }
     ++step;
@@ -1961,7 +1960,8 @@ embedder.test.testList = {
   'testAssignSrcAfterCrash': testAssignSrcAfterCrash,
   'testAutosizeAfterNavigation': testAutosizeAfterNavigation,
   'testAutosizeBeforeNavigation': testAutosizeBeforeNavigation,
-  'testAutosizeHeight': testAutosizeHeight,
+  'testAutosizeHeightFeatureEnabled': () => testAutosizeHeight(210),
+  'testAutosizeHeightFeatureDisabled': () => testAutosizeHeight(200),
   'testAutosizeRemoveAttributes': testAutosizeRemoveAttributes,
   'testAutosizeWithPartialAttributes': testAutosizeWithPartialAttributes,
   'testCanGoBack': testCanGoBack,

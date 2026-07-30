@@ -267,31 +267,97 @@ TEST_F(FieldFillingEntityUtilTest, WillFillSensitiveAttributes) {
 // Tests that WillRequireServerFetch() correctly identifies whether
 // a server fetch is needed (sensitive field + masked entity).
 TEST_F(FieldFillingEntityUtilTest, WillRequireServerFetch) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      features::kAutofillAiWalletPrivatePasses);
-
   EntityInstance local_passport = test::GetPassportEntityInstance();
   EntityInstance masked_server_passport =
       test::MaskEntityInstance(test::GetPassportEntityInstance(
           {.record_type = EntityInstance::RecordType::kServerWallet}));
+  EntityInstance masked_personal_context_passport =
+      test::MaskEntityInstance(test::GetPassportEntityInstance(
+          {.record_type = EntityInstance::RecordType::kPersonalContext}));
 
-  // Case 1: Form contains sensitive field + local entity -> no fetch needed.
   test_api(form()).SetFieldTypes({NAME_FULL, PASSPORT_NUMBER});
-  EXPECT_FALSE(WillRequireServerFetch(
-      local_passport, form(), form().fields()[0]->section(), kAppLocaleUS));
 
-  // Case 2: Form contains sensitive field + masked server entity -> fetch
-  // needed.
-  EXPECT_TRUE(WillRequireServerFetch(masked_server_passport, form(),
-                                     form().fields()[0]->section(),
-                                     kAppLocaleUS));
+  // 1. Neither feature enabled.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{features::kAutofillAmbientAutofill,
+                               features::kAutofillAiWalletPrivatePasses});
+    EXPECT_FALSE(WillRequireServerFetch(
+        local_passport, form(), form().fields()[0]->section(), kAppLocaleUS));
+    EXPECT_FALSE(WillRequireServerFetch(masked_server_passport, form(),
+                                        form().fields()[0]->section(),
+                                        kAppLocaleUS));
+    EXPECT_FALSE(WillRequireServerFetch(masked_personal_context_passport,
+                                        form(), form().fields()[0]->section(),
+                                        kAppLocaleUS));
+  }
 
-  // Case 3: Form contains NO sensitive fields + masked server entity -> no
-  // fetch needed.
-  test_api(form()).SetFieldTypes({NAME_FULL, PASSPORT_ISSUE_DATE});
-  EXPECT_FALSE(WillRequireServerFetch(masked_server_passport, form(),
-                                      form().fields()[0]->section(),
-                                      kAppLocaleUS));
+  // 2. Only kAutofillAmbientAutofill enabled.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAmbientAutofill},
+        /*disabled_features=*/{features::kAutofillAiWalletPrivatePasses});
+    EXPECT_FALSE(WillRequireServerFetch(
+        local_passport, form(), form().fields()[0]->section(), kAppLocaleUS));
+    EXPECT_FALSE(WillRequireServerFetch(masked_server_passport, form(),
+                                        form().fields()[0]->section(),
+                                        kAppLocaleUS));
+    EXPECT_TRUE(WillRequireServerFetch(masked_personal_context_passport, form(),
+                                       form().fields()[0]->section(),
+                                       kAppLocaleUS));
+  }
+
+  // 3. Only kAutofillAiWalletPrivatePasses enabled.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAiWalletPrivatePasses},
+        /*disabled_features=*/{features::kAutofillAmbientAutofill});
+    EXPECT_FALSE(WillRequireServerFetch(
+        local_passport, form(), form().fields()[0]->section(), kAppLocaleUS));
+    EXPECT_TRUE(WillRequireServerFetch(masked_server_passport, form(),
+                                       form().fields()[0]->section(),
+                                       kAppLocaleUS));
+    EXPECT_FALSE(WillRequireServerFetch(masked_personal_context_passport,
+                                        form(), form().fields()[0]->section(),
+                                        kAppLocaleUS));
+  }
+
+  // 4. Both enabled.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAmbientAutofill,
+                              features::kAutofillAiWalletPrivatePasses},
+        /*disabled_features=*/{});
+    EXPECT_FALSE(WillRequireServerFetch(
+        local_passport, form(), form().fields()[0]->section(), kAppLocaleUS));
+    EXPECT_TRUE(WillRequireServerFetch(masked_server_passport, form(),
+                                       form().fields()[0]->section(),
+                                       kAppLocaleUS));
+    EXPECT_TRUE(WillRequireServerFetch(masked_personal_context_passport, form(),
+                                       form().fields()[0]->section(),
+                                       kAppLocaleUS));
+  }
+
+  // Case where no sensitive fields are present.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAmbientAutofill,
+                              features::kAutofillAiWalletPrivatePasses},
+        /*disabled_features=*/{});
+    test_api(form()).SetFieldTypes({NAME_FULL, PASSPORT_ISSUE_DATE});
+    EXPECT_FALSE(WillRequireServerFetch(masked_server_passport, form(),
+                                        form().fields()[0]->section(),
+                                        kAppLocaleUS));
+    EXPECT_FALSE(WillRequireServerFetch(masked_personal_context_passport,
+                                        form(), form().fields()[0]->section(),
+                                        kAppLocaleUS));
+  }
 }
 
 class GetFillValueForEntityTest : public testing::Test {

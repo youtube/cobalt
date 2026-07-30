@@ -18,7 +18,7 @@ enum class FieldFillingSkipReason : uint8_t {
   kNotSkipped = 1,
   kNotInFilledSection = 2,
   kNotFocused = 3,
-  kFormChanged = 4,
+  // kFormChanged = 4, // DEPRECATED
   kInvisibleField = 5,
   kValuePrefilled = 6,
   kUserFilledFields = 7,
@@ -35,7 +35,8 @@ enum class FieldFillingSkipReason : uint8_t {
   // The field was blocked by either a different filling operation (which will
   // fill it) or by another product (e.g., by AutofillAi).
   kBlockedByOtherFillingOperationOrProduct = 18,
-  kMaxValue = kBlockedByOtherFillingOperationOrProduct,
+  kIframeSecurityPolicy = 19,
+  kMaxValue = kIframeSecurityPolicy,
 };
 
 std::string_view GetSkipFieldFillLogMessage(FieldFillingSkipReason skip_reason);

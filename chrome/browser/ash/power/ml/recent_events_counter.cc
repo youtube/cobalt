@@ -29,9 +29,7 @@ void RecentEventsCounter::Log(base::TimeDelta timestamp) {
     // This event is too old to log.
     return;
   }
-  if (timestamp > latest_) {
-    latest_ = timestamp;
-  }
+  latest_ = std::max(latest_, timestamp);
   const int bucket_index = GetBucketIndex(timestamp);
   if (timestamp < first_bucket_time_ + duration_) {
     // The event is within the current time window so increment the bucket.

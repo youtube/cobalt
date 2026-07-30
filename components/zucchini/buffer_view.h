@@ -14,6 +14,7 @@
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_span.h"
 #include "components/zucchini/algorithm.h"
 
@@ -72,6 +73,10 @@ class GSL_POINTER BufferViewBase {
   static BufferViewBase FromRange(pointer first, pointer last) {
     return BufferViewBase(UNSAFE_TODO(span_type(first, last)));
   }
+
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  constexpr BufferViewBase(base::span<element_type> other) noexcept
+      : span_(other) {}
 
   constexpr BufferViewBase() noexcept = default;
   // Support a conversion from BufferViewBase<T> to BufferViewBase<const T>.
@@ -162,6 +167,8 @@ class GSL_POINTER BufferViewBase {
   // original region used for its definition (hence "local").
   BufferRegion local_region() const { return BufferRegion{0, size()}; }
 
+  base::span<const element_type> as_span() const { return span_; }
+
   bool equals(const BufferViewBase& other) const {
     return span_ == other.span_;
   }
@@ -211,10 +218,6 @@ class GSL_POINTER BufferViewBase {
  private:
   template <typename T>
   friend class BufferViewBase;
-
-  // NOLINTNEXTLINE(google-explicit-constructor)
-  constexpr BufferViewBase(base::span<element_type> other) noexcept
-      : span_(other) {}
 
   span_type span_;
 };

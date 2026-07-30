@@ -89,6 +89,18 @@ void SlimWebViewPageHandler::SetPermission(
       result == SlimWebViewPermissionHelper::SetPermissionResult::kAllowed);
 }
 
+void SlimWebViewPageHandler::SetUserAgentOverride(
+    int32_t guest_instance_id,
+    const std::string& user_agent_override) {
+  auto* guest = SlimWebViewGuest::FromInstanceID(
+      render_frame_host().GetProcess()->GetID(), guest_instance_id);
+  if (!guest) {
+    mojo::ReportBadMessage("Invalid guest instance id.");
+    return;
+  }
+  guest->SetUserAgentOverride(user_agent_override);
+}
+
 SlimWebViewPageHandler::SlimWebViewPageHandler(
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<PageHandler> page_handler,

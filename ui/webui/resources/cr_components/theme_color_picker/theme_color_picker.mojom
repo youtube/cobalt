@@ -55,8 +55,8 @@ struct ChromeColor {
 // Used by the WebUI page to bootstrap bidirectional communication.
 interface ThemeColorPickerHandlerFactory {
   // The WebUI calls this method when the page is first initialized.
-  CreateThemeColorPickerHandler(pending_receiver<ThemeColorPickerHandler> handler,
-                    pending_remote<ThemeColorPickerClient> client);
+  CreateThemeColorPickerHandler(pending_remote<ThemeColorPickerClient> client,
+                    pending_receiver<ThemeColorPickerHandler> handler);
 };
 
 // Browser-side handler for requests from WebUI page.

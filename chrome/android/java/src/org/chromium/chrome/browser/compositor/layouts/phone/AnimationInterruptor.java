@@ -37,8 +37,7 @@ class AnimationInterruptor implements Destroyable {
             new LayoutStateObserver() {
                 @Override
                 public void onStartedShowing(@LayoutType int layoutType) {
-                    if (layoutType == LayoutType.TAB_SWITCHER
-                            || layoutType == LayoutType.TOOLBAR_SWIPE) {
+                    if (layoutType == LayoutType.HUB || layoutType == LayoutType.TOOLBAR_SWIPE) {
                         interruptAnimation();
                     }
                     // Ignore BROWSING as that is what we are showing over and a new

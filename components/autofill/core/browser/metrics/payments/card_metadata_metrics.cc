@@ -174,8 +174,7 @@ CardMetadataLoggingContext GetMetadataLoggingContext(
           card.instrument_id());
     }
 
-    if (card.record_type() ==
-        autofill::CreditCard::RecordType::kMaskedServerCard) {
+    if (card.record_type() == CreditCard::RecordType::kMaskedServerCard) {
       metadata_logging_context.masked_server_card_count++;
     }
   }

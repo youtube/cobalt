@@ -355,7 +355,7 @@ class ManagedProfileCreationBrowserTest
                        .SetAvatarUrl("https://example.com")
                        .Build();
 
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_is_subject_to_enterprise_features(!hosted_domain.empty());
     mutator.set_is_subject_to_account_level_enterprise_policies(
         !hosted_domain.empty());

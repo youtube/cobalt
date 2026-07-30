@@ -32,7 +32,7 @@ class GeminiFeatureAvailabilityTest : public PlatformTest {
     account_info.email = "test@example.com";
     account_info.gaia = GaiaId("test_gaia_id");
 
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(can_use_model_execution);
     return account_info;
   }
@@ -57,7 +57,7 @@ class GeminiFeatureAvailabilityTest : public PlatformTest {
       signin::SetPrimaryAccount(identity_manager, "test@example.com",
                                 signin::ConsentLevel::kSignin);
 
-      AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+      AccountCapabilitiesTestMutator mutator(&account_info);
       mutator.set_can_use_model_execution_features(*can_use_model_execution);
       signin::UpdateAccountInfoForAccount(identity_manager, account_info);
     }
@@ -192,7 +192,7 @@ TEST_F(GeminiFeatureAvailabilityTest,
   feature_list.InitWithFeatures({kPageActionMenu}, {kGeminiUpdatedEligibility});
 
   AccountInfo account = CreateAccountInfoWithCapability(true);
-  AccountCapabilitiesTestMutator mutator(&account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account);
   mutator.set_can_use_gemini_in_chrome(false);
   EXPECT_TRUE(HasGeminiInChromeCapability(account));
 }
@@ -205,7 +205,7 @@ TEST_F(GeminiFeatureAvailabilityTest,
                                 {});
 
   AccountInfo account = CreateAccountInfoWithCapability(false);
-  AccountCapabilitiesTestMutator mutator(&account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account);
   mutator.set_can_use_gemini_in_chrome(true);
   EXPECT_TRUE(HasGeminiInChromeCapability(account));
 

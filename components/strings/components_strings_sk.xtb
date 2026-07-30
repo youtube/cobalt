@@ -269,6 +269,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="1407135791313364759">Otvoriť všetko</translation>
 <translation id="1408696301184924537">Ak chcete toto číslo IBAN nabudúce automaticky doplniť, uložte si ho do účtu Google</translation>
 <translation id="1408787208417187241">Tri spinky hore</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. Návrh číslo <ph name="MATCH_POSITION" /> z celkového počtu <ph name="NUM_MATCHES_IN_GROUP" /> v skupine <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Ostatní používatelia tohto zariadenia neuvidia vašu aktivitu, takže môžete prehliadať súkromnejšie. Nezmení sa tým spôsob zhromažďovania údajov webmi, ktoré navštívite, ani službami, ktoré používajú, vrátane Googlu. Stiahnuté súbory, záložky a položky čitateľského zoznamu sa budú ukladať.</translation>
 <translation id="1410941016594047814">Obálka Invite</translation>
 <translation id="1413235258620101697">Overovací kód tejto karty bude zašifrovaný a uložený v Peňaženke Google na zrýchlenie platieb</translation>
@@ -660,6 +661,7 @@ Ich používanie by bolo inak blokované vašimi nastaveniami ochrany súkromia.
 <translation id="2045871135676061132">Obálka Personal</translation>
 <translation id="2046951263634619614">Maloobchody s knihami</translation>
 <translation id="2048261947532620704">Stránka sa prekladá</translation>
+<translation id="2055016614992422886">Konverzácia</translation>
 <translation id="2059166748188874810">Správna jednotka</translation>
 <translation id="2059202684901022309">22 × 34 palcov</translation>
 <translation id="2064568741209980952">Úvery a pôžičky</translation>
@@ -3552,6 +3554,7 @@ Ak chcete skryť možnosti zaplatenia neskôr, prejdite do sekcie <ph name="BEGI
 <translation id="6550245281449521513">Uzamknutie myši nie je povolené</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nové</translation>
 <translation id="6552566579578780089">Platby</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. Návrh číslo <ph name="MATCH_POSITION" /> z celkového počtu <ph name="NUM_MATCHES_IN_GROUP" /> v skupine <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Naposledy navštívené pred <ph name="NUM_DAYS" /> dňami</translation>
 <translation id="6556866813142980365">Znova</translation>
 <translation id="6557715786897013164">14 × 17 palcov</translation>

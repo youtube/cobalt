@@ -1,7 +1,6 @@
 include_rules = [
   "+chromeos/ash/experiences/system_web_apps/types",
   "+components/services/app_service/public",
-  "+components/app_restore/full_restore_utils.h",
   "+components/app_icon_loader",
 
   # Existing dependencies within //chrome. There is an active effort to
@@ -58,7 +57,7 @@ include_rules = [
   "+chrome/browser/ui/tabs/tab_strip_model_observer.h",
   "+chrome/browser/ui/views/frame",
   "+chrome/browser/ui/web_applications",
-  "+chrome/browser/ui/webui/ash/settings/app_management",
+  "+chrome/browser/ui/window_metadata/window_metadata_controller.h",
   "+chrome/browser/web_applications",
   "+chrome/common",
   "+chrome/grit",

@@ -14,11 +14,6 @@
     order: var(--settings-dropdown-menu-policy-order, 0);
     width: var(--iron-icon-width, 24px);
   }
-
-  /* Hide "Custom" value when unselectable. */
-  option:disabled {
-    display: none;
-  }
 </style>
 <template is="dom-if" if="[[pref.controlledBy]]" restamp>
   <cr-policy-pref-indicator pref="[[pref]]"></cr-policy-pref-indicator>
@@ -31,9 +26,13 @@
       [[item.name]]
     </option>
   </template>
-  <option value="[[notFoundValue]]"
-      disabled="[[!showNotFoundValue_(menuOptions, pref.value)]]"
-      aria-hidden="[[!showNotFoundValue_(menuOptions, pref.value)]]">
-    $i18n{custom}
-  </option>
+  <!-- TODO(b:523271338): Do not use dom-if after A11y is able to ignore
+        aria-hidden options, instead set aria-hidden dynamically based on
+        !showNotFoundValue_.  -->
+  <template is="dom-if"
+      if="[[showNotFoundValue_(menuOptions, pref.value)]]" restamp>
+    <option value="[[notFoundValue]]">
+      $i18n{custom}
+    </option>
+  </template>
 </select>

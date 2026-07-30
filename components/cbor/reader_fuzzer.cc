@@ -27,18 +27,6 @@ DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(const base::span<const uint8_t> input) {
     CHECK(serialized_cbor.value() == input);
   }
 
-  Reader::Config config;
-  config.allow_and_canonicalize_out_of_order_keys = true;
-
-  std::optional<Value> cbor_1 = Reader::Read(input, config);
-  if (cbor_1.has_value()) {
-    std::optional<std::vector<uint8_t>> serialized_cbor =
-        Writer::Write(cbor_1.value());
-    CHECK(serialized_cbor.has_value());
-    // Reordering the keys shouldn't affect the serialized size.
-    CHECK(serialized_cbor.value().size() == input.size());
-  }
-
   return 0;
 }
 

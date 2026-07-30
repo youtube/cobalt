@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_DICTATION_SESSION_CONTROLLER_H_
 #define CHROME_BROWSER_DICTATION_SESSION_CONTROLLER_H_
 
+#include <iosfwd>
 #include <memory>
 
 #include "base/callback_list.h"
@@ -83,6 +84,9 @@ class SessionController : public SessionUiDelegate {
 
   base::WeakPtrFactory<SessionController> weak_ptr_factory_{this};
 };
+
+const char* ToString(SessionController::State state);
+std::ostream& operator<<(std::ostream& out, SessionController::State state);
 
 }  // namespace dictation
 

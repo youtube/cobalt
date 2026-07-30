@@ -45,7 +45,8 @@ class SchedulingEmbedder
                      GetEmbeddingsCallback get_embeddings_callback,
                      size_t max_jobs,
                      size_t scheduled_max_batch_size,
-                     bool use_performance_scenario);
+                     bool use_performance_scenario,
+                     bool execute_for_gemma = false);
   ~SchedulingEmbedder() override;
 
   // Embedder:
@@ -120,7 +121,9 @@ class SchedulingEmbedder
   bool IsPerformanceScenarioReady();
 
   // Call the callback with status, etc. and record relevant histograms.
-  static void FinishJob(Job job, ComputeEmbeddingsStatus status);
+  static void FinishJob(Job job,
+                        ComputeEmbeddingsStatus status,
+                        bool record_histograms);
 
   // When this is non-empty, the embedder is working and its results will be
   // applied from front to back when `OnEmbeddingsComputed` is called. Not all
@@ -169,6 +172,8 @@ class SchedulingEmbedder
 
   base::ScopedObservation<EmbedderMetadataProvider, EmbedderMetadataObserver>
       embedder_metadata_observation_{this};
+
+  const bool execute_for_gemma_ = false;
 
   base::WeakPtrFactory<SchedulingEmbedder> weak_ptr_factory_{this};
 };

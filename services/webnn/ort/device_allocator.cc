@@ -10,7 +10,6 @@
 #include "services/webnn/ort/ort_status.h"
 #include "services/webnn/ort/platform_functions_ort.h"
 #include "services/webnn/public/cpp/execution_providers_info.h"
-#include "services/webnn/public/mojom/webnn_tensor.mojom.h"
 #include "third_party/windows_app_sdk_headers/src/inc/abi/winml/winml/onnxruntime_c_api.h"
 
 namespace webnn::ort {
@@ -23,8 +22,7 @@ namespace {
 constexpr size_t kIntelNpuStandardPageSize = 4096;
 
 // Creates memory info for a specific EP. Currently, the device allocator only
-// supports OpenVINO and WebGPU EPs. Returns an invalid memory info if not
-// supported.
+// supports OpenVINO. Returns an invalid memory info if not supported.
 ScopedOrtMemoryInfo CreateMemoryInfo(const OrtApi* ort_api,
                                      base::cstring_view ep_name) {
   ScopedOrtMemoryInfo memory_info;
@@ -35,11 +33,6 @@ ScopedOrtMemoryInfo CreateMemoryInfo(const OrtApi* ort_api,
         "OpenVINO_shared", OrtMemoryInfoDeviceType_CPU, /*vendor_id*/ 0x8086,
         /*device_id*/ 0, OrtDeviceMemoryType_HOST_ACCESSIBLE,
         /*alignment*/ kIntelNpuStandardPageSize, OrtDeviceAllocator,
-        ScopedOrtMemoryInfo::Receiver(memory_info).get()));
-    CHECK(memory_info.get());
-  } else if (ep_name == kWebGpuExecutionProvider) {
-    CHECK_STATUS(ort_api->CreateMemoryInfo(
-        "WebGPU_Buffer", OrtDeviceAllocator, /*id*/ 0, OrtMemTypeDefault,
         ScopedOrtMemoryInfo::Receiver(memory_info).get()));
     CHECK(memory_info.get());
   }
@@ -93,36 +86,19 @@ scoped_refptr<DeviceAllocator> DeviceAllocator::Create(
   }
   CHECK(device_allocator.get());
 
-  // SAFETY: ORT guarantees that `ep_name` is valid and null-terminated.
   return base::MakeRefCounted<DeviceAllocator>(
       base::PassKey<DeviceAllocator>(), std::move(env),
-      std::move(trivial_session), std::move(device_allocator),
-      UNSAFE_BUFFERS(base::cstring_view(ep_name)));
+      std::move(trivial_session), std::move(device_allocator));
 }
 
 DeviceAllocator::DeviceAllocator(base::PassKey<DeviceAllocator>,
                                  scoped_refptr<Environment> env,
                                  ScopedOrtSession trivial_session,
-                                 ScopedOrtAllocator device_allocator,
-                                 base::cstring_view ep_name)
+                                 ScopedOrtAllocator device_allocator)
     : env_(std::move(env)),
       trivial_session_(std::move(trivial_session)),
-      device_allocator_(std::move(device_allocator)),
-      ep_name_(ep_name) {}
+      device_allocator_(std::move(device_allocator)) {}
 
 DeviceAllocator::~DeviceAllocator() = default;
-
-bool DeviceAllocator::ShouldUse(const mojom::TensorInfoPtr& tensor_info) const {
-  // Since the WebGPU EP does not allow clients to access underlying tensors
-  // directly, only use it when WebNN developers do not need to access the
-  // underlying data.
-  if (ep_name_ == kWebGpuExecutionProvider &&
-      (tensor_info->usage.Has(MLTensorUsageFlags::kRead) ||
-       tensor_info->usage.Has(MLTensorUsageFlags::kWrite))) {
-    return false;
-  }
-
-  return true;
-}
 
 }  // namespace webnn::ort

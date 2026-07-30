@@ -5,7 +5,6 @@
 #ifndef SERVICES_ON_DEVICE_MODEL_ML_TS_MODEL_H_
 #define SERVICES_ON_DEVICE_MODEL_ML_TS_MODEL_H_
 
-#include "base/files/memory_mapped_file.h"
 #include "base/memory/raw_ref.h"
 #include "base/threading/sequence_bound.h"
 #include "components/translate/core/language_detection/language_detection_model.h"

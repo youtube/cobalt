@@ -4,8 +4,6 @@
 
 import("../build_webui_tests.gni")
 
-assert(!is_android)
-
 build_webui_tests("build") {
   cc_test_files = [
     "contextual_tasks_browsertest.cc",
@@ -14,12 +12,6 @@ build_webui_tests("build") {
 
   files = [
     "app_test.ts",
-    "app_composebox_basic_mode_test.ts",
-    "composebox_test.ts",
-    "composebox_files_test.ts",
-    "composebox_submit_test.ts",
-    "composebox_misc_inputs_test.ts",
-    "composebox_zero_state_test.ts",
     "contextual_tasks_webview_browsertest.ts",
     "post_message_handler_test.ts",
     "test_contextual_tasks_browser_proxy.ts",
@@ -27,29 +19,45 @@ build_webui_tests("build") {
     "test_utils.ts",
     "top_toolbar_test.ts",
     "overflow_menu_test.ts",
-    "onboarding_tooltip_test.ts",
-    "window_manager_test.ts",
     "utils/clip_path_test.ts",
   ]
 
+  if (!is_android || enable_webui_contextual_tasks_composebox) {
+    files += [
+      "app_composebox_basic_mode_test.ts",
+      "composebox_test.ts",
+      "composebox_files_test.ts",
+      "composebox_submit_test.ts",
+      "composebox_misc_inputs_test.ts",
+      "composebox_zero_state_test.ts",
+      "test_searchbox_utils.ts",
+      "window_manager_test.ts",
+    ]
+  }
+
+  if (!is_android) {
+    files += [ "onboarding_tooltip_test.ts" ]
+  }
+
   static_files = [ "test.html" ]
 
-  ts_path_mappings = [
-    "chrome://contextual-tasks/*|" +
+  ts_path_mappings =
+      [ "chrome://contextual-tasks/*|" +
         rebase_path(
             "$root_gen_dir/chrome/browser/resources/contextual_tasks/tsc/*",
-            target_gen_dir),
-    "chrome://webui-test/cr_components/searchbox/*|" + rebase_path(
-            "$root_gen_dir/chrome/test/data/webui/cr_components/searchbox/tsc/*",
-            target_gen_dir),
-  ]
+            target_gen_dir) ]
+
+  if (!is_android || enable_webui_contextual_tasks_composebox) {
+    ts_path_mappings += [ "chrome://webui-test/cr_components/searchbox/*|" + rebase_path(
+                              "$root_gen_dir/chrome/test/data/webui/cr_components/searchbox/tsc/*",
+                              target_gen_dir) ]
+  }
 
   ts_tsconfig_base = "tsconfig_base.json"
 
   ts_deps = [
     "//chrome/browser/resources/contextual_tasks:build_ts",
     "//chrome/test/data/webui:build_ts",
-    "//chrome/test/data/webui/cr_components/searchbox:build_ts",
     "//ui/webui/resources/cr_components/composebox:build_ts",
     "//ui/webui/resources/cr_components/search:build_ts",
     "//ui/webui/resources/cr_components/searchbox:build_ts",
@@ -57,6 +65,10 @@ build_webui_tests("build") {
     "//ui/webui/resources/js:build_ts",
     "//ui/webui/resources/mojo:build_ts",
   ]
+
+  if (!is_android || enable_webui_contextual_tasks_composebox) {
+    ts_deps += [ "//chrome/test/data/webui/cr_components/searchbox:build_ts" ]
+  }
   ts_definitions = [
     "//tools/typescript/definitions/chrome_event.d.ts",
     "//tools/typescript/definitions/chrome_histograms.d.ts",

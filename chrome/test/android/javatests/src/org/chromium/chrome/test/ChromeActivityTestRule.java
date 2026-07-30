@@ -55,6 +55,9 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.test.util.ChromeApplicationTestUtils;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
+import org.chromium.components.browser_ui.bottomsheet.ManagedBottomSheetController;
 import org.chromium.components.browser_ui.widget.highlight.PulseDrawable;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.Tracker;
@@ -67,6 +70,7 @@ import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.PageTransition;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 import java.util.concurrent.Callable;
@@ -161,6 +165,24 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
 
     @Override
     protected void after() {
+        // Hide any open bottom sheet (and clear queued ones) so their observers fire and tear
+        // down attached mediators (e.g. AccountPickerBottomSheetCoordinator). Otherwise those
+        // observers stay registered with process-wide singletons (e.g. AccountManagerFacade) and
+        // leak the destroyed Activity. This must run before super.after() finishes the Activity.
+        T activity = getActivity();
+        if (activity != null) {
+            WindowAndroid windowAndroid = activity.getWindowAndroid();
+            if (windowAndroid != null) {
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            BottomSheetController controller =
+                                    BottomSheetControllerProvider.from(windowAndroid);
+                            if (controller instanceof ManagedBottomSheetController managed) {
+                                managed.clearRequestsAndHide();
+                            }
+                        });
+            }
+        }
         super.after();
         // Activity is finish()'ed in super.after(), and CCT activities sometimes trigger creation
         // of spare tabs in their onDestroy() (https://crrev.com/c/5597549).

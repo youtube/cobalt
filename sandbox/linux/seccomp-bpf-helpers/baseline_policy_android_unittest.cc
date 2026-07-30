@@ -52,23 +52,15 @@ BPF_TEST_C(BaselinePolicyAndroid, Membarrier, BaselinePolicyAndroid) {
   syscall(__NR_membarrier, 32 /* cmd */, 0 /* flags */);
 }
 
-// TODO(crbug.com/517465598): Re-enable this test.
 BPF_TEST_C(BaselinePolicyAndroid,
-           DISABLED_SchedGetAffinity_Maybe_Allowed,
+           SchedGetAffinity_Allowed,
            BaselinePolicyAndroid) {
   cpu_set_t set{};
-  errno = 0;
-  int rv = sched_getaffinity(0, sizeof(set), &set);
-  if (rv == -1) {
-    BPF_ASSERT_EQ(EPERM, errno);
-  } else {
-    BPF_ASSERT_EQ(0, rv);
-  }
+  BPF_ASSERT_EQ(0, sched_getaffinity(0, sizeof(set), &set));
 }
 
-// TODO(crbug.com/518561648): Re-enable this test.
 BPF_TEST_C(BaselinePolicyAndroid,
-           DISABLED_SchedSetAffinity_Maybe_Allowed,
+           SchedSetAffinity_Allowed,
            BaselinePolicyAndroid) {
   cpu_set_t set{};
   // SAFETY: We don't control the implementation inside libc, but we use all the
@@ -78,13 +70,7 @@ BPF_TEST_C(BaselinePolicyAndroid,
     // SAFETY: Index is statically smaller than CPU_SETSIZE.
     UNSAFE_BUFFERS(CPU_SET(i, &set));
   }
-  errno = 0;
-  int rv = sched_setaffinity(0, sizeof(set), &set);
-  if (rv == -1) {
-    BPF_ASSERT_EQ(EPERM, errno);
-  } else {
-    BPF_ASSERT_EQ(0, rv);
-  }
+  BPF_ASSERT_EQ(0, sched_setaffinity(0, sizeof(set), &set));
 }
 
 BPF_TEST_C(BaselinePolicyAndroid, Ioctl_Allowed, BaselinePolicyAndroid) {

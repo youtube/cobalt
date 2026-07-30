@@ -431,6 +431,18 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, Prefs) {
   RunTest("settings/settings_prefs_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, PrefService) {
+  RunTest("settings/pref_service_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, PrefServiceObserverMixin) {
+  RunTest("settings/pref_service_observer_mixin_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, PrefServiceObserverMixinLit) {
+  RunTest("settings/pref_service_observer_mixin_lit_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, PrefUtils) {
   RunTest("settings/settings_pref_util_test.js", "mocha.run()");
 }
@@ -606,7 +618,7 @@ class SettingsGlicSubPageTestBase : public SettingsBrowserTest {
             identity_manager->GetPrimaryAccountId(
                 signin::ConsentLevel::kSignin));
 
-    AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&primary_account);
     mutator.set_can_use_model_execution_features(true);
 
     signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
@@ -2080,6 +2092,10 @@ IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, IdentityDocsPageTest) {
 
 IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, ShoppingPageTest) {
   RunTest("settings/shopping_page_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, SuggestionsFromGeminiSubpage) {
+  RunTest("settings/suggestions_from_gemini_subpage_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, TravelPageTest) {

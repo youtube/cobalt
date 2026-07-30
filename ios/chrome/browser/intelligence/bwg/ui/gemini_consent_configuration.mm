@@ -81,10 +81,10 @@ NSString* const kWarningShieldSymbol = @"exclamationmark.shield";
 
 + (instancetype)configurationForManaged:(BOOL)isManaged
                                  strict:(BOOL)useStrict
-                                   type:(GeminiFREType)type
+                                   type:(GeminiFirstRunType)type
                                 country:(NSString*)country {
   switch (type) {
-    case GeminiFREType::kLive: {
+    case GeminiFirstRunType::kLive: {
       NSArray<GeminiConsentRow*>* rows = @[
         [self liveFirstRow],
         [self liveSecondRow],
@@ -95,7 +95,7 @@ NSString* const kWarningShieldSymbol = @"exclamationmark.shield";
                                                        header:[self liveHeader]
                                                   collapsible:NO];
     }
-    case GeminiFREType::kNewUser: {
+    case GeminiFirstRunType::kNewUser: {
       NSArray<GeminiConsentRow*>* rows =
           IsGeminiUpdatedConsentEnabled()
               ? [self standardRowsForManaged:isManaged useStrict:useStrict]

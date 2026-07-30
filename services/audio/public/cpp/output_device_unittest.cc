@@ -20,8 +20,8 @@
 #include "media/mojo/mojom/audio_data_pipe.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/system/platform_handle.h"
-#include "services/audio/public/cpp/fake_stream_factory.h"
 #include "services/audio/sync_reader.h"
+#include "services/audio/test/mock_stream_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -59,21 +59,6 @@ class MockRenderCallback : public media::AudioRendererSink::RenderCallback {
   void OnRenderError() override {}
 };
 
-class MockStream : public media::mojom::AudioOutputStream {
- public:
-  MockStream() = default;
-
-  MockStream(const MockStream&) = delete;
-  MockStream& operator=(const MockStream&) = delete;
-
-  ~MockStream() override = default;
-
-  MOCK_METHOD0(Play, void());
-  MOCK_METHOD0(Pause, void());
-  MOCK_METHOD1(SetVolume, void(double));
-  MOCK_METHOD0(Flush, void());
-};
-
 class MockAudioOutputIPC : public media::AudioOutputIPC {
  public:
   MockAudioOutputIPC() = default;
@@ -91,45 +76,6 @@ class MockAudioOutputIPC : public media::AudioOutputIPC {
   MOCK_METHOD0(FlushStream, void());
   MOCK_METHOD0(CloseStream, void());
   MOCK_METHOD1(SetVolume, void(double volume));
-};
-
-class FakeOutputStreamFactory final : public audio::FakeStreamFactory {
- public:
-  FakeOutputStreamFactory() : stream_(), stream_receiver_(&stream_) {}
-
-  FakeOutputStreamFactory(const FakeOutputStreamFactory&) = delete;
-  FakeOutputStreamFactory& operator=(const FakeOutputStreamFactory&) = delete;
-
-  ~FakeOutputStreamFactory() override {}
-
-  void CreateOutputStream(
-      mojo::PendingReceiver<media::mojom::AudioOutputStream> stream_receiver,
-      mojo::PendingAssociatedRemote<media::mojom::AudioOutputStreamObserver>
-          observer,
-      mojo::PendingRemote<media::mojom::AudioLog> log,
-      const std::string& output_device_id,
-      const media::AudioParameters& params,
-      const base::UnguessableToken& group_id,
-      CreateOutputStreamCallback created_callback) final {
-    EXPECT_FALSE(observer);
-    EXPECT_FALSE(log);
-    created_callback_ = std::move(created_callback);
-
-    if (stream_receiver_.is_bound())
-      stream_receiver_.reset();
-    stream_receiver_.Bind(std::move(stream_receiver));
-  }
-
-  void Bind(mojo::ScopedMessagePipeHandle handle) {
-    receiver_.Bind(mojo::PendingReceiver<media::mojom::AudioStreamFactory>(
-        std::move(handle)));
-  }
-
-  StrictMock<MockStream> stream_;
-  CreateOutputStreamCallback created_callback_;
-
- private:
-  mojo::Receiver<media::mojom::AudioOutputStream> stream_receiver_;
 };
 
 struct DataFlowTestEnvironment {
@@ -167,7 +113,7 @@ class AudioServiceOutputDeviceTest : public testing::Test {
       : task_env_(
             base::test::TaskEnvironment::MainThreadType::DEFAULT,
             base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED) {
-    stream_factory_ = std::make_unique<FakeOutputStreamFactory>();
+    stream_factory_ = std::make_unique<MockStreamFactory>();
   }
 
   AudioServiceOutputDeviceTest(const AudioServiceOutputDeviceTest&) = delete;
@@ -175,9 +121,10 @@ class AudioServiceOutputDeviceTest : public testing::Test {
       delete;
 
   ~AudioServiceOutputDeviceTest() override {
-    if (!stream_factory_->created_callback_)
+    if (!stream_factory_->created_callback()) {
       return;
-    std::move(stream_factory_->created_callback_).Run(nullptr);
+    }
+    std::move(stream_factory_->created_callback()).Run(nullptr);
     task_env_.RunUntilIdle();
   }
 
@@ -186,7 +133,7 @@ class AudioServiceOutputDeviceTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_env_;
-  std::unique_ptr<FakeOutputStreamFactory> stream_factory_;
+  std::unique_ptr<MockStreamFactory> stream_factory_;
 };
 
 TEST_F(AudioServiceOutputDeviceTest, CreatePlayPause) {
@@ -194,9 +141,9 @@ TEST_F(AudioServiceOutputDeviceTest, CreatePlayPause) {
   OutputDevice output_device(MakeFactoryRemote(), params, nullptr, kDeviceId);
 
   constexpr double volume = 0.42;
-  EXPECT_CALL(stream_factory_->stream_, SetVolume(volume));
-  EXPECT_CALL(stream_factory_->stream_, Play());
-  EXPECT_CALL(stream_factory_->stream_, Pause());
+  EXPECT_CALL(stream_factory_->stream(), SetVolume(volume));
+  EXPECT_CALL(stream_factory_->stream(), Play());
+  EXPECT_CALL(stream_factory_->stream(), Pause());
 
   output_device.SetVolume(volume);
   output_device.Play();
@@ -218,11 +165,11 @@ TEST_F(AudioServiceOutputDeviceTest, MAYBE_VerifyDataFlow) {
   DataFlowTestEnvironment env(params);
   OutputDevice output_device(MakeFactoryRemote(), params, &env.render_callback,
                              kDeviceId);
-  EXPECT_CALL(stream_factory_->stream_, Play());
+  EXPECT_CALL(stream_factory_->stream(), Play());
   output_device.Play();
   task_env_.RunUntilIdle();
 
-  std::move(stream_factory_->created_callback_)
+  std::move(stream_factory_->created_callback())
       .Run({std::in_place, env.reader->TakeSharedMemoryRegion(),
             mojo::PlatformHandle(env.client_socket.Take())});
   task_env_.RunUntilIdle();

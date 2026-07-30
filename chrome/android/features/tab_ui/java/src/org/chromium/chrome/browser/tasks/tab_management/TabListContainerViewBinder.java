@@ -56,8 +56,8 @@ import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.tab.TabUtils;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListContainerProperties.SupplementaryContainerAnimationMetadata;
-import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.ui.animation.AnimationHandler;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -70,14 +70,21 @@ import java.util.function.Supplier;
 class TabListContainerViewBinder {
     private static final int PINNED_TABS_SEARCH_BOX_DURATION_MS = 250;
 
-    @VisibleForTesting
-    static final AnimationHandler sSupplementaryContainerAnimationHandler = new AnimationHandler();
-
     public static class ViewHolder {
         public final TabListRecyclerView mTabListRecyclerView;
         public final ImageView mPaneHairline;
         public final LinearLayout mSupplementaryContainer;
         public final @Px int mSearchBoxGapPx;
+
+        @VisibleForTesting
+        final AnimationHandler mSupplementaryContainerAnimationHandler = new AnimationHandler();
+
+        /**
+         * Target translationY of the in-flight animation. Reads MUST be gated on {@code
+         * mSupplementaryContainerAnimationHandler.isAnimationPresent()}; the value is undefined
+         * when no animation is in flight.
+         */
+        private @Px int mInFlightTargetTranslationY;
 
         ViewHolder(
                 TabListRecyclerView tabListRecyclerView,
@@ -181,7 +188,6 @@ class TabListContainerViewBinder {
             recyclerView.setImportantForAccessibility(important);
         } else if (ANIMATE_SUPPLEMENTARY_CONTAINER == propertyKey) {
             if (supplementaryDataContainer == null) return;
-            if (sSupplementaryContainerAnimationHandler.isAnimationPresent()) return;
 
             SupplementaryContainerAnimationMetadata metadata =
                     model.get(ANIMATE_SUPPLEMENTARY_CONTAINER);
@@ -190,6 +196,17 @@ class TabListContainerViewBinder {
             @Px int searchBoxGapPx = viewHolder.mSearchBoxGapPx;
             int targetTranslationY = metadata.shouldShowSearchBox ? searchBoxGapPx : 0;
             float containerTranslationY = supplementaryDataContainer.getTranslationY();
+
+            // If an animation is already heading to this same target, let it
+            // finish smoothly. Otherwise force-finish so the latest target wins.
+            if (viewHolder.mSupplementaryContainerAnimationHandler.isAnimationPresent()) {
+                if (viewHolder.mInFlightTargetTranslationY == targetTranslationY) {
+                    return;
+                }
+                viewHolder.mSupplementaryContainerAnimationHandler.forceFinishAnimation();
+                // Re-read so the new animator starts from the post-finish position.
+                containerTranslationY = supplementaryDataContainer.getTranslationY();
+            }
 
             // Optimization: Skip the animation if we are already at the target position
             // and an update isn't explicitly forced.
@@ -240,7 +257,8 @@ class TabListContainerViewBinder {
                     });
 
             // Start the animation.
-            sSupplementaryContainerAnimationHandler.startAnimation(animator);
+            viewHolder.mInFlightTargetTranslationY = targetTranslationY;
+            viewHolder.mSupplementaryContainerAnimationHandler.startAnimation(animator);
         } else if (IS_TABLET_OR_LANDSCAPE == propertyKey) {
             boolean isTabletOrLandscape = model.get(IS_TABLET_OR_LANDSCAPE);
             int paddingTop =

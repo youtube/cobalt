@@ -36,6 +36,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/keyed_service/core/service_access_type.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
 #include "components/password_manager/core/browser/leak_detection/encryption_utils.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -530,6 +531,10 @@ PasswordCheckDelegate::ConstructInsecureCredentialUiEntry(
   if (change_password_url.has_value()) {
     api_credential.change_password_url = change_password_url->spec();
   }
+  api_credential.is_automatic_password_change_supported =
+      base::FeatureList::IsEnabled(
+          password_manager::features::kPasswordCheckupPrototype);
+
   CredentialUIEntry copy(std::move(entry));
   // Weak and reused flags should be cleaned before obtaining id. Otherwise
   // weak or reused flag will be saved to the database whenever credential is

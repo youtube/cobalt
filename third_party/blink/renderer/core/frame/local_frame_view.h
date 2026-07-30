@@ -308,6 +308,7 @@ class CORE_EXPORT LocalFrameView final
   };
 
   std::optional<NaturalSizingInfo> GetNaturalDimensions() const override;
+  void ClearNaturalDimensions() override;
 
   void Dispose() override;
   void PropagateFrameRects() override;

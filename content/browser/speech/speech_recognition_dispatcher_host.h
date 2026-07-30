@@ -44,7 +44,7 @@ class SpeechRecognitionDispatcherHost : public media::mojom::SpeechRecognizer {
       const SpeechRecognitionDispatcherHost&) = delete;
 
   ~SpeechRecognitionDispatcherHost() override;
-  static void Create(
+  static CONTENT_EXPORT void Create(
       GlobalRenderFrameHostId global_id,
       mojo::PendingReceiver<media::mojom::SpeechRecognizer> receiver);
   base::WeakPtr<SpeechRecognitionDispatcherHost> AsWeakPtr();

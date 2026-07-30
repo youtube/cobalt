@@ -112,7 +112,7 @@ class GeminiServiceImplTest : public PlatformTest {
   }
 
   void SetCapabilityForAccount(AccountInfo info, bool capability) {
-    AccountCapabilitiesTestMutator mutator(&info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&info);
     mutator.set_can_use_model_execution_features(capability);
     mutator.set_can_use_gemini_in_chrome(capability);
     identity_test_env_.UpdateAccountInfoForAccount(info);
@@ -344,20 +344,20 @@ TEST_F(GeminiServiceImplTest, LogUserConsentState_LogsWhenEligible) {
   // Triggering IsProfileEligibleForGemini should log the state.
   EXPECT_TRUE(gemini_service_->IsProfileEligibleForGemini());
 
-  histogram_tester_.ExpectUniqueSample(kGeminiFREStateHistogram,
-                                       gemini::FREState::kPending, 1);
+  histogram_tester_.ExpectUniqueSample(kGeminiFirstRunStateHistogram,
+                                       gemini::FirstRunState::kPending, 1);
 
   // Changing state and checking eligibility again should log the new state.
   pref_service_.get()->SetInteger(prefs::kIOSBWGPromoImpressionCount, 1);
   EXPECT_TRUE(gemini_service_->IsProfileEligibleForGemini());
 
-  histogram_tester_.ExpectBucketCount(kGeminiFREStateHistogram,
-                                      gemini::FREState::kStarted, 1);
+  histogram_tester_.ExpectBucketCount(kGeminiFirstRunStateHistogram,
+                                      gemini::FirstRunState::kStarted, 1);
 
   pref_service_.get()->SetBoolean(prefs::kIOSBwgConsent, true);
   EXPECT_TRUE(gemini_service_->IsProfileEligibleForGemini());
 
-  histogram_tester_.ExpectBucketCount(kGeminiFREStateHistogram,
-                                      gemini::FREState::kCompleted, 1);
-  histogram_tester_.ExpectTotalCount(kGeminiFREStateHistogram, 3);
+  histogram_tester_.ExpectBucketCount(kGeminiFirstRunStateHistogram,
+                                      gemini::FirstRunState::kCompleted, 1);
+  histogram_tester_.ExpectTotalCount(kGeminiFirstRunStateHistogram, 3);
 }

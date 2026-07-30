@@ -5,6 +5,7 @@
 #include "ui/ozone/platform/wayland/host/wayland_input_method_context.h"
 
 #include <text-input-unstable-v1-server-protocol.h>
+#include <text-input-unstable-v3-server-protocol.h>
 #include <wayland-server.h>
 
 #include <memory>
@@ -163,7 +164,10 @@ class MockZwpTextInputV3 : public ZwpTextInputV3 {
               (ZwpTextInputV3Client * context),
               (override));
 
-  MOCK_METHOD(void, Enable, (), (override));
+  MOCK_METHOD(void,
+              Enable,
+              (ui::TextInputType type, uint32_t flags, bool should_do_learning),
+              (override));
   MOCK_METHOD(void, Disable, (), (override));
   MOCK_METHOD(void, Reset, (), (override));
 
@@ -366,6 +370,73 @@ class WaylandInputMethodContextTest : public WaylandTest {
 INSTANTIATE_TEST_SUITE_P(TextInputV1,
                          WaylandInputMethodContextTest,
                          ::testing::Values(wl::ServerConfig{}));
+
+class WaylandInputMethodContextV3Test : public WaylandTestSimple {
+ public:
+  WaylandInputMethodContextV3Test()
+      : WaylandTestSimple({.text_input_type = wl::ZwpTextInputType::kV3}) {}
+
+  void SetUp() override {
+    WaylandTestSimple::SetUp();
+
+    input_method_context_delegate_ =
+        std::make_unique<TestInputMethodContextDelegate>(window_->GetWidget());
+    keyboard_delegate_ = std::make_unique<TestKeyboardDelegate>();
+    input_method_context_ = std::make_unique<WaylandInputMethodContext>(
+        connection_.get(), keyboard_delegate_.get(),
+        input_method_context_delegate_.get());
+    text_input_v3_ = connection_->EnsureTextInputV3();
+    input_method_context_->SetTextInputV3ForTesting(text_input_v3_.get());
+    input_method_context_->SetDesktopEnvironmentForTesting(
+        // Ensure by default it doesn't pick the current desktop from the system
+        // the tests are running on.
+        base::nix::DesktopEnvironment::DESKTOP_ENVIRONMENT_OTHER);
+    connection_->Flush();
+
+    WaylandTestBase::SyncDisplay();
+
+    PostToServerAndWait([](wl::TestWaylandServerThread* server) {
+      ASSERT_TRUE(server->text_input_manager_v3()->text_input());
+    });
+  }
+
+ protected:
+  std::unique_ptr<TestInputMethodContextDelegate>
+      input_method_context_delegate_;
+  std::unique_ptr<TestKeyboardDelegate> keyboard_delegate_;
+  std::unique_ptr<WaylandInputMethodContext> input_method_context_;
+  raw_ptr<ZwpTextInputV3> text_input_v3_;
+};
+
+TEST_F(WaylandInputMethodContextV3Test,
+       ActivatePasswordFieldSendsContentTypeBeforeCommit) {
+  PostToServerAndWait([](wl::TestWaylandServerThread* server) {
+    auto* zwp_text_input = server->text_input_manager_v3()->text_input();
+    InSequence s;
+    EXPECT_CALL(*zwp_text_input, Enable()).Times(1);
+    EXPECT_CALL(
+        *zwp_text_input,
+        SetContentType(ZWP_TEXT_INPUT_V3_CONTENT_HINT_HIDDEN_TEXT |
+                           ZWP_TEXT_INPUT_V3_CONTENT_HINT_SENSITIVE_DATA,
+                       ZWP_TEXT_INPUT_V3_CONTENT_PURPOSE_PASSWORD))
+        .Times(1);
+    EXPECT_CALL(*zwp_text_input, Commit()).Times(1);
+  });
+
+  LinuxInputMethodContext::TextInputClientAttributes attributes;
+  attributes.input_type = TEXT_INPUT_TYPE_PASSWORD;
+  attributes.flags = TEXT_INPUT_FLAG_HAS_BEEN_PASSWORD;
+  attributes.should_do_learning = false;
+  input_method_context_->UpdateFocus(true, TEXT_INPUT_TYPE_NONE, attributes,
+                                     ui::TextInputClient::FOCUS_REASON_OTHER);
+  connection_->window_manager()->SetTextInputFocusedWindow(window_.get());
+  connection_->Flush();
+
+  PostToServerAndWait([](wl::TestWaylandServerThread* server) {
+    Mock::VerifyAndClearExpectations(
+        server->text_input_manager_v3()->text_input());
+  });
+}
 
 TEST_P(WaylandInputMethodContextTest, ActivateDeactivate) {
   // Activate is called only when both InputMethod's TextInputClient focus and

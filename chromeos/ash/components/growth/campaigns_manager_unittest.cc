@@ -245,8 +245,6 @@ inline constexpr char kGetCampaignBySlotAttemptHistogramName[] =
 inline constexpr char kGetCampaignBySlotHistogramName[] =
     "Ash.Growth.CampaignsManager.GetCampaignBySlot";
 
-inline const base::Version kDefaultVersion("1.0.0.0");
-
 inline constexpr char kTestPref1[] = "pref1";
 inline constexpr char kTestPref2[] = "pref2";
 inline constexpr char kTestPref3[] = "pref3";
@@ -337,7 +335,7 @@ class CampaignsManagerTest : public testing::Test {
                     const std::string_view& retailer_id,
                     const std::string_view& country) {
     MockDemoMode(in_demo_mode, cloud_gaming_device, feature_aware_device,
-                 store_id, retailer_id, country, kDefaultVersion);
+                 store_id, retailer_id, country, base::Version("1.0.0.0"));
   }
 
   void MockDemoMode(bool in_demo_mode,

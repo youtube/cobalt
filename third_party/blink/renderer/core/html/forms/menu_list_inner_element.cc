@@ -37,7 +37,25 @@ const ComputedStyle* MenuListInnerElement::CustomStyleForLayoutObject(
     style_builder.SetHasLineIfEmpty(true);
   }
 
-  UpdateOverflowStyle(style_builder, parent_style);
+  // Clip in the inline direction in order to prevent text from overlapping with
+  // the dropdown icon, but don't clip in the block direction to prevent certain
+  // fonts from being unexpectedly clipped.
+  // https://issues.chromium.org/issues/41144858
+  // https://issues.chromium.org/issues/40805967
+  // https://issues.chromium.org/issues/379805732
+  // https://issues.chromium.org/issues/515072442
+  style_builder.SetTextOverflow(parent_style.TextOverflow());
+  if (!RuntimeEnabledFeatures::SelectRemoveOverflowHiddenEnabled()) {
+    style_builder.SetOverflowX(EOverflow::kHidden);
+    style_builder.SetOverflowY(EOverflow::kHidden);
+    style_builder.SetShouldIgnoreOverflowPropertyForInlineBlockBaseline();
+  } else if (IsHorizontalWritingMode(style_builder.GetWritingMode())) {
+    style_builder.SetOverflowY(EOverflow::kVisible);
+    style_builder.SetOverflowX(EOverflow::kClip);
+  } else {
+    style_builder.SetOverflowY(EOverflow::kClip);
+    style_builder.SetOverflowX(EOverflow::kVisible);
+  }
 
   style_builder.SetUserModify(EUserModify::kReadOnly);
 
@@ -98,30 +116,6 @@ const ComputedStyle* MenuListInnerElement::CustomStyleForLayoutObject(
   }
 
   return style_builder.TakeStyle();
-}
-
-// static
-void MenuListInnerElement::UpdateOverflowStyle(
-    ComputedStyleBuilder& builder,
-    const ComputedStyle& select_style) {
-  // overflow:hidden is needed in order to make text-overflow:ellipsis work, but
-  // can unexpectedly clip text so we only set it when text-overflow:ellipsis
-  // has been set. See these issues:
-  // https://issues.chromium.org/issues/41144858
-  // https://issues.chromium.org/issues/40805967
-  // https://issues.chromium.org/issues/379805732
-  builder.SetTextOverflow(select_style.TextOverflow());
-  if (!RuntimeEnabledFeatures::SelectRemoveOverflowHiddenEnabled() ||
-      builder.TextOverflow().IsEllipsis()) {
-    builder.SetOverflowX(EOverflow::kHidden);
-    builder.SetOverflowY(EOverflow::kHidden);
-    builder.SetShouldIgnoreOverflowPropertyForInlineBlockBaseline();
-  } else {
-    builder.SetOverflowY(EOverflow::kVisible);
-    builder.SetOverflowX(EOverflow::kVisible);
-    // There is no undo for
-    // SetShouldIgnoreOverflowPropertyForInlineBlockBaseline.
-  }
 }
 
 }  // namespace blink

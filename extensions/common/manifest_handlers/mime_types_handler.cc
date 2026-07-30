@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <optional>
 
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
@@ -227,11 +228,13 @@ bool MimeTypesHandlerParser::Parse(extensions::Extension* extension,
   const base::Value* handler_value =
       extension->manifest()->FindPath(keys::kMimeTypesHandler);
   if (handler_value && handler_value->is_dict()) {
-    // Mirrors the availability of the `mime_types_handler` manifest feature in
-    // _manifest_features.json: parse on dev/canary/trunk unconditionally, gated
-    // by `kApiMimeHandler` on beta/stable.
-    if (!base::FeatureList::IsEnabled(extensions_features::kApiMimeHandler) &&
-        extensions::GetCurrentChannel() > version_info::Channel::DEV) {
+    // Parse on dev/canary/trunk by default. An explicit disable override
+    // suppresses parsing on all channels; an explicit enable allows it on all.
+    const std::optional<bool> flag_override =
+        base::FeatureList::GetStateIfOverridden(
+            extensions_features::kApiMimeHandler);
+    if (!flag_override.value_or(extensions::GetCurrentChannel() <=
+                                version_info::Channel::DEV)) {
       return true;
     }
 

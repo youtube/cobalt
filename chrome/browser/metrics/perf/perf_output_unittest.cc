@@ -54,10 +54,6 @@ PerfDataProto GetExamplePerfDataProto() {
 
 // Perf session ID returned by the GetPerfOutputV2 DBus method call.
 const uint64_t kFakePerfSssionId = 101;
-// Quipper command line arguments for running perf.
-const std::vector<std::string> kQuipperArgs{
-    "--duration", "4",      "--", "perf", "record", "-a",
-    "-e",         "cycles", "-g", "-c",   "4000037"};
 
 // This fakes DebugDaemonClient by serving example perf data when the profiling
 // duration elapses.
@@ -145,6 +141,12 @@ class PerfOutputCallTest : public testing::Test {
   }
 
  protected:
+  // Quipper command line arguments for running perf. Member variable to avoid
+  // at-exit destructors.
+  const std::vector<std::string> kQuipperArgs{
+      "--duration", "4",      "--", "perf", "record", "-a",
+      "-e",         "cycles", "-g", "-c",   "4000037"};
+
   // |task_environment_| must be the first member (or at least before
   // any member that cares about tasks) to be initialized first and
   // destroyed last.

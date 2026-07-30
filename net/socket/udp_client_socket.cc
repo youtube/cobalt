@@ -9,6 +9,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/port_util.h"
+#include "net/socket/datagram_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
 namespace net {
@@ -188,6 +189,16 @@ int UDPClientSocket::Read(IOBuffer* buf,
                           int buf_len,
                           CompletionOnceCallback callback) {
   return socket_.Read(buf, buf_len, std::move(callback));
+}
+
+base::expected<DatagramsMetadata, Error> UDPClientSocket::ReadMultiple(
+    IOBuffer* buf,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback) {
+  return socket_.ReadMultiple(buf, buf_len, maximum_packet_size,
+                              std::move(callback));
 }
 
 int UDPClientSocket::Write(

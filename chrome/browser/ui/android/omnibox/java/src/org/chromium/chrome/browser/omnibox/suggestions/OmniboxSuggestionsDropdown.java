@@ -353,7 +353,6 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
             mViewHolderFactory = new OmniboxViewHolderFactory();
             if (OmniboxFeatures.sAsyncViewInflation.isEnabled()) {
                 mRecycledViewPool = new PreWarmingRecycledViewPool(mViewHolderFactory, context);
-                setRecycledViewPool(mRecycledViewPool);
             }
         }
     }
@@ -393,6 +392,12 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
      */
     public void setModelList(ModelList listItems) {
         setAdapter(new OmniboxSuggestionsDropdownAdapter(listItems, mViewHolderFactory));
+
+        // Set the recycled view pool AFTER the adapter is set. Otherwise,
+        // RecyclerView.setAdapter() will clear the pre-warmed pool.
+        if (mRecycledViewPool != null) {
+            setRecycledViewPool(mRecycledViewPool);
+        }
     }
 
     @Override

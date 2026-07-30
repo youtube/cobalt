@@ -239,7 +239,6 @@ chromium_luci.configure_targets(
             "gce": True,
             "gpu_enable_metal_debug_layers": True,
             "gpu_force_angle_d3d11": True,
-            "gpu_force_angle_d3d9": True,
             "gpu_force_angle_gl": True,
             "gpu_force_angle_gles": True,
             "gpu_force_angle_metal": True,

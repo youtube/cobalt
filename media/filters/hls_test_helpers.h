@@ -52,7 +52,6 @@ class MockDataSource : public CrossOriginDataSource {
               (double playback_rate),
               (override));
   MOCK_METHOD(void, OnMediaIsPlaying, (), (override));
-  CrossOriginDataSource* GetAsCrossOriginDataSource() override { return this; }
 };
 
 class MockHlsDataSourceProvider : public HlsDataSourceProvider {
@@ -184,31 +183,38 @@ class StringHlsDataSourceStreamFactory {
  public:
   static std::unique_ptr<HlsDataSourceStream> CreateStream(
       std::string content,
-      std::optional<hls::SecurityMetadata> info = std::nullopt);
+      std::optional<hls::SecurityMetadata> info);
 };
 
 class FileHlsDataSourceStreamFactory {
  public:
   static std::unique_ptr<HlsDataSourceStream> CreateStream(
       std::string file,
-      std::optional<hls::SecurityMetadata> info = std::nullopt);
+      std::optional<hls::SecurityMetadata> info);
 };
 
-class MockDataSourceFactory : public DataSource::Factory {
+class MockDataSourceFactory : public CrossOriginDataSource::Factory {
  public:
   ~MockDataSourceFactory() override;
   MockDataSourceFactory();
-  MOCK_METHOD(void,
+
+  // The return value of MockCreate represents a redirecting MockDataSource.
+  // if it doesn't return anything (the default), then `uri` from the `Create`
+  // function is used as the UrlAfterRedirects.
+  MOCK_METHOD(std::optional<std::string>,
               MockCreate,
               (const GURL&, DataSource::CacheMode, DataSource::EncodingMode));
   void Create(const GURL& uri,
               DataSource::CacheMode cache_mode,
               DataSource::EncodingMode encoding_mode,
-              DataSource::DataSourceCb cb) override;
+              base::OnceCallback<void(std::unique_ptr<CrossOriginDataSource>)>
+                  cb) override;
   void AddReadExpectation(size_t from, size_t to, int response);
-  testing::NiceMock<MockDataSource>* PregenerateNextMock();
+  testing::NiceMock<MockDataSource>* PregenerateNextMock(
+      std::optional<std::string> redirect_uri = std::nullopt);
 
  private:
+  bool next_mock_has_redirection_ = false;
   std::unique_ptr<testing::NiceMock<MockDataSource>> next_mock_;
   std::vector<std::tuple<size_t, size_t, int>> read_expectations_;
 };

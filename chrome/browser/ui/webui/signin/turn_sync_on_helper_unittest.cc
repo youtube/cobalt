@@ -502,7 +502,7 @@ class TurnSyncOnHelperTest : public testing::Test {
     account_info = AccountInfo::Builder(account_info)
                        .SetHostedDomain(kEnterpriseHostedDomain)
                        .Build();
-    AccountCapabilitiesTestMutator(&account_info.capabilities)
+    AccountCapabilitiesTestMutator(&account_info)
         .set_is_subject_to_enterprise_features(true);
     signin::UpdateAccountInfoForAccount(identity_manager(), account_info);
   }

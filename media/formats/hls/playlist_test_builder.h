@@ -20,6 +20,7 @@
 #include "media/formats/hls/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace media::hls {
 
@@ -68,8 +69,8 @@ class PlaylistTestBuilder {
   scoped_refptr<PlaylistT> Parse(
       Args&&... args,
       const base::Location& from = base::Location::Current()) {
-    auto result =
-        PlaylistT::Parse(source_, uri_, version_, std::forward<Args>(args)...);
+    auto result = PlaylistT::Parse(source_, uri_, url::Origin::Create(uri_),
+                                   version_, std::forward<Args>(args)...);
 
     if (!result.has_value()) {
       EXPECT_TRUE(result.has_value())
@@ -91,8 +92,8 @@ class PlaylistTestBuilder {
   void ExpectError(ParseStatusCode code,
                    const base::Location& from,
                    Args&&... args) const {
-    auto result =
-        PlaylistT::Parse(source_, uri_, version_, std::forward<Args>(args)...);
+    auto result = PlaylistT::Parse(source_, uri_, url::Origin::Create(uri_),
+                                   version_, std::forward<Args>(args)...);
     ASSERT_FALSE(result.has_value()) << from.ToString();
 
     auto actual_error = std::move(result).error();
@@ -107,8 +108,8 @@ class PlaylistTestBuilder {
   // expectations.
   template <typename... Args>
   void ExpectOk(const base::Location& from, Args&&... args) const {
-    auto result =
-        PlaylistT::Parse(source_, uri_, version_, std::forward<Args>(args)...);
+    auto result = PlaylistT::Parse(source_, uri_, url::Origin::Create(uri_),
+                                   version_, std::forward<Args>(args)...);
     ASSERT_TRUE(result.has_value())
         << "Error: " << std::move(result).error().message() << "\n"
         << from.ToString();

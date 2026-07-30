@@ -54,8 +54,6 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #endif
 
-using autofill::LogRouter;
-
 namespace autofill {
 
 void CreateAndAddInternalsHTMLSource(Profile* profile,
@@ -209,7 +207,7 @@ void InternalsUIHandler::OnGetAutofillAiCache(const base::ListValue& args) {
                        field_identifier.field_rank_in_signature_group()))
               .Set("type", FieldTypeToStringView(
                                ToSafeFieldType(field_response.field_type())
-                                   .value_or(autofill::UNKNOWN_TYPE)));
+                                   .value_or(UNKNOWN_TYPE)));
       if (!field_response.formatting_meta().empty()) {
         field_info.Set("format", field_response.formatting_meta());
       }
@@ -275,11 +273,10 @@ void InternalsUIHandler::OnDumpAddresses(const base::ListValue& args) {
 void InternalsUIHandler::CheckAutofillAiPermissions(
     const base::ListValue& args) {
   std::string debug_message;
-  const bool may_opt_in = autofill::MayPerformAutofillAiAction(
-      CHECK_DEREF(autofill::ContentAutofillClient::FromWebContents(
-          web_ui()->GetWebContents())),
-      autofill::AutofillAiAction::kOptIn, /*entity_type=*/std::nullopt,
-      &debug_message);
+  const bool may_opt_in = MayPerformAutofillAiAction(
+      CHECK_DEREF(
+          ContentAutofillClient::FromWebContents(web_ui()->GetWebContents())),
+      AutofillAiAction::kOptIn, /*entity_type=*/std::nullopt, &debug_message);
   FireWebUIListener(
       "on-autofill-ai-permission-check-done",
       base::Value(
@@ -296,9 +293,8 @@ void InternalsUIHandler::SetDomNodeId(const base::ListValue& args) {
 
     for (int i = 0; i < browser->GetTabStripModel()->count(); i++) {
       auto* web_contents = browser->GetTabStripModel()->GetWebContentsAt(i);
-      autofill::AutofillDriver* driver =
-          ContentAutofillDriver::GetForRenderFrameHost(
-              web_contents->GetPrimaryMainFrame());
+      AutofillDriver* driver = ContentAutofillDriver::GetForRenderFrameHost(
+          web_contents->GetPrimaryMainFrame());
       if (driver) {
         driver->ExposeDomNodeIdsInAllFrames();
       }

@@ -73,7 +73,7 @@ import org.chromium.chrome.browser.omnibox.LocationBarBackgroundDrawable;
 import org.chromium.chrome.browser.omnibox.LocationBarBackgroundDrawable.HairlineBehavior;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
-import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
+import org.chromium.chrome.browser.omnibox.SearchEngineService;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -443,8 +443,7 @@ public class ToolbarPhone extends ToolbarLayout
         mTrackerSupplier = trackerSupplier;
         mBackButtonCoordinator = backButtonCoordinator;
         mUseAdjustedTintColorForNtp =
-                NtpCustomizationUtils.shouldAdjustIconTintForNtp(
-                        windowAndroid, /* isTablet= */ false);
+                NtpCustomizationUtils.shouldAdjustIconTintForNtp(windowAndroid, /* isLff= */ false);
 
         getToolbarDataProvider().addToolbarDataProviderObserver(this);
     }
@@ -1323,7 +1322,7 @@ public class ToolbarPhone extends ToolbarLayout
         // implementation details.
         var profile = getToolbarDataProvider().getProfile();
         if (profile == null
-                || SearchEngineUtils.getForProfile(profile).shouldShowSearchEngineLogo()) {
+                || SearchEngineService.getForProfile(profile).shouldShowSearchEngineLogo()) {
             locationBarBaseTranslationX += getLocationBarOffsetForFocusAnimation(hasFocus());
         }
 
@@ -1499,8 +1498,8 @@ public class ToolbarPhone extends ToolbarLayout
             mHomeButton.setTranslationY(0);
         }
 
-        if (!mUrlFocusChangeInProgress && getToolbarShadow() != null) {
-            getToolbarShadow().setAlpha(urlHasFocus() ? 0.f : 1.f);
+        if (!mUrlFocusChangeInProgress && getToolbarHairline() != null) {
+            getToolbarHairline().setAlpha(urlHasFocus() ? 0.f : 1.f);
         }
 
         mLocationBar.getPhoneCoordinator().setAlpha(1);
@@ -1546,7 +1545,7 @@ public class ToolbarPhone extends ToolbarLayout
             if (!urlHasFocus() && mNtpSearchBoxScrollFraction == 1.f) {
                 alpha = 1.f;
             }
-            getToolbarShadow().setAlpha(alpha);
+            getToolbarHairline().setAlpha(alpha);
         }
 
         NewTabPageDelegate ntpDelegate = getToolbarDataProvider().getNewTabPageDelegate();
@@ -1904,7 +1903,7 @@ public class ToolbarPhone extends ToolbarLayout
             // omnibox background when animating in.
             var profile = getToolbarDataProvider().getProfile();
             if ((profile == null
-                            || SearchEngineUtils.getForProfile(profile)
+                            || SearchEngineService.getForProfile(profile)
                                     .shouldShowSearchEngineLogo())
                     && isLocationBarShownInNtp()
                     && urlHasFocus()
@@ -2032,13 +2031,13 @@ public class ToolbarPhone extends ToolbarLayout
         VisibleUrlText visibleUrlText =
                 new VisibleUrlText(
                         urlBarData.displayText, mLocationBar.getOmniboxVisibleTextPrefixHint());
-        assumeNonNull(getTint());
+        assumeNonNull(getButtonTintList());
 
         View urlBar =
                 mLocationBar.getPhoneCoordinator().getViewForDrawing().findViewById(R.id.url_bar);
 
         return new PhoneCaptureStateToken(
-                getTint().getDefaultColor(),
+                getButtonTintList().getDefaultColor(),
                 mToolbarBackground.getColor(),
                 mTabCountSupplier == null ? 0 : mTabCountSupplier.get(),
                 mButtonData,
@@ -2165,10 +2164,10 @@ public class ToolbarPhone extends ToolbarLayout
             if (ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
                 updateLocationBarBackgroundBounds(mLocationBarBackgroundBounds, mVisualState);
             }
-            if (!hideShadowForIncognitoNtp()
-                    && !hideShadowForInterstitial()
-                    && !hideShadowForRegularNtpTextureCapture()) {
-                getToolbarShadow().setVisibility(VISIBLE);
+            if (!hideHairlineForIncognitoNtp()
+                    && !hideHairlineForInterstitial()
+                    && !hideHairlineForRegularNtpTextureCapture()) {
+                getToolbarHairline().setVisibility(VISIBLE);
             }
             mPreTextureCaptureAlpha = getAlpha();
             mPreTextureCaptureVisibility = getVisibility();
@@ -2177,7 +2176,7 @@ public class ToolbarPhone extends ToolbarLayout
         } else {
             setAlpha(mPreTextureCaptureAlpha);
             setVisibility(mPreTextureCaptureVisibility);
-            updateShadowVisibility();
+            updateHairlineVisibility();
             mPreTextureCaptureAlpha = 1f;
 
             // When texture mode is turned off, we know a capture has just been completed. Update
@@ -2187,7 +2186,7 @@ public class ToolbarPhone extends ToolbarLayout
         }
     }
 
-    private boolean hideShadowForRegularNtpTextureCapture() {
+    private boolean hideHairlineForRegularNtpTextureCapture() {
         return !isIncognitoBranded()
                 && UrlUtilities.isNtpUrl(getToolbarDataProvider().getCurrentGurl())
                 && mNtpSearchBoxScrollFraction < 1.f;
@@ -2196,7 +2195,7 @@ public class ToolbarPhone extends ToolbarLayout
     private void updateViewsForTabSwitcherMode() {
         setVisibility(mTabSwitcherState == TAB_SWITCHER ? View.INVISIBLE : View.VISIBLE);
         updateProgressBarVisibility();
-        updateShadowVisibility();
+        updateHairlineVisibility();
     }
 
     private void updateProgressBarVisibility() {
@@ -2348,8 +2347,8 @@ public class ToolbarPhone extends ToolbarLayout
             animators.add(animator);
         }
 
-        if (getToolbarShadow() != null) {
-            animator = ObjectAnimator.ofFloat(getToolbarShadow(), ALPHA, urlHasFocus() ? 0 : 1);
+        if (getToolbarHairline() != null) {
+            animator = ObjectAnimator.ofFloat(getToolbarHairline(), ALPHA, urlHasFocus() ? 0 : 1);
             animator.setDuration(URL_FOCUS_CHANGE_ANIMATION_DURATION_MS);
             animator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR);
             animators.add(animator);
@@ -2393,8 +2392,8 @@ public class ToolbarPhone extends ToolbarLayout
 
         if (isLocationBarShownInNtp() && mNtpSearchBoxScrollFraction == 0f) return;
 
-        if (getToolbarShadow() != null) {
-            animator = ObjectAnimator.ofFloat(getToolbarShadow(), ALPHA, 1);
+        if (getToolbarHairline() != null) {
+            animator = ObjectAnimator.ofFloat(getToolbarHairline(), ALPHA, 1);
             animator.setDuration(URL_FOCUS_CHANGE_ANIMATION_DURATION_MS);
             animator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR);
             animators.add(animator);
@@ -2718,7 +2717,7 @@ public class ToolbarPhone extends ToolbarLayout
                                 new ChangeTransform()
                                         .addTarget(mLocationBar.getContainerView())
                                         .addTarget(mActiveLocationBarBackgroundView))
-                        .addTransition(new Fade().addTarget(getToolbarShadow()))
+                        .addTransition(new Fade().addTarget(getToolbarHairline()))
                         .addTransition(new BackgroundDrawableTransition())
                         .setDuration(duration)
                         .setInterpolator(interpolator);
@@ -2805,7 +2804,7 @@ public class ToolbarPhone extends ToolbarLayout
                     oldTranslationY != mLocationBarBackgroundNtpOffset.top;
         }
         if (!mRefactoredLocationBarTranslating) {
-            getToolbarShadow().setVisibility(hasFocus ? INVISIBLE : VISIBLE);
+            getToolbarHairline().setVisibility(hasFocus ? INVISIBLE : VISIBLE);
         }
         updateBackground(hasFocus);
         mLocationBar
@@ -2869,7 +2868,7 @@ public class ToolbarPhone extends ToolbarLayout
             ntpDelegate.setSearchBoxAlpha(0.f);
 
             if (mRefactoredLocationBarTranslating) {
-                getToolbarShadow().setVisibility(INVISIBLE);
+                getToolbarHairline().setVisibility(INVISIBLE);
             }
         }
         mLocationBar.getPhoneCoordinator().setAlpha(1.f);
@@ -2897,7 +2896,7 @@ public class ToolbarPhone extends ToolbarLayout
                     mActiveLocationBarBackgroundView.setAlpha(0.f);
                 }
             } else if (mRefactoredLocationBarTranslating) {
-                getToolbarShadow().setVisibility(VISIBLE);
+                getToolbarHairline().setVisibility(VISIBLE);
             }
         }
         mRefactoredLocationBarTranslating = false;
@@ -3116,16 +3115,16 @@ public class ToolbarPhone extends ToolbarLayout
     }
 
     /**
-     * @return Whether the toolbar shadow should be drawn.
+     * @return Whether the toolbar hairline should be drawn.
      */
     @Override
-    protected boolean shouldDrawShadow() {
-        // TODO(twellington): Move this shadow state information to ToolbarDataProvider and show
-        // shadow when incognito NTP is scrolled.
-        return super.shouldDrawShadow()
+    protected boolean shouldDrawHairline() {
+        // TODO(twellington): Move this hairline state information to ToolbarDataProvider and show
+        // hairline when incognito NTP is scrolled.
+        return super.shouldDrawHairline()
                 && mTabSwitcherState == STATIC_TAB
-                && !hideShadowForIncognitoNtp()
-                && !hideShadowForInterstitial()
+                && !hideHairlineForIncognitoNtp()
+                && !hideHairlineForInterstitial()
                 && getVisibility() == View.VISIBLE;
     }
 
@@ -3164,12 +3163,12 @@ public class ToolbarPhone extends ToolbarLayout
                 || visualState == VisualState.NEW_TAB_SEARCH_ENGINE_NO_LOGO;
     }
 
-    private boolean hideShadowForIncognitoNtp() {
+    private boolean hideHairlineForIncognitoNtp() {
         return isIncognitoBranded()
                 && UrlUtilities.isNtpUrl(getToolbarDataProvider().getCurrentGurl());
     }
 
-    private boolean hideShadowForInterstitial() {
+    private boolean hideHairlineForInterstitial() {
         return getToolbarDataProvider() != null
                 && getToolbarDataProvider().getTab() != null
                 && getToolbarDataProvider().getTab().isShowingErrorPage();
@@ -3319,7 +3318,7 @@ public class ToolbarPhone extends ToolbarLayout
                 && mLayoutUpdater != null) {
             mLayoutUpdater.run();
         }
-        updateShadowVisibility();
+        updateHairlineVisibility();
 
         boolean skipUrlExpansion = ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled();
         invokeTransition(/* resetNtpTransition= */ false, /* skipUrlExpansion= */ skipUrlExpansion);
@@ -3668,7 +3667,7 @@ public class ToolbarPhone extends ToolbarLayout
 
         var profile = getToolbarDataProvider().getProfile();
         if (profile == null
-                || !SearchEngineUtils.getForProfile(profile).shouldShowSearchEngineLogo()) {
+                || !SearchEngineService.getForProfile(profile).shouldShowSearchEngineLogo()) {
             return 0;
         }
 

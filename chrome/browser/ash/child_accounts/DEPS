@@ -19,7 +19,6 @@ include_rules = [
   "+chrome/browser/policy",
   "+chrome/browser/profiles",
   "+chrome/browser/supervised_user",
-  "+chrome/common/pref_names.h",
   "+chrome/grit",
 ]
 

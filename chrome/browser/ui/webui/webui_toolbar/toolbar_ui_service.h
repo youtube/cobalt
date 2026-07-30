@@ -65,6 +65,8 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
     virtual base::expected<std::monostate, mojo_base::mojom::ErrorPtr>
     OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action) = 0;
     virtual void ShowAvatarMenu() = 0;
+    virtual void SetAvatarButtonHovered(bool hovered) = 0;
+    virtual void SetAvatarButtonFocused(bool focused) = 0;
   };
 
   ToolbarUIService(
@@ -116,6 +118,10 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
   void OnHomeButtonDropFile(const gfx::PointF& drop_position) override;
   void OnToolbarDropFile(const gfx::PointF& drop_position) override;
   void ShowAvatarMenu(ShowAvatarMenuCallback callback) override;
+  void SetAvatarButtonHovered(bool hovered,
+                              SetAvatarButtonHoveredCallback callback) override;
+  void SetAvatarButtonFocused(bool focused,
+                              SetAvatarButtonFocusedCallback callback) override;
 
  private:
   mojo::Receiver<toolbar_ui_api::mojom::ToolbarUIService> service_;

@@ -205,7 +205,7 @@ class FakeVideoEncodeAcceleratorWithFrameDelay final
     if (media::FakeVideoEncodeAccelerator::Initialize(config, client,
                                                       std::move(media_log))
             .is_ok()) {
-      SetFrameDelay(frame_delay_);
+      SetFrameDelay(base::checked_cast<int>(frame_delay_));
       return {media::EncoderStatus::Codes::kOk};
     }
     return {media::EncoderStatus::Codes::kEncoderInitializationError};

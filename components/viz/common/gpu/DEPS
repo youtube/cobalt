@@ -1,6 +1,7 @@
 # Please consult components/viz/README.md about allowable dependencies.
 
 include_rules = [
+  "+cc/paint",
   "+cc/output",
   "+cc/resources",
   "+components/metal_util",

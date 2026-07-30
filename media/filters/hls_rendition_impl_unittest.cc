@@ -320,7 +320,8 @@ class HlsRenditionImplUnittest : public testing::Test {
   std::unique_ptr<HlsRenditionImpl> MakeVodRendition(std::string_view content) {
     constexpr hls::types::DecimalInteger version = 3;
     auto uri = GURL("https://example.com/manifest.m3u8");
-    auto parsed = hls::MediaPlaylist::Parse(content, uri, version, nullptr);
+    auto parsed = hls::MediaPlaylist::Parse(
+        content, uri, url::Origin::Create(uri), version, nullptr);
     if (!parsed.has_value()) {
       LOG(ERROR) << MediaSerializeForTesting(std::move(parsed).error());
       return nullptr;
@@ -338,7 +339,8 @@ class HlsRenditionImplUnittest : public testing::Test {
       GURL uri,
       std::string_view content) {
     constexpr hls::types::DecimalInteger version = 3;
-    auto parsed = hls::MediaPlaylist::Parse(content, uri, version, nullptr);
+    auto parsed = hls::MediaPlaylist::Parse(
+        content, uri, url::Origin::Create(uri), version, nullptr);
     if (!parsed.has_value()) {
       LOG(ERROR) << MediaSerializeForTesting(std::move(parsed).error());
       return nullptr;
@@ -420,7 +422,9 @@ class HlsRenditionImplUnittest : public testing::Test {
         .WillOnce([content = junk_content, host = mock_hrh_.get()](
                       const hls::MediaSegment&, bool, bool,
                       HlsDataSourceProvider::ReadCb cb) {
-          auto stream = StringHlsDataSourceStreamFactory::CreateStream(content);
+          auto stream = StringHlsDataSourceStreamFactory::CreateStream(
+              content,
+              hls::SecurityMetadata::CreateForTesting("https://example.com"));
           std::move(cb).Run(std::move(stream));
         });
     EXPECT_CALL(
@@ -450,7 +454,9 @@ class HlsRenditionImplUnittest : public testing::Test {
           if (auto enc_data = segment.GetEncryptionData()) {
             ASSERT_FALSE(enc_data->NeedsKeyFetch());
           }
-          auto stream = StringHlsDataSourceStreamFactory::CreateStream(content);
+          auto stream = StringHlsDataSourceStreamFactory::CreateStream(
+              content,
+              hls::SecurityMetadata::CreateForTesting("https://example.com"));
           std::move(cb).Run(std::move(stream));
         });
   }
@@ -469,7 +475,9 @@ class HlsRenditionImplUnittest : public testing::Test {
             ASSERT_TRUE(enc_data->NeedsKeyFetch());
             std::move(intercept).Run(enc_data.get());
           }
-          auto stream = StringHlsDataSourceStreamFactory::CreateStream(content);
+          auto stream = StringHlsDataSourceStreamFactory::CreateStream(
+              content,
+              hls::SecurityMetadata::CreateForTesting("https://example.com"));
           std::move(cb).Run(std::move(stream));
         });
   }
@@ -659,9 +667,30 @@ TEST_F(HlsRenditionImplUnittest, TestRenditionHasEnoughDataFetchNewManifest) {
   task_environment_.RunUntilIdle();
 }
 
-TEST_F(HlsRenditionImplUnittest, TestRenditionHasEnoughDataDeleteOldContent) {
+TEST_F(HlsRenditionImplUnittest,
+       TestRenditionManifestUpdateTooSoonKeepSegmentDelay) {
   auto rendition =
       MakeLiveRendition(GURL("http://example.com"), kInitialFetchPlaylist);
+  ASSERT_NE(rendition, nullptr);
+  ASSERT_EQ(rendition->GetDuration(), std::nullopt);
+
+  Ranges<base::TimeDelta> loaded_ranges;
+  loaded_ranges.Add(base::Seconds(0), base::Seconds(12));
+  EXPECT_CALL(*mock_mdeh_, GetBufferedRanges(_))
+      .Times(2)
+      .WillRepeatedly(Return(loaded_ranges));
+
+  // We expect CheckState to return 7s, which is the segment delay,
+  // even though we cannot fetch a manifest update yet (which would require
+  // waiting longer).
+  rendition->CheckState(base::Seconds(0), 0.0,
+                        BindCheckState(base::Seconds(7)));
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(HlsRenditionImplUnittest, TestRenditionHasEnoughDataDeleteOldContent) {
+  auto manifest_uri = GURL("http://example.com");
+  auto rendition = MakeLiveRendition(manifest_uri, kInitialFetchPlaylist);
   ASSERT_NE(rendition, nullptr);
   ASSERT_EQ(rendition->GetDuration(), std::nullopt);
 
@@ -681,10 +710,11 @@ TEST_F(HlsRenditionImplUnittest, TestRenditionHasEnoughDataDeleteOldContent) {
   // There are only three segments (6 seconds) left in the buffer, so we'll
   // pull for manifest updates.
   EXPECT_CALL(*mock_hrh_, UpdateRenditionManifestUri("test", _, _))
-      .WillOnce([&rendition](std::string role, GURL uri,
-                             HlsDemuxerStatusCallback cb) {
+      .WillOnce([&rendition, &manifest_uri](std::string role, GURL uri,
+                                            HlsDemuxerStatusCallback cb) {
         auto parsed = hls::MediaPlaylist::Parse(
-            kSecondFetchLivePlaylist, GURL("http://example.com"), 3, nullptr);
+            kSecondFetchLivePlaylist, manifest_uri,
+            url::Origin::Create(manifest_uri), 3, nullptr);
         CHECK(parsed.has_value());
         rendition->UpdatePlaylist(std::move(parsed).value());
         std::move(cb).Run(OkStatus());
@@ -709,8 +739,8 @@ TEST_F(HlsRenditionImplUnittest, TestStopLive) {
 }
 
 TEST_F(HlsRenditionImplUnittest, TestPauseAndUnpause) {
-  auto rendition =
-      MakeLiveRendition(GURL("http://example.com"), kInitialFetchLongPlaylist);
+  auto manifest_uri = GURL("http://example.com");
+  auto rendition = MakeLiveRendition(manifest_uri, kInitialFetchLongPlaylist);
   ASSERT_NE(rendition, nullptr);
   ASSERT_EQ(rendition->GetDuration(), std::nullopt);
 
@@ -774,11 +804,11 @@ TEST_F(HlsRenditionImplUnittest, TestPauseAndUnpause) {
   std::string newcontent = "newcontent";
   EXPECT_CALL(*mock_mdeh_, Remove(_, base::Seconds(0), base::Seconds(210)));
   EXPECT_CALL(*mock_hrh_, UpdateRenditionManifestUri("test", _, _))
-      .WillOnce([&rendition](std::string role, GURL uri,
-                             HlsDemuxerStatusCallback cb) {
-        auto parsed =
-            hls::MediaPlaylist::Parse(kSecondFetchLiveLongPlaylist,
-                                      GURL("http://example.com"), 3, nullptr);
+      .WillOnce([&rendition, &manifest_uri](std::string role, GURL uri,
+                                            HlsDemuxerStatusCallback cb) {
+        auto parsed = hls::MediaPlaylist::Parse(
+            kSecondFetchLiveLongPlaylist, manifest_uri,
+            url::Origin::Create(manifest_uri), 3, nullptr);
         CHECK(parsed.has_value());
         rendition->UpdatePlaylist(std::move(parsed).value());
         std::move(cb).Run(OkStatus());
@@ -964,8 +994,9 @@ TEST_F(HlsRenditionImplUnittest, TestAES128Content) {
   // Update the playlist. The segment stream should keep around media_3.ts,
   // but follow it up with mediax_4.ts
   GURL manifest_uri = GURL("https://example.com/manifest.m3u8");
-  auto parsed = hls::MediaPlaylist::Parse(kAESContentReplacement, manifest_uri,
-                                          3, nullptr);
+  auto parsed =
+      hls::MediaPlaylist::Parse(kAESContentReplacement, manifest_uri,
+                                url::Origin::Create(manifest_uri), 3, nullptr);
   CHECK(parsed.has_value());
   rendition->UpdatePlaylist(std::move(parsed).value());
 
@@ -1142,8 +1173,8 @@ TEST_F(HlsRenditionImplUnittest, TestRemoveOldDataForSkipRemovesAllBuffers) {
 }
 
 TEST_F(HlsRenditionImplUnittest, SeekWithBadContentCausesError) {
-  auto rendition =
-      MakeLiveRendition(GURL("http://example.com"), kInitialFetchLongPlaylist);
+  auto manifest_uri = GURL("http://example.com");
+  auto rendition = MakeLiveRendition(manifest_uri, kInitialFetchLongPlaylist);
   ASSERT_NE(rendition, nullptr);
   ASSERT_EQ(rendition->GetDuration(), std::nullopt);
 
@@ -1199,10 +1230,11 @@ TEST_F(HlsRenditionImplUnittest, SeekWithBadContentCausesError) {
 
   EXPECT_CALL(*mock_mdeh_, Remove(_, base::Seconds(0), base::Seconds(210)));
   EXPECT_CALL(*mock_hrh_, UpdateRenditionManifestUri("test", _, _))
-      .WillOnce([&rendition](std::string role, GURL uri,
-                             HlsDemuxerStatusCallback cb) {
+      .WillOnce([&rendition, &manifest_uri](std::string role, GURL uri,
+                                            HlsDemuxerStatusCallback cb) {
         auto parsed = hls::MediaPlaylist::Parse(
-            kSingleSegmentPlaylist, GURL("http://example.com"), 3, nullptr);
+            kSingleSegmentPlaylist, manifest_uri,
+            url::Origin::Create(manifest_uri), 3, nullptr);
         CHECK(parsed.has_value());
         rendition->UpdatePlaylist(std::move(parsed).value());
         std::move(cb).Run(OkStatus());
@@ -1301,8 +1333,8 @@ TEST_F(HlsRenditionImplUnittest, TestManifestUpdateWaitWithEmptyQueue) {
 }
 
 TEST_F(HlsRenditionImplUnittest, TestLiveToVodAdaptation) {
-  auto rendition =
-      MakeLiveRendition(GURL("http://example.com"), kInitialFetchLongPlaylist);
+  auto manifest_uri = GURL("http://example.com");
+  auto rendition = MakeLiveRendition(manifest_uri, kInitialFetchLongPlaylist);
   ASSERT_NE(rendition, nullptr);
   ASSERT_EQ(rendition->GetDuration(), std::nullopt);
   base::TimeDelta clock = base::Seconds(0);
@@ -1343,10 +1375,11 @@ TEST_F(HlsRenditionImplUnittest, TestLiveToVodAdaptation) {
   {
     RespondWithRange(base::Seconds(0), base::Seconds(30));
     EXPECT_CALL(*mock_hrh_, UpdateRenditionManifestUri("test", _, _))
-        .WillOnce([&rendition](std::string role, GURL uri,
-                               HlsDemuxerStatusCallback cb) {
+        .WillOnce([&rendition, manifest_uri](std::string role, GURL uri,
+                                             HlsDemuxerStatusCallback cb) {
           auto parsed = hls::MediaPlaylist::Parse(
-              kNowAsVodPlaylist, GURL("http://example.com"), 3, nullptr);
+              kNowAsVodPlaylist, manifest_uri,
+              url::Origin::Create(manifest_uri), 3, nullptr);
           CHECK(parsed.has_value());
           rendition->UpdatePlaylist(std::move(parsed).value());
           std::move(cb).Run(OkStatus());
@@ -1366,8 +1399,8 @@ TEST_F(HlsRenditionImplUnittest, TestLiveToVodAdaptation) {
 }
 
 TEST_F(HlsRenditionImplUnittest, TestLiveToVodAdaptationWithExhaustedQueue) {
-  auto rendition =
-      MakeLiveRendition(GURL("http://example.com"), kInitialFetchLongPlaylist);
+  auto manifest_uri = GURL("http://example.com");
+  auto rendition = MakeLiveRendition(manifest_uri, kInitialFetchLongPlaylist);
   ASSERT_NE(rendition, nullptr);
   ASSERT_EQ(rendition->GetDuration(), std::nullopt);
   base::TimeDelta clock = base::Seconds(0);
@@ -1408,11 +1441,11 @@ TEST_F(HlsRenditionImplUnittest, TestLiveToVodAdaptationWithExhaustedQueue) {
   {
     RespondWithRange(base::Seconds(0), base::Seconds(30));
     EXPECT_CALL(*mock_hrh_, UpdateRenditionManifestUri("test", _, _))
-        .WillOnce([&rendition](std::string role, GURL uri,
-                               HlsDemuxerStatusCallback cb) {
-          auto parsed =
-              hls::MediaPlaylist::Parse(kNowAsVodPlaylistWithOneMore,
-                                        GURL("http://example.com"), 3, nullptr);
+        .WillOnce([&rendition, &manifest_uri](std::string role, GURL uri,
+                                              HlsDemuxerStatusCallback cb) {
+          auto parsed = hls::MediaPlaylist::Parse(
+              kNowAsVodPlaylistWithOneMore, manifest_uri,
+              url::Origin::Create(manifest_uri), 3, nullptr);
           CHECK(parsed.has_value());
           rendition->UpdatePlaylist(std::move(parsed).value());
           std::move(cb).Run(OkStatus());

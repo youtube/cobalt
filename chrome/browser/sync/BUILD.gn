@@ -300,3 +300,84 @@ source_set("factories") {
     "//components/sync/engine",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "chrome_sync_client_unittest.cc",
+    "session_sync_service_factory_unittest.cc",
+    "sessions/sync_sessions_web_contents_router_unittest.cc",
+    "sync_service_factory_unittest.cc",
+    "sync_startup_tracker_unittest.cc",
+  ]
+
+  deps = [
+    ":sync",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/favicon",
+    "//chrome/browser/history",
+    "//chrome/browser/search_engines",
+    "//chrome/browser/spellchecker",
+    "//chrome/browser/trusted_vault",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/sync",
+    "//chrome/browser/webdata_services",
+    "//chrome/common:constants",
+    "//chrome/test:test_support",
+    "//components/commerce/core:feature_list",
+    "//components/metrics",
+    "//components/signin/public/base",
+    "//components/skills:features",
+    "//components/spellcheck:buildflags",
+    "//components/sync:test_support",
+    "//components/sync/base",
+    "//components/sync_device_info:test_support",
+    "//components/variations",
+    "//components/variations:test_support",
+    "//content/test:test_support",
+    "//google_apis",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+
+  if (is_chromeos) {
+    deps += [
+      "//ash/constants",
+      "//chrome/browser/ash/app_list",
+      "//chrome/browser/ash/arc:arc_util",
+      "//chrome/browser/ash/floating_sso",
+      "//chromeos/ash/components/dbus/shill",
+      "//chromeos/ash/components/network:test_support",
+      "//chromeos/ash/components/sync_wifi",
+      "//chromeos/ash/services/network_config/public/cpp:test_support",
+    ]
+  }
+
+  if (is_android) {
+    sources += [ "glue/synced_tab_delegate_android_unittest.cc" ]
+    deps += [
+      "//chrome/browser/android:tabs_public",
+      "//chrome/browser/flags:flags_android",
+      "//chrome/browser/ui/android/tab_model",
+      "//chrome/browser/ui/android/tab_model:test_support",
+      "//components/sync_sessions:test_support",
+    ]
+  } else {
+    sources += [
+      "prefs/chrome_syncable_prefs_database_unittest.cc",
+      "sessions/sync_sessions_router_tab_helper_unittest.cc",
+      "sync_ui_util_unittest.cc",
+    ]
+  }
+
+  if (enable_extensions_core) {
+    sources += [ "glue/extensions_activity_monitor_unittest.cc" ]
+    deps += [
+      "//chrome/browser/extensions",
+      "//extensions/common",
+    ]
+  }
+}

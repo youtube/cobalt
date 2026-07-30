@@ -7,15 +7,18 @@
 #import <string>
 
 #import "base/strings/utf_string_conversions.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "build/build_config.h"
 #import "components/infobars/core/infobar.h"
+#import "components/metrics/profile_metrics_service.h"
+#import "components/password_manager/core/browser/password_form_metrics_recorder.h"
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/ui_bundled/banners/test/fake_infobar_banner_consumer.h"
 #import "ios/chrome/browser/overlays/model/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_response.h"
-#import "ios/chrome/browser/passwords/model/ios_chrome_save_password_infobar_delegate.h"
-#import "ios/chrome/browser/passwords/model/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
+#import "ios/chrome/browser/passwords/infobars/model/ios_chrome_save_password_infobar_delegate.h"
+#import "ios/chrome/browser/passwords/infobars/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/credential_provider_promo_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -47,21 +50,28 @@ class PasswordInfobarBannerOverlayMediatorTest : public PlatformTest {
 
   void InitInfobar(
       std::optional<std::string> account_to_store_password = std::nullopt) {
+    metrics_recorder_ =
+        base::MakeRefCounted<password_manager::PasswordFormMetricsRecorder>(
+            /*is_main_frame_secure=*/true, ukm::kInvalidSourceId,
+            /*pref_service=*/nullptr, &profile_metrics_service_);
     infobar_ = std::make_unique<InfoBarIOS>(
         InfobarType::kInfobarTypePasswordSave,
         MockIOSChromeSavePasswordInfoBarDelegate::Create(
-            kUsername, kPassword, GURL(), account_to_store_password));
+            kUsername, kPassword, GURL(), account_to_store_password,
+            metrics_recorder_.get()));
     request_ =
         OverlayRequest::CreateWithConfig<DefaultInfobarOverlayRequestConfig>(
             infobar_.get(), InfobarOverlayType::kBanner);
     consumer_ = [[FakeInfobarBannerConsumer alloc] init];
     mediator_ = [[PasswordInfobarBannerOverlayMediator alloc]
         initWithRequest:request_.get()];
-    ;
     mediator_.consumer = consumer_;
   }
 
  protected:
+  metrics::ProfileMetricsService profile_metrics_service_;
+  scoped_refptr<password_manager::PasswordFormMetricsRecorder>
+      metrics_recorder_;
   std::unique_ptr<InfoBarIOS> infobar_;
   std::unique_ptr<OverlayRequest> request_;
   FakeInfobarBannerConsumer* consumer_ = nil;
@@ -137,8 +147,11 @@ TEST_F(PasswordInfobarBannerOverlayMediatorTest,
 // delegate is set.
 TEST_F(PasswordInfobarBannerOverlayMediatorTest, InfobarDone) {
   InitInfobar();
-  EXPECT_CALL(mock_delegate(), InfobarGone).Times(1);
+  base::HistogramTester histogram_tester;
   [mediator_ finishDismissal];
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.SaveUIDismissalReason",
+      password_manager::metrics_util::NO_DIRECT_INTERACTION, 1);
 }
 
 // Tests that the infobar delegate isn't called on -finishDismissal when the
@@ -146,10 +159,11 @@ TEST_F(PasswordInfobarBannerOverlayMediatorTest, InfobarDone) {
 TEST_F(PasswordInfobarBannerOverlayMediatorTest,
        InfobarDoneWhenInfobarDelegateDeleted) {
   InitInfobar();
-  EXPECT_CALL(mock_delegate(), InfobarGone).Times(0);
 
   // Delete the infobar to return a nullptr delegate.
   infobar_.reset();
 
+  base::HistogramTester histogram_tester;
   [mediator_ finishDismissal];
+  histogram_tester.ExpectTotalCount("PasswordManager.SaveUIDismissalReason", 0);
 }

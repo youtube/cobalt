@@ -43,6 +43,7 @@ export function getTestAnnotation(
     },
     textBoxRect,
     textOrientation: 0,
+    viewportOrientation: 0,
   };
 }
 

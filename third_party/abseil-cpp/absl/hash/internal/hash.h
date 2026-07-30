@@ -381,8 +381,8 @@ struct is_uniquely_represented<unsigned char> : std::true_type {};
 // Integral types other than bool should be uniquely represented on any
 // platform that this will plausibly be ported to.
 template <typename Integral>
-struct is_uniquely_represented<
-    Integral, typename std::enable_if<std::is_integral<Integral>::value>::type>
+struct is_uniquely_represented<Integral,
+                               std::enable_if_t<std::is_integral_v<Integral>>>
     : std::true_type {};
 
 template <>
@@ -460,8 +460,8 @@ H hash_weakly_mixed_integer(H hash_state, WeaklyMixedInteger value) {
 // We use SFINAE to ensure that this overload only accepts bool, not types that
 // are convertible to bool.
 template <typename H, typename B>
-typename std::enable_if<std::is_same<B, bool>::value, H>::type AbslHashValue(
-    H hash_state, B value) {
+std::enable_if_t<std::is_same_v<B, bool>, H> AbslHashValue(H hash_state,
+                                                           B value) {
   // We use ~size_t{} instead of 1 so that all bits are different between
   // true/false instead of only 1.
   return H::combine(std::move(hash_state),
@@ -470,21 +470,19 @@ typename std::enable_if<std::is_same<B, bool>::value, H>::type AbslHashValue(
 
 // AbslHashValue() for hashing enum values
 template <typename H, typename Enum>
-typename std::enable_if<std::is_enum<Enum>::value, H>::type AbslHashValue(
-    H hash_state, Enum e) {
+std::enable_if_t<std::is_enum_v<Enum>, H> AbslHashValue(H hash_state, Enum e) {
   // In practice, we could almost certainly just invoke hash_bytes directly,
   // but it's possible that a sanitizer might one day want to
   // store data in the unused bits of an enum. To avoid that risk, we
   // convert to the underlying type before hashing. Hopefully this will get
   // optimized away; if not, we can reopen discussion with c-toolchain-team.
   return H::combine(std::move(hash_state),
-                    static_cast<typename std::underlying_type<Enum>::type>(e));
+                    static_cast<std::underlying_type_t<Enum>>(e));
 }
 // AbslHashValue() for hashing floating-point values
 template <typename H, typename Float>
-typename std::enable_if<std::is_same<Float, float>::value ||
-                            std::is_same<Float, double>::value,
-                        H>::type
+std::enable_if_t<std::is_same_v<Float, float> || std::is_same_v<Float, double>,
+                 H>
 AbslHashValue(H hash_state, Float value) {
   return hash_internal::hash_bytes(std::move(hash_state),
                                    value == 0 ? 0 : value);
@@ -495,8 +493,8 @@ AbslHashValue(H hash_state, Float value) {
 // of it. This means we can't use hash_bytes on a long double and have to
 // convert it to something else first.
 template <typename H, typename LongDouble>
-typename std::enable_if<std::is_same<LongDouble, long double>::value, H>::type
-AbslHashValue(H hash_state, LongDouble value) {
+std::enable_if_t<std::is_same_v<LongDouble, long double>, H> AbslHashValue(
+    H hash_state, LongDouble value) {
   const int category = std::fpclassify(value);
   switch (category) {
     case FP_INFINITE:
@@ -540,8 +538,7 @@ H AbslHashValue(H hash_state, T (&)[N]) {
 
 // AbslHashValue() for hashing pointers
 template <typename H, typename T>
-std::enable_if_t<std::is_pointer<T>::value, H> AbslHashValue(H hash_state,
-                                                             T ptr) {
+std::enable_if_t<std::is_pointer_v<T>, H> AbslHashValue(H hash_state, T ptr) {
   auto v = reinterpret_cast<uintptr_t>(ptr);
   // Due to alignment, pointers tend to have low bits as zero, and the next few
   // bits follow a pattern since they are also multiples of some base value.
@@ -579,7 +576,7 @@ H AbslHashValue(H hash_state, T C::*ptr) {
   // On other platforms, we assume that pointers-to-members do not have
   // padding.
 #ifdef __cpp_lib_has_unique_object_representations
-    static_assert(std::has_unique_object_representations<T C::*>::value);
+    static_assert(std::has_unique_object_representations_v<T C::*>);
 #endif  // __cpp_lib_has_unique_object_representations
     return n;
 #endif
@@ -595,8 +592,7 @@ H AbslHashValue(H hash_state, T C::*ptr) {
 
 // AbslHashValue() for hashing pairs
 template <typename H, typename T1, typename T2>
-typename std::enable_if<is_hashable<T1>::value && is_hashable<T2>::value,
-                        H>::type
+std::enable_if_t<is_hashable<T1>::value && is_hashable<T2>::value, H>
 AbslHashValue(H hash_state, const std::pair<T1, T2>& p) {
   return H::combine(std::move(hash_state), p.first, p.second);
 }
@@ -615,7 +611,7 @@ template <typename H, typename... Ts>
 // for now.
 H
 #else   // _MSC_VER
-typename std::enable_if<std::conjunction<is_hashable<Ts>...>::value, H>::type
+std::enable_if_t<std::conjunction_v<is_hashable<Ts>...>, H>
 #endif  // _MSC_VER
 AbslHashValue(H hash_state, const std::tuple<Ts...>& t) {
   return hash_internal::hash_tuple(std::move(hash_state), t,
@@ -664,9 +660,9 @@ H AbslHashValue(H hash_state, absl::string_view str) {
 
 // Support std::wstring, std::u16string and std::u32string.
 template <typename Char, typename Alloc, typename H,
-          typename = std::enable_if_t<std::is_same<Char, wchar_t>::value ||
-                                       std::is_same<Char, char16_t>::value ||
-                                       std::is_same<Char, char32_t>::value>>
+          typename = std::enable_if_t<std::is_same_v<Char, wchar_t> ||
+                                      std::is_same_v<Char, char16_t> ||
+                                      std::is_same_v<Char, char32_t>>>
 H AbslHashValue(
     H hash_state,
     const std::basic_string<Char, std::char_traits<Char>, Alloc>& str) {
@@ -675,9 +671,9 @@ H AbslHashValue(
 
 // Support std::wstring_view, std::u16string_view and std::u32string_view.
 template <typename Char, typename H,
-          typename = std::enable_if_t<std::is_same<Char, wchar_t>::value ||
-                                       std::is_same<Char, char16_t>::value ||
-                                       std::is_same<Char, char32_t>::value>>
+          typename = std::enable_if_t<std::is_same_v<Char, wchar_t> ||
+                                      std::is_same_v<Char, char16_t> ||
+                                      std::is_same_v<Char, char32_t>>>
 H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {
   return H::combine_contiguous(std::move(hash_state), str.data(), str.size());
 }
@@ -713,7 +709,7 @@ H AbslHashValue(H hash_state, const Path& path) {
 
 // AbslHashValue for hashing std::array
 template <typename H, typename T, size_t N>
-typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<T>::value, H> AbslHashValue(
     H hash_state, const std::array<T, N>& array) {
   return H::combine_contiguous(std::move(hash_state), array.data(),
                                array.size());
@@ -721,7 +717,7 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
 
 // AbslHashValue for hashing std::deque
 template <typename H, typename T, typename Allocator>
-typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<T>::value, H> AbslHashValue(
     H hash_state, const std::deque<T, Allocator>& deque) {
   // TODO(gromer): investigate a more efficient implementation taking
   // advantage of the chunk structure.
@@ -733,7 +729,7 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
 
 // AbslHashValue for hashing std::forward_list
 template <typename H, typename T, typename Allocator>
-typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<T>::value, H> AbslHashValue(
     H hash_state, const std::forward_list<T, Allocator>& list) {
   size_t size = 0;
   for (const T& t : list) {
@@ -745,7 +741,7 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
 
 // AbslHashValue for hashing std::list
 template <typename H, typename T, typename Allocator>
-typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<T>::value, H> AbslHashValue(
     H hash_state, const std::list<T, Allocator>& list) {
   for (const auto& t : list) {
     hash_state = H::combine(std::move(hash_state), t);
@@ -759,8 +755,7 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
 // implementation of std::hash. It does not have a .data(), and a fallback for
 // std::hash<> is most likely faster.
 template <typename H, typename T, typename Allocator>
-typename std::enable_if<is_hashable<T>::value && !std::is_same<T, bool>::value,
-                        H>::type
+std::enable_if_t<is_hashable<T>::value && !std::is_same_v<T, bool>, H>
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
   return H::combine_contiguous(std::move(hash_state), vector.data(),
                                vector.size());
@@ -776,8 +771,7 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
 // it. More details on the bug:
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
 template <typename H, typename T, typename Allocator>
-typename std::enable_if<is_hashable<T>::value && std::is_same<T, bool>::value,
-                        H>::type
+std::enable_if_t<is_hashable<T>::value && std::is_same_v<T, bool>, H>
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
   typename H::AbslInternalPiecewiseCombiner combiner;
   for (const auto& i : vector) {
@@ -796,8 +790,7 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
 // Mixing in the size (as we do in our other vector<> implementations) on top
 // of the library-provided hash implementation avoids this QOI issue.
 template <typename H, typename T, typename Allocator>
-typename std::enable_if<is_hashable<T>::value && std::is_same<T, bool>::value,
-                        H>::type
+std::enable_if_t<is_hashable<T>::value && std::is_same_v<T, bool>, H>
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
   return H::combine(std::move(hash_state),
                     std::hash<std::vector<T, Allocator>>{}(vector),
@@ -812,8 +805,7 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
 // AbslHashValue for hashing std::map
 template <typename H, typename Key, typename T, typename Compare,
           typename Allocator>
-typename std::enable_if<is_hashable<Key>::value && is_hashable<T>::value,
-                        H>::type
+std::enable_if_t<is_hashable<Key>::value && is_hashable<T>::value, H>
 AbslHashValue(H hash_state, const std::map<Key, T, Compare, Allocator>& map) {
   for (const auto& t : map) {
     hash_state = H::combine(std::move(hash_state), t);
@@ -824,8 +816,7 @@ AbslHashValue(H hash_state, const std::map<Key, T, Compare, Allocator>& map) {
 // AbslHashValue for hashing std::multimap
 template <typename H, typename Key, typename T, typename Compare,
           typename Allocator>
-typename std::enable_if<is_hashable<Key>::value && is_hashable<T>::value,
-                        H>::type
+std::enable_if_t<is_hashable<Key>::value && is_hashable<T>::value, H>
 AbslHashValue(H hash_state,
               const std::multimap<Key, T, Compare, Allocator>& map) {
   for (const auto& t : map) {
@@ -836,7 +827,7 @@ AbslHashValue(H hash_state,
 
 // AbslHashValue for hashing std::set
 template <typename H, typename Key, typename Compare, typename Allocator>
-typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<Key>::value, H> AbslHashValue(
     H hash_state, const std::set<Key, Compare, Allocator>& set) {
   for (const auto& t : set) {
     hash_state = H::combine(std::move(hash_state), t);
@@ -846,7 +837,7 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 
 // AbslHashValue for hashing std::multiset
 template <typename H, typename Key, typename Compare, typename Allocator>
-typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<Key>::value, H> AbslHashValue(
     H hash_state, const std::multiset<Key, Compare, Allocator>& set) {
   for (const auto& t : set) {
     hash_state = H::combine(std::move(hash_state), t);
@@ -861,7 +852,7 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 // AbslHashValue for hashing std::unordered_set
 template <typename H, typename Key, typename Hash, typename KeyEqual,
           typename Alloc>
-typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<Key>::value, H> AbslHashValue(
     H hash_state, const std::unordered_set<Key, Hash, KeyEqual, Alloc>& s) {
   return H::combine(
       H::combine_unordered(std::move(hash_state), s.begin(), s.end()),
@@ -871,7 +862,7 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 // AbslHashValue for hashing std::unordered_multiset
 template <typename H, typename Key, typename Hash, typename KeyEqual,
           typename Alloc>
-typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<Key>::value, H> AbslHashValue(
     H hash_state,
     const std::unordered_multiset<Key, Hash, KeyEqual, Alloc>& s) {
   return H::combine(
@@ -882,8 +873,7 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 // AbslHashValue for hashing std::unordered_set
 template <typename H, typename Key, typename T, typename Hash,
           typename KeyEqual, typename Alloc>
-typename std::enable_if<is_hashable<Key>::value && is_hashable<T>::value,
-                        H>::type
+std::enable_if_t<is_hashable<Key>::value && is_hashable<T>::value, H>
 AbslHashValue(H hash_state,
               const std::unordered_map<Key, T, Hash, KeyEqual, Alloc>& s) {
   return H::combine(
@@ -894,8 +884,7 @@ AbslHashValue(H hash_state,
 // AbslHashValue for hashing std::unordered_multiset
 template <typename H, typename Key, typename T, typename Hash,
           typename KeyEqual, typename Alloc>
-typename std::enable_if<is_hashable<Key>::value && is_hashable<T>::value,
-                        H>::type
+std::enable_if_t<is_hashable<Key>::value && is_hashable<T>::value, H>
 AbslHashValue(H hash_state,
               const std::unordered_multimap<Key, T, Hash, KeyEqual, Alloc>& s) {
   return H::combine(
@@ -909,14 +898,14 @@ AbslHashValue(H hash_state,
 
 // AbslHashValue for hashing std::reference_wrapper
 template <typename H, typename T>
-typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<T>::value, H> AbslHashValue(
     H hash_state, std::reference_wrapper<T> opt) {
   return H::combine(std::move(hash_state), opt.get());
 }
 
 // AbslHashValue for hashing std::optional
 template <typename H, typename T>
-typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+std::enable_if_t<is_hashable<T>::value, H> AbslHashValue(
     H hash_state, const std::optional<T>& opt) {
   if (opt) hash_state = H::combine(std::move(hash_state), *opt);
   return H::combine(std::move(hash_state), opt.has_value());
@@ -933,8 +922,8 @@ struct VariantVisitor {
 
 // AbslHashValue for hashing std::variant
 template <typename H, typename... T>
-typename std::enable_if<std::conjunction<is_hashable<T>...>::value, H>::type
-AbslHashValue(H hash_state, const std::variant<T...>& v) {
+std::enable_if_t<std::conjunction_v<is_hashable<T>...>, H> AbslHashValue(
+    H hash_state, const std::variant<T...>& v) {
   if (!v.valueless_by_exception()) {
     hash_state = std::visit(VariantVisitor<H>{std::move(hash_state)}, v);
   }
@@ -974,15 +963,15 @@ H AbslHashValue(H hash_state, const std::bitset<N>& set) {
 // This overload accepts only uniquely-represented types, and hashes them by
 // hashing the entire range of bytes.
 template <typename H, typename T>
-typename std::enable_if<is_uniquely_represented<T>::value, H>::type
-hash_range_or_bytes(H hash_state, const T* data, size_t size) {
+std::enable_if_t<is_uniquely_represented<T>::value, H> hash_range_or_bytes(
+    H hash_state, const T* data, size_t size) {
   const auto* bytes = reinterpret_cast<const unsigned char*>(data);
   return H::combine_contiguous(std::move(hash_state), bytes, sizeof(T) * size);
 }
 
 template <typename H, typename T>
-typename std::enable_if<!is_uniquely_represented<T>::value, H>::type
-hash_range_or_bytes(H hash_state, const T* data, size_t size) {
+std::enable_if_t<!is_uniquely_represented<T>::value, H> hash_range_or_bytes(
+    H hash_state, const T* data, size_t size) {
   for (const auto end = data + size; data < end; ++data) {
     hash_state = H::combine(std::move(hash_state), *data);
   }
@@ -1321,8 +1310,7 @@ struct HashSelect {
   struct HashValueProbe {
     template <typename H, typename T>
     static auto Invoke(H state, const T& value) -> std::enable_if_t<
-        std::is_same<H,
-                     decltype(AbslHashValue(std::move(state), value))>::value,
+        std::is_same_v<H, decltype(AbslHashValue(std::move(state), value))>,
         H> {
       return AbslHashValue(std::move(state), value);
     }
@@ -1332,9 +1320,9 @@ struct HashSelect {
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
     template <typename H, typename T>
     static auto Invoke(H state, const T& value) -> std::enable_if_t<
-        std::is_convertible<
+        std::is_convertible_v<
             decltype(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>()(value)),
-            size_t>::value,
+            size_t>,
         H> {
       return hash_internal::hash_bytes(
           std::move(state),

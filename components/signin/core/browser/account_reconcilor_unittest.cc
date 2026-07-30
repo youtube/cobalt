@@ -41,6 +41,7 @@
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/base/test_signin_client.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
+#include "components/signin/public/identity_manager/accounts_cookie_mutator.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
@@ -316,6 +317,14 @@ class AccountReconcilorTest : public ::testing::Test {
       mock_reconcilor_->Shutdown();
     }
     mock_reconcilor_.reset();
+  }
+
+  void EnsureAccountsInCookieJarAreFresh() {
+    signin::IdentityManager* identity_manager =
+        identity_test_env()->identity_manager();
+    identity_manager->GetAccountsCookieMutator()->TriggerCookieJarUpdate();
+    base::RunLoop().RunUntilIdle();
+    ASSERT_TRUE(identity_manager->GetAccountsInCookieJar().AreAccountsFresh());
   }
 
   network::TestURLLoaderFactory test_url_loader_factory_;
@@ -694,9 +703,9 @@ class BaseAccountReconcilorTestTable : public AccountReconcilorTest {
     ConfigureCookieManagerService(cookies);
     std::vector<Cookie> cookies_after_reconcile = cookies;
 
-    // Call list accounts now so that the next call completes synchronously.
-    identity_test_env()->identity_manager()->GetAccountsInCookieJar();
-    base::RunLoop().RunUntilIdle();
+    // Ensure that accounts in cookie jar are fresh so the next call to
+    // GetAccountsInCookieJar() completes synchronously.
+    EnsureAccountsInCookieJarAreFresh();
 
     // Setup tokens. This triggers listing cookies so we need to setup cookies
     // before that.
@@ -1343,7 +1352,7 @@ TEST_F(AccountReconcilorDiceTest, DeleteCookieForNonSyncingSupervisedUsers) {
   AccountInfo account_info = identity_test_env()->MakePrimaryAccountAvailable(
       kFakeEmail, signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_parental_controls(true);
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 
@@ -1370,7 +1379,7 @@ TEST_F(AccountReconcilorDiceTest, DeleteCookieForSyncingSupervisedUsers) {
   AccountInfo account_info = identity_test_env()->MakePrimaryAccountAvailable(
       kFakeEmail, consent_level_for_reconcile_);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_parental_controls(true);
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 
@@ -1958,6 +1967,45 @@ TEST_F(AccountReconcilorMirrorTest, StartReconcileNoop) {
   histogram_tester()->ExpectUniqueSample(
       AccountReconcilor::kTriggerNoopHistogramName,
       AccountReconcilor::Trigger::kCookieChange, 1);
+}
+
+TEST_F(AccountReconcilorMirrorTest, StartReconcileCookieJarFresh) {
+  AccountInfo account_info = ConnectProfileToAccount(kFakeEmail);
+
+  signin::SetListAccountsResponseOneAccount(
+      account_info.email, account_info.gaia, &test_url_loader_factory_);
+  EnsureAccountsInCookieJarAreFresh();
+
+  AccountReconcilor* reconcilor = GetMockReconcilor();
+  ASSERT_TRUE(reconcilor);
+  base::HistogramTester tester;
+  reconcilor->StartReconcile(AccountReconcilor::Trigger::kCookieChange);
+
+  // Cookie jar is fresh when StartReconcile is called, so it should record
+  // true.
+  tester.ExpectUniqueSample(AccountReconcilor::kCookieJarIsFreshHistogramName,
+                            true, 1);
+}
+
+TEST_F(AccountReconcilorMirrorTest, StartReconcileCookieJarStale) {
+  AccountInfo account_info = ConnectProfileToAccount(kFakeEmail);
+
+  // By default, the accounts in the cookie jar are stale/not fresh.
+  ASSERT_FALSE(identity_test_env()
+                   ->identity_manager()
+                   ->GetAccountsInCookieJar()
+                   .AreAccountsFresh());
+
+  AccountReconcilor* reconcilor = GetMockReconcilor();
+  ASSERT_TRUE(reconcilor);
+
+  base::HistogramTester tester;
+  reconcilor->StartReconcile(AccountReconcilor::Trigger::kCookieChange);
+
+  // Cookie jar is stale when StartReconcile is called, so it should record
+  // false.
+  tester.ExpectUniqueSample(AccountReconcilor::kCookieJarIsFreshHistogramName,
+                            false, 1);
 }
 
 TEST_F(AccountReconcilorMirrorTest, StartReconcileCookiesDisabled) {

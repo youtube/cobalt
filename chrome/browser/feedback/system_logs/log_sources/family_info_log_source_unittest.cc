@@ -28,7 +28,7 @@ namespace {
 // Configures the account_info so that ListFamilyMembersService will fetch
 // family info for that account.
 AccountInfo& WithFamilyInfoFetching(AccountInfo& account_info) {
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   if (supervised_user::FetchListFamilyMembersWithCapability()) {
     mutator.set_can_fetch_family_member_info(true);
     mutator.set_is_subject_to_parental_controls(false);

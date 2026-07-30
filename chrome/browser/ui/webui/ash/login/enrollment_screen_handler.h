@@ -21,17 +21,6 @@ namespace ash {
 
 class HelpAppLauncher;
 
-// Possible error states of the Active Directory screen. Must be in the same
-// order as ActiveDirectoryErrorState ( in enterprise_enrollment.js ) values.
-enum class ActiveDirectoryErrorState {
-  NONE = 0,
-  MACHINE_NAME_INVALID = 1,
-  MACHINE_NAME_TOO_LONG = 2,
-  BAD_USERNAME = 3,
-  BAD_AUTH_PASSWORD = 4,
-  BAD_UNLOCK_PASSWORD = 5,
-};
-
 // WebUIMessageHandler implementation which handles events occurring on the
 // page, such as the user pressing the signin button.
 class EnrollmentScreenHandler : public BaseScreenHandler,

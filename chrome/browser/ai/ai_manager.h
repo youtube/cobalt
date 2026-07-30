@@ -165,6 +165,8 @@ class AIManager : public base::SupportsUserData::Data,
       const base::flat_set<std::string>& default_supported);
 
  private:
+  bool IsPromptApiEnabled() const;
+
   base::OnceCallback<void(std::unique_ptr<optimization_guide::OnDeviceSession>)>
   CreateSummarizerSessionCallback(
       blink::mojom::AISummarizerCreateOptionsPtr options,

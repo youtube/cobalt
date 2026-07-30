@@ -3614,15 +3614,6 @@ TEST_P(EventRewriterTest, DontRewriteIfNotRewritten_AltClickIsRightClick_New) {
   EXPECT_EQ(message_center_.NotificationCount(), 0u);
 }
 
-TEST_P(EventRewriterTest, DontRewriteIfNotRewritten_SearchClickIsRightClick) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {features::kUseSearchClickForRightClick},
-      {features::kAltClickAndSixPackCustomization});
-  DontRewriteIfNotRewritten(ui::EF_LEFT_MOUSE_BUTTON | ui::EF_COMMAND_DOWN);
-  EXPECT_EQ(message_center_.NotificationCount(), 0u);
-}
-
 TEST_P(EventRewriterTest, DontRewriteIfNotRewritten_AltClickDeprecated) {
   // Pressing search+click with alt+click deprecated works, but does not
   // generate a notification.

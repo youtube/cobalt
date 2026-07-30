@@ -317,18 +317,22 @@ public class LayerTitleCache {
     /**
      * Updates the Glic button text texture.
      *
-     * @param titleString the text to be displayed on the button
-     * @param isActor whether the button is the actor button
-     * @return the resource ID for the generated text bitmap.
+     * @param titleString The text to be displayed on the button.
+     * @param isActor Whether the button is the actor button.
+     * @param isIncognito Whether the button is in incognito mode.
+     * @return The resource ID for the generated text bitmap.
      */
-    public int getUpdatedGlicButtonText(@Nullable String titleString, boolean isActor) {
+    public int getUpdatedGlicButtonText(
+            @Nullable String titleString, boolean isActor, boolean isIncognito) {
         BitmapDynamicResource res = isActor ? mGlicActorButtonTextRes : mGlicButtonTextRes;
         if (TextUtils.isEmpty(titleString)) {
             mResourceManager.getDynamicResourceLoader().unregisterResource(res.getResId());
             return Resources.ID_NULL;
         }
 
-        Bitmap titleBitmap = mStandardTitleBitmapFactory.getButtonTextBitmap(titleString);
+        TitleBitmapFactory titleBitmapFactory =
+                isIncognito ? mDarkTitleBitmapFactory : mStandardTitleBitmapFactory;
+        Bitmap titleBitmap = titleBitmapFactory.getButtonTextBitmap(titleString);
         res.setBitmap(titleBitmap);
         if (mResourceManager.getDynamicResourceLoader().getResource(res.getResId()) == null) {
             mResourceManager.getDynamicResourceLoader().registerResource(res.getResId(), res);

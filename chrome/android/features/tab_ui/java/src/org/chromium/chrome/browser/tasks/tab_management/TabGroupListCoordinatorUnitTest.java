@@ -34,6 +34,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper.FaviconImageCallback;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelperJni;
@@ -74,7 +75,7 @@ public class TabGroupListCoordinatorUnitTest {
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
                         activity,
-                        /* isTabStrip= */ false,
+                        TabListMode.GRID,
                         R.dimen.default_favicon_corner_radius,
                         /* tabWebContentsFaviconDelegate= */ null);
     }

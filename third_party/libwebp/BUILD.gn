@@ -59,6 +59,7 @@ source_set("libwebp_webp") {
     "src/src/webp/mux_types.h",
     "src/src/webp/types.h",
   ]
+  public_configs = [ ":libwebp_public_config" ]
 }
 
 static_library("libwebp_dec") {
@@ -149,7 +150,9 @@ source_set("libwebp_dsp_headers") {
     "src/src/dsp/neon.h",
     "src/src/dsp/quant.h",
     "src/src/dsp/yuv.h",
+    "src/src/utils/bounds_safety.h",
   ]
+  public_configs = [ ":libwebp_public_config" ]
 }
 
 static_library("libwebp_dsp") {
@@ -428,7 +431,17 @@ static_library("libwebp_enc") {
 source_set("libwebp_sharpyuv_dsp_headers") {
   visibility += allowed_visibility
 
-  public = [ "src/sharpyuv/sharpyuv_dsp.h" ]
+  public = [
+    "src/sharpyuv/sharpyuv.h",
+    "src/sharpyuv/sharpyuv_cpu.h",
+    "src/sharpyuv/sharpyuv_csp.h",
+    "src/sharpyuv/sharpyuv_dsp.h",
+    "src/sharpyuv/sharpyuv_gamma.h",
+  ]
+  public_deps = [
+    ":libwebp_dsp_headers",
+    ":libwebp_webp",
+  ]
 }
 
 source_set("libwebp_dsp_cpu_c") {
@@ -566,6 +579,7 @@ static_library("libwebp_utils") {
     "src/src/utils/bit_reader_utils.h",
     "src/src/utils/bit_writer_utils.c",
     "src/src/utils/bit_writer_utils.h",
+    "src/src/utils/bounds_safety.h",
     "src/src/utils/color_cache_utils.c",
     "src/src/utils/color_cache_utils.h",
     "src/src/utils/endian_inl_utils.h",
@@ -844,6 +858,7 @@ test("libwebp_enc_dec_api_fuzzer") {
     ":libwebp",
     ":libwebp_dsp_headers",
     ":libwebp_fuzz_utils",
+    ":libwebp_utils",
     ":libwebp_webp",
     "//third_party/fuzztest",
     "//third_party/fuzztest:fuzztest_gtest_main",

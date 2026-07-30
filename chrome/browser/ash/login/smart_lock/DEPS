@@ -27,7 +27,12 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/multidevice_setup",
   "+chrome/common/chrome_switches.h",
   "+chrome/common/extensions",
-  "+chrome/common/pref_names.h",
   "+chrome/grit",
   "+chrome/test/base",
 ]
+
+specific_include_rules = {
+  "smart_lock_service_unittest\\.cc": [
+    "+chrome/common/pref_names.h",
+  ],
+}

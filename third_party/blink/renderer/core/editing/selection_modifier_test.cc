@@ -35,20 +35,20 @@ class SelectionModifierTest : public EditingTestBase {
 
 TEST_F(SelectionModifierTest, ExtendForwardByWordNone) {
   SetBodyContent("abc");
-  SelectionModifier modifier(GetFrame(), SelectionInDOMTree());
+  SelectionModifier modifier(GetFrame(), SelectionInDomTree());
   modifier.Modify(SelectionModifyAlteration::kExtend,
                   SelectionModifyDirection::kForward, TextGranularity::kWord);
   // We should not crash here. See http://crbug.com/832061
-  EXPECT_EQ(SelectionInDOMTree(), modifier.Selection().AsSelection());
+  EXPECT_EQ(SelectionInDomTree(), modifier.Selection().AsSelection());
 }
 
 TEST_F(SelectionModifierTest, MoveForwardByWordNone) {
   SetBodyContent("abc");
-  SelectionModifier modifier(GetFrame(), SelectionInDOMTree());
+  SelectionModifier modifier(GetFrame(), SelectionInDomTree());
   modifier.Modify(SelectionModifyAlteration::kMove,
                   SelectionModifyDirection::kForward, TextGranularity::kWord);
   // We should not crash here. See http://crbug.com/832061
-  EXPECT_EQ(SelectionInDOMTree(), modifier.Selection().AsSelection());
+  EXPECT_EQ(SelectionInDomTree(), modifier.Selection().AsSelection());
 }
 
 // http://crbug.com/1300781
@@ -61,7 +61,7 @@ TEST_F(SelectionModifierTest, MoveByLineBlockInInline) {
       "writing-mode: horizontal-tb;"
       "}"
       "b { background: orange; }");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<div>ab|c<b><p>ABC</p><p>DEF</p>def</b></div>");
   SelectionModifier modifier(GetFrame(), selection);
 
@@ -88,7 +88,7 @@ TEST_F(SelectionModifierTest, MoveByLineHorizontal) {
       "padding: 10px;"
       "writing-mode: horizontal-tb;"
       "}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<p>ab|c<br>d<br><br>ghi</p>");
   SelectionModifier modifier(GetFrame(), selection);
 
@@ -105,7 +105,7 @@ TEST_F(SelectionModifierTest, MoveByLineMultiColumnSingleText) {
   LoadAhem();
   InsertStyleElement(
       "div { font: 10px/15px Ahem; column-count: 3; width: 20ch; }");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<div>|abc def ghi jkl mno pqr</div>");
   // This HTML is rendered as:
   //    abc ghi mno
@@ -139,7 +139,7 @@ TEST_F(SelectionModifierTest, MoveByLineVertical) {
       "padding: 10px;"
       "writing-mode: vertical-rl;"
       "}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<p>ab|c<br>d<br><br>ghi</p>");
   SelectionModifier modifier(GetFrame(), selection);
 
@@ -154,7 +154,7 @@ TEST_F(SelectionModifierTest, MoveByLineVertical) {
 
 TEST_F(SelectionModifierTest, PreviousLineWithDisplayNone) {
   InsertStyleElement("body{font-family: monospace}");
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<div contenteditable>"
       "<div>foo bar</div>"
       "<div>foo <b style=\"display:none\">qux</b> bar baz|</div>"
@@ -173,7 +173,7 @@ TEST_F(SelectionModifierTest, PreviousLineWithDisplayNone) {
 // For http://crbug.com/1104582
 TEST_F(SelectionModifierTest, PreviousSentenceWithNull) {
   InsertStyleElement("b {display:inline-block}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<b><b><a>|</a></b></b>");
   SelectionModifier modifier(GetFrame(), selection);
   // We call |PreviousSentence()| with null-position.
@@ -185,7 +185,7 @@ TEST_F(SelectionModifierTest, PreviousSentenceWithNull) {
 // For http://crbug.com/1100971
 TEST_F(SelectionModifierTest, StartOfSentenceWithNull) {
   InsertStyleElement("b {display:inline-block}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("|<b><b><a></a></b></b>");
   SelectionModifier modifier(GetFrame(), selection);
   // We call |StartOfSentence()| with null-position.
@@ -203,7 +203,7 @@ TEST_F(SelectionModifierTest, ExtendByLineWithInlineBlockPseudoAfterBr) {
   InsertStyleElement(
       "body { font: 10px/20px Ahem; }"
       ".after::after { content: ''; display: inline-block; }");
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<div class='after'>first|<br></div>"
       "<div>second</div>");
   SelectionModifier modifier(GetFrame(), selection);
@@ -215,7 +215,7 @@ TEST_F(SelectionModifierTest, ExtendByLineWithInlineBlockPseudoAfterBr) {
 
   // The selection should extend to the second div, not go in reverse
   // direction or stay in place.
-  const SelectionInDOMTree result = modifier.Selection().AsSelection();
+  const SelectionInDomTree result = modifier.Selection().AsSelection();
   EXPECT_FALSE(result.IsNone());
   EXPECT_TRUE(result.IsRange());
 
@@ -257,7 +257,7 @@ TEST_F(SelectionModifierTest, MoveCaretWithShadow) {
   Node* f = body->childNodes()->item(2);
 
   auto makeSelection = [&](Position position) {
-    return SelectionInDOMTree::Builder().Collapse(position).Build();
+    return SelectionInDomTree::Builder().Collapse(position).Build();
   };
   SelectionModifyAlteration move = SelectionModifyAlteration::kMove;
   SelectionModifyDirection direction;
@@ -385,7 +385,7 @@ TEST_F(SelectionModifierTest, MoveCaretWithShadow) {
 
 // For https://crbug.com/1155342 and https://crbug.com/1155309
 TEST_F(SelectionModifierTest, PreviousParagraphOfObject) {
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<object>|</object>");
   SelectionModifier modifier(GetFrame(), selection);
   modifier.Modify(SelectionModifyAlteration::kMove,
@@ -397,7 +397,7 @@ TEST_F(SelectionModifierTest, PreviousParagraphOfObject) {
 
 // For https://crbug.com/1177295
 TEST_F(SelectionModifierTest, PositionDisconnectedInFlatTree1) {
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<div id=a><div id=b><div id=c>^x|</div></div></div>");
   SetShadowContent("", "a");
   SetShadowContent("", "b");
@@ -426,8 +426,8 @@ TEST_F(SelectionModifierTest, PositionDisconnectedInFlatTree2) {
     bool flat_anchor_is_connected = ToPositionInFlatTree(anchor).IsConnected();
     EXPECT_EQ(anchor.AnchorNode() == host, flat_anchor_is_connected);
     for (const Position& focus : positions) {
-      const SelectionInDOMTree& selection =
-          SelectionInDOMTree::Builder().SetBaseAndExtent(anchor, focus).Build();
+      const SelectionInDomTree& selection =
+          SelectionInDomTree::Builder().SetBaseAndExtent(anchor, focus).Build();
       Selection().SetSelection(selection, SetSelectionOptions());
       SelectionModifier modifier(GetFrame(), selection);
       modifier.Modify(SelectionModifyAlteration::kExtend,
@@ -456,7 +456,7 @@ TEST_F(SelectionModifierTest, OptgroupAndTable) {
                               SelectionModifyDirection::kForward,
                               TextGranularity::kLine));
 
-  const SelectionInDOMTree& selection = modifier.Selection().AsSelection();
+  const SelectionInDomTree& selection = modifier.Selection().AsSelection();
   EXPECT_EQ(
       "<optgroup></optgroup><table><tbody><tr><td></td></tr></tbody></table>",
       GetSelectionTextFromBody(selection));
@@ -480,7 +480,7 @@ TEST_F(SelectionModifierTest, ExtendBackwardByLineThreeLinesSoftWrap) {
       "word-wrap: break-word;"
       "}");
   // 30 chars with 10 chars per line = 3 visual lines.
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<p contenteditable>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|</p>");
   SelectionModifier modifier(GetFrame(), selection);
   modifier.SetSelectionIsDirectional(true);
@@ -511,7 +511,7 @@ TEST_F(SelectionModifierTest, ExtendForwardByLineThroughSoftWrap) {
       "word-wrap: break-word;"
       "}");
   // 30 chars with 10 chars per line = 3 visual lines.
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<p contenteditable>|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</p>");
   SelectionModifier modifier(GetFrame(), selection);
   modifier.SetSelectionIsDirectional(true);
@@ -533,7 +533,7 @@ TEST_F(SelectionModifierTest, ExtendForwardByLineThroughSoftWrap) {
 }
 
 TEST_F(SelectionModifierTest, EditableVideo) {
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("a^<video contenteditable> </video>|");
   GetFrame().GetSettings()->SetEditingBehaviorType(
       mojom::EditingBehavior::kEditingUnixBehavior);

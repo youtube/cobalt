@@ -525,9 +525,7 @@ public class AwContents implements SmartClipProvider {
     private final AwDisplayCutoutController mDisplayCutoutController;
     private final AwDisplayModeController mDisplayModeController;
     private final Rect mCachedSafeAreaRect = new Rect();
-
     private AwDarkMode mAwDarkMode;
-    private AwWebContentsMetricsRecorder mAwWebContentsMetricsRecorder;
 
     private final StylusWritingController mStylusWritingController;
 
@@ -1672,11 +1670,6 @@ public class AwContents implements SmartClipProvider {
             mWebContentsObserver.observe(null);
         }
         mWebContentsObserver = new AwWebContentsObserver(mWebContents, this, mContentsClient);
-        if (mAwWebContentsMetricsRecorder != null) {
-            mAwWebContentsMetricsRecorder.observe(null);
-        }
-        mAwWebContentsMetricsRecorder =
-                new AwWebContentsMetricsRecorder(mWebContents, mContext, mSettings);
     }
 
     /**
@@ -1956,8 +1949,6 @@ public class AwContents implements SmartClipProvider {
 
             mWebContentsObserver.observe(null);
             mWebContentsObserver = null;
-            mAwWebContentsMetricsRecorder.observe(null);
-            mAwWebContentsMetricsRecorder = null;
             mNativeAwContents = 0;
             mWebContents = null;
             mWebContentsInternals = null;
@@ -3975,10 +3966,7 @@ public class AwContents implements SmartClipProvider {
     @CalledByNative
     private static void generateMHTMLCallback(String path, long size, Callback<String> callback) {
         if (callback == null) return;
-        AwThreadUtils.postToUiThreadLooper(
-                () -> {
-                    callback.onResult(size < 0 ? null : path);
-                });
+        AwThreadUtils.postToUiThreadLooper(callback.bind(size < 0 ? null : path));
     }
 
     @CalledByNative

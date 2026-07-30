@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/waap/waap_ui_metrics_service_factory.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "components/startup_metric_utils/common/startup_metric_utils.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace {
 
@@ -80,12 +81,10 @@ enum class InitialWebUIView {
 void EmitHistogramWithTraceEvent(const char* event_name,
                                  base::TimeTicks start_ticks,
                                  base::TimeTicks end_ticks) {
-  TRACE_EVENT_BEGIN("waap", perfetto::DynamicString(event_name),
-                    perfetto::Track(reinterpret_cast<uintptr_t>(event_name)),
+  auto track = perfetto::NamedTrack(perfetto::DynamicString(event_name));
+  TRACE_EVENT_BEGIN("waap", perfetto::DynamicString(event_name), track,
                     start_ticks);
-  TRACE_EVENT_END("waap",
-                  perfetto::Track(reinterpret_cast<uintptr_t>(event_name)),
-                  end_ticks);
+  TRACE_EVENT_END("waap", track, end_ticks);
 
   const base::TimeDelta delta = end_ticks - start_ticks;
   base::UmaHistogramLongTimes100(event_name, delta);
@@ -97,12 +96,10 @@ void EmitReloadButtonHistogramWithTraceEvent(const char* event_name,
                                              base::TimeTicks start_ticks,
                                              base::TimeTicks end_ticks) {
   const base::TimeDelta duration = end_ticks - start_ticks;
-  TRACE_EVENT_BEGIN("waap", perfetto::DynamicString(event_name),
-                    perfetto::Track(reinterpret_cast<uintptr_t>(event_name)),
+  auto track = perfetto::NamedTrack(perfetto::DynamicString(event_name));
+  TRACE_EVENT_BEGIN("waap", perfetto::DynamicString(event_name), track,
                     start_ticks);
-  TRACE_EVENT_END("waap",
-                  perfetto::Track(reinterpret_cast<uintptr_t>(event_name)),
-                  end_ticks);
+  TRACE_EVENT_END("waap", track, end_ticks);
   base::UmaHistogramCustomTimes(event_name, duration, base::Milliseconds(1),
                                 base::Minutes(3), 100);
 }

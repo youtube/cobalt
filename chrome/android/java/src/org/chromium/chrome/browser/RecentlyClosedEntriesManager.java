@@ -29,6 +29,7 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowApp
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp.RecentlyClosedBridge;
+import org.chromium.chrome.browser.ntp.RecentlyClosedBulkEvent;
 import org.chromium.chrome.browser.ntp.RecentlyClosedEntry;
 import org.chromium.chrome.browser.ntp.RecentlyClosedGroup;
 import org.chromium.chrome.browser.ntp.RecentlyClosedTab;
@@ -329,8 +330,16 @@ public class RecentlyClosedEntriesManager {
                 // TODO(crbug.com/509065810): We might be able to make searching for tabs inside
                 // groups faster by using a different path for tab groups. We have access to
                 // both the parent group entry as well as the exact tab entry.
+                // TODO(crbug.com/509065811): Consider adding an interface that allows us to call
+                // {@link getTabs()} so that we can combine these blocks.
                 if (sessionEntry instanceof RecentlyClosedGroup group) {
                     for (RecentlyClosedTab tab : group.getTabs()) {
+                        if (tab.getSessionId() == id) {
+                            return tab;
+                        }
+                    }
+                } else if (sessionEntry instanceof RecentlyClosedBulkEvent bulkEvent) {
+                    for (RecentlyClosedTab tab : bulkEvent.getTabs()) {
                         if (tab.getSessionId() == id) {
                             return tab;
                         }

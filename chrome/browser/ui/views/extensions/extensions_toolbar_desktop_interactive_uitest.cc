@@ -118,7 +118,7 @@ class ExtensionsToolbarDesktopUITest : public ExtensionsToolbarUITest {
     // resolve this activation request asynchronously. Showing the extension
     // popup is also done asynchronously.
     // Extension popups will close their bubble Widget if the hosting window
-    // recieves activation. If we do not wait for the activation first this
+    // receives activation. If we do not wait for the activation first this
     // results in a race condition whereby if the bubble is created first it is
     // immediately closed when the activation event is propagated. Thus ensure
     // we first wait for the browser window activation here.

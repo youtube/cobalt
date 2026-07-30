@@ -36,9 +36,9 @@ class UI_ANDROID_EXPORT OverscrollRefreshHandler {
   // Signals a pull update, where |x_delta| and |y_delta| are in device pixels.
   virtual void PullUpdate(float x_delta, float y_delta);
 
-  // Signals the release of the pull, and whether the release is allowed to
-  // trigger the refresh action.
-  virtual void PullRelease(bool allow_refresh);
+  // Signals the release of the pull, and whether the release is allowed to or
+  // force to trigger the refresh action.
+  virtual void PullRelease(OverscrollActivationStatus status);
 
   // Reset the active pull state.
   virtual void PullReset();

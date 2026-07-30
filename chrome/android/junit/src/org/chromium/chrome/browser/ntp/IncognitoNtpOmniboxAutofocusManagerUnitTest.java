@@ -307,7 +307,7 @@ public class IncognitoNtpOmniboxAutofocusManagerUnitTest {
         mTabObserver = simulateDidAddTab(mTab, mNtpGurl);
 
         when(mTabModelSelector.getCurrentTab()).thenReturn(mTab);
-        when(mLayoutManager.getActiveLayoutType()).thenReturn(LayoutType.TAB_SWITCHER);
+        when(mLayoutManager.getActiveLayoutType()).thenReturn(LayoutType.HUB);
 
         mTabObserver.onPageLoadFinished(mTab, mNtpGurl);
 

@@ -405,17 +405,34 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
 New bookmarks can’t be saved in your account until you delete some. If you sign out now, unsaved bookmarks will be deleted.
         </message>
       </if>
-      <message name="IDS_RESET_PROFILE_SETTINGS_EXPLANATION_IN_BULLET_POINTS" desc="A label formatted with bullet points describing the consequences of the 'reset profile settings' feature">
-        This action will:
-        <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
-          • Reset some Chromium settings and Chromium shortcuts
-          <ph name="LINE_BREAK">&lt;br&gt;</ph>
-          • Disable extensions
-          <ph name="LINE_BREAK">&lt;br&gt;</ph>
-          • Delete cookies and other temporary site data
+      <if expr="is_win">
+        <message name="IDS_RESET_PROFILE_SETTINGS_EXPLANATION_IN_BULLET_POINTS" desc="A label formatted with bullet points describing the consequences of the 'reset profile settings' feature">
+          This action will:
           <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
-          Bookmarks, history, and saved passwords won't be affected.
-      </message>
+            • Reset your startup page, new tab page, search engine and pinned tabs
+            <ph name="LINE_BREAK">&lt;br&gt;</ph>
+            • Disable extensions
+            <ph name="LINE_BREAK">&lt;br&gt;</ph>
+            • Delete cookies and other temporary site data
+            <ph name="LINE_BREAK">&lt;br&gt;</ph>
+            • Reset Chromium shortcuts
+            <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
+            Bookmarks, history, and saved passwords won't be affected.
+        </message>
+      </if>
+      <if expr="not is_win">
+        <message name="IDS_RESET_PROFILE_SETTINGS_EXPLANATION_IN_BULLET_POINTS" desc="A label formatted with bullet points describing the consequences of the 'reset profile settings' feature">
+          This action will:
+          <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
+            • Reset your startup page, new tab page, search engine and pinned tabs
+            <ph name="LINE_BREAK">&lt;br&gt;</ph>
+            • Disable extensions
+            <ph name="LINE_BREAK">&lt;br&gt;</ph>
+            • Delete cookies and other temporary site data
+            <ph name="LINE_BREAKS">&lt;br&gt;&lt;br&gt;</ph>
+            Bookmarks, history, and saved passwords won't be affected.
+        </message>
+      </if>
       <if expr="not is_chromeos">
         <!-- Browser Window Title Format -->
         <if expr="_is_chrome_for_testing_branded">
@@ -669,7 +686,7 @@ Chromium is unable to recover your settings.
       <message name="IDS_PASSWORD_MANAGER_TITLE_BRAND" desc="The product name used in the title of the password bubble." translateable="false">
         Chromium
       </message>
-      <message name="IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE" desc="The text of the Google Password Manager links displayed on Password Manager bubbles footer when the credentials are stored only locally.">
+      <message name="IDS_PASSWORD_MANAGER_BRAND_NAME" desc="This string is used both as a standalone label and injected into sentences. Please translate this as a standalone noun in the Nominative case to ensure it looks correct in titles. Sentence structures surrounding it may read slightly awkwardly.">
         Password Manager
       </message>
       <message name="IDS_PASSWORD_MANAGER_SAVE_PASSWORD_SIGNED_OUT_MESSAGE_DESCRIPTION" desc="The description of the Password Manager's save password message when the user is signed out.">
@@ -1955,6 +1972,15 @@ Chromium is unable to recover your settings.
           Pinned! You can access Image Search again from the new button on the toolbar
         </message>
 
+        <message name="IDS_TUTORIAL_CONTEXTUAL_TASKS_STEP1" desc="The body text of the first step of the Contextual Tasks tutorial.">
+          You can pin Contextual Tasks to easily ask questions as you browse
+        </message>
+        <message name="IDS_TUTORIAL_CONTEXTUAL_TASKS_STEP2" desc="The body text of the second step of the Contextual Tasks tutorial.">
+          Select "Pin to toolbar"
+        </message>
+        <message name="IDS_TUTORIAL_CONTEXTUAL_TASKS_STEP3" desc="The body text of the third step of the Contextual Tasks tutorial.">
+          Pinned! Use Contextual Tasks again from the toolbar
+        </message>
         <!-- Overlay WebUI Strings -->
         <message name="IDS_LENS_OVERLAY_COPY"
           desc="Command in the Lens Overlay context menu to copy text.">
@@ -3295,6 +3321,14 @@ If this page isn’t working as expected, try allowing optimization.
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_BUTTON_LABEL" desc="Label of the sign-in button in the send-tab-to-self sign-in promo bubble.">
         Sign in to Chromium
+      </message>
+
+      <!-- Enterprise device signals disclaimer -->
+      <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_TITLE" desc="Title of an enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection.">
+        Your work secured on Chromium
+      </message>
+      <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_SUBTITLE" desc="Subtitle of an enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection.">
+        To secure your work on Chromium, your organization will be able to view or manage certain information
       </message>
     </messages>
   </release>

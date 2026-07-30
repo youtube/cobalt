@@ -1435,6 +1435,40 @@
       field_group: "*",
       default_value: "false",
       invalidate: ["layout"]
+    },
+    // We store the `continue` and `max-lines` line-clamp longhands in extra
+    // fields so we can use the same storage whether we're exposing the
+    // longhands, or whether we're only exposing line-clamp as a longhand.
+    {
+      name: "Continue",
+      field_group: "*",
+      field_template: "keyword",
+      keywords: ["normal", "collapse", "-webkit-legacy"],
+      default_value: "normal",
+      invalidate: ["layout", "paint"],
+    },
+    {
+      name: "MaxLines",
+      field_group: "*",
+      field_template: "external",
+      include_paths: ["third_party/blink/renderer/core/style/max_lines_data.h"],
+      default_value: "MaxLinesData(0, true)",
+      type_name: "MaxLinesData",
+      keywords: ["auto"],
+      invalidate: ["layout", "paint"],
+    },
+    {
+      // This corresponds to `block-ellipsis`, except it's only used when we're
+      // exposing line-clamp as a longhand. The difference with `continue` and
+      // `max-lines` is that the `block-ellipsis` longhand is inherited, whereas
+      // when setting this field it won't inherit.
+      name: "LineClampInternalBlockEllipsis",
+      field_group: "*",
+      field_template: "keyword",
+      keywords: ["ellipsis", "no-ellipsis"],
+      type_name: "EBlockEllipsis",
+      default_value: "no-ellipsis",
+      invalidate: ["layout", "paint"],
     }
   ],
 }

@@ -505,6 +505,9 @@ void ProfilePickerFlowController::Init() {
   // If an initial email was provided, switch to the account selection step and
   // prefill the email field.
   if (!initial_email_.empty()) {
+    signin_metrics::LogSignInOffered(
+        signin_metrics::AccessPoint::kUserManagerWithPrefilledEmail,
+        signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO);
     SwitchToIdentityStepsFromAccountSelection(
         StepSwitchFinishedCallback(),
         signin_metrics::AccessPoint::kUserManagerWithPrefilledEmail,

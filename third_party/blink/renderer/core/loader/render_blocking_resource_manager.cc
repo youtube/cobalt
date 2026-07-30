@@ -158,8 +158,6 @@ void RenderBlockingResourceManager::AddPendingParsingElementLink(
                                                            blocking_level);
   if (blocking_level == RenderBlockingLevel::kBlock) {
     document_->SetHasRenderBlockingExpectLinkElements(true);
-  } else if (blocking_level == RenderBlockingLevel::kLimitFrameRate) {
-    document_->SetHasFullFrameRateBlockingExpectLinkElements(true);
   }
 }
 
@@ -184,9 +182,7 @@ void RenderBlockingResourceManager::RemovePendingParsingElementLink(
 
 void RenderBlockingResourceManager::ClearPendingParsingElements() {
   if (!element_render_blocking_links_->HasElement(
-          RenderBlockingLevel::kBlock) &&
-      !element_render_blocking_links_->HasElement(
-          RenderBlockingLevel::kLimitFrameRate)) {
+          RenderBlockingLevel::kBlock)) {
     return;
   }
   element_render_blocking_links_->ForEach(BindRepeating(
@@ -207,8 +203,6 @@ void RenderBlockingResourceManager::OnRenderBlockingElementLinkEmpty(
   if (level == RenderBlockingLevel::kBlock) {
     document_->SetHasRenderBlockingExpectLinkElements(false);
     RenderBlockingResourceUnblocked();
-  } else if (level == RenderBlockingLevel::kLimitFrameRate) {
-    document_->SetHasFullFrameRateBlockingExpectLinkElements(false);
   }
 }
 

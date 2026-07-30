@@ -83,6 +83,7 @@ class EmbeddedPermissionControlCheckerTest
   EmbeddedPermissionControlCheckerTest() {
     scoped_feature_list_.InitWithFeatures(
         /* enabled_features */ {blink::features::kUserMediaElement,
+                                blink::features::kUserMediaElementLegacy,
                                 blink::features::kGeolocationElement},
         /* disabled_features */ {});
   }

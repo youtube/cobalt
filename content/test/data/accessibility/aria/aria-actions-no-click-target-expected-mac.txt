@@ -1,0 +1,20 @@
+AXWebArea
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Save']
+++++AXStaticText AXValue='Mixed host'
+++AXButton AXTitle='Save'
+++AXButton AXTitle='Edit'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='Disabled host'
+++AXButton AXTitle='Delete'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='Span host'
+++AXGroup
+++++AXStaticText AXValue='Not clickable'
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Run']
+++++AXStaticText AXValue='Listener host'
+++AXButton AXTitle='Run'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='All invalid host'
+++AXButton AXTitle='No listener'
+++AXGroup
+++++AXStaticText AXValue='Plain text'

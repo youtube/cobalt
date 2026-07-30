@@ -805,7 +805,7 @@ TEST_P(StylusWritingGestureTest, TestPreviewHandwritingGesture_Select) {
   EXPECT_EQ(12u, marker->EndOffset());
 
   EXPECT_EQ(DocumentMarker::kPreviewStylusGesture, marker->GetType());
-  Color preview_color = LayoutTheme::TapHighlightColor();
+  Color preview_color = LayoutTheme::GetTheme().TapHighlightColor();
   const auto* styleable_marker = To<StyleableMarker>(marker.Get());
   EXPECT_EQ(preview_color, styleable_marker->BackgroundColor());
 }

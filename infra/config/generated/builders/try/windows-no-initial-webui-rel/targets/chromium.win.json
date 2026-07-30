@@ -41,7 +41,6 @@
         "module_name": "//chrome/test:browser_tests",
         "module_scheme": "gtest",
         "name": "browser_tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
@@ -64,7 +63,6 @@
         "module_name": "//chrome/test:interactive_ui_tests",
         "module_scheme": "gtest",
         "name": "interactive_ui_tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
@@ -87,7 +85,6 @@
         "module_name": "//chrome/test:unit_tests",
         "module_scheme": "gtest",
         "name": "unit_tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",

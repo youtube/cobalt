@@ -9,6 +9,7 @@
 #include "base/base64.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
+#include "components/autofill/core/browser/proto/api_v1_fuzzable.pb.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_data_test_api.h"
@@ -31,7 +32,8 @@ void AddField(const std::string& label,
   test_api(*form_data).Append(field);
 }
 
-std::string SerializeAndEncode(const AutofillQueryResponse& response) {
+std::string SerializeAndEncode(
+    const fuzzable::autofill::AutofillQueryResponse& response) {
   std::string unencoded_response_string;
   if (!response.SerializeToString(&unencoded_response_string)) {
     LOG(ERROR) << "Cannot serialize the response proto";
@@ -44,7 +46,8 @@ std::string SerializeAndEncode(const AutofillQueryResponse& response) {
 // vectors. Ideally we should also generate forms vectors by using fuzzing, but
 // at the moment we use simplified approach. There is no specific reason to use
 // those two hardcoded forms vectors, so it can be changed if needed.
-DEFINE_BINARY_PROTO_FUZZER(const AutofillQueryResponse& response) {
+DEFINE_BINARY_PROTO_FUZZER(
+    const fuzzable::autofill::AutofillQueryResponse& response) {
   std::vector<FormData> forms;
   ParseServerPredictionsFromQueryResponse(
       SerializeAndEncode(response), forms, test::GetEncodedSignatures(forms),

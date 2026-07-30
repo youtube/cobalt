@@ -50,6 +50,9 @@ class CORE_EXPORT FrameOwner : public GarbageCollectedMixin {
 
   // Clear the last natural sizing info stored in the frame owner.
   virtual void ClearLastNaturalSizingInfo() = 0;
+  // Clear both the last natural sizing info in this frame owner, and the
+  // current one in the embedded `FrameView`.
+  virtual void ClearAllNaturalSizingInfo() = 0;
 
   // Indicates that a child frame requires its parent frame to track whether the
   // child frame is occluded or has visual effects applied.

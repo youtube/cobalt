@@ -56,7 +56,7 @@ StylusHandwritingCallbackSinkWin::FocusHandwritingTarget(
           window, gfx::Size(distance_threshold.cx, distance_threshold.cy)));
 
   // Check that we have no pending callback.
-  DCHECK(!pending_target_args_);
+  CHECK(!pending_target_args_, base::NotFatalUntil::M152);
   pending_target_args_ = args;
 
   // The response is later be set via OnEditElementFocusedForStylusWriting

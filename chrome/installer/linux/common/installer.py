@@ -422,12 +422,7 @@ class InstallerConfig:
         else:
             data["rdn_desktop"] = data["info_vars"]["RDN"]
 
-        package_name = data["info_vars"]["PACKAGE"] or ""
-        if package_name:
-            data["startup_wm_class"] = (
-                package_name[0].upper() + package_name[1:])
-        else:
-            data["startup_wm_class"] = ""
+        data["startup_wm_class"] = data["info_vars"]["PACKAGE"] or ""
 
         return data
 

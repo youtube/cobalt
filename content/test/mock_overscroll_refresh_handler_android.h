@@ -31,7 +31,7 @@ class MockOverscrollRefreshHandlerAndroid : public ui::OverscrollRefreshHandler,
       OverscrollAction type,
       std::optional<ui::BackGestureEventSwipeEdge> initiating_edge) override;
   void PullUpdate(float, float) override;
-  void PullRelease(bool) override;
+  void PullRelease(OverscrollActivationStatus) override;
   void PullReset() override;
 
   // MockOverscrollObserver:

@@ -34,10 +34,11 @@ class NativeMethod:
   def java_type(self):
     return self.java_class.as_type()
 
-  def __init__(self, parsed_method, *, java_class, is_proxy):
+  def __init__(self, parsed_method, *, java_class, is_proxy, from_javap=False):
     # The Java class the containing the natives. Never a nested class.
     self.java_class = java_class
     self.is_proxy = is_proxy
+    self.from_javap = from_javap
     # The method name. For non-proxy natives, this omits the "native" prefix.
     self.name = parsed_method.name
     self.capitalized_name = common.capitalize(self.name)
@@ -128,6 +129,8 @@ class NativeMethod:
   def boundary_name(self, jni_mode):
     """Java name of the JNI native method."""
     if not self.is_proxy:
+      if self.from_javap:
+        return self.name
       return f'native{self.name}'
     if jni_mode.is_per_file:
       return f'native{self.capitalized_name}'
@@ -306,7 +309,7 @@ class JniObject:
 
     self.jni_classes = [
         JniClass(c, unchecked=javap_unchecked_exceptions)
-        for c in parsed_file.classes_with_jni
+        for c in parsed_file.classes_with_jni if c.called_by_natives or c.fields
     ]
 
     natives = [
@@ -318,8 +321,11 @@ class JniObject:
     natives.sort(key=lambda n: n.is_test_only)
 
     natives.extend(
-        NativeMethod(m, java_class=self.java_class, is_proxy=False)
-        for m in parsed_file.non_proxy_methods)
+        NativeMethod(m,
+                     java_class=self.java_class,
+                     is_proxy=False,
+                     from_javap=self.from_javap)
+        for m in parsed_file.outer_class.non_proxy_methods)
 
     self.natives = natives
 
@@ -448,7 +454,7 @@ def _generate_headers(jni_mode,
 
   preamble, epilogue = header_common.header_preamble(
       GetScriptName(),
-      jni_obj.java_class,
+      java_class=jni_obj.java_class,
       system_includes=system_includes,
       user_includes=user_includes,
       is_shared_header=True)
@@ -464,7 +470,7 @@ def _generate_headers(jni_mode,
   user_includes.append(os.path.basename(shared_header_file))
   preamble, epilogue = header_common.header_preamble(
       GetScriptName(),
-      jni_obj.java_class,
+      java_class=jni_obj.java_class,
       system_includes=system_includes,
       user_includes=user_includes,
       is_shared_header=False)
@@ -695,10 +701,20 @@ def _WriteHeaders(jni_mode,
       f.write(unshared_header_content)
 
 
+def _WriteResolvedTypes(resolved_types_path, jni_objs):
+  resolved_classes = set()
+  for obj in jni_objs:
+    resolved_classes.update(obj.type_resolver.get_resolved_classes())
+    for c in obj.jni_classes:
+      resolved_classes.update(c.type_resolver.get_resolved_classes())
+
+  with common.atomic_output(resolved_types_path, 'w') as f:
+    f.write('\n'.join(sorted(resolved_classes)) + '\n')
+
+
 def GenerateFromSource(parser, args, jni_mode):
   if not args.use_std_primitive_types:
-    java_types.CPP_UNDERLYING_TYPE_BY_JAVA_TYPE = \
-        java_types.CPP_TYPE_BY_JAVA_TYPE
+    java_types.SetUseJniPrimitiveTypes()
 
   # Remove existing headers so that moving .java source files but not updating
   # the corresponding C++ include will be a compile failure (otherwise
@@ -707,15 +723,26 @@ def GenerateFromSource(parser, args, jni_mode):
                       args.unshared_header_names)
 
   try:
-    parsed_files = [
-        parse.parse_java_file(f,
-                              package_prefix=args.package_prefix,
-                              package_prefix_filter=args.package_prefix_filter,
-                              enable_legacy_natives=args.enable_legacy_natives,
-                              allow_private_called_by_natives=args.
-                              allow_private_called_by_natives)
-        for f in args.input_files
-    ]
+    errors = []
+    parsed_files = []
+    for f in args.input_files:
+      try:
+        parsed_files.append(
+            parse.parse_java_file(
+                f,
+                package_prefix=args.package_prefix,
+                package_prefix_filter=args.package_prefix_filter,
+                enable_legacy_natives=args.enable_legacy_natives,
+                allow_private_called_by_natives=args.
+                allow_private_called_by_natives))
+      except parse.ParseError as e:
+        errors.append(e)
+
+    if errors:
+      for e in errors:
+        sys.stderr.write(f'\n--- JNI Parsing Error ---\n{e}\n')
+      sys.exit(1)
+
     jni_objs = [
         JniObject(x,
                   from_javap=False,
@@ -723,6 +750,8 @@ def GenerateFromSource(parser, args, jni_mode):
                   module_name=args.module_name) for x in parsed_files
     ]
     _CheckNotEmpty(jni_objs)
+    if args.resolved_types_path:
+      _WriteResolvedTypes(args.resolved_types_path, jni_objs)
   except parse.ParseError as e:
     sys.stderr.write(f'{e}\n')
     sys.exit(1)

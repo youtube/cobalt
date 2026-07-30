@@ -23,6 +23,8 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
 #include "third_party/blink/renderer/platform/geometry/path_types.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -30,6 +32,7 @@ namespace blink {
 class Path;
 class SVGPathByteStream;
 class SVGPathByteStreamBuilder;
+class SVGPathSegment;
 
 // StringView/SVGPathByteStream -> Path
 Path CORE_EXPORT BuildPathFromString(const StringView&);
@@ -42,6 +45,13 @@ BuildByteStreamFromString(const StringView&, SVGPathByteStreamBuilder&);
 enum PathSerializationFormat { kNoTransformation, kTransformToAbsolute };
 String BuildStringFromByteStream(const SVGPathByteStream&,
                                  PathSerializationFormat);
+
+// SVGPathByteStream -> sequence<SVGPathSegment>, as exposed via
+// SVGPathElement.getPathData(). When |normalize| is true the segments are
+// reduced to absolute M/L/C/Z form.
+HeapVector<Member<SVGPathSegment>> BuildPathSegmentsFromByteStream(
+    const SVGPathByteStream&,
+    bool normalize);
 
 }  // namespace blink
 

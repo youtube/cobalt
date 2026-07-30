@@ -14,6 +14,7 @@
 #include "base/scoped_observation.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_service_observer.h"
+#include "components/ntp_tiles/constants.h"
 #include "components/ntp_tiles/custom_links_manager.h"
 #include "components/ntp_tiles/custom_links_store.h"
 #include "components/ntp_tiles/most_visited_sites.h"
@@ -32,10 +33,15 @@ namespace ntp_tiles {
 class CustomLinksManagerImpl : public CustomLinksManager,
                                public history::HistoryServiceObserver {
  public:
+  struct Options {
+    raw_ptr<PrefService> prefs = nullptr;
+    // Can be nullptr in unittests.
+    raw_ptr<history::HistoryService> history_service = nullptr;
+    size_t max_links = ntp_tiles::kMaxNumCustomLinks;
+  };
+
   // Restores the previous state of |current_links_| from prefs.
-  CustomLinksManagerImpl(PrefService* prefs,
-                         // Can be nullptr in unittests.
-                         history::HistoryService* history_service);
+  explicit CustomLinksManagerImpl(const Options& options);
 
   CustomLinksManagerImpl(const CustomLinksManagerImpl&) = delete;
   CustomLinksManagerImpl& operator=(const CustomLinksManagerImpl&) = delete;
@@ -48,6 +54,7 @@ class CustomLinksManagerImpl : public CustomLinksManager,
   bool IsInitialized() const override;
 
   const std::vector<Link>& GetLinks() const override;
+  size_t GetMaxLinks() const override;
 
   bool AddLinkTo(const GURL& url,
                  const std::u16string& title,

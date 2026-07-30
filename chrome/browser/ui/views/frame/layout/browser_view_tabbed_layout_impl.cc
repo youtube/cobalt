@@ -37,6 +37,7 @@
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_utils.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_view.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/controls/separator.h"
@@ -1309,6 +1310,17 @@ void BrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
   }
 
   background->SetCorners(corners);
+}
+
+void BrowserViewTabbedLayoutImpl::OnLayoutParamsChanged(
+    const BrowserLayoutParams& old_params,
+    const BrowserLayoutParams& new_params) {
+  CHECK(layout_data_);
+  // If the size of the visual client area changes, the size of our working
+  // client area should change by the same amount.
+  const gfx::Insets insets =
+      new_params.visual_client_area.InsetsFrom(old_params.visual_client_area);
+  layout_data_->revised_params.visual_client_area.Inset(insets);
 }
 
 void BrowserViewTabbedLayoutImpl::DoPreLayoutComputations(

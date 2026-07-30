@@ -18,11 +18,11 @@ class StaticSelection final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static StaticSelection* FromSelectionInDOMTree(const SelectionInDOMTree&);
+  static StaticSelection* FromSelectionInDOMTree(const SelectionInDomTree&);
   static StaticSelection* FromSelectionInFlatTree(const SelectionInFlatTree&);
 
   explicit StaticSelection(const SelectionInFlatTree&);
-  explicit StaticSelection(const SelectionInDOMTree&);
+  explicit StaticSelection(const SelectionInDomTree&);
   StaticSelection(const StaticSelection&) = delete;
   StaticSelection& operator=(const StaticSelection&) = delete;
 

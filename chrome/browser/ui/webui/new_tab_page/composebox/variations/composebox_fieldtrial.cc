@@ -221,7 +221,7 @@ const base::FeatureParam<bool> kEnableThreadsRailLogo(&kNtpComposebox,
 
 const base::FeatureParam<bool> kUseNtpComposeboxFork(&kNtpComposebox,
                                                      "useNtpComposeboxFork",
-                                                     false);
+                                                     true);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 
@@ -287,5 +287,7 @@ const base::FeatureParam<bool> kMultiLineEnabled(&kNtpRealboxNext,
                                                  true);
 
 BASE_FEATURE(kNtpRealboxCyclingPlaceholders, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kNtpRealboxDynamicAiModeButton, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace ntp_realbox

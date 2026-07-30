@@ -23,7 +23,8 @@ import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {ADD_TAB_CONTEXT_FN, assertStyle, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, setupAutocompleteResults, simulateUserInput, uploadFileAndVerify} from './test_utils.js';
+import {ADD_TAB_CONTEXT_FN, setupAutocompleteResults, uploadFileAndVerify} from './test_searchbox_utils.js';
+import {assertStyle, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, simulateUserInput} from './test_utils.js';
 
 function pressEnter(element: HTMLElement) {
   element.dispatchEvent(new KeyboardEvent('keydown', {
@@ -82,6 +83,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     mockTimer = new MockTimer();
 
     loadTimeData.overrideValues({
+      useContextualTasksComposeboxFork: false,
       contextualMenuUsePecApi: false,
       composeboxSmartTabSharingVisible: false,
       enableComposeboxJumpFix: false,
@@ -97,6 +99,8 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     mockComposeboxPageHandler = TestMock.fromClass(ComposeboxPageHandlerRemote);
     mockComposeboxPageHandler.setResultFor(
         'getSmartTabSharingActive', Promise.resolve({active: false}));
+    mockComposeboxPageHandler.setResultFor(
+        'canShowNextboxAnimation', Promise.resolve({canShow: true}));
     mockSearchboxPageHandler = TestMock.fromClass(SearchboxPageHandlerRemote);
     mockSearchboxPageHandler.setResultFor(
         'getInputState', Promise.resolve({state: new MockInputState()}));
@@ -196,7 +200,8 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
 
     mockTimer.tick(300);
 
-    await mockSearchboxPageHandler.whenCalled('queryAutocomplete');
+    await mockSearchboxPageHandler.whenCalled(
+        'queryAutocompleteWithSuggestInventory');
 
     await setupAutocompleteResults(
         searchboxCallbackRouterRemote, TEST_QUERY, mockTimer);

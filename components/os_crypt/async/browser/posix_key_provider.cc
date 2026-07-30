@@ -36,8 +36,4 @@ bool PosixKeyProvider::UseForEncryption() {
   return true;
 }
 
-bool PosixKeyProvider::IsCompatibleWithOsCryptSync() {
-  return true;
-}
-
 }  // namespace os_crypt_async

@@ -354,7 +354,7 @@ class Comparator {
 
 }  // namespace
 
-int16_t ComparePositionsInDOMTree(const Node* container_a,
+int16_t ComparePositionsInDomTree(const Node* container_a,
                                   int offset_a,
                                   const Node* container_b,
                                   int offset_b,

@@ -35,6 +35,7 @@
 #include "pdf/document_layout.h"
 #include "pdf/document_metadata.h"
 #include "pdf/page_character_index.h"
+#include "pdf/page_orientation.h"
 #include "pdf/pdf_features.h"
 #include "pdf/pdfium/pdfium_api_wrappers.h"
 #include "pdf/pdfium/pdfium_draw_selection_test_base.h"
@@ -90,6 +91,7 @@ using ::testing::InSequence;
 using ::testing::IsEmpty;
 using ::testing::Mock;
 using ::testing::NiceMock;
+using ::testing::Optional;
 using ::testing::Pair;
 using ::testing::Return;
 using ::testing::StrictMock;
@@ -717,19 +719,19 @@ TEST_P(PDFiumEngineTest, GetPageSizeInPoints) {
 
   ASSERT_EQ(engine.GetNumberOfPages(), 7);
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/0),
-              testing::Optional(gfx::SizeF(612.0f, 792.0f)));
+              Optional(gfx::SizeF(612.0f, 792.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/1),
-              testing::Optional(gfx::SizeF(595.0f, 842.0f)));
+              Optional(gfx::SizeF(595.0f, 842.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/2),
-              testing::Optional(gfx::SizeF(200.0f, 200.0f)));
+              Optional(gfx::SizeF(200.0f, 200.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/3),
-              testing::Optional(gfx::SizeF(1000.0f, 200.0f)));
+              Optional(gfx::SizeF(1000.0f, 200.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/4),
-              testing::Optional(gfx::SizeF(200.0f, 1000.0f)));
+              Optional(gfx::SizeF(200.0f, 1000.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/5),
-              testing::Optional(gfx::SizeF(1500.0f, 50.0f)));
+              Optional(gfx::SizeF(1500.0f, 50.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/6),
-              testing::Optional(gfx::SizeF(50.0f, 1500.0f)));
+              Optional(gfx::SizeF(50.0f, 1500.0f)));
   EXPECT_THAT(engine.GetPageSizeInPoints(/*page_index=*/7), std::nullopt);
 }
 
@@ -3110,6 +3112,7 @@ class PDFiumEngineInkDrawTextTest : public PDFiumTestBase {
         /*typeface=*/TextTypeface::kSansSerif,
         /*alignment=*/TextAlignment::kLeft,
         /*orientation=*/0,
+        /*viewport_orientation=*/PageOrientation::kOriginal,
         /*is_bold=*/false,
         /*is_italic=*/false,
         /*text=*/"Hello!");
@@ -3141,7 +3144,7 @@ class PDFiumEngineInkDrawTextTest : public PDFiumTestBase {
     ASSERT_EQ(kInkTextAnnotationIdentifierKey,
               base::UTF16ToUTF8(GetPageObjectMarkName(mark)));
     EXPECT_THAT(GetPageObjectMarkIntParam(mark, "TextboxId"),
-                testing::Optional(expected_textbox_id));
+                Optional(expected_textbox_id));
   }
 };
 
@@ -3363,6 +3366,7 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextRotatedViewport90) {
   InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
   attribute.rect = gfx::RectF(10.0f, 20.0f, 100.0f, 30.0f);
   attribute.orientation = 0;
+  attribute.viewport_orientation = PageOrientation::kClockwise90;
 
   // On screen, text_rotations = (1 + 0) % 4 = 1 (vertical-rl).
   // In vertical writing modes, Blink returns location with width representing
@@ -3419,6 +3423,7 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextRotatedViewport180) {
   InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
   attribute.rect = gfx::RectF(10.0f, 20.0f, 100.0f, 30.0f);
   attribute.orientation = 0;
+  attribute.viewport_orientation = PageOrientation::kClockwise180;
 
   // On screen, text_rotations = (2 + 0) % 4 = 2 (transform: rotate(180deg)).
   // Layout coordinates are unrotated, so text run is at (0,0).
@@ -3475,6 +3480,7 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextRotatedViewport270) {
   InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
   attribute.rect = gfx::RectF(10.0f, 20.0f, 100.0f, 30.0f);
   attribute.orientation = 0;
+  attribute.viewport_orientation = PageOrientation::kClockwise270;
 
   // On screen, text_rotations = (3 + 0) % 4 = 3 (sideways-lr).
   // In vertical writing modes, Blink returns location with width representing
@@ -3532,6 +3538,7 @@ TEST_P(PDFiumEngineInkDrawTextTest, RotatedViewport180RotatedTextbox270) {
   InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
   attribute.rect = gfx::RectF(10.0f, 20.0f, 30.0f, 100.0f);
   attribute.orientation = 3;
+  attribute.viewport_orientation = PageOrientation::kClockwise180;
 
   // On screen, text_rotations = (2 + 3) % 4 = 1 (vertical-rl).
   // In vertical writing modes, Blink returns location with width representing
@@ -3563,6 +3570,156 @@ TEST_P(PDFiumEngineInkDrawTextTest, RotatedViewport180RotatedTextbox270) {
 #endif
   EXPECT_FLOAT_EQ(matrix.e, kExpectedE);
   EXPECT_FLOAT_EQ(matrix.f, 110.0f);
+}
+
+TEST_P(PDFiumEngineInkDrawTextTest,
+       DrawTextWithMismatchingViewportOrientation) {
+  TestClient client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr int kPageIndex = 0;
+  PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
+
+  FontId font_id = AddDefaultFont(engine.get());
+  constexpr std::string_view kTextToDraw = "Hello!";
+  GlyphsAndPositions text_data =
+      GetGlyphsForText(kTextToDraw, /*font_size=*/10.0f);
+  ASSERT_FALSE(text_data.glyphs.empty());
+
+  // Draw text when current viewport is 180 degrees and commit viewport is 0.
+  {
+    engine->RotateClockwise();
+    engine->RotateClockwise();
+
+    InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
+    attribute.rect = gfx::RectF(10.0f, 20.0f, 100.0f, 30.0f);
+    attribute.orientation = 0;
+    attribute.viewport_orientation = PageOrientation::kOriginal;
+
+    engine->DrawText(
+        kPageIndex, InkTextId(0),
+        {InkTextInfo(font_id, text_data.glyphs, text_data.glyph_positions,
+                     /*location=*/gfx::RectF(0.0f, 0.0f, 80.0f, 10.0f),
+                     /*is_horizontal=*/true)},
+        /*pdf_zoom=*/1.0, attribute);
+
+    ASSERT_EQ(1, FPDFPage_CountObjects(page.GetPage()));
+    FPDF_PAGEOBJECT obj = FPDFPage_GetObject(page.GetPage(), 0);
+
+    FS_MATRIX matrix;
+    ASSERT_TRUE(FPDFPageObj_GetMatrix(obj, &matrix));
+    EXPECT_FLOAT_EQ(matrix.a, 1.0f);
+    EXPECT_FLOAT_EQ(matrix.b, 0.0f);
+    EXPECT_FLOAT_EQ(matrix.c, 0.0f);
+    EXPECT_FLOAT_EQ(matrix.d, 1.0f);
+    EXPECT_FLOAT_EQ(matrix.e, 7.5f);
+#if BUILDFLAG(IS_WIN)
+    constexpr float kExpectedF = 176.9075f;
+#elif BUILDFLAG(IS_MAC)
+    constexpr float kExpectedF = 179.22501f;
+#else
+    constexpr float kExpectedF = 178.04f;
+#endif
+    EXPECT_FLOAT_EQ(matrix.f, kExpectedF);
+  }
+
+  // Draw text when current viewport is 90 degrees CCW and commit viewport is
+  // 180 degrees.
+  {
+    // Engine is at 180 degrees. Rotate to 90 degrees CCW.
+    engine->RotateCounterclockwise();
+
+    InkTextBoxAttributes attribute = SampleInkTextBoxAttributes();
+    attribute.rect = gfx::RectF(10.0f, 20.0f, 100.0f, 15.0f);
+    attribute.orientation = 2;
+    attribute.viewport_orientation = PageOrientation::kClockwise180;
+
+    engine->DrawText(
+        kPageIndex, InkTextId(1),
+        {InkTextInfo(font_id, text_data.glyphs, text_data.glyph_positions,
+                     /*location=*/gfx::RectF(5.0f, 20.0f, 10.0f, 80.0f),
+                     /*is_horizontal=*/false)},
+        /*pdf_zoom=*/1.0, attribute);
+
+    ASSERT_EQ(2, FPDFPage_CountObjects(page.GetPage()));
+    FPDF_PAGEOBJECT obj = FPDFPage_GetObject(page.GetPage(), 1);
+
+    FS_MATRIX matrix;
+    ASSERT_TRUE(FPDFPageObj_GetMatrix(obj, &matrix));
+    EXPECT_FLOAT_EQ(matrix.a, -1.0f);
+    EXPECT_FLOAT_EQ(matrix.b, 0.0f);
+    EXPECT_FLOAT_EQ(matrix.c, 0.0f);
+    EXPECT_FLOAT_EQ(matrix.d, -1.0f);
+    EXPECT_FLOAT_EQ(matrix.e, 78.75f);
+#if BUILDFLAG(IS_WIN)
+    constexpr float kExpectedF = 196.8425f;
+#elif BUILDFLAG(IS_MAC)
+    constexpr float kExpectedF = 194.52499f;
+#else
+    constexpr float kExpectedF = 195.71f;
+#endif
+    EXPECT_FLOAT_EQ(matrix.f, kExpectedF);
+  }
+}
+
+TEST_P(PDFiumEngineInkDrawTextTest, DrawTextViewportRotationPersistence) {
+  NiceMock<MockTestClient> client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+
+  constexpr int kPageIndex = 0;
+  PDFiumPage& page = GetPDFiumPage(*engine, kPageIndex);
+
+  FontId font_id = AddDefaultFont(engine.get());
+  constexpr std::string_view kTextToDraw = "Hello!";
+  GlyphsAndPositions text_data =
+      GetGlyphsForText(kTextToDraw, /*font_size=*/10.0f);
+  ASSERT_FALSE(text_data.glyphs.empty());
+
+  // Rotate viewport 90 degrees CW once.
+  engine->RotateClockwise();
+
+  // Canonical box is horizontal (width 100, height 30), rotated 90 degrees
+  // clockwise.
+  InkTextBoxAttributes attributes = SampleInkTextBoxAttributes();
+  attributes.rect = gfx::RectF(10.0f, 20.0f, 100.0f, 30.0f);
+  attributes.orientation = 1;
+  attributes.viewport_orientation = PageOrientation::kClockwise90;
+
+  // On screen, text_rotations = (viewport(1) + orientation(1)) % 4 = 2.
+  // Layout coordinates are unrotated, so text run is at (0,0).
+  std::vector<InkTextInfo> text_info;
+  text_info.push_back(
+      InkTextInfo(font_id, text_data.glyphs, text_data.glyph_positions,
+                  /*location=*/gfx::RectF(0.0f, 0.0f, 100.0f, 20.0f),
+                  /*is_horizontal=*/true));
+
+  // Draw text with viewport at 90 degrees CW.
+  engine->DrawText(kPageIndex, InkTextId(0), text_info, /*pdf_zoom=*/1.0,
+                   attributes);
+
+  const gfx::Size& kPageSizeInPoints = kBlankPageSizeInPoints;
+  const base::FilePath kAppliedTextFilePath(
+      GetInkTestDataFilePath(GetTestDataPathWithPlatformSuffix(
+          "applied_text_hello_rotated_textbox_90.png")));
+  CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedTextFilePath);
+
+  // Discard the text annotation.
+  engine->DiscardText(InkTextId(0));
+
+  // Rotate viewport back to 0 degrees.
+  engine->RotateCounterclockwise();
+
+  // Draw text again with viewport at 0 degrees.
+  engine->DrawText(kPageIndex, InkTextId(0), text_info, /*pdf_zoom=*/1.0,
+                   attributes);
+
+  // Check rendering again to verify correct persistence across viewport
+  // rotation changes.
+  CheckPdfRendering(page.GetPage(), kPageSizeInPoints, kAppliedTextFilePath);
 }
 
 TEST_P(PDFiumEngineInkDrawTextTest, DrawOrangeText) {
@@ -3651,32 +3808,26 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSavesMetadata) {
     FPDF_PAGEOBJECTMARK mark = FPDFPageObj_GetMark(obj, 0);
     EXPECT_EQ(kInkTextAnnotationIdentifierKey,
               base::UTF16ToUTF8(GetPageObjectMarkName(mark)));
-    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "TextboxId"),
-                testing::Optional(1));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "TextboxId"), Optional(1));
 
     EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Version"),
-                testing::Optional(kInkTextAnnotationVersion));
+                Optional(kInkTextAnnotationVersion));
     // Bounds are converted from CSS pixels to PDF points.
-    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsX"),
-                testing::Optional(15.0f));
-    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsY"),
-                testing::Optional(15.0f));
+    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsX"), Optional(15.0f));
+    EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsY"), Optional(15.0f));
     EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsWidth"),
-                testing::Optional(75.0f));
+                Optional(75.0f));
     EXPECT_THAT(GetPageObjectMarkFloatParam(mark, "BoundsHeight"),
-                testing::Optional(75.0f));
+                Optional(75.0f));
     EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Typeface"),
-                testing::Optional(static_cast<int>(TextTypeface::kSansSerif)));
+                Optional(static_cast<int>(TextTypeface::kSansSerif)));
     EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Alignment"),
-                testing::Optional(static_cast<int>(TextAlignment::kLeft)));
-    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Orientation"),
-                testing::Optional(0));
-    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsBold"),
-                testing::Optional(1));
-    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsItalic"),
-                testing::Optional(0));
+                Optional(static_cast<int>(TextAlignment::kLeft)));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "Orientation"), Optional(0));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsBold"), Optional(1));
+    EXPECT_THAT(GetPageObjectMarkIntParam(mark, "IsItalic"), Optional(0));
     EXPECT_THAT(GetPageObjectMarkStringParam(mark, "Text"),
-                testing::Optional(std::u16string(kExpectedText16)));
+                Optional(std::u16string(kExpectedText16)));
   }
 }
 
@@ -3740,11 +3891,11 @@ TEST_P(PDFiumEngineInkDrawTextTest, DrawTextSaveAndLoad) {
   // Verify the loaded attributes have the exact same bounds and properties
   // as the original drawn annotation.
   EXPECT_THAT(page_boxes[0].attributes,
-              InkTextBoxAttributesEq(kOriginalRect, attribute.color,
-                                     attribute.css_font_size,
-                                     attribute.typeface, attribute.alignment,
-                                     attribute.orientation, attribute.is_bold,
-                                     attribute.is_italic, attribute.text));
+              InkTextBoxAttributesEq(
+                  kOriginalRect, attribute.color, attribute.css_font_size,
+                  attribute.typeface, attribute.alignment,
+                  attribute.orientation, attribute.viewport_orientation,
+                  attribute.is_bold, attribute.is_italic, attribute.text));
 }
 
 TEST_P(PDFiumEngineInkDrawTextTest, LoadTextAnnotationsFromPdfMultiPages) {

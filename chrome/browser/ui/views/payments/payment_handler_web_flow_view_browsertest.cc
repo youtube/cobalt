@@ -4,8 +4,10 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/chrome_content_browser_client.h"
+#include "chrome/browser/ui/views/payments/payment_handler_web_flow_view_controller.h"
 #include "chrome/browser/ui/views/payments/payment_request_browsertest_base.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view_ids.h"
+#include "components/payments/content/payment_request_state.h"
 #include "components/payments/core/features.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/test/browser_test.h"
@@ -118,6 +120,53 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(test_client.initiator_origin_.has_value());
   EXPECT_EQ(url::Origin::Create(GetActiveWebContents()->GetLastCommittedURL()),
             test_client.initiator_origin_.value());
+}
+
+IN_PROC_BROWSER_TEST_F(PaymentHandlerWebFlowViewTest, UserInteractionRecorded) {
+  NavigateTo("/payment_handler.html");
+  std::string method_name;
+  InstallPaymentApp("a.com", "/payment_handler_sw.js", &method_name);
+
+  // Trigger PaymentRequest.
+  ResetEventWaiterForSequence({DialogEvent::PROCESSING_SPINNER_SHOWN,
+                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
+                               DialogEvent::DIALOG_OPENED,
+                               DialogEvent::PROCESSING_SPINNER_SHOWN,
+                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
+                               DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED,
+                               DialogEvent::PAYMENT_HANDLER_TITLE_SET});
+  ASSERT_EQ(
+      "success",
+      content::EvalJs(
+          GetActiveWebContents(),
+          content::JsReplace("launchWithoutWaitForResponse($1)", method_name)));
+  ASSERT_TRUE(WaitForObservedEvent());
+
+  // Check that user interaction has not been recorded yet.
+  auto payment_requests = GetPaymentRequests();
+  ASSERT_EQ(1u, payment_requests.size());
+  PaymentRequestState* request_state = payment_requests[0]->state().get();
+  ASSERT_NE(nullptr, request_state);
+  EXPECT_FALSE(request_state->user_interaction_in_web_payment_app());
+
+  // Get the payment handler web contents.
+  views::View* top_view = dialog_view()->view_stack_for_testing()->top();
+  auto* sheet_controller =
+      dialog_view()->controller_map_for_testing()->at(top_view).get();
+  auto* web_flow_controller =
+      static_cast<PaymentHandlerWebFlowViewController*>(sheet_controller);
+  content::WebContents* payment_handler_contents =
+      web_flow_controller->web_contents();
+  ASSERT_NE(nullptr, payment_handler_contents);
+
+  // Simulate click on the page. Note that input events to a page may not work
+  // right after a page load because of paint holding.
+  content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(
+      payment_handler_contents);
+  content::SimulateMouseClick(payment_handler_contents, /*modifiers=*/0,
+                              blink::WebMouseEvent::Button::kLeft);
+
+  EXPECT_TRUE(request_state->user_interaction_in_web_payment_app());
 }
 
 }  // namespace payments

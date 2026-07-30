@@ -10,7 +10,11 @@ import androidx.annotation.Nullable;
 
 import org.chromium.android_webview.AwBrowserContext;
 import org.chromium.android_webview.AwBrowserContextStore;
+import org.chromium.android_webview.common.AwFeatures;
+import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
+import org.chromium.android_webview.common.WebViewCachedFlags;
+import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
@@ -40,10 +44,14 @@ public final class ProfileStore {
 
     private final Map<String, Profile> mProfiles = new HashMap<>();
 
+    private final @NonNull WebViewChromiumAwInit mAwInit;
+
     private static final String PROFILE_WAS_CREATED_BY_ASYNC_WEBVIEW_STARTUP_HISTOGRAM =
             "Android.WebView.ProfileWasCreatedByAsyncStartup";
 
-    ProfileStore() {}
+    ProfileStore(@NonNull WebViewChromiumAwInit webViewAwInit) {
+        mAwInit = webViewAwInit;
+    }
 
     private static String callSiteToString(@CallSite int callSite) {
         return switch (callSite) {
@@ -56,6 +64,9 @@ public final class ProfileStore {
 
     @NonNull
     public Profile getOrCreateProfile(@NonNull String name, @CallSite int callSite) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.GET_OR_CREATE_PROFILE);
+
         try (TraceEvent event =
                 TraceEvent.scoped(
                         "WebView.ProfileStore.GET_OR_CREATE_PROFILE", callSiteToString(callSite))) {
@@ -72,6 +83,8 @@ public final class ProfileStore {
 
     @Nullable
     public Profile getProfile(@NonNull String name) {
+        mAwInit.triggerAndWaitForChromiumStarted(WebViewChromiumAwInit.CallSite.GET_PROFILE);
+
         try (TraceEvent event = TraceEvent.scoped("WebView.ProfileStore.ApiCall.GET_PROFILE")) {
             ThreadUtils.checkUiThread();
             return mProfiles.computeIfAbsent(
@@ -86,6 +99,9 @@ public final class ProfileStore {
 
     @NonNull
     public List<String> getAllProfileNames() {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.GET_ALL_PROFILE_NAMES);
+
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.ProfileStore.ApiCall.GET_ALL_PROFILE_NAMES")) {
             ThreadUtils.checkUiThread();
@@ -94,6 +110,8 @@ public final class ProfileStore {
     }
 
     public boolean deleteProfile(@NonNull String name) {
+        mAwInit.triggerAndWaitForChromiumStarted(WebViewChromiumAwInit.CallSite.DELETE_PROFILE);
+
         try (TraceEvent event = TraceEvent.scoped("WebView.ProfileStore.ApiCall.DELETE_PROFILE")) {
             ThreadUtils.checkUiThread();
             boolean deletionResult = AwBrowserContextStore.deleteNamedContext(name);
@@ -104,5 +122,13 @@ public final class ProfileStore {
             }
             return deletionResult;
         }
+    }
+
+    public static boolean requiresStartup() {
+        return !CommandLine.getInstance()
+                        .hasSwitch(AwSwitches.WEBVIEW_PROFILE_STORE_NOT_TRIGGER_STARTUP)
+                && !WebViewCachedFlags.get()
+                        .isCachedFeatureEnabled(
+                                AwFeatures.WEBVIEW_PROFILE_STORE_NOT_TRIGGER_STARTUP);
     }
 }

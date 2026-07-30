@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">VVVV</translation>
 <translation id="1013952917065545813">Voit palata tähän avataksesi uudelleen äskettäin sulkemasi välilehdet</translation>
 <translation id="1016495303386450659">Kohde päivitettiin</translation>
+<translation id="1018804590490383958">Skannaa ja täytä automaattisesti</translation>
 <translation id="1019990162050689579">Gemini-sovellustoiminta</translation>
 <translation id="102916930470544692">Avainkoodi</translation>
 <translation id="1030376737535466765">Avaa Salasanat</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Lataa kuva, jonka haluat remiksata Nano Bananalla</translation>
 <translation id="1377508275003315939">Salasanat</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position}/{count} osoite}other{{position}/{count} osoitetta}}</translation>
+<translation id="13813615483058219">Jotain meni pieleen. Tarkista internetyhteys, lisää äänenvoimakkuutta tai yritä uudelleen.</translation>
 <translation id="1383876407941801731">Haku</translation>
 <translation id="138618066238211776">Jatka käyttäjänä <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Kortin tallentamisvaihtoehdot</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Päivitä selain</translation>
 <translation id="4021931095789478915">Lisää ${url} lukulistalle</translation>
 <translation id="4028871427853484857">Tallenna tilille…</translation>
+<translation id="4036529942385659684">Näytä aloitussivu käyttämättömyyden jälkeen</translation>
 <translation id="4038354071007134711">Mikään laitteen sovellus ei voi avata tiedostoa.</translation>
 <translation id="4042870976416480368">Hae sivulta</translation>
 <translation id="4045441967987592849">Avaa uudelleen</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Hallinnoi ryhmää</translation>
 <translation id="4172051516777682613">Näytä aina</translation>
 <translation id="417273154673973994">{count,plural, =1{Yksi välilehtiryhmä suljettu ja tallennettu}other{{count} välilehtiryhmää suljettu ja tallennettu}}</translation>
-<translation id="417612446554534067">Lähetä laitteillesi</translation>
 <translation id="4180726336228139707">Vain tälle laitteelle</translation>
 <translation id="4181841719683918333">Kielet</translation>
 <translation id="4183350924949589798">Parempi tietoturva?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Välilehdet suljettiin ja sinut kirjattiin ulos</translation>
 <translation id="4911042367886397055">Tervetuloa takaisin, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Voit jakaa kopion salasanastasi perheryhmäsi jäsenille. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Linssi</translation>
 <translation id="4917025507570489430">Voit käyttää nykyistä selausdataa, kun olet kirjautunut sisään tilillä <ph name="USER_EMAIL" />. Organisaatiosi voi nähdä tämän datan.</translation>
 <translation id="4918086044614829423">Hyväksy</translation>
 <translation id="4930714375720679147">Ota käyttöön</translation>
@@ -1549,6 +1552,7 @@ Handoff täytyy ottaa käyttöön myös Asetusten Yleiset-osiossa. Lisäksi mole
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Valitse osoitepalkin sijainti</translation>
 <translation id="6307241780749477694">Vahvista henkilöllisyytesi, jotta saat pääsyn kaikkiiin salasanoihisi tällä laitteella</translation>
+<translation id="6307792728709337290">Tallenna kortti Google-tilillesi, niin se täytetään automaattisesti tätä ja tulevia Chromessa tehtäviä ostoksia varten.</translation>
 <translation id="6316141353357700666">Valitse näkyviin tulevasta listasta salasana, jota haluat käyttää.</translation>
 <translation id="6321526113093607004">Lisää kirjanmerkkeihin</translation>
 <translation id="6327249202318869726">Gemini on laitettu pois päältä tililläsi. Pyydä lisätietoja järjestelmänvalvojalta.</translation>
@@ -2143,6 +2147,7 @@ Jos haluat jatkaa tietokoneella, vaihda tiliksi <ph name="OTHER_EMAIL" />. Saat 
 <translation id="8263809106706527890">Oletusselaimen asetukset ovat saattaneet muuttua. Voit tarkistaa tämän asetuksista.</translation>
 <translation id="8264966119170358612">Osa tallennetuista salasanoistasi on paljastunut Googlen ulkopuolisen tietosuojaloukkauksen yhteydessä. <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Sinut kirjattiin ulos tililtä <ph name="USER_NAME" />, kun iPad nollattiin. Kirjaudu takaisin sisään valitsemalla Jatka.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Täytä tiedot täällä: <ph name="URL" /></translation>
 <translation id="8275068909952022340">Lisää…</translation>
 <translation id="8281781826761538115">Oletus – <ph name="DEFAULT_LOCALE" /></translation>

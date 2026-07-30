@@ -88,8 +88,7 @@ public abstract class HubBaseStation
             incognitoTabsButtonElement = null;
         }
 
-        declareEnterCondition(
-                new LayoutTypeVisibleCondition(mActivityElement, LayoutType.TAB_SWITCHER));
+        declareEnterCondition(new LayoutTypeVisibleCondition(mActivityElement, LayoutType.HUB));
     }
 
     /** Returns the station's {@link PaneId}. */

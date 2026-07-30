@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_FACILITATED_PAYMENTS_CORE_BROWSER_PIX_ACCOUNT_LINKING_MANAGER_TEST_API_H_
 #define COMPONENTS_FACILITATED_PAYMENTS_CORE_BROWSER_PIX_ACCOUNT_LINKING_MANAGER_TEST_API_H_
 
+#include <vector>
+
 #include "base/check_deref.h"
 #include "base/memory/raw_ref.h"
 #include "components/facilitated_payments/core/browser/pix_account_linking_manager.h"
@@ -32,9 +34,10 @@ class PixAccountLinkingManagerTestApi {
   void OnGetDetailsForCreatePaymentInstrumentResponseReceived(
       base::TimeTicks start_time,
       autofill::payments::PaymentsAutofillClient::PaymentsRpcResult result,
-      bool is_eligible_for_pix_account_linking) {
+      bool is_eligible_for_pix_account_linking,
+      const std::vector<uint8_t>& action_token) {
     manager_->OnGetDetailsForCreatePaymentInstrumentResponseReceived(
-        start_time, result, is_eligible_for_pix_account_linking);
+        start_time, result, is_eligible_for_pix_account_linking, action_token);
   }
   void Reset() { manager_->Reset(); }
 

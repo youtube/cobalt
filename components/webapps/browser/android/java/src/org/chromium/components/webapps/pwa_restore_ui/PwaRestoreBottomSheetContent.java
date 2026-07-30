@@ -26,13 +26,15 @@ public class PwaRestoreBottomSheetContent implements BottomSheetContent {
     private @ContentPriority int mPriority = ContentPriority.LOW;
 
     // The handler to notify when the (Android) Back button is pressed.
-    Runnable mOsBackButtonClicked;
+    private final Runnable mOsBackButtonClicked;
+    private final Runnable mOnDestroy;
 
     public PwaRestoreBottomSheetContent(
-            PwaRestoreBottomSheetView view, Runnable onOsBackButtonClicked) {
+            PwaRestoreBottomSheetView view, Runnable onOsBackButtonClicked, Runnable onDestroy) {
         mView = view;
 
         mOsBackButtonClicked = onOsBackButtonClicked;
+        mOnDestroy = onDestroy;
     }
 
     public void setPriority(@ContentPriority int priority) {
@@ -77,7 +79,9 @@ public class PwaRestoreBottomSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public void destroy() {}
+    public void destroy() {
+        mOnDestroy.run();
+    }
 
     @Override
     public int getPriority() {

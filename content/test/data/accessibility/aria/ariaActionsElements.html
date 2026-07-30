@@ -1,0 +1,47 @@
+<!--
+@BLINK-ALLOW:actionsIds*
+@WAIT_FOR:Done
+-->
+<!DOCTYPE html>
+<html>
+  <body>
+    <h3 id="tablist-1">Interesting Sharks</h3>
+    <div role="tablist" aria-labelledby="tablist-1">
+      <div class="tab-wrapper">
+        <button id="tab-1" role="tab" data-actions="tab-1-action">
+          Nurse shark
+        </button>
+        <button id="tab-1-action">X</button>
+      </div>
+      <div class="tab-wrapper">
+        <button id="tab-2" role="tab" data-actions="tab-2-action">
+          Basking shark
+        </button>
+        <button id="tab-2-action">X</button>
+      </div>
+      <div class="tab-wrapper">
+        <button id="tab-3" role="tab" data-actions="tab-3-action">
+          Whale shark
+        </button>
+        <button id="tab-3-action">X</button>
+      </div>
+      <div class="tab-wrapper">
+        <button id="tab-4" role="tab" data-actions="tab-4-action">
+          Goblin shark
+        </button>
+        <button id="tab-4-action">X</button>
+      </div>
+    </div>
+    <div id="script-status"></div>
+  </body>
+<script>
+const elements = document.querySelectorAll("[data-actions]");
+for (const element of elements) {
+    const actionsIds = element.dataset.actions.split(/\s+/);
+    const actionsElements = actionsIds.map(id => document.getElementById(id));
+    element.ariaActionsElements = actionsElements;
+    element.removeAttribute("data-actions");
+}
+document.getElementById("script-status").innerText = "Done";
+</script>
+</html>

@@ -135,7 +135,8 @@ class WebRequestProxyingURLLoaderFactory
         mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
 
     // network::mojom::TrustedHeaderClient:
-    void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+    void OnBeforeSendHeaders(const GURL& request_url,
+                             const net::HttpRequestHeaders& headers,
                              OnBeforeSendHeadersCallback callback) override;
     void OnHeadersReceived(const std::string& headers,
                            const net::IPEndPoint& endpoint,

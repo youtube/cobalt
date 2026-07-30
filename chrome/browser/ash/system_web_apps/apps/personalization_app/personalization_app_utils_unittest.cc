@@ -202,7 +202,7 @@ TEST_F(PersonalizationAppUtilsTest,
   user_manager->AddUser(account_id);
   user_manager->LoginUser(account_id);
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -229,7 +229,7 @@ TEST_F(PersonalizationAppUtilsTest,
   user_manager->AddUser(account_id);
   user_manager->LoginUser(account_id);
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(false);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -356,7 +356,7 @@ TEST_F(PersonalizationAppUtilsTest, IsEligibleForSeaPenTextInput_MinorUser) {
   user_manager->LoginUser(account_id);
 
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(false);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -381,7 +381,7 @@ TEST_F(PersonalizationAppUtilsTest, IsEligibleForSeaPenTextInput_AdultUser) {
   user_manager->LoginUser(account_id);
 
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -406,7 +406,7 @@ TEST_F(PersonalizationAppUtilsTest, IsEligibleForSeaPenTextInputEnglishUsers) {
   user_manager->LoginUser(account_id);
 
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -438,7 +438,7 @@ TEST_F(PersonalizationAppUtilsTest,
   user_manager->LoginUser(account_id);
 
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -470,7 +470,7 @@ TEST_F(PersonalizationAppUtilsTest,
   user_manager->LoginUser(account_id);
 
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 
@@ -503,7 +503,7 @@ TEST_F(
   user_manager->LoginUser(account_id);
 
   // Set up capability.
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   mutator.set_can_use_manta_service(true);
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);
 

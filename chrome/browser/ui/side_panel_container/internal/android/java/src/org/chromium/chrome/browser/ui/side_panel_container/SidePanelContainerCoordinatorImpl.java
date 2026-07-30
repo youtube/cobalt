@@ -20,6 +20,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroid;
 import org.chromium.chrome.browser.ui.side_ui.SideUiContainer;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator;
@@ -66,8 +67,15 @@ final class SidePanelContainerCoordinatorImpl
     public void init(SidePanelCoordinatorAndroid sidePanelCoordinatorAndroid) {
         log(TAG, "init");
         ThreadUtils.assertOnUiThread();
-        mSidePanelCoordinatorAndroid = sidePanelCoordinatorAndroid;
         mSideUiCoordinator.registerSideUiContainer(this);
+
+        // SidePanelCoordinatorAndroid connects the Java UI with the state management logic in C++.
+        // We should _not_ initialize SidePanelCoordinatorAndroid for the pure-Java dev feature,
+        // otherwise the pure-Java dev feature will drive the C++ side into invalid states.
+        if (!AndroidSidePanelEnabledFn.isPureJavaDevFeatureEnabled()) {
+            mSidePanelCoordinatorAndroid = sidePanelCoordinatorAndroid;
+            mSidePanelCoordinatorAndroid.init();
+        }
     }
 
     @Override
@@ -126,6 +134,13 @@ final class SidePanelContainerCoordinatorImpl
     @Override
     public View getView() {
         log(TAG, "getView");
+        ThreadUtils.assertOnUiThread();
+        return mContainerView;
+    }
+
+    @Override
+    public View getViewForTesting() {
+        log(TAG, "getViewForTesting");
         ThreadUtils.assertOnUiThread();
         return mContainerView;
     }
@@ -196,8 +211,9 @@ final class SidePanelContainerCoordinatorImpl
 
     @Override
     public void onWindowResized(boolean canShowSideUi) {
-        assert mSidePanelCoordinatorAndroid != null;
-        mSidePanelCoordinatorAndroid.onWindowResized(canShowSideUi);
+        if (mSidePanelCoordinatorAndroid != null) {
+            mSidePanelCoordinatorAndroid.onWindowResized(canShowSideUi);
+        }
     }
 
     /**

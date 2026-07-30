@@ -25,8 +25,15 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
+#include "chromeos/dbus/power/power_manager_client.h"
+#endif
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -50,11 +57,13 @@
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_ids.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
+#include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
+#include "chrome/browser/ui/views/performance_controls/battery_saver_bubble_view.h"
 #include "chrome/browser/ui/views/toolbar/home_button.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -81,6 +90,7 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/data_sharing/public/features.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
+#include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/permissions/test/permission_request_observer.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
@@ -91,6 +101,7 @@
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/ax_inspect_factory.h"
 #include "content/public/browser/javascript_dialog_manager.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -106,6 +117,7 @@
 #include "content/public/test/navigation_handle_observer.h"
 #include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "extensions/common/extension.h"
 #include "net/base/filename_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "third_party/blink/public/common/features.h"
@@ -449,7 +461,11 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
          features::kWebUIExtensionsContainer,
          features::kSkipIPCChannelPausingForNonGuests,
          features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
+         features::kInitialWebUISyncNavStartToCommit,
+#if BUILDFLAG(IS_CHROMEOS)
+         ash::features::kBatterySaver,
+#endif
+         features::kWebUIBatterySaverButton},
         {});
   }
 
@@ -1089,8 +1105,18 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
       web_view->GetWebContents(),
       DispatchPointerClick(kBackSelector, "mouse",
                            "detail: 1, button: 0, ctrlKey: true")));
+  // DispatchPointerClick only sends pointerdown and pointerup.
+  // Explicitly dispatch the contextmenu event to accurately simulate real-world
+  // browser behavior on Mac, where a real Ctrl+LeftClick natively triggers both
+  // pointerdown and contextmenu events.
+  EXPECT_TRUE(content::ExecJs(
+      web_view->GetWebContents(),
+      DispatchPointerEvent("contextmenu", kBackSelector, "mouse",
+                           "detail: 1, button: 0, ctrlKey: true")));
 
   auto* back_control = &webui_toolbar_view->back_control_;
+  ASSERT_TRUE(back_control->menu_runner_);
+  EXPECT_TRUE(back_control->menu_runner_->IsRunning());
   back_control->menu_runner_->Cancel();
 
   // Verify no new tab was opened.
@@ -1246,6 +1272,115 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
                                 })();)",
                                 GetButtonAppJS(kHomeSelector))),
             false);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
+                       CheckBatterySaverButtonShowHide) {
+  content::ScopedAccessibilityModeOverride mode_override(ui::kAXModeComplete);
+  ui::TrackedElement* element = nullptr;
+  WebUIToolbarWebView* webui_toolbar_view = nullptr;
+  views::WebView* web_view = nullptr;
+  ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kWebUIToolbarElementIdentifier, &element,
+                                     &webui_toolbar_view, &web_view,
+                                     browser()));
+
+  content::WebContents* webui_web_contents = web_view->GetWebContents();
+  const std::string bsm_selector = "#battery-saver";
+
+  // 1. Verify initially hidden.
+  EXPECT_FALSE(webui_toolbar_view->battery_saver_control_.IsVisible());
+  auto check_visible = [&]() {
+    return content::EvalJs(
+               webui_web_contents,
+               base::StringPrintf("(() => { const btn = %s; return !!btn && "
+                                  "btn.checkVisibility(); })()",
+                                  GetButtonAppJS(bsm_selector).c_str()))
+        .ExtractBool();
+  };
+  EXPECT_FALSE(check_visible());
+
+  // 2. Enable Battery Saver.
+#if BUILDFLAG(IS_CHROMEOS)
+  g_browser_process->local_state()->SetBoolean(ash::prefs::kPowerBatterySaver,
+                                               true);
+#else
+  g_browser_process->local_state()->SetInteger(
+      performance_manager::user_tuning::prefs::kBatterySaverModeState,
+      static_cast<int>(performance_manager::user_tuning::prefs::
+                           BatterySaverModeState::kEnabled));
+#endif
+
+  // 3. Verify it becomes visible.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return webui_toolbar_view->battery_saver_control_.IsVisible();
+  }));
+  EXPECT_TRUE(WaitForButtonVisible(webui_web_contents, bsm_selector));
+
+  // Verify appropriate accessibility properties for battery saver button.
+  std::string expected_bsm_name =
+      l10n_util::GetStringUTF8(IDS_BATTERY_SAVER_BUTTON_ACCNAME);
+  std::string expected_bsm_description =
+      l10n_util::GetStringUTF8(IDS_BATTERY_SAVER_BUTTON_TOOLTIP);
+  content::WaitForAccessibilityTreeToContainNodeWithName(webui_web_contents,
+                                                         expected_bsm_name);
+  content::FindAccessibilityNodeCriteria find_criteria;
+  find_criteria.name = expected_bsm_name;
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    ui::AXPlatformNodeDelegate* node =
+        content::FindAccessibilityNode(webui_web_contents, find_criteria);
+    return node && node->GetData().role == ax::mojom::Role::kButton &&
+           node->GetData().GetStringAttribute(
+               ax::mojom::StringAttribute::kName) == expected_bsm_name &&
+           node->GetData().GetStringAttribute(
+               ax::mojom::StringAttribute::kDescription) ==
+               expected_bsm_description;
+  }));
+
+  // Now we can get the tracked element for the BSM button.
+  ui::TrackedElement* bsm_element =
+      BrowserElements::From(browser())->GetElement(
+          kToolbarBatterySaverButtonElementId);
+  ASSERT_TRUE(bsm_element);
+
+  // 4. Show battery saver button bubble (context menu).
+  views::NamedWidgetShownWaiter waiter(views::test::AnyWidgetTestPasskey{},
+                                       BatterySaverBubbleView::kViewClassName);
+
+  EXPECT_TRUE(content::ExecJs(
+      webui_web_contents,
+      base::StringPrintf("%s.click();",
+                         GetButtonIconJS(bsm_selector).c_str())));
+
+  views::Widget* bubble_widget = waiter.WaitIfNeededAndGet();
+  ASSERT_TRUE(bubble_widget);
+
+  // 5. Close bubble.
+  views::test::WidgetDestroyedWaiter destroyed_waiter(bubble_widget);
+  bubble_widget->Close();
+  destroyed_waiter.Wait();
+
+  // 6. Disable Battery Saver and verify it becomes hidden again.
+#if BUILDFLAG(IS_CHROMEOS)
+  g_browser_process->local_state()->SetBoolean(ash::prefs::kPowerBatterySaver,
+                                               false);
+#else
+  g_browser_process->local_state()->SetInteger(
+      performance_manager::user_tuning::prefs::kBatterySaverModeState,
+      static_cast<int>(performance_manager::user_tuning::prefs::
+                           BatterySaverModeState::kDisabled));
+#endif
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return !webui_toolbar_view->battery_saver_control_.IsVisible();
+  }));
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(
+               webui_web_contents,
+               base::StringPrintf("(() => { const btn = %s; return !btn || "
+                                  "!btn.checkVisibility(); })()",
+                                  GetButtonAppJS(bsm_selector).c_str()))
+        .ExtractBool();
+  }));
 }
 
 class WebUIToolbarWebViewStabilityTest : public InProcessBrowserTest {
@@ -1427,7 +1562,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewRaceTest,
   // 4. Initiate browser closure.
   // This synchronously calls Browser::OnWindowClosing() which nulls the
   // BrowserWindowInterface reference and posts SynchronouslyDestroyBrowser.
-  new_browser->window()->Close();
+  new_browser->GetWindow()->Close();
 
   // 5. Queue BindInterface manually.
   // This mimics the Mojo request from the renderer arriving after the BWI is
@@ -1485,7 +1620,9 @@ class WebUIToolbarLifecycleBrowserTest : public InProcessBrowserTest {
       // Prewarm state
       enabled_features.push_back(
           {features::kWebUIReloadButton,
-           {{"WebUIReloadButtonPrewarmWebUI", prewarm ? "true" : "false"}}});
+           {{"WebUIReloadButtonPrewarmWebUI", prewarm ? "true" : "false"},
+            {"WebUIReloadButtonPrewarmWebUIPreNavigate",
+             prewarm ? "true" : "false"}}});
     }
 
     // Disable standard PreloadTopChromeWebUI for the default window to prevent
@@ -1562,7 +1699,7 @@ class WebUIToolbarLifecycleBrowserTest : public InProcessBrowserTest {
     std::unique_ptr<TestBrowserElements> browser_elements;
   };
 
- private:
+ protected:
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -1726,6 +1863,87 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecycleNonPrewarmedBrowserTest,
   widget->CloseNow();
 }
 
+class WebUIToolbarLifecyclePrewarmedDeferredBrowserTest
+    : public WebUIToolbarLifecycleBrowserTest {
+ public:
+  WebUIToolbarLifecyclePrewarmedDeferredBrowserTest() = default;
+  ~WebUIToolbarLifecyclePrewarmedDeferredBrowserTest() override = default;
+
+ protected:
+  void SetUp() override {
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    // Base features
+    enabled_features.push_back(
+        {features::kWebUIInProcessResourceLoadingV2, {}});
+    enabled_features.push_back(
+        {features::kSkipIPCChannelPausingForNonGuests, {}});
+
+    enabled_features.push_back({features::kInitialWebUI, {}});
+    enabled_features.push_back({features::kWebUIAvatarButton, {}});
+    enabled_features.push_back(
+        {features::kWebUIReloadButton,
+         {{"WebUIReloadButtonPrewarmWebUI", "true"},
+          {"WebUIReloadButtonPrewarmWebUIPreNavigate", "false"}}});
+
+    // Disable standard PreloadTopChromeWebUI for the default window to prevent
+    // startup crashes.
+    disabled_features.push_back(features::kPreloadTopChromeWebUI);
+
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                disabled_features);
+    WebUIToolbarLifecycleBrowserTest::SetUp();
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarLifecyclePrewarmedDeferredBrowserTest,
+                       DeferredLoad) {
+  LifecycleTestSetup setup(browser());
+
+  // Set up navigation observer for the toolbar WebUI.
+  content::TestNavigationObserver observer(
+      (GURL(chrome::kChromeUIWebUIToolbarURL)));
+  observer.StartWatchingNewWebContents();
+
+  // Create the InitialWebUIManager.
+  auto manager = std::make_unique<InitialWebUIManager>(&setup.mock_browser);
+
+  // Verify that the prewarmed WebContents exists but has NOT started
+  // navigation.
+  content::WebContents* prewarmed_contents =
+      manager->GetToolbarContentsForTesting();
+  ASSERT_TRUE(prewarmed_contents);
+  EXPECT_FALSE(prewarmed_contents->IsLoading());
+  content::NavigationEntry* entry =
+      prewarmed_contents->GetController().GetLastCommittedEntry();
+  ASSERT_TRUE(entry);
+  EXPECT_TRUE(entry->IsInitialEntry());
+  EXPECT_EQ(entry->GetURL(), GURL());
+
+  // Construct the WebUIToolbarWebView. It should consume the prewarmed
+  // contents.
+  auto toolbar_view = std::make_unique<WebUIToolbarWebView>(
+      &setup.mock_browser, browser()->command_controller(),
+      /*location_bar=*/nullptr);
+
+  // Add it to a widget. This should trigger the deferred navigation.
+  auto widget = std::make_unique<views::Widget>();
+  views::Widget::InitParams widget_params(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
+  widget_params.context = browser()->window()->GetNativeWindow();
+  widget_params.bounds = gfx::Rect(0, 0, 100, 100);
+  widget->Init(std::move(widget_params));
+  widget->GetContentsView()->AddChildView(std::move(toolbar_view));
+
+  // Wait for the deferred navigation to complete.
+  observer.Wait();
+  EXPECT_TRUE(observer.last_navigation_succeeded());
+
+  widget->CloseNow();
+}
+
 // Verify that the crash is recovered by reloading the page until it hits the
 // limit set in `WebUIReloadButtonMaxCrashRecoveryTimes`, after that it will
 // remain crashed.
@@ -1869,7 +2087,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
 
   // Close the window. This should trigger the beforeunload dialog and set the
   // browser into the "attempting to close" state.
-  browser()->window()->Close();
+  browser()->GetWindow()->Close();
 
   // Verify the browser is attempting to close.
   EXPECT_TRUE(browser()->capabilities()->IsAttemptingToCloseBrowser());
@@ -2315,7 +2533,7 @@ class WebUIToolbarWebViewSplitTabsBrowserTest : public InProcessBrowserTest {
         {features::kInitialWebUI, features::kWebUISplitTabsButton,
          features::kSkipIPCChannelPausingForNonGuests,
          features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
+         features::kInitialWebUISyncNavStartToCommit, features::kRoundedIcons},
         {});
   }
 
@@ -2549,7 +2767,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
     return content::EvalJs(web_view->GetWebContents(),
                            base::StrCat({GetButtonIconJS(kSplitTabsSelector),
                                          "?.getAttribute('iron-icon') || ''"}))
-               .ExtractString() == "split-tabs-button:split-scene-right";
+               .ExtractString() == "webui-toolbar:split_scene_right";
   }));
 
   // Activate the other tab (Left/Start).
@@ -2561,7 +2779,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
     return content::EvalJs(web_view->GetWebContents(),
                            base::StrCat({GetButtonIconJS(kSplitTabsSelector),
                                          "?.getAttribute('iron-icon') || ''"}))
-               .ExtractString() == "split-tabs-button:split-scene-left";
+               .ExtractString() == "webui-toolbar:split_scene_left";
   }));
 }
 
@@ -2701,6 +2919,57 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewBrowserTest, DropFileOnToolbar) {
                           ->GetLastCommittedURL());
 }
 
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewBrowserTest, LoadExtension) {
+  ui::TrackedElement* element = nullptr;
+  WebUIToolbarWebView* webui_toolbar_view = nullptr;
+  views::WebView* web_view = nullptr;
+  ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kWebUIToolbarElementIdentifier, &element,
+                                     &webui_toolbar_view, &web_view,
+                                     browser()));
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  base::FilePath manifest_path =
+      temp_dir.GetPath().AppendASCII("manifest.json");
+  std::string manifest_content = R"({
+    "name": "Test Extension",
+    "version": "1.0",
+    "manifest_version": 3,
+    "action": {}
+  })";
+  ASSERT_TRUE(base::WriteFile(manifest_path, manifest_content));
+
+  extensions::ChromeTestExtensionLoader loader(browser()->profile());
+  scoped_refptr<const extensions::Extension> extension =
+      loader.LoadExtension(temp_dir.GetPath());
+  ASSERT_TRUE(extension);
+
+  // Pin the extension so it becomes visible.
+  ToolbarActionsModel::Get(browser()->profile())
+      ->SetActionVisibility(extension->id(), true);
+
+  std::string extension_id = extension->id();
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_contents,
+                           base::StringPrintf(R"(
+      (() => {
+        const app = document.querySelector('toolbar-app');
+        if (!app) return false;
+        const extensionsContainer = app.shadowRoot.querySelector('#extensions');
+        if (!extensionsContainer) return false;
+        const extensionElements = extensionsContainer.shadowRoot
+            .querySelectorAll('webui-toolbar-extension');
+        return Array.from(extensionElements).some(el => el.state.id === '%s');
+      })();
+    )",
+                                              extension_id.c_str()))
+        .ExtractBool();
+  }));
+}
+
 // Tests for the home button. Also serve as the general PressHandler tests.
 class WebUIToolbarWebViewHomeButtonBrowserTest : public InProcessBrowserTest {
  public:
@@ -2785,6 +3054,18 @@ class WebUIToolbarWebViewHomeButtonBrowserTest : public InProcessBrowserTest {
     auto* styled_label =
         static_cast<views::StyledLabel*>(bubble->children().front());
     styled_label->ClickFirstLinkForTesting();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Home icon is different for touch only with old icon set.
+class WebUIToolbarWebViewHomeButtonOldIconsBrowserTest
+    : public WebUIToolbarWebViewHomeButtonBrowserTest {
+ public:
+  WebUIToolbarWebViewHomeButtonOldIconsBrowserTest() {
+    feature_list_.InitAndDisableFeature(features::kRoundedIcons);
   }
 
  private:
@@ -2981,30 +3262,35 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
                            ->GetLastCommittedURL());
 }
 
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonOldIconsBrowserTest,
                        TouchModeChangesIcon) {
   WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   content::WebContents* web_contents = web_view->GetWebContents();
 
-  std::string get_icon_js =
-      base::StrCat({"window.getComputedStyle(", GetButtonIconJS(kHomeSelector),
-                    ").getPropertyValue('--cr-icon-image')"});
+  std::string get_icon_js = base::StrCat(
+      {GetButtonIconJS(kHomeSelector), ".getAttribute('iron-icon')"});
+  std::string get_button_height_js =
+      base::StrCat({GetButtonIconJS(kHomeSelector), ".offsetHeight"});
 
   // Verify standard mode icon
-  EXPECT_TRUE(content::EvalJs(web_contents, get_icon_js)
-                  .ExtractString()
-                  .find("home_20.svg") != std::string::npos);
+  EXPECT_EQ("webui-toolbar:navigate_home_chrome_refresh_old",
+            content::EvalJs(web_contents, get_icon_js));
+
+  // Also its size.
+  EXPECT_EQ(GetLayoutConstant(LayoutConstant::kToolbarButtonHeight),
+            content::EvalJs(web_contents, get_button_height_js));
 
   {
     ui::TouchUiController::TouchUiScoperForTesting touch_ui_scoper(true);
 
     // Wait and verify Touch mode icon
     EXPECT_TRUE(base::test::RunUntil([&]() {
-      std::string current_icon =
-          content::EvalJs(web_contents, get_icon_js).ExtractString();
-      return current_icon.find("home_24.svg") != std::string::npos;
+      return GetLayoutConstant(LayoutConstant::kToolbarButtonHeight) ==
+             content::EvalJs(web_contents, get_button_height_js);
     }));
+    EXPECT_EQ("webui-toolbar:navigate_home_touch_old",
+              content::EvalJs(web_contents, get_icon_js));
   }
 
   // Revert to non-touch mode happens automatically when scoper goes out of
@@ -3012,10 +3298,11 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
 
   // Wait and verify standard mode icon again
   EXPECT_TRUE(base::test::RunUntil([&]() {
-    std::string current_icon =
-        content::EvalJs(web_contents, get_icon_js).ExtractString();
-    return current_icon.find("home_20.svg") != std::string::npos;
+    return GetLayoutConstant(LayoutConstant::kToolbarButtonHeight) ==
+           content::EvalJs(web_contents, get_button_height_js);
   }));
+  EXPECT_EQ("webui-toolbar:navigate_home_chrome_refresh_old",
+            content::EvalJs(web_contents, get_icon_js));
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
@@ -3184,7 +3471,9 @@ class WebUIPinnedToolbarActionsBrowserTest
              features::kSkipIPCChannelPausingForNonGuests,
              features::kWebUIInProcessResourceLoadingV2,
              features::kInitialWebUISyncNavStartToCommit,
-             tabs::kHorizontalTabStripComboButton,
+             // `WebUIPinnedToolbarActionsBrowserTest.LensOverlayResultsIcon`
+             // depends on `kRoundedIcons`.
+             features::kRoundedIcons, tabs::kHorizontalTabStripComboButton,
              // Facilitate testing kActionSidePanelShowComments
              collaboration::features::kCollaborationComments,
              // Facilitate testing kActionsSidePanelShowContextualTasks
@@ -3500,31 +3789,35 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, RouteMediaIcons) {
 
   toolbar_ui_api::mojom::PinnedToolbarAction mojom_action =
       toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMedia;
-  const bool rounded_icons = features::IsRoundedIconsEnabled();
 
-  const auto kRouteMediaIcons = std::to_array<Test>({
-      {base::raw_ref(features::IsRoundedIconsEnabled()
-                         ? vector_icons::kCastIcon
-                         : vector_icons::kMediaRouterIdleChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaIdle")},
-      {base::raw_ref(
-           features::IsRoundedIconsEnabled()
-               ? vector_icons::kCastWarningIcon
-               : vector_icons::kMediaRouterWarningChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaWarning")},
-      {base::raw_ref(features::IsRoundedIconsEnabled()
-                         ? vector_icons::kCastPauseIcon
-                         : vector_icons::kMediaRouterPausedOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaPaused")},
-      {base::raw_ref(
-           features::IsRoundedIconsEnabled()
-               ? vector_icons::kCastConnectedIcon
-               : vector_icons::kMediaRouterActiveChromeRefreshOldIcon),
-       std::string_view("pinned-toolbar-action:RouteMediaActive")},
-      {base::raw_ref(rounded_icons ? kCastIcon : kCastChromeRefreshOldIcon),
-       rounded_icons ? std::string_view("webui-toolbar:cast")
-                     : std::string_view("pinned-toolbar-action:RouteMedia")},
-  });
+  const auto kRouteMediaIcons =
+      features::IsRoundedIconsEnabled()
+          ? std::vector<Test>(
+                {{base::raw_ref(vector_icons::kCastIcon),
+                  std::string_view("webui-toolbar:cast")},
+                 {base::raw_ref(vector_icons::kCastWarningIcon),
+                  std::string_view("webui-toolbar:cast_warning")},
+                 {base::raw_ref(vector_icons::kCastPauseIcon),
+                  std::string_view("webui-toolbar:cast_pause")},
+                 {base::raw_ref(vector_icons::kCastConnectedIcon),
+                  std::string_view("webui-toolbar:cast_connected")}})
+          : std::vector<Test>(
+                {{base::raw_ref(
+                      vector_icons::kMediaRouterIdleChromeRefreshOldIcon),
+                  std::string_view(
+                      "webui-toolbar:media_router_idle_chrome_refresh_old")},
+                 {base::raw_ref(
+                      vector_icons::kMediaRouterWarningChromeRefreshOldIcon),
+                  std::string_view(
+                      "webui-toolbar:media_router_warning_chrome_refresh_old")},
+                 {base::raw_ref(vector_icons::kMediaRouterPausedOldIcon),
+                  std::string_view("webui-toolbar:media_router_paused_old")},
+                 {base::raw_ref(
+                      vector_icons::kMediaRouterActiveChromeRefreshOldIcon),
+                  std::string_view(
+                      "webui-toolbar:media_router_active_chrome_refresh_old")},
+                 {base::raw_ref(kCastChromeRefreshOldIcon),
+                  std::string_view("webui-toolbar:cast_chrome_refresh_old")}});
 
   for (const auto& test : kRouteMediaIcons) {
     SCOPED_TRACE(test.expected_icon);
@@ -3560,19 +3853,14 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
   PinAction(
       kActionShowPasswordsBubbleOrPage,
       toolbar_ui_api::mojom::PinnedToolbarAction::kShowPasswordsBubbleOrPage);
-  // This one gets handled via style.
-  EXPECT_EQ("(null)", EvalJsOnPinnedButton(
-                          web_contents,
-                          toolbar_ui_api::mojom::PinnedToolbarAction::
-                              kShowPasswordsBubbleOrPage,
-                          "return btn?.getAttribute('iron-icon') || '(null)'"));
-  EXPECT_EQ(
-      "--cr-icon-image: url(rhs_icons/password_manager.svg);"
-      "--cr-icon-button-fill-color: rgba(255, 255, 0, 1.00);",
-      EvalJsOnPinnedButton(web_contents,
-                           toolbar_ui_api::mojom::PinnedToolbarAction::
-                               kShowPasswordsBubbleOrPage,
-                           "return btn?.getAttribute('style') || '(null)'"));
+  EXPECT_EQ(features::IsRoundedIconsEnabled()
+                ? "webui-toolbar:password_manager"
+                : "webui-toolbar:password_manager_old",
+            EvalJsOnPinnedButton(
+                web_contents,
+                toolbar_ui_api::mojom::PinnedToolbarAction::
+                    kShowPasswordsBubbleOrPage,
+                "return btn?.getAttribute('iron-icon') || '(null)'"));
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, SidePanelToggle) {
@@ -4135,7 +4423,9 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   expected_icon = "internal-icons:page_insights";
 #else
-  expected_icon = "pinned-toolbar-action:SidePanelShowAboutThisSite";
+  expected_icon = features::IsRoundedIconsEnabled()
+                      ? "webui-toolbar:info"
+                      : "webui-toolbar:info_chrome_refresh_old";
 #endif
 
   // Verify iron-icon attribute in WebUI.
@@ -4164,7 +4454,9 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   expected_icon = "internal-icons:google_lens_monochrome_logo";
 #else
-  expected_icon = "pinned-toolbar-action:SidePanelShowLensOverlayResults";
+  expected_icon = features::IsRoundedIconsEnabled()
+                      ? "webui-toolbar:search"
+                      : "webui-toolbar:search_chrome_refresh_old_icon";
 #endif
 
   // Verify iron-icon attribute in WebUI.
@@ -4342,9 +4634,21 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarProcessOverheadExperimentBrowserTest,
 }
 
 class WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest
-    : public WebUIToolbarWebViewBrowserTest {
+    : public WebUIToolbarWebViewBrowserTest,
+      public testing::WithParamInterface<bool> {
  public:
-  WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest() = default;
+  WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest()
+      : WebUIToolbarWebViewBrowserTest(
+            {features::kWebUIReloadButton, features::kWebUISplitTabsButton,
+             features::kWebUIHomeButton, features::kWebUIExtensionsContainer,
+             features::kSkipIPCChannelPausingForNonGuests,
+             features::kWebUIInProcessResourceLoadingV2,
+             features::kInitialWebUISyncNavStartToCommit},
+            {}) {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kInitialWebUI,
+        {{"use_separate_process", GetParam() ? "true" : "false"}});
+  }
 
   void SetUpInProcessBrowserTestFixture() override {
     WebUIToolbarWebViewBrowserTest::SetUpInProcessBrowserTestFixture();
@@ -4353,9 +4657,12 @@ class WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest
 
  protected:
   std::unique_ptr<base::HistogramTester> histogram_tester_;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
+IN_PROC_BROWSER_TEST_P(WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
                        FirstProcessRecordsFalse) {
   content::FetchHistogramsFromChildProcesses();
   metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
@@ -4364,6 +4671,44 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
       "InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation",
       false, 1);
 }
+
+IN_PROC_BROWSER_TEST_P(WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
+                       DoesNotRecordTrueForDifferentTopChromeWebUI) {
+  // Destroy the first window's Toolbar process by destroying its WebContents.
+  WebUIToolbarWebView* webui_toolbar_view = ::GetWebUIToolbarWebView(browser());
+  ASSERT_TRUE(webui_toolbar_view);
+  webui_toolbar_view->GetWebViewForTesting()->SetOwnedWebContents(nullptr);
+
+  // Launch a different Top Chrome WebUI process (e.g. Tab Search) by opening a
+  // new tab and navigating it to Tab Search.
+  GURL tab_search_url("chrome://tab-search.top-chrome/");
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), tab_search_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  // Create a second browser window. This will trigger the creation of a new
+  // toolbar process for that window.
+  base::HistogramTester histograms;
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  ASSERT_TRUE(second_browser);
+
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  if (GetParam()) {
+    histograms.ExpectUniqueSample(
+        "InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation",
+        false, 1);
+  } else {
+    histograms.ExpectTotalCount(
+        "InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation",
+        0);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
+                         testing::Bool());
 
 class WebUIToolbarWebViewContentSettingsBrowserTest
     : public WebUIToolbarWebViewBrowserTest {

@@ -265,7 +265,7 @@ class MojoHandleWatcher {
     run_loop_->Run();
   }
 
-  typedef base::OnceCallback<void(void)> DoneCallBack;
+  using DoneCallBack = base::OnceClosure;
   void WaitAsync(DoneCallBack callback) {
     done_callback_ = std::move(callback);
     handle_watcher_.ArmOrNotify();

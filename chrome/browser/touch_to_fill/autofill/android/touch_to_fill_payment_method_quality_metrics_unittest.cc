@@ -37,7 +37,7 @@ class TouchToFillForPaymentMethodsTest
     SetUpHelper();
     ON_CALL(payments_autofill_client(), ShowTouchToFillCreditCard)
         .WillByDefault(testing::Return(true));
-    autofill_manager().set_touch_to_fill_delegate(
+    autofill_manager().set_touch_to_fill_payment_method_delegate(
         std::make_unique<TouchToFillDelegateAndroidImpl>(&autofill_manager()));
     autofill_client().set_test_strike_database(
         std::make_unique<TestStrikeDatabase>());
@@ -47,7 +47,7 @@ class TouchToFillForPaymentMethodsTest
 
   TouchToFillDelegateAndroidImpl& touch_to_fill_delegate() {
     return *static_cast<TouchToFillDelegateAndroidImpl*>(
-        autofill_manager().touch_to_fill_delegate());
+        autofill_manager().touch_to_fill_payment_method_delegate());
   }
 
   MockPaymentsAutofillClient& payments_autofill_client() {

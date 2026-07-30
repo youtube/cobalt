@@ -2045,7 +2045,6 @@ public class AwSettings {
     }
 
     public void setForceDarkMode(@ForceDarkMode int forceDarkMode) {
-        AwWebContentsMetricsRecorder.recordForceDarkModeAPIUsage(mContext, forceDarkMode);
         synchronized (mAwSettingsLock) {
             if (mForceDarkMode != forceDarkMode) {
                 mForceDarkMode = forceDarkMode;
@@ -2104,7 +2103,6 @@ public class AwSettings {
     }
 
     public void setForceDarkBehavior(@ForceDarkBehavior int forceDarkBehavior) {
-        AwWebContentsMetricsRecorder.recordForceDarkBehaviorAPIUsage(forceDarkBehavior);
         synchronized (mAwSettingsLock) {
             if (mForceDarkBehavior != forceDarkBehavior) {
                 mForceDarkBehavior = forceDarkBehavior;

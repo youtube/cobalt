@@ -48,9 +48,9 @@ EventFlags ButtonToEventFlags(uint32_t button) {
     case BTN_TOUCH:
       return EF_LEFT_MOUSE_BUTTON;
     case BTN_STYLUS:
-      return EF_RIGHT_MOUSE_BUTTON;
-    case BTN_STYLUS2:
       return EF_MIDDLE_MOUSE_BUTTON;
+    case BTN_STYLUS2:
+      return EF_RIGHT_MOUSE_BUTTON;
     default:
       return 0;
   }

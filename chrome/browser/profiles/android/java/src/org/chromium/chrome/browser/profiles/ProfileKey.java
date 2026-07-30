@@ -19,8 +19,11 @@ public class ProfileKey implements SimpleFactoryKeyHandle {
     /** Pointer to the Native-side ProfileKey. */
     private long mNativeProfileKeyAndroid;
 
-    private ProfileKey(long nativeProfileKeyAndroid) {
+    private long mNativeSimpleFactoryKey;
+
+    private ProfileKey(long nativeProfileKeyAndroid, long nativeSimpleFactoryKey) {
         mNativeProfileKeyAndroid = nativeProfileKeyAndroid;
+        mNativeSimpleFactoryKey = nativeSimpleFactoryKey;
         mIsOffTheRecord = ProfileKeyJni.get().isOffTheRecord(mNativeProfileKeyAndroid);
     }
 
@@ -50,18 +53,18 @@ public class ProfileKey implements SimpleFactoryKeyHandle {
 
     @Override
     public long getNativeSimpleFactoryKeyPointer() {
-        if (mNativeProfileKeyAndroid == 0) return 0;
-        return ProfileKeyJni.get().getSimpleFactoryKeyPointer(mNativeProfileKeyAndroid);
+        return mNativeSimpleFactoryKey;
     }
 
     @CalledByNative
-    private static ProfileKey create(long nativeProfileKeyAndroid) {
-        return new ProfileKey(nativeProfileKeyAndroid);
+    private static ProfileKey create(long nativeProfileKeyAndroid, long nativeSimpleFactoryKey) {
+        return new ProfileKey(nativeProfileKeyAndroid, nativeSimpleFactoryKey);
     }
 
     @CalledByNative
     private void onNativeDestroyed() {
         mNativeProfileKeyAndroid = 0;
+        mNativeSimpleFactoryKey = 0;
     }
 
     @CalledByNative
@@ -74,7 +77,5 @@ public class ProfileKey implements SimpleFactoryKeyHandle {
         ProfileKey getOriginalKey(long nativeProfileKeyAndroid);
 
         boolean isOffTheRecord(long nativeProfileKeyAndroid);
-
-        long getSimpleFactoryKeyPointer(long nativeProfileKeyAndroid);
     }
 }

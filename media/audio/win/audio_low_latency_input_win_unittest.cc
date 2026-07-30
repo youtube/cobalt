@@ -57,6 +57,8 @@ using ::testing::NotNull;
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 namespace {
 
 constexpr char kMockApplicationLoopbackDeviceId[] = "applicationLoopback:12345";
@@ -93,7 +95,7 @@ class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
                double volume,
                const AudioGlitchInfo& glitch_info),
               (override));
-  MOCK_METHOD(void, OnError, (), (override));
+  MOCK_METHOD(void, OnError, (Error), (override));
 };
 
 class FakeAudioInputCallback : public AudioInputStream::AudioInputCallback {
@@ -110,6 +112,7 @@ class FakeAudioInputCallback : public AudioInputStream::AudioInputCallback {
   FakeAudioInputCallback& operator=(const FakeAudioInputCallback&) = delete;
 
   bool error() const { return error_; }
+  std::optional<Error> last_error_code() const { return last_error_code_; }
   int num_callbacks() const { return num_callbacks_; }
   int num_received_audio_frames() const { return num_received_audio_frames_; }
 
@@ -135,8 +138,9 @@ class FakeAudioInputCallback : public AudioInputStream::AudioInputCallback {
     data_event_.Signal();
   }
 
-  void OnError() override {
+  void OnError(Error error_code) override {
     error_ = true;
+    last_error_code_ = error_code;
     if (!error_event_.IsSignaled()) {
       error_event_.Signal();
     }
@@ -148,6 +152,7 @@ class FakeAudioInputCallback : public AudioInputStream::AudioInputCallback {
   base::WaitableEvent data_event_;
   base::WaitableEvent error_event_;
   bool error_;
+  std::optional<Error> last_error_code_;
 };
 
 class FakeAudioOutputCallback : public AudioOutputStream::AudioSourceCallback {
@@ -244,7 +249,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
     }
   }
 
-  void OnError() override {}
+  void OnError(Error error_code) override {}
 
  private:
   media::SeekableBuffer buffer_;
@@ -758,6 +763,7 @@ TEST_F(WinAudioInputStreamErrorTest, WASAPIAudioInputStreamOnError) {
   // Wait for the OnError call.
   sink.WaitForError();
   EXPECT_TRUE(sink.error());
+  EXPECT_EQ(sink.last_error_code(), Error::kRuntimeError);
 
   // In this state, the inner audio-thread loop should be cancelled due to the
   // previous error. Verify it by waiting for data callbacks and ensure that
@@ -798,6 +804,7 @@ TEST_F(WinAudioInputStreamErrorTest,
   // Wait for the OnError call.
   sink.WaitForError();
   EXPECT_TRUE(sink.error());
+  EXPECT_EQ(sink.last_error_code(), Error::kStartupFailed);
 
   // Ensure the capture thread was created even though Start() failed.
   EXPECT_TRUE(wasapi_stream->HasCaptureThreadForTesting());

@@ -72,8 +72,7 @@ class MockTunnelServer : public network::TestNetworkContext {
           auth_handler,
       mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client,
       const std::optional<base::UnguessableToken>& throttling_profile_id,
-      const std::optional<base::UnguessableToken>& network_restrictions_id)
-      override {
+      const base::UnguessableToken& network_restrictions_id) override {
     create_called_ = true;
   }
 

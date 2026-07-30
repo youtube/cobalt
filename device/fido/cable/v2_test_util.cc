@@ -39,6 +39,7 @@
 #include "net/http/http_status_code.h"
 #include "net/storage_access_api/status.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/test/test_network_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -80,8 +81,7 @@ class TestNetworkContext : public network::TestNetworkContext {
           auth_handler,
       mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client,
       const std::optional<base::UnguessableToken>& throttling_profile_id,
-      const std::optional<base::UnguessableToken>& network_restrictions_id)
-      override {
+      const base::UnguessableToken& network_restrictions_id) override {
     CHECK(url.has_path());
 
     std::string_view path = url.path();
@@ -686,7 +686,10 @@ class LateLinkingDevice : public authenticator::Transaction {
         /*auth_handler=*/mojo::NullRemote(),
         /*header_client=*/mojo::NullRemote(),
         /*throttling_profile_id=*/std::nullopt,
-        /*network_restrictions_id=*/std::nullopt);
+        // This is a browser-internal connection for the caBLE rendezvous
+        // tunnel. It does not belong to any webpage, so we bypass connection
+        // allowlists.
+        /*network_restrictions_id=*/network::GetNoOpNetworkRestrictionsId());
   }
 
  private:
@@ -907,7 +910,10 @@ class HandshakeErrorDevice : public authenticator::Transaction {
         /*auth_handler=*/mojo::NullRemote(),
         /*header_client=*/mojo::NullRemote(),
         /*throttling_profile_id=*/std::nullopt,
-        /*network_restrictions_id=*/std::nullopt);
+        // This is a browser-internal connection for the caBLE rendezvous
+        // tunnel. It does not belong to any webpage, so we bypass connection
+        // allowlists.
+        /*network_restrictions_id=*/network::GetNoOpNetworkRestrictionsId());
   }
 
  private:

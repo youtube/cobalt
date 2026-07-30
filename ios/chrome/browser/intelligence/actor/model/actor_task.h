@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/intelligence/actor/model/actor_engine.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_task_updates_observer.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/tool_delegate.h"
 #import "ios/web/public/web_state_observer.h"
 
 @class CRBProtocolObservers;
@@ -35,7 +36,8 @@ class AggregatedJournal;
 // a whole Actor journey and be passed multiple sets of actions to execute
 // sequentially.
 class ActorTask : public web::WebStateObserver,
-                  public ActorEngine::ExecutionUpdatesDelegate {
+                  public ActorEngine::ExecutionUpdatesDelegate,
+                  public ToolDelegate {
  public:
   ActorTask(ActorTaskId task_id,
             const std::string& title,
@@ -100,6 +102,15 @@ class ActorTask : public web::WebStateObserver,
  private:
   friend class ActorTaskTest;
 
+  // ToolDelegate:
+  ActorTaskId GetTaskId() const override;
+  AggregatedJournal& GetJournal() const override;
+  ActorToolFactory& GetToolFactory() const override;
+
+  // Sets the actuation state on all controlled `WebState`s based on
+  // `actuating`.
+  void SetActuatingOnWebStates(bool actuating);
+
   // Sets the task state and logs the transition.
   void SetState(ActorTaskState new_state);
 
@@ -144,6 +155,10 @@ class ActorTask : public web::WebStateObserver,
   // The aggregated journal for logging. Owned by the ActorService, which is
   // guaranteed to outlive this ActorTask.
   raw_ptr<AggregatedJournal> journal_;
+
+  // The tool factory used for creating tools under this task. Owned by the
+  // ActorService, which is guaranteed to outlive this ActorTask.
+  raw_ptr<ActorToolFactory> tool_factory_;
 
   // Set of web states actively controlled (observed and/or being actuated on)
   // by this task.

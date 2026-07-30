@@ -422,18 +422,18 @@ WrapPostRequestCallbacksWithEventLogging(
       base::MakeRefCounted<base::RefCountedData<int>>(0);
   return std::make_pair(
       base::BindRepeating(
-          [](scoped_refptr<base::RefCountedData<int>> out_response_code,
+          [](base::RefCountedData<int>* out_response_code,
              ResponseStartedCallback callback, int response_code,
              int64_t content_length) {
             out_response_code->data = response_code;
             callback.Run(response_code, content_length);
           },
-          response_code, response_started_callback),
+          base::RetainedRef(response_code), response_started_callback),
       base::BindOnce(
           [](scoped_refptr<UpdaterEventLogger> event_logger,
              base::Time request_start_time,
-             scoped_refptr<base::RefCountedData<int>> response_code,
-             const GURL& url, PostRequestCompleteCallback callback,
+             base::RefCountedData<int>* response_code, const GURL& url,
+             PostRequestCompleteCallback callback,
              std::optional<std::string> response_body, int net_error,
              const std::string& header_etag,
              const std::string& header_x_cup_server_proof,
@@ -445,9 +445,9 @@ WrapPostRequestCallbacksWithEventLogging(
             event.set_bytes_received(response_body ? response_body->size() : 0);
             event.set_elapsed_time_ms(
                 (base::Time::Now() - request_start_time).InMilliseconds());
-            if (net_error > 0) {
+            if (net_error != 0) {
               event.set_error_code(net_error);
-            } else if (response_code->data < 200 && response_code->data > 299) {
+            } else if (response_code->data < 200 || response_code->data > 299) {
               event.set_error_code(response_code->data);
             }
             proto::Omaha4Metric metric;
@@ -457,8 +457,8 @@ WrapPostRequestCallbacksWithEventLogging(
                                     header_x_cup_server_proof,
                                     header_set_cookie, xheader_retry_after_sec);
           },
-          event_logger, base::Time::Now(), response_code, url,
-          std::move(post_request_complete_callback)));
+          event_logger, base::Time::Now(), base::RetainedRef(response_code),
+          url, std::move(post_request_complete_callback)));
 }
 
 std::pair<ResponseStartedCallback, DownloadToFileCompleteCallback>
@@ -472,38 +472,41 @@ WrapDownloadToFileCallbacksWithEventLogging(
                           std::move(download_to_file_complete_callback));
   }
 
-  std::unique_ptr<int> response_code = std::make_unique<int>(0);
+  scoped_refptr<base::RefCountedData<int>> response_code =
+      base::MakeRefCounted<base::RefCountedData<int>>(0);
   return std::make_pair(
       base::BindRepeating(
-          [](int* out_response_code, ResponseStartedCallback callback,
-             int response_code, int64_t content_length) {
-            *out_response_code = response_code;
+          [](base::RefCountedData<int>* out_response_code,
+             ResponseStartedCallback callback, int response_code,
+             int64_t content_length) {
+            out_response_code->data = response_code;
             callback.Run(response_code, content_length);
           },
-          response_code.get(), response_started_callback),
+          base::RetainedRef(response_code), response_started_callback),
       base::BindOnce(
           [](scoped_refptr<UpdaterEventLogger> event_logger,
-             base::Time request_start_time, std::unique_ptr<int> response_code,
-             const GURL& url, DownloadToFileCompleteCallback callback,
-             int net_error, int64_t content_size) {
+             base::Time request_start_time,
+             base::RefCountedData<int>* response_code, const GURL& url,
+             DownloadToFileCompleteCallback callback, int net_error,
+             int64_t content_size) {
             proto::NetworkEvent event;
             event.set_stack(proto::NetworkEvent::DIRECT);
             event.set_url(url.spec());
             event.set_bytes_received(content_size);
             event.set_elapsed_time_ms(
                 (base::Time::Now() - request_start_time).InMilliseconds());
-            if (net_error > 0) {
+            if (net_error != 0) {
               event.set_error_code(net_error);
-            } else if (*response_code < 200 && *response_code > 299) {
-              event.set_error_code(*response_code);
+            } else if (response_code->data < 200 || response_code->data > 299) {
+              event.set_error_code(response_code->data);
             }
             proto::Omaha4Metric metric;
             *metric.mutable_network_event() = std::move(event);
             event_logger->Log(std::move(metric));
             std::move(callback).Run(net_error, content_size);
           },
-          event_logger, base::Time::Now(), std::move(response_code), url,
-          std::move(download_to_file_complete_callback)));
+          event_logger, base::Time::Now(), base::RetainedRef(response_code),
+          url, std::move(download_to_file_complete_callback)));
 }
 
 class NetworkFetcher : public update_client::NetworkFetcher {

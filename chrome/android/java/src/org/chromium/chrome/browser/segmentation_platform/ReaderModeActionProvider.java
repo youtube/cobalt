@@ -157,19 +157,10 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
 
         if (tab == null) return;
 
-        // If ReaderModeDistillInApp is enabled and we're on a reading mode page, always show the
-        // button to give users a way to exit outside of a "back" navigation.
-        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
-                && DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
+        // If we're on a reading mode page, always show the button to give users a way to exit
+        // outside of a "back" navigation.
+        if (DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
             signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
-            return;
-        }
-
-        // If ReaderModeDistillInApp is enabled and the param for showing the CPA is disabled, don't
-        // show the button.
-        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
-                && !DomDistillerFeatures.sReaderModeDistillInAppShowCpa.getValue()) {
-            signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, false);
             return;
         }
 
@@ -198,8 +189,7 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
         }
 
         // When on a distilled page, don't count the action as shown and return immediately.
-        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
-                && DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
+        if (DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
             return;
         }
 

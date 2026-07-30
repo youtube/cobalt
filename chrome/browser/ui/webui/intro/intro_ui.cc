@@ -17,6 +17,7 @@
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/webui/intro/intro_handler.h"
+#include "chrome/browser/ui/webui/intro/sign_in_promo_handler.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
@@ -241,6 +242,9 @@ void IntroUI::SetSigninChoiceCallback(IntroSigninChoiceCallback callback) {
   signin_choice_callback_ = std::move(callback);
 
   intro_handler_->ResetIntroButtons();
+  if (sign_in_promo_handler_) {
+    sign_in_promo_handler_->ResetIntroButtons();
+  }
 }
 
 void IntroUI::SetDefaultBrowserCallback(DefaultBrowserCallback callback) {
@@ -287,6 +291,13 @@ void IntroUI::BindInterface(
   sign_in_celebration_factory_receiver_.Bind(std::move(receiver));
 }
 
+void IntroUI::BindInterface(
+    mojo::PendingReceiver<intro::mojom::SignInPromoPageHandlerFactory>
+        receiver) {
+  sign_in_promo_factory_receiver_.reset();
+  sign_in_promo_factory_receiver_.Bind(std::move(receiver));
+}
+
 void IntroUI::CreateSignInCelebrationPageHandler(
     mojo::PendingRemote<intro::mojom::SignInCelebrationPage> page,
     mojo::PendingReceiver<intro::mojom::SignInCelebrationPageHandler>
@@ -298,6 +309,17 @@ void IntroUI::CreateSignInCelebrationPageHandler(
   }
   std::move(initialize_handler_callback_)
       .Run(std::move(page), std::move(receiver));
+}
+
+void IntroUI::CreateSignInPromoPageHandler(
+    mojo::PendingRemote<intro::mojom::SignInPromoPage> page,
+    mojo::PendingReceiver<intro::mojom::SignInPromoPageHandler> receiver) {
+  const bool is_device_managed =
+      policy::ManagementServiceFactory::GetForPlatform()->IsManaged();
+
+  sign_in_promo_handler_ = std::make_unique<SignInPromoHandler>(
+      base::BindRepeating(&IntroUI::HandleSigninChoice, base::Unretained(this)),
+      is_device_managed, std::move(page), std::move(receiver));
 }
 
 void IntroUI::OnSignInCelebrationMojoHandlerReady(

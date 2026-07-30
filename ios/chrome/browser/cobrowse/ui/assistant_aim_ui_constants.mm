@@ -6,5 +6,22 @@
 
 NSString* const kAssistantAIMCloseButtonAccessibilityIdentifier =
     @"AssistantAIMCloseButtonAccessibilityIdentifier";
+NSString* const kAssistantAIMContextMenuButtonAccessibilityIdentifier =
+    @"AssistantAIMContextMenuButtonAccessibilityIdentifier";
+
+NSString* const kAIMSRPDebuggerURLViewControllerAccessibilityIdentifier =
+    @"AIMSRPDebuggerURLViewControllerAccessibilityIdentifier";
+NSString* const
+    kAIMSRPDebuggerURLViewControllerCloseButtonAccessibilityIdentifier =
+        @"AIMSRPDebuggerURLViewControllerCloseButtonAccessibilityIdentifier";
+NSString* const
+    kAIMSRPDebuggerURLViewControllerTextViewAccessibilityIdentifier =
+        @"AIMSRPDebuggerURLViewControllerTextViewAccessibilityIdentifier";
+NSString* const
+    kAIMSRPDebuggerURLViewControllerEditButtonAccessibilityIdentifier =
+        @"AIMSRPDebuggerURLViewControllerEditButtonAccessibilityIdentifier";
+NSString* const
+    kAIMSRPDebuggerURLViewControllerDoneButtonAccessibilityIdentifier =
+        @"AIMSRPDebuggerURLViewControllerDoneButtonAccessibilityIdentifier";
 
 const CGFloat kSheetDetentAnimationDuration = 0.3;

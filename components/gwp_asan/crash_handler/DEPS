@@ -1,3 +1,4 @@
 include_rules = [
+  "+components/crash/core/app",
   "+third_party/crashpad",
 ]

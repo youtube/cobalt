@@ -932,15 +932,6 @@ TEST_F(IPAddressSpaceOverridesTest, CalculateResourceAddressSpaceOverride) {
                                     IPEndPoint(IPAddress(8, 8, 8, 8), 8888)));
 }
 
-TEST(IPAddressSpaceTest, ParsePrivateIpFromURL) {
-  EXPECT_EQ(std::nullopt, ParsePrivateIpFromUrl(GURL("http://foo.test")));
-  EXPECT_EQ(std::nullopt, ParsePrivateIpFromUrl(GURL("http://8.8.8.8")));
-  EXPECT_EQ(IPAddress(192, 168, 1, 10),
-            ParsePrivateIpFromUrl(GURL("http://192.168.1.10")));
-  EXPECT_EQ(IPAddress(10, 168, 1, 10),
-            ParsePrivateIpFromUrl(GURL("http://10.168.1.10")));
-}
-
 TEST_F(IPAddressSpaceOverridesTest, GetAddressSpaceFromUrl) {
   EXPECT_EQ(std::nullopt, GetAddressSpaceFromUrl(GURL("http://foo.test")));
   EXPECT_EQ(IPAddressSpace::kPublic,

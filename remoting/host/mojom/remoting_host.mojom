@@ -43,30 +43,29 @@ interface RemotingHostControl {
 // (a.k.a. host) process of changes in the desktop environment.
 // The remote for this interface is owned in the high-privilege daemon process
 // and the receiver is bound in the low-privilege network process.
+[EnableIf=is_win|is_linux]
 interface DesktopSessionConnectionEvents {
   // Notifies the network process that the daemon has disconnected the desktop
   // session from the associated desktop environment.
-  [EnableIf=is_win|is_linux]
   OnTerminalDisconnected(int32 terminal_id);
 
   // Notifies the network process that |terminal_id| is now attached to
   // a desktop integration process. |desktop_pipe| is the client end of the
   // message pipe which will be used for IPC communication between the desktop
   // process and the network process.
-  [EnableIf=is_win|is_linux]
   OnDesktopSessionAgentAttached(int32 terminal_id,
                                 handle<message_pipe> desktop_pipe);
 
   // Requests the network process to bind a pending receiver of
   // ChromotingSessionServices coming from a user-launched process for the
   // desktop session identified by |terminal_id|.
-  [EnableIf=is_win|is_linux]
   OnSessionServicesClientConnected(
       int32 terminal_id,
       pending_receiver<ChromotingSessionServices> receiver);
 };
 
 // This enum mirrors the remoting::protocol::TransportRoute::RouteType enum.
+[EnableIf=is_win|is_linux]
 enum TransportRouteType {
   kUndefined = 0,
   kDirect = 1,
@@ -75,6 +74,7 @@ enum TransportRouteType {
 };
 
 // This struct mirrors the remoting::protocol::TransportRoute struct.
+[EnableIf=is_win|is_linux]
 struct TransportRoute {
   TransportRouteType type;
   network.mojom.IPEndPoint remote_address;
@@ -91,6 +91,7 @@ struct TransportRoute {
 // ID would be <user_email@domain.com>/chromoting_ftl_<unique_ftl_resource_id>.
 // The remote for this interface is owned in the low-privilege network process
 // and the receiver is bound in the high-privilege daemon process.
+[EnableIf=is_win|is_linux]
 interface HostStatusObserver {
   // Called when an unauthorized user attempts to connect to the host.
   OnClientAccessDenied(string signaling_id);

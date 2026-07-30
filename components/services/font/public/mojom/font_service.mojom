@@ -79,8 +79,8 @@ interface FontService {
   // (is_bold or not), and given slant (is_italic or not).
   FontRenderStyleForStrike(string family,
                            uint32 size,
-                           bool is_italic,
                            bool is_bold,
+                           bool is_italic,
                            float device_scale_factor)
       => (FontRenderStyle? font_render_style);
 

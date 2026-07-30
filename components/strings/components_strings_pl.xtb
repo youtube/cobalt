@@ -269,6 +269,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="1407135791313364759">Otwórz wszystkie</translation>
 <translation id="1408696301184924537">Aby następnym razem automatycznie uzupełnić ten numer IBAN, zapisz go na swoim koncie Google</translation>
 <translation id="1408787208417187241">Trzy zszywki u góry</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> z <ph name="NUM_MATCHES_IN_GROUP" /> w grupie <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Inne osoby korzystające z tego urządzenia nie zobaczą Twojej aktywności, dzięki czemu możesz przeglądać internet w sposób bardziej prywatny. Nie zmieni to sposobu zbierania danych przez odwiedzane witryny i używane przez nie usługi, w tym Google. Pobrane pliki, zakładki i elementy na liście Do przeczytania zostaną jednak zapisane.</translation>
 <translation id="1410941016594047814">Koperta na zaproszenie</translation>
 <translation id="1413235258620101697">Kod CVC tej karty zostanie zaszyfrowany i zapisany w Portfelu Google – umożliwi to szybsze płatności</translation>
@@ -300,6 +301,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="1445896388055045436">W momencie płatności pokaż dostępne korzyści i nagrody z karty. Obowiązują warunki wystawcy.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Nie można ustawić kluczy „<ph name="DATA_CONTROLS_FIRST_KEY_SET" />” w tym samym słowniku, w którym są już klucze „<ph name="DATA_CONTROLS_SECOND_KEY_SET" />”</translation>
+<translation id="1449251255954293933">Zapisz numer Redress w Portfelu Google</translation>
 <translation id="1455413310270022028">Gumka</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Wyświetl 0 opinii}=1{Wyświetl 1 opinię}few{Wyświetl wszystkie # opinie}many{Wyświetl wszystkie # opinii}other{Wyświetl wszystkie # opinii}}</translation>
 <translation id="1458059624921545588">Ludzie i społeczeństwo</translation>
@@ -660,6 +662,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="2045871135676061132">Koperta personalizowana</translation>
 <translation id="2046951263634619614">Sprzedaż detaliczna książek</translation>
 <translation id="2048261947532620704">Tłumaczę stronę</translation>
+<translation id="2055016614992422886">Rozmowa</translation>
 <translation id="2059166748188874810">Gmina</translation>
 <translation id="2059202684901022309">22 x 34 cale</translation>
 <translation id="2064568741209980952">Kredyty i pożyczki</translation>
@@ -1155,6 +1158,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="2782088940970074970">Wypożyczanie samochodu</translation>
 <translation id="278436560439594386">Urządzenia domowe</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Hasła · Klucze dostępu</translation>
 <translation id="2784949926578158345">Połączenie zostało zresetowane.</translation>
 <translation id="2786008859124691917">Rowery i akcesoria</translation>
 <translation id="2792012897584536778">Administratorzy tego urządzenia skonfigurowali certyfikaty zabezpieczeń, dzięki którym mogą zobaczyć zawartość stron internetowych, które odwiedzasz.</translation>
@@ -2305,6 +2309,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="46128681529823442">Sprzęt piłkarski</translation>
 <translation id="4612904677925722054">Ta strona może zawierać treści dla dorosłych. Jeśli chcesz na nią wejść, musisz mieć zgodę rodzica lub opiekuna.</translation>
 <translation id="4619564267100705184">Potwierdź, że to Ty</translation>
+<translation id="4619669610757527494">Zapisz prawo jazdy w Portfelu Google</translation>
 <translation id="4622292761762557753">Przenieś mimo to</translation>
 <translation id="4622647778991854660">Włącz powiadomienia w Centrum powiadomień. Otwórz <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Dokumenty tożsamości</translation>
@@ -2834,6 +2839,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="543656192084990644">Czujniki ruchu niedozwolone</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, poprzednio <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Kolejność odwrotna, strona do drukowania skierowana w górę</translation>
+<translation id="5447103258548475868">Zapisz paszport w Portfelu Google</translation>
 <translation id="5447235695608032700">Zezwól witrynie <ph name="SITE" /> na korzystanie z zapisanych informacji o Tobie</translation>
 <translation id="5447973833955560753">Hasło zapasowe</translation>
 <translation id="5451331376824595378">Gdy Chrome oznacza zdarzenia związane z bezpieczeństwem, odpowiednie dane o nich są wysyłane do administratora. Mogą one obejmować adresy URL stron odwiedzanych w Chrome, adresy URL stron, z których skopiowano dane, nazwy plików lub metadane, adresy IP, awarie przeglądarki lub kart oraz nazwę użytkownika, pod którą logujesz się w aplikacjach internetowych, na danym urządzeniu i w Chrome.</translation>
@@ -3557,6 +3563,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6550245281449521513">Blokowanie myszy jest niedozwolone</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nowy</translation>
 <translation id="6552566579578780089">Płatności</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> z <ph name="NUM_MATCHES_IN_GROUP" /> w grupie <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Ostatnio używano <ph name="NUM_DAYS" /> dni temu</translation>
 <translation id="6556866813142980365">Ponów</translation>
 <translation id="6557715786897013164">14 x 17 cali</translation>
@@ -4234,6 +4241,7 @@ Dodatkowe informacje:
 <translation id="7599089013883397081">Przekroczono limit czasu pobierania</translation>
 <translation id="7602868996817972616">Zapytaj Google o tę stronę</translation>
 <translation id="7606123685356405076">Modele Gemini 3</translation>
+<translation id="760632772920590778">Zapisz pojazd w Portfelu Google</translation>
 <translation id="7610193165460212391">Wartość spoza zakresu (<ph name="VALUE" />)</translation>
 <translation id="761261689936461781">Gruby</translation>
 <translation id="7613889955535752492">Wygasa: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4263,6 +4271,7 @@ Dodatkowe informacje:
 <translation id="7647206758853451655">Jakość wydruku</translation>
 <translation id="7648133459447652947">Aby wyświetlić kursor, przełącz aplikacje, odśwież stronę lub wróć do poprzedniej</translation>
 <translation id="7648527891719919697">Ta strona pozostanie zablokowana, ponieważ w <ph name="BEGIN_ANDROID_SETTINGS_LINK" />ustawieniach Androida<ph name="END_ANDROID_SETTINGS_LINK" /> masz włączoną Ochronę zaawansowaną. <ph name="BEGIN_LEARN_MORE_LINK" />Więcej informacji o tym ostrzeżeniu<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Zapisz numer KTN w Portfelu Google</translation>
 <translation id="7648992873808071793">Zapisywanie plików na tym urządzeniu</translation>
 <translation id="7649070708921625228">Pomoc</translation>
 <translation id="7650141368285545431">Użyj klucza dostępu z innego urządzenia</translation>
@@ -4355,6 +4364,7 @@ Dodatkowe informacje:
 <translation id="7773005668374414287">Ta sama kolejność, strona do drukowania skierowana w górę</translation>
 <translation id="7779418012194492374">Unieważnij dostęp dla urządzenia <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Wczoraj</translation>
+<translation id="7782228658217918863">Zapisz dowód tożsamości w Portfelu Google</translation>
 <translation id="7782465647372057580">Informacje o koncie są zaszyfrowane i prywatne</translation>
 <translation id="7785471469930192436">Jeśli chcesz usunąć historię wyszukiwania, zapoznaj się z instrukcjami wyszukiwarki</translation>
 <translation id="7785790577395078482">tego tabletu</translation>

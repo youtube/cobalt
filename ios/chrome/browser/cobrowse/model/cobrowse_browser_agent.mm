@@ -13,6 +13,7 @@
 #import "components/search_engines/util.h"
 #import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -44,6 +45,9 @@ CobrowseBrowserAgent::CobrowseBrowserAgent(Browser* browser)
         prefs::kCobrowseSessionActiveMap);
     is_session_active_ =
         map.FindBool(scene_state.sceneSessionID).value_or(false);
+    if (is_session_active_ && !IsAimCobrowseEligible(browser_->GetProfile())) {
+      SetSessionActive(false);
+    }
   }
 }
 
@@ -67,12 +71,7 @@ void CobrowseBrowserAgent::SetUIStateProvider(UIStateProvider* provider) {
 
 bool CobrowseBrowserAgent::CanShowAssistantForWebState(
     web::WebState* web_state) {
-  AimEligibilityService* aim_eligibility_service =
-      IOSChromeAimEligibilityServiceFactory::GetForProfile(
-          browser_->GetProfile());
-  if (!aim_eligibility_service ||
-      !aim_eligibility_service->IsFuseboxEligible() ||
-      !aim_eligibility_service->IsCobrowseEligible()) {
+  if (!IsAimCobrowseEligible(browser_->GetProfile())) {
     return false;
   }
   // A WebState is loaded when it becomes the active WebState while the Tab
@@ -123,12 +122,7 @@ void CobrowseBrowserAgent::SetSessionActive(bool active) {
 }
 
 void CobrowseBrowserAgent::OnEligibilityChanged() {
-  AimEligibilityService* aim_eligibility_service =
-      IOSChromeAimEligibilityServiceFactory::GetForProfile(
-          browser_->GetProfile());
-  if (!aim_eligibility_service ||
-      !aim_eligibility_service->IsFuseboxEligible() ||
-      !aim_eligibility_service->IsCobrowseEligible()) {
+  if (!IsAimCobrowseEligible(browser_->GetProfile())) {
     if (is_session_active_) {
       id<SceneCommands> scene_commands_handler =
           HandlerForProtocol(browser_->GetCommandDispatcher(), SceneCommands);
@@ -146,15 +140,19 @@ bool CobrowseBrowserAgent::IsTabGridVisible() {
 
 void CobrowseBrowserAgent::OnWebStateInserted(web::WebState* web_state) {
   CobrowseTabHelper* tab_helper = CobrowseTabHelper::FromWebState(web_state);
-  tab_helper->SetDelegate(this);
-  tab_helper->SetSceneCommandsHandler(
-      HandlerForProtocol(browser_->GetCommandDispatcher(), SceneCommands));
+  if (tab_helper) {
+    tab_helper->SetDelegate(this);
+    tab_helper->SetSceneCommandsHandler(
+        HandlerForProtocol(browser_->GetCommandDispatcher(), SceneCommands));
+  }
 }
 
 void CobrowseBrowserAgent::OnWebStateRemoved(web::WebState* web_state) {
   CobrowseTabHelper* tab_helper = CobrowseTabHelper::FromWebState(web_state);
-  tab_helper->SetDelegate(nullptr);
-  tab_helper->SetSceneCommandsHandler(nil);
+  if (tab_helper) {
+    tab_helper->SetDelegate(nullptr);
+    tab_helper->SetSceneCommandsHandler(nil);
+  }
 }
 
 void CobrowseBrowserAgent::OnWebStateDeleted(web::WebState* web_state) {

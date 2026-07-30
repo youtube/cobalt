@@ -61,8 +61,8 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_Success) {
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<FilterAttribute> attributes = {
       {kTestAttributeKey, kTestAttributeValue}};
-  FilterAnnotation annotation(id, kTestTask, kTestDomain, base::Time::Now(),
-                              attributes);
+  FilterAnnotation annotation(id, kTestTask, kTestDomain, "sub.example.com",
+                              base::Time::Now(), attributes);
 
   EXPECT_CALL(mock_client(),
               ExtractFilterAnnotation(test_url, _, kTestNavigationId))
@@ -86,8 +86,8 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_StoreFailed) {
   base::Uuid id = base::Uuid::GenerateRandomV4();
   std::vector<FilterAttribute> attributes = {
       {kTestAttributeKey, kTestAttributeValue}};
-  FilterAnnotation annotation(id, kTestTask, kTestDomain, base::Time::Now(),
-                              attributes);
+  FilterAnnotation annotation(id, kTestTask, kTestDomain, "sub.example.com",
+                              base::Time::Now(), attributes);
 
   EXPECT_CALL(mock_client(),
               ExtractFilterAnnotation(test_url, _, kTestNavigationId))

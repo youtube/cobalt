@@ -15,8 +15,11 @@ build_webui("build") {
     "animations/signin_benefits_dark_left.json",
     "animations/signin_benefits_dark_right.json",
     "animations/signin_benefits_light_bottom.json",
+    "animations/signin_benefits_light_bottom_static.json",
     "animations/signin_benefits_light_left.json",
+    "animations/signin_benefits_light_left_static.json",
     "animations/signin_benefits_light_right.json",
+    "animations/signin_benefits_light_right_static.json",
     "animations/finish_or_continue_dark_bottom.json",
     "animations/finish_or_continue_dark_left.json",
     "animations/finish_or_continue_dark_right.json",
@@ -66,6 +69,7 @@ build_webui("build") {
       "default_browser/app_refresh.ts",
       "intro_app.html.ts",
       "intro_app.ts",
+      "sign_in_promo_browser_proxy.ts",
       "sign_in_promo.html.ts",
       "sign_in_promo.ts",
       "sign_in_promo_refresh.html.ts",
@@ -98,6 +102,7 @@ build_webui("build") {
   mojo_files = [
     "$root_gen_dir/chrome/browser/ui/webui/intro/intro.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/intro/sign_in_celebration.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/ui/webui/intro/sign_in_promo.mojom-webui.ts",
   ]
 
   ts_path_mappings = [ "chrome://intro/tangible_sync_style_shared.css.js|" + rebase_path(

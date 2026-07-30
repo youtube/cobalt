@@ -231,12 +231,9 @@ void GridLanesNode::ComputeSetIndicesForSubgrid(
   // In grid lanes, placement happens after sizing, so the placement of subgrid
   // items may not be known at this point. Translate definite spans using the
   // `start_offset` cached by BuildSizingCollection. For items without a known
-  // position, assume they start at the beginning of the explicit grid.
-  //
-  // TODO(almaher): We may need to do an additional pass for row grid-lanes
-  // containers, or if items depend on the block size constraint in column
-  // grid-lanes, to ensure we get the correct position for these subgrids, as
-  // that can impact subgridded item contributions and thus track sizing.
+  // position, assume they start at the beginning of the explicit grid. This
+  // will be updated to the correct position later before the subgrid itself is
+  // laid out.
   const auto grid_axis = Style().GridLanesTrackSizingDirection();
   const wtf_size_t start_offset = CachedPlacementData().StartOffset(grid_axis);
 

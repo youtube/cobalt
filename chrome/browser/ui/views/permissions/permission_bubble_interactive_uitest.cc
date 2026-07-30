@@ -91,7 +91,7 @@ class PermissionBubbleInteractiveUITest : public InProcessBrowserTest {
                                     ->GetPrimaryMainFrame(),
                                 permissions::RequestType::kGeolocation);
 
-    EXPECT_TRUE(browser()->window()->IsActive());
+    EXPECT_TRUE(browser()->GetWindow()->IsActive());
 
     // The permission prompt is shown asynchronously.
     base::RunLoop().RunUntilIdle();
@@ -153,7 +153,7 @@ class PermissionBubbleInteractiveUITest : public InProcessBrowserTest {
 
     SendAcceleratorSync(ui::VKEY_OEM_4, true, false);
     EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
-    browser()->window()->Activate();
+    browser()->GetWindow()->Activate();
     EnsureWindowActive(browser()->window(), "switch away with curly brace");
     EXPECT_FALSE(test_api_->GetPromptWindow());
   }
@@ -174,7 +174,7 @@ class PermissionBubbleInteractiveUITest : public InProcessBrowserTest {
 // window.
 IN_PROC_BROWSER_TEST_F(PermissionBubbleInteractiveUITest,
                        MAYBE_CmdWClosesWindow) {
-  EXPECT_TRUE(browser()->window()->IsVisible());
+  EXPECT_TRUE(browser()->GetWindow()->IsVisible());
 
   // On Windows, the WM_NCDESTROY message triggering Widget destruction may not
   // have been processed by the time `SendAcceleratorSync` returns (only waits
@@ -209,7 +209,7 @@ IN_PROC_BROWSER_TEST_F(PermissionBubbleInteractiveUITest, MAYBE_SwitchTabs) {
   // test environment can't guarantee that macOS decides that the Browser window
   // is actually the "best" window to activate upon closing the current key
   // window. So activate it manually.
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
   EnsureWindowActive(browser()->window(), "tab added");
 #endif
 
@@ -237,7 +237,7 @@ IN_PROC_BROWSER_TEST_F(PermissionBubbleInteractiveUITest, MAYBE_SwitchTabs) {
   JumpToNextOpenTab();
   EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
 
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
   EnsureWindowActive(browser()->window(),
                      "switch away with ctrl+tab or arrow at mac os");
   EXPECT_FALSE(test_api_->GetPromptWindow());

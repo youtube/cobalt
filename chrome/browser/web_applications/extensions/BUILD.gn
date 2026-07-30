@@ -9,12 +9,10 @@ assert(enable_extensions)
 # TODO(crbug.com/346472679): Delete web_applications/extensions/ directory.
 source_set("extensions") {
   sources = [
-    "extension_status_utils.cc",
     "extensions_manager_impl.cc",
     "extensions_manager_impl.h",
     "web_app_extension_shortcut.cc",
     "web_app_extension_shortcut.h",
-    "web_app_uninstall_and_replace_job.cc",
   ]
   if (is_mac) {
     sources += [ "web_app_extension_shortcut_mac.mm" ]
@@ -62,7 +60,7 @@ source_set("extensions") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "web_app_uninstall_and_replace_job_unittest.cc" ]
+  sources = [ "extensions_manager_impl_unittest.cc" ]
 
   deps = [
     ":extensions",

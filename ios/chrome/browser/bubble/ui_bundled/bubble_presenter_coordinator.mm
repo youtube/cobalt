@@ -27,9 +27,9 @@
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
@@ -74,7 +74,7 @@
 
   _presenter.delegate = self.bubblePresenterDelegate;
   _presenter.geminiHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), GeminiCommands);
   if (IsFullscreenRefactoringEnabled()) {
     _presenter.fullscreenHandler = HandlerForProtocol(
         self.browser->GetCommandDispatcher(), FullscreenCommands);
@@ -232,14 +232,14 @@
       CHECK(gemini::IsFeatureAvailable(gemini::Feature::kImageRemix,
                                        self.profile));
       CHECK(IsPageActionMenuEnabled());
-      id<BWGCommands> bwgHandler =
-          HandlerForProtocol(commandDispatcher, BWGCommands);
+      id<GeminiCommands> geminiHandler =
+          HandlerForProtocol(commandDispatcher, GeminiCommands);
       id<PageActionMenuEntryPointCommands> pageActionMenuEntryPointHandler =
           HandlerForProtocol(commandDispatcher,
                              PageActionMenuEntryPointCommands);
-      [_presenter presentGeminiImageRemixBubbleWithBWGHandler:bwgHandler
-                              pageActionMenuEntryPointHandler:
-                                  pageActionMenuEntryPointHandler];
+      [_presenter presentGeminiImageRemixBubbleWithGeminiHandler:geminiHandler
+                                 pageActionMenuEntryPointHandler:
+                                     pageActionMenuEntryPointHandler];
       break;
     }
     case InProductHelpType::kPinSiteToMostVisited: {

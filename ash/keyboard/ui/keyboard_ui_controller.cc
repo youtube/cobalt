@@ -114,8 +114,7 @@ class VirtualKeyboardController : public ui::VirtualKeyboardController {
 
  private:
   raw_ptr<KeyboardUIController> keyboard_ui_controller_;
-  base::ObserverList<ui::VirtualKeyboardControllerObserver>::Unchecked
-      observer_list_;
+  base::ObserverList<ui::VirtualKeyboardControllerObserver> observer_list_;
 };
 
 }  // namespace

@@ -155,12 +155,6 @@ BASE_DECLARE_FEATURE(kWebAuthnIWARemoteDesktopAllowedOriginsPolicy);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnSendPinGeneration);
 
-// Controls setting the `create_new_vault` flag when refreshing a PIN. When
-// enabled, the enclave will produce new Vault parameters to create a new Vault
-// instead of replacing it.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnNewRefreshFlow);
-
 // Enables to save keys from out of context ("opportunistic") retrieval.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnOpportunisticRetrieval);
@@ -183,10 +177,6 @@ BASE_DECLARE_FEATURE_PARAM(
 // Enables the logic of refreshing the state of GPM Enclave Controller.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnEnableRefreshingStateOfGpmEnclaveController);
-
-// Support CTAP2.2 hmac-secret-mc extension in make credential request.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnHmacSecretMcExtension);
 
 // Prompt the user to set a new PIN when user verification is required to
 // fulfill a GPM passkey operation but no system UV or GPM PIN is available.

@@ -18,6 +18,14 @@ matched rule: {
                     a : 1
                     b : 0
                     c : 0
+                    components : [
+                        [0] : {
+                            a : 1
+                            b : 0
+                            c : 0
+                            text : #test
+                        }
+                    ]
                 }
                 text : #test
             }
@@ -121,6 +129,14 @@ matched rule: {
                     a : 1
                     b : 0
                     c : 0
+                    components : [
+                        [0] : {
+                            a : 1
+                            b : 0
+                            c : 0
+                            text : #test
+                        }
+                    ]
                 }
                 text : #test
             }

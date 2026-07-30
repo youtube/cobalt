@@ -43,7 +43,6 @@ class IdleTimeoutPolicyUtilsTest : public PlatformTest {
         AuthenticationServiceFactory::GetForProfile(profile_.get());
   }
 
-  void TearDown() override { profile_.reset(); }
 
   void SetIdleTimeoutActions(std::vector<ActionType> action_types) {
     base::ListValue actions;
@@ -67,9 +66,9 @@ class IdleTimeoutPolicyUtilsTest : public PlatformTest {
 
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;
-  raw_ptr<PrefService, DanglingUntriaged> pref_service_;
-  raw_ptr<signin::IdentityManager, DanglingUntriaged> identity_manager_;
-  raw_ptr<AuthenticationService, DanglingUntriaged> authentication_service_;
+  raw_ptr<PrefService> pref_service_;
+  raw_ptr<signin::IdentityManager> identity_manager_;
+  raw_ptr<AuthenticationService> authentication_service_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
 };
 

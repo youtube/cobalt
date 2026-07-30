@@ -5782,7 +5782,7 @@ const CSSValue* WebkitColumnBreakInside::CSSValueFromComputedStyleInternal(
       style.BreakInside());
 }
 
-bool LineClamp::ParseShorthand(
+bool AlternativeLineClampShorthand::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -5854,19 +5854,23 @@ bool LineClamp::ParseShorthand(
     continue_value = CSSIdentifierValue::Create(CSSValueID::kCollapse);
   }
 
-  AddProperty(CSSPropertyID::kMaxLines, CSSPropertyID::kLineClamp, *max_lines,
+  AddProperty(CSSPropertyID::kMaxLines,
+              CSSPropertyID::kAlternativeLineClampShorthand, *max_lines,
               important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
               properties);
-  AddProperty(CSSPropertyID::kBlockEllipsis, CSSPropertyID::kLineClamp,
-              *block_ellipsis, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(CSSPropertyID::kContinue, CSSPropertyID::kLineClamp,
-              *continue_value, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  AddProperty(CSSPropertyID::kBlockEllipsis,
+              CSSPropertyID::kAlternativeLineClampShorthand, *block_ellipsis,
+              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+              properties);
+  AddProperty(CSSPropertyID::kContinue,
+              CSSPropertyID::kAlternativeLineClampShorthand, *continue_value,
+              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+              properties);
   return true;
 }
 
-const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
+const CSSValue*
+AlternativeLineClampShorthand::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,
@@ -5901,7 +5905,7 @@ const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
   return list;
 }
 
-bool AlternativeWebkitLineClamp::ParseShorthand(
+bool AlternativeWebkitLineClampShorthand::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -5929,20 +5933,22 @@ bool AlternativeWebkitLineClamp::ParseShorthand(
   }
 
   AddProperty(CSSPropertyID::kMaxLines,
-              CSSPropertyID::kAlternativeWebkitLineClamp, *max_lines, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+              CSSPropertyID::kAlternativeWebkitLineClampShorthand, *max_lines,
+              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+              properties);
   AddProperty(CSSPropertyID::kBlockEllipsis,
-              CSSPropertyID::kAlternativeWebkitLineClamp, *block_ellipsis,
-              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-              properties);
+              CSSPropertyID::kAlternativeWebkitLineClampShorthand,
+              *block_ellipsis, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   AddProperty(CSSPropertyID::kContinue,
-              CSSPropertyID::kAlternativeWebkitLineClamp, *continue_value,
-              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-              properties);
+              CSSPropertyID::kAlternativeWebkitLineClampShorthand,
+              *continue_value, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   return true;
 }
 
-const CSSValue* AlternativeWebkitLineClamp::CSSValueFromComputedStyleInternal(
+const CSSValue*
+AlternativeWebkitLineClampShorthand::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,

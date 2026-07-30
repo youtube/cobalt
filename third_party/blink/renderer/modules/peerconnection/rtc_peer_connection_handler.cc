@@ -868,6 +868,10 @@ bool RTCPeerConnectionHandler::Initialize(
 
   // Configure optional SRTP configurations enabled via the command line.
   webrtc::CryptoOptions crypto_options;
+  if (RuntimeEnabledFeatures::RtcRtpHeaderEncryptionPolicyEnabled()) {
+    crypto_options.srtp.cryptex_policy =
+        configuration_.crypto_options.srtp.cryptex_policy;
+  }
   crypto_options.srtp.enable_gcm_crypto_suites = true;
   crypto_options.srtp.enable_encrypted_rtp_header_extensions =
       base::FeatureList::IsEnabled(kWebRtcEncryptedRtpHeaderExtensions);

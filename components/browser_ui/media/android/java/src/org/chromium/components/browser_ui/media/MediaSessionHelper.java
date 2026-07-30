@@ -24,6 +24,7 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ScreenStateReceiver;
 import org.chromium.base.SysUtils;
 import org.chromium.base.TimeUtils;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
@@ -102,6 +103,7 @@ public class MediaSessionHelper implements MediaImageCallback {
     // To track deep sleep duration between screen off and screen on.
     private long mDeepSleepTimeAtScreenOffMs = INVALID_DEEP_SLEEP_TIME;
     private boolean mIsPaused;
+    private long mTimeOfLastUnplugPauseMs;
 
     // Handles actions when the screen turns off/on, such as hiding the notification or pausing
     // media.
@@ -152,6 +154,36 @@ public class MediaSessionHelper implements MediaImageCallback {
                 }
             };
 
+    // Handles actions when headphones are unplugged.
+    private final AudioBecomingNoisyReceiver.AudioBecomingNoisyObserver
+            mAudioBecomingNoisyObserver =
+                    new AudioBecomingNoisyReceiver.AudioBecomingNoisyObserver() {
+                        @Override
+                        public void onAudioBecomingNoisy() {
+                            if (mIsPaused) return;
+
+                            // Query native flag directly via JNI.
+                            boolean noPause =
+                                    MediaFeatureMap.getInstance()
+                                            .isEnabledInNative(
+                                                    MediaFeatureList
+                                                            .NO_PAUSE_MEDIA_ON_HEADPHONE_UNPLUG);
+                            boolean shouldPause = !noPause;
+
+                            if (mMediaSessionObserver != null
+                                    && mMediaSessionObserver.getMediaSession() != null) {
+                                RecordHistogram.recordBooleanHistogram(
+                                        "Media.Android.AudioBecomingNoisyPaused", shouldPause);
+                                if (shouldPause) {
+                                    mTimeOfLastUnplugPauseMs = TimeUtils.elapsedRealtimeMillis();
+                                    MediaSessionUma.recordPause(
+                                            MediaSessionActionSource.HEADSET_UNPLUG);
+                                    mMediaSessionObserver.getMediaSession().suspend(SuspendType.UI);
+                                }
+                            }
+                        }
+                    };
+
     private final MediaNotificationListener mControlsListener =
             new MediaNotificationListener() {
                 @Override
@@ -163,7 +195,7 @@ public class MediaSessionHelper implements MediaImageCallback {
 
                     if (mMediaSessionObserver.getMediaSession() == null) return;
 
-                    mMediaSessionObserver.getMediaSession().resume();
+                    mMediaSessionObserver.getMediaSession().resume(SuspendType.UI);
                 }
 
                 @Override
@@ -172,6 +204,8 @@ public class MediaSessionHelper implements MediaImageCallback {
 
                     MediaSessionUma.recordPause(
                             MediaSessionHelper.convertMediaActionSourceToUMA(actionSource));
+
+                    mTimeOfLastUnplugPauseMs = 0;
 
                     if (mMediaSessionObserver.getMediaSession() == null) return;
 
@@ -264,7 +298,14 @@ public class MediaSessionHelper implements MediaImageCallback {
             @Override
             public void mediaSessionStateChanged(boolean isControllable, boolean isPaused) {
                 mIsPaused = isPaused;
+                if (mTimeOfLastUnplugPauseMs > 0 && !isPaused) {
+                    long delta = TimeUtils.elapsedRealtimeMillis() - mTimeOfLastUnplugPauseMs;
+                    RecordHistogram.recordLongTimesHistogram(
+                            "Media.Android.AudioBecomingNoisyPaused.TimeToResume", delta);
+                    mTimeOfLastUnplugPauseMs = 0;
+                }
                 if (!isControllable) {
+                    mTimeOfLastUnplugPauseMs = 0;
                     if (isDeviceLocked()) {
                         hideNotificationImmediately();
                     } else {
@@ -506,6 +547,7 @@ public class MediaSessionHelper implements MediaImageCallback {
         }
 
         ScreenStateReceiver.addObserver(mScreenStateObserver);
+        AudioBecomingNoisyReceiver.addObserver(mAudioBecomingNoisyObserver);
 
         if (BuildConfig.IS_FOR_TEST) {
             sInstanceForTesting = this;
@@ -518,6 +560,7 @@ public class MediaSessionHelper implements MediaImageCallback {
      * requires it.
      */
     public void destroy() {
+        mTimeOfLastUnplugPauseMs = 0;
         cleanupMediaSessionObserver();
         hideNotificationImmediately();
         if (mWebContentsObserver != null) mWebContentsObserver.observe(null);
@@ -525,13 +568,14 @@ public class MediaSessionHelper implements MediaImageCallback {
         if (mLargeIconBridge != null) mLargeIconBridge.destroy();
         mLargeIconBridge = null;
         ScreenStateReceiver.removeObserver(mScreenStateObserver);
+        AudioBecomingNoisyReceiver.removeObserver(mAudioBecomingNoisyObserver);
     }
 
     /**
-     * Removes all the leading/trailing white spaces and the quite common unicode play character.
-     * It improves the visibility of the title in the notification.
+     * Removes all the leading/trailing white spaces and the quite common unicode play character. It
+     * improves the visibility of the title in the notification.
      *
-     * @param title The original tab title, e.g. "   ▶   Foo - Bar  "
+     * @param title The original tab title, e.g. " ▶ Foo - Bar "
      * @return The sanitized tab title, e.g. "Foo - Bar"
      */
     private String sanitizeMediaTitle(String title) {

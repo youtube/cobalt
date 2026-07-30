@@ -19,7 +19,8 @@ class XRCylinderLayer : public XRShapedLayer {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRCylinderLayer(const XRCylinderLayerInit* init,
+  XRCylinderLayer(XRSession* session,
+                  const XRCylinderLayerInit* init,
                   V8XRLayerLayout::Enum final_layout,
                   XRGraphicsBinding* binding,
                   XRLayerDrawingContext* drawing_context);

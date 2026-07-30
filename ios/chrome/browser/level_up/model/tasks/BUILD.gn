@@ -1,0 +1,30 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("tasks") {
+  sources = [
+    "ai_search_task_info.mm",
+    "autofill_task_info.mm",
+    "camera_search_task_info.mm",
+    "gemini_task_info.mm",
+    "incognito_task_info.mm",
+    "lens_search_task_info.mm",
+    "password_checkup_task_info.mm",
+    "payment_methods_task_info.mm",
+    "pin_tabs_task_info.mm",
+    "quick_delete_task_info.mm",
+    "safe_browsing_task_info.mm",
+    "tab_groups_task_info.mm",
+    "task_factories.h",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/level_up/model:task_info",
+    "//ios/chrome/browser/ntp/shared/metrics:constants",
+    "//ios/chrome/browser/shared/ui:buildflags",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ui/base",
+  ]
+}

@@ -11,7 +11,7 @@ import type {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file
 import type {ScanDoneSectionElement} from 'chrome://scanning/scan_done_section.js';
 import {FileType} from 'chrome://scanning/scanning.mojom-webui.js';
 import {ScanningBrowserProxyImpl} from 'chrome://scanning/scanning_browser_proxy.js';
-import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/chromeos/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 

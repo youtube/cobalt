@@ -27,11 +27,10 @@ import {dedupingMixin} from '//resources/polymer/v3_0/polymer/polymer_bundled.mi
 
 import type {HelpBubbleDismissedEvent, HelpBubbleElement} from './help_bubble.js';
 import {HELP_BUBBLE_DISMISSED_EVENT, HELP_BUBBLE_TIMED_OUT_EVENT} from './help_bubble.js';
-import type {HelpBubbleClientCallbackRouter, HelpBubbleHandlerInterface, HelpBubbleParams} from './help_bubble.mojom-webui.js';
-import {HelpBubbleClosedReason} from './help_bubble.mojom-webui.js';
+import type {BrowserProxy, HelpBubbleParams} from './help_bubble.mojom-webui.js';
+import {browserProxyFactory, HelpBubbleClosedReason} from './help_bubble.mojom-webui.js';
 import {HelpBubbleController} from './help_bubble_controller.js';
 import type {HelpBubbleOptions, Trackable} from './help_bubble_controller.js';
-import {HelpBubbleProxyImpl} from './help_bubble_proxy.js';
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -40,8 +39,7 @@ export const HelpBubbleMixin = dedupingMixin(
     Constructor<HelpBubbleMixinInterface> => {
       class HelpBubbleMixin extends superClass implements
           HelpBubbleMixinInterface {
-        private helpBubbleHandler_: HelpBubbleHandlerInterface;
-        private helpBubbleCallbackRouter_: HelpBubbleClientCallbackRouter;
+        private helpBubbleProxy_: BrowserProxy;
         /**
          * A map from the name of the native identifier used in the tutorial or
          * IPH definition to the target element's HTML ID.
@@ -58,16 +56,13 @@ export const HelpBubbleMixin = dedupingMixin(
         constructor(...args: any[]) {
           super(...args);
 
-          this.helpBubbleHandler_ =
-              HelpBubbleProxyImpl.getInstance().getHandler();
-          this.helpBubbleCallbackRouter_ =
-              HelpBubbleProxyImpl.getInstance().getCallbackRouter();
+          this.helpBubbleProxy_ = browserProxyFactory.getInstance();
         }
 
         override connectedCallback() {
           super.connectedCallback();
 
-          const router = this.helpBubbleCallbackRouter_;
+          const router = this.helpBubbleProxy_.callbackRouter;
           this.helpBubbleListenerIds_.push(
               router.showHelpBubble.addListener(
                   this.onShowHelpBubble_.bind(this)),
@@ -93,7 +88,7 @@ export const HelpBubbleMixin = dedupingMixin(
           super.disconnectedCallback();
 
           for (const listenerId of this.helpBubbleListenerIds_) {
-            this.helpBubbleCallbackRouter_.removeListener(listenerId);
+            this.helpBubbleProxy_.callbackRouter.removeListener(listenerId);
           }
           this.helpBubbleListenerIds_ = [];
           this.helpBubbleDismissedEventTracker_.removeAll();
@@ -378,7 +373,7 @@ export const HelpBubbleMixin = dedupingMixin(
           if (!isVisible) {
             const hidden = this.hideHelpBubble(nativeId);
             if (hidden) {
-              this.helpBubbleHandler_.helpBubbleClosed(
+              this.helpBubbleProxy_.handler.helpBubbleClosed(
                   nativeId, HelpBubbleClosedReason.kPageChanged);
             }
           }
@@ -451,10 +446,10 @@ export const HelpBubbleMixin = dedupingMixin(
           assert(hidden);
           if (nativeId) {
             if (e.detail.fromActionButton) {
-              this.helpBubbleHandler_.helpBubbleButtonPressed(
+              this.helpBubbleProxy_.handler.helpBubbleButtonPressed(
                   nativeId, e.detail.buttonIndex!);
             } else {
-              this.helpBubbleHandler_.helpBubbleClosed(
+              this.helpBubbleProxy_.handler.helpBubbleClosed(
                   nativeId, HelpBubbleClosedReason.kDismissedByUser);
             }
           }
@@ -470,7 +465,7 @@ export const HelpBubbleMixin = dedupingMixin(
           const hidden = this.hideHelpBubble(nativeId);
           assert(hidden);
           if (nativeId) {
-            this.helpBubbleHandler_.helpBubbleClosed(
+            this.helpBubbleProxy_.handler.helpBubbleClosed(
                 nativeId, HelpBubbleClosedReason.kTimedOut);
           }
         }

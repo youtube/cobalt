@@ -12,6 +12,7 @@
          #btn-popover2 { top: 300px; left: 100px; }
 
          [popover] {
+           position-anchor: auto;
            margin: 0;
            top: anchor(top);
            left: anchor(right);

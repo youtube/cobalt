@@ -35,22 +35,22 @@ using extensions::mojom::ManifestLocation;
 
 constexpr char kChromeOSSystemExtensionId[] =
     "gogonhoemckpdpadfnjnpgbjpbjnodgc";
-const std::u16string kDiagnosticsPermissionMessage =
+constexpr char16_t kDiagnosticsPermissionMessage[] =
     u"Run ChromeOS diagnostic tests";
-const std::u16string kTelemetryEventsPermissionMessage =
+constexpr char16_t kTelemetryEventsPermissionMessage[] =
     u"Subscribe to ChromeOS system events";
-const std::u16string kTelemetryPermissionMessage =
+constexpr char16_t kTelemetryPermissionMessage[] =
     u"Read ChromeOS device information and data";
-const std::u16string kTelemetrySerialNumberPermissionMessage =
+constexpr char16_t kTelemetrySerialNumberPermissionMessage[] =
     u"Read ChromeOS device and component serial numbers";
-const std::u16string kTelemetryNetworkInformationPermissionMessage =
+constexpr char16_t kTelemetryNetworkInformationPermissionMessage[] =
     u"Read ChromeOS network information";
-const std::u16string kAttachedDeviceInfo =
+constexpr char16_t kAttachedDeviceInfo[] =
     u"Read attached devices information and data";
-const std::u16string kBluetoothPeripheralsInfo =
+constexpr char16_t kBluetoothPeripheralsInfo[] =
     u"Read Bluetooth peripherals information and data";
-const std::u16string kManagementAudio = u"Manage ChromeOS audio settings";
-const std::u16string kDiagnosticsNetworkInfoForMlab =
+constexpr char16_t kManagementAudio[] = u"Manage ChromeOS audio settings";
+constexpr char16_t kDiagnosticsNetworkInfoForMlab[] =
     u"Collect IP address and network measurement results for Measurement Lab, "
     u"according to their privacy policy (measurementlab.net/privacy)";
 }  // namespace

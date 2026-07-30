@@ -15,7 +15,6 @@ source_set("android") {
   deps = [
     ":jni_headers",
     "//base",
-    "//chrome/app:generated_resources",
     "//content/public/browser",
     "//ui/android",
   ]

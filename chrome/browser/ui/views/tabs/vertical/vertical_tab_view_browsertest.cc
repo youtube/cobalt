@@ -123,9 +123,7 @@ class VerticalTabViewTest
   }
 };
 
-// TODO(crbug.com/512187713): Re-enable this test once flakiness issue is
-// resolved.
-IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, DISABLED_IconDataChanged) {
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, IconDataChanged) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   auto* icon = BrowserElementsViews::From(browser())->GetViewAs<TabIcon>(
@@ -176,7 +174,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, DISABLED_IconDataChanged) {
   tabs::TabInterface* tab = tab_strip_model()->GetTabAtIndex(0);
   performance_manager::user_tuning::UserPerformanceTuningManager::GetInstance()
       ->DiscardPageForTesting(tab->GetContents());
-  EXPECT_TRUE(icon->GetShowingDiscardIndicator());
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return icon->GetShowingDiscardIndicator(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, TitleDataChanged) {

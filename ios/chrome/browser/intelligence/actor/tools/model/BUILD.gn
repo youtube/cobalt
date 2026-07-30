@@ -35,11 +35,13 @@ source_set("actor_tool_interface") {
     "actor_tool_java_script_feature_util.mm",
     "actor_tool_request.h",
     "actor_tool_request.mm",
+    "tool_delegate.h",
   ]
 
   deps = [
     "//base",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//ios/chrome/browser/intelligence/actor/public:actor_types",
     "//ios/chrome/browser/intelligence/actor/tools/public",
     "//ios/chrome/browser/intelligence/actor/tools/utils:actor_browser_utils",
     "//ios/chrome/browser/intelligence/actor/tools/utils:actor_tool_utils",

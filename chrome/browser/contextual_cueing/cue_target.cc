@@ -4,6 +4,10 @@
 
 #include "chrome/browser/contextual_cueing/cue_target.h"
 
+#include <utility>
+
+#include "base/notreached.h"
+
 namespace contextual_cueing {
 
 GlicCueActionData::GlicCueActionData() = default;
@@ -17,6 +21,9 @@ const char* GetName(CueTargetType type) {
   switch (type) {
     case CueTargetType::kGlic:
       return "Glic";
+    case CueTargetType::kTestSource:
+      return "TestSource";
   }
 }
+
 }  // namespace contextual_cueing

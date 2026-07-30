@@ -144,7 +144,7 @@ std::vector<Suggestion> CreatePasswordSuggestions(
   suggestions.back().icon = Suggestion::Icon::kGlobe;
   suggestions.back().acceptability = acceptability;
 
-  suggestions.emplace_back(autofill::SuggestionType::kSeparator);
+  suggestions.emplace_back(SuggestionType::kSeparator);
 
   suggestions.emplace_back(
       l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MANAGE_PASSWORDS),

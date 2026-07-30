@@ -124,6 +124,15 @@ BOOL IsMaximizeBottomSheetURL(const GURL& URL) {
   return base::EqualsCaseInsensitiveASCII(host, "resultpanel-header-hide");
 }
 
+// Detect if the AIM overlay is displayed based on the fragment.
+BOOL IsAIMOverlayShownUrl(const GURL& URL) {
+  if (!(lens::IsGoogleHostURL(URL) && URLHasLensRequestQueryParam(URL))) {
+    return NO;
+  }
+
+  return URL.ref().find("aimos=1") != std::string::npos;
+}
+
 // Maps `value` of the closed interval [`in_min`, `in_max`] to
 // [`out_min`, `out_max`].
 float IntervalMap(float value,
@@ -188,6 +197,8 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
   float _lastCommitedProgress;
   /// Most recent loaded HTTP headers.
   NSDictionary<NSString*, NSString*>* _latestHttpHeaders;
+  /// Whether the AIM overlay is currently displayed.
+  BOOL _isAIMOverlayShown;
 }
 
 - (instancetype)
@@ -410,9 +421,23 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
 - (void)webState:(web::WebState*)webState
     didStartNavigation:(web::NavigationContext*)navigationContext {
   BOOL isSameDocument = navigationContext->IsSameDocument();
-  // Disregard same document navigation from initiating progress loading.
-  if (!isSameDocument) {
+  if (isSameDocument) {
+    // Disregard same document navigation from initiating progress loading.
+
+    // Check for overlay status.
+    GURL URL = navigationContext->GetUrl();
+    if (IsAIMOverlayShownUrl(URL)) {
+      _isAIMOverlayShown = YES;
+      [self.bottomSheetCommands requestMaximizeBottomSheet];
+      [self.bottomSheetCommands hideSearchBar];
+    } else if (_isAIMOverlayShown) {
+      _isAIMOverlayShown = NO;
+      [self.bottomSheetCommands showSearchBar];
+    }
+  } else {
+    // Reset progress for new page.
     _lastCommitedProgress = 0;
+    _isAIMOverlayShown = NO;
   }
 }
 

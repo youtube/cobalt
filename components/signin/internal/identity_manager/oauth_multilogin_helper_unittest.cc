@@ -1502,7 +1502,56 @@ INSTANTIATE_TEST_SUITE_P(
             /*should_return_bound_session_delegate=*/false,
             /*should_return_device_bound_session_manager=*/false,
             /*expected_url_param=*/"",
-            /*test_suffix=*/"StandardEnabledButDisabledForPartition"}),
+            /*test_suffix=*/"StandardEnabledButDisabledForPartition"},
+        MultiloginCookieBindingTestParam{
+            /*enabled_features=*/
+            {{switches::kEnableOAuthMultiloginStandardCookiesBinding, {}},
+             {switches::kEnableOAuthMultiloginYoutubeCookiesBinding,
+              {{"OAuthMultiloginYoutubeCookieBindingEnforced", "false"}}}},
+            /*disabled_features=*/
+            {switches::kEnableOAuthMultiloginCookiesBinding,
+             switches::kEnableOAuthMultiloginCookiesBindingServerExperiment},
+            /*should_return_bound_session_delegate=*/false,
+            /*should_return_device_bound_session_manager=*/true,
+            /*expected_url_param=*/"&cookie_binding=2&yt_cookie_binding=1",
+            /*test_suffix=*/"StandardEnabledYoutubeUnenforced"},
+        MultiloginCookieBindingTestParam{
+            /*enabled_features=*/
+            {{switches::kEnableOAuthMultiloginStandardCookiesBinding, {}},
+             {switches::kEnableOAuthMultiloginYoutubeCookiesBinding,
+              {{"OAuthMultiloginYoutubeCookieBindingEnforced", "true"}}}},
+            /*disabled_features=*/
+            {switches::kEnableOAuthMultiloginCookiesBinding,
+             switches::kEnableOAuthMultiloginCookiesBindingServerExperiment},
+            /*should_return_bound_session_delegate=*/false,
+            /*should_return_device_bound_session_manager=*/true,
+            /*expected_url_param=*/"&cookie_binding=2&yt_cookie_binding=2",
+            /*test_suffix=*/"StandardEnabledYoutubeEnforced"},
+        MultiloginCookieBindingTestParam{
+            /*enabled_features=*/
+            {{switches::kEnableOAuthMultiloginYoutubeCookiesBinding,
+              {{"OAuthMultiloginYoutubeCookieBindingEnforced", "true"}}}},
+            /*disabled_features=*/
+            {switches::kEnableOAuthMultiloginStandardCookiesBinding,
+             switches::kEnableOAuthMultiloginCookiesBinding,
+             switches::kEnableOAuthMultiloginCookiesBindingServerExperiment},
+            /*should_return_bound_session_delegate=*/false,
+            /*should_return_device_bound_session_manager=*/false,
+            /*expected_url_param=*/"",
+            /*test_suffix=*/"YoutubeEnabledStandardDisabled"},
+        MultiloginCookieBindingTestParam{
+            /*enabled_features=*/
+            {{switches::kEnableOAuthMultiloginCookiesBinding, {}},
+             {switches::kEnableOAuthMultiloginCookiesBindingServerExperiment,
+              {{"enforced", "true"}}},
+             {switches::kEnableOAuthMultiloginYoutubeCookiesBinding,
+              {{"OAuthMultiloginYoutubeCookieBindingEnforced", "true"}}}},
+            /*disabled_features=*/
+            {switches::kEnableOAuthMultiloginStandardCookiesBinding},
+            /*should_return_bound_session_delegate=*/true,
+            /*should_return_device_bound_session_manager=*/false,
+            /*expected_url_param=*/"&cookie_binding=2",
+            /*test_suffix=*/"PrototypeAndYoutubeEnabledStandardDisabled"}),
     [](const testing::TestParamInfo<MultiloginCookieBindingTestParam>& info) {
       return info.param.test_suffix;
     });

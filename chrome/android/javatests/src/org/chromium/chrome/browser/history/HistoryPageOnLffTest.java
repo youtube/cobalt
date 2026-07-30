@@ -32,7 +32,7 @@ import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.DeviceInput;
 
-/** Tests for the History page on large form factors device. */
+/** Tests for the History page on large form factor device. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)

@@ -45,6 +45,7 @@
 
 namespace audio {
 namespace {
+using Error = media::AudioInputStream::AudioInputCallback::Error;
 using ReferenceOpenOutcome = ReferenceSignalProvider::ReferenceOpenOutcome;
 using OpenOutcome = media::AudioInputStream::OpenOutcome;
 
@@ -255,18 +256,19 @@ class LoopbackReferenceManagerCore
     glitch_reporter_.UpdateStats(audio_glitch_info.duration);
   }
 
-  void OnError() override {
+  void OnError(Error error_code) override {
     // We post a new task even when we run on the same sequence, to avoid odd
     // call stacks where the input stream is closed while it's being started.
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&LoopbackReferenceManagerCore::OnErrorMainSequence,
-                       weak_ptr_factory_.GetWeakPtr()));
+                       weak_ptr_factory_.GetWeakPtr(), error_code));
   }
 
-  void OnErrorMainSequence() {
+  void OnErrorMainSequence(Error error_code) {
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
-    SendLogMessage("OnError()");
+    SendLogMessage(
+        base::StringPrintf("OnError(%d)", static_cast<int>(error_code)));
     if (on_error_callback_) {
       std::move(on_error_callback_).Run();
     }

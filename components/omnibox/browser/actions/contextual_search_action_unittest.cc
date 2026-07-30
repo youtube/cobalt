@@ -13,6 +13,8 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_concepts.h"
+#include "components/omnibox/browser/mock_autocomplete_provider_client.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class ContextualSearchActionTest : public testing::Test {
@@ -48,4 +50,31 @@ TEST_F(ContextualSearchActionTest, RecordActionShown) {
                                     1);
     }
   }
+}
+
+TEST_F(ContextualSearchActionTest, Execute_RoutesToCoBrowse) {
+  using ::testing::_;
+  using ::testing::Return;
+
+  MockAutocompleteProviderClient client;
+  OmniboxAction::ExecutionContext context(
+      client, OmniboxAction::ExecutionContext::OpenUrlCallback(),
+      base::TimeTicks(), WindowOpenDisposition::IGNORE_ACTION);
+
+  auto action = base::MakeRefCounted<ContextualSearchOpenLensAction>();
+
+  // Case 1: ShouldOpenCoBrowsePanel is true -> Opens CoBrowse, bypasses Lens
+  EXPECT_CALL(client, ShouldOpenCoBrowsePanel()).WillOnce(Return(true));
+  EXPECT_CALL(client, OpenCoBrowsePanel()).Times(1);
+  EXPECT_CALL(client, OpenLensOverlay(_)).Times(0);
+  action->Execute(context);
+
+  testing::Mock::VerifyAndClearExpectations(&client);
+
+  // Case 2: ShouldOpenCoBrowsePanel is false -> Opens Lens Overlay, bypasses
+  // CoBrowse
+  EXPECT_CALL(client, ShouldOpenCoBrowsePanel()).WillOnce(Return(false));
+  EXPECT_CALL(client, OpenCoBrowsePanel()).Times(0);
+  EXPECT_CALL(client, OpenLensOverlay(true)).Times(1);
+  action->Execute(context);
 }

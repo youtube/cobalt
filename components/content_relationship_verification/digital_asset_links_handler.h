@@ -9,10 +9,10 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 
 namespace content {
 class WebContents;
@@ -108,14 +108,6 @@ class DigitalAssetLinksHandler {
       std::map<std::string, std::set<std::string>> target_values,
       RelationshipCheckResultCallback callback,
       std::optional<std::string> response_body);
-
-  // Callback for the DataDecoder.
-  void OnJSONParseResult(
-      std::string relationship,
-      std::optional<std::vector<std::string>> fingerprints,
-      std::map<std::string, std::set<std::string>> target_values,
-      RelationshipCheckResultCallback callback,
-      data_decoder::DataDecoder::ValueOrError result);
 
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
 

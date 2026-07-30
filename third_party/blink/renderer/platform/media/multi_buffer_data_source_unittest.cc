@@ -2146,15 +2146,16 @@ TEST_F(MultiBufferDataSourceTest, FactoryCreation) {
           base::Unretained(&redirect_called)),
       /*tick_clock=*/nullptr, task_runner_);
 
-  std::unique_ptr<media::DataSource> created_source;
-  factory.Create(GURL(kHttpUrl), media::DataSource::CacheMode::kHitCache,
-                 media::DataSource::EncodingMode::kIdentity,
-                 base::BindOnce(
-                     [](std::unique_ptr<media::DataSource>* out_source,
-                        std::unique_ptr<media::DataSource> source) {
-                       *out_source = std::move(source);
-                     },
-                     &created_source));
+  std::unique_ptr<media::CrossOriginDataSource> created_source;
+  factory.Create(
+      GURL(kHttpUrl), media::DataSource::CacheMode::kHitCache,
+      media::DataSource::EncodingMode::kIdentity,
+      base::BindOnce(
+          [](std::unique_ptr<media::CrossOriginDataSource>* out_source,
+             std::unique_ptr<media::CrossOriginDataSource> source) {
+            *out_source = std::move(source);
+          },
+          &created_source));
   base::RunLoop().RunUntilIdle();
 
   ASSERT_TRUE(created_source);
@@ -2192,15 +2193,16 @@ TEST_F(MultiBufferDataSourceTest, FactoryCreationDefault) {
       /*preload=*/media::DataSource::METADATA, base::DoNothing(), nullptr,
       task_runner_);
 
-  std::unique_ptr<media::DataSource> created_source;
-  factory.Create(GURL(kHttpUrl), media::DataSource::CacheMode::kHitCache,
-                 media::DataSource::EncodingMode::kIdentity,
-                 base::BindOnce(
-                     [](std::unique_ptr<media::DataSource>* out_source,
-                        std::unique_ptr<media::DataSource> source) {
-                       *out_source = std::move(source);
-                     },
-                     &created_source));
+  std::unique_ptr<media::CrossOriginDataSource> created_source;
+  factory.Create(
+      GURL(kHttpUrl), media::DataSource::CacheMode::kHitCache,
+      media::DataSource::EncodingMode::kIdentity,
+      base::BindOnce(
+          [](std::unique_ptr<media::CrossOriginDataSource>* out_source,
+             std::unique_ptr<media::CrossOriginDataSource> source) {
+            *out_source = std::move(source);
+          },
+          &created_source));
   base::RunLoop().RunUntilIdle();
 
   ASSERT_TRUE(created_source);

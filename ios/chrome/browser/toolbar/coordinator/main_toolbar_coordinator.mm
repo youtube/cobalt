@@ -37,11 +37,11 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/guided_tour_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
@@ -692,9 +692,6 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   return self.locationBarCoordinator.omniboxScribbleForwardingTarget;
 }
 
-- (void)didNavigateToNTPOnActiveWebState {
-  [self.legacyToolbarMediator didNavigateToNTPOnActiveWebState];
-}
 
 #pragma mark - OmniboxStateProvider
 
@@ -1339,7 +1336,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   toolbarMediator.settingsHandler =
       HandlerForProtocol(browser->GetCommandDispatcher(), SettingsCommands);
   toolbarMediator.geminiHandler =
-      HandlerForProtocol(browser->GetCommandDispatcher(), BWGCommands);
+      HandlerForProtocol(browser->GetCommandDispatcher(), GeminiCommands);
   toolbarMediator.baseViewController = self.baseViewController;
   toolbarMediator.sceneHandler =
       HandlerForProtocol(browser->GetCommandDispatcher(), SceneCommands);

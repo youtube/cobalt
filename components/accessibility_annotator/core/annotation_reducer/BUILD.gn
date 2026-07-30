@@ -30,6 +30,22 @@ source_set("one_p_resolver") {
   ]
 }
 
+source_set("personal_context_resolver") {
+  sources = [
+    "personal_context_resolver.h",
+    "personal_context_resolver_impl.cc",
+    "personal_context_resolver_impl.h",
+  ]
+
+  deps = [
+    ":annotation_reducer",
+    "//base",
+    "//components/accessibility_annotator/core/data_models",
+    "//components/personal_context/core",
+    "//components/personal_context/proto:personal_context_proto",
+  ]
+}
+
 source_set("annotation_reducer") {
   sources = [
     "entry_type.h",
@@ -64,6 +80,7 @@ source_set("unit_tests") {
     "entry_type_util_unittest.cc",
     "ingested_content_annotation_utils_unittest.cc",
     "memory_search_result_unittest.cc",
+    "personal_context_resolver_impl_unittest.cc",
     "query_classifier_unittest.cc",
     "util_unittest.cc",
   ]
@@ -72,6 +89,7 @@ source_set("unit_tests") {
     ":annotation_reducer",
     ":one_p_resolver",
     ":one_p_service_proto",
+    ":personal_context_resolver",
     "//base",
     "//base/test:test_support",
     "//components/accessibility_annotator/core:features",
@@ -83,6 +101,8 @@ source_set("unit_tests") {
     "//components/optimization_guide/core:model_execution",
     "//components/optimization_guide/core:model_execution_test_support",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/personal_context/core:test_support",
+    "//components/personal_context/proto:personal_context_proto",
     "//components/signin/public/identity_manager:test_support",
     "//components/version_info",
     "//net:test_support",

@@ -138,7 +138,7 @@ class ToastController : public views::WidgetObserver,
   std::u16string FormatString(int string_id,
                               std::vector<std::u16string> replacement,
                               std::optional<int> cardinality);
-  void ClearTabScopedToasts();
+  void ClearTabScopedToasts(bool is_navigation);
   void UpdateToastWidgetVisibility(bool show_toast_widget);
   bool ShouldRenderToastOverWebContents();
 

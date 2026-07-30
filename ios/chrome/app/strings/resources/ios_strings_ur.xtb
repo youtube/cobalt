@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">آپ ان ٹیبز کو دوبارہ کھولنے کے لیے یہاں واپس آ سکتے ہیں جنہیں آپ نے حال ہی میں بند کر دیا ہے</translation>
 <translation id="1016495303386450659">آئٹم اپ ڈيٹ ہوگیا</translation>
+<translation id="1018804590490383958">اسکین کریں اور آٹو فل کریں</translation>
 <translation id="1019990162050689579">‏‫Gemini ایپس کی سرگرمی</translation>
 <translation id="102916930470544692">پاس کی</translation>
 <translation id="1030376737535466765">پاس ورڈ مینیجر کھولیں</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">‏‫Nano Banana کے ساتھ ریمکس کرنے کے لیے کوئی تصویر اپ لوڈ کریں</translation>
 <translation id="1377508275003315939">پاس ورڈز</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} پتہ میں سے {position}}other{{count} پتے میں سے {position}}}</translation>
+<translation id="13813615483058219">کچھ غلط ہو گیا۔ اپنا انٹرنیٹ کنکشن چیک کریں، اپنا والیوم بڑھائیں یا دوبارہ کوشش کریں۔</translation>
 <translation id="1383876407941801731">تلاش کریں</translation>
 <translation id="138618066238211776">بطور <ph name="USER_NAME" /> جاری رکھیں</translation>
 <translation id="138692594145659985">کارڈ محفوظ کرنے کے اختیارات</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">اپنے براؤزر کو اپ ڈیٹ کریں</translation>
 <translation id="4021931095789478915">‏پڑھنے کی فہرست میں ‎${url} شامل کریں</translation>
 <translation id="4028871427853484857">اکاؤنٹ میں محفوظ کریں…</translation>
+<translation id="4036529942385659684">غیر فعالیت کی مدت کے بعد اسٹارٹ صفحہ دکھائیں</translation>
 <translation id="4038354071007134711">اس آلہ پر کوئی ایپلیکیشن اس فائل کو نہیں کھول سکتی ہے۔</translation>
 <translation id="4042870976416480368">صفحہ میں تلاش کریں</translation>
 <translation id="4045441967987592849">دوبارہ کھولیں</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">گروپ کا نظم کریں</translation>
 <translation id="4172051516777682613">ہمیشہ دکھائیں</translation>
 <translation id="417273154673973994">{count,plural, =1{‫1 ٹیب گروپ کو بند اور محفوظ کر دیا گیا}other{‫{count} ٹیب گروپس کو بند اور محفوظ کر دیا گیا}}</translation>
-<translation id="417612446554534067">اپنے آلات پر بھیجیں</translation>
 <translation id="4180726336228139707">صرف اس آلے پر</translation>
 <translation id="4181841719683918333">زبانیں</translation>
 <translation id="4183350924949589798">مزید سیکیورٹی؟</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">ٹیبز بند کیے گئے؛ آپ کو سائن آؤٹ کیا گیا</translation>
 <translation id="4911042367886397055">پھر سے خوش آمدید، <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">آپ اپنے فیملی گروپ میں کسی کے ساتھ اپنے پاس ورڈ کی کاپی کا اشتراک محفوظ طریقے سے کر سکتے ہیں۔ <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">لینز</translation>
 <translation id="4917025507570489430">بطور <ph name="USER_EMAIL" /> سائن ان ہونے پر، آپ موجودہ براؤزنگ ڈیٹا استعمال کر سکتے ہیں۔ آپ کی تنظیم اس ڈیٹا کو دیکھنے کے قابل ہو سکتی ہے۔</translation>
 <translation id="4918086044614829423">قبول کریں</translation>
 <translation id="4930714375720679147">آن کریں</translation>
@@ -1549,6 +1552,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">اپنے ایڈریس بار کی پوزیشن کا انتخاب کریں</translation>
 <translation id="6307241780749477694">اس آلہ پر اپنے تمام پاس ورڈز حاصل کرنے کے لیے توثیق کریں کہ یہ آپ ہی ہیں</translation>
+<translation id="6307792728709337290">‏اپنے کارڈ کو اپنے Google اکاؤنٹ میں محفوظ کریں تاکہ اسے اس خریداری اور Chrome پر کی جانے والی مستقبل کی خریداریوں کے لیے آٹو فل کیا جا سکے۔</translation>
 <translation id="6316141353357700666">ظاہر ہونے والی فہرست میں سے وہ پاس ورڈ منتخب کریں جسے آپ استعمال کرنا چاہتے ہیں۔</translation>
 <translation id="6321526113093607004">بُک مارکس میں شامل کریں</translation>
 <translation id="6327249202318869726">‏آپ کے اکاؤنٹ کیلئے Gemini کو آف کر دیا گیا ہے۔ مزید معلومات کیلئے اپنے منتظم سے رابطہ کریں۔</translation>
@@ -2143,6 +2147,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8263809106706527890">ہو سکتا ہے کہ آپ کے ڈیفالٹ براؤزر کی ترتیبات میں کوئی تبدیلی ہوئی ہو۔ آپ اسے ترتیبات میں چیک کر سکتے ہیں۔</translation>
 <translation id="8264966119170358612">‏آپ کے محفوظ کردہ کچھ پاس ورڈز غیر Google ڈیٹا کی خلاف ورزی میں افشاء ہو گئے۔ <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">‏آپ اپنے iPad ری سیٹ کے حصے کے طور پر اپنے اکاؤنٹ <ph name="USER_NAME" /> سے سائن آؤٹ ہو گئے تھے۔ واپس سائن ان کرنے کے لیے، نیچے "جاری رکھیں" پر تھپتھپائیں۔</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">آپ <ph name="URL" /> میں معلومات پر کریں گے</translation>
 <translation id="8275068909952022340">مزید…</translation>
 <translation id="8281781826761538115">ڈیفالٹ - <ph name="DEFAULT_LOCALE" /></translation>

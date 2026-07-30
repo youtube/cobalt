@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">AAAA</translation>
 <translation id="1013952917065545813">Pots tornar aquí per obrir de nou les pestanyes que has tancat fa poc</translation>
 <translation id="1016495303386450659">S'ha actualitzat l'element.</translation>
+<translation id="1018804590490383958">Escaneja i emplena automàticament</translation>
 <translation id="1019990162050689579">Activitat en aplicacions de Gemini</translation>
 <translation id="102916930470544692">Clau d'accés</translation>
 <translation id="1030376737535466765">Obre el gestor de contrasenyes</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Penja una imatge per fer-ne un remix amb Nano Banana</translation>
 <translation id="1377508275003315939">Contrasenyes</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} d’{count} adreça}other{{position} de {count} adreces}}</translation>
+<translation id="13813615483058219">Hi ha hagut un error. Comprova la connexió a Internet, apuja el volum o torna-ho a provar.</translation>
 <translation id="1383876407941801731">Cerca</translation>
 <translation id="138618066238211776">Continua com a <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Opcions per desar la targeta</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Actualitza el navegador</translation>
 <translation id="4021931095789478915">Afegeix ${url} a la llista de lectura</translation>
 <translation id="4028871427853484857">Desa al compte…</translation>
+<translation id="4036529942385659684">Mostra la pàgina d'inici després d'un període d'inactivitat</translation>
 <translation id="4038354071007134711">Cap aplicació del dispos. no pot obrir el fitxer.</translation>
 <translation id="4042870976416480368">Cerca a la pàgina</translation>
 <translation id="4045441967987592849">Torna a obrir</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Gestiona el grup</translation>
 <translation id="4172051516777682613">Mostra sempre</translation>
 <translation id="417273154673973994">{count,plural, =1{S'ha tancat i desat 1 grup de pestanyes}other{S'han tancat i desat {count} grups de pestanyes}}</translation>
-<translation id="417612446554534067">Envia als teus dispositius</translation>
 <translation id="4180726336228139707">Només en aquest dispositiu</translation>
 <translation id="4181841719683918333">Idiomes</translation>
 <translation id="4183350924949589798">Més seguretat?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Les pestanyes s'han tancat; se t'ha tancat la sessió</translation>
 <translation id="4911042367886397055">Et donem la benvinguda de nou, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Pots compartir de manera segura una còpia de la teva contrasenya amb algú del teu grup familiar. <ph name="BEGIN_LINK" />Més informació<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Objectiu</translation>
 <translation id="4917025507570489430">Podràs utilitzar les dades de navegació existents quan tinguis la sessió iniciada com a <ph name="USER_EMAIL" />. És possible que la teva organització pugui veure aquestes dades.</translation>
 <translation id="4918086044614829423">Accepta</translation>
 <translation id="4930714375720679147">Activa</translation>
@@ -1549,6 +1552,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Posició de la barra d'adreces</translation>
 <translation id="6307241780749477694">Verifica la teva identitat per obtenir totes les teves contrasenyes en aquest dispositiu</translation>
+<translation id="6307792728709337290">Desa la targeta al teu Compte de Google perquè s'empleni automàticament en aquesta compra i en les que facis en el futur a Chrome.</translation>
 <translation id="6316141353357700666">Tria la contrasenya que vols utilitzar de la llista que es mostra.</translation>
 <translation id="6321526113093607004">Afegeix a Adreces d'interès</translation>
 <translation id="6327249202318869726">Gemini està desactivat per al teu compte. Contacta amb el teu administrador per obtenir més informació.</translation>
@@ -2143,6 +2147,7 @@ Per continuar des de l'ordinador, canvia a <ph name="OTHER_EMAIL" />. Obtindràs
 <translation id="8263809106706527890">És possible que s'hagi produït un canvi en la configuració del navegador predeterminat. Pots comprovar-ho a la configuració.</translation>
 <translation id="8264966119170358612">Algunes de les teves contrasenyes desades han estat exposades en haver-se produït una violació de les dades fora de Google. <ph name="BEGIN_LINK" />Més informació<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">S'ha tancat la sessió del teu compte, <ph name="USER_NAME" />, com a part del restabliment de l'iPad. Per tornar a iniciar la sessió, toca Continua més avall.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Emplenaràs informació a <ph name="URL" /></translation>
 <translation id="8275068909952022340">Més…</translation>
 <translation id="8281781826761538115">Idioma predeterminat: <ph name="DEFAULT_LOCALE" /></translation>

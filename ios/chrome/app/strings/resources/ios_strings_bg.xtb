@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ГГГГ</translation>
 <translation id="1013952917065545813">Можете да се върнете тук, за да отворите отново разделите, които сте затворили наскоро</translation>
 <translation id="1016495303386450659">Елементът е актуализиран</translation>
+<translation id="1018804590490383958">Сканиране и автоматично попълване</translation>
 <translation id="1019990162050689579">Активност в приложенията Gemini</translation>
 <translation id="102916930470544692">Ключ за достъп</translation>
 <translation id="1030376737535466765">Отваряне на Мениджър на пароли</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Качете изображение, което да ремиксирате с Nano Banana</translation>
 <translation id="1377508275003315939">Пароли</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} от {count} адрес}other{{position} от {count} адреса}}</translation>
+<translation id="13813615483058219">Нещо се обърка. Проверете връзката си с интернет, увеличете силата на звука или опитайте отново.</translation>
 <translation id="1383876407941801731">Търсене</translation>
 <translation id="138618066238211776">Продължаване като <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Опции за запазване на картата</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Актуализиране на браузъра ви</translation>
 <translation id="4021931095789478915">Добавяне на ${url} към списъка за четене</translation>
 <translation id="4028871427853484857">Запазване в профила…</translation>
+<translation id="4036529942385659684">Показване на началната страница след период на неактивност</translation>
 <translation id="4038354071007134711">Няма приложение, което може да отвори файла.</translation>
 <translation id="4042870976416480368">Търсене в страницата</translation>
 <translation id="4045441967987592849">Повторно отваряне</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Управление на групата</translation>
 <translation id="4172051516777682613">Показване винаги</translation>
 <translation id="417273154673973994">{count,plural, =1{1 група раздели е затворена и запазена}other{{count} групи раздели са затворени и запазени}}</translation>
-<translation id="417612446554534067">Изпращане до устройствата ви</translation>
 <translation id="4180726336228139707">Само на това устройство</translation>
 <translation id="4181841719683918333">Езици</translation>
 <translation id="4183350924949589798">Искате по-високо ниво на сигурност?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Разделите бяха затворени. Излязохте от профила си</translation>
 <translation id="4911042367886397055">Добре дошли отново, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Можете по сигурен начин да споделите копие на паролата си с някого в семейната си група. <ph name="BEGIN_LINK" />Научете повече<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Лупа</translation>
 <translation id="4917025507570489430">Можете да използвате съществуващите данни за сърфирането, когато сте влезли в профила си като <ph name="USER_EMAIL" />. Организацията ви може да преглежда тези данни.</translation>
 <translation id="4918086044614829423">Приемам</translation>
 <translation id="4930714375720679147">Включване</translation>
@@ -1549,6 +1552,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Позиционирайте адресната лента</translation>
 <translation id="6307241780749477694">Потвърдете самоличността си, за да получите всичките си пароли на това устройство</translation>
+<translation id="6307792728709337290">Запазете картата си в профила си в Google, за да се попълват автоматично данните ѝ за тази и бъдещи покупки в Chrome.</translation>
 <translation id="6316141353357700666">Изберете паролата, която искате да използвате, от показания списък.</translation>
 <translation id="6321526113093607004">Добавяне към отметките</translation>
 <translation id="6327249202318869726">Услугата Gemini е изключена за профила ви. За повече информация се обърнете към администратора си.</translation>
@@ -2143,6 +2147,7 @@
 <translation id="8263809106706527890">Възможно е да има промяна в стандартните настройки на браузъра ви. Можете да проверите това в настройките.</translation>
 <translation id="8264966119170358612">Някои от запазените ви пароли са били разкрити вследствие на нарушение на сигурността на данните извън Google. <ph name="BEGIN_LINK" />Научете повече<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Излязохте от профила си <ph name="USER_NAME" /> при нулирането на своя iPad. За да влезете отново, докоснете „Напред“ по-долу.</translation>
+<translation id="8270320981823560179">Диск</translation>
 <translation id="8273982424131314219">Ще попълните информацията на адрес <ph name="URL" /></translation>
 <translation id="8275068909952022340">Още…</translation>
 <translation id="8281781826761538115">Стандартно – <ph name="DEFAULT_LOCALE" /></translation>

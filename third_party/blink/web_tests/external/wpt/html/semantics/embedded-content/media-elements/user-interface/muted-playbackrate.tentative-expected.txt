@@ -1,0 +1,11 @@
+This is a testharness.js-based test.
+[FAIL] audio.muted reflects an extreme playbackRate
+  assert_true: muted at a very high playbackRate expected true got false
+[FAIL] audio.muted reflects an extreme playbackRate after the muted setter
+  assert_true: an extreme playbackRate mutes even after muted was set to false expected true got false
+[FAIL] video.muted reflects an extreme playbackRate
+  assert_true: muted at a very high playbackRate expected true got false
+[FAIL] video.muted reflects an extreme playbackRate after the muted setter
+  assert_true: an extreme playbackRate mutes even after muted was set to false expected true got false
+Harness: the test ran to completion.
+

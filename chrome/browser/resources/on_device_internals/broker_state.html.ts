@@ -80,14 +80,19 @@ export function getHtml(this: OnDeviceInternalsBrokerStateElement) {
         <thead>
           <tr>
             <th>Name</th>
+            <th>Folder Size</th>
             <th>Weights Path</th>
+            <th>Backend Type</th>
           </tr>
         </thead>
         <tbody>
           ${this.state_.models.map(model => html`
             <tr>
               <td>${model.name}</td>
+              <td>${(Number(model.folderSize) / 1024 / 1024).toLocaleString(
+                  'en-US', {maximumFractionDigits: 2})} MiB</td>
               <td class="path">${model.weightsPath}</td>
+              <td>${model.backendType}</td>
             </tr>
           `)}
         </tbody>

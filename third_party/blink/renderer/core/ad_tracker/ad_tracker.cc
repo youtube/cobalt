@@ -489,9 +489,8 @@ bool AdTracker::IsAdScriptInStackHelper(
   // patches that passively invoke an ad's intent).
   std::array<v8::StackTrace::ScriptData, 5> stack_buffer;
   size_t limit = (ignore_monkey_patch != MonkeyPatchableApi::kNone) ? 5 : 1;
-  auto stack = v8::StackTrace::CurrentScriptData(
-      isolate,
-      v8::MemorySpan<v8::StackTrace::ScriptData>(stack_buffer.data(), limit));
+  auto stack =
+      v8::StackTrace::CurrentScriptData(isolate, {stack_buffer.data(), limit});
 
   if (stack.empty()) {
     // There is nothing on the v8 stack. This means that we're in some

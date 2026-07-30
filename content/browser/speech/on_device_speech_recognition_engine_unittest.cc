@@ -19,6 +19,20 @@
 
 namespace content {
 
+class MockSpeechRecognitionEngineDelegate
+    : public SpeechRecognitionEngine::Delegate {
+ public:
+  MOCK_METHOD(void,
+              OnSpeechRecognitionEngineResults,
+              (const std::vector<media::mojom::WebSpeechRecognitionResultPtr>&),
+              (override));
+  MOCK_METHOD(void, OnSpeechRecognitionEngineEndOfUtterance, (), (override));
+  MOCK_METHOD(void,
+              OnSpeechRecognitionEngineError,
+              (const media::mojom::SpeechRecognitionError&),
+              (override));
+};
+
 TEST(OnDeviceSpeechRecognitionEngine, ConvertAccumulatedAudioData) {
   // A BrowserTaskEnvironment is necessary because the
   // OnDeviceSpeechRecognitionEngine post tasks.
@@ -130,6 +144,23 @@ TEST(OnDeviceSpeechRecognitionEngine, Reinitialization) {
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindLambdaForTesting([&]() { ui_model_client.reset(); }));
+  task_environment.RunUntilIdle();
+}
+
+TEST(OnDeviceSpeechRecognitionEngine, AudioChunksEndedDispatchesEmptyResult) {
+  BrowserTaskEnvironment task_environment;
+  MockSpeechRecognitionEngineDelegate delegate;
+
+  {
+    OnDeviceSpeechRecognitionEngine engine(SpeechRecognitionSessionConfig{});
+    engine.set_delegate(&delegate);
+
+    EXPECT_CALL(delegate, OnSpeechRecognitionEngineResults(testing::IsEmpty()))
+        .Times(1);
+
+    engine.AudioChunksEnded();
+  }
+
   task_environment.RunUntilIdle();
 }
 

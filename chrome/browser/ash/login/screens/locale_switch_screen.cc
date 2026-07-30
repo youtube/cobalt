@@ -259,7 +259,7 @@ void LocaleSwitchScreen::ShowImpl() {
       identity_manager_->FindExtendedAccountInfoByGaiaId(gaia_id_);
   account_capabilities_loaded_ =
       refresh_token_loaded_ &&
-      account_info.capabilities.AreAllCapabilitiesKnown();
+      account_info.GetAccountCapabilities().AreAllCapabilitiesKnown();
   if (!account_capabilities_loaded_) {
     identity_manager_observer_.Observe(identity_manager_.get());
   }
@@ -295,7 +295,7 @@ void LocaleSwitchScreen::OnExtendedAccountInfoUpdated(
   }
   account_capabilities_loaded_ =
       refresh_token_loaded_ &&
-      account_info.capabilities.AreAllCapabilitiesKnown();
+      account_info.GetAccountCapabilities().AreAllCapabilitiesKnown();
   if (!account_capabilities_loaded_) {
     return;
   }

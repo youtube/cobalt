@@ -227,7 +227,7 @@ public class UpdateMenuItemHelperTest {
 
         // Enter the tab switcher.
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.HUB, false);
 
         // Make sure the item is not shown in tab switcher app menu.
         showAppMenuAndAssertMenuShown();

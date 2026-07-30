@@ -111,13 +111,13 @@ public class AwContentRestrictionManagerBridge {
             JniOnceCallback<Boolean> callback) {
         @Nullable Uri uri = parseUrl(url);
         if (uri == null) {
-            callback.onResult(false);
+            callback.onResult(true);
             return;
         }
         @Nullable AconfigFlaggedApiDelegate delegate = AconfigFlaggedApiDelegate.getInstance();
         if (delegate == null) {
             Log.w(TAG, "Unable to retrieve the AconfigFlaggedApiDelegate instance.");
-            callback.onResult(false);
+            callback.onResult(true);
             return;
         }
 
@@ -136,8 +136,17 @@ public class AwContentRestrictionManagerBridge {
                     if (error != null) {
                         Log.w(TAG, "Failed to classify content", error);
                     }
-                    callback.onResult(false);
+                    callback.onResult(true);
                 });
+
+        // Close the request body file descriptor soon after it has been sent to the platform.
+        if (requestBody != null) {
+            try {
+                requestBody.close();
+            } catch (IOException e) {
+                Log.e(TAG, e);
+            }
+        }
     }
 
     @CalledByNative

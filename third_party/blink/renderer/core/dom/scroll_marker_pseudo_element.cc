@@ -285,4 +285,32 @@ void ScrollMarkerPseudoElement::Trace(Visitor* v) const {
   PseudoElement::Trace(v);
 }
 
+const ComputedStyle* ScrollMarkerPseudoElement::AdjustedLayoutStyle(
+    const ComputedStyle& style,
+    const ComputedStyle& layout_parent_style) {
+  const ComputedStyle* adjusted_style =
+      PseudoElement::AdjustedLayoutStyle(style, layout_parent_style);
+  if (!adjusted_style) {
+    adjusted_style = &style;
+  }
+  ComputedStyleBuilder builder(*adjusted_style);
+  // The layout parent of a scroll marker is the scroll marker group, not
+  // the originating element of the scroll marker.
+  StyleAdjuster::AdjustStyleForDisplay(builder, layout_parent_style, this,
+                                       &GetDocument());
+  if (style.IsCSSInertIsInherited() &&
+      style.IsCSSInert() != layout_parent_style.IsCSSInert()) {
+    // A ::scroll-marker gets its inertness from its ::scroll-marker-group
+    // instead of its originating element unless the inertness is applied
+    // directly to the ::scroll-marker itself.
+    builder.SetIsCSSInert(layout_parent_style.IsCSSInert());
+    builder.SetIsCSSInertIsInherited(false);
+  }
+  if (style.IsHTMLInert() != layout_parent_style.IsHTMLInert()) {
+    builder.SetIsHTMLInert(layout_parent_style.IsHTMLInert());
+    builder.SetIsHTMLInertIsInherited(false);
+  }
+  return builder.TakeStyle();
+}
+
 }  // namespace blink

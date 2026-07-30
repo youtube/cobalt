@@ -17,7 +17,6 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
@@ -168,7 +167,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest, Install_NoParams) {
   const std::string manifest_id =
       GenerateManifestId("some_id", current_doc_url).spec();
 
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
 
   base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
       install_future;
@@ -257,7 +258,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), current_doc_url));
 
   // Simulate the user declining the install dialog.
-  web_app::test::ScopedAutoDeclineInstallDialogs auto_decline;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_decline =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kDeny);
   base::HistogramTester histograms;
 
   ASSERT_TRUE(TryInstallApp());
@@ -290,7 +293,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   const std::string manifest_id =
       GenerateManifestId("some_id", current_doc_url).spec();
 
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
   base::HistogramTester histograms;
 
   // Install current doc, wait for app browser window to appear and close it.
@@ -341,7 +346,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   const std::string manifest_id =
       GenerateManifestId("some_id", current_doc_url).spec();
 
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
   base::HistogramTester histograms;
 
   // Install current doc, wait for app browser window to appear and close it.
@@ -379,7 +386,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   GURL current_doc_url = embedded_https_test_server().GetURL(
       "/banners/manifest_with_id_test_page.html");
 
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
   base::HistogramTester histograms;
 
   // Install current doc, wait for app browser window to appear and close it.
@@ -1090,7 +1099,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   GURL test_url = embedded_https_test_server().GetURL("/simple.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url));
 
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
 
   const int kTotalInstallCalls = 15;
   const int kAddManifestAfterCalls = 5;
@@ -1140,7 +1151,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
 // with and without manifests doesn't cause crashes or unexpected behavior.
 IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
                        SpamInstallWithNavigationBetweenPages) {
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
 
   const int kTotalInstallCalls = 15;
   const int kNavigateToNoManifestAfterCalls = 5;
@@ -1242,7 +1255,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   base::HistogramTester histograms;
 
   {
-    web_app::test::ScopedAutoDeclineInstallDialogs auto_decline;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_decline =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kDeny);
     // Install #1: dialog is declined; promise rejects with AbortError.
     ASSERT_TRUE(TryInstallApp());
     EXPECT_FALSE(ResultExists());
@@ -1265,7 +1280,9 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTest,
   ASSERT_FALSE(ErrorExists());
 
   {
-    web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
     // Install #2: same document, same WebInstallServiceImpl instance. The guard
     // should've reset, and dialogs auto *accept*, so this install will succeed.
     base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>

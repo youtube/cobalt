@@ -41,7 +41,6 @@ class Resource;
 class ResourceFetcher;
 class ScriptElementBase;
 class Script;
-class ScriptResource;
 class ScriptWebBundle;
 class Modulator;
 

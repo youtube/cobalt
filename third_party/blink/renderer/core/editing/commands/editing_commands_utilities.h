@@ -144,10 +144,10 @@ const String& NonBreakingSpaceString();
 
 CORE_EXPORT void TidyUpHTMLStructure(Document&);
 
-SelectionInDOMTree CorrectedSelectionAfterCommand(const SelectionForUndoStep&,
+SelectionInDomTree CorrectedSelectionAfterCommand(const SelectionForUndoStep&,
                                                   Document*);
 void ChangeSelectionAfterCommand(LocalFrame*,
-                                 const SelectionInDOMTree&,
+                                 const SelectionInDomTree&,
                                  const SetSelectionOptions&);
 
 // -------------------------------------------------------------------------

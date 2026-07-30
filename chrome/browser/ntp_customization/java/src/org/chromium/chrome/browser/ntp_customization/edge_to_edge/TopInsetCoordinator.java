@@ -117,7 +117,7 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
                     public void onFinishedShowing(int layoutType) {
                         // The mIsTabSwitcherShowing will be used to check if a transition between
                         // Tab switcher and NTP happens.
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             mIsTabSwitcherShowing = true;
                         } else {
                             mIsTabSwitcherShowing = false;
@@ -130,8 +130,7 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
                         // top insets if the transition happens from GTS to a NTP. This can't be
                         // handled in #onTabSwitched() which happens before the
                         // ToolbarPositionController updates the Toolbar's position.
-                        if (mInTabSwitcherToNtpTransition
-                                && layoutType == LayoutType.TAB_SWITCHER) {
+                        if (mInTabSwitcherToNtpTransition && layoutType == LayoutType.HUB) {
                             mInTabSwitcherToNtpTransition = false;
                             mInsetObserver.retriggerOnApplyWindowInsets();
                         }
@@ -199,7 +198,7 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
         Tab currentTab = mTabSupplier.get();
         if (currentTab == null
                 && mLayoutStateProvider != null
-                && mLayoutStateProvider.getActiveLayoutType() == LayoutType.TAB_SWITCHER) {
+                && mLayoutStateProvider.getActiveLayoutType() == LayoutType.HUB) {
             // We don't update toolbar's top padding on Tab switcher until tab switches. Thus, we
             // should keep mConsumeTopInset reflect whether the top inset is consumed on the last
             // Tab. See https://crbug.com/491888405.

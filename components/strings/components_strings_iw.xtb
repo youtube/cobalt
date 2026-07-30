@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">פתיחת כל הכרטיסיות</translation>
 <translation id="1408696301184924537">‏כדי שמספר ה-IBAN הזה ימולא בשבילך אוטומטית בפעם הבאה, כדאי לשמור אותו בחשבון שלך ב-Google</translation>
 <translation id="1408787208417187241">3 סיכות הידוק בחלק העליון</translation>
+<translation id="1410306713026702438">‫<ph name="SUGGESTION_TITLE" />, ‏<ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. ‫<ph name="MATCH_POSITION" /> מתוך <ph name="NUM_MATCHES_IN_GROUP" /> בקבוצה <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">‏משתמשים אחרים במכשיר הזה לא יראו את הפעילות שלך, לכן ניתן לגלוש באופן פרטי יותר. אין לכך השפעה על דרכי איסוף הנתונים באתרים שבהם ביקרת והשירותים שפועלים בהם, כולל Google. עדיין תתבצע שמירה של הורדות, סימניות ופריטים מרשימת הקריאה.</translation>
 <translation id="1410941016594047814">מעטפה – הזמנה</translation>
 <translation id="1413235258620101697">‏כדי שהתשלום בקופה יהיה מהיר יותר, קוד האימות (CVC) של הכרטיס הזה יוצפן ויישמר ב-Google Wallet</translation>
@@ -313,7 +314,7 @@
 <translation id="1463793142714244641">יחידות נופש משותפות ונכסים לנופש</translation>
 <translation id="1465457928007067810">‏מספר ה-IBAN נשמר בחשבון שלך ב-Google</translation>
 <translation id="1467432559032391204">שמאלה</translation>
-<translation id="1472675084647422956">הצגת יותר מידע</translation>
+<translation id="1472675084647422956">עוד</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">צריך להזין 3 מילים לפחות כדי לקבל עזרה בכתיבה</translation>
 <translation id="147358896496811705">2A0</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">מעטפה אישית</translation>
 <translation id="2046951263634619614">קמעונאי ספרים</translation>
 <translation id="2048261947532620704">הדף בתהליך תרגום…</translation>
+<translation id="2055016614992422886">שיחה</translation>
 <translation id="2059166748188874810">מחוז</translation>
 <translation id="2059202684901022309">‏22x34 אינץ'</translation>
 <translation id="2064568741209980952">אשראי והלוואות</translation>
@@ -2642,7 +2644,7 @@ Del</translation>
 <translation id="5136841603454277753">צריך להזין את הקוד הנכון</translation>
 <translation id="5137761395480718572">‏האפליקציה הזו מבקשת הרשאה להתקין פרטי כניסה ל-Wi-Fi. לאחר ההגדרה, <ph name="DEVICE_TYPE" /> יתחבר באופן אוטומטי לרשתות ה-Wi-Fi הקיימות. כדי להסיר את פרטי הכניסה האלה, צריך להסיר את האפליקציה. <ph name="LEARN_MORE" /></translation>
 <translation id="5138014172396933048">הכרטיס הווירטואלי לא זמין כרגע. עליך לפנות לבנק</translation>
-<translation id="5138227688689900538">פחות מידע</translation>
+<translation id="5138227688689900538">פחות</translation>
 <translation id="5140155249377545621">רישיונות נהיגה</translation>
 <translation id="5143310416385956149">‏הסריקה נשמרה ב-OneDrive</translation>
 <translation id="5144613843429436866">נתת הרשאה של <ph name="PERMISSION" /> לאתר הזה</translation>
@@ -3021,6 +3023,7 @@ Del</translation>
 <translation id="5718601519531438273">כולל מידע כמו דרכונים ורישיונות נהיגה</translation>
 <translation id="5720705177508910913">משתמש נוכחי:</translation>
 <translation id="5720895412771013401">מחשבים</translation>
+<translation id="5721147290164931316">כדי להיכנס לחשבון באמצעות הטלפון, צריך לסרוק את הקוד</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{‫{website_1},‏ {website_2} ועוד אתר אחד}one{‫{website_1},‏ {website_2} ועוד {more_count} אתרים}other{‫{website_1},‏ {website_2} ועוד {more_count} אתרים}}</translation>
 <translation id="572328651809341494">כרטיסיות אחרונות</translation>
 <translation id="5723873695528696965">‏לשלוט במכשירי ה-MIDI ולתכנת אותם מחדש</translation>
@@ -3562,6 +3565,7 @@ Del</translation>
 <translation id="6550245281449521513">אין הרשאה לנעילת העכבר</translation>
 <translation id="6551737294564628267">‫<ph name="ATTRIBUTE_NAME" />, חדש</translation>
 <translation id="6552566579578780089">תשלומים</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. ‫<ph name="MATCH_POSITION" /> מתוך <ph name="NUM_MATCHES_IN_GROUP" /> בקבוצה <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">הביקור האחרון התבצע לפני <ph name="NUM_DAYS" /> ימים</translation>
 <translation id="6556866813142980365">ביצוע מחדש</translation>
 <translation id="6557715786897013164">‏14x17 אינץ'</translation>
@@ -4267,6 +4271,7 @@ Del</translation>
 <translation id="7646681339175747202">‏הסיסמה שבה השתמשת עכשיו אותרה בפרצה באבטחת מידע. לפי מנהל הסיסמאות של Google, מומלץ לשנות את הסיסמה שלך עכשיו.</translation>
 <translation id="7647206758853451655">איכות הדפסה</translation>
 <translation id="7648133459447652947">כדי להציג את הסמן, צריך לעבור בין אפליקציות, לטעון מחדש את הדף או לחזור אחורה</translation>
+<translation id="764847582138410250">כדי להיכנס לחשבון באמצעות הטלפון, צריך לסרוק את הקוד</translation>
 <translation id="7648527891719919697">‏האתר הזה יישאר חסום כי ההגנה המתקדמת מופעלת <ph name="BEGIN_ANDROID_SETTINGS_LINK" />בהגדרות של Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />מידע נוסף על האזהרה הזו<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">לאחסן קבצים במכשיר הזה</translation>
 <translation id="7649070708921625228">עזרה</translation>

@@ -68,7 +68,6 @@ class InlineLoginDialog : public SystemWebDialogDelegate,
   class ModalDialogManagerCleanup;
 
   // `Show` method can be called directly only by `AccountManagerUIImpl` class.
-  // To show the dialog, use `AccountManagerFacade`.
   friend class AccountManagerUIImpl;
 
   // Displays the dialog. |close_dialog_closure| will be called when the dialog

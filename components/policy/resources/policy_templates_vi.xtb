@@ -476,7 +476,6 @@ Nếu bạn đặt chính sách này thành Tắt hoặc không đặt chính 
       Nếu bạn bật chính sách này, phím tắt quốc tế cải tiến sẽ được bật.
       Nếu bạn không đặt chính sách này, hệ thống sẽ không áp dụng chính sách cho các thiết bị được quản lý mà áp dụng cho các thiết bị thuộc sở hữu của người dùng thông thường.
       Xin lưu ý rằng đây chỉ là chính sách tạm thời để những người dùng được quản lý vẫn có thể sử dụng các phím tắt cũ không dùng nữa. Chính sách này sẽ ngừng hoạt động sau khi phím tắt tuỳ chỉnh ra mắt.</translation>
-<translation id="1359459742455216057">Giá trị nhận dạng riêng biệt của ứng dụng <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />.</translation>
 <translation id="1361661842732478894">Hiện nút Màn hình chính trên thanh công cụ</translation>
 <translation id="1363275621236827384">Bật truy vấn cấu hình Máy chủ Quirks cho phần cứng</translation>
 <translation id="1363839375295535439">Nếu bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này, thì Hộp cát LPAC sẽ được bật cho các dịch vụ in mỗi khi cấu hình hệ thống hỗ trợ.
@@ -7346,9 +7345,6 @@ Nếu bạn không đặt chính sách này hoặc không xác định thời gi
 <translation id="5649788773465136073">Không cho phép sử dụng giá trị nhận dạng cho nội dung được bảo vệ cùng các trang web. Điều này có thể khiến giảm bớt chất lượng phát nội dung được bảo vệ.</translation>
 <translation id="5650256117857913687">Không cho phép người dùng truy cập từ xa mở URL phía máy chủ bằng trình duyệt máy khách trên thiết bị</translation>
 <translation id="5650716720715977549">Áp dụng quy định hạn chế đối với các yêu cầu đến thiết bị đầu cuối trên mạng có mức độ riêng tư cao hơn</translation>
-<translation id="5651538748810288218">Nếu bạn đặt giá trị chính sách này thành 1, thì các trang web có thể truy cập và sử dụng cảm biến như cảm biến chuyển động và cảm biến ánh sáng. Nếu bạn đặt giá trị chính sách này thành 2, các trang web sẽ không thể truy cập vào cảm biến.
-
-      Nếu bạn không đặt chính sách này, <ph name="ALLOW_SENSORS_POLICY_NAME" /> sẽ được áp dụng nhưng người dùng có thể thay đổi chế độ cài đặt này.</translation>
 <translation id="5652250453612826983">Kiểm soát các chính sách về sự giám sát của cha mẹ (chỉ áp dụng cho tài khoản người dùng là trẻ em).
       Những chính sách này không được đặt trong bảng điều khiển dành cho quản trị viên mà do Máy chủ API Kids định cấu hình trực tiếp.</translation>
 <translation id="5654682237531873653">Nếu bạn đặt chính sách này thành Bật, tính năng kiểm tra lỗi chính tả sẽ được bật và người dùng không thể tắt tính năng đó. Trên <ph name="MS_WIN_NAME" />, <ph name="PRODUCT_OS_NAME" /> và <ph name="LINUX_OS_NAME" />, các ngôn ngữ có tính năng kiểm tra lỗi chính tả có thể được bật hoặc tắt riêng. Vì vậy, người dùng vẫn có thể tắt tính năng kiểm tra lỗi chính tả bằng cách tắt mọi ngôn ngữ có tính năng đó. Để tránh trường hợp này, hãy dùng <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> để buộc bật các ngôn ngữ có tính năng kiểm tra lỗi chính tả cụ thể.
@@ -7833,6 +7829,7 @@ Kể từ <ph name="PRODUCT_NAME" /> 147, chính sách này sẽ không được
 <translation id="5962271004971310788">Để điều hướng ở Chế độ ẩn danh, người dùng phải cho phép các tiện ích chạy ở Chế độ ẩn danh</translation>
 <translation id="5963752574792883406">cổng 990 (có thể được bỏ chặn cho đến ngày 1/2/2022)</translation>
 <translation id="596523880465577341">Chính sách này không còn được dùng nữa và không được hỗ trợ, vui lòng dùng chính sách "<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />".</translation>
+<translation id="5965344524743236327">Mã hoặc số của dự án <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> tương ứng với phiên bản <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> cần bật. Tìm hiểu thêm về mã dự án tại https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Tiện ích được phép sử dụng API chứng thực từ xa</translation>
 <translation id="596732417280023843">Tên của hồ sơ chứng chỉ.</translation>
 <translation id="5972538402066550344">Cho phép các biện pháp kiểm soát báo cáo chi tiết</translation>
@@ -8253,6 +8250,7 @@ Nếu bạn không đặt chính sách <ph name="ALLOWED_INPUT_METHODS_POLICY_NA
 <translation id="6264247808139384018">Nếu bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này, những người dùng xác thực bằng mật khẩu có thể khoá màn hình.
 
 Nếu bạn đặt chính sách này thành Disabled (Tắt), người dùng sẽ không thể khoá màn hình. (Họ chỉ có thể đăng xuất khỏi phiên hoạt động của người dùng).</translation>
+<translation id="6265114688953151459">Giá trị nhận dạng riêng biệt của công cụ <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />. Định dạng phải có từ 1 đến 63 ký tự, khớp với mẫu [a-z0-9][a-z0-9-_]*. Tìm hiểu thêm tại https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Cho phép sử dụng cảm biến trên các trang web này</translation>
 <translation id="6266043141694454734">Xác định xem Chrome Root Store và trình xác minh chứng chỉ tích hợp có dùng để xác minh chứng chỉ máy chủ hay không</translation>
 <translation id="6266686172120601139">Bật vùng đệm thích ứng cho Web Audio</translation>
@@ -9097,7 +9095,6 @@ Khi bạn đặt chính sách này thành Bật, thì dữ liệu sẽ đư�
 
 Đối với <ph name="PRODUCT_NAME" />, chính sách này chỉ có hiệu lực khi máy đã đăng ký bằng <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
 Đối với <ph name="PRODUCT_OS_NAME" />, chính sách này luôn có hiệu lực.</translation>
-<translation id="6714333117401088746">Mã của dự án <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> tương ứng với phiên bản <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> cần bật.</translation>
 <translation id="6720330829631914048">Số giờ đã trôi qua kể từ thời điểm bắt đầu ngày (theo định dạng 24 giờ).</translation>
 <translation id="6720862827454058309">Ghi đè ánh xạ không gian địa chỉ IP</translation>
 <translation id="6721252203593581486">WebSQL trong bối cảnh của bên thứ ba (ví dụ: iframe trên nhiều trang web) bị tắt theo mặc định kể từ M97 và sẽ bị xóa hoàn toàn trong M101.

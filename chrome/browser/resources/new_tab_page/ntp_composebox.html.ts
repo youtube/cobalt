@@ -14,11 +14,14 @@ export function getHtml(this: NtpComposeboxElement) {
   return html`<!--_html_template_start_-->
     <search-animated-glow id="animatedSearchElement"
         animation-state="${this.animationState}"
+        entrypoint-name="Realbox"
         .coloredTicTacVoiceAnimationEnabled="${this.voiceSearchCoherenceEnabled}"
         .requiresVoice="${this.shouldShowVoiceSearchAnimation()}"
         .transcript="${this.transcript}"
         .receivedSpeech="${this.receivedSpeech}"
         .isListening="${this.isListening}"
+        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}"
+        .darkThemeColorsEnabled="${false}"
         exportparts="composebox-background">
     </search-animated-glow>
     <ntp-error-scrim id="errorScrim" part="error-scrim"
@@ -47,13 +50,16 @@ export function getHtml(this: NtpComposeboxElement) {
             .cancelButtonTitle="${this.computeCancelButtonTitle()}"
             @input-input="${this.onInputInput}"
             @input-focusin="${this.onInputFocusin}"
-            @cancel-click="${this.onCancelClick}">
+            @cancel-click="${this.onCancelClick}"
+            @clear-smart-compose="${this.onClearSmartCompose}">
         </cr-composebox-input>
         <div id="context" part="context-entrypoint">
           <cr-composebox-file-inputs id="fileInputs"
               @file-change="${this.onFileChange}"
               .disableFileInputs="${this.shouldDisableFileInputs()}">
-            ${this.hasTabs() ? '' : getContextMenuHtml.bind(this)()}
+            ${this.contextMenuEnabled ? html`
+                ${getContextMenuHtml.bind(this)()}
+            ` : ''}
             <div id="carouselContainer" part="carousel-container">
               <div class="carousel-container-inner">
                 ${this.showFileCarousel ? html`
@@ -64,9 +70,7 @@ export function getHtml(this: NtpComposeboxElement) {
                     .files="${this.getFilteredCarouselFiles()}"
                     @delete-file="${this.onDeleteFile}">
                   </cr-composebox-file-carousel> ` : ''}
-                  ${this.hasTabs() && this.contextMenuEnabled ? html`
-                    ${getContextMenuHtml.bind(this)()}
-                  ` : ''}
+
                   ${this.inToolMode ? html`
                   <div class="context-menu-container" id="toolChipsContainer"
                       part="tool-chips-container">

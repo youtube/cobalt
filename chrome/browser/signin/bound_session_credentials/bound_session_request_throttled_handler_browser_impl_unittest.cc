@@ -53,7 +53,7 @@ TEST(BoundSessionRequestThrottledHandlerBrowserImplTest,
       std::make_unique<FakeBoundSessionCookieRefreshService>();
   BoundSessionRequestThrottledHandlerBrowserImpl handler(*service);
 
-  // Destory service.
+  // Destroy service.
   service.reset();
   base::test::TestFuture<BoundSessionRequestThrottledHandler::UnblockAction,
                          chrome::mojom::ResumeBlockedRequestsTrigger>

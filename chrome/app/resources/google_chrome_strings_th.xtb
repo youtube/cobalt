@@ -397,6 +397,7 @@
 <translation id="5234764350956374838">ปิด</translation>
 <translation id="5239627039202700673">ใช้ Chrome ทุกครั้งที่คุณคลิกลิงก์ในข้อความ เอกสาร และแอปอื่นๆ</translation>
 <translation id="5251420635869119124">ผู้เยี่ยมชมสามารถใช้ Chrome ได้โดยไม่ทิ้งร่องรอยไว้</translation>
+<translation id="5271833978500241046">ใช้พร้อมกับฟีเจอร์อื่นๆ ของ Gemini ใน Chrome</translation>
 <translation id="5286907366254680517">ตรวจพบ</translation>
 <translation id="5320351714793324716">Chrome อาจใช้คุกกี้เมื่อโหลดล่วงหน้าหากคุณอนุญาต</translation>
 <translation id="5321325624576443340">Google Lens ไม่พร้อมให้บริการ โปรดลองอีกครั้งในภายหลัง</translation>
@@ -433,15 +434,6 @@
 <translation id="569897634095159764">เชื่อมต่อกับอินเทอร์เน็ตไม่ได้ พร็อกซีเซิร์ฟเวอร์ต้องมีการตรวจสอบสิทธิ์</translation>
 <translation id="5709557627224531708">ตั้ง Chrome เป็นเบราว์เซอร์เริ่มต้น</translation>
 <translation id="5719246646468301581">ข้อกำหนดในการให้บริการเพิ่มเติมของ Google Chrome และ ChromeOS</translation>
-<translation id="5719324992913248873">การดำเนินการนี้จะ
-        <ph name="LINE_BREAKS" />
-          • รีเซ็ตการตั้งค่าและทางลัดบางอย่างของ Chrome
-          <ph name="LINE_BREAK" />
-          • ปิดใช้ส่วนขยาย
-          <ph name="LINE_BREAK" />
-          • ลบคุกกี้และข้อมูลชั่วคราวอื่นๆ ของเว็บไซต์
-          <ph name="LINE_BREAKS" />
-          การดำเนินการนี้จะไม่มีผลกับบุ๊กมาร์ก ประวัติการเข้าชม และรหัสผ่านที่บันทึกไว้</translation>
 <translation id="5736850870166430177">หากเว็บไซต์พยายามขโมยรหัสผ่าน หรือคุณดาวน์โหลดไฟล์ที่เป็นอันตราย Chrome อาจส่ง URL รวมถึงเนื้อหาบางส่วนในหน้าไปยัง Google Safe Browsing ด้วย</translation>
 <translation id="5756509061973259733">มีโปรไฟล์ Chrome ที่ใช้บัญชีนี้ในอุปกรณ์นี้อยู่แล้ว</translation>
 <translation id="5759947850379142561">เลือกข้อความหรือรูปภาพเพื่อค้นหาด้วย Google Lens หรือกด Escape เพื่อออกจาก Google Lens</translation>
@@ -639,6 +631,7 @@
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7627609214560473136">ให้ Chrome นำสิทธิ์ออกจากเว็บไซต์ที่คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้เพื่อปกป้องข้อมูลของคุณ</translation>
 <translation id="7629695634924605473">Chrome จะแจ้งให้ทราบหากมีคนล่วงรู้รหัสผ่านของคุณ</translation>
+<translation id="7629898584100520089">ระบบจะบันทึกนวัตกรรม AI เช่น ทักษะ ไว้ในบัญชี Google และจัดการแยกต่างหากจากการซิงค์ Chrome</translation>
 <translation id="7641148173327520642">ผู้ดูแลระบบได้กำหนดค่าให้ Google Chrome เปิด <ph name="ALTERNATIVE_BROWSER_NAME" /> เพื่อเข้าถึง <ph name="TARGET_URL_HOSTNAME" /></translation>
 <translation id="7649070708921625228">ความช่วยเหลือ</translation>
 <translation id="7651907282515937834">โลโก้ Chrome Enterprise</translation>

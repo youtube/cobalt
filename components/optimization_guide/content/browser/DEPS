@@ -37,4 +37,7 @@ specific_include_rules = {
   "page_content_metadata_observer.cc": [
     "+media/base/media_switches.h",
   ],
+  "page_content_image_extractor_browsertest\\.cc": [
+    "+content/shell",
+  ],
 }

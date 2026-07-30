@@ -28,10 +28,9 @@ class AudioCapturePermissionCheckerMac : public AudioCapturePermissionChecker,
 
   // Create an AudioCapturePermissionCheckerMac if it is enabled.
   static std::unique_ptr<AudioCapturePermissionCheckerMac> MaybeCreate(
-      base::RepeatingCallback<void(void)> callback);
+      base::RepeatingClosure callback);
 
-  explicit AudioCapturePermissionCheckerMac(
-      base::RepeatingCallback<void(void)> callback);
+  explicit AudioCapturePermissionCheckerMac(base::RepeatingClosure callback);
   ~AudioCapturePermissionCheckerMac() override;
 
   void SetAudioStreamFactoryForTest(
@@ -54,7 +53,7 @@ class AudioCapturePermissionCheckerMac : public AudioCapturePermissionChecker,
   void OnPermissionUpdate(bool has_permission);
 
   State audio_permission_state_ = State::kUnknown;
-  base::RepeatingCallback<void(void)> callback_;
+  base::RepeatingClosure callback_;
   std::unique_ptr<audio::InputIPC> input_ipc_;
 
   mojo::PendingRemote<media::mojom::AudioStreamFactory>

@@ -87,9 +87,14 @@ gfx::Vector2dF StickyPositionConstraint::StickyPositionOffset(
   // push the element in that direction without being pushed outside of its
   // containing block.
   //
-  // Note: The order of applying the sticky constraints is applied such that
-  // left offset takes precedence over right offset, and top takes precedence
-  // over bottom offset.
+  // Note on precedence and constraints:
+  // While the spec states that a start offset takes precedence over an end
+  // offset, this code does not actively resolve any conflicts, but calculates
+  // and applies delta for each direction independently. It is possible to
+  // craft synthetic inputs to make e.g. both bottom_delta and top_delta
+  // non-zero and the result violate constraints in both directions, but blink
+  // guarantees we never encounter such cases. It is also impossible to resolve
+  // conflicts here because this code doesn't know logical directions.
   gfx::Vector2dF sticky_offset;
   if (is_anchored_right) {
     float right_limit = clip.right() - right_offset;

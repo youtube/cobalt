@@ -23,7 +23,6 @@ static_library("cast_config") {
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui:ui_features",
-    "//chrome/common",
     "//chromeos/ash/components/browser_context_helper",
     "//components/application_locale_storage",
     "//components/media_router/common",

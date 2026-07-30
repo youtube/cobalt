@@ -103,14 +103,14 @@ void GuestTosScreen::OnUserAction(const base::ListValue& args) {
 }
 
 void GuestTosScreen::OnAccept(bool enable_usage_stats) {
-  // Disable pre-choice metrics for guest as guest has expressed consent. This
-  // is critical as crash_reportor is depending on the disable operation of
+  // Disable pre-choice metrics for guest as guest has expressed choice. This
+  // is critical as crash_reporter is depending on the disable operation of
   // CrOSPreChoiceMetricsManager to end pre-choice stage.
   if (metrics::CrOSPreChoiceMetricsManager::Get()) {
     metrics::CrOSPreChoiceMetricsManager::Get()->Disable();
   }
 
-  // Store guest consent to local state so that correct metrics consent can be
+  // Store guest choice to local state so that correct metrics choice can be
   // loaded after browser restart.
   local_state_->SetBoolean(prefs::kOobeGuestMetricsEnabled, enable_usage_stats);
 

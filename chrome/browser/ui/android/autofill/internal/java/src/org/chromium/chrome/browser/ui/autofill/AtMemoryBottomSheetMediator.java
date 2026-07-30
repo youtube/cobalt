@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.autofill;
 
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ON_QUERY_SUBMITTED_CALLBACK;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.VISIBLE;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.ALL_PROPERTIES;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.DETAILS;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.ICON;
@@ -33,15 +35,22 @@ class AtMemoryBottomSheetMediator {
         mModel = model;
         mModelList = modelList;
         mDelegate = delegate;
+
+        mModel.set(ON_QUERY_SUBMITTED_CALLBACK, this::onQuerySubmitted);
+    }
+
+    void show(List<AutofillSuggestion> suggestions) {
+        setSuggestions(suggestions);
+        mModel.set(AtMemoryBottomSheetProperties.VISIBLE, true);
     }
 
     void onDismissed() {
         mModelList.clear();
-        mModel.set(AtMemoryBottomSheetProperties.VISIBLE, false);
+        mModel.set(VISIBLE, false);
         mDelegate.onDismissed();
     }
 
-    void setSuggestions(List<AutofillSuggestion> suggestions) {
+    private void setSuggestions(List<AutofillSuggestion> suggestions) {
         mModelList.clear();
 
         for (AutofillSuggestion suggestion : suggestions) {
@@ -65,5 +74,9 @@ class AtMemoryBottomSheetMediator {
 
     private void onFlyoutClicked(AutofillSuggestion suggestion) {
         mDelegate.onFlyoutClicked(suggestion);
+    }
+
+    void onQuerySubmitted(String query) {
+        mDelegate.onQuerySubmitted(query);
     }
 }

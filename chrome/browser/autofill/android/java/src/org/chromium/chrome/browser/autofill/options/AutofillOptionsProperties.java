@@ -37,10 +37,6 @@ class AutofillOptionsProperties {
     static final ReadableObjectPropertyKey<Callback<Boolean>>
             ON_AUTOFILL_AI_REAUTH_SETTING_TOGGLED =
                     new ReadableObjectPropertyKey<>("on_autofill_ai_reauth_setting_toggled");
-    static final WritableBooleanPropertyKey AUTOFILL_AI_PERSONAL_CONTEXT_VISIBLE =
-            new WritableBooleanPropertyKey("autofill_ai_personal_context_visible");
-    static final ReadableObjectPropertyKey<Runnable> ON_AUTOFILL_AI_PERSONAL_CONTEXT_CLICKED =
-            new ReadableObjectPropertyKey<>("on_autofill_ai_personal_context_clicked");
     static final WritableBooleanPropertyKey AUTOFILL_AI_VISIBLE =
             new WritableBooleanPropertyKey("autofill_ai_visible");
     static final WritableBooleanPropertyKey AUTOFILL_AI_REAUTH_TOGGLE_VISIBLE =
@@ -58,8 +54,6 @@ class AutofillOptionsProperties {
                 ON_AUTOFILL_AI_SETTING_TOGGLED,
                 AUTOFILL_AI_REAUTH_SETTING_ON,
                 ON_AUTOFILL_AI_REAUTH_SETTING_TOGGLED,
-                AUTOFILL_AI_PERSONAL_CONTEXT_VISIBLE,
-                ON_AUTOFILL_AI_PERSONAL_CONTEXT_CLICKED,
                 AUTOFILL_AI_VISIBLE,
                 AUTOFILL_AI_REAUTH_TOGGLE_VISIBLE,
             };

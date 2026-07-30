@@ -39,7 +39,6 @@ static_library("browser") {
     "//content/public/common",
     "//google_apis",
     "//net",
-    "//services/data_decoder/public/cpp",
     "//services/network/public/cpp",
   ]
 }
@@ -58,7 +57,6 @@ source_set("unit_tests") {
     "//components/prefs",
     "//components/prefs:test_support",
     "//content/test:test_support",
-    "//services/data_decoder/public/cpp:test_support",
     "//services/network:test_support",
     "//testing/gtest",
   ]

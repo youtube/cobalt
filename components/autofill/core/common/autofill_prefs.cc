@@ -106,6 +106,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(kAutofillMetadataUploadEvents);
   registry->RegisterTimePref(kAutofillUploadEventsLastResetTimestamp, {});
   registry->RegisterDictionaryPref(kAutofillSyncTransportOptIn);
+  registry->RegisterListPref(kAutofillTypesBlocked);
 #if BUILDFLAG(IS_ANDROID)
   // Automotive devices require stricter data protection for user privacy, so
   // mandatory reauth for autofill payment methods should always be enabled.
@@ -159,6 +160,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterBooleanPref(
       kAutofillAmountExtractionAiTermsSeen, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+
+  registry->RegisterDictionaryPref(
+      kAutofillAtMemoryTriggerInfo,
+      base::DictValue().Set("trigger", "@@").Set("is_shortcut", false),
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
   registry->RegisterDictionaryPref(

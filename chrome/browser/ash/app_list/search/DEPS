@@ -53,7 +53,6 @@ include_rules = [
   "+chrome/common/channel_info.h",
   "+chrome/common/chrome_constants.h",
   "+chrome/common/chrome_paths.h",
-  "+chrome/common/pref_names.h",
   "+chrome/grit",
   "+chrome/test/base",
 

@@ -203,6 +203,11 @@
     "module_scheme": "gtest",
     "skip_usage_check": True,
   },
+  "blackbox_fuzzing_targets": {
+    "label": "//:blackbox_fuzzing_targets",
+    "type": "additional_compile_target",
+    "skip_usage_check": True,
+  },
   "blink_common_unittests": {
     "label": "//third_party/blink/common:blink_common_unittests",
     "type": "console_test_launcher",
@@ -707,10 +712,6 @@
     "label": "//chromeos:chromeos_unittests",
     "type": "console_test_launcher",
     "module_scheme": "gtest",
-  },
-  "chromium_builder_asan": {
-    "label": "//:chromium_builder_asan",
-    "type": "additional_compile_target",
   },
   "chromium_builder_perf": {
     "label": "//:chromium_builder_perf",

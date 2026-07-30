@@ -4,14 +4,12 @@
 
 package org.chromium.chrome.browser.autofill.options;
 
-import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_PERSONAL_CONTEXT_VISIBLE;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_REAUTH_SETTING_ON;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_REAUTH_TOGGLE_VISIBLE;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_ELIGIBLE;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_SETTING_ON;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.AUTOFILL_AI_VISIBLE;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.FRAGMENT_TITLE;
-import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_AUTOFILL_AI_PERSONAL_CONTEXT_CLICKED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_AUTOFILL_AI_REAUTH_SETTING_TOGGLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_AUTOFILL_AI_SETTING_TOGGLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_THIRD_PARTY_TOGGLE_CHANGED;
@@ -113,20 +111,6 @@ class AutofillOptionsViewBinder {
                                         .onResult((boolean) newValue);
                                 return true;
                             });
-        } else if (key == AUTOFILL_AI_PERSONAL_CONTEXT_VISIBLE) {
-            Preference personalContextPref = view.getAutofillAiPersonalContext();
-            if (personalContextPref != null) {
-                personalContextPref.setVisible(model.get(AUTOFILL_AI_PERSONAL_CONTEXT_VISIBLE));
-            }
-        } else if (key == ON_AUTOFILL_AI_PERSONAL_CONTEXT_CLICKED) {
-            Preference personalContextPref = view.getAutofillAiPersonalContext();
-            if (personalContextPref != null) {
-                personalContextPref.setOnPreferenceClickListener(
-                        preference -> {
-                            model.get(ON_AUTOFILL_AI_PERSONAL_CONTEXT_CLICKED).run();
-                            return true;
-                        });
-            }
         } else if (key == AUTOFILL_AI_VISIBLE) {
             boolean visible = model.get(AUTOFILL_AI_VISIBLE);
 

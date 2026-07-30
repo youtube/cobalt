@@ -173,6 +173,18 @@ const char kDebugPackedApps[] = "debug-packed-apps";
 // Passes command line parameters to the DevTools front-end.
 const char kDevToolsFlags[] = "devtools-flags";
 
+// Specifies a stringified JSON dictionary defining allowlist and blocklist
+// pattern rules for DevTools-controlled navigations.
+// If an allowlist is provided (even if empty), all top-level navigations to
+// non-matching URLs are blocked. If both allowlist and blocklist match a URL,
+// the more specific pattern determines the outcome.
+// Example: '{ \
+//             "allowlist": ["[*.]foo.com"], \
+//             "blocklist": ["[*.]bar.com"] \
+//           }'
+const char kDevToolsNavigationGatingRules[] =
+    "devtools-navigation-gating-rules";
+
 // Triggers a plethora of diagnostic modes.
 const char kDiagnostics[] = "diagnostics";
 
@@ -946,7 +958,6 @@ const char kGlicGeminiEnterpriseSettingsOverride[] =
     "glic-gemini-enterprise-settings-override";
 const char kGlicAlwaysOpenFre[] = "glic-always-open-fre";
 const char kGlicAlwaysSkipFre[] = "glic-always-skip-fre";
-const char kGlicFreURL[] = "glic-fre-url";
 const char kGlicExperimentalFreURL[] = "glic-experimental-fre-url";
 const char kGlicShortcutsLearnMoreURL[] = "glic-shortcuts-learn-more-url";
 // Use --glic-open-on-startup=attached or --glic-open-on-startup=detached.

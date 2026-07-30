@@ -21,7 +21,7 @@ ResizeObserverSize::ResizeObserverSize() = default;
 
 void ResizeObserverSize::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 }
 
 }  // namespace blink

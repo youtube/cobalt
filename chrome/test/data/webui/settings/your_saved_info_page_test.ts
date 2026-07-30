@@ -57,6 +57,7 @@ suite('YourSavedInfoPage', function() {
       showIbansSettings: true,
       shouldShowPayOverTimeSettings: true,
       enableYourSavedInfoShoppingPage: true,
+      showSuggestionsFromGeminiSettings: true,
     });
   });
 
@@ -255,6 +256,31 @@ suite('YourSavedInfoPage', function() {
     assertEquals(YourSavedInfoDataChip.ADDRESSES, metricChip);
     const action = await metricsBrowserProxy.whenCalled('recordAction');
     assertEquals('Settings.YourSavedInfo.ChipClick.ADDRESSES', action);
+  });
+
+  test('SuggestionsFromGeminiHiddenWhenFlagDisabled', async function() {
+    await setupPage({
+      showSuggestionsFromGeminiSettings: false,
+    });
+
+    const geminiCard = yourSavedInfoPage.shadowRoot!.querySelector<HTMLElement>(
+        '#suggestionsFromGeminiCard');
+    assertFalse(!!geminiCard);
+  });
+
+  test('SuggestionsFromGeminiCardNavigates', function() {
+    const geminiCard = yourSavedInfoPage.shadowRoot!.querySelector<HTMLElement>(
+        '#suggestionsFromGeminiCard');
+    assertTrue(!!geminiCard);
+
+    const button = yourSavedInfoPage.shadowRoot!.querySelector<HTMLElement>(
+        '#suggestionsFromGeminiLinkRow');
+    assertTrue(!!button);
+
+    button.click();
+    assertEquals(
+        '/autofill/suggestionsFromGemini',
+        Router.getInstance().currentRoute.path);
   });
 });
 

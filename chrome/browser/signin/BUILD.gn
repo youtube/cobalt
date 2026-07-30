@@ -32,6 +32,8 @@ source_set("signin") {
     "signin_policy_service_factory.h",
     "signin_profile_attributes_updater.h",
     "signin_profile_attributes_updater_factory.h",
+    "signin_ui_delegate.h",
+    "signin_ui_util_extensions.h",
     "signin_util.h",
   ]
   public_deps = [
@@ -84,6 +86,7 @@ source_set("signin") {
       "android/signin_manager_android.h",
       "android/web_signin_bridge.h",
       "signin_manager_android_factory.h",
+      "signin_ui_delegate_impl_android.h",
     ]
     public_deps += [
       "//components/signin/public/base:signin_deep_link",
@@ -95,7 +98,6 @@ source_set("signin") {
   if (!is_android) {
     public += [
       "signin_promo_util.h",
-      "signin_ui_delegate.h",
       "signin_ui_util.h",
     ]
     public_deps += [ ":signin_promo" ]
@@ -201,6 +203,7 @@ source_set("impl") {
     "signin_policy_service_factory.cc",
     "signin_profile_attributes_updater.cc",
     "signin_profile_attributes_updater_factory.cc",
+    "signin_ui_util_extensions.cc",
     "signin_util.cc",
   ]
   public_deps = [
@@ -312,6 +315,7 @@ source_set("impl") {
       "android/web_signin_bridge.cc",
       "identity_services_provider_android.cc",
       "signin_manager_android_factory.cc",
+      "signin_ui_delegate_impl_android.cc",
     ]
     deps += [
       "//chrome/android:jni_headers",

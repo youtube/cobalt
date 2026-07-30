@@ -187,7 +187,10 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
 
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, context));
-  EXPECT_TRUE(Tracker()->IsAttributable(element, context));
+  // Element will be marked but not attributable since it's not a text
+  // aggregator.
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(element, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(element, context));
 }
 
 TEST_F(SoftNavigationPaintAttributionTrackerTest,
@@ -205,6 +208,8 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
 
   Element* content_node = GetElement("content");
   Tracker()->MarkNodeAsDirectlyModified(content_node, old_context);
+  // Run rendering so the state gets propagated to the attribution set.
+  UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, old_context));
 
   auto* new_context = CreateSoftNavigationContext();
@@ -259,8 +264,9 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest, BodyAsTextAggregationNode) {
   Tracker()->MarkNodeAsDirectlyModified(target_node, context);
 
   UpdateAllLifecyclePhasesForTest();
-  // This is tracked even though it's inline since it was directly modified.
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, context));
+  // This isn't tracked because it's not an aggregator, but it is marked.
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, context));
   // This text aggregates up to <body>, so that should be tracked.
   EXPECT_TRUE(Tracker()->IsAttributable(GetDocument().body(), context));
   // But, <body> should not be considered a new root for propagation.
@@ -300,8 +306,11 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
   Tracker()->MarkNodeAsDirectlyModified(target_node, context);
 
   UpdateAllLifecyclePhasesForTest();
-  // This is tracked even though it's inline since it was directly modified.
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, context));
+  // This is tracked even though it's inline since it was directly modified, but
+  // it's not attributable.
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, context));
+
   EXPECT_FALSE(Tracker()->IsAttributable(GetElement("inner-1"), context));
   EXPECT_FALSE(Tracker()->IsAttributable(GetElement("inner-2"), context));
   EXPECT_TRUE(Tracker()->IsAttributable(GetElement("content"), context));
@@ -340,10 +349,15 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest, MultipleContexts) {
   Tracker()->MarkNodeAsDirectlyModified(target2_node, context2);
 
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(target1_node, context1));
+  EXPECT_FALSE(Tracker()->IsAttributable(target1_node, context1));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target1_node, context1));
   EXPECT_TRUE(Tracker()->IsAttributable(content1_node, context1));
-  EXPECT_TRUE(Tracker()->IsAttributable(target2_node, context2));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content1_node, context1));
+
+  EXPECT_FALSE(Tracker()->IsAttributable(target2_node, context2));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target2_node, context2));
   EXPECT_TRUE(Tracker()->IsAttributable(content2_node, context2));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content2_node, context2));
 }
 
 TEST_F(SoftNavigationPaintAttributionTrackerTest,
@@ -373,20 +387,36 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
   Tracker()->MarkNodeAsDirectlyModified(target_node, context);
 
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, context));
+  // `target_node` doesn't have text, so it's marked but not attributable.
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, context));
+  // `inner_node` doesn't have text, so it isn't marked or attributable.
   EXPECT_FALSE(Tracker()->IsAttributable(inner_node, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node, context));
+  // The content nodes should be attributable but not marked.
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, context));
   EXPECT_TRUE(Tracker()->IsAttributable(sibling_content_node, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(sibling_content_node, context));
 
   auto* new_context = CreateSoftNavigationContext();
   Tracker()->MarkNodeAsDirectlyModified(inner_node, new_context);
 
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, context));
+  // `target_node` doesn't have text, so it's marked but not attributable.
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, context));
+  // `inner_node` doesn't have text, so it's marked but not attributable.
   EXPECT_FALSE(Tracker()->IsAttributable(inner_node, context));
-  EXPECT_TRUE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(inner_node, new_context));
+  // `content_node` should be attributable to the `new_context`.
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, context));
   EXPECT_FALSE(Tracker()->IsAttributable(content_node, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, new_context));
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, new_context));
+  // `sibling_content_node` should still be attributable to `context`.
   EXPECT_TRUE(Tracker()->IsAttributable(sibling_content_node, context));
   EXPECT_FALSE(Tracker()->IsAttributable(sibling_content_node, new_context));
 }
@@ -420,31 +450,54 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
   Tracker()->MarkNodeAsDirectlyModified(target_node, new_context);
 
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, new_context));
+  // `target_node` should be marked but not attributable since it doesn't have
+  // text.
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, new_context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, new_context));
+  // `inner_node` doesn't have text, so it isn't marked or attributable.
   EXPECT_FALSE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node, new_context));
+  // The content nodes should be attributable but not marked.
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, new_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, new_context));
   EXPECT_TRUE(Tracker()->IsAttributable(sibling_content_node, new_context));
+  EXPECT_FALSE(
+      Tracker()->IsMarkedForTesting(sibling_content_node, new_context));
 
   // Modify `target_node` again with a context from an older interaction. This
-  // should propagated all the way down.
+  // should be propagated all the way down.
   Tracker()->MarkNodeAsDirectlyModified(target_node, old_context);
-  EXPECT_FALSE(Tracker()->IsAttributable(target_node, new_context));
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, old_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(target_node, new_context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, old_context));
 
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, old_context));
+  // `target_node` should be marked but not attributable since it doesn't have
+  // text.
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, old_context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, old_context));
+  // `inner_node` should not tracked at all.
   EXPECT_FALSE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_FALSE(Tracker()->IsAttributable(inner_node, old_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node, old_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node, new_context));
+  // The content nodes should be attributable but not marked.
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, old_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, old_context));
   EXPECT_TRUE(Tracker()->IsAttributable(sibling_content_node, old_context));
+  EXPECT_FALSE(
+      Tracker()->IsMarkedForTesting(sibling_content_node, old_context));
 
-  // `inner_node` isn't being tracked, so modifying it directly will cause it to
-  // be attributed to the `new_context`.
+  // `inner_node` should be marked but not attributable since it doesn't have
+  // text.
   Tracker()->MarkNodeAsDirectlyModified(inner_node, new_context);
-  EXPECT_TRUE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(inner_node, new_context));
+  EXPECT_FALSE(Tracker()->IsAttributable(inner_node, new_context));
   // And pre-paint should update the relevant aggregation node.
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_FALSE(Tracker()->IsAttributable(inner_node, new_context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(inner_node, new_context));
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, new_context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, new_context));
 }
 
 TEST_F(SoftNavigationPaintAttributionTrackerTest,
@@ -457,8 +510,8 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
             Text
           </div>
         </div>
-      </dif>
-    </div>>
+      </div>
+    </div>
   )HTML");
   auto* context = CreateSoftNavigationContext();
 
@@ -471,19 +524,100 @@ TEST_F(SoftNavigationPaintAttributionTrackerTest,
   Tracker()->MarkNodeAsDirectlyModified(inner_node_1, context);
   Tracker()->MarkNodeAsDirectlyModified(target_node, context);
 
-  // Initially, everything is tracked.
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, context));
-  EXPECT_TRUE(Tracker()->IsAttributable(inner_node_1, context));
-  EXPECT_TRUE(Tracker()->IsAttributable(inner_node_2, context));
-  EXPECT_TRUE(Tracker()->IsAttributable(content_node, context));
+  // Initially, everything is marked but nothing is attributable yet.
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(inner_node_1, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(inner_node_2, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(content_node, context));
 
-  // After pre-paint, only the common container node (target) and text
-  // aggregation node will be tracked.
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(inner_node_1, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(inner_node_2, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(content_node, context));
+
+  // After pre-paint, only the common container node (target) and will be
+  // marked, and the text aggregation node will be tracked as attributable.
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(Tracker()->IsAttributable(target_node, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(target_node, context));
   EXPECT_FALSE(Tracker()->IsAttributable(inner_node_1, context));
   EXPECT_FALSE(Tracker()->IsAttributable(inner_node_2, context));
   EXPECT_TRUE(Tracker()->IsAttributable(content_node, context));
+
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(target_node, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node_1, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(inner_node_2, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, context));
+}
+
+TEST_F(SoftNavigationPaintAttributionTrackerTest, MarkedAndPropagatedNodes) {
+  SetBodyInnerHTML(R"HTML(
+    <div id='outer'>
+      <div id='inner'>
+        <div id='content'>
+          Text
+        </div>
+      </div>
+    </div>
+  )HTML");
+  auto* context = CreateSoftNavigationContext();
+
+  Node* outer_node = GetElement("outer");
+  Node* content_node = GetElement("content");
+  Tracker()->MarkNodeAsDirectlyModified(content_node, context);
+
+  // After pre-paint, `content_node` should be both marked and attributable
+  // since it's a directly marked aggregator.
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(Tracker()->IsAttributable(content_node, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(content_node, context));
+
+  // Now, mark an ancestor or `content_node`. This should prune `content_node`
+  // from the marked nodes since it's now redundant.
+  Tracker()->MarkNodeAsDirectlyModified(outer_node, context);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(Tracker()->IsAttributable(content_node, context));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(content_node, context));
+  EXPECT_FALSE(Tracker()->IsAttributable(outer_node, context));
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(outer_node, context));
+}
+
+TEST_F(SoftNavigationPaintAttributionTrackerTest,
+       MarkedAndPropagatedTextNodes) {
+  SetBodyInnerHTML(R"HTML(
+    <div id='outer'>
+      <div id='inner'>
+        <div id='content'>
+          Text
+          <span>foo</span>
+          More text
+        </div>
+      </div>
+    </div>
+  )HTML");
+  Node* content_node = GetElement("content");
+
+  Node* first_text_node = content_node->firstChild();
+  ASSERT_TRUE(first_text_node);
+  EXPECT_TRUE(first_text_node->IsTextNode());
+
+  Node* last_text_node = content_node->lastChild();
+  ASSERT_TRUE(last_text_node);
+  EXPECT_TRUE(last_text_node->IsTextNode());
+
+  auto* context1 = CreateSoftNavigationContext();
+  auto* context2 = CreateSoftNavigationContext();
+
+  Tracker()->MarkNodeAsDirectlyModified(first_text_node, context1);
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(first_text_node, context1));
+
+  Tracker()->MarkNodeAsDirectlyModified(last_text_node, context2);
+  EXPECT_TRUE(Tracker()->IsMarkedForTesting(last_text_node, context2));
+
+  // After pre-paint, `content_node` should be attributable to `context2`.
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(first_text_node, context1));
+  EXPECT_FALSE(Tracker()->IsMarkedForTesting(last_text_node, context2));
+  EXPECT_TRUE(Tracker()->IsAttributable(content_node, context2));
 }
 
 }  // namespace blink

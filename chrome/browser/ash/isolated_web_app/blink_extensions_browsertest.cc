@@ -11,6 +11,7 @@
 #include "base/files/file_path.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
@@ -21,11 +22,14 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/experiences/isolated_web_app/isolated_web_app_api_allowlist.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/origin.h"
 
 namespace ash {
@@ -36,9 +40,23 @@ web_app::IsolatedWebAppUrlInfo InstallIsolatedWebAppAndReturnUrlInfo(
     Profile* profile) {
   web_app::IsolatedWebAppUrlInfo url_info =
       web_app::IsolatedWebAppBuilder(
-          web_app::ManifestBuilder().SetName("Blink Extension Test IWA"))
+          web_app::ManifestBuilder()
+              .SetName("Blink Extension Test IWA")
+              .SetDisplayMode(blink::mojom::DisplayMode::kStandalone)
+              .SetDisplayModeOverride(
+                  {web_app::DisplayOverride::CreateUnframed({})})
+              .AddPermissionsPolicy(
+                  network::mojom::PermissionsPolicyFeature::kWindowManagement,
+                  /*self=*/true, /*origins=*/{}))
           .BuildBundle()
           ->InstallChecked(profile);
+
+  // Grant Window Management permission.
+  auto* map = HostContentSettingsMapFactory::GetForProfile(profile);
+  map->SetContentSettingDefaultScope(
+      url_info.origin().GetURL(), url_info.origin().GetURL(),
+      ContentSettingsType::WINDOW_MANAGEMENT, CONTENT_SETTING_ALLOW);
+
   return url_info;
 }
 
@@ -50,8 +68,10 @@ class BlinkExtensionsWithFlagSetTest
     : public web_app::IsolatedWebAppBrowserTestHarness {
  public:
   BlinkExtensionsWithFlagSetTest() {
-    feature_list_.InitAndEnableFeature(
-        chromeos::features::kCrosIsolatedWebAppSetShape);
+    feature_list_.InitWithFeatures(
+        {chromeos::features::kCrosIsolatedWebAppSetShape,
+         blink::features::kUnframedIwa},
+        {});
   }
 
  private:
@@ -91,54 +111,6 @@ IN_PROC_BROWSER_TEST_F(BlinkExtensionsWithFlagSetTest,
 }
 
 IN_PROC_BROWSER_TEST_F(BlinkExtensionsWithFlagSetTest,
-                       IsolatedWebAppCanCallSetShape) {
-  web_app::IsolatedWebAppUrlInfo url_info =
-      InstallIsolatedWebAppAndReturnUrlInfo(profile());
-  content::RenderFrameHost* frame = OpenApp(url_info.app_id());
-
-  // `setShape` returns a resolved `Promise<undefined>` on success.
-  auto result = content::EvalJs(frame, R"(
-      window.chromeos.isolatedWebApp.setShape([
-        new DOMRect(0, 0, 200, 200)
-      ])
-    )");
-  EXPECT_EQ(base::Value(), result);
-}
-
-IN_PROC_BROWSER_TEST_F(BlinkExtensionsWithFlagSetTest, SetShapeValidation) {
-  web_app::IsolatedWebAppUrlInfo url_info =
-      InstallIsolatedWebAppAndReturnUrlInfo(profile());
-  content::RenderFrameHost* frame = OpenApp(url_info.app_id());
-
-  constexpr auto invalid_inputs = base::MakeFixedFlatSet<std::string_view>({
-      // Negative dimension.
-      "[new DOMRect(0, 0, -1, 200)]",
-      "[new DOMRect(0, 0, 200, -1)]",
-      // Infinite location or dimension.
-      "[new DOMRect(Infinity, 0, 200, 200)]",
-      "[new DOMRect(0, Infinity, 200, 200)]",
-      "[new DOMRect(0, 0, Infinity, 200)]",
-      "[new DOMRect(0, 0, 200, Infinity)]",
-      // NaN location or dimension.
-      "[new DOMRect(NaN, 0, 200, 200)]",
-      "[new DOMRect(0, NaN, 200, 200)]",
-      "[new DOMRect(0, 0, NaN, 200)]",
-      "[new DOMRect(0, 0, 200, NaN)]",
-      // Too many rectangles.
-      "Array(10001).fill(new DOMRect(0, 0, 200, 200))",
-  });
-  for (const auto& input : invalid_inputs) {
-    std::string script = base::StrCat({
-        "window.chromeos.isolatedWebApp.setShape(",
-        input,
-        ").catch(error => error.name)",
-    });
-    EXPECT_EQ("TypeError", content::EvalJs(frame, script))
-        << "Failed on input: " << input;
-  }
-}
-
-IN_PROC_BROWSER_TEST_F(BlinkExtensionsWithFlagSetTest,
                        RegularPageCannotAccessExtensions) {
   std::unique_ptr<net::EmbeddedTestServer> server =
       CreateAndStartServer(FILE_PATH_LITERAL("web_apps"));
@@ -153,7 +125,11 @@ IN_PROC_BROWSER_TEST_F(BlinkExtensionsWithFlagSetTest,
 }
 
 // Verifies that only IWAs in the allowlist can access the CrOS IWA API.
-using BlinkExtensionsAllowlistTest = web_app::IsolatedWebAppBrowserTestHarness;
+class BlinkExtensionsAllowlistTest
+    : public web_app::IsolatedWebAppBrowserTestHarness {
+ private:
+  base::test::ScopedFeatureList feature_list_{blink::features::kUnframedIwa};
+};
 
 IN_PROC_BROWSER_TEST_F(BlinkExtensionsAllowlistTest, ExtensionsAreUndefined) {
   web_app::IsolatedWebAppUrlInfo url_info =

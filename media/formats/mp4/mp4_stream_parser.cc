@@ -106,30 +106,6 @@ base::HeapArray<uint8_t> PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-base::HeapArray<uint8_t> PrependIADescriptors(
-    const IamfSpecificBox& iacb,
-    base::span<const uint8_t> frame_buf,
-    std::vector<SubsampleEntry>* subsamples) {
-  // Prepend the IA Descriptors to every IA Sample.
-  const size_t descriptors_size = iacb.ia_descriptors.size();
-  const size_t total_size = frame_buf.size() + descriptors_size;
-  auto output_buffer = base::HeapArray<uint8_t>::Uninit(total_size);
-  auto [output_ia_descriptors, output_frame_buf] =
-      base::span(output_buffer).split_at(descriptors_size);
-  output_ia_descriptors.copy_from_nonoverlapping(iacb.ia_descriptors);
-  output_frame_buf.copy_from_nonoverlapping(frame_buf);
-
-  if (subsamples->empty()) {
-    subsamples->emplace_back(descriptors_size, frame_buf.size());
-  } else {
-    (*subsamples)[0].clear_bytes += descriptors_size;
-  }
-
-  return output_buffer;
-}
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-
 // Create a HdrMetadataTrack for attaching metadata to track samples. Returns
 // nullptr on failure.
 std::unique_ptr<HdrMetadataTrack> MakeMetadataTrack(
@@ -595,7 +571,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         extra_data = entry.iacb.ia_descriptors;
 
         // The correct values for the channel layout and sample rate can
-        // be parsed from the descriptor bitstream prepended to each sample.
+        // be parsed from the descriptor bitstream in `extra_data`.
         // They are set to the following values here to create a valid
         // AudioDecoderConfig.
         // TODO (crbug.com/1513779): Parse the bitstream to set the correct
@@ -1199,18 +1175,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #else
       return ParseResult::kError;
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-    } else {
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-      if (runs_->audio_description().format == FOURCC_IAMF) {
-        heap_frame_buf =
-            PrependIADescriptors(runs_->audio_description().iacb,
-                                 buf.first(sample_size), &subsamples);
-        if (heap_frame_buf.empty()) {
-          MEDIA_LOG(ERROR, media_log_)
-              << "Failed to prepare IA sample for decode";
-        }
-      }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
     }
   }
 

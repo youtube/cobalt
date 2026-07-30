@@ -4,6 +4,7 @@
 
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_restriction_set.h"
 
+#include "base/no_destructor.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_policy_constants.h"
@@ -32,23 +33,32 @@ class FakeDlpRulesManager : public DlpRulesManagerImpl {
 
 }  // namespace
 
-const DlpContentRestrictionSet kScreenshotRestricted(
-    DlpContentRestriction::kScreenshot,
-    DlpRulesManager::Level::kBlock);
-const DlpContentRestrictionSet kPrivacyScreenEnforced(
-    DlpContentRestriction::kPrivacyScreen,
-    DlpRulesManager::Level::kBlock);
-const DlpContentRestrictionSet kPrintRestricted(DlpContentRestriction::kPrint,
-                                                DlpRulesManager::Level::kBlock);
-const DlpContentRestrictionSet kScreenShareRestricted(
-    DlpContentRestriction::kScreenShare,
-    DlpRulesManager::Level::kBlock);
-
 constexpr char kExampleUrl[] = "https://example.com";
 constexpr char kUrl1[] = "https://example1.com";
 constexpr char kUrl2[] = "https://example2.com";
 constexpr char kUrl3[] = "https://example3.com";
 constexpr char kUrl4[] = "https://example4.com";
+
+const DlpContentRestrictionSet& GetScreenshotRestricted() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenshot, DlpRulesManager::Level::kBlock);
+  return *val;
+}
+const DlpContentRestrictionSet& GetPrivacyScreenEnforced() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kPrivacyScreen, DlpRulesManager::Level::kBlock);
+  return *val;
+}
+const DlpContentRestrictionSet& GetPrintRestricted() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kPrint, DlpRulesManager::Level::kBlock);
+  return *val;
+}
+const DlpContentRestrictionSet& GetScreenShareRestricted() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenShare, DlpRulesManager::Level::kBlock);
+  return *val;
+}
 
 class DlpContentRestrictionSetBrowserTest : public InProcessBrowserTest {
  public:
@@ -100,12 +110,13 @@ IN_PROC_BROWSER_TEST_F(DlpContentRestrictionSetBrowserTest,
     update->Append(rule4.Create());
   }
 
-  EXPECT_EQ(kScreenshotRestricted,
+  EXPECT_EQ(GetScreenshotRestricted(),
             DlpContentRestrictionSet::GetForURL(GURL(kUrl1)));
-  EXPECT_EQ(kPrivacyScreenEnforced,
+  EXPECT_EQ(GetPrivacyScreenEnforced(),
             DlpContentRestrictionSet::GetForURL(GURL(kUrl2)));
-  EXPECT_EQ(kPrintRestricted, DlpContentRestrictionSet::GetForURL(GURL(kUrl3)));
-  EXPECT_EQ(kScreenShareRestricted,
+  EXPECT_EQ(GetPrintRestricted(),
+            DlpContentRestrictionSet::GetForURL(GURL(kUrl3)));
+  EXPECT_EQ(GetScreenShareRestricted(),
             DlpContentRestrictionSet::GetForURL(GURL(kUrl4)));
   EXPECT_EQ(DlpContentRestrictionSet(),
             DlpContentRestrictionSet::GetForURL(GURL(kExampleUrl)));

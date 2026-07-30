@@ -85,7 +85,6 @@ class FocusController;
 class Frame;
 class LinkHighlight;
 class LocalFrame;
-class LocalFrameView;
 class MediaFeatureOverrides;
 class PageAnimator;
 struct PageScaleConstraints;

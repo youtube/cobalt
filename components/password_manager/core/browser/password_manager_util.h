@@ -23,6 +23,7 @@ class PasswordManagerDriver;
 class PasswordManagerClient;
 struct PasswordFormDigest;
 struct StoredCredential;
+class BrowserSavePasswordProgressLogger;
 }  // namespace password_manager
 
 namespace autofill {
@@ -58,6 +59,10 @@ void UpdateMetadataForUsage(password_manager::PasswordForm* credential);
 // be removed once PasswordManagerClient::GetCurrentLogManager is implemented on
 // iOS and required to always return non-null.
 bool IsLoggingActive(password_manager::PasswordManagerClient* client);
+
+// Returns a logger if logging is active.
+std::unique_ptr<password_manager::BrowserSavePasswordProgressLogger>
+GetLoggerIfAvailable(password_manager::PasswordManagerClient* client);
 
 // True iff the manual password generation is enabled for the current site.
 bool ManualPasswordGenerationEnabled(

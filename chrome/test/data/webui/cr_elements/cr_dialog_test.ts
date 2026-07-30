@@ -616,4 +616,22 @@ suite('cr-dialog', function() {
     window.dispatchEvent(new CustomEvent('popstate'));
     assertTrue(dialog.open);
   });
+
+  test('popstate listener removed on disconnect', function() {
+    document.body.innerHTML = getTrustedHTML`
+      <cr-dialog>
+        <div slot="title">title</div>
+      </cr-dialog>`;
+    const dialog = document.body.querySelector('cr-dialog')!;
+    dialog.showModal();
+
+    let cancelFired = false;
+    dialog.addEventListener('cancel', () => {
+      cancelFired = true;
+    });
+
+    dialog.remove();
+    window.dispatchEvent(new CustomEvent('popstate'));
+    assertFalse(cancelFired);
+  });
 });

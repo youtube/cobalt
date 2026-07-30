@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+
+Ported from components/omnibox/browser/vector_icons/drive_folder_custom.icon
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#5F6368"
+        android:pathData="M20,8 H8 c-2.21,0 -3.98,1.79 -3.98,4 L4,36 c0,2.21 1.79,4 4,4 h32 c2.21,0 4,-1.79 4,-4 V16 c0,-2.21 -1.79,-4 -4,-4 H24 l-4,-4 Z" />
+</vector>

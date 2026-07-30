@@ -443,6 +443,27 @@ public class SigninButtonCoordinatorTest {
 
     @Test
     @MediumTest
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    public void testClickSigninButton_ClearsUrlFocus() {
+        // Initially visible on NTP.
+        ViewUtils.waitForVisibleView(withId(R.id.signin_button));
+
+        // Focus the URL bar.
+        OmniboxTestUtils omniboxTestUtils = new OmniboxTestUtils(mActivityTestRule.getActivity());
+        omniboxTestUtils.requestFocus();
+
+        // Signin button should still be visible on tablet.
+        ViewUtils.waitForVisibleView(withId(R.id.signin_button));
+
+        // Click the sign-in button.
+        onView(withId(R.id.signin_button)).perform(click());
+
+        // The URL bar should lose focus.
+        omniboxTestUtils.checkFocus(false);
+    }
+
+    @Test
+    @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
     public void testSigninButtonHiddenOnUrlFocus() {
         // Initially visible on NTP.

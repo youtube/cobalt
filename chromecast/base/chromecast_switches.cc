@@ -254,6 +254,9 @@ const char kInProcessBroker[] = "in-process-broker";
 // Cast Mojo broker.
 const char kCastMojoBrokerPath[] = "cast-mojo-broker-path";
 
+// Allows specifying the base::ASSETS dir for Cast via commandline.
+const char kCastAssetsDir[] = "cast-assets-dir";
+
 }  // namespace switches
 
 namespace chromecast {

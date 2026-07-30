@@ -12,7 +12,7 @@ import type {ScannerSelectElement} from 'chrome://scanning/scanner_select.js';
 import type {Scanner} from 'chrome://scanning/scanning.mojom-webui.js';
 import type {ScannerInfo} from 'chrome://scanning/scanning_app_types.js';
 import {getScannerDisplayName} from 'chrome://scanning/scanning_app_util.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
 import {assertOrderedAlphabetically, createScanner} from './scanning_app_test_utils.js';

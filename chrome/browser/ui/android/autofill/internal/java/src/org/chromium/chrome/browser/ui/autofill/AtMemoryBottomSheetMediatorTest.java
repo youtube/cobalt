@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.ui.autofill;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 
 import org.junit.Before;
@@ -62,8 +63,9 @@ public class AtMemoryBottomSheetMediatorTest {
                                 .setSubLabel("Hilton ⋅ 16 May")
                                 .build());
 
-        mMediator.setSuggestions(suggestions);
+        mMediator.show(suggestions);
 
+        assertTrue(mModel.get(AtMemoryBottomSheetProperties.VISIBLE));
         assertEquals(2, mModelList.size());
 
         assertEquals(

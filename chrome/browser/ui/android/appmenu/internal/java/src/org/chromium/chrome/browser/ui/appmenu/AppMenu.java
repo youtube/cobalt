@@ -56,6 +56,7 @@ import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.interpolators.Interpolators;
+import org.chromium.ui.util.AttrUtils;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.FlyoutPopupSpecCalculator;
 import org.chromium.ui.widget.RectProvider;
@@ -405,7 +406,7 @@ class AppMenu implements OnKeyListener {
 
         int menuWidth;
         if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)) {
-            menuWidth = context.getResources().getDimensionPixelSize(R.dimen.menu_width_lff);
+            menuWidth = AttrUtils.getDimensionPixelSize(context, R.attr.appMenuWidth);
         } else {
             menuWidth = context.getResources().getDimensionPixelSize(R.dimen.menu_width);
         }

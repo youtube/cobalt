@@ -1,0 +1,58 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=./shared_vars.css.js
+ * #css_wrapper_metadata_end */
+
+:host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Let clicks pass through to PDF plugin */
+  z-index: 1; /* Position over the plugin so that the focus ring is visible. */
+  overflow: hidden;
+}
+
+#container {
+  height: 100%;
+  pointer-events: none;
+  width: 100%;
+}
+
+.placeholder {
+  position: absolute;
+  pointer-events: none; /* Let clicks pass through to PDF plugin */
+  border: var(--viewer-text-annotation-border-width) solid transparent;
+  box-sizing: border-box;
+  outline: none;
+
+  /* Default offsets for 0 and 180 (2) rotation */
+  --offset-x: var(--viewer-text-annotation-offset-x);
+  --offset-y: var(--viewer-text-annotation-offset-y);
+  --padding-x: var(--viewer-text-annotation-padding-x);
+  --padding-y: var(--viewer-text-annotation-padding-y);
+
+  left: calc(var(--left) - var(--offset-x));
+  top: calc(var(--top) - var(--offset-y));
+  width: calc(var(--width) + var(--padding-x));
+  height: calc(var(--height) + var(--padding-y));
+}
+
+.placeholder[data-rotations='1'],
+.placeholder[data-rotations='3'] {
+  /* Flipped offsets for 90 (1) and 270 (3) clockwise rotations */
+  --offset-x: var(--viewer-text-annotation-offset-x-rotated);
+  --offset-y: var(--viewer-text-annotation-offset-y-rotated);
+  --padding-x: var(--viewer-text-annotation-padding-x-rotated);
+  --padding-y: var(--viewer-text-annotation-padding-y-rotated);
+}
+
+/* Show focus ring when tabbed to */
+.placeholder:focus-visible {
+  border-color: var(--viewer-text-annotation-active-color);
+}

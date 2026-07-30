@@ -188,6 +188,7 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
 
   LayoutImageResource* GetLayoutImageResource() const;
   void UpdateLayoutObject();
+  void ResetAnimation();
 
   // Note: SetImage.*() are not a simple setter.
   // Check the implementation to see what they do.

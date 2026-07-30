@@ -123,6 +123,17 @@ class MediaVideoEncoderWrapper final : public media::cast::VideoEncoder {
   // some of these as appropriate.
   base::TimeDelta GetFrameDuration(const VideoFrame& frame);
 
+  // Computes the new encoder utilization value and records it in the
+  // `ema_encoder_utilization_` member. Applies an Exponential Moving Average
+  // (EMA) to smooth out spikes caused by key frames.
+  double ComputeAndRecordUtilization(base::TimeDelta processing_time);
+
+  // Computes the frame's lossiness metric based on the actual vs target bitrate
+  // and the estimated complexity of the frame.
+  double ComputeLossiness(size_t data_size,
+                          base::TimeDelta frame_duration,
+                          double estimated_complexity) const;
+
   // Posts a task to update the encoder options, such as whether a key frame
   // is requested.
   void UpdateEncoderOptions();
@@ -171,6 +182,11 @@ class MediaVideoEncoderWrapper final : public media::cast::VideoEncoder {
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_;
   const bool is_hardware_encoder_;
   const VideoCodec codec_;
+
+  // The target frame duration, used for calculating encoder utilization. This
+  // is based on the maximum frame rate that the encoder is expected to encode
+  // at, instead of the video frame metadata.
+  const base::TimeDelta target_frame_duration_;
 
   // Last recorded encoder status. Used to ensure we do not call
   // `status_change_cb_` repeatedly with the same value, since the
@@ -222,6 +238,11 @@ class MediaVideoEncoderWrapper final : public media::cast::VideoEncoder {
   // The version of the current encoder. Incremented every time the encoder
   // is reconstructed. Used to detect and drop race-conditioned frames.
   int encoder_version_ = 0;
+
+  // Exponential moving average of encoder utilization, used for informing the
+  // capture stack about the current state of the encoder and how well it is
+  // keeping up with the incoming frames.
+  std::optional<double> ema_encoder_utilization_;
 
   // NOTE: Weak pointers must be invalidated before all other member variables.
   base::WeakPtrFactory<MediaVideoEncoderWrapper> weak_factory_{this};

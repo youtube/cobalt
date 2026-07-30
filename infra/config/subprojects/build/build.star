@@ -138,42 +138,6 @@ def ci_build_perf_builder(description_html, **kwargs):
     )
 
 cq_build_perf_builder(
-    name = "android-build-perf-ninja",
-    description_html = "This builder measures Android CQ build performance with Ninja.<br/>" +
-                       "The build configs and the bot specs should be in sync with " + linkify_builder("try", "android-arm64-rel-compilator", "chromium"),
-    executable = "recipe:chrome_build/build_perf",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "ninja_staging",
-                "android",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "main_builder",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_arch = builder_config.target_arch.ARM,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.ANDROID,
-        ),
-        android_config = builder_config.android_config(
-            config = "base_config",
-        ),
-    ),
-    gn_args = gn_args.config(configs = ["try/android-arm64-rel", "reclient", "no_siso"]),
-    os = os.LINUX_DEFAULT,
-    console_view_entry = consoles.console_view_entry(
-        category = "build perf|android",
-        short_name = "ninja",
-    ),
-    siso_enabled = False,
-)
-
-cq_build_perf_builder(
     name = "android-build-perf-siso",
     description_html = "This builder measures Android CQ build performance with Siso.<br/>" +
                        "The build configs and the bot specs should be in sync with " + linkify_builder("try", "android-arm64-rel-compilator", "chromium"),
@@ -213,36 +177,6 @@ cq_build_perf_builder(
 )
 
 cq_build_perf_builder(
-    name = "linux-build-perf-ninja",
-    description_html = "This builder measures Linux CQ build performance with Ninja.<br/>" +
-                       "The build configs and the bot specs should be in sync with " + linkify_builder("try", "linux-rel-compilator", "chromium"),
-    executable = "recipe:chrome_build/build_perf",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "android",
-                "ninja_staging",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            target_platform = builder_config.target_platform.LINUX,
-        ),
-    ),
-    gn_args = gn_args.config(configs = ["try/linux-rel", "reclient", "no_siso"]),
-    os = os.LINUX_DEFAULT,
-    console_view_entry = consoles.console_view_entry(
-        category = "build perf|linux",
-        short_name = "ninja",
-    ),
-    siso_enabled = False,
-)
-
-cq_build_perf_builder(
     name = "linux-build-perf-siso",
     description_html = "This builder measures Linux CQ build performance with Siso.<br/>" +
                        "The build configs and the bot specs should be in sync with " + linkify_builder("try", "linux-rel-compilator", "chromium"),
@@ -272,35 +206,6 @@ cq_build_perf_builder(
         short_name = "siso",
     ),
     siso_profile_mode = "local",
-)
-
-cq_build_perf_builder(
-    name = "win-build-perf-ninja",
-    description_html = "This builder measures Windows CQ build performance with Ninja.<br/>" +
-                       "The build configs and the bot specs should be in sync with " + linkify_builder("try", "win-rel-compilator", "chromium"),
-    executable = "recipe:chrome_build/build_perf",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "ninja_staging",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            target_platform = builder_config.target_platform.WIN,
-        ),
-    ),
-    gn_args = gn_args.config(configs = ["try/win-rel", "reclient", "no_siso"]),
-    os = os.WINDOWS_DEFAULT,
-    console_view_entry = consoles.console_view_entry(
-        category = "build perf|windows",
-        short_name = "ninja",
-    ),
-    siso_enabled = False,
 )
 
 cq_build_perf_builder(
@@ -374,36 +279,6 @@ ci_build_perf_builder(
 )
 
 cq_build_perf_builder(
-    name = "linux-chromeos-build-perf-ninja",
-    description_html = "This builder measures CrOS CQ build performance with Ninja.<br/>" +
-                       "The build configs and the bot specs should be in sync with " + linkify_builder("try", "linux-chromeos-rel-compilator", "chromium"),
-    executable = "recipe:chrome_build/build_perf",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "chromeos",
-                "ninja_staging",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            target_platform = builder_config.target_platform.CHROMEOS,
-        ),
-    ),
-    gn_args = gn_args.config(configs = ["try/linux-chromeos-rel", "reclient", "no_siso"]),
-    os = os.LINUX_DEFAULT,
-    console_view_entry = consoles.console_view_entry(
-        category = "build perf|cros",
-        short_name = "ninja",
-    ),
-    siso_enabled = False,
-)
-
-cq_build_perf_builder(
     name = "linux-chromeos-build-perf-siso",
     description_html = "This builder measures CrOS CQ build performance with Siso.<br/>" +
                        "The build configs and the bot specs should be in sync with " + linkify_builder("try", "linux-chromeos-rel-compilator", "chromium"),
@@ -434,39 +309,6 @@ cq_build_perf_builder(
         short_name = "siso",
     ),
     siso_profile_mode = "local",
-)
-
-cq_build_perf_builder(
-    name = "mac-build-perf-ninja",
-    description_html = "This builder measures Mac CQ build performance with Ninja.<br/>" +
-                       "The build configs and the bot specs should be in sync with " + linkify_builder("try", "mac-rel-compilator", "chromium"),
-    executable = "recipe:chrome_build/build_perf",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "ninja_staging",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
-    gn_args = gn_args.config(configs = ["try/mac-rel", "reclient", "no_siso"]),
-    os = os.MAC_DEFAULT,
-    cpu = cpu.ARM64,
-    console_view_entry = consoles.console_view_entry(
-        category = "build perf|mac",
-        short_name = "ninja",
-    ),
-    siso_configs = ["builder"],
-    siso_enabled = False,
 )
 
 cq_build_perf_builder(
@@ -503,41 +345,6 @@ cq_build_perf_builder(
     ),
     siso_configs = ["builder"],
     siso_profile_mode = "local",
-)
-
-cq_build_perf_builder(
-    name = "ios-build-perf-ninja",
-    description_html = "This builder measures iOS CQ build performance with Ninja.<br/>" +
-                       "The build configs and the bot specs should be in sync with " + linkify_builder("try", "ios-simulator-compilator", "chromium"),
-    executable = "recipe:chrome_build/build_perf",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "ios",
-            apply_configs = [
-                "ninja_staging",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-                "mac_toolchain",
-            ],
-            build_config = builder_config.build_config.DEBUG,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.IOS,
-        ),
-    ),
-    gn_args = gn_args.config(configs = ["try/ios-simulator", "reclient", "no_siso"]),
-    os = os.MAC_DEFAULT,
-    cpu = cpu.ARM64,
-    console_view_entry = consoles.console_view_entry(
-        category = "build perf|ios",
-        short_name = "ninja",
-    ),
-    siso_configs = ["builder"],
-    siso_enabled = False,
-    xcode = xcode.xcode_default,
 )
 
 cq_build_perf_builder(

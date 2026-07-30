@@ -87,9 +87,7 @@ namespace {
 
 std::u16string InsertBrandedPasswordManager(int message_id) {
   return l10n_util::GetStringFUTF16(
-      message_id,
-      l10n_util::GetStringUTF16(
-          IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE));
+      message_id, l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_BRAND_NAME));
 }
 
 content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
@@ -134,6 +132,10 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
        IDS_PASSWORD_MANAGER_UI_ALREADY_CHANGED_PASSWORD},
       {"appsLabel", IDS_PASSWORD_MANAGER_UI_APPS_LABEL},
       {"authTimedOut", IDS_PASSWORD_MANAGER_UI_AUTH_TIMED_OUT},
+      {"automatedPasswordChangeCheckupButton",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHECKUP_BUTTON},
+      {"automatedPasswordChangeCheckupButtonAriaDescription",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHECKUP_BUTTON_ARIA_DESCRIPTION},
       {"automatedPasswordChangeTitle",
        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_SETTINGS_TITLE},
       {"automatedPasswordChangeDescription",
@@ -187,8 +189,8 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"copyDisplayName", IDS_PASSWORD_MANAGER_UI_COPY_DISPLAY_NAME_LABEL},
       {"copyPassword", IDS_PASSWORD_MANAGER_UI_COPY_PASSWORD},
       {"copyUsername", IDS_PASSWORD_MANAGER_UI_COPY_USERNAME},
-      {"delete", IDS_DELETE},
-      {"deletePassword", IDS_DELETE},
+      {"delete", IDS_SETTINGS_DELETE},
+      {"deletePassword", IDS_SETTINGS_DELETE},
       {"deletePasskeyConfirmationDescription",
        IDS_PASSWORD_MANAGER_UI_DELETE_PASSKEY_CONFIRMATION_DESCRIPTION},
       {"deletePasskeyConfirmationTitle",
@@ -309,8 +311,7 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
        IDS_PASSWORD_MANAGER_UI_STORE_PICKER_OPTION_ACCOUNT},
       {"justNow", IDS_PASSWORD_MANAGER_UI_JUST_NOW},
       {"leakedPassword", IDS_PASSWORD_MANAGER_UI_PASSWORD_LEAKED},
-      {"localPasswordManager",
-       IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE},
+      {"localPasswordManager", IDS_PASSWORD_MANAGER_BRAND_NAME},
       {"manage", IDS_SETTINGS_MANAGE},
 #if BUILDFLAG(IS_WIN)
       {"managePasskeysLabel", IDS_PASSWORD_MANAGER_UI_MANAGE_PASSKEYS_LABEL},
@@ -406,8 +407,7 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"passwordManagerString", IDS_PASSWORD_MANAGER_UI_TITLE},
       // Page title, branded. "Google Password Manager" or "Password Manager"
       // depending on the build.
-      {"passwordManagerTitle",
-       IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE},
+      {"passwordManagerTitle", IDS_PASSWORD_MANAGER_BRAND_NAME},
       {"passwordNoteCharacterCount",
        IDS_PASSWORD_MANAGER_UI_NOTE_CHARACTER_COUNT},
       {"passwordNoteCharacterCountWarning",
@@ -586,8 +586,7 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       base::i18n::MessageFormatter::FormatWithNumberedArgs(
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_AUTH_TIMED_OUT_DESCRIPTION),
-          l10n_util::GetStringUTF16(
-              IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE),
+          l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_BRAND_NAME),
           password_manager::constants::kPasswordManagerAuthValidity
               .InMinutes()));
 
@@ -686,16 +685,8 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
           password_manager::features::kEnablePasswordManagerMojoApi));
 
   source->AddBoolean(
-      "enablePasswordCheckup",
-      base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordCheckupPrototype));
-
-  bool passwordUploadUiUpdateEnabled = false;
-#if !BUILDFLAG(IS_CHROMEOS)
-  passwordUploadUiUpdateEnabled =
-      base::FeatureList::IsEnabled(switches::kPasswordUploadUiUpdate);
-#endif  // !BUILDFLAG(IS_CHROMEOS)
-  source->AddBoolean("passwordUploadUiUpdate", passwordUploadUiUpdateEnabled);
+      "passwordUploadUiUpdate",
+      base::FeatureList::IsEnabled(switches::kPasswordUploadUiUpdate));
 
   source->AddString("webuiRefresh2026", features::IsWebuiRefresh2026Enabled()
                                             ? "webui-refresh-2026"

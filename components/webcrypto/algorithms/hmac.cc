@@ -84,6 +84,16 @@ const char* GetJwkHmacAlgorithmName(blink::WebCryptoAlgorithmId hash) {
   }
 }
 
+// Synthesizes an import algorithm given a key algorithm, so that
+// deserialization can reuse the ImportKey*() methods.
+blink::WebCryptoAlgorithm SynthesizeImportAlgorithmForClone(
+    const blink::WebCryptoKeyAlgorithm& algorithm) {
+  const auto& params = *algorithm.HmacParams();
+  return blink::WebCryptoAlgorithm::AdoptParamsAndCreate(
+      algorithm.Id(), new blink::WebCryptoHmacImportParams(
+                          params.GetHash(), true, params.LengthBits()));
+}
+
 const blink::WebCryptoKeyUsageMask kAllKeyUsages =
     blink::kWebCryptoKeyUsageSign | blink::kWebCryptoKeyUsageVerify;
 
@@ -294,8 +304,8 @@ class HmacImplementation : public AlgorithmImplementation {
         type != blink::kWebCryptoKeyTypeSecret)
       return Status::ErrorUnexpected();
 
-    return CreateWebCryptoSecretKey(key_data, algorithm, extractable, usages,
-                                    key);
+    return ImportKeyRaw(key_data, SynthesizeImportAlgorithmForClone(algorithm),
+                        extractable, usages, key);
   }
 
   Status GetKeyLength(const blink::WebCryptoAlgorithm& key_length_algorithm,

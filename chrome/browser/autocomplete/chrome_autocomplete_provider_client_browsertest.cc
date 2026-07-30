@@ -7,8 +7,10 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/lens/test_lens_search_controller.h"
@@ -20,6 +22,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
@@ -210,3 +213,44 @@ class ChromeAutocompleteProviderClientWithChipTest
  private:
   base::test::ScopedFeatureList feature_list_;
 };
+
+class ChromeAutocompleteProviderClientAskGCoBrowseTest
+    : public ChromeAutocompleteProviderClientTest {
+ protected:
+  ChromeAutocompleteProviderClientAskGCoBrowseTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{omnibox::kWebUIOmniboxAskGAboutThisPage,
+          {{"Omnibox_AskGCoBrowse", "true"}}},
+         {contextual_tasks::kContextualTasks, {}},
+         {contextual_tasks::kContextualTasksForceEntryPointEligibility, {}}},
+        {});
+  }
+
+  bool IsContextualTasksSidePanelOpen() {
+    auto* controller = contextual_tasks::ContextualTasksPanelController::From(
+        browser()->GetActiveTabInterface()->GetBrowserWindowInterface());
+    return controller && controller->IsPanelOpenForContextualTask();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ChromeAutocompleteProviderClientAskGCoBrowseTest,
+                       OpensSidePanel) {
+  // Ensure the active tab is valid.
+  ASSERT_TRUE(browser()->tab_strip_model()->GetActiveWebContents());
+
+  // Lens should NOT be opened.
+  EXPECT_CALL(*GetLensSearchController(),
+              OpenLensOverlay(testing::_, testing::_))
+      .Times(0);
+  EXPECT_CALL(*GetLensSearchController(), StartContextualization(testing::_))
+      .Times(0);
+
+  GetAutocompleteProviderClient()->OpenCoBrowsePanel();
+
+  // Verify that the side panel is open.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return IsContextualTasksSidePanelOpen(); }));
+}

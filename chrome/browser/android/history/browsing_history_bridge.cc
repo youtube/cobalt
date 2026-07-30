@@ -75,7 +75,12 @@ void BrowsingHistoryBridge::QueryHistory(
 void BrowsingHistoryBridge::QueryHistoryContinuation(
     JNIEnv* env,
     const JavaRef<jobject>& j_result_obj) {
-  DCHECK(query_history_continuation_);
+  // The Java side *should* only call this if there is actually a continuation,
+  // but if its state got out of sync for some reason, better to do nothing than
+  // to crash.
+  if (!query_history_continuation_) {
+    return;
+  }
   j_query_result_obj_.Reset(env, j_result_obj);
   std::move(query_history_continuation_).Run();
 }
@@ -121,8 +126,9 @@ void BrowsingHistoryBridge::OnQueryComplete(
     std::u16string domain = url_formatter::IDNToUnicode(entry.url.GetHost());
     // When the domain is empty, use the scheme instead. This allows for a
     // sensible treatment of e.g. file: URLs when group by domain is on.
-    if (domain.empty())
+    if (domain.empty()) {
       domain = base::UTF8ToUTF16(entry.url.GetScheme() + ":");
+    }
 
     // This relies on the list of timestamps per url in |all_timestamps| being a
     // sorted data structure.
@@ -204,7 +210,8 @@ void BrowsingHistoryBridge::HistoryDeleted() {
 }
 
 void BrowsingHistoryBridge::HasOtherFormsOfBrowsingHistory(
-    bool has_other_forms, bool has_synced_results) {
+    bool has_other_forms,
+    bool has_synced_results) {
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_BrowsingHistoryBridge_hasOtherFormsOfBrowsingData(
       env, j_history_service_obj_, has_other_forms);

@@ -13,7 +13,7 @@ import {KeyboardDiagramElement, TopRightKey as DiagramTopRightKey} from 'chrome:
 import {KeyboardKeyState} from 'chrome://resources/ash/common/keyboard_key.js';
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';

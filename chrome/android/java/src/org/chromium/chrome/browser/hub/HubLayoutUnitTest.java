@@ -369,7 +369,7 @@ public class HubLayoutUnitTest {
         assertTrue(mHubLayout.handlesTabClosing());
         assertTrue(mHubLayout.handlesTabCreating());
         assertNull(mHubLayout.getEventFilter());
-        assertEquals(LayoutType.TAB_SWITCHER, mHubLayout.getLayoutType());
+        assertEquals(LayoutType.HUB, mHubLayout.getLayoutType());
 
         // TODO(crbug.com/40283200): These may be dynamic after further development.
         assertFalse(mHubLayout.onBackPressed());

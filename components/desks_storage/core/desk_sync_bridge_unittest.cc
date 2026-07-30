@@ -35,7 +35,6 @@
 #include "components/desks_storage/core/desk_test_util.h"
 #include "components/desks_storage/core/saved_desk_builder.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"

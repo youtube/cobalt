@@ -22,17 +22,19 @@ message FeedQuery {
     SCHEDULED_REFRESH = 2;
     APP_CLOSE_REFRESH = 13;
     NEXT_PAGE_SCROLL = 3;
-    PREFETCHED_WEB_FEED = 8;
-    INTERACTIVE_WEB_FEED = 9;
+    reserved 8, 9;
+    reserved "PREFETCHED_WEB_FEED", "INTERACTIVE_WEB_FEED";
   }
   enum ContentOrder {
     CONTENT_ORDER_UNSPECIFIED = 0;
     RECENT = 2;
     GROUPED = 4;
   }
+  reserved 4;
+  reserved "web_feed_token";
+
   oneof token {
     Token next_page_token = 3;
-    Token web_feed_token = 4;
   }
   optional RequestReason reason = 1;
   optional ContentOrder order_by = 8;

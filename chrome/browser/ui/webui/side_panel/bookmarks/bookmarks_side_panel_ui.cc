@@ -118,6 +118,8 @@ BookmarksSidePanelUI::BookmarksSidePanelUI(content::WebUI* web_ui)
       {"sortLastOpenedLower", IDS_BOOKMARKS_SORT_LAST_OPENED_LOWER},
       {"visualView", IDS_BOOKMARKS_VISUAL_VIEW},
       {"compactView", IDS_BOOKMARKS_COMPACT_VIEW},
+      {"switchToCompactView", IDS_BOOKMARKS_SWITCH_TO_COMPACT_VIEW},
+      {"switchToVisualView", IDS_BOOKMARKS_SWITCH_TO_VISUAL_VIEW},
       {"sortMenuA11yLabel", IDS_BOOKMARKS_SORT_MENU_A11Y_LABEL},
       {"createNewFolderA11yLabel", IDS_BOOKMARKS_CREATE_NEW_FOLDER_A11Y_LABEL},
       {"editBookmarkListA11yLabel",

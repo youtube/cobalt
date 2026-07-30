@@ -91,7 +91,7 @@ class EntityDataManagerTestBase : public testing::Test {
     return *client().GetEntityDataManager();
   }
 
-  base::span<const autofill::EntityInstance> GetEntityInstances() {
+  base::span<const EntityInstance> GetEntityInstances() {
     helper().WaitUntilIdle();
     return entity_data_manager().GetEntityInstances();
   }

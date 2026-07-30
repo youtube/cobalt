@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/content_setting_bubble_contents.h"
 
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/content_settings/content_setting_bubble_model.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
@@ -11,7 +12,10 @@
 #include "content/public/test/web_contents_tester.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/text_utils.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/controls/link.h"
+#include "ui/views/view_utils.h"
 
 class ContentSettingBubbleContentsTest : public ChromeViewsTestBase {
  public:
@@ -35,13 +39,14 @@ class TestContentSettingBubbleContents : public ContentSettingBubbleContents {
                   ContentSettingBubbleContents)
 
  public:
-  TestContentSettingBubbleContents(content::WebContents* web_contents,
-                                   gfx::NativeView parent_window)
-      : ContentSettingBubbleContents(
-            std::make_unique<TestContentSettingBubbleModel>(web_contents),
-            web_contents,
-            views::BubbleAnchor(),
-            views::BubbleBorder::TOP_LEFT) {
+  TestContentSettingBubbleContents(
+      std::unique_ptr<ContentSettingBubbleModel> bubble_model,
+      content::WebContents* web_contents,
+      gfx::NativeView parent_window)
+      : ContentSettingBubbleContents(std::move(bubble_model),
+                                     web_contents,
+                                     views::BubbleAnchor(),
+                                     views::BubbleBorder::TOP_LEFT) {
     set_parent_window(parent_window);
   }
 
@@ -71,6 +76,100 @@ TEST_F(ContentSettingBubbleContentsTest, NullDeref) {
   std::unique_ptr<views::Widget> widget(
       views::BubbleDialogDelegateView::CreateBubble(
           std::make_unique<TestContentSettingBubbleContents>(
+              std::make_unique<TestContentSettingBubbleModel>(
+                  web_contents.get()),
               web_contents.get(), parent_widget->GetNativeView())));
   widget->Show();
+}
+
+class TestContentSettingUrlBubbleModel : public ContentSettingBubbleModel {
+ public:
+  TestContentSettingUrlBubbleModel(content::WebContents* web_contents,
+                                   const GURL& url)
+      : ContentSettingBubbleModel(nullptr, web_contents) {
+    ListItem item(nullptr, FormatUrlWithBullet(url), std::u16string(),
+                  /*has_link=*/true, /*has_blocked_badge=*/false, 0);
+    item.url = url;
+    AddListItem(item);
+  }
+};
+
+namespace {
+void FindLinks(views::View* view, std::vector<views::Link*>* links) {
+  if (views::IsViewClass<views::Link>(view)) {
+    links->push_back(static_cast<views::Link*>(view));
+  }
+  for (views::View* child : view->children()) {
+    FindLinks(child, links);
+  }
+}
+}  // namespace
+
+TEST_F(ContentSettingBubbleContentsTest, BulletUrlLinkElision) {
+  content::RenderViewHostTestEnabler test_render_host_factories;
+
+  std::unique_ptr<views::Widget> parent_widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  parent_widget->Show();
+
+  std::unique_ptr<content::WebContents> web_contents =
+      content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
+
+  const GURL url(
+      "https://google.com.evildomain-mybanklongdomainname.com/some/long/path");
+
+  auto bubble = std::make_unique<TestContentSettingBubbleContents>(
+      std::make_unique<TestContentSettingUrlBubbleModel>(web_contents.get(),
+                                                         url),
+      web_contents.get(), parent_widget->GetNativeView());
+
+  std::unique_ptr<views::Widget> widget(
+      views::BubbleDialogDelegateView::CreateBubble(std::move(bubble)));
+  widget->Show();
+
+  std::vector<views::Link*> links;
+  FindLinks(widget->GetContentsView(), &links);
+  ASSERT_EQ(1u, links.size());
+  views::Link* link = links[0];
+
+  // Verify LTR directionality is set for URL display.
+  EXPECT_EQ(gfx::DirectionalityMode::DIRECTIONALITY_AS_URL,
+            link->GetDirectionalityMode());
+
+  // Test Case 1: Large bounds (no elision).
+  link->SetBounds(0, 0, 1000, 20);
+  std::u16string full_expected =
+      ContentSettingBubbleModel::FormatUrlWithBullet(url);
+  EXPECT_EQ(full_expected, link->GetText());
+  EXPECT_EQ(full_expected, link->GetTooltipText());
+
+  // Test Case 2: Narrower width. Registrable domain must stay intact.
+  std::u16string bullet_prefix =
+      ContentSettingBubbleModel::FormatTitleWithBullet(std::u16string());
+  std::u16string domain_only = u"evildomain-mybanklongdomainname.com";
+  float domain_width =
+      gfx::GetStringWidthF(bullet_prefix + domain_only, link->font_list());
+
+  link->SetBounds(0, 0, domain_width + 40, 20);
+  std::u16string elided_text(link->GetText());
+
+  EXPECT_TRUE(elided_text.find(domain_only) != std::u16string::npos)
+      << "Elided text '" << base::UTF16ToUTF8(elided_text)
+      << "' does not contain registrable domain '"
+      << base::UTF16ToUTF8(domain_only) << "'";
+  EXPECT_EQ(full_expected, link->GetTooltipText());
+
+  // Test Case 3: Space smaller than domain width.
+  link->SetBounds(0, 0, domain_width - 30, 20);
+  std::u16string narrow_text(link->GetText());
+
+  // It should NOT show "mybanklongdomainname.com" without the "evildomain-"
+  // prefix.
+  EXPECT_TRUE(narrow_text.find(u"mybanklongdomainname.com") ==
+              std::u16string::npos);
+  EXPECT_TRUE(narrow_text.find(u"evildomain-") != std::u16string::npos)
+      << "narrow_text: '" << base::UTF16ToUTF8(narrow_text) << "'";
+  EXPECT_EQ(full_expected, link->GetTooltipText());
+
+  widget->CloseNow();
 }

@@ -9,11 +9,11 @@ import type {BannerPromoElement} from './banner_promo.js';
 export function getHtml(this: BannerPromoElement) {
   return html`
     <div id="container">
-      <div class="icon-wrapper">
-        <cr-icon icon="contextual_tasks:screensaver-auto"></cr-icon>
-      </div>
       <div class="content-wrapper">
-        <div class="header"><slot name="header"></slot></div>
+        <div class="header">
+          <cr-icon icon="contextual_tasks:screensaver-auto"></cr-icon>
+          <slot name="header"></slot>
+        </div>
         <div class="body"><slot name="body"></slot></div>
         <div class="buttons">
           <cr-button class="tonal-button" @click="${this.onNotNowClick_}">

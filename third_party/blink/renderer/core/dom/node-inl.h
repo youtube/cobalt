@@ -9,13 +9,13 @@
 #include <concepts>
 
 #include "third_party/blink/renderer/core/dom/container_node.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data.h"
 
 namespace blink {
 
 DOMNodeId Node::NodeID(base::PassKey<DOMNodeIds>) const {
-  return data_ ? const_cast<const ElementRareDataVector*>(data_.Get())->NodeId()
+  return data_ ? const_cast<const NodeRareData*>(data_.Get())->NodeId()
                : kInvalidDOMNodeId;
 }
 DOMNodeId& Node::EnsureNodeID(base::PassKey<DOMNodeIds>) {
@@ -27,14 +27,14 @@ bool Node::HasPseudoElements() const {
 }
 
 bool ContainerNode::HasRestyleFlag(DynamicRestyleFlags mask) const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasRestyleFlag(mask);
   }
   return false;
 }
 
 bool ContainerNode::HasRestyleFlags() const {
-  if (const ElementRareDataVector* data = RareData()) {
+  if (const NodeRareData* data = RareData()) {
     return data->HasRestyleFlags();
   }
   return false;

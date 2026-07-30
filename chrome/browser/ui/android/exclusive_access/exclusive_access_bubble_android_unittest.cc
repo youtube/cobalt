@@ -4,8 +4,13 @@
 
 #include "chrome/browser/ui/android/exclusive_access/exclusive_access_bubble_android.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "base/android/jni_string.h"
 #include "base/functional/callback_helpers.h"
+#include "chrome/browser/ui/android/exclusive_access/exclusive_access_context_android.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -104,6 +109,47 @@ TEST_F(ExclusiveAccessBubbleAndroidTest, WasShownFlagPreventsResurrection) {
   bubble.Update(params, base::DoNothing());
 
   EXPECT_CALL(*mock_bridge_ptr, Hide()).Times(1);
+}
+
+TEST_F(ExclusiveAccessBubbleAndroidTest, SnoozeResetForciblyReshowsNotice) {
+  ExclusiveAccessBubbleParams params;
+  params.type = EXCLUSIVE_ACCESS_BUBBLE_TYPE_FULLSCREEN_EXIT_INSTRUCTION;
+
+  auto mock_bridge = std::make_unique<MockBridge>();
+  auto* mock_bridge_ptr = mock_bridge.get();
+
+  // Initial show on creation.
+  EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(false));
+  EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).WillOnce(Return(false));
+  EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(1);
+  EXPECT_CALL(*mock_bridge_ptr, Show()).Times(1);
+
+  auto bubble = std::make_unique<ExclusiveAccessBubbleAndroid>(
+      params, base::DoNothing(), std::move(mock_bridge));
+
+  testing::Mock::VerifyAndClearExpectations(mock_bridge_ptr);
+
+  ExclusiveAccessContextAndroid context;
+  context.SetBubbleForTesting(std::move(bubble));
+
+  // Verify that the first 9 user inputs don't trigger any show or update on the
+  // bridge.
+  for (int i = 1; i <= 9; ++i) {
+    context.OnExclusiveAccessUserInput();
+  }
+
+  // The 10th user input exceeds the snooze interaction threshold and must
+  // forcibly re-show the security notice regardless of whether it was
+  // previously shown in this session (i.e. force_update is set to true to
+  // override the was_shown_ latch).
+  EXPECT_CALL(*mock_bridge_ptr, IsVisible()).WillOnce(Return(false));
+  EXPECT_CALL(*mock_bridge_ptr, IsKeyboardConnected()).WillOnce(Return(false));
+  EXPECT_CALL(*mock_bridge_ptr, Update(_)).Times(1);
+  EXPECT_CALL(*mock_bridge_ptr, Show()).Times(1);
+
+  context.OnExclusiveAccessUserInput();
+
+  testing::Mock::VerifyAndClearExpectations(mock_bridge_ptr);
 }
 
 }  // namespace

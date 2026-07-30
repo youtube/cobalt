@@ -200,7 +200,7 @@ const HostCache::EntryStaleness* FakeServiceEndpointRequest::GetStaleInfo()
   return nullptr;
 }
 
-bool FakeServiceEndpointRequest::IsStaleWhileRefresing() const {
+bool FakeServiceEndpointRequest::IsStaleWhileRefreshing() const {
   return false;
 }
 
@@ -277,6 +277,7 @@ FakeServiceEndpointResolver::CreateServiceEndpointRequest(
         std::make_unique<FakeServiceEndpointRequest>();
     request->resolution_ = *default_resolution_;
     request->set_priority(parameters.initial_priority);
+    request->resolve_host_params_ = parameters;
     return request;
   }
 
@@ -285,6 +286,7 @@ FakeServiceEndpointResolver::CreateServiceEndpointRequest(
       std::move(requests_.front());
   requests_.pop_front();
   request->set_priority(parameters.initial_priority);
+  request->resolve_host_params_ = parameters;
   return request;
 }
 

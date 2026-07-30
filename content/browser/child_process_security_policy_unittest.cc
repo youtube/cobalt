@@ -75,13 +75,9 @@ class ChildProcessSecurityPolicyTestBrowserClient
     return schemes_.contains(url.GetScheme());
   }
 
-  void ClearSchemes() {
-    schemes_.clear();
-  }
+  void ClearSchemes() { schemes_.clear(); }
 
-  void AddScheme(const std::string& scheme) {
-    schemes_.insert(scheme);
-  }
+  void AddScheme(const std::string& scheme) { schemes_.insert(scheme); }
 
  private:
   std::set<std::string> schemes_;
@@ -481,8 +477,7 @@ TEST_P(ChildProcessSecurityPolicyTest, StandardSchemesTest) {
   EXPECT_TRUE(p->CanCommitURL(kRendererID, GURL("data:text/html,<b>Hi</b>")));
 
   // Dangerous to request, commit, or set as origin header.
-  EXPECT_FALSE(p->CanRequestURL(kRendererID,
-                                GURL("file:///etc/passwd")));
+  EXPECT_FALSE(p->CanRequestURL(kRendererID, GURL("file:///etc/passwd")));
   EXPECT_FALSE(p->CanRequestURL(kRendererID, GetWebUIURL("foo/bar")));
   EXPECT_FALSE(p->CanRequestURL(kRendererID,
                                 GURL("view-source:http://www.google.com/")));
@@ -719,8 +714,8 @@ TEST_P(ChildProcessSecurityPolicyTest, ViewSource) {
   // Child processes cannot request view source URLs.
   EXPECT_FALSE(p->CanRequestURL(kRendererID,
                                 GURL("view-source:http://www.google.com/")));
-  EXPECT_FALSE(p->CanRequestURL(kRendererID,
-                                GURL("view-source:file:///etc/passwd")));
+  EXPECT_FALSE(
+      p->CanRequestURL(kRendererID, GURL("view-source:file:///etc/passwd")));
   EXPECT_FALSE(p->CanRequestURL(kRendererID, GURL("file:///etc/passwd")));
   EXPECT_FALSE(p->CanRequestURL(
       kRendererID, GURL("view-source:view-source:http://www.google.com/")));
@@ -734,10 +729,10 @@ TEST_P(ChildProcessSecurityPolicyTest, ViewSource) {
 
   // View source URLs don't actually commit; the renderer is put into view
   // source mode, and the inner URL commits.
-  EXPECT_FALSE(p->CanCommitURL(kRendererID,
-                               GURL("view-source:http://www.google.com/")));
-  EXPECT_FALSE(p->CanCommitURL(kRendererID,
-                               GURL("view-source:file:///etc/passwd")));
+  EXPECT_FALSE(
+      p->CanCommitURL(kRendererID, GURL("view-source:http://www.google.com/")));
+  EXPECT_FALSE(
+      p->CanCommitURL(kRendererID, GURL("view-source:file:///etc/passwd")));
   EXPECT_FALSE(p->CanCommitURL(kRendererID, GURL("file:///etc/passwd")));
   EXPECT_FALSE(p->CanCommitURL(
       kRendererID, GURL("view-source:view-source:http://www.google.com/")));
@@ -749,8 +744,8 @@ TEST_P(ChildProcessSecurityPolicyTest, ViewSource) {
   EXPECT_FALSE(
       p->CanRequestURL(kRendererID, GURL("view-source:file:///etc/passwd")));
   EXPECT_FALSE(p->CanRedirectToURL(GURL("view-source:file:///etc/passwd")));
-  EXPECT_FALSE(p->CanCommitURL(kRendererID,
-                               GURL("view-source:file:///etc/passwd")));
+  EXPECT_FALSE(
+      p->CanCommitURL(kRendererID, GURL("view-source:file:///etc/passwd")));
   p->Remove(kRendererProcess);
 }
 
@@ -902,18 +897,15 @@ TEST_P(ChildProcessSecurityPolicyTest, FileSystemGrantsTest) {
           storage::kFileSystemTypeTest, "read_filesystem", base::FilePath());
   std::string read_write_id =
       storage::IsolatedContext::GetInstance()->RegisterFileSystemForVirtualPath(
-          storage::kFileSystemTypeTest,
-          "read_write_filesystem",
+          storage::kFileSystemTypeTest, "read_write_filesystem",
           base::FilePath());
   std::string copy_into_id =
       storage::IsolatedContext::GetInstance()->RegisterFileSystemForVirtualPath(
-          storage::kFileSystemTypeTest,
-          "copy_into_filesystem",
+          storage::kFileSystemTypeTest, "copy_into_filesystem",
           base::FilePath());
   std::string delete_from_id =
       storage::IsolatedContext::GetInstance()->RegisterFileSystemForVirtualPath(
-          storage::kFileSystemTypeTest,
-          "delete_from_filesystem",
+          storage::kFileSystemTypeTest, "delete_from_filesystem",
           base::FilePath());
 
   // Test initially having no permissions.
@@ -1046,12 +1038,12 @@ TEST_P(ChildProcessSecurityPolicyTest, FilePermissions) {
   base::FilePath parent_slash_file = base::FilePath(TEST_PATH("/home/"));
   base::FilePath child_traversal1 =
       base::FilePath(TEST_PATH("/home/joe/././file"));
-  base::FilePath child_traversal2 = base::FilePath(
-      TEST_PATH("/home/joe/file/../otherfile"));
+  base::FilePath child_traversal2 =
+      base::FilePath(TEST_PATH("/home/joe/file/../otherfile"));
   base::FilePath evil_traversal1 =
       base::FilePath(TEST_PATH("/home/joe/../../etc/passwd"));
-  base::FilePath evil_traversal2 = base::FilePath(
-      TEST_PATH("/home/joe/./.././../etc/passwd"));
+  base::FilePath evil_traversal2 =
+      base::FilePath(TEST_PATH("/home/joe/./.././../etc/passwd"));
   base::FilePath self_traversal =
       base::FilePath(TEST_PATH("/home/joe/../joe/file"));
   base::FilePath relative_file = base::FilePath(FILE_PATH_LITERAL("home/joe"));
@@ -1472,8 +1464,7 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
       "data:text/html,Hello!"};
 
   const std::vector<const char*> non_foo_urls = {
-      "file:///etc/passwd",
-      "http://bar.com/index.html",
+      "file:///etc/passwd", "http://bar.com/index.html",
       "blob:http://bar.com/43d75119-d7af-4471-a293-07c6b3d7e61a",
       "filesystem:http://bar.com/temporary/test.html",
       // foo.com with a different scheme not considered equal.
@@ -1528,8 +1519,9 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
   all_origins.push_back(opaque_with_bar_precursor);
 
   // Test invalid process ID for all cases.
-  for (const auto& origin : all_origins)
+  for (const auto& origin : all_origins) {
     EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
+  }
 
   TestBrowserContext browser_context;
   p->AddForTesting(kRendererProcess, &browser_context);
@@ -1568,8 +1560,9 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
     EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
   }
 
-  for (const auto& origin : non_foo_origins)
+  for (const auto& origin : non_foo_origins) {
     EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
+  }
 
   p->Remove(kRendererProcess);
 
@@ -1581,8 +1574,9 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
   run_loop.Run();
 
   // Verify invalid ID is rejected now that Remove() has completed.
-  for (const auto& origin : all_origins)
+  for (const auto& origin : all_origins) {
     EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
+  }
 }
 
 // Tests that queries for Midi permissions work after RenderProcessHost removal

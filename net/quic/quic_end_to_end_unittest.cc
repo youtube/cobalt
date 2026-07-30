@@ -37,7 +37,10 @@
 #include "net/http/http_server_properties.h"
 #include "net/http/http_transaction_test_util.h"
 #include "net/http/transport_security_state.h"
+#include "net/log/net_log.h"
 #include "net/log/net_log_with_source.h"
+#include "net/log/test_net_log.h"
+#include "net/log/test_net_log_util.h"
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/quic/crypto/proof_source_chromium.h"
 #include "net/quic/crypto_test_utils_chromium.h"
@@ -140,6 +143,7 @@ class QuicEndToEndTest : public ::testing::Test, public WithTaskEnvironment {
     session_context_.http_user_agent_settings = &http_user_agent_settings_;
     session_context_.http_auth_handler_factory = auth_handler_factory_.get();
     session_context_.http_server_properties = &http_server_properties_;
+    session_context_.net_log = NetLog::Get();
   }
 
   // Creates a mock host resolver in which test.example.com
@@ -372,6 +376,7 @@ TEST_F(QuicEndToEndTest, CryptoHandshakeCompleteMetrics) {
 }
 
 TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetrics) {
+  NetLogWithSource net_log;
   SetQuicRestartFlag(tls_server_padding_support, true);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
@@ -383,7 +388,8 @@ TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetrics) {
   base::HistogramTester histograms;
   TestTransactionConsumer consumer(DEFAULT_PRIORITY,
                                    transaction_factory_.get());
-  consumer.Start(&request_, NetLogWithSource());
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
+  consumer.Start(&request_, net_log);
   ASSERT_NO_FATAL_FAILURE(
       CheckResponse(consumer, "HTTP/1.1 200", kResponseBody));
 
@@ -393,9 +399,15 @@ TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetrics) {
   // The server padding metric should also be logged.
   histograms.ExpectTotalCount(
       "Net.QuicSession.HandshakeConfirmedTime.ServerPadding", 1);
+
+  auto entries = net_log_observer.GetEntriesWithType(
+      NetLogEventType::QUIC_SESSION_CRYPTO_HANDSHAKE_COMPLETE);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_TRUE(GetBooleanValueFromParams(entries[0], "received_server_padding"));
 }
 
 TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetricsZeroPadding) {
+  NetLogWithSource net_log;
   SetQuicRestartFlag(tls_server_padding_support, true);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
@@ -407,7 +419,8 @@ TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetricsZeroPadding) {
   base::HistogramTester histograms;
   TestTransactionConsumer consumer(DEFAULT_PRIORITY,
                                    transaction_factory_.get());
-  consumer.Start(&request_, NetLogWithSource());
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
+  consumer.Start(&request_, net_log);
   ASSERT_NO_FATAL_FAILURE(
       CheckResponse(consumer, "HTTP/1.1 200", kResponseBody));
 
@@ -417,9 +430,15 @@ TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetricsZeroPadding) {
   // The server padding metric should also be logged.
   histograms.ExpectTotalCount(
       "Net.QuicSession.HandshakeConfirmedTime.ServerPadding", 1);
+
+  auto entries = net_log_observer.GetEntriesWithType(
+      NetLogEventType::QUIC_SESSION_CRYPTO_HANDSHAKE_COMPLETE);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_TRUE(GetBooleanValueFromParams(entries[0], "received_server_padding"));
 }
 
 TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetricsNoServerSupport) {
+  NetLogWithSource net_log;
   SetQuicRestartFlag(tls_server_padding_support, false);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
@@ -431,7 +450,8 @@ TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetricsNoServerSupport) {
   base::HistogramTester histograms;
   TestTransactionConsumer consumer(DEFAULT_PRIORITY,
                                    transaction_factory_.get());
-  consumer.Start(&request_, NetLogWithSource());
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
+  consumer.Start(&request_, net_log);
   ASSERT_NO_FATAL_FAILURE(
       CheckResponse(consumer, "HTTP/1.1 200", kResponseBody));
 
@@ -441,10 +461,17 @@ TEST_F(QuicEndToEndTest, ServerHandshakePaddingMetricsNoServerSupport) {
   // The server padding metric should not be logged.
   histograms.ExpectTotalCount(
       "Net.QuicSession.HandshakeConfirmedTime.ServerPadding", 0);
+
+  auto entries = net_log_observer.GetEntriesWithType(
+      NetLogEventType::QUIC_SESSION_CRYPTO_HANDSHAKE_COMPLETE);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_FALSE(
+      GetBooleanValueFromParams(entries[0], "received_server_padding"));
 }
 
 TEST_F(QuicEndToEndTest,
        ServerHandshakePaddingMetricsServerSupportFeatureDisabled) {
+  NetLogWithSource net_log;
   SetQuicRestartFlag(tls_server_padding_support, false);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(features::kAddTLSServerHandshakePadding);
@@ -454,7 +481,8 @@ TEST_F(QuicEndToEndTest,
   base::HistogramTester histograms;
   TestTransactionConsumer consumer(DEFAULT_PRIORITY,
                                    transaction_factory_.get());
-  consumer.Start(&request_, NetLogWithSource());
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
+  consumer.Start(&request_, net_log);
   ASSERT_NO_FATAL_FAILURE(
       CheckResponse(consumer, "HTTP/1.1 200", kResponseBody));
 
@@ -464,6 +492,12 @@ TEST_F(QuicEndToEndTest,
   // The server padding metric should not be logged.
   histograms.ExpectTotalCount(
       "Net.QuicSession.HandshakeConfirmedTime.ServerPadding", 0);
+
+  auto entries = net_log_observer.GetEntriesWithType(
+      NetLogEventType::QUIC_SESSION_CRYPTO_HANDSHAKE_COMPLETE);
+  ASSERT_EQ(1u, entries.size());
+  EXPECT_FALSE(
+      GetBooleanValueFromParams(entries[0], "received_server_padding"));
 }
 
 TEST_F(QuicEndToEndTest, ProofVerifyDetailsMetrics) {

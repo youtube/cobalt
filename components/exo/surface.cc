@@ -678,8 +678,8 @@ bool Surface::DoPlaceAboveOrBelow(Surface* child,
     return false;
   }
 
-  DCHECK(ListContainsEntry(list, child));
   auto it = FindListEntry(list, child);
+  CHECK(it != list.end()) << "Child surface not in parent list";
 
   if (place_above) {
     if (reference != this) {
@@ -954,21 +954,6 @@ void Surface::SetAspectRatio(const gfx::SizeF& aspect_ratio) {
     delegate_->SetAspectRatio(aspect_ratio);
 }
 
-void Surface::SetAcquireFence(std::unique_ptr<gfx::GpuFence> gpu_fence) {
-  TRACE_EVENT1("exo", "Surface::SetAcquireFence", "fence_fd",
-               gpu_fence ? gpu_fence->GetGpuFenceHandle().Peek() : -1);
-
-  pending_state_.acquire_fence = std::move(gpu_fence);
-}
-
-bool Surface::HasPendingAcquireFence() const {
-  return !!pending_state_.acquire_fence;
-}
-
-bool Surface::HasAcquireFence() const {
-  return !!state_.acquire_fence;
-}
-
 void Surface::Commit() {
   TRACE_EVENT1(
       "exo", "Surface::Commit", "buffer_id",
@@ -1007,7 +992,6 @@ void Surface::Commit() {
   cached_state_.overlay_priority_hint = pending_state_.overlay_priority_hint;
   cached_state_.clip_rect = pending_state_.clip_rect;
   cached_state_.surface_transform = pending_state_.surface_transform;
-  cached_state_.acquire_fence = std::move(pending_state_.acquire_fence);
   cached_state_.frame_callbacks.splice(cached_state_.frame_callbacks.end(),
                                        pending_state_.frame_callbacks);
   cached_state_.damage.Union(pending_state_.damage);
@@ -1175,7 +1159,6 @@ void Surface::CommitSurfaceHierarchy(bool synchronized) {
       state_.rounded_corners_bounds = cached_state_.rounded_corners_bounds;
       state_.clip_rect = cached_state_.clip_rect;
       state_.surface_transform = cached_state_.surface_transform;
-      state_.acquire_fence = std::move(cached_state_.acquire_fence);
       if (state_.basic_state.alpha)
         needs_update_resource_ = true;
     }
@@ -1184,11 +1167,6 @@ void Surface::CommitSurfaceHierarchy(bool synchronized) {
     // allocated/attached and may influence the format/modifier selection for
     // these.
     UpdateOverlayPriorityHint(cached_state_.overlay_priority_hint);
-
-    // Either we didn't have a pending acquire fence, or we had one along with
-    // a new buffer, and it was already moved to state_.acquire_fence. Note that
-    // it is a commit-time client error to commit a fence without a buffer.
-    DCHECK(!cached_state_.acquire_fence);
 
     if (needs_update_buffer_transform)
       UpdateBufferTransform(cached_invert_y);
@@ -1514,8 +1492,8 @@ void Surface::UpdateResource(FrameSinkResourceManager* resource_manager) {
     gfx::ColorSpace buffer_color_space = state_.basic_state.color_space;
 
     current_resource_ = state_.buffer->buffer()->ProduceTransferableResource(
-        resource_manager, std::move(state_.acquire_fence),
-        state_.basic_state.only_visible_on_secure_output, buffer_color_space,
+        resource_manager, state_.basic_state.only_visible_on_secure_output,
+        buffer_color_space,
         window_->GetToplevelWindow()->GetProperty(
             kProtectedNativePixmapQueryDelegate));
 

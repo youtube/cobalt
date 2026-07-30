@@ -13,6 +13,7 @@ java_binary("errorprone_plugin") {
     # Turned off because of existing code which fails the check
     # "src/org/chromium/tools/errorprone/plugin/NoContextGetApplicationContext.java",
     "src/org/chromium/tools/errorprone/plugin/AndroidNullableCheck.java",
+    "src/org/chromium/tools/errorprone/plugin/CallbackBindCheck.java",
     "src/org/chromium/tools/errorprone/plugin/ChromeNullAwayLibraryModel.java",
     "src/org/chromium/tools/errorprone/plugin/NoAndroidAsyncTaskCheck.java",
     "src/org/chromium/tools/errorprone/plugin/NoAndroidLog.java",

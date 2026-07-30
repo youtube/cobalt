@@ -94,6 +94,7 @@ public class TabStripContextMenuCoordinatorUnitTest {
         when(mTabModel.getMostRecentlyClosedEntryType()).thenReturn(RecentlyClosedEntryType.TAB);
         when(mTabModel.getCount()).thenReturn(2);
         when(mTabModel.getProfile()).thenReturn(mProfile);
+        when(mProfile.getOriginalProfile()).thenReturn(mProfile);
 
         doAnswer(invocation -> Collections.emptyIterator()).when((TabList) mTabModel).iterator();
 
@@ -117,39 +118,48 @@ public class TabStripContextMenuCoordinatorUnitTest {
         ChromeSharedPreferences.getInstance().removeKey(ChromePreferenceKeys.VERTICAL_TABS_ENABLED);
     }
 
-    @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_VERTICAL_TABS)
-    @Config(qualifiers = "sw600dp")
-    public void showMenu_verifyVerticalTabsEntryPoint() {
+    private void runToggleLayoutMenuTest(boolean isVerticalTabsEnabled, int expectedTitleRes) {
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, false);
+                .writeBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, isVerticalTabsEnabled);
 
         // Act.
         mCoordinator.showMenu(mRectProvider, false, mActivity);
 
-        // Verify: Baseline items (4) + divider (1) + "Show tabs vertically" (1) = 6 items.
+        // Verify: Baseline items (4) + divider (1) + toggle item (1) = 6 items.
         verifyMenuState(/* expectedNumItems= */ 6);
 
         // Index 4 is the divider.
         ListItem dividerItem = (ListItem) mListView.getAdapter().getItem(4);
         assertEquals(ListItemType.DIVIDER, dividerItem.type);
 
-        // Index 5 is "Show tabs vertically".
-        PropertyModel verticalTabsItemModel = getItemModelAtPosition(5);
+        // Index 5 is the layout toggle entry point.
+        PropertyModel toggleLayoutItemModel = getItemModelAtPosition(5);
         assertEquals(
-                R.id.show_tabs_vertically_menu_id,
-                verticalTabsItemModel.get(ListMenuItemProperties.MENU_ITEM_ID));
-        assertEquals(
-                R.string.show_tabs_vertically,
-                verticalTabsItemModel.get(ListMenuItemProperties.TITLE_ID));
+                R.id.toggle_tab_layout_menu_id,
+                toggleLayoutItemModel.get(ListMenuItemProperties.MENU_ITEM_ID));
+        assertEquals(expectedTitleRes, toggleLayoutItemModel.get(ListMenuItemProperties.TITLE_ID));
 
-        // Act: Select "Show tabs vertically".
+        // Act: Select the toggle option.
         mCoordinator
                 .getListMenuDelegate(mContentView)
-                .onItemSelected(verticalTabsItemModel, mListView);
+                .onItemSelected(toggleLayoutItemModel, mListView);
 
         assertFalse(mMenuWindow.isShowing());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_VERTICAL_TABS)
+    @Config(qualifiers = "sw600dp")
+    public void showMenu_verifyVerticalTabsEntryPoint() {
+        runToggleLayoutMenuTest(/* isVerticalTabsEnabled= */ false, R.string.show_tabs_vertically);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_VERTICAL_TABS)
+    @Config(qualifiers = "sw600dp")
+    public void showMenu_verifyHorizontalTabsEntryPoint() {
+        runToggleLayoutMenuTest(/* isVerticalTabsEnabled= */ true, R.string.show_tabs_horizontally);
     }
 
     @Test

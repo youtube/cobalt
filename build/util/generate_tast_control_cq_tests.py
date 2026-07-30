@@ -13,6 +13,45 @@ import os
 import sys
 
 
+def print_warnings(tests, template, **kwargs):
+  """Prints warnings for a list of tests using template.
+
+  The template can use placeholders: {tests}, {Tests}, {tests_list}, {them},
+  {they}, {are}, {do}, {have}, and any key-value pairs in kwargs.
+  Any parts of the template enclosed in ** will be bolded.
+  """
+  if not tests:
+    return
+  is_singular = len(tests) == 1
+  context = {
+      "tests_list": ", ".join(sorted(tests)),
+      "tests": "test" if is_singular else "tests",
+      "Tests": "Test" if is_singular else "Tests",
+      "them": "it" if is_singular else "them",
+      "they": "it" if is_singular else "they",
+      "are": "is" if is_singular else "are",
+      "do": "does" if is_singular else "do",
+      "have": "has" if is_singular else "have",
+  }
+  context.update(kwargs)
+  warning_msg = template.format(**context)
+
+  if sys.stderr.isatty():
+    parts = warning_msg.split("**")
+    res = []
+    for i, part in enumerate(parts):
+      if i % 2 == 1:
+        # \033[1m: Bold, \033[22m: Normal intensity (ends bold)
+        res.append(f"\033[1m{part}\033[22m")
+      else:
+        res.append(part)
+    # \033[33m: Yellow warning color, \033[0m: Reset all attributes
+    warning_msg = f"\033[33m{''.join(res)}\033[0m"
+  else:
+    warning_msg = warning_msg.replace("**", "")
+  print(warning_msg, file=sys.stderr)
+
+
 def main(argv):
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("-o",
@@ -66,7 +105,7 @@ def main(argv):
     return 1
 
   # Read additional tests
-  cq_tests = set()
+  additional_tests = set()
   if not os.path.exists(args.additional_tests):
     print(f"Error: Additional tests file not found at {args.additional_tests}",
           file=sys.stderr)
@@ -77,7 +116,7 @@ def main(argv):
       stripped = line.strip()
       if not stripped or stripped.startswith('#'):
         continue
-      cq_tests.add(stripped)
+      additional_tests.add(stripped)
 
   # Read test_metadata.jsonpb using full-version mapping
   misc_dir = os.path.dirname(args.metadata_dir)
@@ -117,19 +156,74 @@ def main(argv):
             file=sys.stderr)
       return 1
 
+  cq_tests = set()
+  non_mainline_tests = []
+  invalid_additional_tests = []
+  no_dep_chrome_additional_tests = []
+  processed_additional_tests = set()
+
   for entry in data.get("values", []):
     tc = entry.get("test_case", {})
     tc_id = tc.get("id", {}).get("value", "")
     tags = [tag.get("value", "") for tag in tc.get("tags", [])]
 
     # Filter by group:cq-medium && dep:chrome && !informational
+    has_mainline = "group:mainline" in tags
     has_cq_medium = "group:cq-medium" in tags
     has_dep_chrome = "dep:chrome" in tags
     is_informational = "informational" in tags
 
     if has_cq_medium and has_dep_chrome and not is_informational:
-      if tc_id.startswith("tast."):
+      if not tc_id.startswith("tast."):
+        continue
+      if not has_mainline:
+        non_mainline_tests.append(tc_id)
+      else:
         cq_tests.add(tc_id)
+
+    if tc_id in additional_tests:
+      processed_additional_tests.add(tc_id)
+      if not has_mainline or is_informational:
+        invalid_additional_tests.append(tc_id)
+      else:
+        if not has_dep_chrome:
+          no_dep_chrome_additional_tests.append(tc_id)
+        cq_tests.add(tc_id)
+
+  # Add unprocessed additional tests (tests not found in metadata at all)
+  unprocessed_additional_tests = list(additional_tests -
+                                      processed_additional_tests)
+  for tc_id in unprocessed_additional_tests:
+    cq_tests.add(tc_id)
+
+  print_warnings(
+      non_mainline_tests,
+      "Warning: {Tests} {tests_list} {are} in group:cq-medium, but "
+      "**not in group:mainline (ignored/not added to CQ)**. "
+      "Please consider fixing {them}.")
+
+  print_warnings(
+      invalid_additional_tests,
+      "Warning: Additional {tests} {tests_list} {are} **non-mainline "
+      "or informational (ignored/not added to CQ)**. "
+      "Please consider fixing or removing {them} "
+      "from {additional_tests_path}.",
+      additional_tests_path=args.additional_tests)
+
+  print_warnings(
+      no_dep_chrome_additional_tests,
+      "Warning: Additional {tests} {tests_list} {do} **not have "
+      "dep:chrome**, but {are} added to final list and will run on CQ "
+      "(defined in {additional_tests_path}).",
+      additional_tests_path=args.additional_tests)
+
+  print_warnings(
+      unprocessed_additional_tests,
+      "Warning: Additional {tests} {tests_list} {do} **not exist in "
+      "metadata (is it a typo?)**, but {are} added to final list anyway "
+      "(but may not run since {they} may not exist at all) "
+      "from {additional_tests_path}.",
+      additional_tests_path=args.additional_tests)
 
   # Write generated output file
   os.makedirs(os.path.dirname(args.output), exist_ok=True)

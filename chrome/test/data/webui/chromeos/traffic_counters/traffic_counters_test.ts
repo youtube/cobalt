@@ -12,7 +12,7 @@ import type {TrafficCountersElement} from 'chrome://resources/ash/common/traffic
 import {TrafficCounterSource} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import type {TrafficCounter} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import {ConnectionStateType, NetworkType} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {FakeNetworkConfig} from 'chrome://webui-test/chromeos/fake_network_config_mojom.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -100,19 +100,19 @@ suite('TrafficCountersTest', function() {
   }
 
   function getServiceDiv(id: string) {
-    const serviceDiv = getContainer()!.querySelector('#' + id);
+    const serviceDiv = getContainer().querySelector('#' + id);
     assertTrue(!!serviceDiv);
     return serviceDiv;
   }
 
   function getLabelFor(id: string): string {
-    return getServiceDiv(id)!.querySelector('.network-attribute-label')!
-        .textContent.trim();
+    return getServiceDiv(id).querySelector(
+                                '.network-attribute-label')!.textContent.trim();
   }
 
   function getValueFor(id: string) {
-    return getServiceDiv(id)!.querySelector('.network-attribute-value')!
-        .textContent.trim();
+    return getServiceDiv(id).querySelector(
+                                '.network-attribute-value')!.textContent.trim();
   }
 
   function bigIntReplacer(_key: string, value: unknown) {
@@ -197,13 +197,13 @@ suite('TrafficCountersTest', function() {
   });
 
   test('Click and check if the network row has expanded', async function() {
-    assertFalse(getContainer()!.expanded);
-    getContainer()!.dispatchEvent(new CustomEvent('toggle-expanded', {
+    assertFalse(getContainer().expanded);
+    getContainer().dispatchEvent(new CustomEvent('toggle-expanded', {
       bubbles: true,
       composed: true,
     }));
     await flushTasks();
-    assertTrue(getContainer()!.expanded);
+    assertTrue(getContainer().expanded);
   });
 
   test('Request and reset traffic counters', async function() {
@@ -236,7 +236,7 @@ suite('TrafficCountersTest', function() {
     });
     await flushTasks();
     // Reset the traffic counters.
-    getServiceDiv('reset')!.querySelector<HTMLElement>('#resetButton')!.click();
+    getServiceDiv('reset').querySelector<HTMLElement>('#resetButton')!.click();
     await flushTasks();
 
     // Confirm values are correct post reset.

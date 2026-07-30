@@ -1,0 +1,4 @@
+file://chrome/browser/ash/app_mode/OWNERS
+
+per-file *iwa*=simonha@google.com
+per-file *isolated_web_app*=simonha@google.com

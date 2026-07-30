@@ -28,7 +28,6 @@ class ZeroStateSuggestionsServiceTest : public PlatformTest {
   }
 
   void SetCachedSuggestions(const std::vector<std::string>& suggestions) {
-    service_->SetCanApply(true);
     service_->suggestions_ = suggestions;
     service_->suggestions_url_ = fake_web_state_->GetVisibleURL();
   }
@@ -39,23 +38,10 @@ class ZeroStateSuggestionsServiceTest : public PlatformTest {
   std::unique_ptr<ZeroStateSuggestionsService> service_;
 };
 
-// Tests that FetchZeroStateSuggestions returns nil if can_apply is false.
-TEST_F(ZeroStateSuggestionsServiceTest,
-       FetchSuggestionsReturnsNilWhenCanApplyIsFalse) {
-  service_->SetCanApply(false);
-
-  base::test::TestFuture<NSArray<NSString*>*> future;
-  service_->FetchZeroStateSuggestions(future.GetCallback());
-
-  EXPECT_NSEQ(nil, future.Get());
-}
-
 // Tests that populated cache correctly returns suggestions.
 TEST_F(ZeroStateSuggestionsServiceTest, TestFetchCachedSuggestions) {
   std::vector<std::string> suggestions = {"suggestion1", "suggestion2"};
   SetCachedSuggestions(suggestions);
-
-  EXPECT_TRUE(service_->CanApply());
 
   base::test::TestFuture<NSArray<NSString*>*> future;
   service_->FetchZeroStateSuggestions(future.GetCallback());
@@ -67,15 +53,12 @@ TEST_F(ZeroStateSuggestionsServiceTest, TestFetchCachedSuggestions) {
   EXPECT_NSEQ(@"suggestion2", result[1]);
 }
 
-// Tests that ClearCachedSuggestions clears the cached suggestions and
-// can_apply.
+// Tests that ClearCachedSuggestions clears the cached suggestions.
 TEST_F(ZeroStateSuggestionsServiceTest, TestClearCachedSuggestions) {
   std::vector<std::string> suggestions = {"suggestion1"};
   SetCachedSuggestions(suggestions);
-  EXPECT_TRUE(service_->CanApply());
 
   service_->ClearCachedSuggestions();
-  EXPECT_FALSE(service_->CanApply());
 
   base::test::TestFuture<NSArray<NSString*>*> future;
   service_->FetchZeroStateSuggestions(future.GetCallback());

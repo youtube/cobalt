@@ -29,7 +29,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 @NullMarked
 public class MostVisitedTilesLayout extends TilesLinearLayout {
 
-    private final boolean mIsTablet;
+    private final boolean mIsLff;
     private final @Px int mTileViewWidth;
     private final @Px int mIntervalPaddingsTablet;
     private final @Px int mEdgePaddingsTablet;
@@ -42,12 +42,12 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
     /** Constructor for inflating from XML. */
     public MostVisitedTilesLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
-        mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+        mIsLff = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
 
         Resources resources = getResources();
         mTileViewWidth =
                 resources.getDimensionPixelSize(
-                        mIsTablet ? R.dimen.tile_view_width_condensed : R.dimen.tile_view_width);
+                        mIsLff ? R.dimen.tile_view_width_condensed : R.dimen.tile_view_width);
         mIntervalPaddingsTablet =
                 resources.getDimensionPixelSize(R.dimen.tile_view_padding_interval_tablet);
         mEdgePaddingsTablet =
@@ -106,9 +106,10 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
 
     /**
      * Returns whether all the tiles and non-tiles, with a small margin would fit within a container
-     * with the given {@param totalWidth} without the need to scroll. For tablets only.
+     * with the given {@param totalWidth} without the need to scroll. For large form factors (LFF)
+     * only.
      */
-    public boolean contentFitsOnTablet(int totalWidth) {
+    public boolean contentFitsOnLff(int totalWidth) {
         return totalWidth >= 2 * mEdgePaddingsTablet + getTabletContentWidth();
     }
 
@@ -123,15 +124,15 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
 
     /**
      * Adjusts the edge margin of the tile elements when they are displayed in the center of the NTP
-     * on the tablet.
+     * on large form factor (LFF) devices.
      *
      * @param totalWidth The width of the mv tiles container.
      */
-    void updateEdgeMarginTablet(int totalWidth) {
+    void updateEdgeMarginLff(int totalWidth) {
         // If content fits within `totalWidth`, then return the required margin to center it. Else
         // scrolling would be needed, so return a fixed margin for the scrolled content.
         int edgeMargin =
-                contentFitsOnTablet(totalWidth)
+                contentFitsOnLff(totalWidth)
                         ? (totalWidth - getTabletContentWidth()) / 2
                         : mEdgePaddingsTablet;
         setEdgeMargins(edgeMargin);
@@ -174,8 +175,8 @@ public class MostVisitedTilesLayout extends TilesLinearLayout {
     @Override
     @Initializer
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        if (mIsTablet) {
-            updateEdgeMarginTablet(MeasureSpec.getSize(widthMeasureSpec));
+        if (mIsLff) {
+            updateEdgeMarginLff(MeasureSpec.getSize(widthMeasureSpec));
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }

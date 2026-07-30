@@ -41,7 +41,6 @@ source_set("unit_tests") {
   deps = [
     ":chooser_controller",
     "//base/test:test_support",
-    "//chrome/app:generated_resources",
     "//chrome/test:test_support",
     "//components/strings:components_strings",
     "//content/test:test_support",

@@ -463,6 +463,29 @@ base::HeapArray<uint8_t> EncodeDiskIoGroup3(uint32_t disk_number,
   return base::HeapArray<uint8_t>::CopiedFrom({buffer});
 }
 
+// Returns the MOF encoding of a `StackWalk` event.
+base::HeapArray<uint8_t> EncodeStackWalk(
+    uint64_t timestamp,
+    uint32_t process_id,
+    uint32_t thread_id,
+    const std::vector<uint64_t>& call_stack,
+    size_t pointer_size) {
+  std::vector<uint8_t> buffer;
+  auto iter = std::back_inserter(buffer);
+  std::ranges::copy(base::byte_span_from_ref(timestamp), iter);
+  std::ranges::copy(base::byte_span_from_ref(process_id), iter);
+  std::ranges::copy(base::byte_span_from_ref(thread_id), iter);
+  for (const auto& pc : call_stack) {
+    if (pointer_size == sizeof(uint64_t)) {
+      std::ranges::copy(base::byte_span_from_ref(pc), iter);
+    } else {
+      std::ranges::copy(base::byte_span_from_ref(static_cast<uint32_t>(pc)),
+                        iter);
+    }
+  }
+  return base::HeapArray<uint8_t>::CopiedFrom({buffer});
+}
+
 }  // namespace
 
 // A test fixture that instantiates an EtwConsumer and sends it some events to
@@ -577,6 +600,10 @@ class EtwConsumerTest : public testing::Test {
     SendThreadEvent(/*version=*/2u, /*opcode=*/36u, kSystemTid, packet_data);
   }
 
+  void ProcessStackWalkEvent(base::span<const uint8_t> packet_data) {
+    SendStackWalkEvent(/*version=*/0u, /*opcode=*/32u, kSystemTid, packet_data);
+  }
+
   // Validates the TracePacket processed by `decoder` and populates `c_switch`
   // with a decoder for the first ETW event contained therein.
   void ValidateAndDecodeCSwitch(
@@ -588,6 +615,16 @@ class EtwConsumerTest : public testing::Test {
 
     ASSERT_TRUE(event->has_c_switch());
     c_switch.emplace(event->c_switch());
+  }
+
+  void ValidateAndDecodeStackWalk(
+      const MessageAndDecoder& decoder,
+      std::optional<perfetto::protos::pbzero::EtwTraceEvent::Decoder>& event,
+      std::optional<perfetto::protos::pbzero::StackWalkEtwEvent::Decoder>&
+          stack_walk) {
+    ValidateAndDecodeEtwEvent(decoder, event);
+    ASSERT_TRUE(event->has_stack_walk());
+    stack_walk.emplace(event->stack_walk());
   }
 
   // Generates an ETW ReadyThread event with `packet_data` as its payload and
@@ -899,12 +936,35 @@ class EtwConsumerTest : public testing::Test {
                  version, opcode, thread_id, packet_data);
   }
 
+  void SendStackWalkEvent(uint8_t version,
+                          uint8_t opcode,
+                          uint32_t thread_id,
+                          base::span<const uint8_t> packet_data) {
+    ProcessEvent({0xdef2fe46,
+                  0x7bd6,
+                  0x4b80,
+                  {0xbd, 0x94, 0xf5, 0x7f, 0xe2, 0xd, 0xc, 0xe3}},
+                 version, opcode, thread_id, packet_data);
+  }
+
   // Returns the MOF encoding of a Process event (v4 by default).
   base::HeapArray<uint8_t> EncodeProcess(const ProcessData& process,
                                          int version = 4) {
     const size_t pointer_size = EtwConsumer::GetPointerSize(kEventHeaderFlags);
     CHECK_EQ(pointer_size, sizeof(uintptr_t));
     return ::tracing::EncodeProcess(process, version, pointer_size);
+  }
+
+  // Returns the MOF encoding of a StackWalk event.
+  base::HeapArray<uint8_t> EncodeStackWalk(
+      uint64_t timestamp,
+      uint32_t process_id,
+      uint32_t thread_id,
+      const std::vector<uint64_t>& call_stack) {
+    const size_t pointer_size = EtwConsumer::GetPointerSize(kEventHeaderFlags);
+    CHECK_EQ(pointer_size, sizeof(uintptr_t));
+    return ::tracing::EncodeStackWalk(timestamp, process_id, thread_id,
+                                      call_stack, pointer_size);
   }
 
  private:
@@ -1021,6 +1081,43 @@ TEST_F(EtwConsumerTest, CSwitchFiltering) {
       ValidateAndDecodeCSwitch(*decoders().back(), c_switch));
   EXPECT_FALSE(c_switch->has_new_thread_id());
   EXPECT_TRUE(c_switch->has_old_thread_id());
+}
+
+// Tests that no StackWalkEtwEvent is emitted for an empty StackWalk ETW event.
+TEST_F(EtwConsumerTest, StackWalkEventIsEmpty) {
+  ProcessStackWalkEvent({});
+  ASSERT_TRUE(decoders().empty());
+}
+
+// Tests that no StackWalkEtwEvent is emitted for a small StackWalk ETW event.
+TEST_F(EtwConsumerTest, StackWalkEventIsTooShort) {
+  static constexpr uint8_t kData[] = {0x01, 23};
+  ProcessStackWalkEvent({kData});
+  ASSERT_TRUE(decoders().empty());
+}
+
+// Tests that StackWalkEtwEvent is emitted for a StackWalk ETW event.
+TEST_F(EtwConsumerTest, StackWalkEvent) {
+  ProcessStackWalkEvent(EncodeStackWalk(123456u, kClientPid, kClientTid,
+                                        {0x1111, 0x2222, 0x3333}));
+  ASSERT_EQ(decoders().size(), 1u);
+
+  std::optional<perfetto::protos::pbzero::EtwTraceEvent::Decoder> event;
+  std::optional<perfetto::protos::pbzero::StackWalkEtwEvent::Decoder>
+      stack_walk;
+  ASSERT_NO_FATAL_FAILURE(
+      ValidateAndDecodeStackWalk(*decoders().front(), event, stack_walk));
+
+  EXPECT_TRUE(event->has_timestamp());
+  EXPECT_NE(0u, event->timestamp());
+  EXPECT_EQ(kClientTid, event->thread_id());
+  EXPECT_TRUE(stack_walk->has_callstack_iid());
+}
+
+// Tests that StackWalk events are dropped if they don't belong to Chrome.
+TEST_F(EtwConsumerTest, StackWalkFiltering) {
+  ProcessStackWalkEvent(EncodeStackWalk(123456u, kOtherPid, kOtherTid, {}));
+  ASSERT_TRUE(decoders().empty());
 }
 
 // Tests that no ReadyThreadEtwEvent is emitted for an empty ReadyThread ETW

@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/time/time.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/common/aliases.h"
 
@@ -20,7 +21,7 @@ class AtMemoryFunnelMetrics {
   AtMemoryFunnelMetrics();
   AtMemoryFunnelMetrics(const AtMemoryFunnelMetrics&) = delete;
   AtMemoryFunnelMetrics& operator=(const AtMemoryFunnelMetrics&) = delete;
-  virtual ~AtMemoryFunnelMetrics();
+  ~AtMemoryFunnelMetrics();
 
   // Records that the popup UI was successfully displayed to the user.
   // This emits the "PopupDisplayed" metric. This method is idempotent; only
@@ -28,20 +29,22 @@ class AtMemoryFunnelMetrics {
   // with potentially different trigger sources are ignored. This is consistent
   // with the popup lifecycle, where a change in trigger mechanism would
   // typically result in the popup being hidden and a new session starting.
-  // Virtual for testing.
-  virtual void OnPopupShown(AutofillSuggestionTriggerSource trigger_source);
+  void OnPopupShown(AutofillSuggestionTriggerSource trigger_source);
 
   // Records that at least one search query was submitted during this session.
-  // Virtual for testing.
-  virtual void OnQuerySubmitted();
+  void OnQuerySubmitted();
 
   // Records that a suggestion was accepted during this session.
-  // Virtual for testing.
-  virtual void OnSuggestionAccepted();
+  void OnSuggestionAccepted();
 
   // Records that the suggestion was successfully filled.
-  // Virtual for testing.
-  virtual void MarkFilled();
+  void MarkFilled();
+
+  // Records the start time of the asynchronous PII fetching process.
+  void OnFetchStarted();
+
+  // Records the completion of the asynchronous PII fetching process.
+  void OnFetchCompleted();
 
  private:
   // The trigger source of the popup. It is `std::nullopt` until `OnPopupShown`
@@ -50,6 +53,10 @@ class AtMemoryFunnelMetrics {
   bool query_submitted_ = false;
   bool suggestion_accepted_ = false;
   bool was_filled_ = false;
+  // The start time of the asynchronous fetch/unmask process.
+  std::optional<base::TimeTicks> fetch_start_time_;
+  // The duration of the successful asynchronous fetch/unmask process.
+  std::optional<base::TimeDelta> fetch_duration_;
 };
 
 }  // namespace autofill

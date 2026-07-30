@@ -12,6 +12,7 @@ namespace personal_context {
 // Contains the error details of the context memory request.
 class ContextMemoryError {
  public:
+  // LINT.IfChange(ExecutionError)
   enum class ExecutionError {
     kUnknown = 0,
     // The request was invalid.
@@ -26,12 +27,13 @@ class ContextMemoryError {
     kRetryableError = 5,
     // Non-retryable error occurred in server.
     kNonRetryableError = 6,
-    // The request was cancelled.
+    // The request was cancelled by the client.
     kCancelled = 7,
     // The response could not be parsed.
     kResponseParseError = 8,
     kMaxValue = kResponseParseError,
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/personal_context/enums.xml:ContextMemoryExecutionError)
 
   static ContextMemoryError FromHttpStatusCode(
       net::HttpStatusCode response_code);

@@ -13,9 +13,19 @@ component("private_insights") {
   ]
   defines = [ "IS_PRIVATE_INSIGHTS_IMPL" ]
   deps = [
+    ":fcp_event_publisher",
     "//base",
     "//components/keyed_service/core",
+    "//third_party/federated_compute:fl_runner",
   ]
+}
+
+source_set("fcp_event_publisher") {
+  visibility = [ ":*" ]
+  public = [ "fcp_event_publisher.h" ]
+  sources = [ "fcp_event_publisher.cc" ]
+  public_deps = [ "//third_party/federated_compute:fl_runner" ]
+  deps = [ "//base" ]
 }
 
 source_set("unit_tests") {

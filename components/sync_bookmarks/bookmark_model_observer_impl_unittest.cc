@@ -56,11 +56,8 @@ using testing::SizeIs;
 using testing::UnorderedElementsAre;
 
 const char kBookmarkBarId[] = "bookmark_bar_id";
-const char kBookmarkBarTag[] = "bookmark_bar";
 const char kOtherBookmarksId[] = "other_bookmarks_id";
-const char kOtherBookmarksTag[] = "other_bookmarks";
 const char kMobileBookmarksId[] = "synced_bookmarks_id";
-const char kMobileBookmarksTag[] = "synced_bookmarks";
 
 // Matches |arg| of type SyncedBookmarkTrackerEntity*.
 MATCHER_P(HasBookmarkNode, node, "") {
@@ -75,20 +72,18 @@ gfx::Image CreateTestImage(SkColor color) {
 void AddPermanentFoldersToTracker(const BookmarkModelView* model,
                                   SyncedBookmarkTracker* tracker) {
   sync_pb::EntitySpecifics specifics;
-  specifics.mutable_bookmark()->set_legacy_canonicalized_title(kBookmarkBarTag);
-  tracker->Add(
+  specifics.mutable_bookmark();
+  tracker->AddRemote(
       /*bookmark_node=*/model->bookmark_bar_node(),
       /*sync_id=*/kBookmarkBarId,
       /*server_version=*/0, /*creation_time=*/base::Time::Now(), specifics);
-  specifics.mutable_bookmark()->set_legacy_canonicalized_title(
-      kOtherBookmarksTag);
-  tracker->Add(
+  specifics.mutable_bookmark();
+  tracker->AddRemote(
       /*bookmark_node=*/model->other_node(),
       /*sync_id=*/kOtherBookmarksId,
       /*server_version=*/0, /*creation_time=*/base::Time::Now(), specifics);
-  specifics.mutable_bookmark()->set_legacy_canonicalized_title(
-      kMobileBookmarksTag);
-  tracker->Add(
+  specifics.mutable_bookmark();
+  tracker->AddRemote(
       /*bookmark_node=*/model->mobile_node(),
       /*sync_id=*/kMobileBookmarksId,
       /*server_version=*/0, /*creation_time=*/base::Time::Now(), specifics);
@@ -148,7 +143,8 @@ class BookmarkModelObserverImplTest
       bookmark_tracker()->UpdateUponCommitResponse(
           entity, id,
           /*server_version=*/1,
-          /*acked_sequence_number=*/entity->metadata().sequence_number());
+          /*acked_sequence_number=*/entity->metadata().sequence_number(),
+          /*specifics_hash=*/entity->metadata().specifics_hash());
     }
   }
 
@@ -337,7 +333,7 @@ TEST_P(BookmarkModelObserverImplTest,
   std::unique_ptr<SyncedBookmarkTracker> bookmark_tracker =
       SyncedBookmarkTracker::CreateEmpty(sync_pb::DataTypeState());
   AddPermanentFoldersToTracker(&model, bookmark_tracker.get());
-  bookmark_tracker->Add(
+  bookmark_tracker->AddRemote(
       /*bookmark_node=*/folder_node,
       /*sync_id=*/"folder_sync_id",
       /*server_version=*/0, /*creation_time=*/base::Time::Now(),
@@ -802,9 +798,11 @@ TEST_P(BookmarkModelObserverImplTest,
 
   // Simulate a commit response for the first commit request (the creation).
   // Don't simulate change in id for simplicity.
-  bookmark_tracker()->UpdateUponCommitResponse(entity, id,
-                                               /*server_version=*/1,
-                                               /*acked_sequence_number=*/1);
+  bookmark_tracker()->UpdateUponCommitResponse(
+      entity, id,
+      /*server_version=*/1,
+      /*acked_sequence_number=*/1,
+      /*specifics_hash=*/entity->metadata().specifics_hash());
 
   // There should still be one local change (the deletion).
   EXPECT_THAT(bookmark_tracker()->GetEntitiesWithLocalChanges().size(), 1U);
@@ -813,9 +811,11 @@ TEST_P(BookmarkModelObserverImplTest,
   EXPECT_THAT(bookmark_tracker()->TrackedEntitiesCountForTest(), 4U);
 
   // Commit the deletion.
-  bookmark_tracker()->UpdateUponCommitResponse(entity, id,
-                                               /*server_version=*/2,
-                                               /*acked_sequence_number=*/2);
+  bookmark_tracker()->UpdateUponCommitResponse(
+      entity, id,
+      /*server_version=*/2,
+      /*acked_sequence_number=*/2,
+      /*specifics_hash=*/entity->metadata().specifics_hash());
   // Entity should have been dropped.
   EXPECT_THAT(bookmark_tracker()->TrackedEntitiesCountForTest(), 3U);
 }
@@ -1112,7 +1112,7 @@ TEST_P(BookmarkModelObserverImplTest,
           syncer::UniquePosition::RandomSuffix())
           .ToProto();
 
-  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker()->Add(
+  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker()->AddRemote(
       bookmark_node, "id", /*server_version=*/1, base::Time::Now(), specifics);
   bookmark_tracker()->IncrementSequenceNumber(entity);
 

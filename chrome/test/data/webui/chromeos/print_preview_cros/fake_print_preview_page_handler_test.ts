@@ -9,7 +9,7 @@ import {getFakePreviewTicket} from 'chrome://os-print/js/fakes/fake_data.js';
 import {FAKE_PRINT_REQUEST_FAILURE_INVALID_SETTINGS_ERROR, FAKE_PRINT_REQUEST_SUCCESSFUL, FAKE_PRINT_SESSION_CONTEXT_SUCCESSFUL, FakePrintPreviewPageHandler} from 'chrome://os-print/js/fakes/fake_print_preview_page_handler.js';
 import type {PrintTicket} from 'chrome://os-print/js/utils/print_preview_cros_app_types.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 
 suite('FakePrintPreviewPageHandler', () => {

@@ -57,7 +57,7 @@ class HostResolverManager::ServiceEndpointRequestImpl
   bool EndpointsCryptoReady() override;
   ResolveErrorInfo GetResolveErrorInfo() override;
   const HostCache::EntryStaleness* GetStaleInfo() const override;
-  bool IsStaleWhileRefresing() const override;
+  bool IsStaleWhileRefreshing() const override;
   void ChangeRequestPriority(RequestPriority priority) override;
   std::optional<ResolutionDetails> GetResolutionDetails() const override;
   std::string DebugString() const override;

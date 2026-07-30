@@ -30,7 +30,6 @@ import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.PopupWindow;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.filters.SmallTest;
@@ -42,7 +41,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
@@ -83,6 +81,7 @@ import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
+import org.chromium.ui.widget.ChromePopupWindow;
 import org.chromium.ui.widget.UiWidgetFactory;
 import org.chromium.ui.widget.ViewRectProvider;
 import org.chromium.url.GURL;
@@ -120,7 +119,7 @@ public final class ToolbarLongPressMenuHandlerUnitTest {
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private DisplayAndroid mDisplayAndroid;
-    @Spy PopupWindow mSpyPopupWindow;
+    private ChromePopupWindow mSpyPopupWindow;
     @Mock LocalStatePrefs.Natives mLocalStatePrefsNatives;
     @Mock PrefService mLocalPrefService;
 

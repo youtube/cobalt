@@ -39,7 +39,6 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "chrome/test/chromeos/printing/fake_local_printer_chromeos.h"
 #include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/printing/printer_configuration.h"

@@ -31,6 +31,18 @@ using ::testing::HasSubstr;
 constexpr char kPdfMimeType[] = "application/pdf";
 constexpr char kTextPlainMimeType[] = "text/plain";
 
+constexpr char kDictManifest[] = R"({
+    "name": "Test Extension",
+    "manifest_version": 3,
+    "version": "0.1",
+    "mime_types_handler": {
+      "application/pdf": {
+        "handler_url": "pdf_viewer.html",
+        "can_embed": true
+      }
+    }
+  })";
+
 using MimeTypesHandlerNotAllowedTest = ManifestTest;
 
 class MimeTypesHandlerTest : public ManifestTest {
@@ -132,19 +144,8 @@ TEST_F(MimeTypesHandlerTest, DictFormatParsing) {
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeature(extensions_features::kApiMimeHandler);
 
-  static constexpr char kManifest[] = R"({
-    "name": "Test Extension",
-    "manifest_version": 3,
-    "version": "0.1",
-    "mime_types_handler": {
-      "application/pdf": {
-        "handler_url": "pdf_viewer.html",
-        "can_embed": true
-      }
-    }
-  })";
   scoped_refptr<Extension> extension =
-      LoadAndExpectSuccess(ManifestData::FromJSON(kManifest));
+      LoadAndExpectSuccess(ManifestData::FromJSON(kDictManifest));
   ASSERT_TRUE(extension);
 
   const MimeTypesHandler* handler = MimeTypesHandler::Get(*extension);
@@ -161,10 +162,25 @@ TEST_F(MimeTypesHandlerTest, DictFormatParsing) {
 }
 
 TEST_F(MimeTypesHandlerTest, DictFormatFlagDisabledByChannel) {
-  // With the kill-switch flag disabled, the dict-format parser still runs on
-  // dev/canary/trunk (matching the `channel: "dev"` entry in
-  // `_manifest_features.json`); beta/stable fall back to the flag and skip
-  // parsing.
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(extensions_features::kApiMimeHandler);
+
+  for (auto channel :
+       {version_info::Channel::UNKNOWN, version_info::Channel::CANARY,
+        version_info::Channel::DEV, version_info::Channel::BETA,
+        version_info::Channel::STABLE}) {
+    SCOPED_TRACE(version_info::GetChannelString(channel));
+    ScopedCurrentChannel scoped_channel(channel);
+    scoped_refptr<Extension> extension =
+        LoadAndExpectSuccess(ManifestData::FromJSON(kDictManifest));
+    ASSERT_TRUE(extension);
+    EXPECT_FALSE(MimeTypesHandler::Get(*extension));
+  }
+}
+
+TEST_F(MimeTypesHandlerTest, DictFormatDefaultByChannel) {
+  // Without an explicit override, dict-format parsing is available on
+  // dev/canary/trunk and suppressed on beta/stable.
   static constexpr std::array kCases =
       std::to_array<std::pair<version_info::Channel, bool>>({
           {version_info::Channel::UNKNOWN, true},  // Trunk.
@@ -174,27 +190,13 @@ TEST_F(MimeTypesHandlerTest, DictFormatFlagDisabledByChannel) {
           {version_info::Channel::STABLE, false},
       });
 
-  static constexpr char kManifest[] = R"({
-    "name": "Test Extension",
-    "manifest_version": 3,
-    "version": "0.1",
-    "mime_types_handler": {
-      "application/pdf": {
-        "handler_url": "pdf_viewer.html",
-        "can_embed": true
-      }
-    }
-  })";
-
   for (const auto& [channel, expect_parsed] : kCases) {
     SCOPED_TRACE(testing::Message()
                  << "channel=" << version_info::GetChannelString(channel));
     ScopedCurrentChannel scoped_channel(channel);
-    base::test::ScopedFeatureList features;
-    features.InitAndDisableFeature(extensions_features::kApiMimeHandler);
 
     scoped_refptr<Extension> extension =
-        LoadAndExpectSuccess(ManifestData::FromJSON(kManifest));
+        LoadAndExpectSuccess(ManifestData::FromJSON(kDictManifest));
     ASSERT_TRUE(extension);
 
     const MimeTypesHandler* handler = MimeTypesHandler::Get(*extension);
@@ -204,6 +206,25 @@ TEST_F(MimeTypesHandlerTest, DictFormatFlagDisabledByChannel) {
     } else {
       EXPECT_FALSE(handler);
     }
+  }
+}
+
+TEST_F(MimeTypesHandlerTest, DictFormatFlagEnabledByChannel) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(extensions_features::kApiMimeHandler);
+
+  for (auto channel :
+       {version_info::Channel::UNKNOWN, version_info::Channel::CANARY,
+        version_info::Channel::DEV, version_info::Channel::BETA,
+        version_info::Channel::STABLE}) {
+    SCOPED_TRACE(version_info::GetChannelString(channel));
+    ScopedCurrentChannel scoped_channel(channel);
+    scoped_refptr<Extension> extension =
+        LoadAndExpectSuccess(ManifestData::FromJSON(kDictManifest));
+    ASSERT_TRUE(extension);
+    const MimeTypesHandler* handler = MimeTypesHandler::Get(*extension);
+    ASSERT_TRUE(handler);
+    EXPECT_THAT(handler->GetSupportedMimeTypes(), ElementsAre(kPdfMimeType));
   }
 }
 

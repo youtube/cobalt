@@ -244,6 +244,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="2082238445998314030"><ph name="RESULT_NUMBER" />. rezultat od <ph name="TOTAL_RESULTS" /></translation>
 <translation id="2091863218454846791">Prikazan je strnjen pogled</translation>
 <translation id="2093731487903423814">zadnjih 15 minut</translation>
+<translation id="2094298041331405438">Dotaknite se tukaj, če želite zapreti vsa anonimna okna</translation>
 <translation id="2096577711562668473">Želite spremeniti storitev samodejnega izpolnjevanja?</translation>
 <translation id="2109384632594340939">profilno sliko</translation>
 <translation id="2111511281910874386">Pojdi na stran</translation>
@@ -505,6 +506,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="3114507951000454849">Preberite današnje novice <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Več podrobnosti</translation>
 <translation id="3123734510202723619">Obvestila</translation>
+<translation id="3132267803114336523">Če želite zapreti vsa anonimna okna, se dotaknite indikatorja anonimnega načina</translation>
 <translation id="3134385238404760368">Ni nedavnih zavihkov</translation>
 <translation id="3135655388926735587">Dotaknite se Nedavni zavihki</translation>
 <translation id="314939179385989105">Chromova začetna stran</translation>
@@ -613,6 +615,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="3635073343384702370">Chrome lahko preveri gesla, če jih shranite</translation>
 <translation id="3636940436873918441">Želeni jeziki</translation>
 <translation id="3637744895182738742">Če ste pozabili geslo ali želite to nastavitev spremeniti, <ph name="BEGIN_LINK" />izbrišite podatke iz Chroma v računu<ph name="END_LINK" />.</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> – <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Odpiranje začetne strani aplikacije Google</translation>
 <translation id="368329460027487650">Odjavljen. Odpre možnosti za prijavo.</translation>
@@ -637,6 +640,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="3739899004075612870">Dodano med zaznamke v izdelku <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Prepričajte se, da zaupate temu spletnemu mestu</translation>
 <translation id="3740525748616366977">Glasovno iskanje ni na voljo v tej napravi.</translation>
+<translation id="3756823472711156529">Obnovi skupino</translation>
 <translation id="3763110477555836428">Pri zaključku nakupa s to kartico bo vnesena številka navidezne kartice, da bodo vaši dejanski podatki zaščiteni. Upravljajte v Google Denarnici. <ph name="BEGIN_LINK1" />Preberite več o navideznih karticah<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Nekateri podatki še niso shranjeni</translation>
 <translation id="3770620323585347665">Poimenuj okno</translation>

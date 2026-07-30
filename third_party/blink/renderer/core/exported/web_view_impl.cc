@@ -1751,6 +1751,12 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
 
 #if BUILDFLAG(IS_ANDROID)
   settings->SetAllowCustomScrollbarInMainFrame(false);
+
+  if (RuntimeEnabledFeatures::WebViewEnvReorderFixEnabled()) {
+    settings->SetScaleAllFontsIfNoMetaTextScaleTag(
+        prefs.scale_all_fonts_if_no_meta_text_scale_tag);
+  }
+
   settings->SetAccessibilityFontScaleFactor(prefs.font_scale_factor);
   settings->SetAccessibilityFontWeightAdjustment(prefs.font_weight_adjustment);
   settings->SetAccessibilityTextSizeContrastFactor(
@@ -1761,8 +1767,12 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetSupportDeprecatedTargetDensityDPI(
       prefs.support_deprecated_target_density_dpi);
   settings->SetWideViewportQuirkEnabled(prefs.wide_viewport_quirk);
-  settings->SetScaleAllFontsIfNoMetaTextScaleTag(
-      prefs.scale_all_fonts_if_no_meta_text_scale_tag);
+
+  if (!RuntimeEnabledFeatures::WebViewEnvReorderFixEnabled()) {
+    settings->SetScaleAllFontsIfNoMetaTextScaleTag(
+        prefs.scale_all_fonts_if_no_meta_text_scale_tag);
+  }
+
   settings->SetUseWideViewport(prefs.use_wide_viewport);
   settings->SetForceZeroLayoutHeight(prefs.force_zero_layout_height);
   settings->SetViewportMetaMergeContentQuirk(
@@ -1977,7 +1987,7 @@ void WebViewImpl::SetPageFocus(bool enable) {
           // caret back to the beginning of the text.
           Position position(element, 0);
           focused_frame->Selection().SetSelection(
-              SelectionInDOMTree::Builder().Collapse(position).Build(),
+              SelectionInDomTree::Builder().Collapse(position).Build(),
               SetSelectionOptions());
         }
       }

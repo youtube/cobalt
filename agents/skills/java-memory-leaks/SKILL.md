@@ -15,11 +15,14 @@ tests.
 
    - If you suspect a leak, confirm it by adding or running an instrumentation
      test that exercises the component.
-   - Ensure the test is **non-batched** (annotated with `@DoNotBatch`). Batched
-     tests can share state and make leak traces ambiguous or hard to reproduce.
-   - **Critical**: Annotate the test class or method with `@EnableLeakChecks` or
-     pass `--enable-leak-checks` to the test runner.
+   - If the leak does not reproduce and the test has `@Batch`, it may be
+     necessary to run the whole test class to reproduce the leak.
+   - **Critical**: Pass `--enable-leak-checks` to the test runner if the class
+     lacks `@EnableLeakChecks`.
    - Run the test and look for LeakCanary detections in the log output.
+   - Do not get sidetracked by other crashes, or even other leaks. Report these,
+     but do not try to fix them unless they seems to be variations of the
+     suspected leak.
 
 2. **Analyze Leak Trace**:
 

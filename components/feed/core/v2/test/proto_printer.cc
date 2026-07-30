@@ -411,7 +411,6 @@ class TextProtoPrinter {
     return *this;
   }
 
-
   TextProtoPrinter& operator<<(const feedwire::InfoCardTrackingState& v) {
     BeginMessage();
     PRINT_FIELD(type);
@@ -420,13 +419,6 @@ class TextProtoPrinter {
     PRINT_FIELD(click_count);
     PRINT_FIELD(first_view_timestamp);
     PRINT_FIELD(last_view_timestamp);
-    EndMessage();
-    return *this;
-  }
-
-  TextProtoPrinter& operator<<(const feedxsurface::WebFeedFollowState& v) {
-    BeginMessage();
-    PRINT_FIELD(follow_state);
     EndMessage();
     return *this;
   }
@@ -485,7 +477,6 @@ DECLARE_PRINTER(feedwire, Table)
 DECLARE_PRINTER(feedwire, Table::Column)
 DECLARE_PRINTER(feedwire, Version)
 DECLARE_PRINTER(feedwire, ClientUserProfiles)
-DECLARE_PRINTER(feedxsurface, WebFeedFollowState)
 
 #undef DECLARE_PRINTER
 

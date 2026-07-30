@@ -244,7 +244,6 @@ public class ManualFillingControllerTest {
                     new AccessorySheetData(
                             AccessoryTabType.PASSWORDS,
                             /* userInfoTitle= */ "Passwords",
-                            /* plusAddressTitle= */ "",
                             /* warning= */ "");
             UserInfo userInfo = new UserInfo("", false);
             userInfo.addField(

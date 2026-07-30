@@ -5,6 +5,8 @@
 #ifndef CC_METRICS_BEGIN_MAIN_FRAME_METRICS_H_
 #define CC_METRICS_BEGIN_MAIN_FRAME_METRICS_H_
 
+#include <bitset>
+
 #include "base/time/time.h"
 #include "cc/cc_export.h"
 
@@ -13,16 +15,25 @@ namespace cc {
 // Reason that a BeginMainFrame was triggered. Used for metrics only,
 // specifically: |Compositing.BeginMainFrame.BMFReason*|.
 enum class BeginMainFrameReason {
+  // Catch-all bucket for anything unclassified.
   kOther = 0,
-  kRAF = 1,
-  kServiceScriptedAnimations = 2,
+  // ServiceScriptedAnimations almost always occurs as a result of RAF, so
+  // these two can be grouped together.
+  kRAFOrServiceScriptedAnimations = 1,
+  kRAF = kRAFOrServiceScriptedAnimations,
+  kServiceScriptedAnimations = kRAFOrServiceScriptedAnimations,
+  kVideoFrameCallback = 2,
   kCSSAnimation = 3,
-  kStyleInvalidation = 4,
+  // These three are relatively infrequent, so group them all together for now.
+  kStylePaintOrLayoutInvalidation = 4,
+  kStyleInvalidation = kStylePaintOrLayoutInvalidation,
+  kPaintInvalidation = kStylePaintOrLayoutInvalidation,
+  kLayoutInvalidation = kStylePaintOrLayoutInvalidation,
   kScroll = 5,
   kInput = 6,
-  kPaintInvalidation = 7,
-  kLayoutInvalidation = 8,
-  kMaxValue = kLayoutInvalidation,
+  kMainThreadScroll = 7,
+  kDelayedTimerFired = 8,
+  kMaxValue = kDelayedTimerFired,
 };
 
 inline constexpr size_t BeginMainFrameReasonSize =
@@ -31,6 +42,8 @@ inline constexpr size_t BeginMainFrameReasonSize =
 // We use this metric in a bitfield. UMA can only record 1000 buckets for a
 // histogram. So, assert that we do not go over this max size.
 static_assert(1 << BeginMainFrameReasonSize < 1000);
+
+using BeginMainFrameReasons = std::bitset<BeginMainFrameReasonSize>;
 
 // Latency timing data for Main Frame lifecycle updates triggered by cc.
 // The data is captured in LocalFrameViewUKMAggregator and passed back through

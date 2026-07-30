@@ -14,11 +14,8 @@
 namespace blink {
 
 class DOMPoint;
-class DOMPointInit;
 class DOMQuad;
-class DOMQuadInit;
 class DOMRectReadOnly;
-class Element;
 class LayoutBox;
 class LayoutObject;
 class V8UnionCSSPseudoElementOrDocumentOrElementOrText;

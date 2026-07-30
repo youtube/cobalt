@@ -617,6 +617,7 @@ bool IsExpandableSuggestionType(SuggestionType type) {
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
+    case SuggestionType::kFetchingAmbientData:
       return false;
   }
 }
@@ -686,6 +687,7 @@ bool IsSuggestionTypeAutoselected(SuggestionType type) {
     case SuggestionType::kWebauthnPasskeyQrCode:
     case SuggestionType::kPasswordEntry:
     case SuggestionType::kPersonalContextNotice:
+    case SuggestionType::kFetchingAmbientData:
       return false;
   }
 }

@@ -8,6 +8,8 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 
 namespace {
 
@@ -21,6 +23,8 @@ const CGFloat kChevronSize = 14.0;
 const CGFloat kTextContainerSpacing = 2.0;
 // The fixed height of each task checklist row view.
 const CGFloat kRowHeight = 75.0;
+// The duration for chevron rotation animations.
+const NSTimeInterval kChevronAnimationDuration = 0.25;
 
 }  // namespace
 
@@ -35,6 +39,8 @@ const CGFloat kRowHeight = 75.0;
   UIImageView* _chevronView;
   // Container for title and description.
   UIStackView* _textContainer;
+  // Stack view holding the row components.
+  UIStackView* _rowStack;
   // Line separating rows.
   UIView* _separatorView;
   // Navigation action on tap.
@@ -82,24 +88,24 @@ const CGFloat kRowHeight = 75.0;
     _textContainer.spacing = kTextContainerSpacing;
     _textContainer.translatesAutoresizingMaskIntoConstraints = NO;
 
-    UIStackView* rowStack = [[UIStackView alloc]
+    _rowStack = [[UIStackView alloc]
         initWithArrangedSubviews:@[ _iconView, _textContainer, _chevronView ]];
-    rowStack.axis = UILayoutConstraintAxisHorizontal;
-    rowStack.spacing = kLayoutSpacing;
-    rowStack.alignment = UIStackViewAlignmentCenter;
-    rowStack.translatesAutoresizingMaskIntoConstraints = NO;
-    rowStack.userInteractionEnabled = NO;
+    _rowStack.axis = UILayoutConstraintAxisHorizontal;
+    _rowStack.spacing = kLayoutSpacing;
+    _rowStack.alignment = UIStackViewAlignmentCenter;
+    _rowStack.translatesAutoresizingMaskIntoConstraints = NO;
+    _rowStack.userInteractionEnabled = NO;
 
     _separatorView = [[UIView alloc] init];
     _separatorView.translatesAutoresizingMaskIntoConstraints = NO;
     _separatorView.backgroundColor =
         [[UIColor colorNamed:kSeparatorColor] colorWithAlphaComponent:0.4];
 
-    [self addSubview:rowStack];
+    [self addSubview:_rowStack];
     [self addSubview:_separatorView];
 
     AddSameConstraintsWithInsets(
-        rowStack, self,
+        _rowStack, self,
         NSDirectionalEdgeInsetsMake(kLayoutSpacing, kLayoutSpacing,
                                     kLayoutSpacing, kLayoutSpacing));
 
@@ -121,20 +127,84 @@ const CGFloat kRowHeight = 75.0;
 }
 
 - (void)configureWithTask:(LevelUpTask*)task showSeparator:(BOOL)showSeparator {
+  self.backgroundColor = nil;
+  _chevronView.transform = CGAffineTransformIdentity;
   _navigationAction = task.navigationAction;
+
+  _iconView.hidden = NO;
+  [_rowStack setCustomSpacing:UIStackViewSpacingUseDefault
+                    afterView:_textContainer];
 
   if (task.completed) {
     _iconView.tintColor = [UIColor colorNamed:kGreen600Color];
     _iconView.image = DefaultSymbolWithPointSize(kCheckmarkSymbol, kIconSize);
   } else {
     _iconView.tintColor = [UIColor colorNamed:kBlueColor];
-    _iconView.image =
-        DefaultSymbolWithPointSize(task.iconSymbolName, kIconSize);
+    if (task.isCustomSymbol) {
+      _iconView.image =
+          CustomSymbolWithPointSize(task.iconSymbolName, kIconSize);
+    } else {
+      _iconView.image =
+          DefaultSymbolWithPointSize(task.iconSymbolName, kIconSize);
+    }
   }
 
   _titleLabel.text = task.title;
   _descriptionLabel.text = task.taskDescription;
   _separatorView.hidden = !showSeparator;
+}
+
+- (void)configureWithTitle:(NSString*)title
+               description:(NSString*)description
+                      icon:(UIImage*)icon
+           backgroundColor:(UIColor*)backgroundColor
+           chevronExpanded:(BOOL)chevronExpanded
+           separatorHidden:(BOOL)separatorHidden {
+  self.backgroundColor = backgroundColor;
+  _navigationAction = nil;
+
+  if (icon) {
+    _iconView.image = icon;
+    _iconView.hidden = NO;
+    [_rowStack setCustomSpacing:UIStackViewSpacingUseDefault
+                      afterView:_textContainer];
+    _titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
+    _titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+  } else {
+    _iconView.image = nil;
+    _iconView.hidden = YES;
+    [_rowStack setCustomSpacing:UIStackViewSpacingUseSystem
+                      afterView:_textContainer];
+    _titleLabel.textColor = [UIColor colorNamed:kGrey700Color];
+    _titleLabel.font =
+        [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
+  }
+
+  _titleLabel.text = title;
+  _descriptionLabel.text = description;
+  _separatorView.hidden = separatorHidden;
+
+  CGFloat angle = chevronExpanded ? M_PI_2 : 0.0;
+  _chevronView.transform = CGAffineTransformMakeRotation(angle);
+}
+
+- (void)setChevronExpanded:(BOOL)expanded animated:(BOOL)animated {
+  UIImageView* chevronView = _chevronView;
+  void (^animations)(void) = ^{
+    CGFloat angle = expanded ? M_PI_2 : 0.0;
+    chevronView.transform = CGAffineTransformMakeRotation(angle);
+  };
+
+  if (animated) {
+    [UIView animateWithDuration:kChevronAnimationDuration
+                     animations:animations];
+  } else {
+    animations();
+  }
+}
+
+- (void)setSeparatorHidden:(BOOL)hidden {
+  _separatorView.hidden = hidden;
 }
 
 - (void)didTapRow {

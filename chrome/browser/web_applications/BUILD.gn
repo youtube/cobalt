@@ -96,7 +96,6 @@ source_set("web_applications") {
     "custom_icon_fetcher.h",
     "daily_metrics_helper.cc",
     "daily_metrics_helper.h",
-    "extension_status_utils.h",
     "extensions_manager.h",
     "external_install_options.cc",
     "external_install_options.h",
@@ -184,8 +183,8 @@ source_set("web_applications") {
     "isolated_web_apps/update/isolated_web_app_update_apply_task.h",
     "isolated_web_apps/update/isolated_web_app_update_apply_waiter.cc",
     "isolated_web_apps/update/isolated_web_app_update_apply_waiter.h",
-    "isolated_web_apps/update/isolated_web_app_update_discovery_task.cc",
-    "isolated_web_apps/update/isolated_web_app_update_discovery_task.h",
+    "isolated_web_apps/update/isolated_web_app_update_check_and_prepare_task.cc",
+    "isolated_web_apps/update/isolated_web_app_update_check_and_prepare_task.h",
     "isolated_web_apps/update/isolated_web_app_update_manager.cc",
     "isolated_web_apps/update/isolated_web_app_update_manager.h",
     "isolated_web_apps/update_manifest/update_manifest.cc",
@@ -226,6 +225,7 @@ source_set("web_applications") {
     "jobs/uninstall/remove_web_app_job.h",
     "jobs/uninstall/uninstall_job.cc",
     "jobs/uninstall/uninstall_job.h",
+    "jobs/uninstall/web_app_uninstall_and_replace_job.cc",
     "jobs/uninstall/web_app_uninstall_and_replace_job.h",
     "jobs/update_ignore_state.cc",
     "jobs/update_ignore_state.h",
@@ -761,11 +761,13 @@ source_set("sub_apps_service") {
   deps = [
     ":web_applications",
     "//base",
+    "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/notifications",
     "//chrome/browser/permissions",
     "//chrome/browser/policy:policy_util",
     "//chrome/browser/profiles:profile",
     "//chrome/common:non_code_constants",
+    "//components/content_settings/core/browser",
     "//components/content_settings/core/common",
     "//components/permissions",
     "//components/webapps/browser",
@@ -883,7 +885,6 @@ source_set("web_applications_test_support") {
   ]
 
   public_deps = [
-    "//chrome/browser/ui:web_app_dialog_test_support",
     "//chrome/browser/web_applications/isolated_web_apps/key_distribution/proto",
     "//components/webapps/common:mojo_bindings",
   ]
@@ -1008,6 +1009,7 @@ source_set("web_applications_unit_tests") {
     "daily_metrics_helper_unittest.cc",
     "external_install_options_unittest.cc",
     "externally_managed_app_manager_unittest.cc",
+    "generated_icon_fix_manager_unittest.cc",
     "icons/icon_masker_unittest.cc",
     "icons/trusted_icon_filter_unittest.cc",
     "isolated_web_apps/commands/check_isolated_web_app_bundle_user_installability_command_unittest.cc",
@@ -1036,7 +1038,7 @@ source_set("web_applications_unit_tests") {
     "isolated_web_apps/test/isolated_web_app_test.cc",
     "isolated_web_apps/test/isolated_web_app_test.h",
     "isolated_web_apps/update/isolated_web_app_update_apply_waiter_unittest.cc",
-    "isolated_web_apps/update/isolated_web_app_update_discovery_task_unittest.cc",
+    "isolated_web_apps/update/isolated_web_app_update_check_and_prepare_task_unittest.cc",
     "isolated_web_apps/update/isolated_web_app_update_manager_unittest.cc",
     "isolated_web_apps/update_manifest/update_manifest_fetcher_unittest.cc",
     "isolated_web_apps/update_manifest/update_manifest_unittest.cc",
@@ -1045,6 +1047,7 @@ source_set("web_applications_unit_tests") {
     "jobs/install_placeholder_job_unittest.cc",
     "jobs/manifest_to_web_app_install_info_job_unittest.cc",
     "jobs/migration_target_install_job_unittest.cc",
+    "jobs/uninstall/web_app_uninstall_and_replace_job_unittest.cc",
     "locks/web_app_lock_manager_unittest.cc",
     "os_integration/file_handling_sub_manager_unittest.cc",
     "os_integration/file_handling_utils_unittest.cc",
@@ -1302,6 +1305,7 @@ source_set("web_applications_browser_tests") {
     "replace_migration_suggested_app_browsertest.cc",
     "sampling_metrics_provider_browsertest.cc",
     "sub_apps/sub_app_update_browsertest.cc",
+    "sub_apps/sub_apps_admin_policy_browsertest.cc",
     "sub_apps/sub_apps_permissions_policy_browsertest.cc",
     "sub_apps/sub_apps_service_impl_browsertest.cc",
     "user_uninstalled_preinstalled_web_app_prefs_browsertest.cc",
@@ -1336,7 +1340,6 @@ source_set("web_applications_browser_tests") {
       "isolated_web_apps/isolated_web_app_device_attributes_browsertest.cc",
       "isolated_web_apps/isolated_web_app_managed_configuration_api_browsertest.cc",
       "isolated_web_apps/policy/isolated_web_app_cache_browsertest.cc",
-      "sub_apps/sub_apps_admin_policy_browsertest.cc",
       "web_app_run_on_os_login_manager_browsertest.cc",
     ]
   }
@@ -1379,9 +1382,11 @@ source_set("web_applications_browser_tests") {
     "//chrome/browser/notifications:system_notification_helper",
     "//chrome/browser/permissions",
     "//chrome/browser/policy:policy_util",
+    "//chrome/browser/prefs:util",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/push_messaging",
     "//chrome/browser/push_messaging:service_impl_public",
+    "//chrome/browser/ui:simple_message_box_internal",
     "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/profiles",
     "//chrome/browser/ui/views/location_bar",
@@ -1471,6 +1476,7 @@ source_set("app_service_browser_tests") {
 
   if (is_chromeos) {
     sources += [
+      "app_service/web_app_navigation_capturing_migration_defaulton_browsertest.cc",
       "app_service/web_app_publisher_helper_browsertest.cc",
       "app_service/web_apps_browsertest.cc",
       "app_service/web_apps_chromeos_browsertest.cc",

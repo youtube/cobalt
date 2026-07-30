@@ -71,6 +71,7 @@ source_set("unit_tests") {
     ]
     deps += [
       ":cookie_controls",
+      "//chrome/browser/ui/views:layout_provider",
       "//components/infobars/core",
       "//components/privacy_sandbox:privacy_sandbox_prefs",
       "//components/privacy_sandbox:tracking_protection_settings",

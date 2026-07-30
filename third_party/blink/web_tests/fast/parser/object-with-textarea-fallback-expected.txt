@@ -15,6 +15,9 @@
 |         this.value=""
 |         <shadow:root>
 |           <div>
+|             <br>
+|               aria-hidden="true"
+|               id="textarea-placeholder-break"
 |       "
 "
 |       <shadow:root>

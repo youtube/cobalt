@@ -27,7 +27,9 @@ TabSearchToolbarButtonController::TabSearchToolbarButtonController(
     BrowserWindowInterface* bwi,
     BrowserView* browser_view)
     : browser_view_(browser_view),
-      scoped_unowned_user_data_(bwi->GetUnownedUserDataHost(), *this) {}
+      scoped_unowned_user_data_(bwi->GetUnownedUserDataHost(), *this) {
+  browser_view_->UpdateTabSearchBubbleHost();
+}
 
 TabSearchToolbarButtonController::~TabSearchToolbarButtonController() = default;
 

@@ -24,17 +24,14 @@
 #include "components/autofill/core/browser/metrics/form_events/form_event_logger_base.h"
 #include "components/autofill/core/browser/metrics/form_events/form_events.h"
 #include "components/autofill/core/browser/metrics/payments/card_metadata_metrics.h"
+#include "components/autofill/core/browser/payments/unmask_auth_flow_type.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion_util.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
 
-namespace autofill {
-
-enum class UnmaskAuthFlowType;
-
-namespace autofill_metrics {
+namespace autofill::autofill_metrics {
 
 class CreditCardFormEventLogger : public FormEventLoggerBase {
  public:
@@ -154,8 +151,10 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   }
 
   // Logging when the user decided to use BNPL (for example, accepting a BNPL
-  // suggestion chip if present).
-  void OnUserDecisionToUseBnpl();
+  // suggestion chip if present). `suggestions_shown` is used to log extra
+  // metadata around user decisions to use BNPL, for example the number of
+  // credit card suggestions shown when a user clicks the BNPL suggestion.
+  void OnUserDecisionToUseBnpl(base::span<const Suggestion> suggestions_shown);
 
   // Logging when the user decided to switch from the Pay Later tab to the Pay
   // Now tab.
@@ -195,6 +194,8 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   using FormEventLoggerBase::Log;
 
  private:
+  friend class CreditCardFormEventLoggerTestApi;
+
   FormEvent GetCardNumberStatusFormEvent(const CreditCard& credit_card);
   void RecordCardUnmaskFlowEvent(UnmaskAuthFlowType flow,
                                  UnmaskAuthFlowEvent event);
@@ -203,7 +204,7 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
 
   size_t server_record_type_count_ = 0;
   size_t local_record_type_count_ = 0;
-  UnmaskAuthFlowType current_authentication_flow_;
+  UnmaskAuthFlowType current_authentication_flow_ = UnmaskAuthFlowType::kNone;
   bool has_logged_suggestion_with_metadata_shown_ = false;
   bool has_logged_suggestion_with_metadata_selected_ = false;
   bool has_logged_local_card_suggestion_selected_ = false;
@@ -310,8 +311,6 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   std::optional<CreditCard> filled_credit_card_;
 };
 
-}  // namespace autofill_metrics
-
-}  // namespace autofill
+}  // namespace autofill::autofill_metrics
 
 #endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_FORM_EVENTS_CREDIT_CARD_FORM_EVENT_LOGGER_H_

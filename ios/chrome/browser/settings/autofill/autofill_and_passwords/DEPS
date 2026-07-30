@@ -1,4 +1,9 @@
 include_rules = [
+  # keep-sorted start
+  "+ios/chrome/browser/authentication/ui_bundled",
   "+ios/chrome/browser/authentication/ui_bundled/cells",
   "+ios/chrome/browser/autofill/model",
+  "+ios/chrome/browser/signin/model",
+  "+ios/chrome/browser/sync/model",
+  # keep-sorted end
 ]

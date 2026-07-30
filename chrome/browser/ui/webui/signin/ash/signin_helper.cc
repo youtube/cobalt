@@ -12,7 +12,6 @@
 #include "components/account_manager_core/account.h"
 #include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
-#include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/user_manager/user_manager.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
 #include "google_apis/gaia/gaia_id.h"
@@ -57,7 +56,7 @@ void SigninHelper::ArcHelper::OnAccountAdded(
 
 SigninHelper::SigninHelper(
     account_manager::AccountManager* account_manager,
-    crosapi::AccountManagerMojoService* account_manager_mojo_service,
+    AccountUpsertionFinishedCallback account_upsertion_finished_callback,
     const base::RepeatingClosure& close_dialog_closure,
     const base::RepeatingCallback<void(const std::string&, const std::string&)>&
         show_signin_error,
@@ -68,7 +67,8 @@ SigninHelper::SigninHelper(
     const std::string& auth_code,
     const std::string& signin_scoped_device_id)
     : account_manager_(account_manager),
-      account_manager_mojo_service_(account_manager_mojo_service),
+      account_upsertion_finished_callback_(
+          std::move(account_upsertion_finished_callback)),
       arc_helper_(std::move(arc_helper)),
       close_dialog_closure_(close_dialog_closure),
       show_signin_error_(show_signin_error),
@@ -77,6 +77,7 @@ SigninHelper::SigninHelper(
       url_loader_factory_(std::move(url_loader_factory)),
       gaia_auth_fetcher_(this, gaia::GaiaSource::kChrome, url_loader_factory_) {
   DCHECK(!signin_scoped_device_id.empty());
+  CHECK(account_upsertion_finished_callback_);
   CHECK(show_signin_error_);
   DCHECK(arc_helper_);
 
@@ -120,10 +121,8 @@ void SigninHelper::OnClientOAuthFailure(const GoogleServiceAuthError& error) {
 
   show_signin_error_.Run(email_, /*hosted_domain=*/std::string());
 
-  // Notify `AccountManagerMojoService` about account addition failure and send
-  // `error`.
-  account_manager_mojo_service_->OnAccountUpsertionFinished(
-      account_manager::AccountUpsertionResult::FromError(error));
+  std::move(account_upsertion_finished_callback_)
+      .Run(account_manager::AccountUpsertionResult::FromError(error));
   Exit();
 }
 
@@ -145,10 +144,8 @@ void SigninHelper::UpsertAccount(const std::string& refresh_token) {
 
   auto new_account = account_manager::Account{account_key_, email_};
   arc_helper_->OnAccountAdded(new_account);
-  // Notify `AccountManagerMojoService` about successful account addition and
-  // send the account.
-  account_manager_mojo_service_->OnAccountUpsertionFinished(
-      account_manager::AccountUpsertionResult::FromAccount(
+  std::move(account_upsertion_finished_callback_)
+      .Run(account_manager::AccountUpsertionResult::FromAccount(
           account_manager::Account{account_key_, email_}));
 }
 
@@ -190,10 +187,8 @@ void SigninHelper::OnGetSecondaryGoogleAccountUsage(
           SigninRestrictionPolicyFetcher::
               kSecondaryGoogleAccountUsagePolicyValuePrimaryAccountSignin) {
     // The sign-in is blocked by SecondaryGoogleAccountUsage policy.
-    // Notify `AccountManagerMojoService` about account addition failure and
-    // send `error`.
-    account_manager_mojo_service_->OnAccountUpsertionFinished(
-        account_manager::AccountUpsertionResult::FromStatus(
+    std::move(account_upsertion_finished_callback_)
+        .Run(account_manager::AccountUpsertionResult::FromStatus(
             account_manager::AccountUpsertionResult::Status::kBlockedByPolicy));
     ShowSigninBlockedErrorPageAndExit(hosted_domain);
     return;

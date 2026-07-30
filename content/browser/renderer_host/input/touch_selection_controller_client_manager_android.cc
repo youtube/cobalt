@@ -12,7 +12,7 @@ TouchSelectionControllerClientManagerAndroid::
     TouchSelectionControllerClientManagerAndroid(
         RenderWidgetHostViewAndroid* rwhv)
     : rwhv_(rwhv), active_client_(rwhv) {
-  DCHECK(rwhv_);
+  CHECK(rwhv_, base::NotFatalUntil::M152);
 }
 
 TouchSelectionControllerClientManagerAndroid::

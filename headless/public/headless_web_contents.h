@@ -14,6 +14,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
+namespace content {
+class RenderFrameHost;
+}  // namespace content
+
 namespace headless {
 class HeadlessBrowserContextImpl;
 class HeadlessBrowserImpl;
@@ -60,6 +64,12 @@ class HEADLESS_EXPORT HeadlessWebContents::Builder {
   // Specify whether BeginFrames should be controlled via DevTools commands.
   Builder& SetEnableBeginFrameControl(bool enable_begin_frame_control);
 
+  // Specify an optional opener.
+  Builder& SetOpener(content::RenderFrameHost* opener_rfh);
+
+  // Specify whether the opener should be suppressed.
+  Builder& SetOpenerSuppressed(bool opener_suppressed);
+
   // The returned object is owned by HeadlessBrowser. Call
   // HeadlessWebContents::Close() to dispose it.
   HeadlessWebContents* Build();
@@ -78,6 +88,8 @@ class HEADLESS_EXPORT HeadlessWebContents::Builder {
   gfx::Rect window_bounds_;
   HeadlessWindowState window_state_ = HeadlessWindowState::kNormal;
   bool enable_begin_frame_control_ = false;
+  bool opener_suppressed_ = false;
+  raw_ptr<content::RenderFrameHost> opener_rfh_ = nullptr;
 };
 
 }  // namespace headless

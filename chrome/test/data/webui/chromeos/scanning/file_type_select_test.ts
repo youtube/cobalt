@@ -9,7 +9,7 @@ import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict
 import {assert} from 'chrome://resources/js/assert.js';
 import type {FileTypeSelectElement} from 'chrome://scanning/file_type_select.js';
 import {FileType} from 'chrome://scanning/scanning.mojom-webui.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {changeSelectedValue} from './scanning_app_test_utils.js';
 

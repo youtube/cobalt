@@ -18,6 +18,7 @@
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "chromeos/ash/components/chaps_util/chaps_slot_session.h"
 #include "crypto/nss_key_util.h"
 #include "crypto/scoped_nss_types.h"
@@ -44,23 +45,6 @@ constexpr CK_ATTRIBUTE_TYPE kForceSoftwareAttribute = CKA_VENDOR_DEFINED + 4;
 constexpr CK_ATTRIBUTE_TYPE kKeyInSoftware = CKA_VENDOR_DEFINED + 5;
 
 enum AttrValueType { kNotDefined, kCkBool, kCkUlong, kCkBytes };
-const std::optional<std::vector<CK_BYTE>> default_encoded_cert_label =
-    base::Base64Decode("dGVzdHVzZXJjZXJ0");
-// python print(base64.b64encode("default nickname".encode('utf-8'))).
-const std::optional<std::vector<CK_BYTE>> default_encoded_label =
-    base::Base64Decode("VW5rbm93biBvcmc=");
-const std::optional<std::vector<CK_BYTE>> cka_id_for_ec_key =
-    base::Base64Decode("9kVFdOhn8yYso7a/wG2uC0wdHWo=");
-const std::optional<std::vector<CK_BYTE>> cka_ex_point_ec_key =
-    base::Base64Decode(
-        "BP+"
-        "IQBEPm3e3ABQMhQaZlE0w8qIjn0tKH6jTEekQvtKoUhFo2nM4Q9VA3MLljVF7vabV8CuH9"
-        "/"
-        "UkKt2FMg2iHGM=");
-const std::optional<std::vector<CK_BYTE>> cka_ec_params_ec_key =
-    base::Base64Decode("BggqhkjOPQMBBw==");
-const std::optional<std::vector<CK_BYTE>> cka_value_ec_key =
-    base::Base64Decode("fvWtrgVAq5JApBuCPK92IUAQQnnEoLUrBgZ/KGFhz7E=");
 
 // Class helper to keep relations between all possible attribute's types,
 // attribute's names and attribute's value types.
@@ -93,44 +77,46 @@ class AttributesParsingOptions {
   GetPkcs12ObjectAttrMap() {
     // Map which keeps relation between PKCS12 object attribute type, attribute
     // name and attribute value's type.
-    static std::map<CK_ATTRIBUTE_TYPE, std::pair<AttrValueType, std::string>>
-        attr_map;
-    if (attr_map.empty()) {
-      attr_map[CKA_TOKEN] = {kCkBool, "CKA_TOKEN"};
-      attr_map[CKA_PRIVATE] = {kCkBool, "CKA_PRIVATE"};
-      attr_map[CKA_VERIFY] = {kCkBool, "CKA_VERIFY"};
-      attr_map[CKA_MODULUS_BITS] = {kCkUlong, "CKA_MODULUS_BITS"};
-      attr_map[CKA_PUBLIC_EXPONENT] = {kCkBytes, "CKA_PUBLIC_EXPONENT"};
-      attr_map[CKA_SENSITIVE] = {kCkBool, "CKA_SENSITIVE"};
-      attr_map[CKA_EXTRACTABLE] = {kCkBool, "CKA_EXTRACTABLE"};
-      attr_map[CKA_SIGN] = {kCkBool, "CKA_SIGN"};
-      attr_map[kForceSoftwareAttribute] = {kCkBool, "kForceSoftwareAttribute"};
-      attr_map[CKA_CLASS] = {kCkUlong, "CKA_CLASS"};
-      attr_map[CKA_KEY_TYPE] = {kCkUlong, "CKA_KEY_TYPE"};
-      attr_map[CKA_UNWRAP] = {kCkBool, "CKA_UNWRAP"};
-      attr_map[CKA_DECRYPT] = {kCkBool, "CKA_DECRYPT"};
-      attr_map[CKA_MODULUS] = {kCkBytes, "CKA_MODULUS"};
-      attr_map[CKA_SIGN_RECOVER] = {kCkBool, "CKA_SIGN_RECOVER"};
-      attr_map[CKA_ID] = {kCkBytes, "CKA_ID"};
-      attr_map[CKA_PUBLIC_EXPONENT] = {kCkBytes, "CKA_PUBLIC_EXPONENT"};
-      attr_map[CKA_PRIVATE_EXPONENT] = {kCkBytes, "CKA_PRIVATE_EXPONENT"};
-      attr_map[CKA_PRIME_1] = {kCkBytes, "CKA_PRIME_1"};
-      attr_map[CKA_PRIME_2] = {kCkBytes, "CKA_PRIME_2"};
-      attr_map[CKA_EXPONENT_1] = {kCkBytes, "CKA_EXPONENT_1"};
-      attr_map[CKA_EXPONENT_2] = {kCkBytes, "CKA_EXPONENT_2"};
-      attr_map[CKA_COEFFICIENT] = {kCkBytes, "CKA_COEFFICIENT"};
-      attr_map[CKA_LABEL] = {kCkBytes, "CKA_LABEL"};
-      attr_map[CKA_VALUE] = {kCkBytes, "CKA_VALUE"};
-      attr_map[CKA_ISSUER] = {kCkBytes, "CKA_ISSUER"};
-      attr_map[CKA_SUBJECT] = {kCkBytes, "CKA_SUBJECT"};
-      attr_map[CKA_SERIAL_NUMBER] = {kCkBytes, "CKA_SERIAL_NUMBER"};
-      attr_map[CKA_NSS_EMAIL] = {kCkBytes, "CKA_NSS_EMAIL"};
-      attr_map[CKA_CERTIFICATE_TYPE] = {kCkBytes, "CKA_CERTIFICATE_TYPE"};
-      attr_map[CKA_EC_POINT] = {kCkBytes, "CKA_EC_POINT"};
-      attr_map[CKA_DERIVE] = {kCkBool, "CKA_DERIVE"};
-      attr_map[CKA_EC_PARAMS] = {kCkBytes, "CKA_EC_PARAMS"};
-    }
-    return attr_map;
+    static const base::NoDestructor<
+        std::map<CK_ATTRIBUTE_TYPE, std::pair<AttrValueType, std::string>>>
+        attr_map([] {
+          std::map<CK_ATTRIBUTE_TYPE, std::pair<AttrValueType, std::string>> m;
+          m[CKA_TOKEN] = {kCkBool, "CKA_TOKEN"};
+          m[CKA_PRIVATE] = {kCkBool, "CKA_PRIVATE"};
+          m[CKA_VERIFY] = {kCkBool, "CKA_VERIFY"};
+          m[CKA_MODULUS_BITS] = {kCkUlong, "CKA_MODULUS_BITS"};
+          m[CKA_PUBLIC_EXPONENT] = {kCkBytes, "CKA_PUBLIC_EXPONENT"};
+          m[CKA_SENSITIVE] = {kCkBool, "CKA_SENSITIVE"};
+          m[CKA_EXTRACTABLE] = {kCkBool, "CKA_EXTRACTABLE"};
+          m[CKA_SIGN] = {kCkBool, "CKA_SIGN"};
+          m[kForceSoftwareAttribute] = {kCkBool, "kForceSoftwareAttribute"};
+          m[CKA_CLASS] = {kCkUlong, "CKA_CLASS"};
+          m[CKA_KEY_TYPE] = {kCkUlong, "CKA_KEY_TYPE"};
+          m[CKA_UNWRAP] = {kCkBool, "CKA_UNWRAP"};
+          m[CKA_DECRYPT] = {kCkBool, "CKA_DECRYPT"};
+          m[CKA_MODULUS] = {kCkBytes, "CKA_MODULUS"};
+          m[CKA_SIGN_RECOVER] = {kCkBool, "CKA_SIGN_RECOVER"};
+          m[CKA_ID] = {kCkBytes, "CKA_ID"};
+          m[CKA_PUBLIC_EXPONENT] = {kCkBytes, "CKA_PUBLIC_EXPONENT"};
+          m[CKA_PRIVATE_EXPONENT] = {kCkBytes, "CKA_PRIVATE_EXPONENT"};
+          m[CKA_PRIME_1] = {kCkBytes, "CKA_PRIME_1"};
+          m[CKA_PRIME_2] = {kCkBytes, "CKA_PRIME_2"};
+          m[CKA_EXPONENT_1] = {kCkBytes, "CKA_EXPONENT_1"};
+          m[CKA_EXPONENT_2] = {kCkBytes, "CKA_EXPONENT_2"};
+          m[CKA_COEFFICIENT] = {kCkBytes, "CKA_COEFFICIENT"};
+          m[CKA_LABEL] = {kCkBytes, "CKA_LABEL"};
+          m[CKA_VALUE] = {kCkBytes, "CKA_VALUE"};
+          m[CKA_ISSUER] = {kCkBytes, "CKA_ISSUER"};
+          m[CKA_SUBJECT] = {kCkBytes, "CKA_SUBJECT"};
+          m[CKA_SERIAL_NUMBER] = {kCkBytes, "CKA_SERIAL_NUMBER"};
+          m[CKA_NSS_EMAIL] = {kCkBytes, "CKA_NSS_EMAIL"};
+          m[CKA_CERTIFICATE_TYPE] = {kCkBytes, "CKA_CERTIFICATE_TYPE"};
+          m[CKA_EC_POINT] = {kCkBytes, "CKA_EC_POINT"};
+          m[CKA_DERIVE] = {kCkBool, "CKA_DERIVE"};
+          m[CKA_EC_PARAMS] = {kCkBytes, "CKA_EC_PARAMS"};
+          return m;
+        }());
+    return *attr_map;
   }
 };
 
@@ -521,9 +507,9 @@ class ChapsUtilImplTest : public ::testing::Test {
   }
 
   static std::vector<uint8_t>& GetPkcs12Data(std::string file_name) {
-    static std::vector<uint8_t> pkcs12_data_;
-    pkcs12_data_ = ReadTestFile(file_name);
-    return pkcs12_data_;
+    static base::NoDestructor<std::vector<uint8_t>> pkcs12_data_;
+    *pkcs12_data_ = ReadTestFile(file_name);
+    return *pkcs12_data_;
   }
 
   static std::vector<uint8_t>& GetPkcs12Data() {

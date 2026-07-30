@@ -86,6 +86,10 @@ class PresentationRequestNotificationItem final
   void OnArtworkBitmap(const SkBitmap& bitmap);
   void OnFaviconBitmap(const SkBitmap& bitmap);
 
+  // Returns true if the origin of the active MediaSession's routed frame is the
+  // same as the origin of the frame that initiated the presentation request.
+  bool ShouldShowMediaSessionMetadata() const;
+
   // True if the item is created from a default PresentationRequest, which means
   // |context_| is set to nullptr in the constructor.
   const bool is_default_presentation_request_;

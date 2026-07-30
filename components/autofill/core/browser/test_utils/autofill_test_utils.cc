@@ -47,6 +47,7 @@
 #include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
+#include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/ui/autofill_external_delegate.h"
 #include "components/autofill/core/browser/webdata/payments/payments_autofill_table.h"
 #include "components/autofill/core/common/autofill_clock.h"
@@ -165,81 +166,70 @@ std::unique_ptr<PrefService> PrefServiceForTesting(
 }
 
 [[nodiscard]] FormData CreateTestAddressFormData(std::string_view unique_id) {
-  FormData form;
-  form.set_host_frame(MakeLocalFrameToken());
-  form.set_renderer_id(MakeFormRendererId());
-  form.set_name(u"MyForm" + ASCIIToUTF16(unique_id));
-  form.set_button_titles({std::make_pair(
-      u"Submit", mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE)});
-  form.set_url(GURL("https://myform.com/form.html"));
-  form.set_action(GURL("https://myform.com/submit.html"));
+  FormData form = test::GetFormData(test::FormDescription{
+      .fields = {{.label = u"First Name", .name = u"firstname"},
+                 {.label = u"Middle Name", .name = u"middlename"},
+                 {.label = u"Last Name", .name = u"lastname"},
+                 {.label = u"Address Line 1", .name = u"addr1"},
+                 {.label = u"Address Line 2", .name = u"addr2"},
+                 {.label = u"City", .name = u"city"},
+                 {.label = u"State", .name = u"state"},
+                 {.label = u"Postal Code", .name = u"zipcode"},
+                 {.label = u"Country", .name = u"country"},
+                 {.label = u"Phone Number",
+                  .name = u"phonenumber",
+                  .form_control_type = FormControlType::kInputTelephone},
+                 {.label = u"Email",
+                  .name = u"email",
+                  .form_control_type = FormControlType::kInputEmail}},
+      .name = u"MyForm" + ASCIIToUTF16(unique_id),
+      .url = "https://myform.com/form.html",
+      .action = "https://myform.com/submit.html",
+      .main_frame_origin =
+          url::Origin::Create(GURL("https://myform_root.com/form.html")),
+      .button_titles = {{u"Submit",
+                         mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE}},
+  });
   form.set_is_action_empty(true);
-  form.set_main_frame_origin(
-      url::Origin::Create(GURL("https://myform_root.com/form.html")));
   form.set_submission_event(
       mojom::SubmissionIndicatorEvent::SAME_DOCUMENT_NAVIGATION);
-
-  form.set_fields(
-      {CreateTestFormField("First Name", "firstname", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("Middle Name", "middlename", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("Last Name", "lastname", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("Address Line 1", "addr1", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("Address Line 2", "addr2", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("City", "city", "", FormControlType::kInputText),
-       CreateTestFormField("State", "state", "", FormControlType::kInputText),
-       CreateTestFormField("Postal Code", "zipcode", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("Country", "country", "",
-                           FormControlType::kInputText),
-       CreateTestFormField("Phone Number", "phonenumber", "",
-                           FormControlType::kInputTelephone),
-       CreateTestFormField("Email", "email", "",
-                           FormControlType::kInputEmail)});
   return form;
 }
 
 [[nodiscard]] FormData CreateTestOtpFormData(const char* unique_id) {
-  FormData form;
-  form.set_host_frame(MakeLocalFrameToken());
-  form.set_renderer_id(MakeFormRendererId());
-  form.set_name(u"MyForm" + ASCIIToUTF16(unique_id ? unique_id : ""));
-  form.set_button_titles({std::make_pair(
-      u"Submit", mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE)});
-  form.set_url(GURL("https://myform.com/form.html"));
-  form.set_action(GURL("https://myform.com/submit.html"));
+  FormData form = test::GetFormData(test::FormDescription{
+      .fields = {{.label = u"One time password", .name = u"otp"}},
+      .name = u"MyForm" + ASCIIToUTF16(unique_id ? unique_id : ""),
+      .url = "https://myform.com/form.html",
+      .action = "https://myform.com/submit.html",
+      .main_frame_origin =
+          url::Origin::Create(GURL("https://myform_root.com/form.html")),
+      .button_titles = {{u"Submit",
+                         mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE}},
+  });
   form.set_is_action_empty(true);
-  form.set_main_frame_origin(
-      url::Origin::Create(GURL("https://myform_root.com/form.html")));
   form.set_submission_event(
       mojom::SubmissionIndicatorEvent::SAME_DOCUMENT_NAVIGATION);
-
-  form.set_fields({CreateTestFormField("One time password", "otp", "",
-                                       FormControlType::kInputText)});
   return form;
 }
 
 [[nodiscard]] FormData CreateTestHybridSignUpFormData(const char* unique_id) {
-  FormData form;
-  form.set_host_frame(MakeLocalFrameToken());
-  form.set_renderer_id(MakeFormRendererId());
-  form.set_name(u"MyForm" + ASCIIToUTF16(unique_id ? unique_id : ""));
-  form.set_button_titles({std::make_pair(
-      u"Submit", mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE)});
-  form.set_url(GURL("https://myform.com/form.html"));
-  form.set_action(GURL("https://myform.com/submit.html"));
+  FormData form = test::GetFormData(test::FormDescription{
+      .fields = {{.label = u"Email",
+                  .name = u"email",
+                  .autocomplete_attribute = "webauthn",
+                  .form_control_type = FormControlType::kInputEmail}},
+      .name = u"MyForm" + ASCIIToUTF16(unique_id ? unique_id : ""),
+      .url = "https://myform.com/form.html",
+      .action = "https://myform.com/submit.html",
+      .main_frame_origin =
+          url::Origin::Create(GURL("https://myform_root.com/form.html")),
+      .button_titles = {{u"Submit",
+                         mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE}},
+  });
   form.set_is_action_empty(true);
-  form.set_main_frame_origin(
-      url::Origin::Create(GURL("https://myform_root.com/form.html")));
   form.set_submission_event(
       mojom::SubmissionIndicatorEvent::SAME_DOCUMENT_NAVIGATION);
-
-  form.set_fields({CreateTestFormField(
-      "Email", "email", "", FormControlType::kInputEmail, "webauthn")});
   return form;
 }
 
@@ -1311,7 +1301,7 @@ sync_pb::PaymentInstrument CreatePaymentInstrumentWithLinkedBnplIssuer(
 }
 
 BnplIssuer GetTestLinkedBnplIssuer(
-    autofill::BnplIssuer::IssuerId issuer_id,
+    BnplIssuer::IssuerId issuer_id,
     DenseSet<PaymentInstrument::ActionRequired> actions_required) {
   std::vector<BnplIssuer::EligiblePriceRange> eligible_price_ranges;
   // Currency: USD, price lower bound: $50, price upper bound: $200.
@@ -1329,7 +1319,7 @@ BnplIssuer GetTestUnlinkedBnplIssuer() {
   eligible_price_ranges.emplace_back(/*currency=*/"USD",
                                      /*price_lower_bound=*/35'000'000,
                                      /*price_upper_bound=*/100'000'000);
-  return BnplIssuer(std::nullopt, autofill::BnplIssuer::IssuerId::kBnplZip,
+  return BnplIssuer(std::nullopt, BnplIssuer::IssuerId::kBnplZip,
                     std::move(eligible_price_ranges));
 }
 

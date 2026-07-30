@@ -126,19 +126,20 @@ std::u16string ReturnToAppButtonBase::GetPeripheralsAccessibleName() const {
   if (is_capturing_camera_) {
     tooltip_text += l10n_util::GetStringFUTF16(
         VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
-        l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
+        l10n_util::GetStringUTF16(
+            IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
   }
   if (is_capturing_microphone_) {
     tooltip_text += l10n_util::GetStringFUTF16(
         VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
         l10n_util::GetStringUTF16(
-            VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
+            IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
   }
   if (is_capturing_screen_) {
     tooltip_text += l10n_util::GetStringFUTF16(
         VIDEO_CONFERENCE_RETURN_TO_APP_PERIPHERALS_ACCESSIBLE_NAME,
         l10n_util::GetStringUTF16(
-            VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE));
+            IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_SCREEN_SHARE));
   }
   return tooltip_text;
 }

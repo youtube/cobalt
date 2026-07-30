@@ -14,7 +14,6 @@
   --cr-searchbox-dropdown-header-padding-inline-start: 16px;
   --cr-searchbox-results-search-icon-size: 16px;
   --cr-searchbox-icon-container-size: 28px;
-  --cr-searchbox-match-icon-container-background-fallback: var(--color-omnibox-results-background-hovered);
   --cr-searchbox-match-padding: 6px;
   --cr-searchbox-match-padding-inline-start: 16px;
   --cr-searchbox-match-text-padding-inline-end: 8px;
@@ -28,38 +27,15 @@
   --text-input-inline-start-spacing: 16px;
   --color-composebox-context-entrypoint-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-context-entrypoint-hover-background: var(--color-omnibox-action-icon-hover);
-  --color-composebox-lens-button-hover-background: var(--color-omnibox-action-icon-hover);
-  --color-composebox-tool-chip-background: var(--color-omnibox-action-icon-hover);
-  --color-composebox-voice-button-hover-background: var(--color-omnibox-action-icon-hover);
   --color-composebox-context-entrypoint-text: var(--color-omnibox-context-entrypoint-text);
-  --color-composebox-lens-search-button-border-color: var(--color-omnibox-keyword-separator);
   --composebox-context-menu-entrypoint-button-color: var(--color-omnibox-context-entrypoint-text);
-  --composebox-lens-search-icon-color: var(--color-omnibox-composebox-primary-action);
-  --composebox-lens-search-button-text-color: var(--color-omnibox-text);
   --contextual-entrypoint-and-carousel-context-menu-container-padding-inline-start: 0;
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 8px;
   --contextual-entrypoint-and-carousel-carousel-divider-margin-bottom: 8px;
 
   font-size: var(--omnibox-font-size);
 
-  /* Colors used in the cr-searchbox results dropdown */
-  --color-searchbox-answer-icon-background: var(--color-omnibox-answer-icon-g-m3-background);
-  --color-searchbox-answer-icon-foreground: var(--color-omnibox-answer-icon-g-m3-foreground);
-  --color-searchbox-results-action-chip-focus-outline: var(--color-omnibox-results-focus-indicator);
-  --color-searchbox-results-action-chip: var(--color-omnibox-results-button-border);
-  --color-searchbox-results-action-chip-icon: var(--color-omnibox-results-button-icon);
-  --color-searchbox-results-action-chip-icon-selected: var(--color-omnibox-results-button-icon-selected);
-  --color-searchbox-results-background: var(--color-omnibox-results-background);
-  --color-searchbox-results-button-selected-hover: var(--color-omnibox-results-button-ink-drop-row-selected);
-  --color-searchbox-results-dim-selected: var(--color-omnibox-results-text-dimmed-selected);
-  --color-searchbox-results-foreground-dimmed: var(--color-omnibox-results-text-dimmed);
-  --color-searchbox-results-icon: var(--color-omnibox-results-icon);
-  --color-searchbox-results-icon-container-background: unset;
-  --color-searchbox-results-starter-pack-icon: var(--color-omnibox-results-starter-pack-icon);
-  --color-searchbox-results-typed-prefix: unset;
-  --color-searchbox-results-url-selected: var(--color-omnibox-results-url-selected);
-  --color-searchbox-results-url: var(--color-omnibox-results-url);
-  --color-searchbox-search-icon-background: var(--color-omnibox-results-icon);
+
 }
 
 :host([has-visible-matches_]) .dropdownContainer,

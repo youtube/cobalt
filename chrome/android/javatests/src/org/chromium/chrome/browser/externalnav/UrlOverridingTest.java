@@ -43,6 +43,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.Stage;
 
 import org.hamcrest.Matchers;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -71,7 +72,6 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.DisableLeakChecks;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -97,6 +97,7 @@ import org.chromium.chrome.browser.customtabs.CustomTabsTestUtils;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
@@ -164,10 +165,6 @@ import java.util.concurrent.atomic.AtomicReference;
     ChromeFeatureList.CCT_DESTROY_TAB_WHEN_MODEL_IS_EMPTY,
     "Prewarm",
     ChromeFeatureList.DESKTOP_ANDROID_LINK_CAPTURING
-})
-@DisableLeakChecks({
-    "crbug.com/512492165 (ActorForegroundServiceManager)",
-    "crbug.com/512492107 (CustomTabActivity)"
 })
 public class UrlOverridingTest {
     @Rule
@@ -468,6 +465,17 @@ public class UrlOverridingTest {
         mTestServer = mTabbedActivityTestRule.getTestServer();
         mTestContext.setIntentFilterForScheme(EXTERNAL_APP_SCHEME, filter);
         ModalDialogView.disableButtonTapProtectionForTesting();
+    }
+
+    @After
+    public void tearDown() {
+        // Remove the monitor so Instrumentation's mActivityMonitors list no longer retains
+        // the ActivityMonitor (which holds onto the last matched CustomTabActivity via
+        // mLastActivity, leaking the destroyed Activity through the JUnit runner).
+        if (mActivityMonitor != null) {
+            InstrumentationRegistry.getInstrumentation().removeMonitor(mActivityMonitor);
+            mActivityMonitor = null;
+        }
     }
 
     private Origin createExampleOrigin() {
@@ -969,6 +977,7 @@ public class UrlOverridingTest {
     @SmallTest
     @EnableFeatures({ChromeFeatureList.GLIC})
     public void testNavigationWithFallbackURL_ActorTaskShouldBlock() throws Exception {
+        GlicEnabling.setEnabledForTesting(true);
         ActorKeyedService mockActorService = Mockito.mock(ActorKeyedService.class);
         ActorKeyedServiceFactory.setForTesting(mockActorService);
         WebPageStation ctaPage = mTabbedActivityTestRule.startOnBlankPage();
@@ -1969,7 +1978,8 @@ public class UrlOverridingTest {
                         + "#Intent;scheme=https;package="
                         + ContextUtils.getApplicationContext().getPackageName()
                         + ";S.browser_fallback_url="
-                        + "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.android.chrome"
+                        + "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails"
+                        + "%3Fid%3Dcom.android.chrome"
                         + ";end";
 
         String originalUrl =
@@ -2288,7 +2298,8 @@ public class UrlOverridingTest {
                         + "#Intent;scheme=https;package="
                         + ContextUtils.getApplicationContext().getPackageName()
                         + ";S.browser_fallback_url="
-                        + "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.android.chrome"
+                        + "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails"
+                        + "%3Fid%3Dcom.android.chrome"
                         + ";end";
 
         String originalUrl =
@@ -2340,7 +2351,8 @@ public class UrlOverridingTest {
                         + "#Intent;scheme=https;package="
                         + ContextUtils.getApplicationContext().getPackageName()
                         + ";S.browser_fallback_url="
-                        + "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.android.chrome"
+                        + "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails"
+                        + "%3Fid%3Dcom.android.chrome"
                         + ";end";
 
         @SandboxType int sandboxType = useCSP ? SandboxType.CSP : SandboxType.FRAME;
@@ -2662,9 +2674,10 @@ public class UrlOverridingTest {
         }
 
         ActivityMonitor[] monitor = new ActivityMonitor[1];
+        ActivityStateListener[] stateListenerHolder = new ActivityStateListener[1];
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    ApplicationStatus.registerStateListenerForAllActivities(
+                    ActivityStateListener stateListener =
                             new ActivityStateListener() {
                                 @Override
                                 public void onActivityStateChange(Activity activity, int newState) {
@@ -2684,26 +2697,44 @@ public class UrlOverridingTest {
                                                                 true);
                                     }
                                 }
-                            });
+                            };
+                    stateListenerHolder[0] = stateListener;
+                    ApplicationStatus.registerStateListenerForAllActivities(stateListener);
                 });
 
-        mCustomTabActivityRule.launchActivity(intent);
+        try {
+            mCustomTabActivityRule.launchActivity(intent);
 
-        if (allowInitialIntentToLeave) {
-            CriteriaHelper.pollUiThread(
-                    () -> {
-                        Criteria.checkThat(monitor[0].getHits(), Matchers.is(1));
-                    },
-                    10000L,
-                    CriteriaHelper.DEFAULT_POLLING_INTERVAL);
-            CriteriaHelper.pollUiThread(
-                    () -> AsyncInitializationActivity.wasMoveTaskToBackInterceptedForTesting());
-        } else {
-            navigated.waitForOnly(10, TimeUnit.SECONDS);
-            Assert.assertEquals(OverrideUrlLoadingResultType.NO_OVERRIDE, lastResultValue.get());
-            Assert.assertFalse(
-                    AsyncInitializationActivity.wasMoveTaskToBackInterceptedForTesting());
-            Assert.assertEquals(0, monitor[0].getHits());
+            if (allowInitialIntentToLeave) {
+                CriteriaHelper.pollUiThread(
+                        () -> {
+                            Criteria.checkThat(monitor[0].getHits(), Matchers.is(1));
+                        },
+                        10000L,
+                        CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+                CriteriaHelper.pollUiThread(
+                        () -> AsyncInitializationActivity.wasMoveTaskToBackInterceptedForTesting());
+            } else {
+                navigated.waitForOnly(10, TimeUnit.SECONDS);
+                Assert.assertEquals(
+                        OverrideUrlLoadingResultType.NO_OVERRIDE, lastResultValue.get());
+                Assert.assertFalse(
+                        AsyncInitializationActivity.wasMoveTaskToBackInterceptedForTesting());
+                Assert.assertEquals(0, monitor[0].getHits());
+            }
+        } finally {
+            // Remove the monitor and unregister the state listener so neither
+            // Instrumentation.mActivityMonitors nor ApplicationStatus retains the
+            // destroyed CustomTabActivity (the monitor holds mLastActivity once it
+            // matches the launch intent).
+            if (monitor[0] != null) {
+                InstrumentationRegistry.getInstrumentation().removeMonitor(monitor[0]);
+            }
+            ActivityStateListener listenerToRemove = stateListenerHolder[0];
+            if (listenerToRemove != null) {
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> ApplicationStatus.unregisterActivityStateListener(listenerToRemove));
+            }
         }
     }
 
@@ -2777,28 +2808,38 @@ public class UrlOverridingTest {
         intent.putExtra(CustomTabsIntent.EXTRA_INITIAL_NAVIGATION_CAN_LEAVE_BROWSER, true);
         Context context = ContextUtils.getApplicationContext();
 
-        CustomTabActivity activity =
-                ApplicationTestUtils.waitForActivityWithClass(
-                        CustomTabActivity.class,
-                        Stage.CREATED,
-                        () -> context.startActivity(intent));
-        mCustomTabActivityRule.setActivity(activity);
+        try {
+            CustomTabActivity activity =
+                    ApplicationTestUtils.waitForActivityWithClass(
+                            CustomTabActivity.class,
+                            Stage.CREATED,
+                            () -> context.startActivity(intent));
+            mCustomTabActivityRule.setActivity(activity);
 
-        CriteriaHelper.pollUiThread(
-                () -> {
-                    Criteria.checkThat(
-                            "ActivityMonitor was not set", monitor[0], Matchers.notNullValue());
-                    Criteria.checkThat(
-                            "External app was not launched", monitor[0].getHits(), Matchers.is(1));
-                },
-                10000L,
-                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+            CriteriaHelper.pollUiThread(
+                    () -> {
+                        Criteria.checkThat(
+                                "ActivityMonitor was not set", monitor[0], Matchers.notNullValue());
+                        Criteria.checkThat(
+                                "External app was not launched",
+                                monitor[0].getHits(),
+                                Matchers.is(1));
+                    },
+                    10000L,
+                    CriteriaHelper.DEFAULT_POLLING_INTERVAL);
 
-        ApplicationTestUtils.waitForActivityState(activity, Stage.DESTROYED);
+            ApplicationTestUtils.waitForActivityState(activity, Stage.DESTROYED);
 
-        Assert.assertEquals(
-                "onNavigationHandedOffToExternalApp was not called.",
-                1,
-                onHandedOffCallback.getCallCount());
+            Assert.assertEquals(
+                    "onNavigationHandedOffToExternalApp was not called.",
+                    1,
+                    onHandedOffCallback.getCallCount());
+        } finally {
+            // Remove the monitor so Instrumentation.mActivityMonitors does not retain
+            // the destroyed CustomTabActivity via ActivityMonitor.mLastActivity.
+            if (monitor[0] != null) {
+                InstrumentationRegistry.getInstrumentation().removeMonitor(monitor[0]);
+            }
+        }
     }
 }

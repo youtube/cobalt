@@ -17,6 +17,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabGroupCreationCallback;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabMovedCallback;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -116,7 +117,7 @@ public class TabGroupListBottomSheetCoordinator {
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
                         context,
-                        /* isTabStrip= */ false,
+                        TabListMode.GRID,
                         R.dimen.default_favicon_corner_radius,
                         TabFavicon::getBitmap);
 
@@ -183,6 +184,7 @@ public class TabGroupListBottomSheetCoordinator {
 
     /** Permanently cleans up this component. */
     public void destroy() {
+        mMediator.destroy();
         mSimpleRecyclerViewAdapter.destroy();
         mTabListFaviconProvider.destroy();
     }

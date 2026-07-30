@@ -35,12 +35,14 @@ test("string_compare_fuzztest_fuzzer") {
   configs += [ "//testing/libfuzzer:no_clusterfuzz" ]
 }
 
-# Manually wrap the LLVM-style fuzzer to use FUZZ_TEST.
-test("string_compare_fuzztest_wrapper_fuzzer") {
-  sources = [ "string_compare_fuzzer.cc" ]
-  fuzztests = [ "LLVMFuzzer.TestOneInput" ]
-  deps = [ "//third_party/fuzztest:llvm_wrapper" ]
-  configs += [ "//testing/libfuzzer:no_clusterfuzz" ]
+if (use_centipede) {
+  # Manually wrap the LLVM-style fuzzer to use FUZZ_TEST.
+  test("string_compare_fuzztest_wrapper_fuzzer") {
+    sources = [ "string_compare_fuzzer.cc" ]
+    fuzztests = [ "LLVMFuzzer.TestOneInput" ]
+    deps = [ "//third_party/fuzztest:llvm_wrapper" ]
+    configs += [ "//testing/libfuzzer:no_clusterfuzz" ]
+  }
 }
 
 test("string_compare_seeded_fuzztest_fuzzer") {

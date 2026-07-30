@@ -27,10 +27,8 @@ std::unique_ptr<OSCryptAsync> GetTestOSCryptAsyncForTesting(
 // Obtain a test Encryptor. This Encryptor will perform encryption using a
 // random key. The key for test Encryptors is different each time this function
 // is called, and different from the ones vended from the test OSCryptAsync
-// above. An `option` can be specified in the same way as calling `GetInstance`
-// on `OSCryptAsync`.
-scoped_refptr<TestEncryptor> GetTestEncryptorForTesting(
-    Encryptor::Option option = Encryptor::Option::kNone);
+// above.
+scoped_refptr<TestEncryptor> GetTestEncryptorForTesting();
 
 // Obtain a test Encryptor that doesn't have any encryption keys. This
 // Encryptor will fail all encryption/decryption operations.

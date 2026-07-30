@@ -48,11 +48,7 @@ if (enable_printing) {
     }
 
     if (is_chromeos) {
-      public += [ "local_printer_utils_chromeos.h" ]
-      public_deps += [
-        "//chromeos/crosapi/mojom",
-        "//chromeos/printing",
-      ]
+      public_deps += [ "//chromeos/crosapi/mojom" ]
     }
 
     if (enable_oop_printing) {
@@ -170,10 +166,6 @@ if (enable_printing) {
 
     if (is_mac) {
       sources += [ "printer_manager_dialog_mac.cc" ]
-    }
-
-    if (is_chromeos) {
-      sources += [ "local_printer_utils_chromeos.cc" ]
     }
 
     if (is_linux) {

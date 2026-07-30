@@ -37,19 +37,7 @@ class LocationBarModelDelegateIOSTest : public PlatformTest {
   std::unique_ptr<LocationBarModelDelegateIOS> delegate_;
 };
 
-// Tests that IsOfflinePage() returns false if there is no WebState.
-TEST_F(LocationBarModelDelegateIOSTest, IsOfflinePage_NoWebState) {
-  provider_.webState = nullptr;
-  EXPECT_FALSE(delegate_->IsOfflinePage());
-}
-
-// Tests that IsOfflinePage() returns false if the WebState has no
-// OfflinePageTabHelper attached (to verify defensive null check for
-// b/505753157).
-TEST_F(LocationBarModelDelegateIOSTest, IsOfflinePage_NoHelper) {
-  web::FakeWebState web_state;
-  provider_.webState = &web_state;
-  // Without OfflinePageTabHelper attached, this should return false and not
-  // crash.
+// Tests that IsOfflinePage() returns false.
+TEST_F(LocationBarModelDelegateIOSTest, IsOfflinePage) {
   EXPECT_FALSE(delegate_->IsOfflinePage());
 }

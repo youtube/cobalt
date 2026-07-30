@@ -7,6 +7,9 @@ import 'chrome://feature-showcase/feature_showcase_stepper.js';
 import 'chrome://feature-showcase/password_manager/password_manager_step.js';
 
 import type {FeatureShowcaseAppElement} from 'chrome://feature-showcase/app.js';
+import {DefaultBrowserPageHandlerRemote} from 'chrome://feature-showcase/default_browser.mojom-webui.js';
+import {DefaultBrowserBrowserProxyImpl} from 'chrome://feature-showcase/default_browser/default_browser_browser_proxy.js';
+import type {FeatureShowcaseDefaultBrowserStepElement} from 'chrome://feature-showcase/default_browser/default_browser_step.js';
 import {FeatureShowcasePageHandlerRemote} from 'chrome://feature-showcase/feature_showcase.mojom-webui.js';
 import {FeatureShowcaseBrowserProxyImpl} from 'chrome://feature-showcase/feature_showcase_browser_proxy.js';
 import type {FeatureShowcaseStepperElement} from 'chrome://feature-showcase/feature_showcase_stepper.js';
@@ -91,6 +94,58 @@ suite('FeatureShowcaseStepperTest', function() {
     // Upcoming step
     const dot_upcoming = steps[2]?.querySelector('.dot');
     assertTrue(!!dot_upcoming);
+  });
+});
+
+suite('FeatureShowcaseDefaultBrowserStepTest', function() {
+  let stepElement: FeatureShowcaseDefaultBrowserStepElement;
+  let testHandler: TestMock<DefaultBrowserPageHandlerRemote>&
+      DefaultBrowserPageHandlerRemote;
+
+  setup(function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    testHandler = TestMock.fromClass(DefaultBrowserPageHandlerRemote);
+    DefaultBrowserBrowserProxyImpl.setInstance({handler: testHandler});
+
+    stepElement =
+        document.createElement('feature-showcase-default-browser-step');
+    document.body.appendChild(stepElement);
+  });
+
+  test('confirm button clicked', async function() {
+    await microtasksFinished();
+
+    const button =
+        stepElement.shadowRoot.querySelector<HTMLElement>('#confirm-button');
+    assertTrue(!!button);
+
+    const stepCompletedEvent = new Promise((resolve) => {
+      stepElement.addEventListener('step-completed', resolve);
+    });
+
+    button.click();
+
+    await testHandler.whenCalled('setAsDefaultBrowser');
+    await stepCompletedEvent;
+  });
+
+  test('skip button clicked', async function() {
+    await microtasksFinished();
+
+    const button =
+        stepElement.shadowRoot.querySelector<HTMLElement>('#skip-button');
+    assertTrue(!!button);
+
+    const stepCompletedEvent = new Promise((resolve) => {
+      stepElement.addEventListener('step-completed', resolve);
+    });
+
+    button.click();
+
+    await testHandler.whenCalled('skipSetAsDefaultBrowser');
+    await stepCompletedEvent;
+    assertEquals(0, testHandler.getCallCount('setAsDefaultBrowser'));
   });
 });
 

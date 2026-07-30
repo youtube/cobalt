@@ -37,7 +37,7 @@
 namespace blink {
 
 class NodeListsNodeData final : public GarbageCollected<NodeListsNodeData>,
-                                public ElementRareDataField {
+                                public NodeRareDataField {
  public:
   ChildNodeList* GetChildNodeList(ContainerNode& node) {
     DCHECK(!child_node_list_ || node == child_node_list_->VirtualOwnerNode());

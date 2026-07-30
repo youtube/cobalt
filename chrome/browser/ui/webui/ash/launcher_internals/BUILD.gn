@@ -23,7 +23,6 @@ static_library("launcher_internals") {
     ":mojo_bindings",
     "//base",
     "//chrome/browser/ash/app_list/search",
-    "//chrome/common",
     "//content/public/browser",
     "//content/public/common",
     "//mojo/public/cpp/bindings",
@@ -31,6 +30,7 @@ static_library("launcher_internals") {
   ]
 
   deps = [
+    "//ash/constants",
     "//chrome/browser/ash/app_list",
     "//chrome/browser/ash/app_list/search/common",
     "//chrome/browser/resources/chromeos/launcher_internals:resources",

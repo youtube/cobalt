@@ -266,6 +266,19 @@ void AutofillManager::OnFormSubmitted(const FormData& form,
   NotifyObservers(&Observer::OnAfterFormSubmitted, form);
 }
 
+void AutofillManager::OnFormWithEmailVerificationTokenSubmitted(
+    const FormData& form,
+    const FieldGlobalId& field_id) {
+  if (!IsValidFormData(form)) {
+    return;
+  }
+  NotifyObservers(&Observer::OnBeforeFormWithEmailVerificationTokenSubmitted,
+                  form, field_id);
+  OnFormWithEmailVerificationTokenSubmittedImpl(form, field_id);
+  NotifyObservers(&Observer::OnAfterFormWithEmailVerificationTokenSubmitted,
+                  form, field_id);
+}
+
 void AutofillManager::OnFormsSeen(std::vector<FormData> updated_forms,
                                   std::vector<FormGlobalId> removed_form_ids) {
   auto erase_removed_forms = [&] {
@@ -367,7 +380,7 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms,
       queryable_forms.push_back(form);
     }
 
-    OnFormProcessed(form, *form_structure);
+    OnFormProcessed(*form_structure);
   }
 
   if (base::FeatureList::IsEnabled(features::debug::kShowDomNodeIDs)) {
@@ -511,10 +524,6 @@ void AutofillManager::OnSuggestionsHidden(SuggestionHidingReason reason) {
     driver().RendererShouldClearPreviewedForm();
   }
   NotifyObservers(&Observer::OnSuggestionsHidden, reason);
-}
-
-void AutofillManager::OnEmailVerificationTokenShared(FieldGlobalId field_id) {
-  NotifyObservers(&Observer::OnEmailVerificationTokenShared, field_id);
 }
 
 void AutofillManager::OnSelectFieldOptionsDidChange(
@@ -980,7 +989,7 @@ void AutofillManager::OnLoadedServerPredictions(
                       /*small_forms_were_parsed=*/client().IsTabInActorMode());
       if (base::FeatureList::IsEnabled(
               features::kAutofillServerQueryPredictionsEarly)) {
-        OnFormProcessed(form, *form_structure);
+        OnFormProcessed(*form_structure);
       }
     }
     LogServerQueryResponseMetrics(queried_forms);

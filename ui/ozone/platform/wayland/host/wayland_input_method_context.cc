@@ -868,9 +868,8 @@ void WaylandInputMethodContext::MaybeUpdateActivated(
   if (activated) {
     if (text_input_v3_) {
       text_input_v3_->SetClient(text_input_v3_client_.get());
-      text_input_v3_->Enable();
-      text_input_v3_->SetContentType(attributes_.input_type, attributes_.flags,
-                                     attributes_.should_do_learning);
+      text_input_v3_->Enable(attributes_.input_type, attributes_.flags,
+                             attributes_.should_do_learning);
     } else {
       text_input_v1_->SetClient(text_input_v1_client_.get());
       text_input_v1_->Activate(window_.get());

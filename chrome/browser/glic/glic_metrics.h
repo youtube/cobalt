@@ -163,7 +163,7 @@ enum class OptInFlow {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicOptInFlowSource)
 
-class GlicSharingManager;
+class GlicSharingManagerInternal;
 
 namespace internal {
 class BrowserActivityObserver;
@@ -276,10 +276,14 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // arbitrary tab.
   void LogGetContextForActorFromTabError(GlicGetContextFromTabError error);
 
+  // Logs an error that occurred while trying to get image bytes from an
+  // arbitrary tab.
+  void LogGetImageBytesFromTabError(GlicGetContextFromTabError error);
+
   // One of these must be called immediately after constructor before any
   // calls from glic.mojom.
   void SetControllersWithInstance(GlicInstance* glic_instance,
-                                  GlicSharingManager* sharing_manager);
+                                  GlicSharingManagerInternal* sharing_manager);
   void ClearControllers();
 
   // Records user preferences for the profile. Called when the GlicKeyedService

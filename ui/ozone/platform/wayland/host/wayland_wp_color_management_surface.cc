@@ -34,6 +34,12 @@ WaylandWpColorManagementSurface::WaylandWpColorManagementSurface(
         kListener = {.preferred_changed = &OnPreferredChanged};
     wp_color_management_surface_feedback_v1_add_listener(
         feedback_surface_.get(), &kListener, this);
+    // The protocol does not guarantee that compositors send `preferred_changed`
+    // immediately after the feedback object is bound. KWin and wlroots happen
+    // to do so, but Mutter only sends the event on subsequent changes. Fetch
+    // the initial preferred image description explicitly so that Chromium has
+    // a description to work with regardless of compositor behavior.
+    FetchPreferredImageDescription();
   }
   color_manager_observation_.Observe(connection_->wp_color_manager());
 }
@@ -94,22 +100,26 @@ void WaylandWpColorManagementSurface::OnPreferredChanged(
   auto* self = static_cast<WaylandWpColorManagementSurface*>(data);
   CHECK(self);
   CHECK_EQ(feedback_surface, self->feedback_surface_.get());
+  self->FetchPreferredImageDescription();
+}
 
+void WaylandWpColorManagementSurface::FetchPreferredImageDescription() {
   // Reset the previous image description before creating a new one.
   // Per the color management protocol specification:
   // "The client should stop using and destroy the image descriptions created
   // by earlier invocations of this request for the associated wl_surface."
   // This prevents "invalid object" errors when the compositor or client tries
   // to reference the old object ID after it has been destroyed.
-  self->image_description_.reset();
+  image_description_.reset();
 
   auto image_description_object = wl::Object<wp_image_description_v1>(
-      wp_color_management_surface_feedback_v1_get_preferred(feedback_surface));
+      wp_color_management_surface_feedback_v1_get_preferred(
+          feedback_surface_.get()));
 
-  self->image_description_ = base::MakeRefCounted<WaylandWpImageDescription>(
-      std::move(image_description_object), self->connection_, std::nullopt,
+  image_description_ = base::MakeRefCounted<WaylandWpImageDescription>(
+      std::move(image_description_object), connection_, std::nullopt,
       base::BindOnce(&WaylandWpColorManagementSurface::OnImageDescription,
-                     self->weak_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr()));
 }
 
 void WaylandWpColorManagementSurface::OnHdrEnabledChanged(bool hdr_enabled) {

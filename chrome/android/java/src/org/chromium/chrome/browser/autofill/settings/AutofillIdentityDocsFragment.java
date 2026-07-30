@@ -19,6 +19,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillAiDelegate.ToggleConfig;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -37,10 +38,14 @@ public class AutofillIdentityDocsFragment extends ChromeBaseSettingsFragment
 
     public static final String PREF_OPT_IN_TOGGLE = "autofill_ai_identity_docs_opt_in";
 
-    private static final ToggleConfig TOGGLE_CONFIG_IDENTITY = new ToggleConfig(PREF_OPT_IN_TOGGLE,
-            R.string.autofill_identity_docs_opt_in_toggle_label,
-            R.string.autofill_identity_docs_opt_in_toggle_sub_label,
-            Pref.AUTOFILL_AI_IDENTITY_ENTITIES_ENABLED);
+    private static final ToggleConfig TOGGLE_CONFIG_IDENTITY =
+            new ToggleConfig(
+                    PREF_OPT_IN_TOGGLE,
+                    R.string.autofill_identity_docs_opt_in_toggle_label,
+                    R.string.autofill_identity_docs_opt_in_toggle_sub_label,
+                    Pref.AUTOFILL_AI_IDENTITY_ENTITIES_ENABLED,
+                    /* isPersonalContextSupported= */ true,
+                    AutofillPersonalContextFragment.ACTION_ENTRY_FROM_IDENTITY_DOCS);
 
     private static final Set<Integer> IDENTITY_DOC_TYPES =
             Set.of(
@@ -48,7 +53,8 @@ public class AutofillIdentityDocsFragment extends ChromeBaseSettingsFragment
                     EntityTypeName.DRIVERS_LICENSE,
                     EntityTypeName.NATIONAL_ID_CARD);
 
-    private final AutofillAiDelegate mAutofillAiDelegate = new AutofillAiDelegate(this, this, TOGGLE_CONFIG_IDENTITY);
+    private final AutofillAiDelegate mAutofillAiDelegate =
+            new AutofillAiDelegate(this, this, TOGGLE_CONFIG_IDENTITY);
 
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
@@ -134,8 +140,8 @@ public class AutofillIdentityDocsFragment extends ChromeBaseSettingsFragment
                             indexData, profile, getPrefFragmentName());
                     AutofillAiDelegate.maybeAddDisabledWalletDataSharingDataCard(
                             indexData, profile, getPrefFragmentName());
-                    AutofillAiDelegate.maybeAddOptInToggle(indexData, getPrefFragmentName(),
-                        TOGGLE_CONFIG_IDENTITY);
+                    AutofillAiDelegate.maybeAddOptInToggle(
+                            indexData, getPrefFragmentName(), TOGGLE_CONFIG_IDENTITY);
                 }
             };
 }

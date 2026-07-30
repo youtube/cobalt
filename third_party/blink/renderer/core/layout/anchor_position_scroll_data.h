@@ -5,18 +5,20 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_ANCHOR_POSITION_SCROLL_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_ANCHOR_POSITION_SCROLL_DATA_H_
 
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/frame/post_layout_snapshot_client.h"
 #include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/gfx/geometry/vector2d.h"
 
 namespace blink {
 
+enum class RememberedScrollOffsetType;
 class AnchorPositionVisibilityObserver;
 class Element;
 class LayoutObject;
@@ -50,7 +52,7 @@ class LayoutObject;
 class AnchorPositionScrollData
     : public GarbageCollected<AnchorPositionScrollData>,
       public PostLayoutSnapshotClient,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   explicit AnchorPositionScrollData(Element* anchored_element);
   virtual ~AnchorPositionScrollData();
@@ -194,6 +196,7 @@ class AnchorPositionScrollData
  private:
   enum class SnapshotDiff { kNone, kScrollersOrFallbackPosition, kOffsetOnly };
 
+  PhysicalOffset GetFilteredRememberedOffset(RememberedScrollOffsetType) const;
   AdjustmentData ComputeDefaultAnchorAdjustmentData() const;
   // Takes an up-to-date snapshot, and compares it with the existing one.
   // If `update` is true, also rewrites the existing snapshot.

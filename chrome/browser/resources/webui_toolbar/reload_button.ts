@@ -19,7 +19,7 @@ import {MetricsRecorder} from './metrics_recorder.js';
 import {getCss} from './reload_button.css.js';
 import {getHtml} from './reload_button.html.js';
 import {TimerHelper} from './timer_helper.js';
-import {BUTTON_LEFT, BUTTON_RIGHT, getContextMenuPosition, getEventDispositionFlags, HelpBubbleAnchorMixin, PressHandler} from './toolbar_button.js';
+import {BUTTON_LEFT, BUTTON_RIGHT, getContextMenuPosition, getEventDispositionFlags, HelpBubbleAnchorMixin, PressHandler, roundedIconsEnabled} from './toolbar_button.js';
 
 // go/keep-sorted start
 const RELOAD_BUTTON_ACC_NAME_RELOAD = 'reloadButtonAccNameReload';
@@ -52,6 +52,7 @@ export class ReloadButtonElement extends ReloadButtonElementBase {
       tooltip: {type: String, reflect: true},
       showStopIcon: {type: Boolean, reflect: true},
       isDisabled: {type: Boolean, reflect: true},
+      touchUi: {type: Boolean},
     };
   }
 
@@ -79,6 +80,8 @@ export class ReloadButtonElement extends ReloadButtonElementBase {
   // Whether the reload button should be disabled. True only while the
   // `disableStopIconTimer_` is running.
   protected accessor isDisabled: boolean = false;
+
+  accessor touchUi: boolean = false;
 
   // Timer started when the reload button is pressed while showing the reload
   // icon. While running, the reload icon will continue to be displayed instead
@@ -265,6 +268,24 @@ export class ReloadButtonElement extends ReloadButtonElementBase {
             RELOAD_BUTTON_TOOLTIP_STOP :
             (this.state.canShowMenu ? RELOAD_BUTTON_TOOLTIP_RELOAD_WITH_MENU :
                                       RELOAD_BUTTON_TOOLTIP_RELOAD)));
+  }
+
+  protected getIronIcon_(): string {
+    if (this.showStopIcon) {
+      if (roundedIconsEnabled()) {
+        return 'webui-toolbar:close';
+      } else {
+        return this.touchUi ? 'webui-toolbar:navigate_stop_touch_old' :
+                              'webui-toolbar:navigate_stop_chrome_refresh_old';
+      }
+    } else {
+      if (roundedIconsEnabled()) {
+        return 'webui-toolbar:refresh';
+      } else {
+        return this.touchUi ? 'webui-toolbar:reload_touch_old' :
+                              'webui-toolbar:reload_chrome_refresh_old';
+      }
+    }
   }
 
   /**

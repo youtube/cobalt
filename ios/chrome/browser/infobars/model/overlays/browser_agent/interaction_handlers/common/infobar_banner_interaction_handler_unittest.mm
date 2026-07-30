@@ -12,7 +12,7 @@
 #import "ios/chrome/browser/infobars/model/test/fake_infobar_ios.h"
 #import "ios/chrome/browser/overlays/model/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_queue.h"
-#import "ios/chrome/browser/passwords/model/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
+#import "ios/chrome/browser/passwords/infobars/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/platform_test.h"

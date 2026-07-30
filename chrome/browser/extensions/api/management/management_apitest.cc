@@ -13,6 +13,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/browsertest_util.h"
+#include "chrome/browser/extensions/chrome_app_deprecation.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/launch_util.h"
@@ -47,9 +48,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
-#include "chrome/browser/web_applications/extension_status_utils.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/test/fake_web_app_ui_manager.h"
@@ -294,7 +293,9 @@ class InstallReplacementWebAppApiTest : public ExtensionManagementApiTest {
              });
            });)";
 
-    web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
     const GURL start_url = https_test_server_.GetURL(web_app_start_url);
     webapps::AppId web_app_id =
         web_app::GenerateAppId(/*manifest_id_path=*/std::nullopt, start_url);
@@ -413,7 +414,9 @@ IN_PROC_BROWSER_TEST_F(InstallReplacementWebAppApiTest,
 }
 
 IN_PROC_BROWSER_TEST_F(InstallReplacementWebAppApiTest, CapturedNavigation) {
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
 
   static constexpr char kAppBPath[] =
       "/management/install_replacement_web_app/acceptable_web_app_standalone/"

@@ -196,6 +196,10 @@ class COMPONENT_EXPORT(AX_PLATFORM) AXPlatformNodeDelegate {
   // field.
   virtual std::u16string GetValueForControl() const;
 
+  // Returns kAriaValueText if present/non-empty, otherwise falls back to
+  // kValue. Returns std::nullopt if neither attribute is present or non-empty.
+  std::optional<std::string> GetAriaValueTextOrValue() const;
+
   // See `AXNode::GetUnignoredSelection`.
   virtual const AXSelection GetUnignoredSelection() const;
 

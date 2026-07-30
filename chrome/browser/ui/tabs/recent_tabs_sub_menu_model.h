@@ -141,6 +141,29 @@ class RecentTabsSubMenuModel : public ui::SimpleMenuModel,
       const sync_sessions::SyncedSession* session,
       const std::vector<const sessions::SessionTab*>& tabs_in_session);
 
+  using TabIterator =
+      std::vector<std::unique_ptr<sessions::tab_restore::Tab>>::const_iterator;
+
+  // Helper to build and add a Split Submenu.
+  void BuildAndAddSplit(
+      ui::SimpleMenuModel* parent,
+      TabIterator& it,
+      TabIterator end,
+      const std::map<split_tabs::SplitTabId,
+                     std::unique_ptr<sessions::tab_restore::Split>>&
+          split_tabs);
+
+  // Helper to build and add a Group Submenu.
+  void BuildAndAddGroup(
+      ui::SimpleMenuModel* parent,
+      TabIterator& it,
+      TabIterator end,
+      const std::map<tab_groups::TabGroupId,
+                     std::unique_ptr<sessions::tab_restore::Group>>& tab_groups,
+      const std::map<split_tabs::SplitTabId,
+                     std::unique_ptr<sessions::tab_restore::Split>>&
+          split_tabs);
+
   // Create a submenu model representing the tabs within a window.
   std::unique_ptr<ui::SimpleMenuModel> CreateWindowSubMenuModel(
       const sessions::tab_restore::Window& window);
@@ -157,6 +180,11 @@ class RecentTabsSubMenuModel : public ui::SimpleMenuModel,
   void AddGroupItemToModel(SimpleMenuModel* parent_model,
                            std::unique_ptr<SimpleMenuModel> group_model,
                            const sessions::tab_restore::Group& group);
+
+  // Adds a submenu item representation of a split view to |parent_model|.
+  void AddSplitItemToModel(SimpleMenuModel* parent_model,
+                           std::unique_ptr<SimpleMenuModel> split_model,
+                           const sessions::tab_restore::Split& split);
 
   // Adds a submenu item representation of a |tab| to |model|.
   void AddTabItemToModel(const sessions::tab_restore::Tab* tab,

@@ -15,6 +15,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
@@ -66,9 +67,9 @@ class SkiaOutputSurface;
 class SoftwareRenderer;
 class OcclusionCuller;
 
-class VIZ_SERVICE_EXPORT DisplayObserver {
+class VIZ_SERVICE_EXPORT DisplayObserver : public base::CheckedObserver {
  public:
-  virtual ~DisplayObserver() = default;
+  ~DisplayObserver() override = default;
 
   virtual void OnDisplayDidFinishFrame(const BeginFrameAck& ack) = 0;
   virtual void OnDisplayDestroyed() = 0;
@@ -299,7 +300,7 @@ class VIZ_SERVICE_EXPORT Display : public DisplaySchedulerClient,
   const raw_ptr<const DebugRendererSettings> debug_settings_;
 
   raw_ptr<DisplayClient> client_ = nullptr;
-  base::ObserverList<DisplayObserver>::Unchecked observers_;
+  base::ObserverList<DisplayObserver> observers_;
   raw_ptr<SurfaceManager> surface_manager_ = nullptr;
   const FrameSinkId frame_sink_id_;
   SurfaceId current_surface_id_;

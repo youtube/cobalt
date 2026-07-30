@@ -48,7 +48,7 @@ public class AuxiliarySearchBridge {
      */
     public void getNonSensitiveTabs(List<Tab> tabs, Callback<@Nullable List<Tab>> callback) {
         if (mNativeBridge == 0) {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, callback.bind(null));
             return;
         }
 
@@ -81,7 +81,7 @@ public class AuxiliarySearchBridge {
     public void getNonSensitiveHistoryData(
             Callback<@Nullable List<AuxiliarySearchDataEntry>> callback) {
         if (mNativeBridge == 0) {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, callback.bind(null));
             return;
         }
 
@@ -97,7 +97,7 @@ public class AuxiliarySearchBridge {
     public void getCustomTabs(
             GURL url, long timestamp, Callback<@Nullable List<AuxiliarySearchDataEntry>> callback) {
         if (mNativeBridge == 0) {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, callback.bind(null));
             return;
         }
 

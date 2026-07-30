@@ -9,6 +9,7 @@ import type {OmniboxComposeboxElement} from 'chrome://omnibox-popup.top-chrome/o
 import {ComposeboxProxyImpl} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import {ComposeboxFile, TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import type {ComposeboxFaviconGroupElement} from 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {InputState} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
@@ -16,7 +17,8 @@ import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_pr
 import {GlowAnimationState} from 'chrome://resources/cr_components/search/constants.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -274,6 +276,7 @@ suite('OmniboxComposeboxTest', () => {
           mimeType: 'application/pdf',
           imageDataUrl: null,  // Non-image
           errorType: null,
+          iconUrl: 'https://example.com/icon.png',
         },
       }],
       toolMode: 0,
@@ -297,6 +300,7 @@ suite('OmniboxComposeboxTest', () => {
     assertEquals(
         ContextUploadStatus.kNotUploaded,
         addedFile.status);  // Non-image starts as not uploaded.
+    assertEquals('https://example.com/icon.png', addedFile.iconUrl);
     assertTrue(clearMatchesPassed);
   });
 
@@ -340,7 +344,7 @@ suite('OmniboxComposeboxTest', () => {
     await microtasksFinished();
 
     const initialCallCount =
-        testProxy.handler.getCallCount('queryAutocomplete');
+        testProxy.handler.getCallCount('queryAutocompleteWithSuggestInventory');
 
     const context = {
       input: 'hello world',
@@ -357,7 +361,8 @@ suite('OmniboxComposeboxTest', () => {
     // Autocomplete should be queried.
     assertEquals(
         initialCallCount + 1,
-        testProxy.handler.getCallCount('queryAutocomplete'));
+        testProxy.handler.getCallCount(
+            'queryAutocompleteWithSuggestInventory'));
   });
 
   test(
@@ -475,6 +480,7 @@ suite('OmniboxComposeboxTest', () => {
           errorType:
               ContextUploadErrorType
                   .kBrowserProcessingFileTooLargeError,  // Validation error.
+          iconUrl: null,
         },
       }],
       toolMode: 0,
@@ -503,6 +509,7 @@ suite('OmniboxComposeboxTest', () => {
               imageDataUrl: null,
               errorType: ContextUploadErrorType
                              .kBrowserProcessingUnsupportedFileTypeError,
+              iconUrl: null,
             },
           }],
           toolMode: 0,
@@ -856,6 +863,9 @@ suite('OmniboxComposeboxTest', () => {
     omniboxComposebox.files.clear();
     omniboxComposebox.files = new Map(omniboxComposebox.files);
     await microtasksFinished();
+    omniboxComposebox.suggestInventory = SuggestInventory.kTravel;
+    assertEquals(SuggestInventory.kTravel, omniboxComposebox.suggestInventory);
+
     let closeEventFired = false;
     omniboxComposebox.addEventListener('close-composebox', () => {
       closeEventFired = true;
@@ -869,6 +879,7 @@ suite('OmniboxComposeboxTest', () => {
 
     assertTrue(closeEventFired);
     assertEquals(1, testProxy.handler.getCallCount('clearFiles'));
+    assertEquals(null, omniboxComposebox.suggestInventory);
   });
 
   test('Cancel button clears input text when there is text', async () => {
@@ -1781,8 +1792,8 @@ suite('OmniboxComposeboxTest', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', {key: 'a'}));
       await microtasksFinished();
 
-      // Verify hint is visible again.
-      assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+      // Verify hint is NOT visible again because it was cleared.
+      assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
     });
 
     test(
@@ -1917,5 +1928,50 @@ suite('OmniboxComposeboxTest', () => {
           // Verify hint is hidden.
           assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
         });
+
+    test('Favicon group rendered in contextual entrypoint button', async () => {
+      loadTimeData.overrideValues({
+        contextManagementInComposeboxEnabled: true,
+        contextManagementInOmniboxEnabled: true,
+        tabFaviconChipsToCoinsEnabled: true,
+      });
+      // Recreate element to pick up loadTimeData.
+      omniboxComposebox.remove();
+      omniboxComposebox = document.createElement('cr-omnibox-composebox');
+      omniboxComposebox.contextMenuEnabled = true;
+      document.body.appendChild(omniboxComposebox);
+      await microtasksFinished();
+
+      const mockToken = 'mock-tab-token-favicon';
+      testProxy.handler.setPromiseResolveFor('addTabContext', mockToken);
+      const context = {
+        input: '',
+        attachments: [{
+          tabAttachment: {
+            tabId: 42,
+            title: 'Google Search',
+            url: {url: 'https://google.com'},
+          },
+        }],
+        toolMode: 0,
+      };
+
+      omniboxComposebox.addSearchContext(context as unknown as SearchContext);
+      await microtasksFinished();
+      await testProxy.handler.whenCalled('addTabContext');
+      await microtasksFinished();
+      await omniboxComposebox.updateComplete;
+
+      const entrypointButton = omniboxComposebox.shadowRoot.querySelector(
+          'cr-composebox-contextual-entrypoint-button');
+      assertTrue(!!entrypointButton);
+      await entrypointButton.updateComplete;
+
+      const faviconGroup = entrypointButton.shadowRoot
+                               .querySelector<ComposeboxFaviconGroupElement>(
+                                   'composebox-favicon-group');
+      assertTrue(!!faviconGroup);
+      assertEquals(1, faviconGroup.tabs.length);
+    });
   });
 });

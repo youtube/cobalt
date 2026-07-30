@@ -18,7 +18,7 @@ class ShareAudioView : public views::View {
  public:
   ShareAudioView(const std::u16string& label_text,
                  bool audio_offered,
-                 base::RepeatingCallback<void(void)> audio_check_callback);
+                 base::RepeatingClosure audio_check_callback);
   ShareAudioView(const ShareAudioView&) = delete;
   ShareAudioView& operator=(const ShareAudioView&) = delete;
   ~ShareAudioView() override;
@@ -35,7 +35,7 @@ class ShareAudioView : public views::View {
 
  private:
   void OnAudioToggleButtonPressed();
-  base::RepeatingCallback<void(void)> audio_check_callback_;
+  base::RepeatingClosure audio_check_callback_;
   raw_ptr<views::Label> audio_toggle_label_ = nullptr;
   raw_ptr<views::ToggleButton> audio_toggle_button_ = nullptr;
 };

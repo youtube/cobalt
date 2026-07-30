@@ -170,7 +170,8 @@ void BleScannerImpl::EnsureDiscoverySessionActive() {
         /*start_position=*/0,
         device::BluetoothLowEnergyScanFilter::AdvertisementDataType::
             kServiceData,
-        kAdvertisingServiceUuidAsBytes);
+        std::vector<uint8_t>(kAdvertisingServiceUuidAsBytes.begin(),
+                             kAdvertisingServiceUuidAsBytes.end()));
     auto filter = device::BluetoothLowEnergyScanFilter::Create(
         device::BluetoothLowEnergyScanFilter::Range::kFar,
         kScanningDeviceFoundTimeout, kScanningDeviceLostTimeout, {pattern},

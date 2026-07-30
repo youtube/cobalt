@@ -68,8 +68,7 @@ enum class SelectBnplIssuerDialogResult {
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SelectBnplIssuerDialogResult)
 
 // Returns the histogram suffix corresponding to the given issuer_id.
-std::string_view GetHistogramSuffixFromIssuerId(
-    autofill::BnplIssuer::IssuerId issuer_id);
+std::string_view GetHistogramSuffixFromIssuerId(BnplIssuer::IssuerId issuer_id);
 
 // Converts a BnplFlowResult enum to its string representation.
 std::string_view ConvertBnplFlowResultToString(BnplFlowResult result);
@@ -192,33 +191,33 @@ void LogBnplPrefToggled(bool enabled);
 void LogBnplIssuersSyncedCountAtStartup(int count);
 
 // Logs that the BNPL ToS dialog was shown.
-void LogBnplTosDialogShown(autofill::BnplIssuer::IssuerId issuer_id);
+void LogBnplTosDialogShown(BnplIssuer::IssuerId issuer_id);
 
 // Logs that the BNPL ToS dialog closed reason.
 void LogBnplTosDialogResult(BnplTosDialogResult result,
-                            autofill::BnplIssuer::IssuerId issuer_id);
+                            BnplIssuer::IssuerId issuer_id);
 
 // Logs the select BNPL issuer dialog result.
 void LogSelectBnplIssuerDialogResult(SelectBnplIssuerDialogResult result);
 
 // Logs the selection of BNPL issuer from the select BNPL issuer dialog.
-void LogBnplIssuerSelection(autofill::BnplIssuer::IssuerId issuer_id);
+void LogBnplIssuerSelection(BnplIssuer::IssuerId issuer_id);
 
 // Logs that the BNPL suggestion was unavailable and the reason why.
 void LogBnplSuggestionUnavailableReason(BnplSuggestionUnavailableReason reason);
 
 // Logs that the BNPL popup window was shown.
-void LogBnplPopupWindowShown(autofill::BnplIssuer::IssuerId issuer_id);
+void LogBnplPopupWindowShown(BnplIssuer::IssuerId issuer_id);
 
 // Logs the result of the BNPL popup window.
-void LogBnplPopupWindowResult(autofill::BnplIssuer::IssuerId issuer_id,
+void LogBnplPopupWindowResult(BnplIssuer::IssuerId issuer_id,
                               BnplFlowResult result);
 
 // Logs the duration a user took to go through the BNPL flow inside of the
 // pop-up window. Broken down by issuer and result, because each issuer and
 // each result should be looked at separately.
 void LogBnplPopupWindowLatency(base::TimeDelta duration,
-                               autofill::BnplIssuer::IssuerId issuer_id,
+                               BnplIssuer::IssuerId issuer_id,
                                BnplFlowResult result);
 
 // Logs suggestion shown events for the Pay Later tab.
@@ -229,7 +228,7 @@ void LogSuggestionShownForPayLaterTab(bool contains_pay_later_tab_suggestions,
 void LogPayLaterTabSelected(ukm::SourceId ukm_source_id);
 
 // Logs that a pay later tab suggestion was accepted.
-void LogPayLaterTabSuggestionAccepted(autofill::BnplIssuer::IssuerId issuer_id,
+void LogPayLaterTabSuggestionAccepted(BnplIssuer::IssuerId issuer_id,
                                       ukm::SourceId ukm_source_id);
 
 // Logs Pay Later Tab form events. Please refer to `PayLaterTabsFormEvent` for
@@ -245,14 +244,16 @@ void LogBnplFormEvent(BnplFormEvent event);
 void LogBnplSuggestionShown(ukm::SourceId ukm_source_id);
 
 // Logs that a BNPL suggestion was accepted on the current page. Logs to both
-// UMA and UKM.
-void LogBnplSuggestionAccepted(ukm::SourceId ukm_source_id);
+// UMA and UKM. `credit_card_suggestions_count` is the number of credit card
+// suggestions shown to the user.
+void LogBnplSuggestionAccepted(ukm::SourceId ukm_source_id,
+                               int credit_card_suggestions_count);
 
 // Logs that a form was filled with the BNPL issuer VCN.
-void LogFormFilledWithBnplVcn(autofill::BnplIssuer::IssuerId issuer_id);
+void LogFormFilledWithBnplVcn(BnplIssuer::IssuerId issuer_id);
 
 // Logs that a form was submitted with the BNPL issuer VCN.
-void LogFormSubmittedWithBnplVcn(autofill::BnplIssuer::IssuerId issuer_id);
+void LogFormSubmittedWithBnplVcn(BnplIssuer::IssuerId issuer_id);
 
 // Logs that the BNPL issuer selection dialog was shown.
 void LogBnplSelectionDialogShown();

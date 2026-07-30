@@ -68,8 +68,8 @@ class FontServiceThread : public base::RefCountedThreadSafe<FontServiceThread> {
   bool FontRenderStyleForStrike(
       std::string family,
       uint32_t size,
-      bool is_italic,
       bool is_bold,
+      bool is_italic,
       float device_scale_factor,
       font_service::mojom::FontRenderStylePtr* out_font_render_style);
   bool MatchFontByPostscriptNameOrFullFontName(
@@ -149,8 +149,8 @@ class FontServiceThread : public base::RefCountedThreadSafe<FontServiceThread> {
       base::WaitableEvent* done_event,
       std::string family,
       uint32_t size,
-      bool is_italic,
       bool is_bold,
+      bool is_italic,
       float device_scale_factor,
       bool* out_valid,
       mojom::FontRenderStylePtr* out_font_render_style);

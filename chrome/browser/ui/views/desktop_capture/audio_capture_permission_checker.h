@@ -37,7 +37,7 @@ class AudioCapturePermissionChecker {
   // Create an AudioCapturePermissionChecker if there is one available and
   // enabled for this platform.
   static std::unique_ptr<AudioCapturePermissionChecker> MaybeCreate(
-      base::RepeatingCallback<void(void)> callback);
+      base::RepeatingClosure callback);
 
   virtual ~AudioCapturePermissionChecker() = default;
 

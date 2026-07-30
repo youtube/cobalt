@@ -53,6 +53,11 @@ class RealWriter final : public FileOperations::Writer {
     return file_.WriteAtCurrentPosAndCheck(data);
   }
 
+  void DetachFromCurrentSequence() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    DETACH_FROM_SEQUENCE(sequence_checker_);
+  }
+
  private:
   base::File file_ GUARDED_BY_CONTEXT(sequence_checker_);
 
@@ -451,6 +456,11 @@ class RealFileOperations : public FileOperations {
     }
 
     return std::make_unique<RealWriter>(std::move(file));
+  }
+
+  void DetachFromCurrentSequence() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    DETACH_FROM_SEQUENCE(sequence_checker_);
   }
 
  private:

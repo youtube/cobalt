@@ -22,13 +22,17 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/hash/hash.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/self_deleting.h"
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/win/registry.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/shlwapi.h"
 #include "base/win/windows_version.h"
@@ -39,9 +43,11 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_result_codes.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/install_static/install_util.h"
 #include "chrome/installer/util/update_did_run_state.h"
 #include "chrome/installer/util/util_constants.h"
 #include "components/activity_reporter/buildflags.h"
+#include "components/version_info/channel.h"
 #include "content/public/app/sandbox_helper_win.h"
 #include "content/public/common/content_switches.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
@@ -49,6 +55,30 @@
 #include "sandbox/win/src/sandbox.h"
 
 namespace {
+
+class DllPreReader : public base::PlatformThread::Delegate,
+                     public base::SelfDeleting {
+ public:
+  explicit DllPreReader(const base::FilePath& module,
+                        base::SelfDeletingPassKey key)
+      : SelfDeleting(key), module_(module) {}
+
+  DllPreReader(const DllPreReader&) = delete;
+  DllPreReader& operator=(const DllPreReader&) = delete;
+
+  void ThreadMain() override {
+    base::PreReadFile(module_, /*is_executable=*/true, /*sequential=*/false);
+    // As a non-joinable thread delegate, this class must clean itself up when
+    // finished.
+    delete this;
+  }
+
+ private:
+  ~DllPreReader() override = default;
+
+  base::FilePath module_;
+};
+
 // The entry point signature of chrome.dll.
 typedef int (*DLL_MAIN)(HINSTANCE,
                         sandbox::SandboxInterfaceInfo*,
@@ -57,6 +87,41 @@ typedef int (*DLL_MAIN)(HINSTANCE,
                         int64_t preread_end_ticks);
 
 typedef void (*RelaunchChromeBrowserWithNewCommandLineIfNeededFunc)();
+
+std::wstring GetMachineGuid() {
+  base::win::RegKey key;
+  std::wstring value;
+  if (key.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Cryptography",
+               KEY_QUERY_VALUE | KEY_WOW64_64KEY) != ERROR_SUCCESS ||
+      key.ReadValue(L"MachineGuid", &value) != ERROR_SUCCESS || value.empty()) {
+    return std::wstring();
+  }
+  return value;
+}
+
+// Uses the machine GUID to determine whether preload should be run
+// asynchronously as part of the ParallelPreReadFileMainDllWin synthetic trial.
+// The GUID is used to be stable across sessions. This is important when
+// affecting pre-reading because there is a learning effect for preloading
+// interventions at the OS level.
+bool ShouldPreReadFileAsynchronously() {
+  // The trial only runs on lower channels for now.
+  const version_info::Channel channel = install_static::GetChromeChannel();
+  if (channel != version_info::Channel::CANARY &&
+      channel != version_info::Channel::DEV) {
+    return false;
+  }
+
+  // Get the machine GUID, in case that fails return false to default to
+  // pre-reading.
+  const std::wstring machine_guid = GetMachineGuid();
+  if (machine_guid.empty()) {
+    return false;
+  }
+
+  // Returns true for 50% of clients.
+  return base::PersistentHash(base::as_byte_span(machine_guid)) % 2 == 0;
+}
 
 void RecordDidRun(const base::FilePath& dll_path) {
 #if BUILDFLAG(USE_LEGACY_ACTIVE_DEFINITION)
@@ -88,7 +153,7 @@ base::FilePath GetModulePath(std::wstring_view module_name) {
   if (ModuleCanBeRead(module_path))
     return module_path;
 
-  // Othwerwise, return the path to the module in the current executable's
+  // Otherwise, return the path to the module in the current executable's
   // directory. This is the expected location of modules for dev builds.
   return exe_dir.Append(module_name);
 }
@@ -102,21 +167,23 @@ HMODULE LoadModuleWithDirectory(const base::FilePath& module,
                                 base::TimeTicks& preread_begin_ticks,
                                 base::TimeTicks& preread_end_ticks) {
   ::SetCurrentDirectoryW(module.DirName().value().c_str());
-  if (is_browser) {
+  const bool preread_asynchronously = ShouldPreReadFileAsynchronously();
+  const bool synchronous_preread =
+      is_browser ? !preread_asynchronously
+                 : !cmd_line.HasSwitch(switches::kNoPreReadMainDll);
+  const bool asynchronous_preread = is_browser && preread_asynchronously;
+  CHECK(!(synchronous_preread && asynchronous_preread));
+
+  if (synchronous_preread) {
     preread_begin_ticks = base::TimeTicks::Now();
-    // Always call PreReadFile() for the main browser process.
     base::PreReadFile(module, /*is_executable=*/true, /*sequential=*/false);
     preread_end_ticks = base::TimeTicks::Now();
-  } else {
-    // The kNoPreReadMainDll experiment only impacts other processes. Isolate
-    // the check so the experiment is easier to remove later if we land the
-    // PrefetchVirtualMemoryPolicy experiment.
-    if (!cmd_line.HasSwitch(switches::kNoPreReadMainDll)) {
-      preread_begin_ticks = base::TimeTicks::Now();
-      base::PreReadFile(module, /*is_executable=*/true, /*sequential=*/false);
-      preread_end_ticks = base::TimeTicks::Now();
-    }
+  } else if (asynchronous_preread) {
+    base::PlatformThread::CreateNonJoinableWithType(
+        0, base::MakeSelfDeleting<DllPreReader>(module),
+        base::ThreadType::kDefault);
   }
+
   HMODULE handle = ::LoadLibraryExW(module.value().c_str(), nullptr,
                                     LOAD_WITH_ALTERED_SEARCH_PATH);
   return handle;

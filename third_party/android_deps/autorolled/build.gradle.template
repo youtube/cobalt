@@ -69,6 +69,7 @@ dependencies {
     // Other libraries
     compileLatest 'com.airbnb.android:lottie:+'
     compileLatest 'com.google.errorprone:error_prone_annotations:+'
+    buildCompileLatest 'com.google.errorprone:error_prone_test_helpers:+'
     compileLatest 'org.jspecify:jspecify:+'
     compileLatest 'javax.inject:javax.inject:+'
     compileLatest 'javax.annotation:javax.annotation-api:+'

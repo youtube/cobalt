@@ -22,9 +22,9 @@
 namespace default_browser {
 
 // The "Modal" entrypoint for the Windows Default Browser. This is the global
-// manger for the modal dialog instances across all browser windows. This dialog
-// displays a WebUI page to provide prompts that help users navigate OS settings
-// to set Chrome as the default browser based the DefaultBrowserSetter
+// manager for the modal dialog instances across all browser windows. This
+// dialog displays a WebUI page to provide prompts that help users navigate OS
+// settings to set Chrome as the default browser based the DefaultBrowserSetter
 // behavior.
 class DefaultBrowserModalDialogManager : public DefaultBrowserSurfaceManager {
  public:

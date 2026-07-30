@@ -4,9 +4,12 @@
 
 #import "ios/chrome/browser/settings/autofill/utils/autofill_settings_ui_util.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/i18n/message_formatter.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/common/autofill_features.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_item.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -78,4 +81,19 @@ NSString* GetDeletionConfirmationStringWithEntities(
   } else {
     return GetDeletionConfirmationTitleLocal();
   }
+}
+
+bool IsDeletableItem(TableViewItem* item) {
+  AutofillAIEntityItem* aiItem =
+      base::apple::ObjCCast<AutofillAIEntityItem>(item);
+  return aiItem && !aiItem.isServerWalletItem;
+}
+
+BOOL ContainsLocalEntity(NSArray<TableViewItem*>* items) {
+  for (TableViewItem* item in items) {
+    if (IsDeletableItem(item)) {
+      return YES;
+    }
+  }
+  return NO;
 }

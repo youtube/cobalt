@@ -28,6 +28,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -83,6 +84,10 @@ public class TabbedAdaptiveToolbarBehaviorTest {
             ObservableSuppliers.createMonotonic();
     private final NullableObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
             ObservableSuppliers.createNullable();
+    private final SettableNonNullObservableSupplier<Boolean> mIsVerticalTabsActiveSupplier =
+            ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mIsGlicPinnedSupplier =
+            ObservableSuppliers.createNonNull(false);
 
     private TabbedAdaptiveToolbarBehavior mBehavior;
 
@@ -110,7 +115,9 @@ public class TabbedAdaptiveToolbarBehaviorTest {
                         mTabStripVisibilitySupplier,
                         mGlicButtonDelegate,
                         () -> mChromeAndroidTask,
-                        mBrowserControlsVisibilityManager);
+                        mBrowserControlsVisibilityManager,
+                        mIsVerticalTabsActiveSupplier,
+                        mIsGlicPinnedSupplier);
     }
 
     @Test
@@ -126,6 +133,40 @@ public class TabbedAdaptiveToolbarBehaviorTest {
         assertTopResult(
                 /* segmentationResults= */ List.of(
                         AdaptiveToolbarButtonVariant.SHARE, AdaptiveToolbarButtonVariant.GLIC),
+                /* expectedTopResult= */ AdaptiveToolbarButtonVariant.GLIC);
+    }
+
+    @Test
+    @Config(qualifiers = "w390dp-h820dp")
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    @DisableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testResultFilter_VerticalTabAndGlicPinned() {
+        when(mGlicEnablingJniMock.isEnabledForProfile(eq(mProfile))).thenReturn(true);
+        ActorKeyedServiceFactory.setForTesting(mActorKeyedService);
+        when(mActorKeyedService.getCurrentActiveTask()).thenReturn(mActorTask);
+        when(mActorKeyedService.getActiveTasks()).thenReturn(List.of(mActorTask));
+        mBehavior.registerPerSurfaceButtons(mAdaptiveToolbarButtonController, () -> null);
+
+        List<Integer> segmentationResultsGlicShare =
+                List.of(AdaptiveToolbarButtonVariant.GLIC, AdaptiveToolbarButtonVariant.SHARE);
+        // Case 1: Vertical tabs active and glic pinned -> GLIC is filtered.
+        mIsVerticalTabsActiveSupplier.set(true);
+        mIsGlicPinnedSupplier.set(true);
+        assertTopResult(
+                segmentationResultsGlicShare,
+                /* expectedTopResult= */ AdaptiveToolbarButtonVariant.SHARE);
+
+        // Case 2: Vertical tabs active, but glic NOT pinned -> GLIC is NOT filtered.
+        mIsGlicPinnedSupplier.set(false);
+        assertTopResult(
+                segmentationResultsGlicShare,
+                /* expectedTopResult= */ AdaptiveToolbarButtonVariant.GLIC);
+
+        // Case 3: Vertical tabs NOT active, glic pinned -> GLIC is NOT filtered.
+        mIsVerticalTabsActiveSupplier.set(false);
+        mIsGlicPinnedSupplier.set(true);
+        assertTopResult(
+                segmentationResultsGlicShare,
                 /* expectedTopResult= */ AdaptiveToolbarButtonVariant.GLIC);
     }
 

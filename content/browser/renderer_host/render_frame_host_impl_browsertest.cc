@@ -102,6 +102,7 @@
 #include "net/test/embedded_test_server/request_handler_util.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -7927,7 +7928,7 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplCredentiallessIframeNikBrowserTest,
                             network::mojom::CredentialsMode::kInclude,
                             main_rfh->GetIsolationInfoForSubresources()
                                 .network_anonymization_key(),
-                            /*network_restrictions_id=*/std::nullopt,
+                            network::GetTestNetworkRestrictionsId(),
                             net::MutableNetworkTrafficAnnotationTag(
                                 TRAFFIC_ANNOTATION_FOR_TESTS),
                             std::nullopt, mojo::NullRemote());
@@ -10890,6 +10891,47 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
             nav_observer.last_net_error_code());
   EXPECT_TRUE(
       new_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin().opaque());
+}
+
+// Verify that any navigation always creates a network restrictions token.
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       ConnectionAllowlistNavigationCreatesToken) {
+  GURL url(https_server()->GetURL("a.com", "/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  base::UnguessableToken restrictions_id =
+      web_contents()->GetPrimaryMainFrame()->GetNetworkRestrictionsID();
+  EXPECT_FALSE(restrictions_id.is_empty());
+}
+
+// Verify that same-document navigation does not change the network restrictions
+// token, while cross-document same-site navigation does.
+IN_PROC_BROWSER_TEST_F(
+    RenderFrameHostImplConnectionAllowlistBrowserTest,
+    ConnectionAllowlistSameDocumentNavigationDoesNotChangeToken) {
+  GURL url(https_server()->GetURL("a.com", "/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  base::UnguessableToken first_id =
+      web_contents()->GetPrimaryMainFrame()->GetNetworkRestrictionsID();
+  EXPECT_FALSE(first_id.is_empty());
+
+  // Perform same-document navigation.
+  GURL same_doc_url(https_server()->GetURL("a.com", "/title1.html#hash"));
+  EXPECT_TRUE(NavigateToURL(shell(), same_doc_url));
+
+  base::UnguessableToken second_id =
+      web_contents()->GetPrimaryMainFrame()->GetNetworkRestrictionsID();
+  EXPECT_EQ(first_id, second_id);
+
+  // Perform cross-document same-site navigation.
+  GURL cross_doc_url(https_server()->GetURL("a.com", "/title2.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), cross_doc_url));
+
+  base::UnguessableToken third_id =
+      web_contents()->GetPrimaryMainFrame()->GetNetworkRestrictionsID();
+  EXPECT_NE(first_id, third_id);
+  EXPECT_FALSE(third_id.is_empty());
 }
 
 }  // namespace content

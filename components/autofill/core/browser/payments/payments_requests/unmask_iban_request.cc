@@ -51,8 +51,7 @@ std::string UnmaskIbanRequest::GetRequestContentType() {
 std::string UnmaskIbanRequest::GetRequestContent() {
   base::DictValue request_dict;
   base::DictValue context;
-  context.Set("billable_service",
-              payments::kUnmaskPaymentMethodBillableServiceNumber);
+  context.Set("billable_service", kUnmaskPaymentMethodBillableServiceNumber);
   if (request_details_.billing_customer_number != 0) {
     context.Set("customer_context",
                 BuildCustomerContextDictionary(

@@ -11,6 +11,7 @@ and uploads to Gerrit.
 """
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -309,13 +310,19 @@ def call_jetski_cli(prompt_file_path, working_dir, model, abs_working_dir):
             f"@{prompt_file_path}",
         ]
 
+        llm_output = ""
         try:
             print("Running jetski-cli with native sandbox "
                   f"path: {temp_gemini_dir}")
-            subprocess.run(jetski_cmd, text=True, cwd=working_dir, check=True)
+            llm_res = subprocess.run(jetski_cmd,
+                                     text=True,
+                                     cwd=working_dir,
+                                     check=True)
+            llm_output = llm_res.stdout
         finally:
             if os.path.exists(prompt_file_path):
                 os.remove(prompt_file_path)
+        return llm_output
 
 
 def compile_branch(platform, target, submodule):
@@ -325,11 +332,13 @@ def compile_branch(platform, target, submodule):
 
     compile_res = subprocess.run(f"autoninja -C {out_dir} {target}",
                                  shell=True,
+                                 capture_output=True,
+                                 text=True,
                                  cwd=submodule)
     compile_success = (compile_res.returncode == 0)
     compile_result = "SUCCESS" if compile_success else "ERROR"
     print(f"Compilation status: {compile_result}")
-    return compile_result
+    return [compile_result, compile_res.stderr]
 
 
 def commit_if_changes(submodule):
@@ -379,18 +388,20 @@ def compute_diff_stats(submodule, sub_main, branch):
 
 
 def append_row(branch, gerrit_url, compile_result, plus_delta, minus_delta,
-               total_delta, num_files):
-    """Appends a row to the specified Google Sheet."""
+               total_delta, num_files, compilation_errors, llm_output):
+    """Appends a row to the specified csv file."""
     # patch source identifier
-    with open(PATCHES_CSV, "a") as f_csv:
-        f_csv.write(f'"{branch}","{gerrit_url}",{compile_result},'
-                    f'{plus_delta},{minus_delta},{total_delta},'
-                    f'{num_files}\n')
+    with open(PATCHES_CSV, "a", newline="", encoding="utf-8") as f_csv:
+        writer = csv.writer(f_csv, quoting=csv.QUOTE_MINIMAL)
+        writer.writerow([
+            branch, gerrit_url, compile_result, plus_delta, minus_delta,
+            total_delta, num_files, compilation_errors, llm_output
+        ])
 
 
 def upload_to_gerrit(submodule, branch, bug_number, compile_result, plus_delta,
                      minus_delta, total_delta, num_files, first_file,
-                     fixed_text, patch):
+                     compilation_errors, llm_output, fixed_text, patch):
     """Uploads the branch to Gerrit with the specified bug number."""
     # Use the current patch file name as original patch info
     original_patch = f"Original patch: {patch}"
@@ -450,7 +461,8 @@ def upload_to_gerrit(submodule, branch, bug_number, compile_result, plus_delta,
                 print(f"Gerrit CL URL: {gerrit_url}")
                 print(f"Gerrit CL Number: {cl_number}")
                 append_row(branch, gerrit_url, compile_result, plus_delta,
-                           minus_delta, total_delta, num_files)
+                           minus_delta, total_delta, num_files,
+                           compilation_errors, llm_output)
             else:
                 print("WARNING: Could not parse Gerrit URL " +
                       "from upload output.")
@@ -550,7 +562,8 @@ def main():
 
     # Ensure patches.csv is prepared
     append_row("original_patch", "gerrit_url", "compile_result", "plus_delta",
-               "minus_delta", "total_delta", "num_files")
+               "minus_delta", "total_delta", "num_files", "compilation_errors",
+               "llm_output")
 
     # # Switch to main branch first
     # sh("git checkout main", check=True)
@@ -614,11 +627,13 @@ Then refined with jetski-cli and at last manually refined"""
             break
 
         abs_working_dir = os.path.abspath(working_dir)
-        call_jetski_cli(prompt_file_path, working_dir, model, abs_working_dir)
+        llm_output = call_jetski_cli(prompt_file_path, working_dir, model,
+                                     abs_working_dir)
 
         commit_if_changes(submodule)
 
-        compile_result = compile_branch(platform, target, submodule)
+        [compile_result,
+         compilation_errors] = compile_branch(platform, target, submodule)
 
         [plus_delta, minus_delta, total_delta, num_files,
          first_file] = compute_diff_stats(submodule, sub_main, branch)
@@ -631,7 +646,8 @@ Then refined with jetski-cli and at last manually refined"""
 
         upload_to_gerrit(submodule, branch, bug_number, compile_result,
                          plus_delta, minus_delta, total_delta, num_files,
-                         first_file, fixed_text, patch)
+                         compilation_errors, llm_output, first_file,
+                         fixed_text, patch)
 
         cleanup_prompt_files()
 

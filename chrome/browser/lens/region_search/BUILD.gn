@@ -23,6 +23,7 @@ static_library("region_search") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/tab_contents",
     "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/views:layout_provider",
     "//chrome/common:constants",
     "//components/lens",
     "//components/lens:buildflags",

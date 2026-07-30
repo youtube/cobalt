@@ -26,7 +26,6 @@ class AccountManagerUIImpl : public account_manager::AccountManagerUI {
   void ShowReauthAccountDialog(const std::string& email,
                                base::OnceClosure close_dialog_closure) override;
   bool IsDialogShown() override;
-  void ShowManageAccountsSettings() override;
 };
 
 }  // namespace ash

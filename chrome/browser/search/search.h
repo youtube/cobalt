@@ -15,6 +15,7 @@ class Profile;
 namespace content {
 class BrowserContext;
 class NavigationEntry;
+class SecurityPrincipal;
 class WebContents;
 }
 
@@ -56,11 +57,24 @@ GURL GetNewTabPageURL(Profile* profile);
 #if !BUILDFLAG(IS_ANDROID)
 
 // Returns true if |url| should be rendered in the Instant renderer process.
+// Use this version for navigation URLs (before effective URL translation),
+// e.g. in GetEffectiveURL where the URL has not yet been converted to a
+// chrome-search:// site URL.
 bool ShouldAssignURLToInstantRenderer(const GURL& url, Profile* profile);
 
-// Returns true if the Instant |site_url| should use process per site.
-bool ShouldUseProcessPerSiteForInstantSiteURL(const GURL& site_url,
-                                              Profile* profile);
+// Returns true if |security_principal| instance should be rendered in the
+// Instant renderer process. Use this version when working with SiteInstances
+// or SecurityPrincipal(after effective URL translation), where instant URLs
+// have already been converted to chrome-search:// scheme.
+bool ShouldAssignSecurityPrincipalToInstantRenderer(
+    const content::SecurityPrincipal& security_principal,
+    Profile* profile);
+
+// Returns true if |security_principal| represents an Instant NTP URL
+// (chrome-search://remote-ntp) that should use process-per-site mode.
+bool ShouldUseProcessPerSiteForSecurityPrincipal(
+    const content::SecurityPrincipal& security_principal,
+    Profile* profile);
 
 // Returns the "effective URL" based on the input |url|. |url| must be an
 // Instant URL, i.e. ShouldAssignURLToInstantRenderer must return true. The

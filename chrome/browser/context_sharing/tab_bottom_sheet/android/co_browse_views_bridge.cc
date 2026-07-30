@@ -6,6 +6,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_container_type.h"
@@ -19,6 +20,7 @@
 // avoid 'specialization after instantiation' errors for ToJniType.
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/CoBrowseViewFactory_jni.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/CoBrowseViews_jni.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/public/android/jni_headers/CoBrowseComponentProvider_jni.h"
 
 using base::android::AttachCurrentThread;
 
@@ -43,9 +45,18 @@ CoBrowseViewsBridge::CoBrowseViewsBridge(
     : tab_(tab),
       client_type_(client_type),
       container_type_(container_type),
-      bottom_sheet_content_provider_(bottom_sheet_content_provider) {}
+      bottom_sheet_content_provider_(bottom_sheet_content_provider),
+      tab_insert_subscription_(tab.RegisterDidInsert(
+          base::BindRepeating(&CoBrowseViewsBridge::OnTabInserted,
+                              base::Unretained(this)))) {}
 
 CoBrowseViewsBridge::~CoBrowseViewsBridge() {
+  if (bottom_sheet_content_provider_) {
+    JNIEnv* env = AttachCurrentThread();
+    Java_CoBrowseComponentProvider_destroy(env, bottom_sheet_content_provider_);
+    bottom_sheet_content_provider_.Reset();
+  }
+
   DestroyCoBrowseViews();
 }
 
@@ -84,6 +95,7 @@ bool CoBrowseViewsBridge::CreateCoBrowseViews(
 
 void CoBrowseViewsBridge::SetWebContents(content::WebContents* web_contents,
                                          bool request_focus) {
+  guest_web_contents_ = web_contents;
   if (web_contents) {
     web_contents->SetIgnoreZoomGestures(true);
     if (!zoom::ZoomController::FromWebContents(web_contents)) {
@@ -138,6 +150,25 @@ void CoBrowseViewsBridge::DestroyCoBrowseViews() {
 
 TabAndroid* CoBrowseViewsBridge::GetTabAndroid() const {
   return TabAndroid::FromTabHandle(tab_->GetHandle());
+}
+
+void CoBrowseViewsBridge::OnTabInserted(tabs::TabInterface* tab) {
+  if (!guest_web_contents_) {
+    return;
+  }
+  TabAndroid* tab_android = GetTabAndroid();
+  if (!tab_android) {
+    return;
+  }
+  content::WebContents* tab_contents = tab_android->GetContents();
+  ui::WindowAndroid* current_window =
+      (tab_contents && !tab_android->IsOffscreenRendering())
+          ? tab_contents->GetTopLevelNativeWindow()
+          : nullptr;
+
+  if (current_window && current_window != window_android_) {
+    CreateCoBrowseViews(guest_web_contents_);
+  }
 }
 
 }  // namespace context_sharing

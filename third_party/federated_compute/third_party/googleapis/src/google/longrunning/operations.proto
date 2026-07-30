@@ -1,0 +1,161 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.longrunning;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/duration.proto";
+import "google/rpc/status.proto";
+
+option csharp_namespace = "Google.LongRunning";
+option go_package = "cloud.google.com/go/longrunning/autogen/longrunningpb;longrunningpb";
+option java_multiple_files = true;
+option java_outer_classname = "OperationsProto";
+option java_package = "com.google.longrunning";
+option objc_class_prefix = "GLRUN";
+option php_namespace = "Google\\LongRunning";
+
+// This resource represents a long-running operation that is the result of a
+// network API call.
+message Operation {
+  // The server-assigned name, which is only unique within the same service that
+  // originally returns it. If you use the default HTTP mapping, the
+  // `name` should be a resource name ending with `operations/{unique_id}`.
+  string name = 1;
+
+  // Service-specific metadata associated with the operation.  It typically
+  // contains progress information and common metadata such as create time.
+  // Some services might not provide such metadata.  Any method that returns a
+  // long-running operation should document the metadata type, if any.
+  google.protobuf.Any metadata = 2;
+
+  // If the value is `false`, it means the operation is still in progress.
+  // If `true`, the operation is completed, and either `error` or `response` is
+  // available.
+  bool done = 3;
+
+  // The operation result, which can be either an `error` or a valid `response`.
+  // If `done` == `false`, neither `error` nor `response` is set.
+  // If `done` == `true`, exactly one of `error` or `response` can be set.
+  // Some services might not provide the result.
+  oneof result {
+    // The error result of the operation in case of failure or cancellation.
+    google.rpc.Status error = 4;
+
+    // The normal, successful response of the operation.  If the original
+    // method returns no data on success, such as `Delete`, the response is
+    // `google.protobuf.Empty`.  If the original method is standard
+    // `Get`/`Create`/`Update`, the response should be the resource.  For other
+    // methods, the response should have the type `XxxResponse`, where `Xxx`
+    // is the original method name.  For example, if the original method name
+    // is `TakeSnapshot()`, the inferred response type is
+    // `TakeSnapshotResponse`.
+    google.protobuf.Any response = 5;
+  }
+}
+
+// The request message for
+// [Operations.GetOperation][google.longrunning.Operations.GetOperation].
+message GetOperationRequest {
+  // The name of the operation resource.
+  string name = 1;
+}
+
+// The request message for
+// [Operations.ListOperations][google.longrunning.Operations.ListOperations].
+message ListOperationsRequest {
+  // The name of the operation's parent resource.
+  string name = 4;
+
+  // The standard list filter.
+  string filter = 1;
+
+  // The standard list page size.
+  int32 page_size = 2;
+
+  // The standard list page token.
+  string page_token = 3;
+
+  // When set to `true`, operations that are reachable are returned as normal,
+  // and those that are unreachable are returned in the
+  // [ListOperationsResponse.unreachable] field.
+  //
+  // This can only be `true` when reading across collections e.g. when `parent`
+  // is set to `"projects/example/locations/-"`.
+  //
+  // This field is not by default supported and will result in an
+  // `UNIMPLEMENTED` error if set unless explicitly documented otherwise in
+  // service or product specific documentation.
+  bool return_partial_success = 5;
+}
+
+// The request message for
+// [Operations.CancelOperation][google.longrunning.Operations.CancelOperation].
+message CancelOperationRequest {
+  // The name of the operation resource to be cancelled.
+  string name = 1;
+}
+
+// The request message for
+// [Operations.DeleteOperation][google.longrunning.Operations.DeleteOperation].
+message DeleteOperationRequest {
+  // The name of the operation resource to be deleted.
+  string name = 1;
+}
+
+// The request message for
+// [Operations.WaitOperation][google.longrunning.Operations.WaitOperation].
+message WaitOperationRequest {
+  // The name of the operation resource to wait on.
+  string name = 1;
+
+  // The maximum duration to wait before timing out. If left blank, the wait
+  // will be at most the time permitted by the underlying HTTP/RPC protocol.
+  // If RPC context deadline is also specified, the shorter one will be used.
+  google.protobuf.Duration timeout = 2;
+}
+
+// A message representing the message types used by a long-running operation.
+//
+// Example:
+//
+//     rpc Export(ExportRequest) returns (google.longrunning.Operation) {
+//       option (google.longrunning.operation_info) = {
+//         response_type: "ExportResponse"
+//         metadata_type: "ExportMetadata"
+//       };
+//     }
+message OperationInfo {
+  // Required. The message name of the primary return type for this
+  // long-running operation.
+  // This type will be used to deserialize the LRO's response.
+  //
+  // If the response is in a different package from the rpc, a fully-qualified
+  // message name must be used (e.g. `google.protobuf.Struct`).
+  //
+  // Note: Altering this value constitutes a breaking change.
+  string response_type = 1;
+
+  // Required. The message name of the metadata type for this long-running
+  // operation.
+  //
+  // If the response is in a different package from the rpc, a fully-qualified
+  // message name must be used (e.g. `google.protobuf.Struct`).
+  //
+  // Note: Altering this value constitutes a breaking change.
+  string metadata_type = 2;
+}

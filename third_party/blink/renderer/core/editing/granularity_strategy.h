@@ -30,7 +30,7 @@ class GranularityStrategy {
 
   // Calculates and returns the new selection based on the updated extent
   // location in absolute coordinates.
-  virtual SelectionInDOMTree UpdateExtent(const gfx::Point&, LocalFrame*) = 0;
+  virtual SelectionInDomTree UpdateExtent(const gfx::Point&, LocalFrame*) = 0;
 
  protected:
   GranularityStrategy();
@@ -45,7 +45,7 @@ class CharacterGranularityStrategy final : public GranularityStrategy {
   // GranularityStrategy:
   SelectionStrategy GetType() const final;
   void Clear() final;
-  SelectionInDOMTree UpdateExtent(const gfx::Point&, LocalFrame*) final;
+  SelectionInDomTree UpdateExtent(const gfx::Point&, LocalFrame*) final;
 };
 
 // "Expand by word, shrink by character" selection strategy.
@@ -93,7 +93,7 @@ class DirectionGranularityStrategy final : public GranularityStrategy {
   // GranularityStrategy:
   SelectionStrategy GetType() const final;
   void Clear() final;
-  SelectionInDOMTree UpdateExtent(const gfx::Point&, LocalFrame*) final;
+  SelectionInDomTree UpdateExtent(const gfx::Point&, LocalFrame*) final;
 
  private:
   enum class StrategyState {

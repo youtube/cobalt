@@ -232,6 +232,8 @@ should be able to be added at any place in this file.
       summary="For AddToHomescreen IPH feature."/>
   <variant name="_AddToHomescreenTextBubble"
       summary="For AddToHomescreen IPH feature using text bubble (obsolete)."/>
+  <variant name="_AimActivationHint"
+      summary="A hint to activate AI Mode on Android Desktop via keystrokes."/>
   <variant name="_AndroidBottomBarGlic"
       summary="Describes the GLIC button added in the bottom bar."/>
   <variant name="_AndroidBottomBarNewTab"
@@ -287,6 +289,8 @@ should be able to be added at any place in this file.
       summary="For BadgedTranslateManualTrigger feature."/>
   <variant name="_BatterySaverMode" summary="For BatterySaverMode feature."/>
   <variant name="_Bookmark" summary="For Bookmark feature."/>
+  <variant name="_BookmarkBarSimplified"
+      summary="For bookmark bar simplified auto-hide toast."/>
   <variant name="_BookmarksBar"
       summary="For Bookmarks Bar feature. (obsolete)"/>
   <variant name="_BottomToolbarTip" summary="For BottomToolbarTip feature."/>
@@ -878,12 +882,35 @@ should be able to be added at any place in this file.
   <variant name="_WebUiHelpBubbleTest"
       summary="For WebUiHelpBubbleTest feature."/>
   <variant name="_WhatsNewUpdated" summary="For what's new updated content."/>
+  <variant name="IPH_SidePanelContextualTasksPinnableFeature"
+      summary="contextual tasks side panel pinnable"/>
 </variants>
 
 <variants name="MerchantTrust_Type">
   <variant name="" summary="aggregated"/>
   <variant name=".FamiliarSite" summary="Recorded on a familiar site."/>
   <variant name=".UnfamiliarSite" summary="Recorded on an unfamiliar site."/>
+</variants>
+
+<variants name="PersonalContextEntryPoint">
+  <variant name="AutofillAndPasswordsSettings"
+      summary="Autofill and Passwords settings page"/>
+  <variant name="IdentityDocsSettings"
+      summary="Autofill Identity Docs settings page"/>
+  <variant name="ShoppingSettings" summary="Autofill Shopping settings page"/>
+  <variant name="TravelSettings" summary="Autofill Travel settings page"/>
+</variants>
+
+<variants name="PersonalContextManageTarget">
+  <variant name="ConnectedApps" summary="'Manage connected apps'"/>
+  <variant name="Suggestions" summary="'Manage suggestions'"/>
+</variants>
+
+<variants name="PersonalContextToggleState">
+  <variant name="Off"
+      summary="switching it from the `on` state to the `off` state"/>
+  <variant name="On"
+      summary="switching it from the `off` state to the `on` state"/>
 </variants>
 
 <variants name="PopupType">
@@ -5074,11 +5101,12 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="Android.TabStripMenu.ShowTabsVertically">
+<action name="Android.TabStripMenu.ToggleTabLayout">
   <owner>eleanorlee@google.com</owner>
   <description>
-    User tapped 'Show tabs vertically' in the tab strip context menu to display
-    the vertical tabs.
+    User tapped 'Show tabs vertically' in the tab strip context menu or 'Show
+    tabs horizontally' in the Vertical Tabs empty context menu to toggle the tab
+    layout.
   </description>
 </action>
 
@@ -5087,6 +5115,24 @@ should be able to be added at any place in this file.
   <description>
     User tapped 'Unpin Glic' on the tab strip context menu to unpin the Glic
     button in the tab strip.
+  </description>
+</action>
+
+<action name="Android.VerticalTabs.UndoCloseTab">
+  <owner>agazal@google.com</owner>
+  <owner>kije@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <description>
+    User undoes a closed tab that was closed from the Vertical Tabs pane.
+  </description>
+</action>
+
+<action name="Android.VerticalTabs.UndoCloseTabGroup">
+  <owner>agazal@google.com</owner>
+  <owner>kije@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <description>
+    User undoes a closed group that was closed from the Vertical Tabs pane.
   </description>
 </action>
 
@@ -7816,6 +7862,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="BookmarkBar_ContextMenu_AlwaysHide">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Always Hide&quot; option for the bookmark bar
+    visibility using the context menu.
+  </description>
+</action>
+
+<action name="BookmarkBar_ContextMenu_AlwaysShow">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Always Show&quot; option for the bookmark bar
+    visibility using context menu.
+  </description>
+</action>
+
 <action name="BookmarkBar_ContextMenu_Edit">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -7835,6 +7899,15 @@ should be able to be added at any place in this file.
 <action name="BookmarkBar_ContextMenu_NewFolder">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="BookmarkBar_ContextMenu_OnlyShowOnNtp">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Only Show on NTP&quot; option for the bookmark
+    bar visibility using the context menu.
+  </description>
 </action>
 
 <action name="BookmarkBar_ContextMenu_Open">
@@ -7982,6 +8055,15 @@ should be able to be added at any place in this file.
 <action name="BookmarkBar_ShowRecentlyBookmarked">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="BookmarkBar_Simplified_IPH_Undo">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user clicked the &quot;Undo&quot; button on the educational toast (IPH)
+    that appeared when the bookmark bar was auto-hidden after inactivity.
+  </description>
 </action>
 
 <action name="BookmarkBarFolder_CtxMenu">
@@ -15147,6 +15229,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.CloseByClickOutside">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     User clicked outside of the Glic First Run Experience dialog to close it.
@@ -15154,6 +15237,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.CloseByClosingHostTab">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     User closed the tab hosting the First Run Experience dialog to close it.
@@ -15161,6 +15245,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.CloseByMovingHostTab">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     User moved the tab hosting the First Run Experience dialog which closes it.
@@ -15176,6 +15261,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.CloseWithToggle">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15184,6 +15270,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.CloseWithX">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     User clicked the 'X' button to close the Glic First Run Experience dialog.
@@ -15228,6 +15315,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.ErrorPanelTryAgainClicked">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15236,6 +15324,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.HelpCenterLinkOpened">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>dullweber@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15262,6 +15351,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.LoadSuccess">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15271,6 +15361,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.MyActivityLinkOpened">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>dullweber@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>Logged if a myactivity link is opened from the FRE.</description>
@@ -15293,12 +15384,14 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.PolicyLinkOpened">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>dullweber@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>Logged if a policy link is opened from the FRE.</description>
 </action>
 
 <action name="Glic.Fre.PrivacyNoticeLinkOpened">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>dullweber@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15342,6 +15435,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.WebviewLoadAborted" not_user_triggered="true">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     Recorded when the Glic FRE webview fails to load for any reason other than a
@@ -15350,6 +15444,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.WebviewLoadTimedOut" not_user_triggered="true">
+  <obsolete>Deprecated in M151. Glic Unified FRE has been removed.</obsolete>
   <owner>birnie@google.com</owner>
   <description>
     Recorded when the Glic FRE webview fails to load due to a timeout.
@@ -30444,9 +30539,12 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="MobilePasswordCheckupInteractionIgnoredOnCooldown">
+<action name="MobilePasswordCheckupInteractionIgnoredDuringNavigation">
   <owner>vincb@google.com</owner>
-  <description>TODO(crbug.com/483963166): Write the description.</description>
+  <description>
+    Reported when a user interaction (tap) on the Password Checkup homepage is
+    ignored because a navigation is already in progress. iOS only.
+  </description>
 </action>
 
 <action name="MobilePasswordCheckupSettingsBack">
@@ -38192,6 +38290,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="PasswordManager.PasswordDropdownSelected.PasskeyQrCode">
+  <owner>derinel@google.com</owner>
+  <owner>markusheintz@google.com</owner>
+  <description>
+    Recorded when the user selected a passkey QR code entry in the password
+    dropdown.
+  </description>
+</action>
+
 <action name="PasswordManager.PasswordDropdownSelected.Password">
   <owner>derinel@google.com</owner>
   <owner>markusheintz@google.com</owner>
@@ -38929,6 +39036,39 @@ should be able to be added at any place in this file.
     Recorded when the user clicks the Manage Settings link in the Personal
     Context notice.
   </description>
+</action>
+
+<action name="PersonalContext.Settings.EntryPoint.{PersonalContextEntryPoint}">
+  <owner>kalinino@google.com</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the Personal Context settings link row from
+    the {PersonalContextEntryPoint}.
+  </description>
+  <token key="PersonalContextEntryPoint" variants="PersonalContextEntryPoint"/>
+</action>
+
+<action
+    name="PersonalContext.Settings.Manage{PersonalContextManageTarget}Click">
+  <owner>kalinino@google.com</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the {PersonalContextManageTarget} preference
+    on the Autofill Personal Context settings page.
+  </description>
+  <token key="PersonalContextManageTarget"
+      variants="PersonalContextManageTarget"/>
+</action>
+
+<action name="PersonalContext.Settings.Toggled{PersonalContextToggleState}">
+  <owner>kalinino@google.com</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Recorded when the user clicks the Personal Context toggle on the Personal
+    Context settings page, {PersonalContextToggleState}.
+  </description>
+  <token key="PersonalContextToggleState"
+      variants="PersonalContextToggleState"/>
 </action>
 
 <action name="PhishingInterstitial.Advanced">
@@ -43720,6 +43860,33 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings_BookmarkBar_AlwaysHide">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Always Hide&quot; option for the bookmark bar
+    visibility setting in the Settings appearance page.
+  </description>
+</action>
+
+<action name="Settings_BookmarkBar_AlwaysShow">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Always Show&quot; option for the bookmark bar
+    visibility setting in the Settings appearance page.
+  </description>
+</action>
+
+<action name="Settings_BookmarkBar_OnlyShowOnNtp">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Only Show on NTP&quot; option for the bookmark
+    bar visibility setting in the Settings appearance page.
+  </description>
+</action>
+
 <action name="SettingsAppMonitor.AppFocused">
   <owner>grt@chromium.org</owner>
   <description>The Windows Settings app became focused.</description>
@@ -44143,7 +44310,7 @@ should be able to be added at any place in this file.
   <owner>kmilka@chromium.org</owner>
   <owner>src/components/send_tab_to_self/OWNERS</owner>
   <description>
-    The &quot;Send to your devices&quot; option was selected in the sharing hub.
+    The &quot;Send to your device&quot; option was selected in the sharing hub.
   </description>
 </action>
 
@@ -56316,6 +56483,24 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="WrenchMenu_Bookmarks_AlwaysHideBookmarkBar">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Always Hide&quot; option for the bookmark bar
+    visibility from the three-dot app menu.
+  </description>
+</action>
+
+<action name="WrenchMenu_Bookmarks_AlwaysShowBookmarkBar">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Always Show&quot; option for the bookmark bar
+    visibility from the three-dot app menu.
+  </description>
+</action>
+
 <action name="WrenchMenu_Bookmarks_ContextMenu_OpenAll">
   <owner>dfried@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
@@ -56384,6 +56569,15 @@ should be able to be added at any place in this file.
 
     This user action is of special interest to the chrome-analysis-team@. Do not
     change its semantics or retire it without talking to them first.
+  </description>
+</action>
+
+<action name="WrenchMenu_Bookmarks_OnlyShowBookmarkBarOnNtp">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <description>
+    The user selected the &quot;Only Show on NTP&quot; option for the bookmark
+    bar visibility from the three-dot app menu.
   </description>
 </action>
 

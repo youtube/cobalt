@@ -79,6 +79,7 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/omnibox_util.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/tips_notifications/model/utils.h"
@@ -223,6 +224,10 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
 
 + (BOOL)isRTL {
   return UseRTLLayout();
+}
+
++ (BOOL)isWindowedMode {
+  return IsWindowedMode([self keyWindow]);
 }
 
 + (NSError*)clearBrowsingHistory {

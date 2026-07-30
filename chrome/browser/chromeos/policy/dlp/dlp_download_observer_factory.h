@@ -7,13 +7,19 @@
 
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 
+class Profile;
+
 namespace policy {
+
+class DlpDownloadObserver;
 
 class DlpDownloadObserverFactory : public ProfileKeyedServiceFactory {
  public:
-  DlpDownloadObserverFactory();
+  static DlpDownloadObserver* GetForProfile(Profile* profile);
 
   static DlpDownloadObserverFactory* GetInstance();
+
+  DlpDownloadObserverFactory();
 
   // ProfileKeyedServiceFactory:
   bool ServiceIsCreatedWithBrowserContext() const override;

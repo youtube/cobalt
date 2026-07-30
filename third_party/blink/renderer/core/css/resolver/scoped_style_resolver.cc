@@ -435,7 +435,7 @@ ScopedStyleResolver::FontFeatureValuesRulesForFamily(AtomicString font_family) {
 
 // When appending/removing stylesheets, we go through all implicit
 // StyleScope instances in each stylesheet and store those instances
-// in the StyleScopeData (ElementRareData) of the triggering element.
+// in the StyleScopeData (NodeRareData) of the triggering element.
 //
 // See StyleScopeData for more information.
 
@@ -520,7 +520,7 @@ void ScopedStyleResolver::RemoveImplicitScopeTrigger(
 void ScopedStyleResolver::QuietlySwapActiveStyleSheets(
     ActiveStyleSheetVector& other) {
   // The new stylesheets may change which implicit @scope rules apply;
-  // various StyleScopeData objects (stored on ElementRareData) need
+  // various StyleScopeData objects (stored on NodeRareData) need
   // to be updated.
   RemoveImplicitScopeTriggers();
 

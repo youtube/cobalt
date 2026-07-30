@@ -208,6 +208,40 @@ TEST_F(CRWWebUISchemeManagerTest, StartTaskWithWrongMainDocumentURL) {
   EXPECT_TRUE(url_scheme_task.receivedError);
 }
 
+// Tests that same-origin logic blocks subresource requests from non-WebUI pages
+// during provisional navigation. See crbug.com/516894682 for more details.
+TEST_F(CRWWebUISchemeManagerTest, WebUISourcesBlockedDuringProvisionalLoads) {
+  CRWWebUISchemeHandler* scheme_handler = CreateSchemeHandler();
+
+  // State during navigation: committed document is https://evil.com,
+  // but provisional webView.URL is chrome://version/
+  NSURL* committed_url = [NSURL URLWithString:@"https://evil.com/"];
+  NSURL* provisional_url = [NSURL URLWithString:@"chrome://version/"];
+
+  id current_item = OCMClassMock([WKBackForwardListItem class]);
+  OCMStub([current_item URL]).andReturn(committed_url);
+  id bf_list = OCMClassMock([WKBackForwardList class]);
+  OCMStub([bf_list currentItem]).andReturn(current_item);
+  id web_view = OCMClassMock([WKWebView class]);
+  OCMStub([web_view backForwardList]).andReturn(bf_list);
+  OCMStub([web_view URL]).andReturn(provisional_url);
+
+  // Attacker-crafted subresource task from evil.com targeting chrome://version
+  FakeSchemeTask* url_scheme_task = [[FakeSchemeTask alloc] init];
+  NSMutableURLRequest* request = [NSMutableURLRequest
+      requestWithURL:[NSURL URLWithString:@"chrome://version/version.js"]];
+  request.mainDocumentURL = [NSURL URLWithString:@"chrome://version/"];
+  url_scheme_task.request = request;
+
+  [scheme_handler webView:web_view startURLSchemeTask:url_scheme_task];
+  RespondWithData(net::GURLWithNSURL(request.URL), "SECRET-WEBUI-PAYLOAD");
+
+  // The request should be blocked.
+  EXPECT_FALSE(url_scheme_task.receivedData);
+  EXPECT_TRUE(url_scheme_task.receivedError);
+  EXPECT_EQ(NSURLErrorNoPermissionsToReadFile, url_scheme_task.error.code);
+}
+
 // Tests that calling stop right after start prevent the handler from returning
 // data.
 TEST_F(CRWWebUISchemeManagerTest, StopTask) {

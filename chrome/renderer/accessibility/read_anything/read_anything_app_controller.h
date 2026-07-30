@@ -465,7 +465,7 @@ class ReadAnythingAppController
 
   void ExecuteJavaScript(const std::string& script);
 
-  // Returns true if a draw occured.
+  // Returns true if a draw occurred.
   bool PostProcessSelection();
 
   // Signals that the side panel has finished loading and it's safe to show

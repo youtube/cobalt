@@ -39,7 +39,6 @@ using PositionInFlatTreeWithAffinity =
 template <typename Strategy>
 class SelectionTemplate;
 using SelectionInDomTree = SelectionTemplate<EditingStrategy>;
-using SelectionInDOMTree = SelectionInDomTree;
 using SelectionInFlatTree = SelectionTemplate<EditingInFlatTreeStrategy>;
 
 template <typename Strategy>

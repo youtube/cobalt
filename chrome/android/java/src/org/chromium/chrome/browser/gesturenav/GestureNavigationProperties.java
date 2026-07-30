@@ -24,11 +24,8 @@ class GestureNavigationProperties {
     /** Gesture navigation edge as defined in {@link BackGestureEventSwipeEdge}. */
     static final WritableIntPropertyKey EDGE = new WritableIntPropertyKey();
 
-    /**
-     * Whether to allow a sufficiently large pull to trigger the navigation action and animation
-     * sequence. Set for {@link GestureAction.RELEASE}.
-     */
-    static final WritableBooleanPropertyKey ALLOW_NAV = new WritableBooleanPropertyKey();
+    /** Overscroll activation status as defined in {@link OverscrollActivationStatus}. */
+    static final WritableIntPropertyKey ACTIVATION_STATUS = new WritableIntPropertyKey();
 
     /** Amount of total swipe gesture offset. */
     static final WritableFloatPropertyKey BUBBLE_OFFSET = new WritableFloatPropertyKey();
@@ -41,6 +38,6 @@ class GestureNavigationProperties {
     static final WritableIntPropertyKey CLOSE_INDICATOR = new WritableIntPropertyKey();
 
     static final PropertyKey[] ALL_KEYS = {
-        ACTION, DIRECTION, EDGE, ALLOW_NAV, BUBBLE_OFFSET, CLOSE_INDICATOR
+        ACTION, DIRECTION, EDGE, ACTIVATION_STATUS, BUBBLE_OFFSET, CLOSE_INDICATOR
     };
 }

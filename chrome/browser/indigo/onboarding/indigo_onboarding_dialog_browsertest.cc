@@ -257,7 +257,14 @@ IN_PROC_BROWSER_TEST_F(IndigoOnboardingDialogBrowserTest, CrossRfhNavigation) {
       Check([&]() { return last_result_.acknowledge_chrome_disclaimer; }));
 }
 
-IN_PROC_BROWSER_TEST_F(IndigoOnboardingDialogBrowserTest, CloseOnTabReload) {
+// TODO(crbug.com/522357329): Fix flaky test.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_CloseOnTabReload DISABLED_CloseOnTabReload
+#else
+#define MAYBE_CloseOnTabReload CloseOnTabReload
+#endif
+IN_PROC_BROWSER_TEST_F(IndigoOnboardingDialogBrowserTest,
+                       MAYBE_CloseOnTabReload) {
   tabs::TabInterface* tab = browser()->GetActiveTabInterface();
   ASSERT_TRUE(tab);
 

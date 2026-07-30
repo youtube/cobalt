@@ -38,7 +38,8 @@ void ConnectionBasic::Send(proto::PrivateAiRequest request,
                            OnRequestCallback callback) {
   // Indicates that `secure_channel_` is already closed.
   if (!on_disconnect_) {
-    std::move(callback).Run(base::unexpected(StatusCode::kError));
+    std::move(callback).Run(
+        base::unexpected(StatusCode::kConnectionClosedByClient));
     return;
   }
 
@@ -54,7 +55,7 @@ void ConnectionBasic::Send(proto::PrivateAiRequest request,
           Request(serialized_request.begin(), serialized_request.end()))) {
     // The channel is in a permanent failure state.
     DVLOG(1) << "Secure channel write failed.";
-    CallOnDisconnect(StatusCode::kError);
+    CallOnDisconnect(StatusCode::kConnectionClosedByClient);
   }
 }
 

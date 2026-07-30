@@ -37,7 +37,6 @@
 #include "media/base/media_switches.h"
 #include "services/audio/audio_manager_power_user.h"
 #include "services/audio/output_tapper.h"
-#include "services/audio/processing_audio_fifo.h"
 #include "services/audio/reference_output.h"
 #include "services/audio/reference_signal_provider.h"
 
@@ -322,7 +321,9 @@ class AudioCallback : public media::AudioInputStream::AudioInputCallback {
     on_data_callback_.Run(source, capture_time, volume, glitch_info);
   }
 
-  void OnError() override {
+  using Error = media::AudioInputStream::AudioInputCallback::Error;
+
+  void OnError(Error error_code) override {
     error_during_callback_ = true;
     on_error_callback_.Run();
   }
@@ -428,31 +429,13 @@ void InputController::MaybeSetUpAudioProcessing(
       std::move(processing_config->controls_receiver),
       aecdump_recording_manager, ml_model_manager);
 
-  // If we are not running echo cancellation the processing is lightweight, so
-  // there is no need to offload work to a new thread.
-  const bool echo_cancellation_is_enabled =
-      audio_processor_handler_->needs_playout_reference();
-  SendLogMessage(base::StringPrintf(
-      "%s => (echo cancellation is: %s)", __func__,
-      (echo_cancellation_is_enabled ? "enabled" : "disabled")));
-  if (!echo_cancellation_is_enabled) {
-    return;
+  if (audio_processor_handler_->needs_playout_reference()) {
+    // Unretained() is safe, since |event_handler_| outlives |output_tapper_|.
+    output_tapper_ = std::make_unique<OutputTapper>(
+        std::move(reference_signal_provider), audio_processor_handler_.get(),
+        base::BindRepeating(&EventHandler::OnLog,
+                            base::Unretained(event_handler_)));
   }
-
-  // base::Unretained() is safe since both |audio_processor_handler_| and
-  // |event_handler_| outlive |processing_fifo_|.
-  processing_fifo_ = std::make_unique<ProcessingAudioFifo>(
-      *processing_input_params, kProcessingFifoSize,
-      base::BindRepeating(&AudioProcessorHandler::ProcessCapturedAudio,
-                          base::Unretained(audio_processor_handler_.get())),
-      base::BindRepeating(&EventHandler::OnLog,
-                          base::Unretained(event_handler_.get())));
-
-  // Unretained() is safe, since |event_handler_| outlives |output_tapper_|.
-  output_tapper_ = std::make_unique<OutputTapper>(
-      std::move(reference_signal_provider), audio_processor_handler_.get(),
-      base::BindRepeating(&EventHandler::OnLog,
-                          base::Unretained(event_handler_)));
 }
 #endif
 
@@ -523,8 +506,8 @@ void InputController::Record() {
     }
   }
 
-  if (processing_fifo_) {
-    processing_fifo_->Start();
+  if (audio_processor_handler_) {
+    audio_processor_handler_->StartProcessing();
   }
 #endif
 
@@ -578,13 +561,8 @@ void InputController::Close() {
     if (output_tapper_) {
       output_tapper_->Stop();
     }
-
-    if (processing_fifo_) {
-      // Stop the FIFO after |stream_| is stopped, to guarantee there are no
-      // more calls to OnData().
-      // Note: destroying the FIFO will synchronously wait for the processing
-      // thread to stop.
-      processing_fifo_.reset();
+    if (audio_processor_handler_) {
+      audio_processor_handler_->StopProcessing();
     }
 #endif
 
@@ -909,10 +887,7 @@ void InputController::OnData(const media::AudioBus* source,
               "capture_delay (ms)",
               (base::TimeTicks::Now() - capture_time).InMillisecondsF());
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-  if (processing_fifo_) {
-    DCHECK(audio_processor_handler_);
-    processing_fifo_->PushData(source, capture_time, volume, glitch_info);
-  } else if (audio_processor_handler_) {
+  if (audio_processor_handler_) {
     audio_processor_handler_->ProcessCapturedAudio(*source, capture_time,
                                                    volume, glitch_info);
   } else

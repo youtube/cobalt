@@ -18,8 +18,7 @@
 
 - (void)dismissModalsAndMaybeOpenSelectedTabInMode:
             (ApplicationModeForTabOpening)targetMode
-                                 withUrlLoadParams:
-                                     (const UrlLoadParams&)urlLoadParams
+                                 withUrlLoadParams:(UrlLoadParams)urlLoadParams
                                     dismissOmnibox:(BOOL)dismissOmnibox
                                         completion:(ProceduralBlock)completion {
   if (targetMode == ApplicationModeForTabOpening::UNDETERMINED) {
@@ -63,7 +62,7 @@
 }
 
 - (void)openOrReuseTabInMode:(ApplicationMode)targetMode
-           withUrlLoadParams:(const UrlLoadParams&)urlLoadParams
+           withUrlLoadParams:(UrlLoadParams)urlLoadParams
          tabOpenedCompletion:(ProceduralBlock)tabOpenedCompletion {
   NOTIMPLEMENTED();
 }

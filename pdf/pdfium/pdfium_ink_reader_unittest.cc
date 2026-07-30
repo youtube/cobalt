@@ -134,7 +134,7 @@ TEST_P(PDFiumInkReaderTest, BasicTextAnnotation) {
               InkTextBoxAttributesEq(
                   gfx::RectF(25.333334f, 125.333336f, 133.33334f, 66.66667f),
                   SK_ColorBLACK, 10.0f, TextTypeface::kSansSerif,
-                  TextAlignment::kLeft, 0,
+                  TextAlignment::kLeft, 0, PageOrientation::kOriginal,
                   /*is_bold=*/true, /*is_italic=*/false, "Hello\n!"));
 
   // "Hello\n!" has 2 lines and should have 2 text page objects.
@@ -186,7 +186,7 @@ TEST_P(PDFiumInkReaderTest, MultipleTextboxesOnOnePage) {
               InkTextBoxAttributesEq(
                   gfx::RectF(25.333334f, 125.333336f, 133.33334f, 66.66667f),
                   SK_ColorBLACK, 10.0f, TextTypeface::kSansSerif,
-                  TextAlignment::kLeft, 0,
+                  TextAlignment::kLeft, 0, PageOrientation::kOriginal,
                   /*is_bold=*/true, /*is_italic=*/false, "Hello"));
   const std::vector<FPDF_PAGEOBJECT>& text_objects0 = results[0].text_objects;
   ASSERT_EQ(1u, text_objects0.size());
@@ -200,7 +200,7 @@ TEST_P(PDFiumInkReaderTest, MultipleTextboxesOnOnePage) {
               InkTextBoxAttributesEq(
                   gfx::RectF(25.333334f, 186.66667f, 133.33334f, 66.66667f),
                   SK_ColorBLUE, 15.0f, TextTypeface::kMonospace,
-                  TextAlignment::kLeft, 0,
+                  TextAlignment::kLeft, 0, PageOrientation::kOriginal,
                   /*is_bold=*/false, /*is_italic=*/true, "World"));
   const std::vector<FPDF_PAGEOBJECT>& text_objects1 = results[1].text_objects;
   ASSERT_EQ(1u, text_objects1.size());

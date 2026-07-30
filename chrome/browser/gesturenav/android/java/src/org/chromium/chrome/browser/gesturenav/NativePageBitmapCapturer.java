@@ -63,7 +63,7 @@ public class NativePageBitmapCapturer {
         int result = shouldUseFallbackUx(tab);
         BackPressMetrics.recordCaptureNativeViewResult(result);
         if (result != CaptureNativeViewResult.CAPTURE_SCREENSHOT) {
-            PostTask.postTask(TaskTraits.UI_USER_VISIBLE, () -> callback.onResult(null));
+            PostTask.postTask(TaskTraits.UI_USER_VISIBLE, callback.bind(null));
             return true;
         }
 

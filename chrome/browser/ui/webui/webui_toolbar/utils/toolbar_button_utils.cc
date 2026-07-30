@@ -14,6 +14,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/prefs/pref_service.h"
+#include "components/omnibox/browser/vector_icons.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/actions/actions.h"
 #include "ui/base/ui_base_features.h"
@@ -292,7 +293,9 @@ ActionItemToPinnedToolbarAction(actions::ActionItem* item) {
                            : kTabSearchTabStripOldIcon));
       return toolbar_ui_api::mojom::PinnedToolbarAction::kTabSearch;
     case kActionSidePanelShowContextualTasks:
-      CHECK_EQ(icon, &kDockToRightSparkCustomIcon);
+      CHECK_EQ(icon, &(features::IsRoundedIconsEnabled()
+                           ? omnibox::kSearchSparkIcon
+                           : omnibox::kSearchSparkOldIcon));
       return toolbar_ui_api::mojom::PinnedToolbarAction::
           kSidePanelShowContextualTasks;
     case kActionSidePanelShowLens:

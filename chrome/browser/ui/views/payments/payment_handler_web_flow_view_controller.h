@@ -18,6 +18,10 @@
 
 class Profile;
 
+namespace blink {
+class WebInputEvent;
+}
+
 namespace views {
 class View;
 }
@@ -93,6 +97,7 @@ class PaymentHandlerWebFlowViewController
       content::NavigationHandle* navigation_handle) override;
   void LoadProgressChanged(double progress) override;
   void TitleWasSet(content::NavigationEntry* entry) override;
+  void DidGetUserInteraction(const blink::WebInputEvent& event) override;
 
   void AbortPayment();
   void SetHeaderColorsAndOriginLabelText();

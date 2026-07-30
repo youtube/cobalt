@@ -176,6 +176,7 @@ source_set("browser_tests") {
     "//components/media_router/browser",
     "//content/test:test_support",
     "//extensions/browser:test_support",
+    "//extensions/components/native_app_window",
     "//testing/gmock",
     "//testing/gtest",
   ]

@@ -24,18 +24,16 @@
 
 namespace ntp_tiles {
 
-CustomLinksManagerImpl::CustomLinksManagerImpl(
-    PrefService* prefs,
-    history::HistoryService* history_service)
-    : prefs_(prefs),
+CustomLinksManagerImpl::CustomLinksManagerImpl(const Options& options)
+    : prefs_(options.prefs),
       max_links_(
           base::FeatureList::IsEnabled(ntp_features::kNtpShortcutsRedesign)
               ? ntp_features::GetMaxShortcutsInExpandedState()
-              : ntp_tiles::kMaxNumCustomLinks),
-      store_(prefs) {
-  DCHECK(prefs);
-  if (history_service) {
-    history_service_observation_.Observe(history_service);
+              : options.max_links),
+      store_(options.prefs) {
+  DCHECK(prefs_);
+  if (options.history_service) {
+    history_service_observation_.Observe(options.history_service.get());
   }
   if (IsInitialized()) {
     current_links_ = store_.RetrieveLinks();
@@ -84,6 +82,10 @@ bool CustomLinksManagerImpl::IsInitialized() const {
 const std::vector<CustomLinksManager::Link>& CustomLinksManagerImpl::GetLinks()
     const {
   return current_links_;
+}
+
+size_t CustomLinksManagerImpl::GetMaxLinks() const {
+  return max_links_;
 }
 
 bool CustomLinksManagerImpl::AddLinkTo(const GURL& url,

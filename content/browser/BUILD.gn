@@ -64,6 +64,7 @@ rust_static_library("child_process_security_policy_impl") {
   visibility = [ ":browser" ]
   configs += [ "//content:content_implementation" ]
   deps = [
+    "//storage/common:storage_common_rust",
     "//third_party/rust/cxx/v1:lib",
     "//url:url_rust",
   ]
@@ -1405,6 +1406,8 @@ source_set("browser") {
     "media/capture/desktop_streams_registry_impl.h",
     "network/declarative_performance_observer.cc",
     "network/declarative_performance_observer.h",
+    "network/declarative_performance_observer_coordinator.cc",
+    "network/declarative_performance_observer_coordinator.h",
     "permissions/permission_descriptor_util.cc",
     "web_contents_based_canceller.cc",
     "web_contents_based_canceller.h",
@@ -1550,6 +1553,8 @@ source_set("browser") {
     "network_context_client_base_impl.cc",
     "network_context_client_base_impl.h",
     "network_sandbox_grant_result.h",
+    "network_sandbox_grant_result_helper.cc",
+    "network_sandbox_grant_result_helper.h",
     "network_service_client.cc",
     "network_service_client.h",
     "network_service_instance_impl.cc",
@@ -2117,6 +2122,7 @@ source_set("browser") {
     "renderer_host/transient_allow_popup.h",
     "renderer_host/transient_focus_source_user_activation.cc",
     "renderer_host/transient_focus_source_user_activation.h",
+    "renderer_host/unbounded_surface_window.h",
     "renderer_host/view_transition_commit_deferring_condition.cc",
     "renderer_host/view_transition_commit_deferring_condition.h",
     "renderer_host/view_transition_opt_in_state.cc",
@@ -2513,6 +2519,8 @@ source_set("browser") {
     "webid/navigation_interceptor.h",
     "webid/network_request_manager.cc",
     "webid/network_request_manager.h",
+    "webid/request.cc",
+    "webid/request.h",
     "webid/request_page_data.cc",
     "webid/request_page_data.h",
     "webid/request_service.cc",
@@ -2946,6 +2954,8 @@ source_set("browser") {
       "renderer_host/text_input_client_mac.mm",
       "renderer_host/text_input_host_impl.h",
       "renderer_host/text_input_host_impl.mm",
+      "renderer_host/unbounded_surface_window_mac.h",
+      "renderer_host/unbounded_surface_window_mac.mm",
       "sandbox_parameters_mac.h",
       "sandbox_parameters_mac.mm",
       "sandbox_support_impl.h",
@@ -3132,8 +3142,10 @@ source_set("browser") {
         "//sandbox/mac:seatbelt",
         "//sandbox/mac:seatbelt_extension",
       ]
-      frameworks += [ "CoreMedia.framework" ]
-      weak_frameworks = [ "ScreenCaptureKit.framework" ]  # macOS 12.3
+      frameworks += [
+        "CoreMedia.framework",
+        "ScreenCaptureKit.framework",
+      ]
     }
     if (is_chromeos) {
       sources += [
@@ -3205,8 +3217,8 @@ source_set("browser") {
       "speech/tts_win.cc",
       "speech/tts_win_utils.cc",
       "speech/tts_win_utils.h",
-      "webnn/webnn_compiler_launcher.cc",
-      "webnn/webnn_compiler_launcher.h",
+      "webnn/webnn_compiler_process_host.cc",
+      "webnn/webnn_compiler_process_host.h",
     ]
     deps += [
       "//components/app_launch_prefetch",
@@ -3697,6 +3709,8 @@ source_set("browser") {
       "renderer_host/delegated_frame_host_client_aura.h",
       "renderer_host/render_widget_host_view_event_handler.cc",
       "renderer_host/render_widget_host_view_event_handler.h",
+      "renderer_host/unbounded_surface_window_aura.cc",
+      "renderer_host/unbounded_surface_window_aura.h",
     ]
 
     if (is_linux) {

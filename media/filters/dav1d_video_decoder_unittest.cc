@@ -268,7 +268,9 @@ TEST_F(Dav1dVideoDecoderTest, DecodeFrame_12bitMono) {
 }
 
 TEST_F(Dav1dVideoDecoderTest, DecodeFrame_AgtmMetadata) {
-  base::test::ScopedFeatureList scoped_feature_list(features::kHdrAgtm);
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {features::kHdrAgtm, features::kHdrAgtmParseOldSyntax}, {});
   Initialize();
 
   // Simulate decoding a single frame.

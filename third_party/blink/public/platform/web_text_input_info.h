@@ -79,6 +79,12 @@ struct BLINK_PLATFORM_EXPORT WebTextInputInfo {
   // The array of ime_text_spans at the current caret position.
   std::vector<ui::ImeTextSpan> ime_text_spans;
 
+  // HTML metadata fields.
+  WebString label;
+  WebString name;
+  WebString id;
+  WebString placeholder;
+
   bool Equals(const WebTextInputInfo&) const;
 };
 

@@ -112,7 +112,7 @@ gfx::Size GetSizeFromHardwareBuffer(
 
 scoped_refptr<cc::slim::TextureLayer>
 NavigationEntryScreenshot::SharedImageProvider::CreateTextureLayer() {
-  DCHECK(IsValid());
+  CHECK(IsValid(), base::NotFatalUntil::M152);
   auto layer = cc::slim::TextureLayer::Create(this);
   pending_transferable_resource_ = true;
   layer->SetContentsOpaque(true);
@@ -305,7 +305,7 @@ const void* const NavigationEntryScreenshot::kUserDataKey =
 
 // static
 void NavigationEntryScreenshot::SetDisableCompressionForTesting(bool disable) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
 #if BUILDFLAG(IS_ANDROID)
   g_disable_compression_for_testing = disable;
@@ -322,7 +322,7 @@ NavigationEntryScreenshot::NavigationEntryScreenshot(
       unique_id_(unique_id),
       dimensions_without_compression_(bitmap_->GetSize()),
       supports_etc_non_power_of_two_(supports_etc_non_power_of_two) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
   SetupCompressionTask(bitmap, supports_etc_non_power_of_two);
 }
@@ -339,7 +339,7 @@ NavigationEntryScreenshot::NavigationEntryScreenshot(
       dimensions_without_compression_(shared_image_provider_->Size()),
       supports_etc_non_power_of_two_(supports_etc_non_power_of_two),
       screenshot_callback_(std::move(screenshot_callback)) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
   auto observer_list =
       performance_scenarios::PerformanceScenarioObserverList::GetForScope(
@@ -422,7 +422,7 @@ void NavigationEntryScreenshot::OnScenarioMatchChanged(
 scoped_refptr<cc::slim::TextureLayer>
 NavigationEntryScreenshot::CreateTextureLayer() {
   CHECK(shared_image_provider_);
-  DCHECK(!cache_);
+  CHECK(!cache_, base::NotFatalUntil::M152);
   return shared_image_provider_->CreateTextureLayer();
 }
 
@@ -484,7 +484,7 @@ void NavigationEntryScreenshot::MaybeResetSharedImageProvider() {
 }
 
 void NavigationEntryScreenshot::StartReadBack() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   CHECK(shared_image_provider_);
   auto shared_image = shared_image_provider_->Get();
   if (!shared_image) {
@@ -505,7 +505,7 @@ void NavigationEntryScreenshot::StartReadBack() {
 }
 
 void NavigationEntryScreenshot::DoReadBack(SkBitmap bitmap) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   CHECK(shared_image_provider_);
   auto context_provider = shared_image_provider_->GetContextProvider();
   auto shared_image = shared_image_provider_->Get();
@@ -518,7 +518,7 @@ void NavigationEntryScreenshot::DoReadBack(SkBitmap bitmap) {
   gfx::Point src_point;
   SkImageInfo info = bitmap.info();
   auto* raster_interface = context_provider->RasterInterface();
-  DCHECK(raster_interface);
+  CHECK(raster_interface, base::NotFatalUntil::M152);
   auto scoped_access = shared_image->BeginRasterAccess(
       raster_interface, shared_image->creation_sync_token(),
       /*readonly=*/true);
@@ -532,7 +532,7 @@ void NavigationEntryScreenshot::DoReadBack(SkBitmap bitmap) {
 }
 
 void NavigationEntryScreenshot::OnReadBack(SkBitmap bitmap, bool success) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   // This has to run after the readback is completed, otherwise, this operation
   // might destroy the context provider, attempting a re-entry to this same
   // callback (crbug.com/456887685).

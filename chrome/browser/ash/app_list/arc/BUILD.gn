@@ -11,8 +11,6 @@ static_library("arc") {
     "arc_app_icon.h",
     "arc_app_icon_descriptor.cc",
     "arc_app_icon_descriptor.h",
-    "arc_app_icon_factory.cc",
-    "arc_app_icon_factory.h",
     "arc_app_launcher.cc",
     "arc_app_launcher.h",
     "arc_app_list_prefs.cc",

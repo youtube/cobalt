@@ -9,21 +9,18 @@
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "ui/base/models/dialog_model.h"
 
-class Browser;
 class BatterySaverBubbleObserver;
 
 // This class is the delegate for the battery saver bubble dialog that handles
 // the events raised from the dialog.
 class BatterySaverBubbleDelegate : public ui::DialogModelDelegate {
  public:
-  explicit BatterySaverBubbleDelegate(Browser* browser,
-                                      BatterySaverBubbleObserver* observer);
+  explicit BatterySaverBubbleDelegate(BatterySaverBubbleObserver* observer);
 
   void OnWindowClosing();
   void OnSessionOffClicked();
 
  private:
-  raw_ptr<Browser> browser_;
   raw_ptr<BatterySaverBubbleObserver> observer_;
   BatterySaverBubbleActionType action_type_ =
       BatterySaverBubbleActionType::kDismiss;

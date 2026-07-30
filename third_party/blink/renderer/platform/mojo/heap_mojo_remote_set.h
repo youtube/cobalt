@@ -14,6 +14,7 @@
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "third_party/blink/renderer/platform/context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 
@@ -88,10 +89,16 @@ class HeapMojoRemoteSet {
  private:
   FRIEND_TEST_ALL_PREFIXES(HeapMojoRemoteSetGCWithContextObserverTest,
                            NoClearOnConservativeGC);
+  FRIEND_TEST_ALL_PREFIXES(HeapMojoRemoteSetGCWithContextObserverTest,
+                           ResetsOnGC);
+  FRIEND_TEST_ALL_PREFIXES(HeapMojoRemoteSetGCWithoutContextObserverTest,
+                           ResetsOnGC);
 
   // Garbage collected wrapper class to add ContextLifecycleObserver.
   class Wrapper final : public GarbageCollected<Wrapper>,
                         public ContextLifecycleObserver {
+    USING_PRE_FINALIZER(Wrapper, Dispose);
+
    public:
     explicit Wrapper(ContextLifecycleNotifier* notifier) {
       SetContextLifecycleNotifier(notifier);
@@ -104,6 +111,8 @@ class HeapMojoRemoteSet {
     void Trace(Visitor* visitor) const override {
       ContextLifecycleObserver::Trace(visitor);
     }
+
+    void Dispose() { remote_set_.Clear(); }
 
     mojo::RemoteSet<Interface>& remote_set() { return remote_set_; }
 

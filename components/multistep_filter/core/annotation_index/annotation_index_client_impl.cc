@@ -275,20 +275,20 @@ void LogServerResponseMalformed(MultistepFilterLogRouter* log_router,
 template <typename ProtoType, typename ResultType, typename ReturnType>
 base::OnceCallback<void(std::optional<std::string>, int)> BindParseAndConvert(
     base::OnceCallback<void(std::optional<ResultType>)> callback,
-    ReturnType (*convert_func)(const ProtoType&),
+    base::OnceCallback<ReturnType(const ProtoType&)> convert_callback,
     MultistepFilterLogRouter* log_router,
     int64_t navigation_id,
-    std::string_view domain) {
+    std::string domain) {
   return base::BindOnce(
       [](base::OnceCallback<void(std::optional<ResultType>)> callback,
-         ReturnType (*conv)(const ProtoType&),
+         base::OnceCallback<ReturnType(const ProtoType&)> conv,
          MultistepFilterLogRouter* log_router, int64_t navigation_id,
          std::string domain, std::optional<std::string> response_body,
          int response_code) {
         std::optional<ResultType> result;
         if (response_body) {
           if (ProtoType proto; proto.ParseFromString(*response_body)) {
-            result = conv(proto);
+            result = std::move(conv).Run(proto);
             LogResponseObjectsReceived(log_router, navigation_id, domain,
                                        response_code, /*is_success=*/true,
                                        result);
@@ -299,13 +299,13 @@ base::OnceCallback<void(std::optional<std::string>, int)> BindParseAndConvert(
         }
         std::move(callback).Run(std::move(result));
       },
-      std::move(callback), convert_func,
+      std::move(callback), std::move(convert_callback),
       // Using `base::Unretained()` is safe because the
       // `MultistepFilterLogRouter` is owned by the `MultistepFilterService`,
       // which outlives `AnnotationIndexClientImpl`, and all pending loaders
       // are canceled instantly on destruction of the
       // `AnnotationIndexClientImpl`, preventing this callback from running.
-      base::Unretained(log_router), navigation_id, std::string(domain));
+      base::Unretained(log_router), navigation_id, std::move(domain));
 }
 
 std::unique_ptr<network::ResourceRequest> CreatePostResourceRequest(
@@ -368,20 +368,29 @@ void AnnotationIndexClientImpl::GetFilterSuggestionCandidates(
       CreatePostResourceRequest(api_base_url,
                                 kGetTaskExecutionStrategiesEndpoint),
       proto.SerializeAsString(),
-      BindParseAndConvert(std::move(callback), &ToFilterSuggestionCandidates,
+      BindParseAndConvert(std::move(callback),
+                          base::BindOnce(&ToFilterSuggestionCandidates),
                           log_router_, navigation_id, domain),
       navigation_id, domain);
 }
 
-void AnnotationIndexClientImpl::GetSupportedTaskTypesForDomain(
-    std::string_view domain,
-    base::OnceCallback<void(std::optional<std::vector<std::string>>)> callback,
+void AnnotationIndexClientImpl::GetSupportedTasks(
+    const GURL& url,
+    base::OnceCallback<void(std::vector<std::string>)> callback,
     int64_t navigation_id) {
+  const std::string domain = GetEtldPlusOne(url);
+  if (!multistep_filter::IsUrlAllowed(url)) {
+    LogServerRequestFailed(log_router_, navigation_id, domain,
+                           "domain_not_allowed");
+    std::move(callback).Run(std::vector<std::string>());
+    return;
+  }
+
   GURL api_base_url = GetIndexServerApiBaseUrl();
   if (!api_base_url.is_valid()) {
     LogServerRequestFailed(log_router_, navigation_id, domain,
                            "invalid_api_base_url");
-    std::move(callback).Run(std::nullopt);
+    std::move(callback).Run(std::vector<std::string>());
     return;
   }
 
@@ -393,9 +402,17 @@ void AnnotationIndexClientImpl::GetSupportedTaskTypesForDomain(
   ExecuteRequest(
       CreatePostResourceRequest(api_base_url, kGetSupportedTasksEndpoint),
       proto.SerializeAsString(),
-      BindParseAndConvert(std::move(callback), &ToSupportedTasks, log_router_,
-                          navigation_id, std::string(domain)),
-      navigation_id, std::string(domain));
+      BindParseAndConvert(
+          base::BindOnce(
+              [](base::OnceCallback<void(std::vector<std::string>)> callback,
+                 std::optional<std::vector<std::string>> result) {
+                std::move(callback).Run(result ? std::move(*result)
+                                               : std::vector<std::string>());
+              },
+              std::move(callback)),
+          base::BindOnce(&ToSupportedTasks), log_router_, navigation_id,
+          domain),
+      navigation_id, domain);
 }
 
 void AnnotationIndexClientImpl::ExtractFilterAnnotation(
@@ -419,8 +436,9 @@ void AnnotationIndexClientImpl::ExtractFilterAnnotation(
   ExecuteRequest(
       CreatePostResourceRequest(api_base_url, kExtractTaskAttributesEndpoint),
       proto.SerializeAsString(),
-      BindParseAndConvert(std::move(callback), &ToFilterAnnotation, log_router_,
-                          navigation_id, domain),
+      BindParseAndConvert(std::move(callback),
+                          base::BindOnce(&ToFilterAnnotation, url),
+                          log_router_, navigation_id, domain),
       navigation_id, domain);
 }
 

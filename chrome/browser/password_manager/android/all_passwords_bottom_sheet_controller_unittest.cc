@@ -11,7 +11,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/password_manager/password_manager_test_util.h"
-#include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/ui/android/passwords/all_passwords_bottom_sheet_view.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
@@ -25,10 +24,6 @@
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/stub_password_manager_driver.h"
 #include "components/password_manager/core/common/password_manager_features.h"
-#include "components/plus_addresses/core/browser/fake_plus_address_service.h"
-#include "components/plus_addresses/core/browser/plus_address_service.h"
-#include "components/plus_addresses/core/browser/plus_address_test_utils.h"
-#include "components/plus_addresses/core/common/features.h"
 #include "components/safe_browsing/core/browser/password_protection/stub_password_reuse_detection_manager_client.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_task_environment.h"
@@ -49,7 +44,6 @@ using device_reauth::MockDeviceAuthenticator;
 using password_manager::PasswordForm;
 using password_manager::TestPasswordStore;
 using password_manager::UiCredential;
-using plus_addresses::FakePlusAddressService;
 
 using CallbackFunctionMock = testing::MockFunction<void()>;
 
@@ -130,22 +124,13 @@ class AllPasswordsBottomSheetControllerTest
     : public ChromeRenderViewHostTestHarness {
  protected:
   AllPasswordsBottomSheetControllerTest() {
-    // Make sure that the `kPlusAddressesEnabled` feature is known to be
-    // enabled, such that `PlusAddressServiceFactory` doesn't bail early with a
-    // null return.
     scoped_feature_list_.InitWithFeatures(
-        {password_manager::features::kBiometricTouchToFill,
-         plus_addresses::features::kPlusAddressesEnabled},
-        {});
+        {password_manager::features::kBiometricTouchToFill}, {});
   }
 
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
-    PlusAddressServiceFactory::GetInstance()->SetTestingFactory(
-        browser_context(),
-        base::BindRepeating(&AllPasswordsBottomSheetControllerTest::
-                                PlusAddressServiceTestFactory,
-                            base::Unretained(this)));
+
     profile_store_ = CreateAndUseTestPasswordStore(profile());
     profile_store_->Init();
     createAllPasswordsController(FocusedFieldType::kFillablePasswordField);
@@ -164,11 +149,6 @@ class AllPasswordsBottomSheetControllerTest
             dissmissal_callback_.Get(), focused_field_type,
             mock_pwd_manager_client_.get(),
             mock_pwd_reuse_detection_manager_client_.get());
-  }
-
-  std::unique_ptr<KeyedService> PlusAddressServiceTestFactory(
-      content::BrowserContext* context) {
-    return std::make_unique<FakePlusAddressService>();
   }
 
   void TearDown() override {
@@ -403,19 +383,6 @@ TEST_F(AllPasswordsBottomSheetControllerTest,
 
   all_passwords_controller()->OnCredentialSelected(
       kUsername1, kPassword, RequestsToFillPassword(true));
-}
-
-TEST_F(AllPasswordsBottomSheetControllerTest, IsPlusAddress) {
-  scoped_feature_list_.Reset();
-  scoped_feature_list_.InitWithFeatures(
-      {password_manager::features::kBiometricTouchToFill,
-       plus_addresses::features::kPlusAddressesEnabled},
-      {});
-
-  // Not a plus address according to the `FakePlusAddressService`.
-  EXPECT_FALSE(all_passwords_controller()->IsPlusAddress("exampe@gmail.com"));
-  EXPECT_TRUE(all_passwords_controller()->IsPlusAddress(
-      plus_addresses::test::kFakePlusAddress));
 }
 
 class AllPasswordsBottomSheetControllerAccountStoreTest

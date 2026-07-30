@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">Tout ouvrir</translation>
 <translation id="1408696301184924537">Pour remplir automatiquement cet IBAN la prochaine fois, enregistrez-le dans votre compte Google</translation>
 <translation id="1408787208417187241">Triple agrafe en haut</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES_IN_GROUP" /> dans le groupe <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Les autres utilisateurs de cet appareil ne verront pas votre activité; vous pourrez donc naviguer de manière plus privée. Cela ne changera pas la façon dont les données sont collectées par les sites Web que vous visitez et les services qu'ils utilisent, y compris Google. Les téléchargements, les favoris et les éléments de la Liste de lecture seront enregistrés.</translation>
 <translation id="1410941016594047814">Enveloppe Invite</translation>
 <translation id="1413235258620101697">Le code CVC de cette carte sera chiffré et enregistré dans Google Portefeuille pour un paiement plus rapide</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">Enveloppe Personal</translation>
 <translation id="2046951263634619614">Librairies</translation>
 <translation id="2048261947532620704">Traduction de la page en cours…</translation>
+<translation id="2055016614992422886">Conversation</translation>
 <translation id="2059166748188874810">Municipalité</translation>
 <translation id="2059202684901022309">22 po x 34 po</translation>
 <translation id="2064568741209980952">Crédit et prêt</translation>
@@ -3557,6 +3559,7 @@ Vous pouvez également communiquer avec le propriétaire du site et lui suggére
 <translation id="6550245281449521513">Le verrouillage de la souris n'est pas autorisé</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nouveauté</translation>
 <translation id="6552566579578780089">Paiements</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES_IN_GROUP" /> dans le groupe <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Dernière visite il y a <ph name="NUM_DAYS" /> jours</translation>
 <translation id="6556866813142980365">Rétablir</translation>
 <translation id="6557715786897013164">14 po x 17 po</translation>
@@ -4676,7 +4679,7 @@ Détails supplémentaires :
 <translation id="8301894345671534559">Entrer le code</translation>
 <translation id="830498451218851433">Plier en deux</translation>
 <translation id="8308653357438598313">Diffusion en direct de vidéos</translation>
-<translation id="8310477433309274098">Aucuns frais, à partir de 0 % de TAEG</translation>
+<translation id="8310477433309274098">Aucuns frais, TAEG à partir de 0 %</translation>
 <translation id="8311895354659782580">Annonces immobilières</translation>
 <translation id="8312841338723044391">EN DIRECT</translation>
 <translation id="8316555157357957253">Utiliser maintenant</translation>

@@ -25,6 +25,7 @@ namespace glic {
 
 class Host;
 class GlicInstance;
+class GlicInstanceImpl;
 
 // LINT.IfChange(GlicSwitchConversationTarget)
 enum class GlicSwitchConversationTarget {
@@ -55,6 +56,7 @@ class GlicInstanceCoordinatorMetrics {
     virtual int GetVisibleInstanceCount() const = 0;
     virtual std::vector<glic::mojom::ConversationInfoPtr>
     GetRecentlyActiveConversations(size_t limit) = 0;
+    virtual std::vector<GlicInstanceImpl*> GetInstances() = 0;
   };
 
   explicit GlicInstanceCoordinatorMetrics(DataProvider* data_provider,
@@ -83,6 +85,17 @@ class GlicInstanceCoordinatorMetrics {
   // Called periodically to record memory footprint metrics using the averaging
   // and totals scheme.
   void RecordPeriodicMemoryMetrics();
+
+  // Records the total number of Glic instances alive when a new instance is
+  // created.
+  void RecordCountOnCreation();
+
+  // Records the number of awake Glic instances when WebUI contents are created.
+  void RecordCountAwakeOnContentsCreated();
+
+  // Records the number of actuating Glic instances when an actor task is
+  // created.
+  void RecordCountActuatingOnTaskCreation();
 
  private:
   // Helper to calculate currently visible instances using

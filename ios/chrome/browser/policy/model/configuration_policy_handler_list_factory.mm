@@ -258,6 +258,14 @@ std::unique_ptr<policy::ConfigurationPolicyHandlerList> BuildPolicyHandlerList(
           policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
           policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
 
+  handlers->AddHandler(
+      std::make_unique<policy::SimpleSchemaValidatingPolicyHandler>(
+          policy::key::kAutofillSettings,
+          autofill::prefs::kAutofillTypesBlocked, chrome_schema,
+          policy::SchemaOnErrorStrategy::SCHEMA_ALLOW_UNKNOWN,
+          policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
+          policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
+
   handlers->AddHandler(std::make_unique<policy::SimpleDeprecatingPolicyHandler>(
       std::make_unique<policy::SimplePolicyHandler>(
           policy::key::kUrlKeyedAnonymizedDataCollectionEnabled,

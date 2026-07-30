@@ -451,7 +451,8 @@ public class ScopeChangeControllerTest {
                 /* isPdf= */ false,
                 /* mimeType= */ "",
                 Page.createForTesting(),
-                /* isSameOrigin= */ true);
+                /* isSameOrigin= */ true,
+                /* ignoredDuplicateNavigationCount= */ 0);
         return handle;
     }
 }

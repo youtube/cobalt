@@ -4765,32 +4765,6 @@ TEST_F(CertProvisioningWorkerDynamicTest, SerializationSuccessRsaKeys) {
                                               /*callback=*/_, /*signals=*/_),
                           KeyType::kRsa);
 
-    // Serialized in kKeypairGenerated = 1 state
-    pref_val = ParseJsonDict(base::StringPrintf(
-        R"({
-          "cert_profile_1": {
-            "cert_profile": {
-              "policy_version": "cert_profile_version_1",
-              "name": "Certificate Profile 1",
-              "profile_id": "cert_profile_1",
-              "va_enabled": true,
-              "renewal_period": 1200300,
-              "protocol_version": 2,
-              "key_type": 1
-            },
-            "cert_scope": 0,
-            "key_location": 1,
-            "process_id": "%s",
-            "attempted_va_challenge": false,
-            "attempted_proof_of_possession": false,
-            "proof_of_possession_signature": "",
-            "public_key": "%s",
-            "state": 1
-          }
-        })",
-        process_id.c_str(), kPublicKeyRsaBase64));
-    EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
-
     EXPECT_START(Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
                  StartResultOk());
 
@@ -5108,32 +5082,6 @@ TEST_F(CertProvisioningWorkerDynamicTest, SerializationSuccessEcKeys) {
                                               /*callback=*/_, /*signals=*/_),
                           KeyType::kEc);
 
-    // Serialized in kKeypairGenerated = 1 state
-    pref_val = ParseJsonDict(base::StringPrintf(
-        R"({
-          "cert_profile_1": {
-            "cert_profile": {
-              "policy_version": "cert_profile_version_1",
-              "name": "Certificate Profile 1",
-              "profile_id": "cert_profile_1",
-              "va_enabled": true,
-              "renewal_period": 1200300,
-              "protocol_version": 2,
-              "key_type": 2
-            },
-            "cert_scope": 0,
-            "key_location": 1,
-            "process_id": "%s",
-            "attempted_va_challenge": false,
-            "attempted_proof_of_possession": false,
-            "proof_of_possession_signature": "",
-            "public_key": "%s",
-            "state": 1
-          }
-        })",
-        process_id.c_str(), kPublicKeyEcBase64));
-    EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
-
     EXPECT_START(Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
                  StartResultOk());
 
@@ -5444,6 +5392,10 @@ TEST_F(CertProvisioningWorkerDynamicTest, SerializationOnFailureRsaKeys) {
                                               /*callback=*/_, /*signals=*/_),
                           KeyType::kRsa);
 
+    EXPECT_START(Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
+                 StartResultOk());
+
+    // Serialized in kReadyForNextOperation = 12 state
     pref_val = ParseJsonDict(base::StringPrintf(
         R"({
           "cert_profile_1": {
@@ -5462,15 +5414,16 @@ TEST_F(CertProvisioningWorkerDynamicTest, SerializationOnFailureRsaKeys) {
             "attempted_proof_of_possession": false,
             "proof_of_possession_signature": "",
             "public_key": "%s",
-            "state": 1
+            "state": 12
           }
         })",
         process_id.c_str(), kPublicKeyRsaBase64));
-    EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
 
-    EXPECT_START(
-        Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
-        base::unexpected(BackendError(em::CertProvBackendError::CA_FAILURE)));
+    EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
+    EXPECT_GET_NEXT_INSTRUCTION(
+        GetNextInstruction(Eq(std::ref(provisioning_process)), /*callback=*/_),
+        base::unexpected(BackendError(
+            em::CertProvBackendError::BAD_ADAPTER_CERTIFICATE_RECEIVED)));
 
     pref_val = ParseJsonDict("{}");
     EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
@@ -5521,6 +5474,10 @@ TEST_F(CertProvisioningWorkerDynamicTest, SerializationOnFailureEcKeys) {
                                               /*callback=*/_, /*signals=*/_),
                           KeyType::kEc);
 
+    EXPECT_START(Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
+                 StartResultOk());
+
+    // Serialized in kReadyForNextOperation = 12 state
     pref_val = ParseJsonDict(base::StringPrintf(
         R"({
           "cert_profile_1": {
@@ -5539,15 +5496,16 @@ TEST_F(CertProvisioningWorkerDynamicTest, SerializationOnFailureEcKeys) {
             "attempted_proof_of_possession": false,
             "proof_of_possession_signature": "",
             "public_key": "%s",
-            "state": 1
+            "state": 12
           }
         })",
         process_id.c_str(), kPublicKeyEcBase64));
-    EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
 
-    EXPECT_START(
-        Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
-        base::unexpected(BackendError(em::CertProvBackendError::CA_FAILURE)));
+    EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
+    EXPECT_GET_NEXT_INSTRUCTION(
+        GetNextInstruction(Eq(std::ref(provisioning_process)), /*callback=*/_),
+        base::unexpected(BackendError(
+            em::CertProvBackendError::BAD_ADAPTER_CERTIFICATE_RECEIVED)));
 
     pref_val = ParseJsonDict("{}");
     EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
@@ -5731,6 +5689,9 @@ TEST_F(CertProvisioningWorkerDynamicTest, CancelDeviceWorkerRsaKeys) {
                             /*callback=*/_, /*signals=*/_),
         KeyType::kRsa);
 
+    EXPECT_START(Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
+                 StartResultOk());
+
     pref_val = ParseJsonDict(base::StringPrintf(
         R"({
           "cert_profile_1": {
@@ -5749,14 +5710,14 @@ TEST_F(CertProvisioningWorkerDynamicTest, CancelDeviceWorkerRsaKeys) {
             "attempted_proof_of_possession": false,
             "proof_of_possession_signature": "",
             "public_key": "%s",
-            "state": 1
+            "state": 12
           }
         })",
         process_id.c_str(), kPublicKeyRsaBase64));
     EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
 
-    EXPECT_START_NO_OP(
-        Start(Eq(std::ref(provisioning_process)), /*callback=*/_));
+    EXPECT_GET_NEXT_INSTRUCTION_NO_OP(
+        GetNextInstruction(Eq(std::ref(provisioning_process)), /*callback=*/_));
 
     worker->DoStep();
   }
@@ -5819,6 +5780,9 @@ TEST_F(CertProvisioningWorkerDynamicTest, CancelDeviceWorkerEcKeys) {
                             /*callback=*/_, /*signals=*/_),
         KeyType::kEc);
 
+    EXPECT_START(Start(Eq(std::ref(provisioning_process)), /*callback=*/_),
+                 StartResultOk());
+
     pref_val = ParseJsonDict(base::StringPrintf(
         R"({
           "cert_profile_1": {
@@ -5837,14 +5801,14 @@ TEST_F(CertProvisioningWorkerDynamicTest, CancelDeviceWorkerEcKeys) {
             "attempted_proof_of_possession": false,
             "proof_of_possession_signature": "",
             "public_key": "%s",
-            "state": 1
+            "state": 12
           }
         })",
         process_id.c_str(), kPublicKeyEcBase64));
     EXPECT_CALL(pref_observer, OnPrefValueUpdated(IsJson(pref_val))).Times(1);
 
-    EXPECT_START_NO_OP(
-        Start(Eq(std::ref(provisioning_process)), /*callback=*/_));
+    EXPECT_GET_NEXT_INSTRUCTION_NO_OP(
+        GetNextInstruction(Eq(std::ref(provisioning_process)), /*callback=*/_));
 
     worker->DoStep();
   }

@@ -46,6 +46,13 @@ class FakeUnexportableKeyService : public UnexportableKeyService {
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback)
       override;
+  void CertifySlowlyAsync(
+      UnexportableAttestationKeyId attestation_key_id,
+      UnexportableSigningKeyId signing_key_id,
+      base::span<const uint8_t> challenge,
+      BackgroundTaskPriority priority,
+      base::OnceCallback<void(ServiceErrorOr<crypto::AttestationStatement>)>
+          callback) override;
   void DeleteKeysSlowlyAsync(
       base::span<const UnexportableKeyId> key_ids,
       BackgroundTaskPriority priority,

@@ -35,14 +35,12 @@
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/drivefs/drivefs_native_message_host.h"
-#include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/profiles/incognito_helpers.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/drivefs/drivefs_bootstrap.h"
 #include "chromeos/ash/components/drivefs/drivefs_pinning_manager.h"
 #include "chromeos/ash/components/drivefs/drivefs_search_query.h"
@@ -702,17 +700,13 @@ void DriveIntegrationService::Shutdown() {
 }
 
 void DriveIntegrationService::SetEnabled(bool enabled) {
-  // If Drive is being disabled, ensure the download destination preference to
-  // be out of Drive. Do this before "Do nothing if not changed." because we
-  // want to run the check for the first SetEnabled() called in the constructor,
-  // which may be a change from false to false.
-  if (!enabled) {
-    AvoidDriveAsDownloadDirectoryPreference();
-  }
-
   // Do nothing if not changed.
   if (enabled_ == enabled) {
     return;
+  }
+
+  if (!enabled) {
+    observers_.Notify(&Observer::OnDriveWillBeDisabled);
   }
 
   if (enabled) {
@@ -1200,22 +1194,6 @@ void DriveIntegrationService::InitializeAfterMetadataInitialized(
   if (enabled_) {
     AddDriveMountPoint();
   }
-}
-
-void DriveIntegrationService::AvoidDriveAsDownloadDirectoryPreference() {
-  if (DownloadDirectoryPreferenceIsInDrive()) {
-    GetPrefs()->SetFilePath(
-        ::prefs::kDownloadDefaultDirectory,
-        file_manager::util::GetDownloadsFolderForProfile(profile_));
-  }
-}
-
-bool DriveIntegrationService::DownloadDirectoryPreferenceIsInDrive() {
-  const auto downloads_path =
-      GetPrefs()->GetFilePath(::prefs::kDownloadDefaultDirectory);
-  const auto* user = ash::ProfileHelper::Get()->GetUserByProfile(profile_);
-  return user && user->GetAccountId().HasAccountIdKey() &&
-         GetMountPointPath().IsParent(downloads_path);
 }
 
 void DriveIntegrationService::MigratePinnedFiles() {

@@ -21,7 +21,7 @@ namespace passage_embeddings {
 
 class PassageEmbeddingsServiceController : public EmbedderMetadataProvider {
  public:
-  PassageEmbeddingsServiceController();
+  explicit PassageEmbeddingsServiceController(bool execute_for_gemma = false);
   ~PassageEmbeddingsServiceController() override;
 
   // Updates the paths and the metadata needed for executing the passage
@@ -124,6 +124,8 @@ class PassageEmbeddingsServiceController : public EmbedderMetadataProvider {
   // prioritizes all the jobs, and ultimately submits batches of work via
   // `GetEmbeddings` when the time is right.
   const std::unique_ptr<Embedder> embedder_;
+
+  const bool execute_for_gemma_ = false;
 
   // Used to generate weak pointers to self.
   base::WeakPtrFactory<PassageEmbeddingsServiceController> weak_ptr_factory_{

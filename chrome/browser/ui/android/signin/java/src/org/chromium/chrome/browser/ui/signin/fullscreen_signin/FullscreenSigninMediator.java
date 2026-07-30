@@ -468,7 +468,7 @@ public class FullscreenSigninMediator
 
     /** Implements {@link AccountsChangeObserver}. */
     @Override
-    public void onCoreAccountInfosChanged() {
+    public void onAccountsChanged() {
         if (mAccountManagerFacade.getAccounts().isFulfilled()) {
             updateAccountsAndCheck(mAccountManagerFacade.getAccounts().getResult());
         } else {

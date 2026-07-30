@@ -153,8 +153,6 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
     SelectionTemplate<EditingInFlatTreeStrategy>;
 
 using SelectionInDomTree = SelectionTemplate<EditingStrategy>;
-// An alias of SelectionInDomTree. New code should use SelectionInDomTree.
-using SelectionInDOMTree = SelectionInDomTree;
 using SelectionInFlatTree = SelectionTemplate<EditingInFlatTreeStrategy>;
 
 CORE_EXPORT SelectionInDomTree

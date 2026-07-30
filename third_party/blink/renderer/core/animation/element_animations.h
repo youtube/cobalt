@@ -38,7 +38,7 @@
 #include "third_party/blink/renderer/core/animation/worklet_animation_base.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/properties/css_bitset.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_counted_set.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/hash_counted_set.h"
@@ -52,7 +52,7 @@ using WorkletAnimationSet = HeapHashSet<WeakMember<WorkletAnimationBase>>;
 
 class CORE_EXPORT ElementAnimations final
     : public GarbageCollected<ElementAnimations>,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   ElementAnimations();
   ElementAnimations(const ElementAnimations&) = delete;

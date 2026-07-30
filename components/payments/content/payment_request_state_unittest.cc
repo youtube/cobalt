@@ -546,5 +546,15 @@ TEST_F(PaymentRequestStateTest, FilteredHomeWorkAddressProfiles) {
             autofill::AutofillProfile::RecordType::kLocalOrSyncable);
 }
 
+TEST_F(PaymentRequestStateTest, UserInteractionInWebPaymentApp) {
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+
+  EXPECT_FALSE(state()->user_interaction_in_web_payment_app());
+
+  state()->set_user_interaction_in_web_payment_app(true);
+
+  EXPECT_TRUE(state()->user_interaction_in_web_payment_app());
+}
+
 }  // namespace
 }  // namespace payments

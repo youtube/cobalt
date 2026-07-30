@@ -21,6 +21,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/common/content_features.h"
+#include "ui/base/device_form_factor.h"
 #include "ui/gfx/animation/animation.h"
 
 namespace {
@@ -62,6 +63,10 @@ ChromeWebContentsViewDelegateAndroid::GetDragDestDelegate() {
 bool ChromeWebContentsViewDelegateAndroid::ShouldShowBlurTransitionAnimation(
     content::NavigationHandle* navigation_handle) {
   if (gfx::Animation::PrefersReducedMotion()) {
+    return false;
+  }
+  // Only show animation for phone form factor.
+  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
     return false;
   }
   const GURL& url = navigation_handle->GetURL();

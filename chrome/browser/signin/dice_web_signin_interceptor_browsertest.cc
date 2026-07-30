@@ -310,7 +310,7 @@ class DiceWebSigninInterceptorBrowserTest : public SigninBrowserTestBase {
                        .Build();
 
     // Fill in the required account capabilities for the sign in intercept.
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_is_subject_to_parental_controls(false);
     mutator.set_is_subject_to_enterprise_features(!hosted_domain.empty());
     mutator.set_is_subject_to_account_level_enterprise_policies(
@@ -2982,12 +2982,13 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorLatePolicyCallbackUAFTest,
                      .SetAvatarUrl("https://example.com")
                      .SetLocale("en")
                      .Build();
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_enterprise_features(true);
   mutator.set_is_subject_to_account_level_enterprise_policies(true);
   ASSERT_TRUE(account_info.IsValid());
-  ASSERT_EQ(signin::Tribool::kUnknown,
-            account_info.capabilities.is_subject_to_parental_controls());
+  ASSERT_EQ(
+      signin::Tribool::kUnknown,
+      account_info.GetAccountCapabilities().is_subject_to_parental_controls());
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
 
   content::WebContents* web_contents =

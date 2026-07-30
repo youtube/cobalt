@@ -2090,10 +2090,28 @@ AXNode* AXNode::ComputeFirstUnignoredChildRecursive() const {
   return nullptr;
 }
 
+std::optional<std::string> AXNode::GetAriaValueTextOrValue() const {
+  if (IsSelectElement(GetRole()) || data().IsAtomicTextField()) {
+    return GetStringAttribute(ax::mojom::StringAttribute::kValue);
+  }
+
+  // Use aria value if the node is a range control.
+  if (data().IsRangeValueSupported() &&
+      HasStringAttribute(ax::mojom::StringAttribute::kAriaValueText)) {
+    return GetStringAttribute(ax::mojom::StringAttribute::kAriaValueText);
+  }
+
+  // Default to using the rendered value (kValue).
+  if (HasStringAttribute(ax::mojom::StringAttribute::kValue)) {
+    return GetStringAttribute(ax::mojom::StringAttribute::kValue);
+  }
+
+  return std::nullopt;
+}
+
 std::string AXNode::GetTextForRangeValue() const {
   DCHECK(data().IsRangeValueSupported());
-  std::string range_value =
-      GetStringAttribute(ax::mojom::StringAttribute::kValue);
+  std::string range_value = GetAriaValueTextOrValue().value_or(std::string());
   if (range_value.empty()) {
     float numeric_value =
         GetFloatAttribute(ax::mojom::FloatAttribute::kValueForRange);

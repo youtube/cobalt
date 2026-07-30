@@ -232,8 +232,8 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     NewTabPageHandlerWithCustomizeChromePromoMaxTimesBrowserTest,
     DISABLED_DontOpenPanelWhenPanelWasShowedMaxTimesBefore) {
-  for (size_t i = 0;
-       i < ntp_features::kNtpCustomizeChromeAutoShownMaxCount.Get(); ++i) {
+  for (int i = 0; i < ntp_features::kNtpCustomizeChromeAutoShownMaxCount.Get();
+       ++i) {
     OpenNewTabPageInForegroundAndWaitForLoad();
     EXPECT_TRUE(IsCustomizeChromeEntryShowing());
   }

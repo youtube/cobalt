@@ -5,6 +5,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/time/time.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
@@ -17,6 +18,7 @@
 #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -29,11 +31,13 @@
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/dom_distiller/core/url_utils.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/test_support/fake_tab_group_sync_service.h"
 #include "components/search/ntp_features.h"
 #include "components/tabs/public/tab_group.h"
+#include "components/user_education/test/mock_feature_promo_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
@@ -548,4 +552,102 @@ TEST_F(BookmarkBarTabGroupsTest, SavedTabGroupsRespectPrefOnNTP) {
   profile()->GetPrefs()->SetBoolean(
       bookmarks::prefs::kShowTabGroupsInBookmarkBar, false);
   EXPECT_EQ(BookmarkBar::HIDDEN, controller.bookmark_bar_state());
+}
+
+// Ensures that the bookmark bar auto-hides after being rendered on NTP more
+// than 15 days and it has not bee interacted with.
+TEST_F(BookmarkTest, NtpSimplification_AutoHideAfterLimit) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      ntp_features::kNtpSimplificationBookmarkBar);
+
+  // Set up bookmarks.
+  bookmarks::BookmarkModel* bookmark_model =
+      BookmarkModelFactory::GetForBrowserContext(profile());
+  bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
+  bookmarks::AddIfNotBookmarked(bookmark_model, GURL("https://www.test.com"),
+                                std::u16string());
+
+  // Set the pref to the limit before auto-hiding triggers.
+  profile()->GetPrefs()->SetInteger(prefs::kBookmarkBarRenderedOnNtpCount, 15);
+  // Set the last shown time to be 25 hours ago.
+  profile()->GetPrefs()->SetTime(
+      prefs::kBookmarkBarPreviousInitialRenderOnNtpTime,
+      base::Time::Now() - base::Hours(25));
+
+  BookmarkBarController controller(mock_browser_window_interface_,
+                                   *tab_strip_model_);
+
+  // Verify that the IPH is shown when the bookmark bar is auto-hidden.
+  EXPECT_CALL(
+      *user_education_interface_,
+      MaybeShowFeaturePromo(user_education::test::MatchFeaturePromoParams(
+          feature_engagement::kIPHBookmarkBarSimplifiedFeature)))
+      .WillOnce(testing::Return(true));
+
+  std::unique_ptr<content::WebContents> web_contents =
+      content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
+  tab_strip_model_->AppendWebContents(std::move(web_contents),
+                                      /*foreground=*/true);
+
+  // Navigate to NTP to trigger DidFinishNavigation.
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      tab_strip_model_->GetActiveWebContents(),
+      chrome::ChromeUINewTabURLAsGURL());
+
+  // Verify that the count incremented to 16.
+  EXPECT_EQ(
+      profile()->GetPrefs()->GetInteger(prefs::kBookmarkBarRenderedOnNtpCount),
+      16);
+
+  // Verify that the bookmark bar was hidden.
+  EXPECT_EQ(
+      profile()->GetPrefs()->GetInteger(
+          bookmarks::prefs::kBookmarkBarVisibilityState),
+      static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysHide));
+  EXPECT_EQ(BookmarkBar::HIDDEN, controller.bookmark_bar_state());
+}
+
+// Ensures that the render count is not incremented, and the bookmark bar is
+// not auto-hidden, if the user visits the NTP multiple times within 24 hours.
+TEST_F(BookmarkTest, NtpSimplification_NoAutoRemoval) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      ntp_features::kNtpSimplificationBookmarkBar);
+
+  bookmarks::BookmarkModel* bookmark_model =
+      BookmarkModelFactory::GetForBrowserContext(profile());
+  bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
+  bookmarks::AddIfNotBookmarked(bookmark_model, GURL("https://www.test.com"),
+                                std::u16string());
+
+  profile()->GetPrefs()->SetInteger(prefs::kBookmarkBarRenderedOnNtpCount, 15);
+  profile()->GetPrefs()->SetTime(
+      prefs::kBookmarkBarPreviousInitialRenderOnNtpTime,
+      base::Time::Now() - base::Hours(2));
+
+  BookmarkBarController controller(mock_browser_window_interface_,
+                                   *tab_strip_model_);
+
+  std::unique_ptr<content::WebContents> web_contents =
+      content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
+  tab_strip_model_->AppendWebContents(std::move(web_contents),
+                                      /*foreground=*/true);
+
+  // Navigate to NTP to trigger DidFinishNavigation.
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      tab_strip_model_->GetActiveWebContents(),
+      chrome::ChromeUINewTabURLAsGURL());
+
+  // Verify that the pref did not update.
+  EXPECT_EQ(
+      profile()->GetPrefs()->GetInteger(prefs::kBookmarkBarRenderedOnNtpCount),
+      15);
+
+  // Verify that the bookmark bar remains visible.
+  EXPECT_EQ(
+      profile()->GetPrefs()->GetInteger(
+          bookmarks::prefs::kBookmarkBarVisibilityState),
+      static_cast<int>(bookmarks::BookmarkBarVisibilityState::kOnlyShowOnNtp));
+  EXPECT_EQ(BookmarkBar::SHOW, controller.bookmark_bar_state());
 }

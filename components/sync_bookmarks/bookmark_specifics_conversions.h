@@ -100,6 +100,18 @@ bool HasExpectedBookmarkGuid(const sync_pb::BookmarkSpecifics& specifics,
                              const std::string& originator_cache_guid,
                              const std::string& originator_client_item_id);
 
+// Gets the bookmark UUID corresponding to a permanent folder identified by
+// |server_defined_unique_tag| or an invalid UUID if the tag is unknown.
+// |server_defined_unique_tag| must not be empty.
+base::Uuid GetPermanentFolderUuidForServerDefinedUniqueTag(
+    const std::string& server_defined_unique_tag);
+
+// Returns the client tag hash for the given remote update. It parses the
+// client tag hash in the update or infers it from the originator information.
+// It does NOT handle permanent nodes (returns empty ClientTagHash for them).
+syncer::ClientTagHash GetOrInferClientTagHashInUpdate(
+    const syncer::EntityData& update_entity);
+
 }  // namespace sync_bookmarks
 
 #endif  // COMPONENTS_SYNC_BOOKMARKS_BOOKMARK_SPECIFICS_CONVERSIONS_H_

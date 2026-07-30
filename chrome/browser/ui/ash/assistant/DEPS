@@ -7,7 +7,6 @@ include_rules = [
   "+chrome/browser/profiles",
   "+chrome/browser/ui/views/frame/browser_view.h",
   "+chrome/browser/web_applications",
-  "+chrome/common",
   "+chrome/test",
 ]
 

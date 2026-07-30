@@ -129,6 +129,10 @@ class CC_ANIMATION_EXPORT AnimationTrigger
   void PerformPause(Animation& animation, base::TimeTicks monotonic_time);
   void PerformReplay(Animation& animation, base::TimeTicks monotonic_time);
   void PerformPlayOnce(Animation& animation, base::TimeTicks monotonic_time);
+  void PerformPlayForwards(Animation& animation,
+                           base::TimeTicks monotonic_time);
+  void PerformPlayBackwards(Animation& animation,
+                            base::TimeTicks monotonic_time);
 
   void PerformBehavior(Animation& animation,
                        Behavior behavior,

@@ -9,6 +9,8 @@
     xmlns:tools="http://schemas.android.com/tools"
   package="{{ manifest_package|default(default_manifest_package) }}">
 
+    <permission android:name="{{ manifest_package|default(default_manifest_package) }}.permission.CHILD_SERVICE" android:protectionLevel="signature" />
+
     <uses-feature android:glEsVersion="0x00020000" />
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
@@ -201,6 +203,26 @@
             android:name="androidx.startup.InitializationProvider"
             android:exported="false"
             tools:node="remove" />
+
+        {% if javaless_renderers is defined %}
+        <!-- Restricting to just 2 native-only services, one for zygote and one for non-zygote. -->
+        {% for i in range(2) %}
+        <service android:name="org.chromium.content.app.NativeOnlySandboxedProcessService{{ i }}"
+            android:nativeService="true"
+            android:process=":sandboxed_process{{ i }}"
+            android:permission="{{ manifest_package|default(default_manifest_package) }}.permission.CHILD_SERVICE"
+            android:isolatedProcess="true"
+            {% if (i == 0) %}
+            android:useAppZygote="true"
+            {% endif %}
+            android:exported="false" >
+            <property android:name="android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME"
+                android:value="lib{{ library_name }}.so" />
+            <property android:name="android.app.PROPERTY_NATIVE_SERVICE_FUNCTION_NAME"
+                android:value="NativeChildProcessService_onCreate" />
+        </service>
+        {% endfor %}
+        {% endif %}
 
         <service android:name="org.chromium.build.gtest_apk.ProcessKeepaliveService"
             android:process=":test_process"

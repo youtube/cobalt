@@ -159,7 +159,7 @@ class LiteralBufferBase {
   }
 
  private:
-  blink::wtf_size_t AllocationSize(blink::wtf_size_t capacity) {
+  size_t AllocationSize(size_t capacity) {
     return blink::PartitionAllocator::QuantizedSize<T>(capacity);
   }
 

@@ -94,7 +94,7 @@ class PinnedToolbarActionsContainerBrowserTest : public InProcessBrowserTest {
   Browser* CreateBrowser() {
     Browser::CreateParams params(browser()->profile(), true /* user_gesture */);
     Browser* browser = Browser::Create(params);
-    browser->window()->Show();
+    browser->GetWindow()->Show();
     return browser;
   }
 
@@ -224,6 +224,32 @@ IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
   views::test::WaitForAnimatingLayoutManager(container());
   EXPECT_FALSE(container()->IsActionPinned(kActionSidePanelShowBookmarks));
   EXPECT_TRUE(container()->IsActionPoppedOut(kActionSidePanelShowBookmarks));
+}
+
+IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
+                       SidePanelButtonShownActiveStateForPinnedNotEphemeral) {
+  // Set the bookmarks side panel entry to not show an ephemeral button but be
+  // pinned.
+  SidePanelUI* const side_panel_ui = browser()->GetFeatures().side_panel_ui();
+  side_panel_ui->SetNoDelaysForTesting(true);
+  SidePanelEntry* const entry =
+      SidePanelRegistry::From(browser())->GetEntryForKey(
+          SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  entry->set_should_show_ephemerally_in_toolbar(false);
+  PinnedToolbarActionsModel* const actions_model =
+      PinnedToolbarActionsModel::Get(browser()->profile());
+  actions_model->UpdatePinnedState(kActionSidePanelShowBookmarks, true);
+  views::test::WaitForAnimatingLayoutManager(container());
+  EXPECT_TRUE(container()->IsActionPinned(kActionSidePanelShowBookmarks));
+
+  // Verify the pinned toolbar button is active when the side panel
+  // is opened.
+  side_panel_ui->Show(SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  views::test::WaitForAnimatingLayoutManager(container());
+  auto* pinned_button =
+      container()->GetButtonFor(kActionSidePanelShowBookmarks);
+  ASSERT_NE(pinned_button, nullptr);
+  EXPECT_TRUE(pinned_button->IsActive());
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

@@ -46,16 +46,12 @@ static constexpr char kManifestTemplate[] =
 // The boolean tuple describing:
 // 1. if the `kAIPromptAPI` chrome://flag is explicitly enabled;
 // 2. if the `kAIPromptAPI` kill switch is triggered;
-// 3. if the `kAIPromptAPIForExtension` kill switch is triggered;
-using Variant = std::tuple<bool, bool, bool>;
+using Variant = std::tuple<bool, bool>;
 bool IsAPIFlagEnabled(Variant v) {
   return std::get<0>(v);
 }
 bool IsAPIKillSwitchTriggered(Variant v) {
   return std::get<1>(v);
-}
-bool IsExtensionKillSwitchTriggered(Variant v) {
-  return std::get<2>(v);
 }
 
 // Describes the test variants in a meaningful way in the parameterized tests.
@@ -65,11 +61,8 @@ std::string DescribeTestVariant(const testing::TestParamInfo<Variant> info) {
   std::string api_kill_switch = IsAPIKillSwitchTriggered(info.param)
                                     ? "WithAPIKillswitch"
                                     : "NoAPIKillswitch";
-  std::string extension_kill_switch = IsExtensionKillSwitchTriggered(info.param)
-                                          ? "WithExtensionKillswitch"
-                                          : "NoExtensionKillswitch";
   return base::JoinString(
-      {api_flag_enabled, api_kill_switch, extension_kill_switch}, "_");
+      {api_flag_enabled, api_kill_switch}, "_");
 }
 
 }  // namespace
@@ -97,9 +90,6 @@ class MAYBE_ExtensionAILanguageModelBrowserTest
     if (IsAPIKillSwitchTriggered(GetParam())) {
       feature_states[blink::features::kAIPromptAPI] = false;
     }
-    if (IsExtensionKillSwitchTriggered(GetParam())) {
-      feature_states[blink::features::kAIPromptAPIForExtension] = false;
-    }
     feature_list_.InitWithFeatureStates(feature_states);
   }
 
@@ -110,7 +100,7 @@ class MAYBE_ExtensionAILanguageModelBrowserTest
 INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
     MAYBE_ExtensionAILanguageModelBrowserTest,
-    testing::Combine(testing::Bool(), testing::Bool(), testing::Bool()),
+    testing::Combine(testing::Bool(), testing::Bool()),
     &DescribeTestVariant);
 
 // Check whether the API is exposed to the extension worker when expected.

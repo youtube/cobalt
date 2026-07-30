@@ -17,7 +17,6 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/tab/SadTab.java",
     "java/src/org/chromium/chrome/browser/tab/SadTabView.java",
     "java/src/org/chromium/chrome/browser/tab/ScopedStorageBatch.java",
-    "java/src/org/chromium/chrome/browser/tab/SendTabToSelfTabCardLabelData.java",
     "java/src/org/chromium/chrome/browser/tab/StorageCollectionSynchronizer.java",
     "java/src/org/chromium/chrome/browser/tab/StorageLoadedData.java",
     "java/src/org/chromium/chrome/browser/tab/StorageRestoreOrchestratorFactory.java",
@@ -67,6 +66,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/tab/state/PersistedTabDataStorage.java",
     "java/src/org/chromium/chrome/browser/tab/state/PersistedTabDataStorageFactory.java",
     "java/src/org/chromium/chrome/browser/tab/state/PriceDropMetricsLogger.java",
+    "java/src/org/chromium/chrome/browser/tab/state/SendTabToSelfTabCardLabelData.java",
     "java/src/org/chromium/chrome/browser/tab/state/Serializer.java",
     "java/src/org/chromium/chrome/browser/tab/state/ShoppingPersistedTabData.java",
     "java/src/org/chromium/chrome/browser/tab/state/ShoppingPersistedTabDataService.java",
@@ -180,7 +180,6 @@ proto_java_library("critical_persisted_tab_data_proto_java") {
 robolectric_library("junit") {
   sources = [
     "java/src/org/chromium/chrome/browser/tab/CurrentTabObserverTest.java",
-    "java/src/org/chromium/chrome/browser/tab/SendTabToSelfTabCardLabelDataUnitTest.java",
     "java/src/org/chromium/chrome/browser/tab/TabAssociatedAppTest.java",
     "java/src/org/chromium/chrome/browser/tab/TabContextMenuDataUnitTest.java",
     "java/src/org/chromium/chrome/browser/tab/TabDragStateDataTest.java",
@@ -189,6 +188,7 @@ robolectric_library("junit") {
     "java/src/org/chromium/chrome/browser/tab/TabStateExtractorTest.java",
     "java/src/org/chromium/chrome/browser/tab/TabSupplierObserverTest.java",
     "java/src/org/chromium/chrome/browser/tab/state/PriceDropMetricsLoggerTest.java",
+    "java/src/org/chromium/chrome/browser/tab/state/SendTabToSelfTabCardLabelDataUnitTest.java",
     "java/src/org/chromium/chrome/browser/tab/utilities/TabLoadingServiceTest.java",
   ]
 

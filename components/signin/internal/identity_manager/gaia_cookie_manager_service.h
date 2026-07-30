@@ -302,6 +302,9 @@ class GaiaCookieManagerService
   FRIEND_TEST_ALL_PREFIXES(GaiaCookieManagerServiceCookieTest, CookieChange);
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory();
 
+  // Calls ListAccounts() and ignores the result. Used for posting async tasks.
+  void TriggerListAccountsIfStale();
+
   // Calls the LogOutFromCookie completion callback.
   void SignalLogOutComplete(const GoogleServiceAuthError& error);
 

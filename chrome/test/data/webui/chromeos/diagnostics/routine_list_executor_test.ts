@@ -9,7 +9,7 @@ import {ExecutionProgress, ResultStatusItem, RoutineListExecutor} from 'chrome:/
 import type {PowerRoutineResult, RoutineResultInfo} from 'chrome://diagnostics/system_routine_controller.mojom-webui.js';
 import {RoutineType, StandardRoutineResult} from 'chrome://diagnostics/system_routine_controller.mojom-webui.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('fakeRoutineListExecutorTestSuite', function() {
   let controller: FakeSystemRoutineController|null = null;

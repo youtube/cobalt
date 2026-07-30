@@ -12,6 +12,8 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
+import {BrowserProxyImpl} from './browser_proxy.js';
+import type {AutoTodoItem} from './context_hub.mojom-webui.js';
 
 export type ViewType = 'ai-taskbox'|'memory-banks';
 
@@ -31,10 +33,20 @@ export class ContextHubAppElement extends CrLitElement {
   static override get properties() {
     return {
       currentView_: {type: String},
+      todos_: {type: Array},
     };
   }
 
   protected accessor currentView_: ViewType = 'ai-taskbox';
+  protected accessor todos_: AutoTodoItem[]|null = null;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    BrowserProxyImpl.getInstance().handler.generateAutoTodos().then(
+        ({todos}) => {
+          this.todos_ = todos;
+        });
+  }
 
   protected onSelectedChanged_(e: CustomEvent<{value: ViewType}>) {
     this.currentView_ = e.detail.value;

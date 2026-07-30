@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "base/values.h"
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_profile.h"
@@ -469,9 +470,12 @@ bool IsPolicyMatching(const base::DictValue& policy,
     if (!policy_wifi || !actual_wifi)
       return false;
 
+    // HexSSID is a case-insensitive hex encoding of the SSID bytes; the ONC
+    // validator accepts mixed case and FillInHexSSIDField only fills it when
+    // missing, so compare case-insensitively to avoid policy-guard bypass.
     std::string policy_ssid = GetString(*policy_wifi, ::onc::wifi::kHexSSID);
     std::string actual_ssid = GetString(*actual_wifi, ::onc::wifi::kHexSSID);
-    return (policy_ssid == actual_ssid);
+    return base::EqualsCaseInsensitiveASCII(policy_ssid, actual_ssid);
   }
 
   if (actual_network_type == ::onc::network_type::kCellular) {

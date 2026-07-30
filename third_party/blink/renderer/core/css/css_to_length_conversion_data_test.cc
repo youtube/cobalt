@@ -32,14 +32,13 @@ class TestAnchorEvaluator : public AnchorEvaluator {
 
   std::optional<LayoutUnit> Evaluate(
       const AnchorQuery&,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&) override {
     return result_;
   }
   std::optional<PositionAreaOffsets> ComputePositionAreaOffsetsForLayout(
-      const StylePositionAnchor&,
-      PositionArea) override {
-    return PositionAreaOffsets();
+      const DefaultAnchorData&) override {
+    return std::nullopt;
   }
   std::optional<PhysicalOffset> ComputeAnchorCenterOffsets(
       const ComputedStyleBuilder&) override {
@@ -104,7 +103,9 @@ class CSSToLengthConversionDataTest : public PageTestBase {
         CSSToLengthConversionData::ContainerSizes(),
         CSSToLengthConversionData::AnchorData(
             options.anchor_evaluator,
-            StylePositionAnchor(StylePositionAnchor::Type::kNone),
+            DefaultAnchorData(
+                StylePositionAnchor(StylePositionAnchor::Type::kNormal),
+                PositionArea()),
             /* position_area_offsets */ std::nullopt),
         options.data_zoom.value_or(div->GetComputedStyle()->EffectiveZoom()),
         options.flags ? *options.flags : ignored_flags_, /*element=*/nullptr);
@@ -540,9 +541,7 @@ TEST_F(CSSToLengthConversionDataTest, ContainerUnitsWithContainerName) {
       GetDocument().documentElement()->GetComputedStyle(),
       CSSToLengthConversionData::ViewportSize(GetDocument().GetLayoutView()),
       CSSToLengthConversionData::ContainerSizes(child),
-      CSSToLengthConversionData::AnchorData(
-          nullptr, StylePositionAnchor(StylePositionAnchor::Type::kNone),
-          /* position_area_offsets */ std::nullopt),
+      CSSToLengthConversionData::AnchorData(),
       child->GetComputedStyle()->EffectiveZoom(), flags, /*element=*/nullptr);
 
   ScopedCSSName* name = MakeGarbageCollected<ScopedCSSName>(

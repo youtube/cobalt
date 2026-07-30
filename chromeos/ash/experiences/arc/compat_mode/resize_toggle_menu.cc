@@ -216,10 +216,12 @@ void ResizeToggleMenu::OnBubbleWidgetClosing(
     std::move(on_bubble_widget_closing_callback_).Run();
   }
 
+  widget_observation_.Reset();
+  window_observation_.Reset();
+
   bubble_widget_.reset();
 
   OverlayDialog::CloseIfAny(widget_->GetNativeWindow());
-  widget_observation_.Reset();
   widget_ = nullptr;
 }
 

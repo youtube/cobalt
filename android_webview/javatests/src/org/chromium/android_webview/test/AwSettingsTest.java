@@ -4046,4 +4046,50 @@ public class AwSettingsTest {
         Assert.assertTrue(settings.getIgnoreDuplicateNavEnabled());
         Assert.assertEquals(customThreshold, settings.getIgnoreDuplicateNavThreshold());
     }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Preferences"})
+    public void testTextSizeAdjustGatedByTextAutosizing() throws Throwable {
+        final TestAwContentsClient contentClient = new TestAwContentsClient();
+        final AwTestContainerView testContainerView =
+                mActivityTestRule.createAwTestContainerViewOnMainSync(contentClient);
+        final AwContents awContents = testContainerView.getAwContents();
+        final AwSettings settings = mActivityTestRule.getAwSettingsOnUiThread(awContents);
+
+        // Enable JS to read computed styles.
+        settings.setJavaScriptEnabled(true);
+
+        final String html =
+                "<html><head><style>"
+                        + "body { font-size: 10px; text-size-adjust: 200%; }"
+                        + "</style></head><body><div id='target'>test</div></body></html>";
+
+        mActivityTestRule.loadDataSync(
+                awContents, contentClient.getOnPageFinishedHelper(), html, "text/html", false);
+
+        String fontSizeStr =
+                mActivityTestRule.executeJavaScriptAndWaitForResult(
+                        awContents,
+                        contentClient,
+                        "window.getComputedStyle(document.getElementById('target')).fontSize");
+
+        // Before LAYOUT_ALGORITHM_TEXT_AUTOSIZING is set, text-size-adjust should be ignored.
+        Assert.assertEquals("\"10px\"", fontSizeStr);
+
+        settings.setLayoutAlgorithm(AwSettings.LAYOUT_ALGORITHM_TEXT_AUTOSIZING);
+
+        // We must reload the page so the WebPreferences update applies.
+        mActivityTestRule.loadDataSync(
+                awContents, contentClient.getOnPageFinishedHelper(), html, "text/html", false);
+
+        fontSizeStr =
+                mActivityTestRule.executeJavaScriptAndWaitForResult(
+                        awContents,
+                        contentClient,
+                        "window.getComputedStyle(document.getElementById('target')).fontSize");
+
+        // After it is set, text-size-adjust: 200% should apply.
+        Assert.assertEquals("\"20px\"", fontSizeStr);
+    }
 }

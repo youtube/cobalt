@@ -299,6 +299,16 @@ int QuicProxyDatagramClientSocket::Read(IOBuffer* buf,
   return ERR_IO_PENDING;
 }
 
+base::expected<DatagramsMetadata, Error>
+QuicProxyDatagramClientSocket::ReadMultiple(
+    IOBuffer* buf,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback) {
+  NOTREACHED();
+}
+
 int QuicProxyDatagramClientSocket::Write(
     IOBuffer* buf,
     int buf_len,

@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/containers/flat_map.h"
@@ -109,7 +110,8 @@ class ManifestSolutionFactory {
   void UpdateSolutions();
 
   // Get debug info about the current models.
-  std::vector<mojom::BrokerModelInfoPtr> GetBrokerModels() const;
+  std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
+  GetBrokerModels() const;
 
   const Manifest& manifest() const { return manifest_; }
 

@@ -209,8 +209,10 @@ TEST(AutofillAiPersonalContextConverters, ConvertFlightReservation) {
   flight.set_passenger_name("Bob Dylan");
   flight.set_departure_airport("FRA");
   flight.set_arrival_airport("JFK");
-  // 2026-05-28 12:00:00 UTC is 1779969600 seconds since Unix epoch
-  flight.mutable_departure_time()->set_seconds(1779969600);
+  flight.mutable_departure_time()->set_year(2026);
+  flight.mutable_departure_time()->set_month(5);
+  flight.mutable_departure_time()->set_day(28);
+  flight.mutable_departure_time()->set_hours(12);
 
   personal_context::proto::Entity entity;
   *entity.mutable_flight_reservation() = flight;
@@ -230,6 +232,34 @@ TEST(AutofillAiPersonalContextConverters, ConvertFlightReservation) {
   ExpectAttributeValue(result, kFlightReservationPassengerName, u"Bob Dylan");
   ExpectAttributeValue(result, kFlightReservationDepartureAirport, u"FRA");
   ExpectAttributeValue(result, kFlightReservationArrivalAirport, u"JFK");
+  ExpectAttributeValue(result, kFlightReservationDepartureDate, u"2026-05-28");
+}
+
+TEST(AutofillAiPersonalContextConverters, ConvertFlightReservationWithOffset) {
+  personal_context::proto::FlightReservation flight;
+  flight.set_flight_number("LH456");
+  flight.set_departure_airport("FRA");
+  flight.set_arrival_airport("JFK");
+  // 2026-05-28 12:00:00.
+  flight.mutable_departure_time()->set_year(2026);
+  flight.mutable_departure_time()->set_month(5);
+  flight.mutable_departure_time()->set_day(28);
+  flight.mutable_departure_time()->set_hours(12);
+  // UTC-4 (offset -14400s). Absolute time is 16:00:00 UTC.
+  flight.mutable_departure_time()->mutable_utc_offset()->set_seconds(-14400);
+
+  personal_context::proto::Entity entity;
+  *entity.mutable_flight_reservation() = flight;
+
+  std::optional<EntityInstance> opt_result =
+      PersonalContextEntityToEntityInstance(entity);
+
+  ASSERT_TRUE(opt_result.has_value());
+  const EntityInstance& result = opt_result.value();
+
+  EXPECT_EQ(result.type().name(), EntityTypeName::kFlightReservation);
+  EXPECT_EQ(test_api(result).frecency_override(), "2026-05-28T16:00:00.000Z");
+
   ExpectAttributeValue(result, kFlightReservationDepartureDate, u"2026-05-28");
 }
 
@@ -269,7 +299,9 @@ TEST(AutofillAiPersonalContextConverters, ConvertOrder) {
   order.set_account("user@test.com");
   order.set_merchant_name("E-Shop");
   order.set_merchant_domain("eshop.com");
-  order.mutable_order_time()->set_seconds(1779969600);
+  order.mutable_order_date()->set_year(2026);
+  order.mutable_order_date()->set_month(5);
+  order.mutable_order_date()->set_day(28);
   order.add_product_names("Book A");
   order.add_product_names("Toy B");
 
@@ -297,7 +329,9 @@ TEST(AutofillAiPersonalContextConverters, ConvertShipment) {
   shipment.set_tracking_number("TRACK-888");
   shipment.set_carrier_name("ExpressMail");
   shipment.set_carrier_domain("expressmail.com");
-  shipment.mutable_estimated_delivery_time()->set_seconds(1779969600);
+  shipment.mutable_estimated_delivery_date()->set_year(2026);
+  shipment.mutable_estimated_delivery_date()->set_month(5);
+  shipment.mutable_estimated_delivery_date()->set_day(28);
   shipment.add_associated_order_ids("ORD-001");
   shipment.add_associated_order_ids("ORD-002");
 

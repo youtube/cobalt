@@ -33,6 +33,7 @@
 #include "extensions/browser/api/declarative_net_request/rule_counts.h"
 #include "extensions/browser/api/declarative_net_request/ruleset_manager.h"
 #include "extensions/browser/api/declarative_net_request/ruleset_matcher.h"
+#include "extensions/browser/api/declarative_net_request/utils.h"
 #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
 #include "extensions/browser/api/web_request/permission_helper.h"
 #include "extensions/browser/api/web_request/web_request_event_router_factory.h"
@@ -1091,7 +1092,7 @@ void RulesMonitorService::OnNewStaticRulesetsLoaded(
     for (const std::unique_ptr<RulesetMatcher>& ruleset_matcher :
          matcher->matchers()) {
       // Exclude since we are only including static rulesets.
-      if (ruleset_matcher->id() == kDynamicRulesetID) {
+      if (!IsRulesetStatic(ruleset_matcher->id())) {
         continue;
       }
 

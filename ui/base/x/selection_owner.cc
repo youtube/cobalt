@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/time/time.h"
@@ -332,10 +333,9 @@ bool SelectionOwner::ProcessTarget(x11::Atom target,
             &SelectionOwner::AbortStaleIncrementalTransfers);
       }
     } else {
-      auto& mem = it->second;
-      std::vector<uint8_t> data(mem->data(),
-                                UNSAFE_TODO(mem->data() + mem->size()));
-      connection_->SetArrayProperty(requestor, property, target, data);
+      const scoped_refptr<base::RefCountedMemory>& mem = it->second;
+      connection_->SetArrayProperty(requestor, property, target,
+                                    base::span<const uint8_t>(*mem));
     }
     return true;
   }
@@ -348,10 +348,10 @@ bool SelectionOwner::ProcessTarget(x11::Atom target,
 void SelectionOwner::ProcessIncrementalTransfer(IncrementalTransfer* transfer) {
   size_t remaining = transfer->data->size() - transfer->offset;
   size_t chunk_length = std::min(remaining, GetMaxIncrementalTransferSize());
-  const uint8_t* data = UNSAFE_TODO(transfer->data->data() + transfer->offset);
-  std::vector<uint8_t> buf(data, UNSAFE_TODO(data + chunk_length));
+  base::span<const uint8_t> span = base::span<const uint8_t>(*transfer->data)
+                                       .subspan(transfer->offset, chunk_length);
   connection_->SetArrayProperty(transfer->window, transfer->property,
-                                transfer->target, buf);
+                                transfer->target, span);
   transfer->offset += chunk_length;
   transfer->timeout = base::TimeTicks::Now() + kIncrementalTransferTimeout;
 

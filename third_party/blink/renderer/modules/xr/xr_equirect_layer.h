@@ -21,7 +21,8 @@ class XREquirectLayer : public XRShapedLayer {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XREquirectLayer(const XREquirectLayerInit* init,
+  XREquirectLayer(XRSession* session,
+                  const XREquirectLayerInit* init,
                   V8XRLayerLayout::Enum final_layout,
                   XRGraphicsBinding* binding,
                   XRLayerDrawingContext* drawing_context);

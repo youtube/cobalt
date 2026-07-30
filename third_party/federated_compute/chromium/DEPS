@@ -7,4 +7,5 @@ include_rules = [
   "+google",
   "+gtest",
   "+components/cbor",
+  "+protostore",
 ]

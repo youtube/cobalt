@@ -639,7 +639,7 @@ IN_PROC_BROWSER_TEST_P(LiveSignInTest,
         identity_manager()->FindExtendedAccountInfoByAccountId(
             core_account_info.account_id);
     EXPECT_EQ(
-        account_info.capabilities
+        account_info.GetAccountCapabilities()
             .can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
         Tribool::kTrue);
   }
@@ -664,7 +664,7 @@ IN_PROC_BROWSER_TEST_P(LiveSignInTest,
         identity_manager()->FindExtendedAccountInfoByAccountId(
             core_account_info.account_id);
     EXPECT_EQ(
-        account_info.capabilities
+        account_info.GetAccountCapabilities()
             .can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
         Tribool::kFalse);
   }

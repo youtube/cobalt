@@ -36,6 +36,10 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
+namespace gfx {
+class Size;
+}
+
 namespace blink {
 
 class ImageBitmapOptions;
@@ -45,6 +49,7 @@ class MediaVideoVisibilityTracker;
 class MediaRemotingInterstitial;
 class PictureInPictureInterstitial;
 class StaticBitmapImage;
+class VideoTiming;
 class VideoWakeLock;
 
 class CORE_EXPORT HTMLVideoElement final
@@ -88,7 +93,7 @@ class CORE_EXPORT HTMLVideoElement final
   void PaintCurrentFrame(cc::PaintCanvas*,
                          const gfx::Rect&,
                          const cc::PaintFlags&,
-                         bool force_pixel_readback) const;
+                         bool acquire_texture_backing) const;
 
   bool HasAvailableVideoFrame() const;
   bool HasReadableVideoFrame() const;
@@ -228,7 +233,8 @@ class CORE_EXPORT HTMLVideoElement final
 
   // Video-specific overrides for part of the media::mojom::MediaPlayer
   // interface, fully implemented in the parent class HTMLMediaElement.
-  void RequestEnterPictureInPicture() final;
+  void RequestEnterPictureInPicture(
+      const std::optional<gfx::Size>& min_size) final;
   void RequestMediaRemoting() final;
   void RequestVisibility(RequestVisibilityCallback request_visibility_cb) final;
 
@@ -251,6 +257,13 @@ class CORE_EXPORT HTMLVideoElement final
 
   void ResetCache(TimerBase*);
 
+  // Returns true if the video element meets the optional minimum size
+  // requirements for entering Picture-in-Picture (calculated in viewport
+  // coordinates, including CSS transforms and page zoom). If no constraint
+  // is provided (`min_size` is `std::nullopt`), this always returns true.
+  bool MeetsRequestEnterPictureInPictureSizeConstraint(
+      const std::optional<gfx::Size>& min_size) const;
+
   Member<HTMLImageLoader> image_loader_;
   Member<MediaCustomControlsFullscreenDetector>
       custom_controls_fullscreen_detector_;
@@ -258,6 +271,9 @@ class CORE_EXPORT HTMLVideoElement final
 
   Member<MediaRemotingInterstitial> remoting_interstitial_;
   Member<PictureInPictureInterstitial> picture_in_picture_interstitial_;
+
+  // TODO(crbug.com/454082773): Remove once MediaTiming lifetime is fixed.
+  Member<VideoTiming> video_timing_;
 
   AtomicString default_poster_url_;
 

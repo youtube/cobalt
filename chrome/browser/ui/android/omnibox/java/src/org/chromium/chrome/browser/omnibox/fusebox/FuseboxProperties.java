@@ -21,8 +21,10 @@ import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
 
 /** The properties associated with the Fusebox bar. */
@@ -34,6 +36,16 @@ class FuseboxProperties {
         int RECENT_TAB = 0;
         int TOOL = 1;
         int MODEL = 2;
+    }
+
+    @IntDef({BackgroundStyle.INTERACT_ONLY_SMALL, BackgroundStyle.ALWAYS_VISIBLE_WIDE})
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.TYPE_USE)
+    public @interface BackgroundStyle {
+        // Small background that is only visible during hover or touch.
+        int INTERACT_ONLY_SMALL = 0;
+        // Wide background that is always visible.
+        int ALWAYS_VISIBLE_WIDE = 1;
     }
 
     /** Encapsulates the state for a button in the Fusebox popup. */
@@ -129,6 +141,10 @@ class FuseboxProperties {
     /** Whether the plus button is visible. */
     public static final WritableBooleanPropertyKey PLUS_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
+
+    /** The style of the background for the plus button. */
+    public static final WritableObjectPropertyKey<@BackgroundStyle Integer>
+            PLUS_BUTTON_BACKGROUND_STYLE = new WritableObjectPropertyKey<>();
 
     /** Action to perform when the user clicks the Camera button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_ATTACH_CAMERA_CLICKED =
@@ -278,6 +294,7 @@ class FuseboxProperties {
         COLOR_SCHEME,
         FUSEBOX_LAYOUT_MODE,
         FUSEBOX_STATE,
+        PLUS_BUTTON_BACKGROUND_STYLE,
         PLUS_BUTTON_CLICKED,
         PLUS_BUTTON_VISIBLE,
         POPUP_ATTACH_CAMERA_CLICKED,

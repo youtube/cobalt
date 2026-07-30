@@ -1,7 +1,7 @@
 {
   "CrWinAsan": {
     "additional_compile_targets": [
-      "chromium_builder_asan"
+      "blackbox_fuzzing_targets"
     ],
     "gtest_tests": [
       {

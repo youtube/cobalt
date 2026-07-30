@@ -59,7 +59,7 @@ void NetworkHintsHandlerImpl::PrefetchDNS(
   for (const auto& url : urls) {
     gurls.emplace_back(url.GetURL());
   }
-  std::optional<base::UnguessableToken> network_restrictions_id =
+  base::UnguessableToken network_restrictions_id =
       render_frame_host->GetNetworkRestrictionsID();
   preconnect_manager_->StartPreresolveHosts(
       gurls, GetPendingNetworkAnonymizationKey(render_frame_host),
@@ -84,7 +84,7 @@ void NetworkHintsHandlerImpl::Preconnect(const url::SchemeHostPort& url,
   if (!render_frame_host)
     return;
 
-  std::optional<base::UnguessableToken> network_restrictions_id =
+  base::UnguessableToken network_restrictions_id =
       render_frame_host->GetNetworkRestrictionsID();
   preconnect_manager_->StartPreconnectUrl(
       url.GetURL(), allow_credentials,

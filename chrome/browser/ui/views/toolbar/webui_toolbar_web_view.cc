@@ -33,10 +33,10 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
-#include "chrome/browser/ui/extensions/extensions_container.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/split_tab_util.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/toolbar_controller_util.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/view_ids.h"
@@ -46,12 +46,12 @@
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/webui_split_tabs_control.h"
+#include "chrome/browser/ui/views/toolbar/webui_toolbar_extensions_container_wrapper.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/browser_controls_adapter_impl.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher_impl.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
@@ -77,7 +77,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
-#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -214,8 +213,10 @@ WebUIToolbarWebView::WebUIToolbarWebView(
       split_tabs_control_(this),
       home_control_(this),
       app_menu_control_(*this),
+      battery_saver_control_(this),
       avatar_control_(this, browser->GetBrowserForMigrationOnly()),
       location_bar_(std::move(location_bar)),
+      extensions_container_(this),
       back_control_(this, BackForwardButton::Direction::kBack),
       forward_control_(this, BackForwardButton::Direction::kForward),
       pinned_toolbar_actions_(this),
@@ -230,6 +231,8 @@ WebUIToolbarWebView::WebUIToolbarWebView(
       toolbar_ui_api::mojom::ReloadControlState::New();
   last_queued_state_.home_control_state =
       toolbar_ui_api::mojom::HomeControlState::New();
+  last_queued_state_.battery_saver_button_visible =
+      battery_saver_control_.IsVisible();
   last_queued_state_.location_bar_state =
       toolbar_ui_api::mojom::LocationBarState::New();
   last_queued_state_.location_bar_state->omnibox_view_state =
@@ -251,6 +254,7 @@ WebUIToolbarWebView::WebUIToolbarWebView(
           std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>(),
           /*permission_dashboard=*/nullptr);
   last_queued_state_.layout_constants_version = 0;
+  last_queued_state_.touch_ui = ui::TouchUiController::Get()->touch_ui();
   last_queued_state_.back_forward_control_state = GetBackForwardState();
   last_queued_state_.app_menu_control_state = app_menu_control_.GetState();
   last_queued_state_.avatar_control_state =
@@ -271,16 +275,25 @@ WebUIToolbarWebView::WebUIToolbarWebView(
   }
   if (pre_created_contents) {
     is_preloaded_ = true;
-    SetInitializationState(InitializationState::kPending);
-    // When preload is not enabled, the `WebUIToolbarUI` init is done in
-    // `WebUIToolbarWebView::DidFinishNavigation()`. Here since the
-    // `WebContents` is pre-created, it might finish navigation before we
-    // install the observer, so we have to manually init the `WebUIToolbarUI`.
-    if (!pre_created_contents->IsLoading() &&
-        pre_created_contents->GetController().GetLastCommittedEntry()) {
-      if (auto* ui =
-              GetWebUIToolbarUIFromWebContents(pre_created_contents.get())) {
-        ui->Init(this);
+    const bool pre_navigate =
+        features::kWebUIReloadButtonPrewarmWebUIPreNavigate.Get() ||
+        base::FeatureList::IsEnabled(
+            features::kWebUIToolbarProcessOverheadExperiment);
+    if (pre_navigate) {
+      // Only set to `kPending` when the navigation is already done. Otherwise
+      // the state remains `kUninitialized` and the navigation will happen in
+      // `WebUIToolbarWebView::AddedToWidget()`.
+      SetInitializationState(InitializationState::kPending);
+      // When preload is not enabled, the `WebUIToolbarUI` init is done in
+      // `WebUIToolbarWebView::DidFinishNavigation()`. Here since the
+      // `WebContents` is pre-created, it might finish navigation before we
+      // install the observer, so we have to manually init the `WebUIToolbarUI`.
+      if (!pre_created_contents->IsLoading() &&
+          pre_created_contents->GetController().GetLastCommittedEntry()) {
+        if (auto* ui =
+                GetWebUIToolbarUIFromWebContents(pre_created_contents.get())) {
+          ui->Init(this);
+        }
       }
     }
     Observe(pre_created_contents.get());
@@ -316,7 +329,6 @@ void WebUIToolbarWebView::AddedToWidget() {
   if (initialization_state_ == InitializationState::kUninitialized) {
     // If the WebUI is in uninitialized state, it must be from the non-preloaded
     // path, we move to the pending state and then load the initial URL.
-    CHECK(!is_preloaded_);
     SetInitializationState(InitializationState::kPending);
     web_view_->LoadInitialURL(GURL(chrome::kChromeUIWebUIToolbarURL));
     ApplyInitialSurfaceSyncDeadline();
@@ -344,20 +356,14 @@ void WebUIToolbarWebView::AddedToWidget() {
     if (features::IsWebUIHomeButtonEnabled()) {
       home_control_.Init();
     }
+    if (features::IsWebUIBatterySaverButtonEnabled()) {
+      battery_saver_control_.Init();
+    }
     if (features::IsWebUIPinnedToolbarActionsEnabled()) {
       pinned_toolbar_actions_.Init();
     }
     if (features::IsWebUIExtensionsContainerEnabled()) {
-      extensions_container_ = std::make_unique<WebUIToolbarExtensionsContainer>(
-          *browser_, GetWidget(), web_contents()->GetWeakPtr());
-      // Register `extensions_container_` as the `ExtensionsContainer` for
-      // `browser_`.
-      scoped_extensions_container_user_data_ =
-          std::make_unique<ui::ScopedUnownedUserData<ExtensionsContainer>>(
-              browser_->GetUnownedUserDataHost(), *extensions_container_);
-      active_tab_subscription_ = browser_->RegisterActiveTabDidChange(
-          base::BindRepeating(&WebUIToolbarWebView::OnActiveTabChanged,
-                              base::Unretained(this)));
+      extensions_container_.Init(web_contents());
     }
 
     // Safe-initialize page-dependent controls if the WebUI finished loading
@@ -376,10 +382,7 @@ void WebUIToolbarWebView::OnThemeChanged() {
   if (features::IsWebUIPinnedToolbarActionsEnabled()) {
     pinned_toolbar_actions_.OnThemeChanged();
   }
-  if (extensions_container_) {
-    // Icons may need re-rendering.
-    extensions_container_->NotifyOfAllActions();
-  }
+  extensions_container_.OnThemeChanged();
 }
 
 gfx::Size WebUIToolbarWebView::GetMinimumSize() const {
@@ -438,6 +441,9 @@ void WebUIToolbarWebView::HandleContextMenu(
       break;
     case toolbar_ui_api::mojom::ContextMenuType::kHome:
       home_control_.HandleContextMenu(screen_rect, source);
+      break;
+    case toolbar_ui_api::mojom::ContextMenuType::kBatterySaver:
+      battery_saver_control_.ShowBubble(screen_rect);
       break;
     case toolbar_ui_api::mojom::ContextMenuType::
         kPinnedActionNewIncognitoWindow:
@@ -552,6 +558,14 @@ WebUIToolbarWebView::OnOmniboxAction(
 
 void WebUIToolbarWebView::ShowAvatarMenu() {
   avatar_control_.ButtonPressed(/*is_source_accelerator=*/false);
+}
+
+void WebUIToolbarWebView::SetAvatarButtonHovered(bool hovered) {
+  avatar_control_.SetAvatarButtonHovered(hovered);
+}
+
+void WebUIToolbarWebView::SetAvatarButtonFocused(bool focused) {
+  avatar_control_.SetAvatarButtonFocused(focused);
 }
 
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
@@ -972,6 +986,13 @@ void WebUIToolbarWebView::OnAppMenuControlStateChanged(
   }
 }
 
+void WebUIToolbarWebView::OnBatterySaverControlStateChanged(bool is_showing) {
+  if (is_showing != last_queued_state_.battery_saver_button_visible) {
+    last_queued_state_.battery_saver_button_visible = is_showing;
+    PostPushNavigationState();
+  }
+}
+
 void WebUIToolbarWebView::OnOmniboxViewStateChanged(
     toolbar_ui_api::mojom::OmniboxViewStatePtr state) {
   if (*state != *last_queued_state_.location_bar_state->omnibox_view_state) {
@@ -1068,6 +1089,14 @@ void WebUIToolbarWebView::OnPinnedToolbarActionsStateChanged(
   }
 }
 
+void WebUIToolbarWebView::OnExtensionsStateChanged(
+    std::vector<extensions_bar::mojom::ExtensionActionInfoPtr> state) {
+  if (!mojo::Equals(state, last_queued_state_.extensions_state)) {
+    last_queued_state_.extensions_state = std::move(state);
+    PostPushNavigationState();
+  }
+}
+
 void WebUIToolbarWebView::OnContentSettingChanged(
     std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr> state) {
   if (!mojo::Equals(state, last_queued_state_.location_bar_state
@@ -1097,17 +1126,10 @@ void WebUIToolbarWebView::OnFocusRequested(
 
 void WebUIToolbarWebView::OnTouchUiChanged() {
   ++last_queued_state_.layout_constants_version;
+  last_queued_state_.touch_ui = ui::TouchUiController::Get()->touch_ui();
   PostPushNavigationState();
 }
 
-void WebUIToolbarWebView::OnActiveTabChanged(
-    BrowserWindowInterface* browser_interface) {
-  if (extensions_container_) {
-    // State of extensions depends on what's active --- e.g. some may be
-    // disabled on some URLs.
-    extensions_container_->NotifyOfAllActions();
-  }
-}
 
 void WebUIToolbarWebView::PostPushNavigationState() {
   // The toolbar is implemented by many individual elements that all update
@@ -1160,6 +1182,8 @@ gfx::Size WebUIToolbarWebView::ComputeLayout(
                   split_tabs_control_.IsVisible();
   button_count += features::IsWebUIBackForwardButtonEnabled();
   button_count += features::IsWebUIAvatarButtonEnabled();
+  button_count += features::IsWebUIBatterySaverButtonEnabled() &&
+                  battery_saver_control_.IsVisible();
 
   const int size = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
   const int gap = GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
@@ -1182,13 +1206,14 @@ gfx::Size WebUIToolbarWebView::ComputeLayout(
   // first. Unlike the views code, this code does not currently allow the split
   // tab button to overflow, due to issues with relative priorities.
   //
-  // TODO(crbug.com/517885636): Allow the split tab button to be hidden..
+  // TODO(crbug.com/517885636): Allow the split tab button to be hidden.
 
+  bool allow_overflow = !ToolbarControllerUtil::PreventOverflow();
   if (features::IsWebUIBackForwardButtonEnabled() &&
       forward_control_.IsPinned()) {
     int next_button_width = NextButtonWidth(size, gap, button_count);
     bool is_forward_button_overflowed =
-        available_width.is_bounded() &&
+        allow_overflow && available_width.is_bounded() &&
         next_button_width + width > available_width.value();
     if (!is_forward_button_overflowed) {
       ++button_count;
@@ -1203,7 +1228,7 @@ gfx::Size WebUIToolbarWebView::ComputeLayout(
   if (features::IsWebUIHomeButtonEnabled() && home_control_.IsPinned()) {
     int next_button_width = NextButtonWidth(size, gap, button_count);
     bool is_home_button_overflowed =
-        available_width.is_bounded() &&
+        allow_overflow && available_width.is_bounded() &&
         next_button_width + width > available_width.value();
     if (!is_home_button_overflowed) {
       ++button_count;

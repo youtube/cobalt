@@ -13,7 +13,7 @@
 namespace blink {
 
 SelectionForUndoStep SelectionForUndoStep::From(
-    const SelectionInDOMTree& selection) {
+    const SelectionInDomTree& selection) {
   SelectionForUndoStep result;
   result.anchor_ = selection.Anchor();
   result.focus_ = selection.Focus();
@@ -43,9 +43,9 @@ bool SelectionForUndoStep::operator==(const SelectionForUndoStep& other) const {
          is_anchor_first_ == other.is_anchor_first_;
 }
 
-SelectionInDOMTree SelectionForUndoStep::AsSelection() const {
+SelectionInDomTree SelectionForUndoStep::AsSelection() const {
   if (IsNone()) {
-    return SelectionInDOMTree();
+    return SelectionInDomTree();
   }
 
   // Guard against concurrent DOM modifications that may have disconnected
@@ -55,10 +55,10 @@ SelectionInDOMTree SelectionForUndoStep::AsSelection() const {
           HandleDisconnectedSelectionDuringDOMChangesEnabled() &&
       (!anchor_.IsConnected() || !focus_.IsConnected())) {
     // If positions are disconnected, return empty selection
-    return SelectionInDOMTree();
+    return SelectionInDomTree();
   }
 
-  return SelectionInDOMTree::Builder()
+  return SelectionInDomTree::Builder()
       .SetBaseAndExtent(anchor_, focus_)
       .SetAffinity(affinity_)
       .Build();

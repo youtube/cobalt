@@ -1575,7 +1575,7 @@ TEST_F(PeopleHandlerTest, HandleStartSigninManaged) {
   account = AccountInfo::Builder(account)
                 .SetHostedDomain("managedchrome.com")
                 .Build();
-  AccountCapabilitiesTestMutator(&account.capabilities)
+  AccountCapabilitiesTestMutator(&account)
       .set_is_subject_to_enterprise_features(true);
   identity_test_env()->UpdateAccountInfoForAccount(account);
   SigninClient* client = ChromeSigninClientFactory::GetForProfile(profile());

@@ -443,8 +443,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripLinkDragTest,
 
 IN_PROC_BROWSER_TEST_F(VerticalTabStripLinkDragTest, ExpandOnHoverOnLinkDrag) {
   // Activate the browser window.
-  browser()->window()->Show();
-  browser()->window()->Activate();
+  browser()->GetWindow()->Show();
+  browser()->GetWindow()->Activate();
 
   // Set up collapsed vertical tab strip with expand on hover enabled.
   VerticalTabStripRegionView* view = region_view();

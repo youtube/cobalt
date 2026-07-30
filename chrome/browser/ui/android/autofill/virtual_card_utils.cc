@@ -23,7 +23,7 @@ using base::android::ScopedJavaLocalRef;
 namespace autofill {
 
 ScopedJavaLocalRef<jobject> CreateVirtualCardEnrollmentFieldsJavaObject(
-    autofill::VirtualCardEnrollmentFields* virtual_card_enrollment_fields) {
+    VirtualCardEnrollmentFields* virtual_card_enrollment_fields) {
   JNIEnv* env = AttachCurrentThread();
   // Create VirtualCardEnrollmentFields java object.
   ScopedJavaLocalRef<jstring> card_name = ConvertUTF16ToJavaString(

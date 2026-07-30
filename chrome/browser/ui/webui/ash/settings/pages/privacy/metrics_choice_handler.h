@@ -16,12 +16,12 @@ namespace ash::settings {
 
 class TestMetricsChoiceHandler;
 
-// Handler for fetching and updating metrics consent.
+// Handler for fetching and updating metrics choice.
 class MetricsChoiceHandler : public content::WebUIMessageHandler {
  public:
-  // Message names sent to WebUI for handling metric consent.
-  static const char kGetMetricsConsentState[];
-  static const char kUpdateMetricsConsent[];
+  // Message names sent to WebUI for handling metric choice.
+  static const char kGetMetricsChoiceState[];
+  static const char kUpdateMetricsChoice[];
 
   MetricsChoiceHandler(Profile* profile,
                        metrics::MetricsService* metrics_service,
@@ -40,21 +40,21 @@ class MetricsChoiceHandler : public content::WebUIMessageHandler {
  private:
   friend class TestMetricsChoiceHandler;
 
-  // Handles updating metrics consent for the user.
-  void HandleUpdateMetricsConsent(const base::ListValue& args);
+  // Handles updating metrics choice for the user.
+  void HandleUpdateMetricsChoice(const base::ListValue& args);
 
-  // Handles fetching metrics consent state. The callback will return two
+  // Handles fetching metrics choice state. The callback will return two
   // values: a string pref name and a boolean indicating whether the current
   // user may change that pref.
-  void HandleGetMetricsConsentState(const base::ListValue& args);
+  void HandleGetMetricsChoiceState(const base::ListValue& args);
 
   // Returns true if user with |profile_| has permissions to change the metrics
-  // consent pref.
-  bool IsMetricsConsentConfigurable() const;
+  // choice pref.
+  bool IsMetricsChoiceConfigurable() const;
 
-  // Returns true if the user metrics consent should be used rather than the
-  // device metrics consent.
-  bool ShouldUseUserConsent() const;
+  // Returns true if the user metrics choice should be used rather than the
+  // device metrics choice.
+  bool ShouldUseUserChoice() const;
 
   const raw_ptr<Profile, DanglingUntriaged> profile_;
   const raw_ptr<metrics::MetricsService, DanglingUntriaged> metrics_service_;

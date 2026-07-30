@@ -8,7 +8,9 @@
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 
@@ -36,6 +38,11 @@ class AwContentRestrictionURLLoaderThrottle : public blink::URLLoaderThrottle {
                         bool* defer) override;
 
  private:
+  // Streams request body contents into the specified file descriptor.
+  void WriteRequestBodyToPipe(
+      int write_fd,
+      scoped_refptr<network::ResourceRequestBody> request_body);
+
   // Internal callback helper used to handle the content classification result.
   void OnClassificationResult(bool is_allowed);
 
@@ -43,6 +50,8 @@ class AwContentRestrictionURLLoaderThrottle : public blink::URLLoaderThrottle {
       content_restriction_manager_client_;
   raw_ptr<AwContentRestrictionBlockedNavigationTracker> tracker_;
   const std::optional<int64_t> navigation_id_;
+
+  scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner_;
 
   base::WeakPtrFactory<AwContentRestrictionURLLoaderThrottle> weak_ptr_factory_{
       this};

@@ -159,7 +159,11 @@ class PosixSpawnFileActions {
 
 #if BUILDFLAG(IS_MAC)
   void Chdir(const char* path) {
-    DPSXCHECK(posix_spawn_file_actions_addchdir_np(&file_actions_, path));
+    if (__builtin_available(macOS 26, *)) {
+      DPSXCHECK(posix_spawn_file_actions_addchdir(&file_actions_, path));
+    } else {
+      DPSXCHECK(posix_spawn_file_actions_addchdir_np(&file_actions_, path));
+    }
   }
 #endif
 

@@ -265,7 +265,7 @@ public final class SyncTestUtil {
      * data is a JSONObject representing the datatype-specific information for the entity. This data
      * is the same as the data stored in a specifics protocol buffer (e.g., ReadingListSpecifics).
      *
-     * @param context the Context used to retreive the correct SyncService
+     * @param context the Context used to retrieve the correct SyncService
      * @param typeString a String representing a specific datatype.
      *     <p>TODO(pvalenzuela): Replace typeString with the native DataType enum or something else
      *     that will avoid callers needing to specify the native string version.

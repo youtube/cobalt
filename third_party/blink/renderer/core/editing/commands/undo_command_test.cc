@@ -28,7 +28,7 @@ class UndoCommandTest : public EditingTestBase {
 };
 
 // http://crbug.com/1378068
-TEST_F(UndoCommandTest, RedoWithDOMChanges) {
+TEST_F(UndoCommandTest, RedoWithDomChanges) {
   GetDocument().GetSettings()->SetScriptEnabled(true);
   auto* const sample_html = R"HTML(
     <div contenteditable id="sample1">One|</div>
@@ -66,7 +66,7 @@ TEST_F(UndoCommandTest, RedoWithDOMChanges) {
 }
 
 // http://crbug.com/1378068
-TEST_F(UndoCommandTest, UndoWithDOMChanges) {
+TEST_F(UndoCommandTest, UndoWithDomChanges) {
   GetDocument().GetSettings()->SetScriptEnabled(true);
   auto* const sample_html = R"HTML(
     <div contenteditable id="sample1">One|</div>

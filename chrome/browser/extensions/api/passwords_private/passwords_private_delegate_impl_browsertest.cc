@@ -1486,7 +1486,7 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
                        ShowAddShortcutDialog) {
   base::HistogramTester histogram_tester;
   // Simulate a navigation.
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
   ASSERT_TRUE(embedded_test_server()->Start());
   NavigateParams nav_params(browser(),
                             embedded_test_server()->GetURL("/empty.html"),
@@ -2395,5 +2395,18 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
               SizeIs(1));
 }
 #endif
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateDelegateImplTest,
+                       GetSavedPasswordsListMapsApcField) {
+  PasswordForm sample_form = CreateSampleForm();
+  SetUpPasswordStores({sample_form});
+  auto delegate = CreateDelegate();
+
+  const PasswordsPrivateDelegate::UiEntries& credentials =
+      GetCredentials(*delegate);
+  ASSERT_EQ(credentials.size(), 1u);
+  // Backend returns false by default.
+  EXPECT_FALSE(credentials.at(0).is_automatic_password_change_supported);
+}
 
 }  // namespace extensions

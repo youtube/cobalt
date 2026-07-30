@@ -130,9 +130,9 @@ BASE_FEATURE(kPreinstalledWebAppAlwaysMigrateForTesting,
 // Controls the enablement of structured metrics on Windows, Linux, and Mac.
 BASE_FEATURE(kChromeStructuredMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, allows parsing of `tab_group_color_palette` theme key, else
-// ignores it.
-BASE_FEATURE(kCustomizeTabGroupColorPalette, base::FEATURE_DISABLED_BY_DEFAULT);
+#if !BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kContextContainers, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // Moves the Extensions "puzzle piece" icon from the title bar into the app menu
 // for web app windows.
@@ -180,8 +180,6 @@ BASE_FEATURE(kEnableFullscreenToAnyScreenAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// Enables the new reset banner on the settings page.
-BASE_FEATURE(kShowResetProfileBannerV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Controls whether Chrome Apps are supported. See https://crbug.com/40186761.
@@ -211,6 +209,8 @@ const base::FeatureParam<double> kGlicActorApcComparisonSamplingRate{
 BASE_FEATURE(kGlicIgnoreDogfoodClient, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicExperimentalTriggering, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicExperimentalTriggeringOptInTabFocus,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicExperimentalTriggeringSuppressDoneNotification,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicExperimentalTriggeringOptInBypass,
@@ -221,6 +221,23 @@ BASE_FEATURE(kGlicExperimentalTriggeringOpenWindowIfNone,
 const base::FeatureParam<std::string> kGlicExperimentalTriggeringOptInURL{
     &kGlicExperimentalTriggering, "glic-experimental-triggering-opt-in-url",
     "https://gemini.google.com/glic/intro?"};
+
+const base::FeatureParam<std::string> kGlicExperimentalTriggeringTabFocusHosts{
+    &kGlicExperimentalTriggeringOptInTabFocus,
+    "glic-experimental-triggering-tab-focus-hosts",
+    "gemini.google.com,gemini-autopush.corp.google.com"};
+
+const base::FeatureParam<std::string>
+    kGlicExperimentalTriggeringTabFocusPathSubstring{
+        &kGlicExperimentalTriggeringOptInTabFocus,
+        "glic-experimental-triggering-tab-focus-path-substring",
+        "/spark,/corp/spark"};
+
+const base::FeatureParam<std::string>
+    kGlicExperimentalTriggeringTabFocusFallbackURL{
+        &kGlicExperimentalTriggeringOptInTabFocus,
+        "glic-experimental-triggering-tab-focus-fallback-url",
+        "https://gemini.google.com/spark"};
 
 const base::FeatureParam<base::TimeDelta> kGlicActorPageToolTimeout{
     &kGlicActor, "glic-actor-page-tool-timeout", base::Seconds(30)};
@@ -604,13 +621,6 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "glic-user-status-throttle-interval",
                    base::Seconds(5));
 
-BASE_FEATURE(kGlicFreURLConfig, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(std::string,
-                   kGlicFreURL,
-                   &kGlicFreURLConfig,
-                   "glic-fre-url",
-                   "https://gemini.google.com/glic/intro?");
-
 BASE_FEATURE(kGlicLearnMoreURLConfig, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,
                    kGlicShortcutsLearnMoreURL,
@@ -798,8 +808,6 @@ BASE_FEATURE(kGlicDefaultContextPinOnBind, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicUnloadOnClose, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicApiActivationGating, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kGlicBindPinnedUnboundTab, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, don't try to update the views background color based on the
@@ -891,8 +899,6 @@ BASE_FEATURE(kGlicDaisyChainNewTabs, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicLiveModeOnlyGlow, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicMITabContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kGlicGeminiContinueURLRedirect, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicWebContinuity, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kGlicWebContinuityUrl{
@@ -908,12 +914,12 @@ const base::FeatureParam<int> kGlicWebContinuityMaxTurnIdLength{
 
 BASE_FEATURE(kGlicUseToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicButtonPressedState, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicButtonPressedState, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kGlicButtonContainerBackground{
     &kGlicButtonPressedState, "glic-button-container-background", false};
 const base::FeatureParam<bool> kGlicButtonPressedForceSolidIcon{
-    &kGlicButtonPressedState, "glic-button-pressed-force-solid-icon", false};
+    &kGlicButtonPressedState, "glic-button-pressed-force-solid-icon", true};
 
 BASE_FEATURE(kGlicShareImage, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -993,7 +999,7 @@ const base::FeatureParam<int> kGlicGuestUrlPresetType{
 
 BASE_FEATURE(kGlicContextualCueBubble, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicClientZoomControl, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicClientZoomControl, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kActorFormFillingServiceEnableAddress,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1203,6 +1209,9 @@ BASE_FEATURE(kHttpsFirstModeIncognito, base::FEATURE_ENABLED_BY_DEFAULT);
 // Experimental image replacement feature. b/482792874
 BASE_FEATURE(kIndigo, base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<bool> kIndigoRequireGlicEnabling{
+    &kIndigo, "indigo_require_glic_enabling", false};
+
 const base::FeatureParam<base::TimeDelta> kIndigoAnchoredMessageResetDuration{
     &kIndigo, "indigo_anchored_message_reset_duration", base::Hours(24)};
 const base::FeatureParam<std::string> kIndigoGenerateUrl{
@@ -1227,6 +1236,8 @@ const base::FeatureParam<std::string> kIndigoGlicPromptKey{
     &kIndigoOpenGlic, "indigo_glic_prompt_key", ""};
 const base::FeatureParam<std::string> kIndigoGlicSkillId{
     &kIndigoOpenGlic, "indigo_glic_skill_id", ""};
+const base::FeatureParam<base::TimeDelta> kIndigoGlicTriggerDelay{
+    &kIndigoOpenGlic, "indigo_glic_trigger_delay", base::Milliseconds(300)};
 
 #if !BUILDFLAG(IS_ANDROID)
 // A feature that controls whether Instant uses a spare renderer.
@@ -1283,11 +1294,6 @@ const base::FeatureParam<std::string> kIndigoComponentAttribute{
     &kIndigoComponent, "indigo_component_attribute", ""};
 
 BASE_FEATURE(kSystemNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_MAC)
-// Enables the usage of Apple's new Notification API.
-BASE_FEATURE(kNewMacNotificationAPI, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_MAC)
 
 // When kNoReferrers is enabled, most HTTP requests will provide empty
 // referrers instead of their ordinary behavior.
@@ -1813,6 +1819,9 @@ const base::FeatureParam<bool> kWebUIReloadButtonDeferBrowserViewShow{
 // initialization.
 const base::FeatureParam<bool> kWebUIReloadButtonPrewarmWebUI{
     &kWebUIReloadButton, "WebUIReloadButtonPrewarmWebUI", false};
+// When this is enabled, the pre-warmed WebUI will also navigate immediately.
+const base::FeatureParam<bool> kWebUIReloadButtonPrewarmWebUIPreNavigate{
+    &kWebUIReloadButton, "WebUIReloadButtonPrewarmWebUIPreNavigate", false};
 // When this is enabled, the reload button will be marked as visible until its
 // first non-empty paint.
 const base::FeatureParam<bool> kWebUIReloadButtonKeepVisibleUntilPaint{
@@ -1909,6 +1918,9 @@ const base::FeatureParam<int> kSmartRestartLockScreenDisruptionThreshold{
 
 const base::FeatureParam<base::TimeDelta> kSmartRestartLockScreenDelay{
     &kSmartRestartLockScreen, "lock_restart_delay", base::Minutes(5)};
+
+const base::FeatureParam<double> kSmartRestartLockBypassBeforeUnloadThreshold{
+    &kSmartRestartLockScreen, "lock_bypass_beforeunload_threshold", -1.0};
 
 // A feature to record the difference in the number of tabs and windows between
 // the last session and the current session on restart.

@@ -55,6 +55,7 @@ static_library("device") {
     "//chrome/common",
     "//chrome/common:chrome_features",
     "//chromeos/ash/components/demo_mode",
+    "//chromeos/ash/experiences/arc:arc_app_constants",
     "//chromeos/components/magic_boost/public/cpp",
     "//chromeos/constants",
     "//chromeos/strings",

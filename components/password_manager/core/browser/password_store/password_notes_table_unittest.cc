@@ -65,8 +65,7 @@ class PasswordNotesTableTest : public testing::Test {
 
   scoped_refptr<os_crypt_async::Encryptor> CreateEncryptor() {
     base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
-    test_oscrypt_async_->GetInstance(future.GetCallback(),
-                                     os_crypt_async::Encryptor::Option::kNone);
+    test_oscrypt_async_->GetInstance(future.GetCallback());
     return future.Take();
   }
 

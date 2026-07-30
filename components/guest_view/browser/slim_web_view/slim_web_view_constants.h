@@ -32,6 +32,7 @@ extern const char kReason[];
 extern const char kRequestId[];
 extern const char kRequestInfo[];
 extern const char kTargetURL[];
+extern const char kUserAgentOverride[];
 extern const char kWindowOpenDisposition[];
 
 }  // namespace guest_view::slim_web_view

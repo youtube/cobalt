@@ -148,11 +148,11 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
     @Override
     protected void tabClosed(int id, int nextId, boolean incognito, boolean tabRemoved) {
         boolean showOverview = nextId == Tab.INVALID_TAB_ID;
-        if (getActiveLayoutType() != LayoutType.TAB_SWITCHER && showOverview) {
+        if (getActiveLayoutType() != LayoutType.HUB && showOverview) {
             // Since there will be no 'next' tab to display, switch to
             // overview mode when the animation is finished.
             if (getActiveLayoutType() == LayoutType.SIMPLE_ANIMATION) {
-                setNextLayout(getLayoutForType(LayoutType.TAB_SWITCHER), true);
+                setNextLayout(getLayoutForType(LayoutType.HUB), true);
             } else {
                 super.tabClosed(id, nextId, incognito, tabRemoved);
             }
@@ -170,7 +170,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             // smoothly.
             getActiveLayout().onTabCreating(sourceId);
         } else if (animationsEnabled()) {
-            if (!isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+            if (!isLayoutVisible(LayoutType.HUB)) {
                 if (getActiveLayout() != null && getActiveLayout().isStartingToHide()) {
                     setNextLayout(mNewTabAnimationLayout, true);
                     // The method Layout#doneHiding() will automatically show the next layout.

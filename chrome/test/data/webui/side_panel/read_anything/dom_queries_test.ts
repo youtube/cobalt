@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {getRectIndexAtY, getRectsForSegments, getTextNodeOffsets, ReadAloudNode} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {getNearestTextBoundaryPoint, getRectIndexAtY, getRectsForSegments, getTextNodeOffsets, ReadAloudNode} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 
 suite('DomQueries', () => {
@@ -244,5 +244,82 @@ suite('DomQueries', () => {
       assertEquals(1, getRectIndexAtY(65, rects, true));
       assertEquals(1, getRectIndexAtY(65, rects, false));
     });
+  });
+
+  suite('getNearestTextBoundaryPoint', () => {
+    test('returns same node and offset if inside a text node', () => {
+      const textNode = document.createTextNode('Hello world');
+      const root = document.createElement('div');
+      root.appendChild(textNode);
+      document.body.appendChild(root);
+
+      const result = getNearestTextBoundaryPoint(textNode, 5, root, true);
+      assertEquals(textNode, result.node);
+      assertEquals(5, result.offset);
+    });
+
+    test(
+        'shifts start boundary forward to next text node if at end of text node',
+        () => {
+          const root = document.createElement('div');
+          const child1 = document.createTextNode('hello');
+          const child2 = document.createTextNode('world');
+          root.appendChild(child1);
+          root.appendChild(child2);
+          document.body.appendChild(root);
+
+          const result = getNearestTextBoundaryPoint(child1, 5, root, true);
+          assertEquals(child2, result.node);
+          assertEquals(0, result.offset);
+        });
+
+    test(
+        'shifts end boundary backward to previous text node if at start of text node',
+        () => {
+          const root = document.createElement('div');
+          const child1 = document.createTextNode('hello');
+          const child2 = document.createTextNode('world');
+          root.appendChild(child1);
+          root.appendChild(child2);
+          document.body.appendChild(root);
+
+          const result = getNearestTextBoundaryPoint(child2, 0, root, false);
+          assertEquals(child1, result.node);
+          assertEquals(5, result.offset);
+        });
+
+    test(
+        'normalizes Element node using forward search when offset is valid index',
+        () => {
+          const root = document.createElement('div');
+          const child1 = document.createTextNode('hello');
+          const child2 = document.createElement('span');
+          const child2Text = document.createTextNode('world');
+          child2.appendChild(child2Text);
+          root.appendChild(child1);
+          root.appendChild(child2);
+          document.body.appendChild(root);
+
+          const result = getNearestTextBoundaryPoint(root, 0, root, true);
+          assertEquals(child1, result.node);
+          assertEquals(0, result.offset);
+        });
+
+    test(
+        'normalizes Element node using backward search when offset wraps out of bounds',
+        () => {
+          const root = document.createElement('div');
+          const child1 = document.createTextNode('hello');
+          const child2 = document.createElement('span');
+          const child2Text = document.createTextNode('world');
+          child2.appendChild(child2Text);
+          root.appendChild(child1);
+          root.appendChild(child2);
+          document.body.appendChild(root);
+
+          const result = getNearestTextBoundaryPoint(root, 2, root, true);
+          assertEquals(child2Text, result.node);
+          assertEquals(5, result.offset);
+        });
   });
 });

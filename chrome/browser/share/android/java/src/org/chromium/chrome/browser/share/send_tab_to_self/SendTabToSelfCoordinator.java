@@ -9,14 +9,22 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.provider.Browser;
 
 import org.chromium.base.Callback;
+import org.chromium.base.IntentUtils;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
+import org.chromium.chrome.browser.document.ChromeLauncherActivity;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
@@ -38,6 +46,7 @@ import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
@@ -45,6 +54,8 @@ import org.chromium.components.sync.SyncService;
 import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -179,6 +190,8 @@ public class SendTabToSelfCoordinator
     private final MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final SnackbarManager mSnackbarManager;
     private @Nullable BottomSheetSigninAndHistorySyncCoordinator mSigninCoordinator;
+    private @Nullable PropertyModelChangeProcessor mChangeProcessor;
+    private @Nullable EnhancedTargetDevicePickerView mView;
 
     public SendTabToSelfCoordinator(
             Context context,
@@ -218,22 +231,23 @@ public class SendTabToSelfCoordinator
         SendTabToSelfMetricsRecorder.recordCrossDeviceTabJourney();
         switch (displayReason) {
             case EntryPointDisplayReason.INFORM_NO_TARGET_DEVICE:
+                // TODO(crbug.com/493866368): Refactor NoTargetDeviceBottomSheetContent to MVC for
+                // consistency.
                 mBottomSheetController.requestShowContent(
                         new NoTargetDeviceBottomSheetContent(mContext, mProfile), true);
                 return;
             case EntryPointDisplayReason.OFFER_FEATURE:
                 List<TargetDeviceInfo> targetDevices =
                         SendTabToSelfAndroidBridge.getAllTargetDeviceInfos(mProfile);
-                mBottomSheetController.requestShowContent(
-                        new DevicePickerBottomSheetContent(
-                                mContext,
-                                mUrl,
-                                mTitle,
-                                mBottomSheetController,
-                                targetDevices,
-                                mProfile,
-                                mTabProvider),
-                        true);
+                RecordHistogram.recordCount100Histogram(
+                        "Sharing.SendTabToSelf.AndroidDevicePickerTargetCount",
+                        targetDevices.size());
+                if (ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.SEND_TAB_TO_SELF_ENHANCED_BOTTOMSHEET)) {
+                    showEnhancedTargetDevicePicker(targetDevices);
+                } else {
+                    showLegacyTargetDevicePicker(targetDevices);
+                }
                 return;
             case EntryPointDisplayReason.OFFER_SIGN_IN:
                 {
@@ -350,5 +364,75 @@ public class SendTabToSelfCoordinator
         mBottomSheetController.hideContent(
                 mBottomSheetController.getCurrentSheetContent(), /* animate= */ true);
         show();
+    }
+
+    private void showEnhancedTargetDevicePicker(List<TargetDeviceInfo> targetDevices) {
+        if (mChangeProcessor != null) {
+            mChangeProcessor.destroy();
+            mChangeProcessor = null;
+        }
+        if (mView != null) {
+            mView.destroy();
+            mView = null;
+        }
+
+        mView = new EnhancedTargetDevicePickerView(mContext, mBottomSheetController);
+
+        PropertyModel model = EnhancedTargetDevicePickerProperties.createDefaultModel();
+
+        new EnhancedTargetDevicePickerMediator(
+                mUrl, mTitle, targetDevices, mProfile, mTabProvider, model);
+
+        mChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        model, mView, EnhancedTargetDevicePickerViewBinder::bind);
+
+        model.set(
+                EnhancedTargetDevicePickerProperties.DISMISS_CALLBACK,
+                reason -> {
+                    if (mChangeProcessor != null) {
+                        mChangeProcessor.destroy();
+                        mChangeProcessor = null;
+                    }
+                    if (mView != null) {
+                        mView.destroy();
+                        mView = null;
+                    }
+                });
+
+        model.set(
+                EnhancedTargetDevicePickerProperties.MANAGE_DEVICES_CALLBACK,
+                () -> {
+                    openManageDevicesPage();
+                    model.set(EnhancedTargetDevicePickerProperties.VISIBLE, false);
+                });
+
+        model.set(EnhancedTargetDevicePickerProperties.VISIBLE, true);
+    }
+
+    private void openManageDevicesPage() {
+        Intent intent =
+                new Intent()
+                        .setAction(Intent.ACTION_VIEW)
+                        .setData(Uri.parse(UrlConstants.GOOGLE_ACCOUNT_DEVICE_ACTIVITY_URL))
+                        .setClass(mContext, ChromeLauncherActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        .putExtra(Browser.EXTRA_APPLICATION_ID, mContext.getPackageName())
+                        .putExtra(WebappConstants.REUSE_URL_MATCHING_TAB_ELSE_NEW_TAB, true);
+        IntentUtils.addTrustedIntentExtras(intent);
+        mContext.startActivity(intent);
+    }
+
+    private void showLegacyTargetDevicePicker(List<TargetDeviceInfo> targetDevices) {
+        mBottomSheetController.requestShowContent(
+                new DevicePickerBottomSheetContent(
+                        mContext,
+                        mUrl,
+                        mTitle,
+                        mBottomSheetController,
+                        targetDevices,
+                        mProfile,
+                        mTabProvider),
+                true);
     }
 }

@@ -286,7 +286,7 @@ class MultiNavigationObserver : public ui_test_utils::AllTabsObserver,
 
   // Waits for exactly |num_navigations_to_wait_for| LOAD_STOP
   // notifications to have occurred since the construction of |this|.  More
-  // navigations than expected occuring will trigger a expect failure.
+  // navigations than expected occurring will trigger a expect failure.
   void WaitForNavigations(int num_navigations_to_wait_for);
 
   // Returns the number of LOAD_STOP events that have occurred for
@@ -1379,7 +1379,7 @@ void CaptivePortalBrowserTest::NavigateToPageExpectNoTest(Browser* browser,
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser, url));
 
-  // No captive portal checks should have ocurred or be pending, and there
+  // No captive portal checks should have occurred or be pending, and there
   // should be no new tabs.
   EXPECT_EQ(0, portal_observer.num_results_received());
   EXPECT_FALSE(CheckPending(browser));
@@ -1905,7 +1905,7 @@ void CaptivePortalBrowserTest::FailLoadsAfterLogin(Browser* browser,
 
   fail_loads_observer.WaitForNavigations();
 
-  // No captive portal checks should have ocurred or be pending, and there
+  // No captive portal checks should have occurred or be pending, and there
   // should be no new tabs.
   EXPECT_EQ(0, portal_observer.num_results_received());
   EXPECT_FALSE(CheckPending(browser));
@@ -1944,7 +1944,7 @@ void CaptivePortalBrowserTest::FailLoadsWithoutLogin(
 
   navigation_observer.WaitForNavigations(num_loading_tabs);
 
-  // No captive portal checks should have ocurred or be pending, and there
+  // No captive portal checks should have occurred or be pending, and there
   // should be no new tabs.
   EXPECT_EQ(0, portal_observer.num_results_received());
   EXPECT_FALSE(CheckPending(browser));
@@ -3092,7 +3092,7 @@ IN_PROC_BROWSER_TEST_F(CaptivePortalBrowserTest, GoBackToTimeout) {
 
 // Checks that reloading a timeout triggers captive portal detection.
 // Much like the last test, though the captive portal is disabled before
-// the inital navigation, rather than captive portal detection.
+// the initial navigation, rather than captive portal detection.
 IN_PROC_BROWSER_TEST_F(CaptivePortalBrowserTest, ReloadTimeout) {
   SetBehindCaptivePortal(false);
 
@@ -3362,12 +3362,12 @@ IN_PROC_BROWSER_TEST_F(CaptivePortalBrowserTest, MAYBE_SecureDnsCaptivePortal) {
   // open.
   Browser* second_user_browser = CreateBrowser(browser()->profile());
   // Check that new window is visible.
-  EXPECT_TRUE(second_user_browser->window()->IsVisible());
+  EXPECT_TRUE(second_user_browser->GetWindow()->IsVisible());
   SlowLoadBehindCaptivePortal(second_user_browser,
                               false /* expect_open_login_tab */,
                               false /* expect_new_login_browser */);
   // Check that the existing captive portal popup is visible.
-  EXPECT_TRUE(login_browser->window()->IsVisible());
+  EXPECT_TRUE(login_browser->GetWindow()->IsVisible());
 
   // Login to the captive portal.
   Login(login_browser, 2 /* num_loading_tabs */, 0 /* num_timed_out_tabs */,

@@ -55,8 +55,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Boolean pref for the closed captioning setting.
   registry->RegisterBooleanPref(prefs::kGlicClosedCaptioningEnabled, false);
 
-  registry->RegisterIntegerPref(prefs::kGlicSelectionWidgetDismissCount, 0);
-
   // Boolean pref that determines if errors are allowed to be shown.
   registry->RegisterBooleanPref(prefs::kGlicShowErrorAllowed, false);
 
@@ -84,6 +82,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kGlicUserEnabledActuationOnWeb, false);
 
   registry->RegisterBooleanPref(prefs::kGlicPartitionNeedsCookieSync, true);
+  registry->RegisterBooleanPref(prefs::kGlicPreviouslyNotAllowed, false);
 
   registry->RegisterDictionaryPref(prefs::kGlicGeminiEnterpriseSettings);
 }
@@ -91,18 +90,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kGlicLauncherEnabled, false);
 
-#if BUILDFLAG(IS_ANDROID)
   registry->RegisterStringPref(
       prefs::kGlicLauncherHotkey,
       ui::Command::AcceleratorToString(
           LocalHotkeyManager::GetDefaultAccelerator(
-              LocalHotkeyManager::Command::kOpenGlic)));
-#else
-  registry->RegisterStringPref(
-      prefs::kGlicLauncherHotkey,
-      ui::Command::AcceleratorToString(
-          GlicLauncherConfiguration::GetDefaultHotkey()));
-#endif
+              LocalHotkeyManager::Command::kPanelToggle)));
   registry->RegisterStringPref(
       prefs::kGlicSelectionHotkey,
       ui::Command::AcceleratorToString(

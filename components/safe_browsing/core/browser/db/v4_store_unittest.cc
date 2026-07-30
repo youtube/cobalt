@@ -19,6 +19,7 @@
 #include "components/safe_browsing/core/browser/db/safebrowsing.pb.h"
 #include "components/safe_browsing/core/browser/db/v4_store.pb.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/proto/v5_store.pb.h"
 #include "crypto/hash.h"
 #include "crypto/sha2.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -33,18 +34,24 @@ using ::testing::UnorderedElementsAre;
 
 class V4StoreTest : public PlatformTest {
  public:
-  V4StoreTest() = default;
+  V4StoreTest() {
+    feature_list_.InitAndEnableFeature(
+        kAllowSafeBrowsingV4StoreDiskMigrationChanges);
+  }
 
   void SetUp() override {
     PlatformTest::SetUp();
 
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     store_path_ = temp_dir_.GetPath().AppendASCII("V4StoreTest.store");
+    v5_store_path_ = temp_dir_.GetPath().AppendASCII("V4StoreTest_v5.store");
     DVLOG(1) << "store_path_: " << store_path_.value();
+    DVLOG(1) << "v5_store_path_: " << v5_store_path_.value();
   }
 
   void TearDown() override {
     base::DeleteFile(store_path_);
+    base::DeleteFile(v5_store_path_);
     PlatformTest::TearDown();
   }
 
@@ -70,6 +77,29 @@ class V4StoreTest : public PlatformTest {
     std::string file_format_string;
     file_format->SerializeToString(&file_format_string);
     base::WriteFile(store_path_, file_format_string);
+  }
+
+  void WriteV5FileFormatProtoToFile(uint32_t magic,
+                                    uint32_t file_version = 0,
+                                    ListDetails* details = nullptr) {
+    V5StoreFileFormat file_format;
+    WriteV5FileFormatProtoToFile(&file_format, magic, file_version, details);
+  }
+
+  void WriteV5FileFormatProtoToFile(V5StoreFileFormat* file_format,
+                                    uint32_t magic,
+                                    uint32_t file_version,
+                                    ListDetails* details) {
+    file_format->set_magic_number(magic);
+    file_format->set_file_version(file_version);
+    if (details != nullptr) {
+      ListDetails* list_details = file_format->mutable_list_details();
+      *list_details = *details;
+    }
+
+    std::string file_format_string;
+    file_format->SerializeToString(&file_format_string);
+    base::WriteFile(v5_store_path_, file_format_string);
   }
 
   void UpdatedStoreReady(base::RunLoop* run_loop,
@@ -106,28 +136,32 @@ class V4StoreTest : public PlatformTest {
 
   base::ScopedTempDir temp_dir_;
   base::FilePath store_path_;
+  base::FilePath v5_store_path_;
   base::test::TaskEnvironment task_environment_;
   V4StorePtr updated_store_{nullptr, V4StoreDeleter(nullptr)};
+  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(V4StoreTest, TestReadFromEmptyFile) {
   base::CloseFile(base::OpenFile(store_path_, "wb+"));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(FILE_EMPTY_FAILURE, store.ReadFromDisk());
   EXPECT_FALSE(store.HasValidData());
 }
 
 TEST_F(V4StoreTest, TestReadFromAbsentFile) {
-  EXPECT_EQ(FILE_UNREADABLE_FAILURE,
-            V4Store(task_runner(), store_path_).ReadFromDisk());
+  EXPECT_EQ(
+      FILE_UNREADABLE_FAILURE,
+      V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0).ReadFromDisk());
 }
 
 TEST_F(V4StoreTest, TestReadFromInvalidContentsFile) {
   const char kInvalidContents[] = "Chromium";
   base::WriteFile(store_path_, kInvalidContents);
-  EXPECT_EQ(PROTO_PARSING_FAILURE,
-            V4Store(task_runner(), store_path_).ReadFromDisk());
+  EXPECT_EQ(
+      PROTO_PARSING_FAILURE,
+      V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0).ReadFromDisk());
 }
 
 TEST_F(V4StoreTest, TestReadFromFileWithUnknownProto) {
@@ -139,26 +173,30 @@ TEST_F(V4StoreTest, TestReadFromFileWithUnknownProto) {
 
   // Even though we wrote a completely different proto to file, the proto
   // parsing method does not fail. This shows the importance of a magic number.
-  EXPECT_EQ(UNEXPECTED_MAGIC_NUMBER_FAILURE,
-            V4Store(task_runner(), store_path_).ReadFromDisk());
+  EXPECT_EQ(
+      UNEXPECTED_MAGIC_NUMBER_FAILURE,
+      V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0).ReadFromDisk());
 }
 
 TEST_F(V4StoreTest, TestReadFromUnexpectedMagicFile) {
   WriteFileFormatProtoToFile(111);
-  EXPECT_EQ(UNEXPECTED_MAGIC_NUMBER_FAILURE,
-            V4Store(task_runner(), store_path_).ReadFromDisk());
+  EXPECT_EQ(
+      UNEXPECTED_MAGIC_NUMBER_FAILURE,
+      V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0).ReadFromDisk());
 }
 
 TEST_F(V4StoreTest, TestReadFromLowVersionFile) {
   WriteFileFormatProtoToFile(0x600D71FE, 2);
-  EXPECT_EQ(FILE_VERSION_INCOMPATIBLE_FAILURE,
-            V4Store(task_runner(), store_path_).ReadFromDisk());
+  EXPECT_EQ(
+      FILE_VERSION_INCOMPATIBLE_FAILURE,
+      V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0).ReadFromDisk());
 }
 
 TEST_F(V4StoreTest, TestReadFromNoHashPrefixInfoFile) {
   WriteFileFormatProtoToFile(0x600D71FE, 9);
-  EXPECT_EQ(HASH_PREFIX_INFO_MISSING_FAILURE,
-            V4Store(task_runner(), store_path_).ReadFromDisk());
+  EXPECT_EQ(
+      HASH_PREFIX_INFO_MISSING_FAILURE,
+      V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0).ReadFromDisk());
 }
 
 TEST_F(V4StoreTest, TestReadFromNoHashPrefixesFile) {
@@ -166,11 +204,354 @@ TEST_F(V4StoreTest, TestReadFromNoHashPrefixesFile) {
   list_update_response.set_platform_type(LINUX_PLATFORM);
   list_update_response.set_response_type(ListUpdateResponse::FULL_UPDATE);
   WriteFileFormatProtoToFile(0x600D71FE, 9, &list_update_response);
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
   EXPECT_TRUE(store.hash_prefix_map_->view().empty());
   EXPECT_EQ(14, store.file_size_);
   EXPECT_FALSE(store.HasValidData());
+}
+
+TEST_F(V4StoreTest, TestMigrationDisabled) {
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndDisableFeature(
+      kAllowSafeBrowsingV4StoreDiskMigrationChanges);
+
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  list_details->mutable_checksum()->set_sha256("v5_checksum");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  // Write V5 store file.
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  // Write V5 hash file.
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcd");
+
+  base::HistogramTester histograms;
+
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(FILE_UNREADABLE_FAILURE, store.ReadFromDisk());
+
+  // Verify V4 files not created.
+  EXPECT_FALSE(base::PathExists(store_path_));
+  EXPECT_FALSE(base::PathExists(store_path_.AddExtensionASCII("4_foo")));
+
+  // Verify V5 files not deleted.
+  EXPECT_TRUE(base::PathExists(v5_store_path_));
+  EXPECT_TRUE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
+
+  // Verify no migration histogram logged.
+  histograms.ExpectTotalCount("SafeBrowsing.V4Store.V5ToV4MigrationResult", 0);
+}
+
+TEST_F(V4StoreTest, TestMigrationAlreadyV4) {
+  base::HistogramTester histograms;
+  ListUpdateResponse list_update_response;
+  list_update_response.set_platform_type(LINUX_PLATFORM);
+  list_update_response.set_response_type(ListUpdateResponse::FULL_UPDATE);
+  WriteFileFormatProtoToFile(/*magic=*/0x600D71FE, /*version=*/9,
+                             &list_update_response);
+
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kDiskAlreadyV4,
+                                /*expected_bucket_count=*/1);
+}
+
+TEST_F(V4StoreTest, TestMigrationV5NotFound) {
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(FILE_UNREADABLE_FAILURE, store.ReadFromDisk());
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kV5StoreNotFound,
+                                /*expected_bucket_count=*/1);
+}
+
+TEST_F(V4StoreTest, TestMigrationSuccess) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  list_details->mutable_checksum()->set_sha256("v5_checksum");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  // Write V5 store file.
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  // Write V5 hash file.
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcd");
+
+  base::HistogramTester histograms;
+
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
+
+  // Verify V4 files created.
+  EXPECT_TRUE(base::PathExists(store_path_));
+  EXPECT_TRUE(base::PathExists(store_path_.AddExtensionASCII("4_foo")));
+
+  // Verify V5 files deleted.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+  EXPECT_FALSE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
+
+  // Verify state.
+  EXPECT_EQ("v5_version", store.state());
+  EXPECT_EQ("abcd", store.hash_prefix_map_->view()[4]);
+
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4MigrationResult",
+      V5ToV4MigrationResult::kV5ToV4MigrationSucceeded,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(V4StoreTest, TestMigrationSuccessNoHashFile) {
+  base::HistogramTester histograms;
+  ListDetails list_details;
+  list_details.set_version("v5_version");
+  list_details.mutable_checksum()->set_sha256("v5_checksum");
+  // No hash file set.
+
+  WriteV5FileFormatProtoToFile(/*magic=*/0x600D71FE, /*file_version=*/10,
+                               &list_details);
+
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
+
+  EXPECT_TRUE(base::PathExists(store_path_));
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+
+  EXPECT_EQ("v5_version", store.state());
+  EXPECT_TRUE(store.hash_prefix_map_->view().empty());
+
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4MigrationResult",
+      V5ToV4MigrationResult::kV5ToV4MigrationSucceeded,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(V4StoreTest, TestMigrationPrefixSizeMismatch) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  // Set file size to 6, which is not a multiple of 4.
+  hash_file->set_file_size(6);
+
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcdef");
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4MigrationResult",
+      V5ToV4MigrationResult::kPrefixSizeMismatchFailure,
+      /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+  EXPECT_FALSE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
+  EXPECT_FALSE(base::PathExists(store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationHashFileMissing) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  // Write only V5 store file. Hash file "foo" is missing.
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kHashFileMissingFailure,
+                                /*expected_bucket_count=*/1);
+
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureRename) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcd");
+
+  // Force base::Move to fail by creating a directory at the destination path.
+  base::FilePath v4_hash_file_path = store_path_.AddExtensionASCII("4_foo");
+  ASSERT_TRUE(base::CreateDirectory(v4_hash_file_path));
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kRenameHashFileFailure,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+  EXPECT_FALSE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
+  EXPECT_FALSE(base::PathExists(v4_hash_file_path));
+  EXPECT_FALSE(base::PathExists(store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureWrite) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcd");
+
+  // Force base::WriteFile to fail by creating a directory at the temp store
+  // path.
+  base::FilePath temp_store_path = store_path_.AddExtensionASCII("tmp");
+  ASSERT_TRUE(base::CreateDirectory(temp_store_path));
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kWriteV4FileFailure,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+  EXPECT_FALSE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
+
+  // Cleanup directory.
+  base::DeletePathRecursively(temp_store_path);
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureRenameV4Store) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcd");
+
+  // Force base::Move to fail by creating a directory at the destination path.
+  ASSERT_TRUE(base::CreateDirectory(store_path_));
+
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  // Call MigrateFromV5 directly to bypass PathExists check in
+  // AttemptV5ToV4Migration
+  EXPECT_EQ(V5ToV4MigrationResult::kRenameV4StoreFileFailure,
+            store.MigrateFromV5(v5_store_path_));
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+  EXPECT_FALSE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
+
+  // Cleanup directory.
+  base::DeletePathRecursively(store_path_);
+}
+
+TEST_F(V4StoreTest, TestMigrationSuccessButReadFailure) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+  // Write corrupted hash file (only 2 bytes, expected 4).
+  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "ab");
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+
+  // Migration itself succeeds (logs kV5ToV4MigrationSucceeded), but reading it
+  // fails because the hash file is corrupted.
+  EXPECT_EQ(HASH_PREFIX_MAP_GENERATION_FAILURE, store.ReadFromDisk());
+
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4MigrationResult",
+      V5ToV4MigrationResult::kV5ToV4MigrationSucceeded,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureInvalidV5) {
+  // Write V5 file with bad magic.
+  WriteV5FileFormatProtoToFile(/*magic=*/111, /*file_version=*/10);
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kReadV5Failed,
+                                /*expected_bucket_count=*/1);
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+      V5StoreReadResult::kUnexpectedMagicNumberFailure,
+      /*expected_bucket_count=*/1);
+
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationInterruptedWipesEverything) {
+  V5StoreFileFormat file_format;
+  file_format.set_magic_number(0x600D71FE);
+  file_format.set_file_version(10);
+  ListDetails* list_details = file_format.mutable_list_details();
+  list_details->set_version("v5_version");
+  list_details->mutable_checksum()->set_sha256("v5_checksum");
+  V5HashFile* hash_file = list_details->mutable_hash_file();
+  hash_file->set_extension("foo");
+  hash_file->set_file_size(4);
+
+  // Write V5 store file.
+  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
+
+  // Simulate interrupted migration: The hash file was already moved to V4 path,
+  // but V5 store file still exists and V4 store file does not.
+  base::FilePath v4_hash_file_path = store_path_.AddExtensionASCII("4_foo");
+  base::WriteFile(v4_hash_file_path, "abcd");
+
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+
+  // Verify everything is wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+  EXPECT_FALSE(base::PathExists(v4_hash_file_path));
+  EXPECT_FALSE(base::PathExists(store_path_));
 }
 
 TEST_F(V4StoreTest, TestAddUnlumpedHashesWithInvalidAddition) {
@@ -261,7 +642,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesWithSameSizesInEachMap) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "22222bcdef", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   // Proof of checksum validity using python:
   // >>> import hashlib
   // >>> m = hashlib.sha256()
@@ -278,7 +659,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesWithSameSizesInEachMap) {
                               PrefixMapToView(prefix_map_additions), nullptr,
                               expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   EXPECT_EQ(2u, prefix_map.size());
@@ -309,7 +691,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesWithDifferentSizesInEachMap) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "22222bcdef", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   std::string expected_checksum = std::string(
       "\xA5\x8B\xCAsD\xC7\xF9\xCE\xD2\xF4\x4="
       "\xB2\"\x82\x1A\xC1\xB8\x1F\x10\r\v\x9A\x93\xFD\xE1\xB8"
@@ -320,7 +702,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesWithDifferentSizesInEachMap) {
                               PrefixMapToView(prefix_map_additions), nullptr,
                               expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   EXPECT_EQ(2u, prefix_map.size());
@@ -344,7 +727,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesOldMapRunsOutFirst) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(4, "2222", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   std::string expected_checksum = std::string(
       "\x84\x92\xET\xED\xF7\x97"
       "C\xCE}\xFF"
@@ -355,7 +738,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesOldMapRunsOutFirst) {
                               PrefixMapToView(prefix_map_additions), nullptr,
                               expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   EXPECT_EQ(1u, prefix_map.size());
@@ -376,7 +760,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesAdditionsMapRunsOutFirst) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(4, "00001111", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   std::string expected_checksum = std::string(
       "\x84\x92\xET\xED\xF7\x97"
       "C\xCE}\xFF"
@@ -387,7 +771,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesAdditionsMapRunsOutFirst) {
                               PrefixMapToView(prefix_map_additions), nullptr,
                               expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   EXPECT_EQ(1u, prefix_map.size());
@@ -408,7 +793,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesFailsForRepeatedHashPrefix) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(4, "2222", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   std::string expected_checksum;
   EXPECT_EQ(ADDITIONS_HAS_EXISTING_PREFIX_FAILURE,
             store.MergeUpdate(PrefixMapToView(prefix_map_old),
@@ -426,7 +811,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesFailsWhenRemovalsIndexTooLarge) {
 
   // Even though the merged map could have size 3 without removals, the
   // removals index should only count the entries in the old map.
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222"]
   raw_removals.Add(1);
@@ -447,7 +832,7 @@ TEST_F(V4StoreTest, TestMergeUpdateFastPathWithRemovals) {
       APPLY_UPDATE_SUCCESS,
       V4Store::AddUnlumpedHashes(4, "1515252550507777", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // Remove "1111" (index 1), "4444" (index 4)
   raw_removals.Add(1);
@@ -469,7 +854,8 @@ TEST_F(V4StoreTest, TestMergeUpdateFastPathWithRemovals) {
                               &raw_removals, expected_checksum));
 
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   EXPECT_THAT(
       store.hash_prefix_map_->view(),
@@ -482,12 +868,13 @@ TEST_F(V4StoreTest, TestMergeUpdateFastPathEmptyLists) {
   std::unordered_map<PrefixSize, HashPrefixes> prefix_map_empty;
   prefix_map_empty[4] = "";
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             store.MergeUpdate(PrefixMapToView(prefix_map_old),
                               PrefixMapToView(prefix_map_empty), nullptr, ""));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
   EXPECT_THAT(store.hash_prefix_map_->view(),
               UnorderedElementsAre(Pair(4, "11112222")));
 
@@ -495,7 +882,7 @@ TEST_F(V4StoreTest, TestMergeUpdateFastPathEmptyLists) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             store.MergeUpdate(PrefixMapToView(prefix_map_empty),
                               PrefixMapToView(prefix_map_old), nullptr, ""));
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
   EXPECT_THAT(store.hash_prefix_map_->view(),
               UnorderedElementsAre(Pair(4, "11112222")));
 }
@@ -506,7 +893,7 @@ TEST_F(V4StoreTest, TestMergeUpdateFastPathMultipleRemovalsInARow) {
   std::unordered_map<PrefixSize, HashPrefixes> prefix_map_additions;
   V4Store::AddUnlumpedHashes(4, "1515", &prefix_map_additions);
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   raw_removals.Add(1);
   raw_removals.Add(2);
@@ -516,13 +903,14 @@ TEST_F(V4StoreTest, TestMergeUpdateFastPathMultipleRemovalsInARow) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, ""));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
   EXPECT_THAT(store.hash_prefix_map_->view(),
               UnorderedElementsAre(Pair(4, "000015153333")));
 }
 
 TEST_F(V4StoreTest, TestVerifyChecksumFastPath) {
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(4, "000011112222");
 
   crypto::hash::Hasher checksum_ctx(crypto::hash::HashKind::kSha256);
@@ -532,7 +920,8 @@ TEST_F(V4StoreTest, TestVerifyChecksumFastPath) {
   store.expected_checksum_ = std::string(checksum.begin(), checksum.end());
 
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   EXPECT_TRUE(store.VerifyChecksum());
 
@@ -548,7 +937,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesOnlyElement) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "1111133333", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222"]
   raw_removals.Add(0);  // Removes "2222"
@@ -563,7 +952,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesOnlyElement) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   EXPECT_THAT(store.hash_prefix_map_->view(),
               UnorderedElementsAre(Pair(5, "1111133333")));
@@ -577,7 +967,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesFirstElement) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "1111133333", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222", "4444"]
   raw_removals.Add(0);  // Removes "2222"
@@ -592,7 +982,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesFirstElement) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   // The size is 2 since we reserve space anyway.
@@ -609,7 +1000,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesMiddleElement) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "1111133333", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222", "3333", 4444"]
   raw_removals.Add(1);  // Removes "3333"
@@ -623,7 +1014,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesMiddleElement) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   // The size is 2 since we reserve space anyway.
@@ -640,7 +1032,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesLastElement) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "1111133333", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222", "3333", 4444"]
   raw_removals.Add(2);  // Removes "4444"
@@ -653,7 +1045,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesLastElement) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   // The size is 2 since we reserve space anyway.
@@ -672,7 +1065,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesWhenOldHasDifferentSizes) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "1111133333", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222", "3333", 4444", "aaaaa", "bbbbb"]
   raw_removals.Add(3);  // Removes "aaaaa"
@@ -686,7 +1079,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesWhenOldHasDifferentSizes) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   // The size is 2 since we reserve space anyway.
@@ -705,7 +1099,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesMultipleAcrossDifferentSizes) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "11111", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   RepeatedField<int32_t> raw_removals;
   // old_store: ["2222", "3333", "33333", "44444", "aaaa", "bbbbb"]
   raw_removals.Add(1);  // Removes "3333"
@@ -721,7 +1115,8 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesMultipleAcrossDifferentSizes) {
                               PrefixMapToView(prefix_map_additions),
                               &raw_removals, expected_checksum));
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   HashPrefixMapView prefix_map = store.hash_prefix_map_->view();
   // The size is 2 since we reserve space anyway.
@@ -731,7 +1126,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesRemovesMultipleAcrossDifferentSizes) {
 }
 
 TEST_F(V4StoreTest, TestReadFullResponseWithValidHashPrefixMap) {
-  V4Store write_store(task_runner(), store_path_);
+  V4Store write_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   write_store.hash_prefix_map_->Append(4, "00000abc");
   write_store.hash_prefix_map_->Append(5, "00000abcde");
   write_store.state_ = "test_client_state";
@@ -739,7 +1134,7 @@ TEST_F(V4StoreTest, TestReadFullResponseWithValidHashPrefixMap) {
   EXPECT_EQ(WRITE_SUCCESS, write_store.WriteToDisk(Checksum()));
   EXPECT_TRUE(base::PathExists(write_store.store_path_));
 
-  V4Store read_store(task_runner(), store_path_);
+  V4Store read_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(READ_SUCCESS, read_store.ReadFromDisk());
   EXPECT_EQ("test_client_state", read_store.state_);
   ASSERT_EQ(2u, read_store.hash_prefix_map_->view().size());
@@ -769,7 +1164,7 @@ TEST_F(V4StoreTest, TestReadFullResponseWithInvalidHashPrefixMap) {
   base::WriteFile(store_path_, file_format.SerializeAsString());
   base::WriteFile(store_path_.AddExtensionASCII("foo"), "abcdef");
 
-  V4Store read_store(task_runner(), store_path_);
+  V4Store read_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(HASH_PREFIX_MAP_GENERATION_FAILURE, read_store.ReadFromDisk());
   EXPECT_TRUE(read_store.state_.empty());
   EXPECT_TRUE(read_store.hash_prefix_map_->view().empty());
@@ -777,7 +1172,7 @@ TEST_F(V4StoreTest, TestReadFullResponseWithInvalidHashPrefixMap) {
 }
 
 TEST_F(V4StoreTest, TestWriteFullResponseWithInvalidHashPrefixMap) {
-  V4Store write_store(task_runner(), store_path_);
+  V4Store write_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   write_store.hash_prefix_map_->Append(5, "abcdef");
   write_store.state_ = "test_client_state";
   EXPECT_FALSE(base::PathExists(write_store.store_path_));
@@ -789,7 +1184,8 @@ TEST_F(V4StoreTest, TestHashPrefixExistsAtTheBeginning) {
   HashPrefixMap map(store_path_);
   map.Append(5, "abcdebbbbbccccc");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(map.WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(map.WriteToDisk(sb_file_format));
   HashPrefixStr hash_prefix = "abcde";
   EXPECT_EQ(map.GetMatchingHashPrefix(hash_prefix), hash_prefix);
 }
@@ -798,7 +1194,8 @@ TEST_F(V4StoreTest, TestHashPrefixExistsInTheMiddle) {
   HashPrefixMap map(store_path_);
   map.Append(5, "abcdebbbbbccccc");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(map.WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(map.WriteToDisk(sb_file_format));
   HashPrefixStr hash_prefix = "bbbbb";
   EXPECT_EQ(map.GetMatchingHashPrefix(hash_prefix), hash_prefix);
 }
@@ -807,7 +1204,8 @@ TEST_F(V4StoreTest, TestHashPrefixExistsAtTheEnd) {
   HashPrefixMap map(store_path_);
   map.Append(5, "abcdebbbbbccccc");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(map.WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(map.WriteToDisk(sb_file_format));
   HashPrefixStr hash_prefix = "ccccc";
   EXPECT_EQ(map.GetMatchingHashPrefix(hash_prefix), hash_prefix);
 }
@@ -816,7 +1214,8 @@ TEST_F(V4StoreTest, TestHashPrefixExistsAtTheBeginningOfEven) {
   HashPrefixMap map(store_path_);
   map.Append(5, "abcdebbbbb");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(map.WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(map.WriteToDisk(sb_file_format));
   HashPrefixStr hash_prefix = "abcde";
   EXPECT_EQ(map.GetMatchingHashPrefix(hash_prefix), hash_prefix);
 }
@@ -825,7 +1224,8 @@ TEST_F(V4StoreTest, TestHashPrefixExistsAtTheEndOfEven) {
   HashPrefixMap map(store_path_);
   map.Append(5, "abcdebbbbb");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(map.WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(map.WriteToDisk(sb_file_format));
   HashPrefixStr hash_prefix = "bbbbb";
   EXPECT_EQ(map.GetMatchingHashPrefix(hash_prefix), hash_prefix);
 }
@@ -834,28 +1234,31 @@ TEST_F(V4StoreTest, TestHashPrefixDoesNotExistInConcatenatedList) {
   HashPrefixMap map(store_path_);
   map.Append(5, "abcdebbbbb");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(map.WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(map.WriteToDisk(sb_file_format));
   HashPrefixStr hash_prefix = "bbbbc";
   EXPECT_EQ(map.GetMatchingHashPrefix(hash_prefix), "");
 }
 
 TEST_F(V4StoreTest, TestFullHashExistsInMapWithSingleSize) {
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(
       32, "0111222233334444555566667777888811112222333344445555666677778888");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
   FullHashStr full_hash = "11112222333344445555666677778888";
   EXPECT_EQ("11112222333344445555666677778888",
             store.GetMatchingHashPrefix(full_hash));
 }
 
 TEST_F(V4StoreTest, TestFullHashExistsInMapWithDifferentSizes) {
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(4, "22223333aaaa");
   store.hash_prefix_map_->Append(32, "11112222333344445555666677778888");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   FullHashStr full_hash = "11112222333344445555666677778888";
   EXPECT_EQ("11112222333344445555666677778888",
@@ -863,31 +1266,34 @@ TEST_F(V4StoreTest, TestFullHashExistsInMapWithDifferentSizes) {
 }
 
 TEST_F(V4StoreTest, TestHashPrefixExistsInMapWithSingleSize) {
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(4, "22223333aaaa");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
   FullHashStr full_hash = "22222222222222222222222222222222";
   EXPECT_EQ("2222", store.GetMatchingHashPrefix(full_hash));
 }
 
 TEST_F(V4StoreTest, TestHashPrefixExistsInMapWithDifferentSizes) {
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(4, "22223333aaaa");
   store.hash_prefix_map_->Append(5, "11111hhhhh");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   FullHashStr full_hash = "22222222222222222222222222222222";
   EXPECT_EQ("2222", store.GetMatchingHashPrefix(full_hash));
 }
 
 TEST_F(V4StoreTest, TestHashPrefixDoesNotExistInMapWithDifferentSizes) {
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(4, "3333aaaa");
   store.hash_prefix_map_->Append(5, "11111hhhhh");
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   FullHashStr full_hash = "22222222222222222222222222222222";
   EXPECT_TRUE(store.GetMatchingHashPrefix(full_hash).empty());
@@ -895,10 +1301,11 @@ TEST_F(V4StoreTest, TestHashPrefixDoesNotExistInMapWithDifferentSizes) {
 
 TEST_F(V4StoreTest, GetMatchingHashPrefixSize32Or21) {
   HashPrefixStr prefix = "0123";
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   store.hash_prefix_map_->Append(4, prefix);
   V4StoreFileFormat file_format;
-  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(&file_format));
+  SBStoreFileFormat sb_file_format(&file_format);
+  EXPECT_TRUE(store.hash_prefix_map_->WriteToDisk(sb_file_format));
 
   FullHashStr full_hash_21 = "0123456789ABCDEF01234";
   EXPECT_EQ(prefix, store.GetMatchingHashPrefix(full_hash_21));
@@ -918,7 +1325,7 @@ TEST_F(V4StoreTest, TestAdditionsWithRiceEncodingFailsWithInvalidInput) {
   addition->mutable_rice_hashes()->set_num_entries(-1);
   std::unordered_map<PrefixSize, HashPrefixes> additions_map;
   EXPECT_EQ(RICE_DECODING_FAILURE,
-            V4Store(task_runner(), store_path_)
+            V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0)
                 .UpdateHashPrefixMapFromAdditions("V4Metric", additions,
                                                   &additions_map));
 }
@@ -930,7 +1337,7 @@ TEST_F(V4StoreTest,
   addition->set_compression_type(COMPRESSION_TYPE_UNSPECIFIED);
   std::unordered_map<PrefixSize, HashPrefixes> additions_map;
   EXPECT_EQ(UNEXPECTED_COMPRESSION_TYPE_ADDITIONS_FAILURE,
-            V4Store(task_runner(), store_path_)
+            V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0)
                 .UpdateHashPrefixMapFromAdditions("V4Metric", additions,
                                                   &additions_map));
 }
@@ -951,7 +1358,7 @@ TEST_F(V4StoreTest, TestAdditionsWithRiceEncodingSucceeds) {
       "\xbf\xa8\x3f\xfb\xf\xf\x5e\x27\xe6\xc3\x1d\xc6\x38");
   std::unordered_map<PrefixSize, HashPrefixes> additions_map;
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
-            V4Store(task_runner(), store_path_)
+            V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0)
                 .UpdateHashPrefixMapFromAdditions("V4Metric", additions,
                                                   &additions_map));
   EXPECT_EQ(1u, additions_map.size());
@@ -967,7 +1374,7 @@ TEST_F(V4StoreTest, TestRemovalsWithRiceEncodingSucceeds) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(5, "22222bcdef", &prefix_map_additions));
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   std::string expected_checksum = std::string(
       "\xA5\x8B\xCAsD\xC7\xF9\xCE\xD2\xF4\x4="
       "\xB2\"\x82\x1A\xC1\xB8\x1F\x10\r\v\x9A\x93\xFD\xE1\xB8"
@@ -1026,7 +1433,7 @@ TEST_F(V4StoreTest, TestMergeUpdatesFailsChecksum) {
   EXPECT_EQ(APPLY_UPDATE_SUCCESS,
             V4Store::AddUnlumpedHashes(4, "2222", &prefix_map_old));
   EXPECT_EQ(CHECKSUM_MISMATCH_FAILURE,
-            V4Store(task_runner(), store_path_)
+            V4Store(task_runner(), store_path_, /*v5_prefix_size=*/0)
                 .MergeUpdate(PrefixMapToView(prefix_map_old),
                              HashPrefixMapView(), nullptr, "aawc"));
 }
@@ -1062,7 +1469,7 @@ TEST_F(V4StoreTest, TestChecksumErrorOnStartup) {
     base::WriteFile(store_path_.AddExtensionASCII("foo"), "abcdf");
     WriteFileFormatProtoToFile(&file_format, 0x600D71FE, 9,
                                &list_update_response);
-    V4Store store(task_runner(), store_path_);
+    V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
     EXPECT_TRUE(store.expected_checksum_.empty());
     EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
     EXPECT_TRUE(!store.expected_checksum_.empty());
@@ -1078,7 +1485,7 @@ TEST_F(V4StoreTest, TestChecksumErrorOnStartup) {
     base::WriteFile(store_path_.AddExtensionASCII("foo"), "abcde");
     WriteFileFormatProtoToFile(&file_format, 0x600D71FE, 9,
                                &list_update_response);
-    V4Store store(task_runner(), store_path_);
+    V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
     EXPECT_TRUE(store.expected_checksum_.empty());
     EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
     EXPECT_TRUE(!store.expected_checksum_.empty());
@@ -1092,9 +1499,9 @@ TEST_F(V4StoreTest, TestChecksumErrorOnStartup) {
 TEST_F(V4StoreTest, WriteToDiskFails) {
   // Pass the directory name as file name so that when the code tries to rename
   // the temp store file to |store_path_| it fails.
-  EXPECT_EQ(
-      UNABLE_TO_RENAME_FAILURE,
-      V4Store(task_runner(), temp_dir_.GetPath()).WriteToDisk(Checksum()));
+  EXPECT_EQ(UNABLE_TO_RENAME_FAILURE,
+            V4Store(task_runner(), temp_dir_.GetPath(), /*v5_prefix_size=*/0)
+                .WriteToDisk(Checksum()));
 
   // Give a location that isn't writable, even for the tmp file.
   base::FilePath non_writable_dir =
@@ -1102,12 +1509,13 @@ TEST_F(V4StoreTest, WriteToDiskFails) {
           .Append(FILE_PATH_LITERAL("nonexistent_dir"))
           .Append(FILE_PATH_LITERAL("some.store"));
   EXPECT_EQ(UNEXPECTED_BYTES_WRITTEN_FAILURE,
-            V4Store(task_runner(), non_writable_dir).WriteToDisk(Checksum()));
+            V4Store(task_runner(), non_writable_dir, /*v5_prefix_size=*/0)
+                .WriteToDisk(Checksum()));
 }
 
 TEST_F(V4StoreTest, FullUpdateFailsChecksumSynchronously) {
   base::HistogramTester histogram_tester;
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   base::RunLoop run_loop;
   UpdatedStoreReadyCallback store_ready_callback =
       base::BindOnce(&V4StoreTest::UpdatedStoreReady, base::Unretained(this),
@@ -1137,7 +1545,7 @@ TEST_F(V4StoreTest, FullUpdateFailsChecksumSynchronously) {
 
 TEST_F(V4StoreTest, ApplyUpdateFailsWithInvalidResponseType) {
   base::HistogramTester histogram_tester;
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   base::RunLoop run_loop;
   UpdatedStoreReadyCallback store_ready_callback =
       base::BindOnce(&V4StoreTest::UpdatedStoreReady, base::Unretained(this),
@@ -1166,7 +1574,7 @@ TEST_F(V4StoreTest, ApplyUpdateFailsWithInvalidResponseType) {
 
 TEST_F(V4StoreTest, ApplyUpdateRemovalsFailsWithInvalidCompressionType) {
   base::HistogramTester histogram_tester;
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   base::RunLoop run_loop;
   UpdatedStoreReadyCallback store_ready_callback =
       base::BindOnce(&V4StoreTest::UpdatedStoreReady, base::Unretained(this),
@@ -1217,7 +1625,7 @@ TEST_F(V4StoreTest, VerifyChecksumMmapFile) {
 
   WriteFileFormatProtoToFile(&file_format, 0x600D71FE, 9,
                              &list_update_response);
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_TRUE(store.expected_checksum_.empty());
 
   EXPECT_EQ(READ_SUCCESS, store.ReadFromDisk());
@@ -1243,7 +1651,7 @@ TEST_F(V4StoreTest, FailedMmapOnRead) {
 
   WriteFileFormatProtoToFile(&file_format, 0x600D71FE, 9,
                              &list_update_response);
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
 
   EXPECT_EQ(HASH_PREFIX_MAP_GENERATION_FAILURE, store.ReadFromDisk());
 }
@@ -1251,20 +1659,20 @@ TEST_F(V4StoreTest, FailedMmapOnRead) {
 TEST_F(V4StoreTest, MigrateToMmap) {
   const std::string kFullHash = "abcdefghijklmnopqrstu";
   const std::string kHash = "abcde";
-  V4Store write_store(task_runner(), store_path_);
+  V4Store write_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   write_store.state_ = "test_client_state";
   write_store.hash_prefix_map_->Append(5, kHash);
   EXPECT_EQ(WRITE_SUCCESS, write_store.WriteToDisk(Checksum()));
 
   // Make sure an in-memory store can read correctly.
-  V4Store in_memory_store(task_runner(), store_path_);
+  V4Store in_memory_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(READ_SUCCESS, in_memory_store.ReadFromDisk());
   EXPECT_EQ("test_client_state", in_memory_store.state());
   EXPECT_EQ(in_memory_store.hash_prefix_map_->view()[5], kHash);
   EXPECT_EQ(in_memory_store.GetMatchingHashPrefix(kFullHash), kHash);
 
   // Migrate to a mmap store.
-  V4Store mmap_store(task_runner(), store_path_);
+  V4Store mmap_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(READ_SUCCESS, mmap_store.ReadFromDisk());
   EXPECT_EQ("test_client_state", mmap_store.state());
   EXPECT_EQ(mmap_store.hash_prefix_map_->view()[5], kHash);
@@ -1287,7 +1695,7 @@ TEST_F(V4StoreTest, MigrateToMmap) {
 
   // Reading again should not migrate.
   base::Time last_modified = GetLastModifiedTime(store_path_);
-  V4Store mmap_store2(task_runner(), store_path_);
+  V4Store mmap_store2(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(READ_SUCCESS, mmap_store2.ReadFromDisk());
   EXPECT_EQ(GetLastModifiedTime(store_path_), last_modified);
   EXPECT_EQ(mmap_store2.GetMatchingHashPrefix(kFullHash), kHash);
@@ -1300,7 +1708,7 @@ TEST_F(V4StoreTest, CleanUpOldFiles) {
   base::FilePath other_path = temp_dir_.GetPath().AppendASCII("SomePath");
   base::WriteFile(other_path, "stuff");
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(WRITE_SUCCESS, store.WriteToDisk(Checksum()));
 
   EXPECT_FALSE(base::PathExists(old_hashes_path));
@@ -1308,7 +1716,7 @@ TEST_F(V4StoreTest, CleanUpOldFiles) {
 }
 
 TEST_F(V4StoreTest, FileSizeIncludesHashFiles) {
-  V4Store write_store(task_runner(), store_path_);
+  V4Store write_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   write_store.hash_prefix_map_->Append(4, "abcd");
   EXPECT_EQ(WRITE_SUCCESS, write_store.WriteToDisk(Checksum()));
 
@@ -1322,7 +1730,7 @@ TEST_F(V4StoreTest, FileSizeIncludesHashFiles) {
   EXPECT_EQ(WRITE_SUCCESS, write_store.WriteToDisk(Checksum()));
   EXPECT_EQ(write_store.file_size(), original_file_size + 4);
 
-  V4Store read_store(task_runner(), store_path_);
+  V4Store read_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(READ_SUCCESS, read_store.ReadFromDisk());
   EXPECT_EQ(read_store.file_size(), original_file_size + 4);
 }
@@ -1336,7 +1744,7 @@ TEST_F(V4StoreTest, MergeUpdatesWithHashPrefixMap) {
   prefix_map_additions[4] = "----1111bbbb";
   prefix_map_additions[5] = "22222bcdef";
 
-  V4Store store(task_runner(), store_path_);
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   // Proof of checksum validity using python:
   // >>> import hashlib
   // >>> m = hashlib.sha256()
@@ -1381,10 +1789,125 @@ TEST_F(V4StoreTest, PreMmapMigrationFileFormatFails) {
 
   WriteFileFormatProtoToFile(0x600D71FE, 9, &list_update_response);
 
-  V4Store read_store(task_runner(), store_path_);
+  V4Store read_store(task_runner(), store_path_, /*v5_prefix_size=*/0);
   EXPECT_EQ(PRE_MMAP_MIGRATION_FILE_FORMAT_FAILURE, read_store.ReadFromDisk());
   EXPECT_TRUE(read_store.state().empty());
   EXPECT_TRUE(read_store.hash_prefix_map_->view().empty());
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureOpenFailureV5) {
+  // Create a directory at v5_store_path_ to force read failure.
+  ASSERT_TRUE(base::CreateDirectory(v5_store_path_));
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+
+  // Verify migration result is kReadV5Failed.
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kReadV5Failed,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 Read Failure Reason is kFileOpenFailure (2).
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+      V5StoreReadResult::kFileOpenFailure,
+      /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureEmptyV5) {
+  // Write empty file.
+  base::CloseFile(base::OpenFile(v5_store_path_, "wb+"));
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+
+  // Verify migration result is kReadV5Failed.
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kReadV5Failed,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 Read Failure Reason is kFileEmptyFailure (3).
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+      V5StoreReadResult::kFileEmptyFailure,
+      /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureCorruptedV5) {
+  // Write invalid proto contents.
+  base::WriteFile(v5_store_path_, "Chromium");
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+
+  // Verify migration result is kReadV5Failed.
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kReadV5Failed,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 Read Failure Reason is kProtoParsingFailure (4).
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+      V5StoreReadResult::kProtoParsingFailure,
+      /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureIncompatibleVersionV5) {
+  // Write V5 file with version 2 (incompatible).
+  WriteV5FileFormatProtoToFile(/*magic=*/0x600D71FE, /*file_version=*/2);
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+
+  // Verify migration result is kReadV5Failed.
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kReadV5Failed,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 Read Failure Reason is kFileVersionIncompatibleFailure (6).
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+      V5StoreReadResult::kFileVersionIncompatibleFailure,
+      /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
+}
+
+TEST_F(V4StoreTest, TestMigrationFailureMissingDetailsV5) {
+  // Write V5 file without ListDetails.
+  WriteV5FileFormatProtoToFile(/*magic=*/0x600D71FE, /*file_version=*/10);
+
+  base::HistogramTester histograms;
+  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4);
+  EXPECT_EQ(V5_TO_V4_MIGRATION_FAILURE, store.ReadFromDisk());
+
+  // Verify migration result is kReadV5Failed.
+  histograms.ExpectUniqueSample("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                V5ToV4MigrationResult::kReadV5Failed,
+                                /*expected_bucket_count=*/1);
+
+  // Verify V5 Read Failure Reason is kHashPrefixInfoMissingFailure (7).
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+      V5StoreReadResult::kHashPrefixInfoMissingFailure,
+      /*expected_bucket_count=*/1);
+
+  // Verify V5 files are wiped.
+  EXPECT_FALSE(base::PathExists(v5_store_path_));
 }
 
 }  // namespace safe_browsing

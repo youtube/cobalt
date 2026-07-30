@@ -9,10 +9,13 @@
 
 #include "base/check.h"
 #include "base/containers/adapters.h"
+#include "base/containers/span.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom-blink.h"
@@ -84,12 +87,15 @@
 #include "third_party/blink/renderer/modules/content_extraction/ai_page_content_debug_utils.h"
 #include "third_party/blink/renderer/platform/geometry/infinite_int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
+#include "third_party/blink/renderer/platform/graphics/image.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/web_test_support.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/widget/frame_widget.h"
+#include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "ui/accessibility/ax_role_properties.h"
@@ -1128,24 +1134,28 @@ scoped_refptr<const SecurityOrigin> GetOriginForUrl(const KURL& url,
   return SecurityOrigin::CreateWithReferenceOrigin(url, reference_origin);
 }
 
+// Resolves the image resource content for the given layout object.
+const ImageResourceContent* GetImageResourceContent(
+    const LayoutObject& layout_object) {
+  if (const auto* layout_image = DynamicTo<LayoutImage>(&layout_object)) {
+    return layout_image->CachedImage();
+  } else if (const auto* layout_svg_image =
+                 DynamicTo<LayoutSVGImage>(&layout_object)) {
+    if (const LayoutImageResource* image_resource =
+            layout_svg_image->ImageResource()) {
+      return image_resource->CachedImage();
+    }
+  }
+  return nullptr;
+}
+
 // Resolves the security origin for the image element associated with the layout
 // image. Prioritizes standard image resources, and falls back to DOM-level
 // attributes.
 scoped_refptr<const SecurityOrigin> GetImageSourceOrigin(
-    const LayoutObject& layout_image) {
+    const LayoutObject& layout_image,
+    const ImageResourceContent* image_resource_content) {
   KURL image_url;
-
-  const ImageResourceContent* image_resource_content = nullptr;
-  if (const auto* layout_image_concrete =
-          DynamicTo<LayoutImage>(&layout_image)) {
-    image_resource_content = layout_image_concrete->CachedImage();
-  } else if (const auto* layout_svg_image =
-                 DynamicTo<LayoutSVGImage>(&layout_image)) {
-    if (const LayoutImageResource* image_resource =
-            layout_svg_image->ImageResource()) {
-      image_resource_content = image_resource->CachedImage();
-    }
-  }
 
   if (image_resource_content) {
     image_url = image_resource_content->Url();
@@ -1158,20 +1168,21 @@ scoped_refptr<const SecurityOrigin> GetImageSourceOrigin(
   return GetOriginForUrl(image_url, layout_image.GetNode());
 }
 
-void ProcessImageNode(const LayoutObject& layout_image,
-                      mojom::blink::AIPageContentAttributes& attributes) {
-  attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kImage;
-  CHECK(IsVisible(layout_image));
-  CHECK(layout_image.IsImage() || layout_image.IsSVGImage());
-
+bool IsImage(const LayoutObject& layout_object) {
   // LayoutImage is a superclass of LayoutMedia, which is a superclass of
   // LayoutVideo and LayoutAudio. We only want to process images here, so
   // we enforce that the object is not a media object.
-  CHECK(!layout_image.IsMedia());
+  return (layout_object.IsImage() || layout_object.IsSVGImage()) &&
+         !layout_object.IsMedia();
+}
 
-  auto image_info = mojom::blink::AIPageContentImageInfo::New();
+mojom::blink::AIPageContentImageInfoPtr GetImageInfo(
+    const LayoutObject& layout_image,
+    const ImageResourceContent* image_resource_content) {
+  CHECK(IsImage(layout_image));
 
   // TODO(b/468126774): Set caption for SVG <images> based on <title> elements.
+  auto image_info = mojom::blink::AIPageContentImageInfo::New();
   if (auto* image_element =
           DynamicTo<HTMLImageElement>(layout_image.GetNode())) {
     // TODO(crbug.com/383127202): A11y stack generates alt text using image
@@ -1180,7 +1191,8 @@ void ProcessImageNode(const LayoutObject& layout_image,
         ReplaceUnpairedSurrogates(image_element->AltText());
   }
 
-  image_info->source_origin = GetImageSourceOrigin(layout_image);
+  image_info->source_origin =
+      GetImageSourceOrigin(layout_image, image_resource_content);
 
   KURL image_url = ResolveImageUrl(layout_image);
   // Skip data: URLs for both performance and security.
@@ -1192,7 +1204,28 @@ void ProcessImageNode(const LayoutObject& layout_image,
     image_info->url = image_url;
   }
 
-  attributes.image_info = std::move(image_info);
+  if (image_resource_content) {
+    const blink::Image* image = image_resource_content->GetImage();
+    String mime_type = image ? image->MimeType() : String();
+    if (mime_type.empty()) {
+      mime_type = image_resource_content->GetResponse().MimeType();
+    }
+    if (!mime_type.empty()) {
+      image_info->mime_type = mime_type;
+    }
+  }
+
+  return image_info;
+}
+
+void ProcessImageNode(const LayoutObject& layout_image,
+                      mojom::blink::AIPageContentAttributes& attributes) {
+  attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kImage;
+  CHECK(IsVisible(layout_image));
+  CHECK(IsImage(layout_image));
+
+  attributes.image_info =
+      GetImageInfo(layout_image, GetImageResourceContent(layout_image));
 }
 
 void ProcessSVGRoot(const LayoutSVGRoot& layout_svg,
@@ -1692,6 +1725,29 @@ void OffsetNodeGeometry(mojom::blink::AIPageContentNode& node,
   }
 }
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(GetImageBytesStatus)
+enum class GetImageBytesStatus {
+  kSuccess = 0,
+  kNodeNotFound = 1,
+  kTargetFrameNotFound = 2,
+  kAgentFrameNotFound = 3,
+  kCrossTreeQuery = 4,
+  kNotAnImage = 5,
+  kImageError = 6,
+  kNoResourceBuffer = 7,
+  kBigBufferCopyFailed = 8,
+  kMaxValue = kBigBufferCopyFailed,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/optimization/enums.xml:AIPageContentGetImageBytesStatus)
+
+void RecordGetImageBytesStatus(GetImageBytesStatus status) {
+  base::UmaHistogramEnumeration(
+      "OptimizationGuide.AIPageContent.GetImageBytes.Status", status);
+}
+
 }  // namespace
 
 // static
@@ -1811,6 +1867,77 @@ void AIPageContentAgent::GetAIPageContent(
   async_extraction_tasks_.push_back(blink::BindOnce(
       &AIPageContentAgent::GetAIPageContentSync, WrapWeakPersistent(this),
       std::move(options), std::move(callback), start_time));
+}
+
+void AIPageContentAgent::GetImageBytes(int32_t dom_node_id,
+                                       GetImageBytesCallback callback) {
+  const Node* node = DOMNodeIds::NodeForId(dom_node_id);
+  if (!node) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kNodeNotFound);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  LocalFrame* target_frame = node->GetDocument().GetFrame();
+  if (!target_frame) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kTargetFrameNotFound);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  // Ensure the target frame containing the requested DOM node belongs to the
+  // same local frame tree as this agent. This prevents cross-page/cross-tree
+  // node queries since `DOMNodeIds` are process-wide unique.
+  LocalFrame* agent_frame = GetSupplementable()->GetFrame();
+  if (!agent_frame) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kAgentFrameNotFound);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  CHECK(agent_frame->IsLocalRoot());
+  if (&target_frame->LocalFrameRoot() != agent_frame) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kCrossTreeQuery);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  const LayoutObject* layout_object = node->GetLayoutObject();
+  if (!layout_object || !IsImage(*layout_object)) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kNotAnImage);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  const ImageResourceContent* image_resource_content =
+      GetImageResourceContent(*layout_object);
+  if (!image_resource_content || image_resource_content->ErrorOccurred()) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kImageError);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  scoped_refptr<const SharedBuffer> buffer =
+      image_resource_content->ResourceBuffer();
+  if (!buffer) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kNoResourceBuffer);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  mojo_base::BigBuffer big_buffer(buffer->size());
+  if (!buffer->GetBytes(base::span(big_buffer))) {
+    RecordGetImageBytesStatus(GetImageBytesStatus::kBigBufferCopyFailed);
+    std::move(callback).Run(/*result=*/nullptr);
+    return;
+  }
+
+  auto result = mojom::blink::AIPageContentImageBytesResult::New();
+  result->image_bytes = std::move(big_buffer);
+  result->image_info = GetImageInfo(*layout_object, image_resource_content);
+
+  RecordGetImageBytesStatus(GetImageBytesStatus::kSuccess);
+  std::move(callback).Run(std::move(result));
 }
 
 void AIPageContentAgent::GetAIPageContentSync(
@@ -2415,7 +2542,7 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNodeImpl(
     }
     ProcessTextNode(To<LayoutText>(object), attributes,
                     recursion_data.document_style);
-  } else if (object.IsImage() || object.IsSVGImage()) {
+  } else if (IsImage(object)) {
     // Since image is a leaf node, do not create a content node if should skip
     // content.
     if (!IsVisible(object)) {
@@ -2896,8 +3023,8 @@ void AIPageContentAgent::ContentBuilder::AddFrameInteractionInfo(
         *frame_interaction_info.selection;
     selection.selected_text = ReplaceUnpairedSurrogates(frame.SelectedText());
 
-    const SelectionInDOMTree& frame_selection =
-        frame.Selection().GetSelectionInDOMTree();
+    const SelectionInDomTree& frame_selection =
+        frame.Selection().GetSelectionInDomTree();
     const Position& start_position = frame_selection.ComputeStartPosition();
     const Position& end_position = frame_selection.ComputeEndPosition();
     Node* start_node = start_position.ComputeContainerNode();

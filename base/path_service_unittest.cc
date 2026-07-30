@@ -51,6 +51,12 @@ bool ReturnsValidPath(int key) {
   // |result| is true and !path.empty() is the best we can do.
   bool check_path_exists = true;
 
+#if BUILDFLAG(IS_ANDROID)
+  // Returns path within the .apk. e.g.: .../base.apk!/lib/x86_64
+  if (key == DIR_MODULE) {
+    check_path_exists = false;
+  }
+#endif
 #if BUILDFLAG(IS_POSIX)
   // If chromium has never been started on this account, the cache path may not
   // exist.

@@ -16,6 +16,7 @@
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/resources/cr_components/history/history.mojom-forward.h"
 #include "ui/webui/resources/cr_components/history_clusters/history_clusters.mojom-forward.h"
 #include "ui/webui/resources/cr_components/history_embeddings/history_embeddings.mojom.h"
@@ -50,7 +51,9 @@ class HistorySidePanelUIConfig
   std::optional<int> GetCommandIdForTesting() override;
 };
 
-class HistorySidePanelUI : public TopChromeWebUIController {
+class HistorySidePanelUI
+    : public TopChromeWebUIController,
+      public history_embeddings::mojom::PageHandlerFactory {
  public:
   explicit HistorySidePanelUI(content::WebUI* web_ui);
   HistorySidePanelUI(const HistorySidePanelUI&) = delete;
@@ -67,8 +70,8 @@ class HistorySidePanelUI : public TopChromeWebUIController {
       mojo::PendingReceiver<page_image_service::mojom::PageImageServiceHandler>
           pending_page_handler);
   void BindInterface(
-      mojo::PendingReceiver<history_embeddings::mojom::PageHandler>
-          pending_page_handler);
+      mojo::PendingReceiver<history_embeddings::mojom::PageHandlerFactory>
+          pending_page_handler_factory);
 
   // Gets a weak pointer to this object.
   base::WeakPtr<HistorySidePanelUI> GetWeakPtr();
@@ -90,9 +93,18 @@ class HistorySidePanelUI : public TopChromeWebUIController {
       history_clusters_handler_;
   std::unique_ptr<page_image_service::ImageServiceHandler>
       image_service_handler_;
+  // history_embeddings::mojom::PageHandlerFactory:
+  void CreatePageHandler(
+      mojo::PendingRemote<history_embeddings::mojom::Page> page,
+      mojo::PendingReceiver<history_embeddings::mojom::PageHandler> receiver)
+      override;
+
   std::unique_ptr<HistoryEmbeddingsHandler> history_embeddings_handler_;
 
   raw_ptr<BrowserWindowInterface> browser_window_interface_;
+
+  mojo::Receiver<history_embeddings::mojom::PageHandlerFactory>
+      history_embeddings_handler_factory_receiver_{this};
 
   // Used for `GetWeakPtr()`.
   base::WeakPtrFactory<HistorySidePanelUI> weak_ptr_factory_{this};

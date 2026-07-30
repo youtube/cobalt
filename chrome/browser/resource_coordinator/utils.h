@@ -5,8 +5,12 @@
 #ifndef CHROME_BROWSER_RESOURCE_COORDINATOR_UTILS_H_
 #define CHROME_BROWSER_RESOURCE_COORDINATOR_UTILS_H_
 
+#include <optional>
+
+#include "base/unguessable_token.h"
 #include "chrome/browser/performance_manager/policies/discard_eligibility_policy.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom-forward.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace content {
 class WebContents;
@@ -41,9 +45,13 @@ void AttemptFastKillForDiscard(
 // Discards the least important tab that supports discarding under
 // `discard_reason` and returns the discarded WebContents. Uses default
 // protection windows.
+// `allowed_browser_context_ids` optionally restricts the discarding to a
+// specific set of browser contexts.
 content::WebContents* DiscardLeastImportantTab(
     ::mojom::LifecycleUnitDiscardReason discard_reason,
-    bool ignore_recent_visibility = false);
+    bool ignore_recent_visibility = false,
+    std::optional<absl::flat_hash_set<base::UnguessableToken>>
+        allowed_browser_context_ids = std::nullopt);
 
 }  // namespace resource_coordinator
 

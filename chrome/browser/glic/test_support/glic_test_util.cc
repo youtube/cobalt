@@ -176,7 +176,7 @@ GlicInstance* GetOnlyGlicInstance(Profile* profile) {
   }
   auto& coordinator = static_cast<GlicInstanceCoordinatorImpl&>(
       service->instance_coordinator());
-  auto instances = coordinator.GetInstancesForTesting();
+  auto instances = coordinator.GetInstances();
   CHECK_LT(instances.size(), 2u);
   return instances.empty() ? nullptr : instances[0];
 }
@@ -204,7 +204,7 @@ GlicInstance* GetInstanceById(Profile* profile, InstanceId id) {
   }
   auto& coordinator = static_cast<GlicInstanceCoordinatorImpl&>(
       service->instance_coordinator());
-  for (GlicInstanceImpl* instance : coordinator.GetInstancesForTesting()) {
+  for (GlicInstanceImpl* instance : coordinator.GetInstances()) {
     if (instance->id() == id) {
       return instance;
     }
@@ -212,24 +212,25 @@ GlicInstance* GetInstanceById(Profile* profile, InstanceId id) {
   return nullptr;
 }
 
-void ForceSigninAndGlicCapability(Profile* profile) {
+void ForceSigninAndGlicCapability(Profile* profile,
+                                  std::string_view hosted_domain) {
   SetFRECompletion(profile, prefs::FreStatus::kCompleted);
-  SigninWithPrimaryAccount(profile);
+  SigninWithPrimaryAccount(profile, hosted_domain);
   SetGlicCapability(profile, true);
 }
 
-void SigninWithPrimaryAccount(Profile* profile) {
+void SigninWithPrimaryAccount(Profile* profile,
+                              std::string_view hosted_domain) {
   // Sign-in and enable account capability.
   auto* const identity_manager = IdentityManagerFactory::GetForProfile(profile);
-  auto account_info = signin::MakePrimaryAccountAvailable(
-      identity_manager, "glic-test@example.com", signin::ConsentLevel::kSignin);
-  ASSERT_FALSE(account_info.IsEmpty());
-
-  account_info = AccountInfo::Builder(account_info)
-                     .SetFullName("Glic Testing")
-                     .SetGivenName("Glic")
-                     .Build();
-  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  AccountInfo::Builder builder(signin::MakePrimaryAccountAvailable(
+      identity_manager, "glic-test@example.com",
+      signin::ConsentLevel::kSignin));
+  builder.SetFullName("Glic Testing").SetGivenName("Glic");
+  if (!hosted_domain.empty()) {
+    builder.SetHostedDomain(hosted_domain);
+  }
+  signin::UpdateAccountInfoForAccount(identity_manager, builder.Build());
 }
 
 void SetGlicCapability(Profile* profile, bool enabled) {
@@ -239,7 +240,7 @@ void SetGlicCapability(Profile* profile, bool enabled) {
           identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
   ASSERT_FALSE(primary_account.IsEmpty());
 
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
   SetGlicCapability(mutator, enabled);
 
   signin::UpdateAccountInfoForAccount(identity_manager, primary_account);

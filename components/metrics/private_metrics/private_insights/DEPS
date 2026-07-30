@@ -1,0 +1,11 @@
+include_rules = [
+  "+third_party/federated_compute",
+]
+
+specific_include_rules = {
+  # FCP event publisher implements FCP's interfaces that need absl.
+  "fcp_event_publisher\\.(cc|h)": [
+    "+third_party/abseil-cpp/absl/strings",
+    "+third_party/abseil-cpp/absl/time",
+  ],
+}

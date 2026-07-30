@@ -28,6 +28,9 @@
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/viz/common/switches.h"
+#include "content/public/browser/page_navigator.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_switches.h"
@@ -42,10 +45,12 @@
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 using testing::ElementsAre;
 using testing::ElementsAreArray;
@@ -719,6 +724,139 @@ IN_PROC_BROWSER_TEST_F(HeadlessWebContentsAIPageContentTest, GetAIPageContent) {
           },
           &run_loop));
   run_loop.Run();
+}
+
+IN_PROC_BROWSER_TEST_F(HeadlessWebContentsTest, OpenURLFromTabHasOpener) {
+  EXPECT_TRUE(embedded_test_server()->Start());
+
+  HeadlessBrowserContext* browser_context =
+      browser()->CreateBrowserContextBuilder().Build();
+
+  HeadlessWebContentsImpl* web_contents = HeadlessWebContentsImpl::From(
+      browser_context->CreateWebContentsBuilder()
+          .SetInitialURL(embedded_test_server()->GetURL("/hello.html"))
+          .Build());
+  ASSERT_TRUE(WaitForLoad(web_contents));
+
+  content::OpenURLParams params(
+      embedded_test_server()->GetURL("/hello.html"), content::Referrer(),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB, ui::PAGE_TRANSITION_LINK,
+      /*is_renderer_initiated=*/true);
+  params.has_rel_opener = true;
+  params.initiator_origin =
+      url::Origin::Create(embedded_test_server()->GetURL("/hello.html"));
+  params.source_render_process_id = web_contents->web_contents()
+                                        ->GetPrimaryMainFrame()
+                                        ->GetProcess()
+                                        ->GetID()
+                                        .GetUnsafeValue();
+  params.source_render_frame_id =
+      web_contents->web_contents()->GetPrimaryMainFrame()->GetRoutingID();
+
+  content::WebContents* new_web_contents =
+      web_contents->web_contents()->GetDelegate()->OpenURLFromTab(
+          web_contents->web_contents(), params,
+          /*navigation_handle_callback=*/{});
+
+  ASSERT_TRUE(new_web_contents);
+  EXPECT_TRUE(WaitForLoad(HeadlessWebContentsImpl::From(new_web_contents)));
+
+  EXPECT_TRUE(new_web_contents->HasOpener());
+  EXPECT_EQ(new_web_contents->GetOpener(),
+            web_contents->web_contents()->GetPrimaryMainFrame());
+}
+
+IN_PROC_BROWSER_TEST_F(HeadlessWebContentsTest,
+                       OpenURLFromTabOpenerSuppressed) {
+  EXPECT_TRUE(embedded_test_server()->Start());
+
+  HeadlessBrowserContext* browser_context =
+      browser()->CreateBrowserContextBuilder().Build();
+
+  HeadlessWebContentsImpl* web_contents = HeadlessWebContentsImpl::From(
+      browser_context->CreateWebContentsBuilder()
+          .SetInitialURL(embedded_test_server()->GetURL("/hello.html"))
+          .Build());
+  ASSERT_TRUE(WaitForLoad(web_contents));
+
+  content::OpenURLParams params(
+      embedded_test_server()->GetURL("/hello.html"), content::Referrer(),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB, ui::PAGE_TRANSITION_LINK,
+      /*is_renderer_initiated=*/true);
+  params.has_rel_opener = false;
+  params.initiator_origin =
+      url::Origin::Create(embedded_test_server()->GetURL("/hello.html"));
+  params.source_render_process_id = web_contents->web_contents()
+                                        ->GetPrimaryMainFrame()
+                                        ->GetProcess()
+                                        ->GetID()
+                                        .GetUnsafeValue();
+  params.source_render_frame_id =
+      web_contents->web_contents()->GetPrimaryMainFrame()->GetRoutingID();
+
+  content::WebContents* new_web_contents =
+      web_contents->web_contents()->GetDelegate()->OpenURLFromTab(
+          web_contents->web_contents(), params,
+          /*navigation_handle_callback=*/{});
+
+  ASSERT_TRUE(new_web_contents);
+  EXPECT_TRUE(WaitForLoad(HeadlessWebContentsImpl::From(new_web_contents)));
+
+  EXPECT_FALSE(new_web_contents->HasOpener());
+}
+
+IN_PROC_BROWSER_TEST_F(HeadlessWebContentsTest, BlockNewWebContents) {
+  EXPECT_TRUE(embedded_test_server()->Start());
+
+  HeadlessBrowserContext* browser_context = browser()
+                                                ->CreateBrowserContextBuilder()
+                                                .SetBlockNewWebContents(true)
+                                                .Build();
+
+  HeadlessWebContentsImpl* web_contents = HeadlessWebContentsImpl::From(
+      browser_context->CreateWebContentsBuilder()
+          .SetInitialURL(embedded_test_server()->GetURL("/hello.html"))
+          .Build());
+  ASSERT_TRUE(WaitForLoad(web_contents));
+
+  content::OpenURLParams params(
+      embedded_test_server()->GetURL("/hello.html"), content::Referrer(),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB, ui::PAGE_TRANSITION_LINK,
+      /*is_renderer_initiated=*/true);
+  params.initiator_origin =
+      url::Origin::Create(embedded_test_server()->GetURL("/hello.html"));
+  params.source_render_process_id = web_contents->web_contents()
+                                        ->GetPrimaryMainFrame()
+                                        ->GetProcess()
+                                        ->GetID()
+                                        .GetUnsafeValue();
+  params.source_render_frame_id =
+      web_contents->web_contents()->GetPrimaryMainFrame()->GetRoutingID();
+
+  content::WebContents* new_web_contents =
+      web_contents->web_contents()->GetDelegate()->OpenURLFromTab(
+          web_contents->web_contents(), params,
+          /*navigation_handle_callback=*/{});
+
+  EXPECT_FALSE(new_web_contents);
+}
+
+IN_PROC_BROWSER_TEST_F(HeadlessWebContentsTest, BlockNewWebContentsWindowOpen) {
+  EXPECT_TRUE(embedded_test_server()->Start());
+
+  HeadlessBrowserContext* browser_context = browser()
+                                                ->CreateBrowserContextBuilder()
+                                                .SetBlockNewWebContents(true)
+                                                .Build();
+
+  HeadlessWebContents* web_contents =
+      browser_context->CreateWebContentsBuilder()
+          .SetInitialURL(embedded_test_server()->GetURL("/hello.html"))
+          .Build();
+  ASSERT_TRUE(WaitForLoad(web_contents));
+
+  EXPECT_THAT(EvaluateScript(web_contents, "window.open('about:blank')"),
+              DictHasValue("result.result.subtype", "null"));
 }
 
 }  // namespace headless

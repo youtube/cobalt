@@ -11,19 +11,9 @@
 namespace personal_context::features {
 
 // The main feature flag for the Personal Context service. When disabled,
-// all Personal Context features and services are turned off.
+// all Personal Context features and services are turned off. Enabled by default
+// and kept around as a kill-switch.
 BASE_DECLARE_FEATURE(kPersonalContext);
-
-// Determines whether the `FetchContext` API is allowed to execute network
-// requests.
-BASE_DECLARE_FEATURE_PARAM(bool, kPersonalContextEnableFetchContext);
-
-// Comma-separated list of AI subscription tiers that are eligible to use
-// Personal Context features (e.g., "1,2").
-BASE_DECLARE_FEATURE_PARAM(std::string, kPersonalContextEligibleTiers);
-
-// The base URL of the Context Memory Service (CMS) endpoint.
-BASE_DECLARE_FEATURE_PARAM(std::string, kContextMemoryServiceBaseUrl);
 
 // Controls whether the First Run and onboarding experience for Personal Context
 // is enabled. When disabled, the service remains in a "Not Eligible" state

@@ -56,7 +56,6 @@
 #include "chromeos/ui/wm/window_util.h"
 #include "components/services/app_service/public/cpp/app_update.h"
 #include "content/public/browser/render_view_host.h"
-#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -75,7 +74,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/accessibility/view_accessibility.h"
-#include "ui/views/animation/animation_builder.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/box_layout.h"
@@ -92,30 +90,6 @@ namespace {
 
 // The indicator for teleported windows has 8 DIPs before and below it.
 constexpr int kProfileIndicatorPadding = 8;
-
-// Returns the layer for the specified `web_view`'s native view.
-ui::Layer* GetNativeViewLayer(views::WebView* web_view) {
-  if (web_view) {
-    if (views::NativeViewHost* holder = web_view->holder(); holder) {
-      if (aura::Window* native_view = holder->native_view(); native_view) {
-        return native_view->layer();
-      }
-    }
-  }
-  return nullptr;
-}
-
-// Returns the render widget host for the specified `web_view`.
-content::RenderWidgetHost* GetRenderWidgetHost(views::WebView* web_view) {
-  if (web_view) {
-    if (auto* web_contents = web_view->GetWebContents(); web_contents) {
-      if (auto* rvh = web_contents->GetRenderViewHost(); rvh) {
-        return rvh->GetWidget();
-      }
-    }
-  }
-  return nullptr;
-}
 
 DEFINE_UI_CLASS_PROPERTY_KEY(BrowserFrameViewChromeOS*,
                              kBrowserFrameViewChromeOSKey,
@@ -574,7 +548,6 @@ void BrowserFrameViewChromeOS::OnThemeChanged() {
       GetBrowserView()->IsWindowControlsOverlayEnabled(),
       GetFrameHeaderColor(GetBrowserView()->IsActive()));
   BrowserFrameView::OnThemeChanged();
-  MaybeAnimateThemeChanged();
 }
 
 void BrowserFrameViewChromeOS::ChildPreferredSizeChanged(views::View* child) {
@@ -1105,78 +1078,6 @@ void BrowserFrameViewChromeOS::OnUpdateFrameColor() {
                       GetFrameColor(BrowserFrameActiveState::kInactive));
 
   frame_header_->UpdateFrameColors();
-}
-
-void BrowserFrameViewChromeOS::MaybeAnimateThemeChanged() {
-  if (!GetBrowserView()) {
-    return;
-  }
-
-  Browser* browser = GetBrowserView()->browser();
-
-  // Theme change events are only animated for system web apps which explicitly
-  // request the behavior.
-  bool animate_theme_change_for_swa =
-      ash::IsSystemWebApp(browser) &&
-      web_app::AppBrowserController::From(browser)
-          ->system_app()
-          ->ShouldAnimateThemeChanges();
-  if (!animate_theme_change_for_swa) {
-    return;
-  }
-
-  views::WebView* web_view = GetBrowserView()->contents_web_view();
-  ui::Layer* layer = GetNativeViewLayer(web_view);
-  content::RenderWidgetHost* render_widget_host = GetRenderWidgetHost(web_view);
-  if (!layer || !render_widget_host) {
-    return;
-  }
-
-  // Immediately hide the layer associated with the `contents_web_view()` native
-  // view so that repainting of the web contents (which is janky) is hidden from
-  // user. Note that opacity is set just above `0.f` to pass a DCHECK that
-  // exists in `aura::Window` that might otherwise be tripped when changing
-  // window visibility (see https://crbug.com/41094269).
-  layer->SetOpacity(std::nextafter(0.f, 1.f));
-
-  // Cache a callback to invoke to animate the layer back in. Note that because
-  // this is a cancelable callback, any previously created callback will be
-  // cancelled.
-  theme_changed_animation_callback_.Reset(base::BindOnce(
-      [](const base::WeakPtr<BrowserFrameViewChromeOS>& self,
-         base::TimeTicks theme_changed_time, bool success) {
-        if (!self || !self->GetBrowserView()) {
-          return;
-        }
-
-        views::WebView* web_view = self->GetBrowserView()->contents_web_view();
-        ui::Layer* layer = GetNativeViewLayer(web_view);
-        if (!layer) {
-          return;
-        }
-
-        // Delay animating the layer back in at least until the
-        // `chromeos::DefaultFrameHeader` has had a chance to complete its own
-        // color change animation.
-        const base::TimeDelta offset =
-            chromeos::kDefaultFrameColorChangeAnimationDuration -
-            (base::TimeTicks::Now() - theme_changed_time);
-
-        views::AnimationBuilder()
-            .SetPreemptionStrategy(ui::LayerAnimator::PreemptionStrategy::
-                                       IMMEDIATELY_ANIMATE_TO_NEW_TARGET)
-            .Once()
-            .Offset(std::max(offset, base::TimeDelta()))
-            .SetDuration(chromeos::kDefaultFrameColorChangeAnimationDuration)
-            .SetOpacity(layer, 1.f);
-      },
-      weak_ptr_factory_.GetWeakPtr(), base::TimeTicks::Now()));
-
-  // Animate the layer back in only after a round trip through the renderer and
-  // compositor pipelines. This should ensure that the web contents has finished
-  // repainting theme changes.
-  render_widget_host->InsertVisualStateCallback(
-      theme_changed_animation_callback_.callback());
 }
 
 bool BrowserFrameViewChromeOS::IsFloated() const {

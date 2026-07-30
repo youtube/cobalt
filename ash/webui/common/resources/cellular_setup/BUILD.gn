@@ -42,6 +42,7 @@ build_webui("build") {
     "cellular_types.ts",
     "esim_manager_listener_mixin.ts",
     "esim_manager_utils.ts",
+    "metrics_browser_proxy.ts",
     "mojo_interface_provider.ts",
     "subflow_mixin.ts",
     "webview_post_util.ts",

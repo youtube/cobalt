@@ -339,12 +339,7 @@ public class TabGroupColorPickerTest {
                     Assert.assertEquals(mColorList.size(), firstRow.getChildCount());
 
                     for (int color : mColorList) {
-                        FrameLayout colorView = (FrameLayout) firstRow.getChildAt(color);
-                        Assert.assertTrue(
-                                colorView.findViewById(R.id.color_picker_icon)
-                                        instanceof MaterialButton);
-                        MaterialButton materialButton =
-                                colorView.findViewById(R.id.color_picker_icon);
+                        MaterialButton materialButton = (MaterialButton) firstRow.getChildAt(color);
                         Assert.assertNotNull(materialButton.getBackgroundTintList());
                         Assert.assertNotNull(materialButton.getRippleColor());
                     }

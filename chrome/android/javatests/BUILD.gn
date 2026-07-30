@@ -456,12 +456,16 @@ android_library("chrome_test_java_helper") {
 android_library("chrome_test_java_org.chromium.chrome.browser.actor") {
   resources_package = "org.chromium.chrome"
 
-  sources = [ "src/org/chromium/chrome/browser/actor/ActorOverlayPTTest.java" ]
+  sources = [
+    "src/org/chromium/chrome/browser/actor/ActorOverlayDesktopPTTest.java",
+    "src/org/chromium/chrome/browser/actor/ActorOverlayPTTest.java",
+  ]
 
   deps = [
     ":chrome_test_java_helper",
     "//chrome/browser/actor/android:java",
     "//chrome/browser/glic:public_java",
+    "//chrome/browser/glic/android:java",
     "//chrome/browser/glic/android:test_support_java",
     "//chrome/test/android:chrome_java_transit",
   ]
@@ -1754,6 +1758,8 @@ android_library("chrome_test_java_various") {
     "//chrome/browser/educational_tip:java",
     "//chrome/browser/glic:public_java",
     "//chrome/browser/glic/android:java",
+    "//chrome/browser/glic/android:jni_headers_java",
+    "//chrome/browser/gsa:java",
     "//chrome/browser/ntp_customization:java",
     "//chrome/browser/ui/android/logo:utils_java",
     "//chrome/browser/ui/android/toolbar:adaptive_features_java",
@@ -1945,6 +1951,7 @@ android_library(
 
   deps = [
     ":common_unit_test_deps_java",
+    "//chrome/browser/gsa:java",
     "//chrome/browser/ui/android/signin:java",
     "//google_apis/gaia/android:java",
   ]

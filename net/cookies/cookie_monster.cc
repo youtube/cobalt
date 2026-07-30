@@ -2915,7 +2915,18 @@ void CookieMonster::DoCookieCallback(base::OnceClosure callback) {
 }
 
 void CookieMonster::OnPreconnect(const GURL& url) {
-  DoCookieCallbackForHostOrDomain(base::DoNothing(), url.host());
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  constexpr std::string_view kCookieOnPreconnectLoadCookie =
+      "Cookie.OnPreconnect.LoadCookie";
+  if (finished_fetching_all_cookies_) {
+    base::UmaHistogramBoolean(kCookieOnPreconnectLoadCookie, false);
+    return;
+  }
+  base::UmaHistogramBoolean(kCookieOnPreconnectLoadCookie, true);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&CookieMonster::DoCookieCallbackForHostOrDomain,
+                                weak_ptr_factory_.GetWeakPtr(),
+                                base::DoNothing(), std::string(url.host())));
 }
 
 void CookieMonster::DoCookieCallbackForURL(base::OnceClosure callback,

@@ -12,7 +12,7 @@
 
 class InfoBarIOS;
 
-// OverlayUserData used to hold a pointer to an InfoBar.  Used as auxiliary
+// OverlayUserData used to hold a pointer to an InfoBar. Used as auxiliary
 // data for OverlayRequests for InfoBars.
 class InfobarOverlayRequestConfig
     : public OverlayRequestConfig<InfobarOverlayRequestConfig> {
@@ -29,6 +29,8 @@ class InfobarOverlayRequestConfig
   bool is_high_priority() const { return is_high_priority_; }
   // The overlay type for this infobar OverlayRequest.
   InfobarOverlayType overlay_type() const { return overlay_type_; }
+  // Whether the overlay should start animated.
+  bool start_animated() const { return start_animated_; }
 
  private:
   friend class OverlayUserData<InfobarOverlayRequestConfig>;
@@ -41,6 +43,7 @@ class InfobarOverlayRequestConfig
   bool has_badge_ = false;
   bool is_high_priority_ = false;
   InfobarOverlayType overlay_type_;
+  bool start_animated_ = true;
 };
 
 #endif  // IOS_CHROME_BROWSER_OVERLAYS_MODEL_PUBLIC_COMMON_INFOBARS_INFOBAR_OVERLAY_REQUEST_CONFIG_H_

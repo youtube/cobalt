@@ -55,6 +55,7 @@ public class AutocompleteMatchBuilder {
     private String mTabGroupUuid;
     private String mAssociatedKeyword;
     private byte[] mSerializedSuggestTemplate;
+    private @DocumentType int mDocumentType;
 
     /**
      * Create a suggestion builder for a search suggestion.
@@ -111,6 +112,7 @@ public class AutocompleteMatchBuilder {
         mTabGroupUuid = null;
         mAssociatedKeyword = null;
         mSerializedSuggestTemplate = null;
+        mDocumentType = DocumentType.NONE;
 
         mDisplayTextClassifications.add(
                 new AutocompleteMatch.MatchClassification(0, MatchClassificationStyle.NONE));
@@ -156,7 +158,8 @@ public class AutocompleteMatchBuilder {
                 mAdditionalText,
                 mTabGroupUuid,
                 mAssociatedKeyword,
-                mSerializedSuggestTemplate);
+                mSerializedSuggestTemplate,
+                mDocumentType);
     }
 
     /**
@@ -412,6 +415,15 @@ public class AutocompleteMatchBuilder {
      */
     public AutocompleteMatchBuilder setSerializedSuggestTemplate(byte[] serializedSuggestTemplate) {
         mSerializedSuggestTemplate = serializedSuggestTemplate;
+        return this;
+    }
+
+    /**
+     * @param documentType DocumentType to set.
+     * @return Omnibox suggestion builder.
+     */
+    public AutocompleteMatchBuilder setDocumentType(@DocumentType int documentType) {
+        mDocumentType = documentType;
         return this;
     }
 }

@@ -81,6 +81,7 @@
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/pref_names.h"
 #include "components/content_settings/core/browser/content_settings_type_set.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
@@ -492,7 +493,7 @@ apps::IntentFilters CreateIntentFiltersFromFileHandlers(
 
 #if BUILDFLAG(IS_CHROMEOS)
 bool AppHasSupportedLinks(apps::AppServiceProxy* proxy,
-                         const webapps::AppId& app_id) {
+                          const webapps::AppId& app_id) {
   bool has_intent_filters = false;
   proxy->AppRegistryCache().ForOneApp(
       app_id, [&](const apps::AppUpdate& update) {
@@ -506,20 +507,26 @@ bool AppHasSupportedLinks(apps::AppServiceProxy* proxy,
   return has_intent_filters;
 }
 
+base::flat_set<std::string> GetOtherPreferredAppsForFilters(
+    apps::AppServiceProxy* proxy,
+    const webapps::AppId& app_id,
+    const apps::IntentFilters& new_app_intent_filters) {
+  if (new_app_intent_filters.empty()) {
+    return {};
+  }
+  base::flat_set<std::string> preferred_apps =
+      proxy->PreferredAppsList().FindPreferredAppsForFilters(
+          app_id, new_app_intent_filters);
+  preferred_apps.erase(app_id);
+  return preferred_apps;
+}
+
 bool AreOtherAppsPreferredForLinks(
     apps::AppServiceProxy* proxy,
     const webapps::AppId& app_id,
-    const std::optional<apps::IntentFilters>& new_app_intent_filters) {
-  if (!new_app_intent_filters.has_value() || new_app_intent_filters->empty()) {
-    return false;
-  }
-
-  base::flat_set<std::string> preferred_apps =
-      proxy->PreferredAppsList().FindPreferredAppsForFilters(
-          *new_app_intent_filters);
-  preferred_apps.erase(app_id);
-
-  return preferred_apps.size() > 0;
+    const apps::IntentFilters& new_app_intent_filters) {
+  return !GetOtherPreferredAppsForFilters(proxy, app_id, new_app_intent_filters)
+              .empty();
 }
 #endif  //  BUILDFLAG(IS_CHROMEOS)
 
@@ -1393,6 +1400,69 @@ void WebAppPublisherHelper::OnWebAppFileHandlerApprovalStateChanged(
   }
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
+void WebAppPublisherHelper::MaybeSetSupportedLinksPreference(
+    const WebApp* web_app,
+    bool app_had_supported_links) {
+  const webapps::AppId& app_id = web_app->app_id();
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+
+  apps::IntentFilters intent_filters;
+  proxy->AppRegistryCache().ForOneApp(
+      app_id, [&intent_filters](const apps::AppUpdate& update) {
+        intent_filters = update.IntentFilters();
+      });
+
+  // IWAs
+  if (registrar().AppMatches(app_id, WebAppFilter::IsIsolatedApp() |
+                                         WebAppFilter::IsIsolatedSubApp())) {
+    bool are_other_apps_preferred =
+        AreOtherAppsPreferredForLinks(proxy, app_id, intent_filters);
+    bool iwa_capture_links_set_default =
+        proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id) ||
+        (!app_had_supported_links && !are_other_apps_preferred);
+    if (iwa_capture_links_set_default) {
+      proxy->SetSupportedLinksPreference(app_id);
+    }
+    return;
+  }
+
+  if (ChromeOsWebAppExperiments::ShouldAddLinkPreference(app_id, profile_)) {
+    proxy->SetSupportedLinksPreference(app_id);
+    return;
+  }
+
+  // PWAs
+  if (base::FeatureList::IsEnabled(features::kPwaNavigationCapturing)) {
+    bool should_capture_links = false;
+    switch (features::kNavigationCapturingDefaultState.Get()) {
+      case features::CapturingState::kReimplDefaultOn:
+        should_capture_links = true;
+        break;
+      case features::CapturingState::kReimplOnViaClientMode:
+        should_capture_links = web_app->launch_handler()
+                                   .value_or(LaunchHandler())
+                                   .client_mode_valid_and_specified();
+        break;
+      default:
+        break;
+    }
+
+    if (!should_capture_links) {
+      return;
+    }
+
+    if (AreOtherAppsPreferredForLinks(proxy, app_id, intent_filters)) {
+      return;
+    }
+    if (proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id) ||
+        !app_had_supported_links) {
+      proxy->SetSupportedLinksPreference(app_id);
+    }
+  }
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 void WebAppPublisherHelper::OnWebAppInstalled(const webapps::AppId& app_id) {
   const WebApp* web_app = GetWebApp(app_id);
   if (web_app) {
@@ -1403,25 +1473,15 @@ void WebAppPublisherHelper::OnWebAppInstalled(const webapps::AppId& app_id) {
     app->icon_key->update_version = true;
 
 #if BUILDFLAG(IS_CHROMEOS)
-    bool iwa_capture_links_set_default =
-        registrar().AppMatches(app_id, WebAppFilter::IsIsolatedApp() |
-                                           WebAppFilter::IsIsolatedSubApp()) &&
-        !AreOtherAppsPreferredForLinks(
-            apps::AppServiceProxyFactory::GetForProfile(profile_), app_id,
-            app->intent_filters);
-#endif  // BUILDFLAG(IS_CHROMEOS)
+    auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+    bool app_had_supported_links = AppHasSupportedLinks(proxy, app_id);
+#endif
 
     delegate_->PublishWebApp(std::move(app));
 
-    // Todo(b:372661290): Extract custom link preference handling into a new
-    // post web app install hook.
 #if BUILDFLAG(IS_CHROMEOS)
-    if (iwa_capture_links_set_default ||
-        ChromeOsWebAppExperiments::ShouldAddLinkPreference(app_id, profile_)) {
-      auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
-      proxy->SetSupportedLinksPreference(app_id);
-    }
-#endif  // BUILDFLAG(IS_CHROMEOS)
+    MaybeSetSupportedLinksPreference(web_app, app_had_supported_links);
+#endif
   }
 }
 
@@ -1439,33 +1499,22 @@ void WebAppPublisherHelper::OnWebAppManifestUpdated(
   if (web_app) {
     auto app = CreateWebApp(web_app);
 
-#if BUILDFLAG(IS_CHROMEOS)
-    auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
-
-    bool iwa_capture_links_set_default =
-        registrar().AppMatches(app_id, WebAppFilter::IsIsolatedApp() |
-                                           WebAppFilter::IsIsolatedSubApp()) &&
-        (proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id) ||
-         // IsPreferredAppForSupportedLinks returns false if app has 0 intent
-         // filters, regardless of SetSupportedLinksPreference was called on
-         // install.
-         (!AppHasSupportedLinks(proxy, app_id) &&
-          !AreOtherAppsPreferredForLinks(proxy, app_id, app->intent_filters)));
-
-#endif  //  BUILDFLAG(IS_CHROMEOS)
-
     // The manifest updated might cause the app raw icon updated. So set
     // a new `raw_icon_data_version`, to remove the icon files saved in the
     // AppService icon directory, to get the new raw icon files of the web app
     // for AppService.
     app->icon_key->update_version = true;
+
+#if BUILDFLAG(IS_CHROMEOS)
+    auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+    bool app_had_supported_links = AppHasSupportedLinks(proxy, app_id);
+#endif
+
     delegate_->PublishWebApp(std::move(app));
 
 #if BUILDFLAG(IS_CHROMEOS)
-    if (iwa_capture_links_set_default) {
-      proxy->SetSupportedLinksPreference(app_id);
-    }
-#endif  //  BUILDFLAG(IS_CHROMEOS)
+    MaybeSetSupportedLinksPreference(web_app, app_had_supported_links);
+#endif
   }
 }
 
@@ -1560,25 +1609,13 @@ void WebAppPublisherHelper::OnWebAppEffectiveScopeChanged(
 
 #if BUILDFLAG(IS_CHROMEOS)
     auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
-
-    bool iwa_capture_links_set_default =
-        registrar().AppMatches(app_id, WebAppFilter::IsIsolatedApp() |
-                                           WebAppFilter::IsIsolatedSubApp()) &&
-        (proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id) ||
-         // IsPreferredAppForSupportedLinks returns false if app has 0 intent
-         // filters, regardless of SetSupportedLinksPreference was called on
-         // install.
-         (!AppHasSupportedLinks(proxy, app_id) &&
-          !AreOtherAppsPreferredForLinks(proxy, app_id, app->intent_filters)));
-
-#endif  //  BUILDFLAG(IS_CHROMEOS)
+    bool app_had_supported_links = AppHasSupportedLinks(proxy, app_id);
+#endif
 
     delegate_->PublishWebApp(std::move(app));
 
 #if BUILDFLAG(IS_CHROMEOS)
-    if (iwa_capture_links_set_default) {
-      proxy->SetSupportedLinksPreference(app_id);
-    }
+    MaybeSetSupportedLinksPreference(web_app, app_had_supported_links);
 #endif  //  BUILDFLAG(IS_CHROMEOS)
   }
 }
@@ -1776,6 +1813,11 @@ void WebAppPublisherHelper::Init() {
 void WebAppPublisherHelper::ObserveWebAppSubsystems() {
   install_manager_observation_.Observe(&install_manager());
   registrar_observation_.Observe(&registrar());
+#if BUILDFLAG(IS_CHROMEOS)
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+  preferred_apps_list_observation_.Observe(&proxy->PreferredAppsList());
+  MaybeMigrateLinkCapturingPreferences();
+#endif
 }
 
 IconEffects WebAppPublisherHelper::GetIconEffects(const WebApp* web_app) {
@@ -2171,5 +2213,28 @@ void WebAppPublisherHelper::OnGetWebAppSize(
   app->data_size_in_bytes = size->data_size_in_bytes();
   delegate_->PublishWebApp(std::move(app));
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+void WebAppPublisherHelper::MaybeMigrateLinkCapturingPreferences() {
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+  if (!proxy->PreferredAppsList().IsInitialized()) {
+    return;
+  }
+  // TODO(crbug.com/519225475): Implement migration for existing web apps to
+  // start capturing by default.
+}
+
+void WebAppPublisherHelper::OnPreferredAppsListInitialized() {
+  MaybeMigrateLinkCapturingPreferences();
+}
+
+void WebAppPublisherHelper::OnPreferredAppChanged(const std::string& app_id,
+                                                  bool is_preferred_app) {}
+
+void WebAppPublisherHelper::OnPreferredAppsListWillBeDestroyed(
+    apps::PreferredAppsListHandle* handle) {
+  preferred_apps_list_observation_.Reset();
+}
+#endif
 
 }  // namespace web_app

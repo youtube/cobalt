@@ -492,13 +492,11 @@ ClientImageTransferCacheEntry::Image::Image(
 ClientImageTransferCacheEntry::ClientImageTransferCacheEntry(
     const Image& image,
     bool needs_mips,
-    const gfx::HDRMetadata& hdr_metadata,
     sk_sp<SkColorSpace> target_color_space)
     : needs_mips_(needs_mips),
       target_color_space_(target_color_space),
       id_(GetNextId()),
-      image_(image),
-      hdr_metadata_(hdr_metadata) {
+      image_(image) {
   ComputeSize();
 }
 
@@ -539,10 +537,6 @@ bool ClientImageTransferCacheEntry::Serialize(base::span<uint8_t> data) const {
   bool has_gainmap = gainmap_image_.has_value();
   writer.Write(has_gainmap);
   writer.Write(needs_mips_);
-  writer.Write(!hdr_metadata_.IsEmpty());
-  if (!hdr_metadata_.IsEmpty()) {
-    writer.Write(hdr_metadata_);
-  }
   writer.Write(target_color_space_.get());
   WriteImage(writer, image_);
 
@@ -561,10 +555,6 @@ void ClientImageTransferCacheEntry::ComputeSize() {
   base::CheckedNumeric<uint32_t> safe_size;
   safe_size += PaintOpWriter::SerializedSize<bool>();  // has_gainmap
   safe_size += PaintOpWriter::SerializedSize<bool>();  // needs_mips
-  safe_size += PaintOpWriter::SerializedSize<bool>();  // has_hdr_metadata
-  if (!hdr_metadata_.IsEmpty()) {
-    safe_size += PaintOpWriter::SerializedSize(hdr_metadata_);
-  }
   safe_size += PaintOpWriter::SerializedSize(target_color_space_.get());
   safe_size += SafeSizeForImage(image_);
   if (gainmap_image_) {
@@ -610,13 +600,6 @@ bool ServiceImageTransferCacheEntry::Deserialize(
   reader.Read(&has_gainmap_);
   bool needs_mips = false;
   reader.Read(&needs_mips);
-  bool has_hdr_metadata = false;
-  reader.Read(&has_hdr_metadata);
-  if (has_hdr_metadata) {
-    gfx::HDRMetadata hdr_metadata_value;
-    reader.Read(&hdr_metadata_value);
-    hdr_metadata_ = hdr_metadata_value;
-  }
   sk_sp<SkColorSpace> target_color_space;
   reader.Read(&target_color_space);
 
@@ -655,9 +638,14 @@ bool ServiceImageTransferCacheEntry::Deserialize(
     reader.Read(&gainmap_info_);
   }
 
-  // Determine if this image will be tone mapped.
+  // Skip color space conversion if this image will be tone mapped.
+  // TODO(https://crbug.com/395659818): This will inappropriately color convert
+  // SDR images with AGTM metadata. This will not affect the rendering result,
+  // but is odd. All of the caching of the color space conversion here should be
+  // removed.
   const bool is_tone_mapped =
-      has_gainmap_ || ToneMapUtil::UseGlobalToneMapFilter(image_->colorSpace());
+      has_gainmap_ || ToneMapUtil::UseGlobalToneMapFilter(image_->colorSpace(),
+                                                          gfx::HDRMetadata());
 
   // Perform color conversion (if no tone mapping is needed).
   if (target_color_space && !is_tone_mapped) {

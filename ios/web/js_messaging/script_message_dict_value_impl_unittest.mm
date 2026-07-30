@@ -6,7 +6,9 @@
 
 #import "base/values.h"
 #import "ios/web/public/js_messaging/script_message_dict_value.h"
+#import "ios/web/public/js_messaging/script_message_list_value.h"
 #import "ios/web/public/js_messaging/script_message_value.h"
+#import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
 namespace {
@@ -25,39 +27,52 @@ namespace web {
 
 using ScriptMessageDictValueTest = PlatformTest;
 
+// Tests whether the `empty()` function returns true when invoked on a
+// dictionary with no elements.
 TEST_F(ScriptMessageDictValueTest, EmptyFunctionIsTrueWhenDictIsEmpty) {
   NSDictionary* empty_ns_dict = @{};
   ScriptMessageDictValue empty_dict(empty_ns_dict);
   EXPECT_TRUE(empty_dict.empty());
 }
 
+// Tests whether the `size()` function returns zero when invoked on an empty
+// dictionary.
 TEST_F(ScriptMessageDictValueTest, DictSizeIsZeroWhenDictIsEmpty) {
   NSDictionary* empty_ns_dict = @{};
   ScriptMessageDictValue empty_dict(empty_ns_dict);
   EXPECT_EQ(0u, empty_dict.size());
 }
 
+// Tests whether the `empty()` function returns false when a dictionary does
+// contain elements.
 TEST_F(ScriptMessageDictValueTest, EmptyFunctionIsFalseWhenDictIsNonempty) {
   ScriptMessageDictValue dict(test_dict());
   EXPECT_FALSE(dict.empty());
 }
 
+// Tests whether the `size()` function returns the correct number of elements
+// in the dictionary.
 TEST_F(ScriptMessageDictValueTest, DictSizeIsNonzeroWhenDictIsNonempty) {
   ScriptMessageDictValue dict(test_dict());
   EXPECT_EQ(4u, dict.size());
 }
 
+// Tests whether the `contains()` function returns true when given a key that
+// does exist within the dictionary.
 TEST_F(ScriptMessageDictValueTest, ContainsReturnsTrueWhenAPresentKeyIsGiven) {
   ScriptMessageDictValue dict(test_dict());
   EXPECT_TRUE(dict.contains("boolKey"));
 }
 
+// Tests whether the `contains()` function returns false if given a key that
+// does not exist within the dictionary.
 TEST_F(ScriptMessageDictValueTest,
        ContainsReturnsFalseWhenANonExistentKeyIsGiven) {
   ScriptMessageDictValue dict(test_dict());
   EXPECT_FALSE(dict.contains("nonExistentKey"));
 }
 
+// Tests that the `Find*()` family of functions returns the correct value.
 TEST_F(ScriptMessageDictValueTest, FindFunctionsSuccessfullyReturnValue) {
   ScriptMessageDictValue dict(test_dict());
   EXPECT_EQ(true, dict.FindBool("boolKey").value_or(false));
@@ -68,6 +83,8 @@ TEST_F(ScriptMessageDictValueTest, FindFunctionsSuccessfullyReturnValue) {
   EXPECT_EQ("hello", dict.FindString("stringKey").value_or(""));
 }
 
+// Tests whether the `Find*()` family of functions returns `std::nullopt` when
+// given a key that does not exist in the dictionary.
 TEST_F(ScriptMessageDictValueTest,
        FindFunctionsReturnEmptyOptionalForNonexistentKeys) {
   ScriptMessageDictValue dict(test_dict());
@@ -78,7 +95,6 @@ TEST_F(ScriptMessageDictValueTest,
 }
 
 // Tests extraction of nested collections (Dict).
-// TODO(crbug.com/509501985): Add List support.
 TEST_F(ScriptMessageDictValueTest, DictShouldSupportNestedDicts) {
   NSDictionary* ns_dict = @{
     @"dictKey" : @{@"innerKey" : @"innerVal"},
@@ -86,9 +102,26 @@ TEST_F(ScriptMessageDictValueTest, DictShouldSupportNestedDicts) {
   };
   ScriptMessageDictValue dict(ns_dict);
 
-  std::unique_ptr<ScriptMessageDictValue> inner_dict = dict.FindDict("dictKey");
+  std::optional<ScriptMessageDictValue> inner_dict = dict.FindDict("dictKey");
   ASSERT_TRUE(inner_dict);
   EXPECT_EQ("innerVal", inner_dict->FindString("innerKey").value_or(""));
+}
+
+// Tests that a dictionary containing a list can be iterated through.
+TEST_F(ScriptMessageDictValueTest, DictShouldSupportNestedLists) {
+  NSDictionary* ns_dict = @{
+    @"listKey" : @[ @0.0, @1.0 ],
+  };
+  ScriptMessageDictValue dict(ns_dict);
+
+  std::optional<ScriptMessageListValue> inner_list = dict.FindList("listKey");
+  ASSERT_TRUE(inner_list);
+  size_t index = 0;
+  for (const ScriptMessageValue value : *inner_list) {
+    EXPECT_EQ(base::Value::Type::DOUBLE, value.type());
+    EXPECT_NSEQ(@(value.GetValue().GetDouble()), ns_dict[@"listKey"][index]);
+    index++;
+  }
 }
 
 // Tests generic base::Value conversion via Find().

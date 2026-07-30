@@ -1,0 +1,113 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//chrome/common/features.gni")
+
+if (chrome_root_store_cert_management_ui) {
+  source_set("certificate_manager") {
+    sources = [
+      "certificate_manager_handler.cc",
+      "certificate_manager_ui.cc",
+      "certificate_manager_utils.cc",
+      "chrome_root_store_cert_source.cc",
+      "client_cert_sources.cc",
+      "enterprise_cert_sources.cc",
+      "user_cert_sources.cc",
+    ]
+    public = [
+      "certificate_manager_handler.h",
+      "certificate_manager_ui.h",
+      "certificate_manager_utils.h",
+      "chrome_root_store_cert_source.h",
+      "client_cert_sources.h",
+      "enterprise_cert_sources.h",
+      "user_cert_sources.h",
+    ]
+    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    deps = [
+      "//base",
+      "//chrome/app:generated_resources_grit",
+      "//chrome/browser/net",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/resources/certificate_manager:mojom",
+      "//chrome/browser/resources/certificate_manager:resources",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/select_file_policy",
+      "//chrome/browser/ui/webui:plural_string_handler",
+      "//chrome/browser/ui/webui:webui_util",
+      "//chrome/browser/ui/webui/certificate_viewer",
+      "//chrome/common",
+      "//chrome/common:constants",
+      "//chrome/common/net",
+      "//components/pref_registry",
+      "//components/prefs",
+      "//components/server_certificate_database",
+      "//components/strings:components_strings_grit",
+      "//content/public/browser",
+      "//crypto",
+      "//net",
+      "//services/cert_verifier/public/mojom",
+      "//third_party/boringssl",
+      "//ui/base",
+      "//ui/shell_dialogs",
+      "//ui/web_dialogs",
+      "//ui/webui",
+    ]
+
+    if (!is_chromeos) {
+      sources += [ "platform_cert_sources.cc" ]
+      public += [ "platform_cert_sources.h" ]
+    }
+
+    if (is_chromeos) {
+      sources += [ "certificates_handler.cc" ]
+      public += [ "certificates_handler.h" ]
+      deps += [
+        "//chrome/browser/ash/certificate_provider",
+        "//chrome/browser/ash/kcer",
+        "//chrome/browser/ash/net",
+        "//chrome/browser/ash/profiles",
+        "//chromeos/ash/components/kcer",
+        "//chromeos/components/certificate_provider",
+      ]
+    }
+  }
+
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "client_cert_sources_unittest.cc",
+      "user_cert_sources_unittest.cc",
+    ]
+    deps = [
+      ":certificate_manager",
+      "//base/test:test_support",
+      "//chrome/browser/resources/certificate_manager:mojom",
+      "//chrome/common:constants",
+      "//chrome/test:test_support",
+      "//components/prefs",
+      "//components/server_certificate_database",
+      "//content/test:test_support",
+      "//net",
+      "//net:test_support",
+      "//testing/gtest",
+      "//ui/shell_dialogs:test_support",
+    ]
+    if (use_nss_certs) {
+      sources += [ "client_cert_sources_writable_unittest.cc" ]
+      deps += [
+        "//chrome/browser/net",
+        "//net:test_support",
+      ]
+      if (is_chromeos) {
+        deps += [
+          "//chrome/browser/ash/kcer",
+          "//chrome/browser/ash/login/users:test_support",
+          "//chromeos/ash/components/login/login_state",
+          "//crypto:test_support",
+        ]
+      }
+    }
+  }
+}

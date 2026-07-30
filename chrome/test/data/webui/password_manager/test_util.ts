@@ -192,6 +192,7 @@ export interface InsecureCredentialsParams {
   id?: number;
   elapsedMinSinceCompromise?: number;
   isMuted?: boolean;
+  isAutomaticPasswordChangeSupported?: boolean;
 }
 
 /**
@@ -222,6 +223,8 @@ export function makeInsecureCredential(params: InsecureCredentialsParams):
     id: id || 0,
     storedIn: chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
     changePasswordUrl: `https://${url}/`,
+    isAutomaticPasswordChangeSupported:
+        params.isAutomaticPasswordChangeSupported ?? false,
     username: username,
     password: params.password,
     note: '',

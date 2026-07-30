@@ -7,21 +7,14 @@
 
 #import <Foundation/Foundation.h>
 
-#import "ios/chrome/browser/reading_list/ui_bundled/reading_list_ui_distillation_status.h"
-
 @protocol ReadingListListItem;
 
-// Returns the a11y label to use for a reading list cell with `title`,
-// `subtitle`, and `distillation_state`.
+// Returns the a11y label to use for a reading list cell with `title` and
+// `subtitle`.
 NSString* GetReadingListCellAccessibilityLabel(
     NSString* title,
     NSString* subtitle,
-    ReadingListUIDistillationStatus distillation_status,
     BOOL showCloudSlashIcon);
-
-// Returns the string to use to display the distillation date in reading list
-// cells.  The date is in microseconds since Jan 1st 1970.
-NSString* GetReadingListCellDistillationDateText(int64_t distillation_date);
 
 // Returns whether `first` is equivalent to `second`.
 BOOL AreReadingListListItemsEqual(id<ReadingListListItem> first,

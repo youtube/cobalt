@@ -11,7 +11,6 @@
         "module_name": "//chrome/test:browser_tests",
         "module_scheme": "gtest",
         "name": "browser_tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
@@ -33,7 +32,6 @@
         "module_name": "//cc:cc_unittests",
         "module_scheme": "gtest",
         "name": "cc_unittests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
@@ -54,7 +52,6 @@
         "module_name": "//content/test:content_browsertests",
         "module_scheme": "gtest",
         "name": "content_browsertests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
@@ -76,7 +73,6 @@
         "module_name": "//components/viz:viz_unittests",
         "module_scheme": "gtest",
         "name": "viz_unittests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
@@ -109,7 +105,6 @@
           "has_native_resultdb_integration": true
         },
         "results_handler": "layout tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cpu": "x86-64-Broadwell_GCE",

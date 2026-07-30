@@ -218,9 +218,16 @@ class CC_PAINT_EXPORT CorePaintFlags {
 
 class CC_PAINT_EXPORT PaintFlags final : public CorePaintFlags {
  public:
-  // Sentinel value for targeted HDR headroom indicating to read the value
-  // from the PlaybackParams at playback time.
-  static constexpr float kTargetedHdrHeadroomFromPlaybackParams = -1.0f;
+  // Sentinel value for targeted HDR headroom.
+  class TargetedHdrHeadroom {
+   public:
+    // Read the value from the PlaybackParams at playback time.
+    static constexpr float kFromPlaybackParams = -1.0f;
+    // Ignore all HDR metadata and draw with no tone mapping. This will also
+    // ignore the HDR reference white metadata, which is only desirable when
+    // making internal copies to the same color space.
+    static constexpr float kDisableEverything = -2.0f;
+  };
 
   PaintFlags();
   PaintFlags(const PaintFlags& flags);
@@ -280,7 +287,7 @@ class CC_PAINT_EXPORT PaintFlags final : public CorePaintFlags {
   // indicates the HDR headroom value that (adjusted by the dynamic range
   // limit) will be used for tone mapping. The range of meaningful values is
   // [0, infinity], with infinity indicating to tone map using the maximum
-  // HDR headroom. The default value is kTargetedHdrHeadroomFromPlaybackParams,
+  // HDR headroom. The default is TargetedHdrHeadroom::kFromPlaybackParams,
   // which indicates to use the HDR headroom specified in PlaybackParams,
   // specified at playback time.
   ALWAYS_INLINE void setTargetedHdrHeadroom(float value) {
@@ -329,7 +336,7 @@ class CC_PAINT_EXPORT PaintFlags final : public CorePaintFlags {
   friend class PaintOpWriter;
 
   // See documentation at `setTargetedHdrHeadroom`.
-  float targeted_hdr_headroom_ = kTargetedHdrHeadroomFromPlaybackParams;
+  float targeted_hdr_headroom_ = TargetedHdrHeadroom::kFromPlaybackParams;
   sk_sp<PathEffect> path_effect_;
   sk_sp<PaintShader> shader_;
   sk_sp<ColorFilter> color_filter_;

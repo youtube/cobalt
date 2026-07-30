@@ -122,11 +122,16 @@ public class ChipView extends LinearLayout {
                         R.styleable.ChipView_chipStartPadding,
                         getResources().getDimensionPixelSize(R.dimen.chip_view_start_padding));
 
+        @Px int chipTopPadding = a.getDimensionPixelSize(R.styleable.ChipView_chipTopPadding, 0);
+
         @Px
         int chipEndPadding =
                 a.getDimensionPixelSize(
                         R.styleable.ChipView_chipEndPadding,
                         getResources().getDimensionPixelSize(R.dimen.chip_view_end_padding));
+
+        @Px
+        int chipBottomPadding = a.getDimensionPixelSize(R.styleable.ChipView_chipBottomPadding, 0);
 
         mEndIconMarginStart =
                 a.getDimensionPixelSize(
@@ -236,7 +241,8 @@ public class ChipView extends LinearLayout {
         // Setting this enforces 16dp padding at the end and 8dp at the start (unless overridden).
         // For text, the start padding needs to be 16dp which is why a ChipTextView contributes the
         // remaining 8dp.
-        this.setPaddingRelative(chipStartPadding, 0, chipEndPadding, 0);
+        this.setPaddingRelative(
+                chipStartPadding, chipTopPadding, chipEndPadding, chipBottomPadding);
 
         mPrimaryText =
                 new AppCompatTextView(new ContextThemeWrapper(getContext(), R.style.ChipTextView));

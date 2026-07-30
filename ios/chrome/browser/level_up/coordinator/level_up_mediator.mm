@@ -5,9 +5,12 @@
 #import "ios/chrome/browser/level_up/coordinator/level_up_mediator.h"
 
 #import "base/memory/raw_ptr.h"
+#import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/level_up/coordinator/level_up_category.h"
 #import "ios/chrome/browser/level_up/coordinator/level_up_stat.h"
 #import "ios/chrome/browser/level_up/coordinator/level_up_task.h"
+#import "ios/chrome/browser/level_up/model/level_up_service.h"
+#import "ios/chrome/browser/level_up/model/task_info.h"
 #import "ios/chrome/browser/level_up/model/task_types.h"
 #import "ios/chrome/browser/level_up/ui/level_up_consumer.h"
 #import "ios/chrome/browser/level_up/ui/level_up_profile_consumer.h"
@@ -22,6 +25,8 @@
 @implementation LevelUpMediator {
   // The authentication service.
   raw_ptr<AuthenticationService> _authService;
+  // The level up service.
+  raw_ptr<LevelUpService> _levelUpService;
   // Image cache for user avatars.
   ResizedAvatarCache* _avatarCache;
   // The list of task categories.
@@ -29,10 +34,12 @@
 }
 
 - (instancetype)initWithAuthenticationService:
-    (AuthenticationService*)authService {
+                    (AuthenticationService*)authService
+                               levelUpService:(LevelUpService*)levelUpService {
   self = [super init];
   if (self) {
     _authService = authService;
+    _levelUpService = levelUpService;
     _avatarCache = [[ResizedAvatarCache alloc]
         initWithIdentityAvatarSize:IdentityAvatarSize::Large];
   }
@@ -43,154 +50,24 @@
   _consumer = consumer;
 
   id<SystemIdentity> identity = _authService->GetPrimaryIdentity();
-
-  int level = 1;
   NSString* userFullName = identity.userFullName;
   UIImage* userAvatar = [_avatarCache resizedAvatarForIdentity:identity];
 
-  LevelUpTask* task1 = [[LevelUpTask alloc]
-        initWithTaskID:@"default_browser"
-                 title:@"Set Chrome as Default Browser"
-       taskDescription:@"Use Chrome as your primary default browser"
-        iconSymbolName:kDefaultBrowserSymbol
-             completed:YES
-              category:LevelUpTaskCategory::kProductivity
-      navigationAction:^{
-      }];
+  int level = _levelUpService->GetCurrentLevel();
 
-  LevelUpTask* task2 = [[LevelUpTask alloc]
-        initWithTaskID:@"password_autofill"
-                 title:@"Save passwords and autofill"
-       taskDescription:
-           @"Quickly sign into sites and apps with your saved passwords"
-        iconSymbolName:kKeySymbol
-             completed:YES
-              category:LevelUpTaskCategory::kProductivity
-      navigationAction:^{
-      }];
+  NSMutableArray<LevelUpTask*>* productivityTasks =
+      [[NSMutableArray alloc] init];
+  NSMutableArray<LevelUpTask*>* safetyTasks = [[NSMutableArray alloc] init];
+  NSMutableArray<LevelUpTask*>* searchTasks = [[NSMutableArray alloc] init];
+  NSMutableArray<LevelUpTask*>* allTasks = [[NSMutableArray alloc] init];
 
-  LevelUpTask* task3 = [[LevelUpTask alloc]
-        initWithTaskID:@"pin_tabs"
-                 title:@"Pin tabs"
-       taskDescription:@"Save your favorite sites by pinning them"
-        iconSymbolName:kPlusInSquareSymbol
-             completed:YES
-              category:LevelUpTaskCategory::kProductivity
-      navigationAction:^{
-      }];
+  const auto& tasks = _levelUpService->GetTasks();
+  for (const auto& [type, info] : tasks) {
+    BOOL completed = _levelUpService->IsTaskCompleted(type);
+    LevelUpTask* task = [[LevelUpTask alloc] initWithTaskInfo:info.get()
+                                                    completed:completed];
+    [allTasks addObject:task];
 
-  LevelUpTask* task4 =
-      [[LevelUpTask alloc] initWithTaskID:@"tab_group"
-                                    title:@"Create a tab group"
-                          taskDescription:@"Stay organized with tab groups"
-                           iconSymbolName:kBookmarksSymbol
-                                completed:NO
-                                 category:LevelUpTaskCategory::kProductivity
-                         navigationAction:^{
-                         }];
-
-  LevelUpTask* task5 = [[LevelUpTask alloc]
-        initWithTaskID:@"gemini"
-                 title:@"Use Gemini in Chrome"
-       taskDescription:@"Get answers faster with Gemini in Chrome"
-        iconSymbolName:kDefaultBrowserSymbol
-             completed:NO
-              category:LevelUpTaskCategory::kProductivity
-      navigationAction:^{
-      }];
-
-  LevelUpTask* task6 = [[LevelUpTask alloc]
-        initWithTaskID:@"payment_methods"
-                 title:@"Manage payment methods"
-       taskDescription:
-           @"Add new payment methods or edit saved ones to check out faster"
-        iconSymbolName:kKeySymbol
-             completed:NO
-              category:LevelUpTaskCategory::kProductivity
-      navigationAction:^{
-      }];
-
-  // Safety category tasks.
-  LevelUpTask* task7 = [[LevelUpTask alloc]
-        initWithTaskID:@"quick_delete"
-                 title:@"Quick delete"
-       taskDescription:
-           @"Manage your history, cookies and more to protect your privacy"
-        iconSymbolName:kPlusInSquareSymbol
-             completed:YES
-              category:LevelUpTaskCategory::kSafety
-      navigationAction:^{
-      }];
-
-  LevelUpTask* task8 = [[LevelUpTask alloc]
-        initWithTaskID:@"safe_browsing"
-                 title:@"Enhanced Safe Browsing"
-       taskDescription:
-           @"Add an extra layer of protection against online threats"
-        iconSymbolName:kBookmarksSymbol
-             completed:NO
-              category:LevelUpTaskCategory::kSafety
-      navigationAction:^{
-      }];
-
-  LevelUpTask* task9 = [[LevelUpTask alloc]
-        initWithTaskID:@"incognito"
-                 title:@"Go Incognito"
-       taskDescription:@"Open incognito tabs to browse the web privately"
-        iconSymbolName:kDefaultBrowserSymbol
-             completed:NO
-              category:LevelUpTaskCategory::kSafety
-      navigationAction:^{
-      }];
-
-  // Search category tasks.
-  LevelUpTask* task10 = [[LevelUpTask alloc]
-        initWithTaskID:@"lens_search"
-                 title:@"Search with Google Lens"
-       taskDescription:@"Draw, highlight, or tap to search and get results "
-                       @"without leaving your tab"
-        iconSymbolName:kKeySymbol
-             completed:YES
-              category:LevelUpTaskCategory::kSearch
-      navigationAction:^{
-      }];
-
-  LevelUpTask* task11 = [[LevelUpTask alloc]
-        initWithTaskID:@"ai_search"
-                 title:@"Search with AI Mode"
-       taskDescription:@"Ask anything and get the best of the web"
-        iconSymbolName:kPlusInSquareSymbol
-             completed:NO
-              category:LevelUpTaskCategory::kSearch
-      navigationAction:^{
-      }];
-
-  LevelUpTask* task12 = [[LevelUpTask alloc]
-        initWithTaskID:@"camera_search"
-                 title:@"Search with camera"
-       taskDescription:
-           @"Shop, translate and identify what you see with your camera"
-        iconSymbolName:kBookmarksSymbol
-             completed:NO
-              category:LevelUpTaskCategory::kSearch
-      navigationAction:^{
-      }];
-
-  if ([self.consumer respondsToSelector:@selector(setLevel:tasksForLevel:)]) {
-    [self.consumer setLevel:level
-              tasksForLevel:@[ task1, task2, task3, task4 ]];
-  }
-
-  NSMutableArray* productivityTasks = [[NSMutableArray alloc] init];
-  NSMutableArray* safetyTasks = [[NSMutableArray alloc] init];
-  NSMutableArray* searchTasks = [[NSMutableArray alloc] init];
-
-  NSArray<LevelUpTask*>* allTasks = @[
-    task1, task2, task3, task4, task5, task6, task7, task8, task9, task10,
-    task11, task12
-  ];
-
-  for (LevelUpTask* task in allTasks) {
     switch (task.category) {
       case LevelUpTaskCategory::kProductivity:
         [productivityTasks addObject:task];
@@ -202,6 +79,24 @@
         [searchTasks addObject:task];
         break;
     }
+  }
+
+  // TODO(crbug.com/523325903): Update this to match the final design spec. Use
+  // the first 4 uncompleted tasks for now.
+  NSMutableArray<LevelUpTask*>* uncompletedTasks =
+      [[NSMutableArray alloc] init];
+  for (LevelUpTask* task in allTasks) {
+    if (!task.completed) {
+      [uncompletedTasks addObject:task];
+      if (uncompletedTasks.count == 4) {
+        break;
+      }
+    }
+  }
+  NSArray<LevelUpTask*>* tasksForCurrentLevel = uncompletedTasks;
+
+  if ([self.consumer respondsToSelector:@selector(setLevel:tasksForLevel:)]) {
+    [self.consumer setLevel:level tasksForLevel:tasksForCurrentLevel];
   }
 
   _categories = @[

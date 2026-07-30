@@ -20,8 +20,8 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -104,10 +104,10 @@ class AppBarCoordinatorTest : public PlatformTest {
         startDispatchingToTarget:tab_group_handler_
                      forProtocol:@protocol(TabGroupsCommands)];
 
-    bwg_handler_ = OCMProtocolMock(@protocol(BWGCommands));
+    gemini_handler_ = OCMProtocolMock(@protocol(GeminiCommands));
     [regular_browser_->GetCommandDispatcher()
-        startDispatchingToTarget:bwg_handler_
-                     forProtocol:@protocol(BWGCommands)];
+        startDispatchingToTarget:gemini_handler_
+                     forProtocol:@protocol(GeminiCommands)];
 
     settings_handler_ = OCMProtocolMock(@protocol(SettingsCommands));
     [regular_browser_->GetCommandDispatcher()
@@ -154,7 +154,7 @@ class AppBarCoordinatorTest : public PlatformTest {
   id scene_handler_;
   id tab_grid_handler_;
   id tab_group_handler_;
-  id bwg_handler_;
+  id gemini_handler_;
   id settings_handler_;
   id browser_coordinator_handler_;
   id qr_scanner_handler_;

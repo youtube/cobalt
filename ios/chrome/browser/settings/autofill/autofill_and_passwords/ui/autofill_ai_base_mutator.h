@@ -23,6 +23,10 @@ class EntityType;
 // specified `type`.
 - (void)didSelectAddEntityWithType:(autofill::EntityType)type;
 
+// Notifies the mutator that the user selected to delete the existing entity
+// `items`.
+- (void)didSelectDeleteEntityItems:(NSArray<TableViewItem*>*)items;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UI_AUTOFILL_AI_BASE_MUTATOR_H_

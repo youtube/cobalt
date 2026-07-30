@@ -83,7 +83,7 @@ void ContentAutofillDriverFactory::BindAutofillDriver(
   }
 
   if (auto* driver = factory->DriverForFrame(render_frame_host)) {
-    driver->BindPendingReceiver(std::move(pending_receiver));
+    driver->BindPendingReceiver(std::move(pending_receiver), /*pass_key=*/{});
   }
 }
 

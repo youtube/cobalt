@@ -67,9 +67,8 @@ PopupBnplFootnoteView::PopupBnplFootnoteView(
     return;
   }
 
-  autofill::payments::TextWithLink text_with_link =
-      autofill::payments::GetBnplUiFooterTextForAi(
-          pdm->payments_data_manager());
+  payments::TextWithLink text_with_link =
+      payments::GetBnplUiFooterTextForAi(pdm->payments_data_manager());
 
   full_text_ = text_with_link.text;
 

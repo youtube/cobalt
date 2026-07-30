@@ -75,9 +75,24 @@ class ColorProvider;
 // window closure from causing the application to quit.
 - (void)stopTryingToTerminateApplication;
 
-// Run the quit confirmation panel and return whether or not to continue
-// quitting.
-- (BOOL)runConfirmQuitPanel;
+typedef NS_ENUM(NSInteger, ConfirmQuitResult) {
+  // Preconditions were not met and the quit confirmation panel was not shown
+  // (e.g., there are no visible windows, the user has disabled the
+  // confirmation, or the quit was not initiated by a keyboard shortcut).
+  // The application should proceed with the quit.
+  ConfirmQuitResultNotPrompted,
+  // The user successfully confirmed the quit action (e.g., by holding the
+  // quit accelerator or double-tapping).
+  // The application should proceed with the quit.
+  ConfirmQuitResultConfirmed,
+  // The user aborted the quit action (e.g., by letting go of the quit
+  // accelerator before the confirmation panel faded).
+  // The application should not quit.
+  ConfirmQuitResultAborted,
+};
+
+// Run the quit confirmation panel if conditions are met and return the result.
+- (ConfirmQuitResult)confirmQuitIfNeeded;
 
 // Indicate that the system is powering off or logging out.
 - (void)willPowerOff:(NSNotification*)inNotification;

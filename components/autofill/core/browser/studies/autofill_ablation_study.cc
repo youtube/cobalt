@@ -66,12 +66,12 @@ std::string GetSeed(PrefService* pref_service) {
   if (!pref_service) {
     return std::string();
   }
-  if (!pref_service->HasPrefPath(autofill::prefs::kAutofillAblationSeedPref)) {
+  if (!pref_service->HasPrefPath(prefs::kAutofillAblationSeedPref)) {
     pref_service->SetString(
-        autofill::prefs::kAutofillAblationSeedPref,
+        prefs::kAutofillAblationSeedPref,
         base::Base64Encode(base::RandBytesAsVector(kSeedLengthInBytes)));
   }
-  return pref_service->GetString(autofill::prefs::kAutofillAblationSeedPref);
+  return pref_service->GetString(prefs::kAutofillAblationSeedPref);
 }
 
 }  // namespace

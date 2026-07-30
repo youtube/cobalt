@@ -100,7 +100,7 @@ class MockSearchboxPage : public searchbox::mojom::Page {
   MOCK_METHOD(void, UpdateAimPopupEligibility, (bool eligible), (override));
   MOCK_METHOD(void, UpdateContentSharingPolicy, (bool enabled), (override));
   MOCK_METHOD(void,
-              OnEmbeddedPermissionPromptChanged,
+              OnPermissionPromptChanged,
               (bool, const gfx::Size&),
               (override));
   MOCK_METHOD(void,
@@ -125,7 +125,10 @@ class MockOmniboxPopupPage : public omnibox_popup::mojom::Page {
 
   MOCK_METHOD(void, OnShow, (), (override));
   MOCK_METHOD(void, OnContextMenuClosed, (), (override));
-  MOCK_METHOD(void, SetInputText, (const std::string& input), (override));
+  MOCK_METHOD(void,
+              SetInputState,
+              (omnibox_popup::mojom::OmniboxInputStatePtr state),
+              (override));
 };
 #endif
 

@@ -269,6 +269,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="1407135791313364759">Odpri vse</translation>
 <translation id="1408696301184924537">Če želite, da se številka IBAN naslednjič izpolni samodejno, jo shranite v računu Google</translation>
 <translation id="1408787208417187241">Trojno spenjanje zgoraj</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> od <ph name="NUM_MATCHES_IN_GROUP" /> v skupini <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Drugi, ki uporabljajo to napravo, ne bodo videli vaše dejavnosti, zato lahko brskate bolj zasebno. To ne bo spremenilo, kako spletna mesta, ki jih obiščete, in storitve, ki jih uporabljajo, vključno z Googlom, zbirajo podatke. Prenosi, zaznamki in elementi na bralnem seznamu bodo shranjeni.</translation>
 <translation id="1410941016594047814">Kuverta za vabilo</translation>
 <translation id="1413235258620101697">Koda CVC te kartice bo šifrirana in shranjena v Google Denarnici zaradi hitrejšega zaključka nakupa</translation>
@@ -300,6 +301,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="1445896388055045436">Pri zaključku nakupa prikažite razpoložljive ugodnosti in nagrade kartice. Veljajo pogoji izdajatelja.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Ključev »<ph name="DATA_CONTROLS_FIRST_KEY_SET" />« ni mogoče nastaviti v istem slovarju kot tipke »<ph name="DATA_CONTROLS_SECOND_KEY_SET" />«.</translation>
+<translation id="1449251255954293933">Shranite kontrolno številko v Google Denarnico</translation>
 <translation id="1455413310270022028">Radirka</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Ogled 0 mnenj}=1{Ogled 1 mnenja}one{Ogled # mnenja}two{Ogled # mnenj}few{Ogled # mnenj}other{Ogled # mnenj}}</translation>
 <translation id="1458059624921545588">Ljudje in družba</translation>
@@ -660,6 +662,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2045871135676061132">Osebna kuverta</translation>
 <translation id="2046951263634619614">Trgovine s knjigami</translation>
 <translation id="2048261947532620704">Prevajanje strani</translation>
+<translation id="2055016614992422886">Pogovor</translation>
 <translation id="2059166748188874810">Občina</translation>
 <translation id="2059202684901022309">22 x 34 palcev</translation>
 <translation id="2064568741209980952">Krediti in posojila</translation>
@@ -1155,6 +1158,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2782088940970074970">Najem avtomobilov</translation>
 <translation id="278436560439594386">Gospodinjski aparati</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Gesla · Ključi za dostop</translation>
 <translation id="2784949926578158345">Povezava je bila obnovljena.</translation>
 <translation id="2786008859124691917">Kolesa in oprema</translation>
 <translation id="2792012897584536778">Skrbniki te naprave so nastavili varnostna potrdila, ki jim morda omogočajo ogled vsebine spletnih mest, ki jih obiščete.</translation>
@@ -2305,6 +2309,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="46128681529823442">Nogometna oprema</translation>
 <translation id="4612904677925722054">To spletno mesto morda vsebuje vsebino, neprimerno za otroke. Starš ali skrbnik mora potrditi, da lahko obiščeš to spletno mesto.</translation>
 <translation id="4619564267100705184">Potrditev identitete</translation>
+<translation id="4619669610757527494">Shranite vozniško dovoljenje v Google Denarnico</translation>
 <translation id="4622292761762557753">Vseeno prenesi</translation>
 <translation id="4622647778991854660">Omogočite obvestila v središču za obvestila. Odprite »<ph name="LINK" />«.</translation>
 <translation id="4623894491222334521">Identifikacijski dokumenti</translation>
@@ -2834,6 +2839,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="543656192084990644">Tipala gibanja niso dovoljena</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, prej <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">V obratnem vrstnem redu s tiskom na zgornji strani</translation>
+<translation id="5447103258548475868">Shranite potni list v Google Denarnico</translation>
 <translation id="5447235695608032700">Spletnemu mestu <ph name="SITE" /> dovolite uporabo podatkov, ki jih je shranil o vas</translation>
 <translation id="5447973833955560753">Obnovitveno geslo</translation>
 <translation id="5451331376824595378">Ko Chrome opozori na varnostne dogodke, se ustrezni podatki glede dogodkov pošljejo skrbniku. To lahko vključuje URL-je strani, ki jih obiščete v Chromu, URL-je strani, s katerih ste kopirali podatke, imena ali metapodatke datotek, naslov IP, sesutja brskalnika ali zavihkov in uporabniško ime, s katerim se prijavite v spletne aplikacije, napravo in Chrome.</translation>
@@ -3016,6 +3022,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="5718601519531438273">Vključuje podatke, kot so potni listi in vozniška dovoljenja</translation>
 <translation id="5720705177508910913">Trenutni uporabnik</translation>
 <translation id="5720895412771013401">Namizni računalniki</translation>
+<translation id="5721147290164931316">Optično preberite za prijavo s telefonom</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} in še 1}one{{website_1}, {website_2} in še {more_count}}two{{website_1}, {website_2} in še {more_count}}few{{website_1}, {website_2} in še {more_count}}other{{website_1}, {website_2} in še {more_count}}}</translation>
 <translation id="572328651809341494">Nedavni zavihki</translation>
 <translation id="5723873695528696965">Upravljanje in reprogramiranje naprav MIDI</translation>
@@ -3557,6 +3564,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="6550245281449521513">Zaklepanje miške ni dovoljeno</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, novo</translation>
 <translation id="6552566579578780089">Plačila</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> od <ph name="NUM_MATCHES_IN_GROUP" /> v skupini <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Nazadnje obiskano pred toliko dnevi: <ph name="NUM_DAYS" /></translation>
 <translation id="6556866813142980365">Uveljavi</translation>
 <translation id="6557715786897013164">14 x 17 palcev</translation>
@@ -4234,6 +4242,7 @@ Dodatne podrobnosti:
 <translation id="7599089013883397081">Časovna omejitev za prenos je potekla</translation>
 <translation id="7602868996817972616">Vprašajte Google o tej strani</translation>
 <translation id="7606123685356405076">Modeli Geminija 3</translation>
+<translation id="760632772920590778">Shranite vozilo v Google Denarnico</translation>
 <translation id="7610193165460212391">Vrednost je zunaj obsega <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Debelo</translation>
 <translation id="7613889955535752492">Veljavnost do: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4262,7 +4271,9 @@ Dodatne podrobnosti:
 <translation id="7646681339175747202">Geslo, ki ste ga pravkar uporabili, je bilo najdeno v podatkovni kršitvi. Googlov upravitelj gesel priporoča, da geslo spremenite takoj.</translation>
 <translation id="7647206758853451655">Kakovost tiskanja</translation>
 <translation id="7648133459447652947">Če želite prikazati kazalec, preklopiti med aplikacijami, znova naložiti stran ali se vrniti nazaj</translation>
+<translation id="764847582138410250">Optično preberite za prijavo s telefonom</translation>
 <translation id="7648527891719919697">To spletno mesto bo ostalo blokirano, ker je v <ph name="BEGIN_ANDROID_SETTINGS_LINK" />nastavitvah za Android<ph name="END_ANDROID_SETTINGS_LINK" /> vklopljena dodatna zaščita. <ph name="BEGIN_LEARN_MORE_LINK" />Več o tem opozorilu<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Shranite številko rednega potnika v Google Denarnico</translation>
 <translation id="7648992873808071793">Shranjevanje datotek v tej napravi</translation>
 <translation id="7649070708921625228">Pomoč</translation>
 <translation id="7650141368285545431">Uporabi ključ za dostop iz druge naprave</translation>
@@ -4355,6 +4366,7 @@ Dodatne podrobnosti:
 <translation id="7773005668374414287">V istem vrstnem redu s tiskom na zgornji strani</translation>
 <translation id="7779418012194492374">Umik dostopa za napravo <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Včeraj</translation>
+<translation id="7782228658217918863">Shranite osebno izkaznico v Google Denarnico</translation>
 <translation id="7782465647372057580">Podatki o računu so šifrirani in ostanejo zasebni</translation>
 <translation id="7785471469930192436">Oglejte si navodila iskalnika za brisanje zgodovine iskanja, če so na voljo.</translation>
 <translation id="7785790577395078482">s tem tabličnim računalnikom</translation>

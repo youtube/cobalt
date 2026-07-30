@@ -330,8 +330,7 @@ void ImageLoader::SetImageWithoutConsideringPendingLoadEvent(
     }
   }
 
-  if (LayoutImageResource* image_resource = GetLayoutImageResource())
-    image_resource->ResetAnimation();
+  ResetAnimation();
 }
 
 static void ConfigureRequest(
@@ -638,8 +637,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
     }
   }
 
-  if (LayoutImageResource* image_resource = GetLayoutImageResource())
-    image_resource->ResetAnimation();
+  ResetAnimation();
 }
 
 void ImageLoader::UpdateFromElement(UpdateFromElementBehavior update_behavior,
@@ -897,6 +895,26 @@ void ImageLoader::OnAttachLayoutTree() {
     return;
   }
   image_resource->SetImageResource(image_content_);
+}
+
+void ImageLoader::ResetAnimation() {
+  if (!RuntimeEnabledFeatures::SvgImageAnimationResetEnabled()) {
+    if (LayoutImageResource* image_resource = GetLayoutImageResource()) {
+      image_resource->ResetAnimation();
+    }
+    return;
+  }
+
+  if (!image_content_ || !image_content_->HasImage()) {
+    return;
+  }
+
+  image_content_->GetImage()->ResetAnimation();
+
+  if (LayoutImageResource* image_resource = GetLayoutImageResource();
+      image_resource && image_resource->CachedImage() == image_content_) {
+    image_resource->InvalidatePaint();
+  }
 }
 
 void ImageLoader::UpdateLayoutObject() {

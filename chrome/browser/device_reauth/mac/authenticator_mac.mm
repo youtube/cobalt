@@ -4,7 +4,7 @@
 
 #include "chrome/browser/device_reauth/mac/authenticator_mac.h"
 
-#import <LocalAuthentication/LAContext.h>
+#import <LocalAuthentication/LocalAuthentication.h>
 
 #include "chrome/browser/password_manager/password_manager_util_mac.h"
 
@@ -14,9 +14,19 @@ AuthenticatorMac::~AuthenticatorMac() = default;
 
 bool AuthenticatorMac::CheckIfBiometricsAvailable() {
   LAContext* context = [[LAContext alloc] init];
-  return [context
-      canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometricsOrWatch
-                  error:nil];
+  // FYI, these two LAPolicy constants are defined to be the same value (4), but
+  // because the new constant has an annotation of macOS 15+ and the old
+  // constant is marked as being deprecated, a runtime switch is forced.
+  if (@available(macOS 15, *)) {
+    return
+        [context canEvaluatePolicy:
+                     LAPolicyDeviceOwnerAuthenticationWithBiometricsOrCompanion
+                             error:nil];
+  } else {
+    return [context
+        canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometricsOrWatch
+                    error:nil];
+  }
 }
 
 bool AuthenticatorMac::CheckIfBiometricsOrScreenLockAvailable() {

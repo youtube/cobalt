@@ -26,6 +26,7 @@
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/base/isolation_info.h"
 #include "net/storage_access_api/status.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
@@ -63,7 +64,7 @@ class MockDedicatedWorker
             net::IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
             network::mojom::ClientSecurityState::New(),
             PolicyContainerPolicies(), coep_reporter->GetWeakPtr(),
-            /*network_restrictions_id=*/std::nullopt),
+            network::GetTestNetworkRestrictionsId()),
         factory_.BindNewPipeAndPassReceiver());
 
     auto fetch_client_settings_object =
@@ -336,7 +337,7 @@ TEST_F(DedicatedWorkerHostFactoryImplTest, CrossOriginScriptOriginCheck) {
             net::IsolationInfo::CreateTransient(std::nullopt),
             network::mojom::ClientSecurityState::New(),
             PolicyContainerPolicies(), coep_reporter->GetWeakPtr(),
-            /*network_restrictions_id=*/std::nullopt);
+            network::GetTestNetworkRestrictionsId());
       };
 
   auto start_script_load =
@@ -487,7 +488,8 @@ TEST_F(DedicatedWorkerHostFactoryImplTest, CrossOriginScriptOriginCheck) {
               net::IsolationInfo::CreateTransient(std::nullopt),
               network::mojom::ClientSecurityState::New(),
               PolicyContainerPolicies(), coep_reporter->GetWeakPtr(),
-              /*network_restrictions_id=*/std::nullopt);
+              /*network_restrictions_id=*/
+              network::GetTestNetworkRestrictionsId());
         };
 
     mojo::Remote<blink::mojom::DedicatedWorkerHostFactory> factory;

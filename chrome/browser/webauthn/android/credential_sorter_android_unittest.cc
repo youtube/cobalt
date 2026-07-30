@@ -5,14 +5,14 @@
 #include "chrome/browser/webauthn/android/credential_sorter_android.h"
 
 #include "base/time/time.h"
-#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_view.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_password_manager_view.h"
 #include "components/password_manager/core/browser/origin_credential_store.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-using Credential = TouchToFillView::Credential;
+using Credential = TouchToFillPasswordManagerView::Credential;
 
 using password_manager::PasskeyCredential;
 using password_manager::UiCredential;
@@ -165,7 +165,7 @@ TEST_F(CredentialSorterAndroidTest, NoProcessingForOtherUIPresentations) {
 
 // Test multiple deduplications in one call.
 TEST_F(CredentialSorterAndroidTest, MultipleDeduplications) {
-  std::vector<TouchToFillView::Credential> credentials;
+  std::vector<TouchToFillPasswordManagerView::Credential> credentials;
   base::Time time_now = base::Time::Now();
   base::Time time_older = time_now - base::Minutes(1);
 

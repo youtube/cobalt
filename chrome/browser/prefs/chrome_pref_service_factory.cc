@@ -41,7 +41,6 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/component_updater/pref_names.h"
 #include "components/policy/core/browser/configuration_policy_pref_store.h"
 #include "components/pref_registry/pref_registry_syncable.h"

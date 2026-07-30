@@ -8,6 +8,7 @@ source_set("common") {
     "actor_login_permission_service.h",
     "actor_login_permissions_manager.h",
     "actor_login_quality_logger_interface.h",
+    "actor_login_service.h",
     "actor_login_types.cc",
     "actor_login_types.h",
     "federated_permission.cc",
@@ -44,17 +45,59 @@ source_set("permissions_manager_impl") {
   ]
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [ "actor_login_permissions_manager_unittest.cc" ]
+source_set("actor_login_service_impl") {
+  sources = [
+    "actor_login_quality_logger.cc",
+    "actor_login_quality_logger.h",
+    "actor_login_service_impl.cc",
+    "actor_login_service_impl.h",
+    "automated_password_change_credential_filler.cc",
+    "automated_password_change_credential_filler.h",
+    "password_change_from_checkup_actor_login_service.cc",
+    "password_change_from_checkup_actor_login_service.h",
+  ]
+
   deps = [
     ":common",
+    "//base",
+    "//components/affiliations/core/browser:affiliations",
+    "//components/autofill/core/common",
+    "//components/optimization_guide/core:model_execution",
+    "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser/actor_login/internal:delegate",
+    "//components/translate/core/browser",
+    "//components/url_formatter",
+    "//components/variations/service",
+    "//net",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "actor_login_permissions_manager_unittest.cc",
+    "actor_login_quality_logger_unittest.cc",
+    "actor_login_service_impl_unittest.cc",
+  ]
+  deps = [
+    ":actor_login_service_impl",
+    ":common",
     ":permissions_manager_impl",
+    "//base/test:test_support",
     "//components/affiliations/core/browser:test_support",
+    "//components/language/core/browser",
+    "//components/metrics:test_support",
+    "//components/optimization_guide/core:model_execution_test_support",
     "//components/password_manager/core/browser:test_support",
+    "//components/password_manager/core/browser/actor_login/internal:delegate",
     "//components/password_manager/core/browser/actor_login/internal:permission_service_impl",
     "//components/password_manager/core/browser/actor_login/test:test_support",
+    "//components/prefs:test_support",
     "//components/sync:test_support",
+    "//components/translate/core/browser:test_support",
+    "//components/variations:test_support",
+    "//testing/gmock",
     "//testing/gtest",
     "//url",
   ]

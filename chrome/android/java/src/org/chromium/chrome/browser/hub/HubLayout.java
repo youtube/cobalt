@@ -685,9 +685,7 @@ public class HubLayout extends Layout implements HubLayoutController, AppHeaderO
 
     @Override
     public @LayoutType int getLayoutType() {
-        // Pretend to be the TAB_SWITCHER for initial development to minimize churn outside of
-        // LayoutManager.
-        return LayoutType.TAB_SWITCHER;
+        return LayoutType.HUB;
     }
 
     @Override

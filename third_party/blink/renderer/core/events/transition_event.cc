@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/core/events/transition_event.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_transition_event_init.h"
+#include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/event_interface_names.h"
 
 namespace blink {
@@ -36,24 +37,22 @@ TransitionEvent::TransitionEvent() = default;
 TransitionEvent::TransitionEvent(const AtomicString& type,
                                  const String& property_name,
                                  const AnimationTimeDelta& elapsed_time,
-                                 const String& pseudo_element)
+                                 const String& pseudo_element,
+                                 Animation* animation)
     : Event(type, Bubbles::kYes, Cancelable::kYes),
       property_name_(property_name),
       elapsed_time_(elapsed_time),
-      pseudo_element_(pseudo_element) {}
+      pseudo_element_(pseudo_element),
+      animation_(animation) {}
 
 TransitionEvent::TransitionEvent(const AtomicString& type,
                                  const TransitionEventInit* initializer)
-    : Event(type, initializer) {
-  if (initializer->hasPropertyName())
-    property_name_ = initializer->propertyName();
-  if (initializer->hasElapsedTime()) {
-    elapsed_time_ =
-        ANIMATION_TIME_DELTA_FROM_SECONDS(initializer->elapsedTime());
-  }
-  if (initializer->hasPseudoElement())
-    pseudo_element_ = initializer->pseudoElement();
-}
+    : Event(type, initializer),
+      property_name_(initializer->propertyName()),
+      elapsed_time_(
+          ANIMATION_TIME_DELTA_FROM_SECONDS(initializer->elapsedTime())),
+      pseudo_element_(initializer->pseudoElement()),
+      animation_(initializer->animation()) {}
 
 TransitionEvent::~TransitionEvent() = default;
 
@@ -69,11 +68,16 @@ const String& TransitionEvent::pseudoElement() const {
   return pseudo_element_;
 }
 
+Animation* TransitionEvent::animation() const {
+  return animation_.Get();
+}
+
 const AtomicString& TransitionEvent::InterfaceName() const {
   return event_interface_names::kTransitionEvent;
 }
 
 void TransitionEvent::Trace(Visitor* visitor) const {
+  visitor->Trace(animation_);
   Event::Trace(visitor);
 }
 

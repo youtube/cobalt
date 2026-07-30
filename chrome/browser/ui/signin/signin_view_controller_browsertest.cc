@@ -496,7 +496,7 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        SignoutOrReauthWithPrompt_SignOutSupervisedUser) {
   // Setup a primary account for a supervised user.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  AccountCapabilitiesTestMutator mutator(&primary_account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account_info);
   mutator.set_is_subject_to_parental_controls(true);
   identity_test_env()->UpdateAccountInfoForAccount(primary_account_info);
 

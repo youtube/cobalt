@@ -61,6 +61,7 @@ public class DisclosureSnackbar extends DisclosureInfobar {
 
         return Snackbar.make(title, controller, type, code)
                 .setAction(action, null)
+                .setHighPriority(true)
                 .setDuration(DURATION_MS)
                 .setDefaultLines(false);
     }

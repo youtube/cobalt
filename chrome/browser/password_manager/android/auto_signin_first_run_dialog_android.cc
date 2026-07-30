@@ -93,7 +93,7 @@ void AutoSigninFirstRunDialogAndroid::OnTurnOffClicked(JNIEnv* env) {
   DCHECK(!profile->IsOffTheRecord());
   password_manager::PasswordManagerSettingsService* service =
       PasswordManagerSettingsServiceFactory::GetForProfile(profile);
-  // The service can be null if the password manger is not available, but there
+  // The service can be null if the password manager is not available, but there
   // shouldn't be any credential to auto-sign in with in that case.
   CHECK(service);
   service->TurnOffAutoSignIn();

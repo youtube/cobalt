@@ -17,14 +17,14 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_configuration.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/gemini_fre_wrapper_view_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_first_run_wrapper_view_controller.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -44,17 +44,17 @@
   // Mediator for handling all logic related to Gemini first run promo.
   GeminiFirstRunMediator* _mediator;
 
-  // Wrapper view controller for the First Run Experience (FRE) UI.
-  GeminiFREWrapperViewController* _viewController;
+  // Wrapper view controller for the First Run Experience UI.
+  GeminiFirstRunWrapperViewController* _viewController;
 
   // Handler for sending Gemini commands.
-  id<BWGCommands> _geminiCommandsHandler;
+  id<GeminiCommands> _geminiHandler;
 
   // The `gemini::EntryPoint` the coordinator was initialized from.
   gemini::EntryPoint _entryPoint;
 
-  // Type of Gemini FRE.
-  GeminiFREType _FREType;
+  // Type of Gemini First Run.
+  GeminiFirstRunType _firstRunType;
 
   // The completion block passed from Mediator when consent UI is dismissed.
   void (^_consentCompletion)(void);
@@ -75,12 +75,12 @@
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
                             fromEntryPoint:(gemini::EntryPoint)entryPoint
-                                   FREType:(GeminiFREType)FREType
+                              firstRunType:(GeminiFirstRunType)firstRunType
                          completionHandler:(void (^)(BOOL success))completion {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _entryPoint = entryPoint;
-    _FREType = FREType;
+    _firstRunType = firstRunType;
     _completion = completion;
   }
   return self;
@@ -101,7 +101,7 @@
   }
 
   CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
-  _geminiCommandsHandler = HandlerForProtocol(dispatcher, BWGCommands);
+  _geminiHandler = HandlerForProtocol(dispatcher, GeminiCommands);
   _helpCommandsHandler = HandlerForProtocol(dispatcher, HelpCommands);
 
   _mediator = [[GeminiFirstRunMediator alloc]
@@ -123,10 +123,10 @@
   [self prepareAIHubIPH];
 
   GeminiConsentConfiguration* consentConfig =
-      [_mediator consentConfigurationForFREType:_FREType];
-  _viewController = [[GeminiFREWrapperViewController alloc]
+      [_mediator consentConfigurationForFirstRunType:_firstRunType];
+  _viewController = [[GeminiFirstRunWrapperViewController alloc]
              initWithPromo:_mediator.shouldShowPromo
-                   FREType:_FREType
+              firstRunType:_firstRunType
       consentConfiguration:consentConfig];
   _viewController.sheetPresentationController.delegate = self;
   _viewController.mutator = _mediator;
@@ -134,8 +134,8 @@
   [self.baseViewController presentViewController:_viewController
                                         animated:YES
                                       completion:^{
-                                        // Record FRE was shown.
-                                        RecordFREShown();
+                                        // Record the First Run was shown.
+                                        RecordFirstRunShown();
                                       }];
 
   [super start];
@@ -155,7 +155,7 @@
 
   [self presentPageActionMenuIPH];
   _viewController = nil;
-  _geminiCommandsHandler = nil;
+  _geminiHandler = nil;
   _helpCommandsHandler = nil;
   _mediator = nil;
   _prefService = nil;
@@ -167,10 +167,10 @@
   [super stop];
 }
 
-#pragma mark - GeminiMediatorDelegate
+#pragma mark - GeminiFirstRunMediatorDelegate
 
 - (void)dismissGeminiConsentUIWithCompletion:(void (^)())completion {
-  if (_FREType == GeminiFREType::kLive) {
+  if (_firstRunType == GeminiFirstRunType::kLive) {
     if (completion) {
       _consentCompletion = completion;
     }
@@ -187,7 +187,7 @@
 }
 
 - (void)dismissGeminiFlow {
-  [_geminiCommandsHandler dismissGeminiFlowWithCompletion:nil];
+  [_geminiHandler dismissGeminiFlowWithCompletion:nil];
 }
 
 #pragma mark - UISheetPresentationControllerDelegate
@@ -195,7 +195,7 @@
 // Handles the dismissal of the UI.
 - (void)presentationControllerDidDismiss:
     (UIPresentationController*)presentationController {
-  [_geminiCommandsHandler dismissGeminiFlowWithCompletion:nil];
+  [_geminiHandler dismissGeminiFlowWithCompletion:nil];
 }
 
 #pragma mark - Private
@@ -203,7 +203,7 @@
 // Checks the current microphone permission status and prompts the user if
 // needed.
 - (void)handleLiveMicPermission {
-  CHECK(_FREType == GeminiFREType::kLive);
+  CHECK(_firstRunType == GeminiFirstRunType::kLive);
   AVAuthorizationStatus status =
       [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
   switch (status) {

@@ -398,6 +398,7 @@ Dacă această pagină nu funcționează conform așteptărilor, încearcă să 
 <translation id="5234764350956374838">Închide</translation>
 <translation id="5239627039202700673">Folosește Chrome oricând dai clic pe linkuri în mesaje, documente și alte aplicații</translation>
 <translation id="5251420635869119124">Invitații pot folosi Chrome fără a lăsa nicio urmă.</translation>
+<translation id="5271833978500241046">Folosește-le împreună cu alte funcții Gemini în Chrome</translation>
 <translation id="5286907366254680517">Detectat</translation>
 <translation id="5320351714793324716">Dacă permiți cookie-uri, Chrome le poate folosi pentru preîncărcare</translation>
 <translation id="5321325624576443340">Aplicația Google Lens nu este disponibilă. Încearcă din nou mai târziu.</translation>
@@ -434,15 +435,6 @@ Dacă această pagină nu funcționează conform așteptărilor, încearcă să 
 <translation id="569897634095159764">Nu se poate realiza conexiunea la internet. Pentru serverul proxy este necesară autentificarea.</translation>
 <translation id="5709557627224531708">Setează Chrome ca browser prestabilit</translation>
 <translation id="5719246646468301581">Termenii și condițiile suplimentare pentru Google Chrome și ChromeOS</translation>
-<translation id="5719324992913248873">Această acțiune:
-        <ph name="LINE_BREAKS" />
-         • va reinițializa unele setări Chrome și comenzi rapide pentru Chrome;
-          <ph name="LINE_BREAK" />
-          • va dezactiva extensiile;
-          <ph name="LINE_BREAK" />
-          • va șterge cookie-urile și alte date temporare privind site-urile.
-           <ph name="LINE_BREAKS" />
-           Marcajele, istoricul și parolele salvate nu vor fi afectate.</translation>
 <translation id="5736850870166430177">Dacă un site încearcă să îți fure parola sau descarci un fișier dăunător, Chrome poate să trimită adresele URL, inclusiv fragmente din conținutul paginilor, către funcția Navigare sigură</translation>
 <translation id="5756509061973259733">Există deja un profil Chrome asociat acestui cont pe dispozitiv</translation>
 <translation id="5759947850379142561">Selectează orice text sau imagine pentru a căuta cu Google Lens sau apasă pe Escape pentru a ieși din Google Lens</translation>
@@ -640,6 +632,7 @@ Dacă această pagină nu funcționează conform așteptărilor, încearcă să 
 <translation id="7606334485649076285">Sistemul de operare Google Chrome Flex</translation>
 <translation id="7627609214560473136">Pentru a-ți proteja datele, permite browserului Chrome să elimine permisiunile de pe site-urile pe care nu le-ai accesat recent.</translation>
 <translation id="7629695634924605473">Chrome te anunță dacă parolele tale sunt compromise</translation>
+<translation id="7629898584100520089">Inovațiile AI, cum ar fi abilitățile, sunt salvate în Contul tău Google și gestionate separat de Sincronizarea Chrome</translation>
 <translation id="7641148173327520642">Administratorul sistemului a configurat Google Chrome să deschidă <ph name="ALTERNATIVE_BROWSER_NAME" /> pentru a accesa <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Ajutor</translation>
 <translation id="7651907282515937834">Sigla Chrome Enterprise</translation>

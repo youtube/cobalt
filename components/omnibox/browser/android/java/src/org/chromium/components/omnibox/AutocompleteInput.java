@@ -348,7 +348,7 @@ public class AutocompleteInput implements UserData {
      * When new text matches the existing text no action is taken.
      *
      * @param text The user-typed text. Null text is automatically replaced with empty string. Note
-     *     that if the site search is triggered, the text will only contains the content after the
+     *     that if the site search is triggered, the text will only contain the content after the
      *     keyword and space.
      * @return The AutocompleteInput object.
      */
@@ -371,6 +371,13 @@ public class AutocompleteInput implements UserData {
         mUserText.set(text);
         // Place cursor at the end of text.
         mSelection = TextSelection.SELECT_END;
+
+        if ((mAutocompleteState == AutocompleteState.STANDBY
+                        || mAutocompleteState == AutocompleteState.STANDBY_NO_FOCUS)
+                && !TextUtils.equals(mUserText.get(), mInitialUserText)) {
+            mAutocompleteState = AutocompleteState.ENABLED;
+        }
+
         return this;
     }
 
@@ -604,11 +611,6 @@ public class AutocompleteInput implements UserData {
      * reflect typing started.
      */
     public @AutocompleteState int getAutocompleteState() {
-        if ((mAutocompleteState == AutocompleteState.STANDBY
-                        || mAutocompleteState == AutocompleteState.STANDBY_NO_FOCUS)
-                && !TextUtils.equals(mUserText.get(), mInitialUserText)) {
-            mAutocompleteState = AutocompleteState.ENABLED;
-        }
         return mAutocompleteState;
     }
 

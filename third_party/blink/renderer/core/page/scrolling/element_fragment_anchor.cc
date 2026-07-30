@@ -184,7 +184,7 @@ void ElementFragmentAnchor::ApplyFocusIfNeeded() {
     const Position& pos = Position::FirstPositionInOrBeforeNode(*anchor_node_);
     if (pos.IsConnected()) {
       frame_->Selection().SetSelection(
-          SelectionInDOMTree::Builder().Collapse(pos).Build(),
+          SelectionInDomTree::Builder().Collapse(pos).Build(),
           SetSelectionOptions::Builder()
               .SetShouldCloseTyping(true)
               .SetShouldClearTypingStyle(true)

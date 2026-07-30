@@ -52,7 +52,7 @@ constexpr bool UseMinorModeRestrictions() {
 }
 
 inline bool ScreenModeIsPending(const AccountInfo& primary_account_info) {
-  return GetScreenMode(primary_account_info.capabilities) ==
+  return GetScreenMode(primary_account_info.GetAccountCapabilities()) ==
          SyncConfirmationScreenMode::kPending;
 }
 
@@ -309,7 +309,7 @@ void SyncConfirmationHandler::DispatchAccountInfoUpdate(
     return;
   }
 
-  OnScreenModeChanged(GetScreenMode(info.capabilities));
+  OnScreenModeChanged(GetScreenMode(info.GetAccountCapabilities()));
 }
 
 void SyncConfirmationHandler::OnExtendedAccountInfoUpdated(

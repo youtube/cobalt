@@ -7,9 +7,9 @@ import '//resources/cr_elements/cr_tabs/cr_tabs.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {ActuationEligibility, ActuationTarget, FreOverride, InvocationSource} from '../glic.mojom-webui.js';
+import {ActuationEligibility, ActuationTarget, FormFactor, FreOverride, InvocationSource, Platform} from '../glic.mojom-webui.js';
 import {FeatureMode} from '../glic_enums.mojom-webui.js';
-import {InternalsPageHandlerFactory, InternalsPageHandlerRemote} from '../glic_internals.mojom-webui.js';
+import {FreCompletionWaitMode, InternalsPageHandlerFactory, InternalsPageHandlerRemote} from '../glic_internals.mojom-webui.js';
 import type {InternalsDataPayload, TriggerInvokeFromInternalsOptions} from '../glic_internals.mojom-webui.js';
 
 import {getCss} from './glic_internals_app.css.js';
@@ -47,6 +47,8 @@ export class GlicInternalsAppElement extends CrLitElement {
       actuationTargetEnumValues_: {type: Array},
       invokeShowPanel_: {type: Boolean},
       invokePayloadUniversalCartMetadata_: {type: String},
+      invokeFreCompletionWaitMode_: {type: Number},
+      freCompletionWaitModeEnumValues_: {type: Array},
 
       selectedTabIndex_: {type: Number},
       tabNames_: {type: Array},
@@ -71,6 +73,8 @@ export class GlicInternalsAppElement extends CrLitElement {
       ActuationTarget.kAgentDecides;
   protected accessor invokeShowPanel_: boolean = true;
   protected accessor invokePayloadUniversalCartMetadata_: string = '';
+  protected accessor invokeFreCompletionWaitMode_: FreCompletionWaitMode =
+      FreCompletionWaitMode.kDefault;
 
   protected accessor selectedTabIndex_: number = 0;
   protected accessor tabNames_: string[] = ['General', 'Debug Controls'];
@@ -82,6 +86,11 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected accessor actuationTargetEnumValues_:
       Array<{name: string, value: number}> =
           Object.entries(ActuationTarget)
+              .filter(([key]) => isNaN(Number(key)))
+              .map(([name, value]) => ({name, value: value as number}));
+  protected accessor freCompletionWaitModeEnumValues_:
+      Array<{name: string, value: number}> =
+          Object.entries(FreCompletionWaitMode)
               .filter(([key]) => isNaN(Number(key)))
               .map(([name, value]) => ({name, value: value as number}));
 
@@ -305,6 +314,10 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected onInvokeShowPanelChange_(e: Event) {
     this.invokeShowPanel_ = (e.target as HTMLInputElement).checked;
   }
+  protected onInvokeFreCompletionWaitModeChange_(e: Event) {
+    this.invokeFreCompletionWaitMode_ =
+        Number((e.target as HTMLSelectElement).value);
+  }
   protected onTriggerInvokeClick_() {
     const surface = this.invokeSurfaceType_ === 'newTab' ?
         {newTab: {openInForeground: this.invokeOpenInForeground_}} :
@@ -340,6 +353,7 @@ export class GlicInternalsAppElement extends CrLitElement {
       autoSubmit: this.invokeAutoSubmit_,
       freOverride: this.invokeFreOverride_,
       waitForPanelOpen: this.invokeWaitForPanelOpen_,
+      freCompletionWaitMode: this.invokeFreCompletionWaitMode_,
       surface: surface,
       actuationTarget: this.invokeActuationTarget_,
       showPanel: this.invokeAutoSubmit_ ? this.invokeShowPanel_ : null,
@@ -350,6 +364,8 @@ export class GlicInternalsAppElement extends CrLitElement {
         InvocationSource as unknown as Record<number, string>;
     const featureModeMap = FeatureMode as unknown as Record<number, string>;
     const freOverrideMap = FreOverride as unknown as Record<number, string>;
+    const freCompletionWaitModeMap =
+        FreCompletionWaitMode as unknown as Record<number, string>;
     const actuationTargetMap =
         ActuationTarget as unknown as Record<number, string>;
 
@@ -398,6 +414,9 @@ export class GlicInternalsAppElement extends CrLitElement {
       if (key === 'freOverride') {
         return `${value} (${freOverrideMap[value as number]})`;
       }
+      if (key === 'freCompletionWaitMode') {
+        return `${value} (${freCompletionWaitModeMap[value as number]})`;
+      }
       if (key === 'actuationTarget') {
         return `${value} (${actuationTargetMap[value as number]})`;
       }
@@ -418,6 +437,82 @@ export class GlicInternalsAppElement extends CrLitElement {
           this.invokeLogs_ = [...this.invokeLogs_, logEntry];
           console.info(logEntry);
         });
+  }
+
+  protected getPlatformString_(platform: Platform): string {
+    switch (platform) {
+      case Platform.kMacOS:
+        return 'macOS';
+      case Platform.kWindows:
+        return 'Windows';
+      case Platform.kLinux:
+        return 'Linux';
+      case Platform.kChromeOS:
+        return 'ChromeOS';
+      case Platform.kAndroid:
+        return 'Android';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  protected getFormFactorString_(formFactor: FormFactor): string {
+    switch (formFactor) {
+      case FormFactor.kDesktop:
+        return 'Desktop';
+      case FormFactor.kPhone:
+        return 'Phone';
+      case FormFactor.kTablet:
+        return 'Tablet';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  protected getDebugSettingsData_():
+      Array<{label: string, value: string|boolean}> {
+    if (!this.data_ || !this.data_.debugInfo) {
+      return [];
+    }
+
+    const debugInfo = this.data_.debugInfo;
+    const settings: Array<{label: string, value: string | boolean}> = [
+      {
+        label: 'Glic Feature Flag',
+        value: debugInfo.glicFeatureEnabled,
+      },
+      {
+        label: 'GlicActor Feature Flag',
+        value: debugInfo.glicActorFeatureEnabled,
+      },
+      {
+        label: 'GlicRollout Feature Flag',
+        value: debugInfo.glicRolloutFeatureEnabled,
+      },
+      {
+        label: 'Platform',
+        value: this.getPlatformString_(debugInfo.platform),
+      },
+      {
+        label: 'Form Factor',
+        value: this.getFormFactorString_(debugInfo.formFactor),
+      },
+      {
+        label: 'OS Hotkey',
+        value: debugInfo.hotkey || 'None',
+      },
+    ];
+
+    if (debugInfo.booleanSettings) {
+      for (const [key, val] of Object.entries(debugInfo.booleanSettings)) {
+        settings.push({
+          label: key,
+          value: val,
+        });
+      }
+    }
+
+    return settings;
   }
 
   protected onSelectedTabIndexSelectedChanged_(

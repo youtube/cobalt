@@ -18,6 +18,7 @@ export function getHtml(this: FeatureShowcaseStepElement) {
   <div id="showcase-text">
     <h1 class="title"><slot name="title"></slot></h1>
     <p class="subtitle"><slot name="description"></slot></p>
+    <slot name="disclosure"></slot>
     <div id="button-container">
       <slot name="button"></slot>
     </div>

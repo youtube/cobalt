@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -238,8 +239,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncTest,
 
   // Start listening for incoming changes from sync.
   WebAppTestRegistryObserverAdapter registry_observer{&registrar_unsafe()};
-  base::test::TestFuture<const std::vector<const WebApp*>&>
-      updated_from_sync_future;
+  base::test::TestFuture<base::span<const WebApp* const>>
+       updated_from_sync_future;
   registry_observer.SetWebAppWillBeUpdatedFromSyncDelegate(
       updated_from_sync_future.GetRepeatingCallback());
 
@@ -398,8 +399,8 @@ IN_PROC_BROWSER_TEST_P(SingleClientWebAppsSyncTest,
 
   // Start listening for incoming changes from sync.
   WebAppTestRegistryObserverAdapter registry_observer{&registrar_unsafe()};
-  base::test::TestFuture<const std::vector<const WebApp*>&>
-      updated_from_sync_future;
+  base::test::TestFuture<base::span<const WebApp* const>>
+       updated_from_sync_future;
   registry_observer.SetWebAppWillBeUpdatedFromSyncDelegate(
       updated_from_sync_future.GetRepeatingCallback());
 

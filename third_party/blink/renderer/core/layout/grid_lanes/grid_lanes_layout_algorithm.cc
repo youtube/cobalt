@@ -105,11 +105,8 @@ MinMaxSizesResult GridLanesLayoutAlgorithm::ComputeMinMaxSizes(
           ResolveFlowToleranceForGridLanes(style, grid_lanes_available_size_));
 
       const GridSizingSubtree sizing_subtree(&sizing_tree);
-      auto* layout_subtree =
-          MakeGarbageCollected<GridLayoutSubtree>(sizing_tree.FinalizeTree());
-      PlaceGridLanesItems(*grid_items, layout_subtree, *layout_data,
-                          running_positions, sizing_constraint,
-                          &sizing_subtree);
+      PlaceGridLanesItems(*grid_items, sizing_subtree, *layout_data,
+                          running_positions, sizing_constraint);
       // `stacking_axis_gap` represents the space between each of the items
       // in the row. We need to subtract this as it is always added to
       // `running_positions` whenever an item is placed, but the very last
@@ -148,28 +145,31 @@ const LayoutResult* GridLanesLayoutAlgorithm::Layout() {
   const auto& node = Node();
 
   GridItems* grid_items = nullptr;
-  const GridLayoutSubtree* layout_subtree =
-      ComputeGridLanesGeometry(SizingConstraint::kLayout,
-                               /*should_apply_inline_size_containment=*/false,
-                               &grid_items, &oof_children);
-    CHECK(grid_items);
+  GridSizingTree sizing_tree =
+      ComputeGridLanesSizingTree(SizingConstraint::kLayout,
+                                 /*should_apply_inline_size_containment=*/false,
+                                 &grid_items, &oof_children);
+  CHECK(grid_items);
 
-    auto* layout_data = layout_subtree->LayoutData();
-    const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
+  auto* layout_data = &sizing_tree.LayoutData();
+  const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
 
-    if (!grid_items->IsEmpty()) {
-      const auto& track_collection = grid_axis_direction == kForColumns
-                                         ? layout_data->Columns()
-                                         : layout_data->Rows();
+  if (!grid_items->IsEmpty()) {
+    const auto& track_collection = grid_axis_direction == kForColumns
+                                       ? layout_data->Columns()
+                                       : layout_data->Rows();
 
-      GridLanesRunningPositions running_positions(
-          track_collection, Style(),
-          ResolveFlowToleranceForGridLanes(Style(),
-                                           grid_lanes_available_size_));
+    GridLanesRunningPositions running_positions(
+        track_collection, Style(),
+        ResolveFlowToleranceForGridLanes(Style(), grid_lanes_available_size_));
 
-      PlaceGridLanesItems(*grid_items, layout_subtree, *layout_data,
-                          running_positions, SizingConstraint::kLayout);
-    }
+    // The sizing tree is the single source of truth for placement; each
+    // subgrid's layout subtree is finalized on demand during placement
+    // once its resolved position is known.
+    const GridSizingSubtree sizing_subtree(&sizing_tree);
+    PlaceGridLanesItems(*grid_items, sizing_subtree, *layout_data,
+                        running_positions, SizingConstraint::kLayout);
+  }
 
   // TODO(layout-dev): This isn't great but matches legacy. Ideally this
   // would only apply when we have only flexible track(s).
@@ -261,6 +261,9 @@ LayoutUnit AlignContentOffset(
 
 // Returns the margin on the baseline side of `item` for baseline alignment
 // calculations.
+//
+// TODO(almaher): We need to incorporate `StartExtraMargin`/`EndExtraMargin`
+// for subgrid baseline scenarios.
 LayoutUnit GetBaselineSideMargin(const GridItemData& item,
                                  const BoxStrut& margins,
                                  GridTrackSizingDirection track_direction) {
@@ -308,9 +311,14 @@ LayoutUnit GridLanesLayoutAlgorithm::CalculateItemInlineContribution(
   const auto& item_node = grid_lanes_item.node;
   auto MinMaxSizesFunc = [&](SizeType type) -> MinMaxSizesResult {
     if (grid_lanes_item.IsSubgrid()) {
-      return To<GridNode>(item_node).ComputeSubgridMinMaxSizes(
-          sizing_subtree.SubgridSizingSubtree(grid_lanes_item),
-          space_for_measure);
+      const GridSizingSubtree& subgrid_sizing_subtree =
+          sizing_subtree.SubgridSizingSubtree(grid_lanes_item);
+      if (subgrid_sizing_subtree.LayoutData().IsSubgridWithStandaloneAxis(
+              kForColumns)) {
+        return To<GridNode>(item_node).ComputeSubgridMinMaxSizes(
+            subgrid_sizing_subtree, space_for_measure);
+      }
+      return MinMaxSizesResult();
     }
     return item_node.ComputeMinMaxSizes(item_node.Style().GetWritingMode(),
                                         type, space_for_measure);
@@ -325,11 +333,10 @@ LayoutUnit GridLanesLayoutAlgorithm::CalculateItemInlineContribution(
 
 void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
     GridItems& grid_items,
-    const GridLayoutSubtree* layout_subtree,
+    const GridSizingSubtree& sizing_subtree,
     GridLayoutData& layout_data,
     GridLanesRunningPositions& running_positions,
-    std::optional<SizingConstraint> sizing_constraint,
-    const GridSizingSubtree* opt_sizing_subtree) {
+    std::optional<SizingConstraint> sizing_constraint) {
   const auto& style = Style();
   const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
   const auto& track_collection = grid_axis_direction == kForColumns
@@ -359,10 +366,10 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
   // layout results are only added to the container during this final placement
   // pass, ensuring all alignment and baseline information is available before
   // items are positioned.
-  RunGridLanesPlacementPhase(
-      grid_items, layout_subtree, layout_data, sizing_constraint,
-      stacking_axis_gap, PlacementPhase::kFinalPlacement, baseline_accumulator,
-      running_positions, opt_sizing_subtree);
+  RunGridLanesPlacementPhase(grid_items, sizing_subtree, layout_data,
+                             sizing_constraint, stacking_axis_gap,
+                             PlacementPhase::kFinalPlacement,
+                             baseline_accumulator, running_positions);
 
   // Propagate the baselines to the container.
   if (auto first_baseline = baseline_accumulator->FirstBaseline()) {
@@ -464,16 +471,15 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
 
 void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
     GridItems& grid_items,
-    const GridLayoutSubtree* layout_subtree,
+    const GridSizingSubtree& sizing_subtree,
     GridLayoutData& layout_data,
     std::optional<SizingConstraint> sizing_constraint,
     LayoutUnit stacking_axis_gap,
     PlacementPhase placement_phase,
     BaselineAccumulator* baseline_accumulator,
-    GridLanesRunningPositions& running_positions,
-    const GridSizingSubtree* opt_sizing_subtree) {
+    GridLanesRunningPositions& running_positions) {
   const bool is_for_layout = sizing_constraint == SizingConstraint::kLayout;
-  DCHECK(is_for_layout || opt_sizing_subtree);
+  DCHECK(sizing_subtree);
 
   const auto& container_space = GetConstraintSpace();
   const auto& style = Style();
@@ -489,21 +495,25 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
   const wtf_size_t grid_axis_start_offset =
       Node().CachedPlacementData().StartOffset(grid_axis_direction);
 
-  auto* next_subgrid_subtree =
-      layout_subtree ? layout_subtree->FirstChild() : nullptr;
+  // During the `kCalculateBaselines` pass, subgrid layout is skipped to
+  // avoid corrupting cached placement data. The sibling iterator is only
+  // walked during the final placement pass.
+  GridSizingSubtree next_subgrid_sizing_subtree;
+  if (placement_phase == PlacementPhase::kFinalPlacement) {
+    next_subgrid_sizing_subtree = sizing_subtree.FirstChild();
+  }
 
   for (auto& grid_lanes_item : grid_items) {
-    GridLayoutSubtree* child_layout_subtree = nullptr;
+    GridSizingSubtree child_sizing_subtree;
     const bool is_subgrid = grid_lanes_item.IsSubgrid();
     if (is_subgrid) {
-      if (layout_subtree) {
-        DCHECK(next_subgrid_subtree);
-        child_layout_subtree = next_subgrid_subtree;
-        next_subgrid_subtree = next_subgrid_subtree->NextSibling();
+      if (placement_phase == PlacementPhase::kFinalPlacement) {
+        DCHECK(next_subgrid_sizing_subtree);
+        child_sizing_subtree = next_subgrid_sizing_subtree;
+        next_subgrid_sizing_subtree = next_subgrid_sizing_subtree.NextSibling();
       } else {
-        // During the `kCalculateBaselines` pass, the layout subtree is not yet
-        // available. Skip subgrid layout to avoid corrupting the subgrid's
-        // cached placement data.
+        // During the `kCalculateBaselines` pass, skip subgrid layout to avoid
+        // corrupting the subgrid's cached placement data.
         continue;
       }
     }
@@ -521,36 +531,38 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
     // subgrid's inherited track collection using the updated range indices so
     // the subgrid layout uses the correct tracks.
     //
+    // If the subgrid also has a standalone axis, its tracks were sized during
+    // parent track sizing against the placeholder subgridded tracks. Re-run
+    // track sizing on the subgrid's standalone axis so it observes the
+    // resolved subgridded tracks (e.g., an aspect-ratio child whose size
+    // depends on the subgridded axis would otherwise stay at the placeholder
+    // size).
+    //
+    // The updates are written to the sizing tree's `GridLayoutData`, which is
+    // the single source of truth. A fresh layout subtree is finalized from it
+    // below, so the subgrid's layout sees the resolved data.
+    //
     // TODO(almaher): What about nested subgrids? Those won't be updated
     // correctly. Will this require a separate pass, or do we just need to
     // make this update for the rest of its subtree, as well?
-    //
-    // TODO(almaher): Also, note that this only updates the inherited track
-    // collection. For cases where the opposing axis depends on the sizing in
-    // the grid axis, we will need to run another pass altogether to ensure
-    // accurate sizing. We will likely need a way to store the final position
-    // for these subgrids before the second pass.
     if (is_subgrid && grid_lanes_item.is_auto_placed &&
         grid_lanes_item.StartLine(grid_axis_direction) !=
             grid_axis_start_offset) {
-      CHECK(child_layout_subtree);
-      GridLayoutData* child_layout_data = child_layout_subtree->LayoutData();
-      CHECK(child_layout_data->HasSubgriddedAxis(grid_axis_direction));
+      const GridTrackSizingDirection subgrid_axis_direction =
+          grid_lanes_item.RelativeDirectionInSubgrid(grid_axis_direction);
 
-      const SubgriddedItemData subgridded_item_data(
-          grid_lanes_item, &layout_data, container_writing_mode);
-      const ConstraintSpace subgrid_space =
-          CreateConstraintSpaceForLayout(subgridded_item_data);
-      const FragmentGeometry subgrid_fragment_geometry =
-          CalculateInitialFragmentGeometryForSubgrid(grid_lanes_item,
-                                                     subgrid_space);
+      RebuildSubgridLayoutDataForResolvedPlacement(
+          grid_lanes_item, layout_data, child_sizing_subtree,
+          subgrid_axis_direction,
+          sizing_constraint.value_or(SizingConstraint::kLayout));
+    }
 
-      const GridLayoutAlgorithm subgrid_algorithm(
-          {grid_lanes_item.node, subgrid_fragment_geometry, subgrid_space});
-      child_layout_data->SetTrackCollection(CreateSubgridTrackCollection(
-          subgridded_item_data, grid_lanes_item.node.Style(), subgrid_space,
-          subgrid_algorithm.BorderScrollbarPadding(),
-          subgrid_algorithm.GetGridAvailableSize(), grid_axis_direction));
+    // Finalize a fresh layout subtree for this subgrid from the sizing tree,
+    // reflecting any updates made for auto placed subgrids.
+    GridLayoutSubtree* child_layout_subtree = nullptr;
+    if (is_subgrid) {
+      child_layout_subtree = MakeGarbageCollected<GridLayoutSubtree>(
+          child_sizing_subtree.FinalizeTree());
     }
 
     // During track sizing, we may force a specific inline size on an item
@@ -590,12 +602,11 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
                   opt_fixed_inline_size)
             : CreateConstraintSpaceForMeasure(
                   grid_lanes_item.is_subgridded_to_parent_grid
-                      ? opt_sizing_subtree->LookupSubgriddedItemData(
-                            grid_lanes_item)
+                      ? sizing_subtree.LookupSubgriddedItemData(grid_lanes_item)
                       : SubgriddedItemData(grid_lanes_item, &layout_data,
                                            container_writing_mode),
                   CalculateItemInlineContribution(
-                      *opt_sizing_subtree, grid_lanes_item, *sizing_constraint),
+                      sizing_subtree, grid_lanes_item, *sizing_constraint),
                   /*make_grid_axis_definite=*/true,
                   /*is_for_min_max_sizing=*/true);
 
@@ -706,8 +717,6 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
                      : containing_grid_area.offset.inline_offset =
                            final_start_offset_in_stacking_axis;
 
-      // TODO(celestepan): Account for extra margins from sub-grid items.
-      //
       // Adjust item's position in the track based on style. We only want offset
       // applied to the grid axis at the moment.
       //
@@ -1063,6 +1072,7 @@ void GridLanesLayoutAlgorithm::MeasureVirtualGridLanesItems(
   const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
   const bool is_for_columns = grid_axis_direction == kForColumns;
   auto& layout_data = sizing_subtree.LayoutData();
+  const auto writing_mode = GetConstraintSpace().GetWritingMode();
 
   for (const Member<GridLanesItemGroup>& group :
        sizing_subtree.GetVirtualItemGroups()) {
@@ -1094,21 +1104,50 @@ void GridLanesLayoutAlgorithm::MeasureVirtualGridLanesItems(
       const SubgriddedItemData subgridded_item =
           item_data.is_subgridded_to_parent_grid
               ? sizing_subtree.LookupSubgriddedItemData(item_data)
-              : SubgriddedItemData(item_data, &layout_data,
-                                   GetConstraintSpace().GetWritingMode());
+              : SubgriddedItemData(item_data, &layout_data, writing_mode);
       const auto space = CreateConstraintSpaceForMeasure(subgridded_item);
       const ComputedStyle& item_style = item_node.Style();
 
       const bool use_item_inline_contribution =
           is_for_columns == item_data.is_parallel_with_root_grid;
 
-      // TODO(almaher): Subgrids have extra margin to handle unique gap sizes.
-      // This requires access to the subgrid track collection, where that extra
-      // margin is accumulated.
+      // For subgridded items, account for that subgrid's accumulated start/end
+      // extra margins and gutter-size delta. The surrounding subgrid is treated
+      // as empty in the grid-lanes' subgridded axis, so its contribution shows
+      // up here on its subgridded items to ensure tracks can accommodate the
+      // subgrid's contribution accumulated along with its item contributions.
+      //
+      // For items with definite placement, apply the surrounding subgrid's
+      // edge extra margins at its known start/end set indices. For auto-placed
+      // subgridded items, the placement isn't known yet, so apply the
+      // largest possible per-track contribution to all tracks.
+      LayoutUnit subgrid_extra_margin;
+      if (item_data.is_subgridded_to_parent_grid) {
+        const auto& parent_subgrid_track_collection =
+            is_for_columns ? subgridded_item.Columns(writing_mode)
+                           : subgridded_item.Rows(writing_mode);
+        if (item_data.is_auto_placed) {
+          subgrid_extra_margin = LargestAutoPlacedSubgridContribution(
+              parent_subgrid_track_collection.StartExtraMargin(),
+              parent_subgrid_track_collection.EndExtraMargin(),
+              parent_subgrid_track_collection.AccumulatedGutterSizeDelta(),
+              parent_subgrid_track_collection.GetSetCount());
+        } else {
+          const auto& [begin_set_index, end_set_index] =
+              subgridded_item->SetIndices(
+                  parent_subgrid_track_collection.Direction());
+          subgrid_extra_margin =
+              parent_subgrid_track_collection.StartExtraMargin(
+                  begin_set_index) +
+              parent_subgrid_track_collection.EndExtraMargin(end_set_index);
+        }
+      }
+
       const BoxStrut margins =
           ComputeMarginsFor(space, item_style, GetConstraintSpace());
       const LayoutUnit margin_sum =
-          is_for_columns ? margins.InlineSum() : margins.BlockSum();
+          (is_for_columns ? margins.InlineSum() : margins.BlockSum()) +
+          subgrid_extra_margin;
 
       MinMaxSizes min_max_contribution;
       LayoutUnit baseline_shim;
@@ -1129,8 +1168,14 @@ void GridLanesLayoutAlgorithm::MeasureVirtualGridLanesItems(
         // the correct contribution from this item.
         auto MinMaxSizesFunc = [&](SizeType type) -> MinMaxSizesResult {
           if (item_data.IsSubgrid()) {
-            return To<GridNode>(item_node).ComputeSubgridMinMaxSizes(
-                sizing_subtree.SubgridSizingSubtree(item_data), space);
+            const GridSizingSubtree& subgrid_sizing_subtree =
+                sizing_subtree.SubgridSizingSubtree(item_data);
+            if (subgrid_sizing_subtree.LayoutData().IsSubgridWithStandaloneAxis(
+                    kForColumns)) {
+              return To<GridNode>(item_node).ComputeSubgridMinMaxSizes(
+                  subgrid_sizing_subtree, space);
+            }
+            return MinMaxSizesResult();
           }
           return item_node.ComputeMinMaxSizes(item_style.GetWritingMode(), type,
                                               space);
@@ -1216,6 +1261,7 @@ void GridLanesLayoutAlgorithm::MeasureVirtualGridLanesItems(
       // Add the margin sum to all contribution sizes.
       auto AdjustItemContribution = [&](LayoutUnit& contribution_size) {
         contribution_size += margin_sum;
+        contribution_size.ClampNegativeToZero();
       };
       AdjustItemContribution(min_max_contribution.min_size);
       AdjustItemContribution(min_max_contribution.max_size);
@@ -1688,11 +1734,6 @@ void GridLanesLayoutAlgorithm::InitializeTrackSizes(
 
   // Compute set indices for subgrid items so that `ForEachSubgrid` can create
   // constraint spaces for them.
-  //
-  // TODO(almaher): The position for these is not known at this point - for
-  // every subgrid with an indefinite position, it will get set to the beginning
-  // of the grid lanes container. We will eventually re-run layout if needed
-  // to get the correct position.
   for (auto& grid_item : sizing_subtree.GetGridItems()) {
     if (grid_item.IsSubgrid()) {
       Node().ComputeSetIndicesForSubgrid(grid_item, layout_data);
@@ -1803,8 +1844,50 @@ void GridLanesLayoutAlgorithm::CompleteTrackSizingAlgorithmInStandaloneAxis(
       /*opt_needs_additional_pass=*/nullptr);
 }
 
+void GridLanesLayoutAlgorithm::RebuildSubgridLayoutDataForResolvedPlacement(
+    const GridItemData& subgrid_item,
+    const GridLayoutData& parent_layout_data,
+    const GridSizingSubtree& child_sizing_subtree,
+    GridTrackSizingDirection subgrid_axis_direction,
+    SizingConstraint sizing_constraint) const {
+  CHECK(child_sizing_subtree);
+  GridLayoutData& child_layout_data = child_sizing_subtree.LayoutData();
+  CHECK(child_layout_data.HasSubgriddedAxis(subgrid_axis_direction));
+
+  const SubgriddedItemData subgridded_item_data(
+      subgrid_item, &parent_layout_data, GetConstraintSpace().GetWritingMode());
+  const ConstraintSpace subgrid_space =
+      CreateConstraintSpaceForLayout(subgridded_item_data);
+  const FragmentGeometry subgrid_fragment_geometry =
+      CalculateInitialFragmentGeometryForSubgrid(subgrid_item, subgrid_space);
+
+  const GridLayoutAlgorithm subgrid_algorithm(
+      {subgrid_item.node, subgrid_fragment_geometry, subgrid_space});
+  GridLayoutTrackCollection* new_subgridded_collection =
+      CreateSubgridTrackCollection(
+          subgridded_item_data, subgrid_item.node.Style(), subgrid_space,
+          subgrid_algorithm.BorderScrollbarPadding(),
+          subgrid_algorithm.GetGridAvailableSize(), subgrid_axis_direction);
+  child_layout_data.SetTrackCollection(new_subgridded_collection);
+
+  // Only grid subgrids of a grid-lanes container have a standalone axis to
+  // re-size here; grid-lanes subgrids only have one grid axis, which will never
+  // be a standalone axis.
+  if (subgrid_item.node.IsGrid()) {
+    const GridTrackSizingDirection standalone_axis_in_subgrid =
+        subgrid_axis_direction == kForColumns ? kForRows : kForColumns;
+    subgrid_algorithm.InitializeTrackSizes(
+        child_sizing_subtree, subgridded_item_data, standalone_axis_in_subgrid);
+    subgrid_algorithm.CompleteTrackSizingAlgorithm(
+        child_sizing_subtree, subgridded_item_data, standalone_axis_in_subgrid,
+        sizing_constraint, /*opt_needs_additional_pass=*/nullptr);
+  }
+}
+
 void GridLanesLayoutAlgorithm::CompleteFinalBaselineAlignment(
     GridSizingTree* sizing_tree) {
+  // TODO(almaher): Are auto placed subgrids getting the right baseline
+  // computation if placed at the beginning of the container?
   ComputeBaselineAlignment(sizing_tree->FinalizeTree(),
                            GridSizingSubtree(sizing_tree));
 }
@@ -1890,8 +1973,7 @@ void GridLanesLayoutAlgorithm::ComputeBaselineAlignment(
     baseline_accumulator = &grid_baseline_accumulator.value();
   }
 
-  RunGridLanesPlacementPhase(sizing_subtree.GetGridItems(),
-                             /*layout_subtree=*/nullptr,
+  RunGridLanesPlacementPhase(sizing_subtree.GetGridItems(), sizing_subtree,
                              sizing_subtree.LayoutData(),
                              SizingConstraint::kLayout, stacking_axis_gap,
                              PlacementPhase::kCalculateBaselines,

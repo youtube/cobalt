@@ -227,7 +227,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Note: Using this function will not register the field trial globally in the
   // running process - for that, use FieldTrialList::FactoryGetFieldTrial().
   //
-  // The ownership of the returned FieldTrial is transfered to the caller which
+  // The ownership of the returned FieldTrial is transferred to the caller which
   // is responsible for deref'ing it (e.g. by using scoped_refptr<FieldTrial>).
   static FieldTrial* CreateSimulatedFieldTrial(
       std::string_view trial_name,

@@ -9,6 +9,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "chrome/browser/ash/printing/cups_printers_manager.h"
 #include "chrome/browser/ash/printing/printer_configurer.h"
@@ -21,7 +22,8 @@ namespace ash {
 // It's used in unit and API integration tests.
 class FakeCupsPrintersManager : public CupsPrintersManager {
  public:
-  FakeCupsPrintersManager();
+  explicit FakeCupsPrintersManager(
+      PrintServersManager* print_servers_manager = nullptr);
   ~FakeCupsPrintersManager() override;
 
   std::vector<chromeos::Printer> GetPrinters(
@@ -75,6 +77,7 @@ class FakeCupsPrintersManager : public CupsPrintersManager {
   base::flat_set<std::string> printers_marked_as_not_autoconf_;
   base::flat_map<std::string, PrinterSetupResult> assigned_results_;
   base::ObserverList<LocalPrintersObserver> local_printers_observer_list_;
+  const raw_ptr<PrintServersManager> print_servers_manager_;
 };
 
 }  // namespace ash

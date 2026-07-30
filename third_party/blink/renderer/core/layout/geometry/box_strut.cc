@@ -38,6 +38,14 @@ BoxStrut::BoxStrut(const LogicalSize& outer_size, const LogicalRect& inner_rect)
       block_start(inner_rect.offset.block_offset),
       block_end(outer_size.block_size - inner_rect.BlockEndOffset()) {}
 
+BoxStrut::BoxStrut(const LogicalRect& outer_rect, const LogicalRect& inner_rect)
+    : inline_start(inner_rect.offset.inline_offset -
+                   outer_rect.offset.inline_offset),
+      inline_end(outer_rect.InlineEndOffset() - inner_rect.InlineEndOffset()),
+      block_start(inner_rect.offset.block_offset -
+                  outer_rect.offset.block_offset),
+      block_end(outer_rect.BlockEndOffset() - inner_rect.BlockEndOffset()) {}
+
 BoxStrut& BoxStrut::Intersect(const BoxStrut& other) {
   inline_start = std::min(inline_start, other.inline_start);
   inline_end = std::min(inline_end, other.inline_end);

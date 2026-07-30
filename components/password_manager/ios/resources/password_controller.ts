@@ -86,7 +86,13 @@ function addSubmitButtonTouchEndHandler(form: HTMLFormElement) {
  * Click handler for the submit button.
  */
 function onSubmitButtonTouchEnd(evt: Event) {
-  const form = (evt.currentTarget as HTMLFormElement)['form'];
+  if (!evt.isTrusted) {
+    return;
+  }
+  const form = (evt.currentTarget as HTMLButtonElement).form;
+  if (!form) {
+    return;
+  }
   const formData = getPasswordFormData(form);
   if (!formData) {
     return;

@@ -421,7 +421,7 @@ BOOL FakeKeychainV2::LAContextCanEvaluatePolicy(
     case LAPolicyDeviceOwnerAuthenticationWithBiometrics:
       return uv_method_ == UVMethod::kBiometrics;
 #if !BUILDFLAG(IS_IOS)
-    case LAPolicyDeviceOwnerAuthenticationWithBiometricsOrWatch:
+    case LAPolicyDeviceOwnerAuthenticationWithBiometricsOrCompanion:
       return uv_method_ == UVMethod::kBiometrics;
 #endif        // !BUILDFLAG(IS_IOS)
     default:  // Avoid needing to refer to values not available in the minimum

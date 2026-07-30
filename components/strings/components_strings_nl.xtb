@@ -269,6 +269,7 @@ Anders wordt dit geblokkeerd door je privacyinstellingen. Hierdoor werkt de cont
 <translation id="1407135791313364759">Alles openen</translation>
 <translation id="1408696301184924537">Sla dit IBAN op in je Google-account om het de volgende keer automatisch in te vullen</translation>
 <translation id="1408787208417187241">Drie nietjes boven</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> van <ph name="NUM_MATCHES_IN_GROUP" /> in de groep <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Anderen die dit apparaat gebruiken, kunnen je activiteit niet zien, dus je kunt beter privé browsen. Dit heeft geen invloed op de manier waarop gegevens worden verzameld door websites die je bezoekt en de services die ze gebruiken, waaronder Google. Downloads, bookmarks en items op je leeslijst worden opgeslagen.</translation>
 <translation id="1410941016594047814">Envelop Invite</translation>
 <translation id="1413235258620101697">De CVC van deze kaart wordt versleuteld en opgeslagen in Google Wallet zodat je sneller kunt betalen</translation>
@@ -660,6 +661,7 @@ Anders wordt dit geblokkeerd door je privacyinstellingen. Hierdoor werkt de cont
 <translation id="2045871135676061132">Envelop Personal</translation>
 <translation id="2046951263634619614">Boekwinkels</translation>
 <translation id="2048261947532620704">Pagina vertalen</translation>
+<translation id="2055016614992422886">Gesprek</translation>
 <translation id="2059166748188874810">Gemeente</translation>
 <translation id="2059202684901022309">22 x 34 inch</translation>
 <translation id="2064568741209980952">Kredietverlening</translation>
@@ -3550,6 +3552,7 @@ Je kunt ook contact opnemen met de site-eigenaar en voorstellen dat die upgradet
 <translation id="6550245281449521513">Muisvergrendeling niet toegestaan</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nieuw</translation>
 <translation id="6552566579578780089">Betalingen</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> van <ph name="NUM_MATCHES_IN_GROUP" /> in de groep <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Laatst bezocht: <ph name="NUM_DAYS" /> dagen geleden</translation>
 <translation id="6556866813142980365">Opnieuw</translation>
 <translation id="6557715786897013164">14 x 17 inch</translation>

@@ -13,6 +13,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/component_updater/indigo_component_installer.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
 #include "chrome/browser/indigo/proto/indigo_prompts.pb.h"
 #include "chrome/common/chrome_features.h"
@@ -65,7 +66,7 @@ class IndigoServiceTest : public testing::Test {
   void MakeAccountAvailableAndCapable() {
     AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
         "test@example.com", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&info);
     mutator.set_can_use_model_execution_features(true);
     identity_test_env_.UpdateAccountInfoForAccount(info);
   }
@@ -146,7 +147,7 @@ TEST_F(IndigoServiceTest, CapabilitiesDisable) {
 
   AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&info);
   mutator.set_can_use_model_execution_features(false);
   identity_test_env_.UpdateAccountInfoForAccount(info);
 
@@ -177,6 +178,33 @@ TEST_F(IndigoServiceTest, RefreshTokenErrorResolved) {
   EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
 }
 
+TEST_F(IndigoServiceTest, GlicRequirementEnabledAndDisabled) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndEnableFeatureWithParameters(
+      features::kIndigo, {{features::kIndigoRequireGlicEnabling.name, "true"}});
+
+  CreateService();
+  MakeAccountAvailableAndCapable();
+
+  // Initially Glic is not enabled for the profile, so local eligibility becomes
+  // kMissingCapabilities.
+  glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kMissingCapabilities));
+
+  // Once Glic is enabled (bypassing enablement checks), local eligibility
+  // becomes kEligible.
+  glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
+  {
+    CoreAccountId account_id =
+        identity_test_env_.identity_manager()->GetPrimaryAccountId(
+            signin::ConsentLevel::kSignin);
+    AccountInfo info = identity_test_env_.identity_manager()
+                           ->FindExtendedAccountInfoByAccountId(account_id);
+    service_->OnExtendedAccountInfoUpdated(info);
+  }
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
+}
+
 TEST_F(IndigoServiceTest, PolicyDisabledFromConstruction) {
   SetPolicySettings(prefs::Policy::kDisallowed);
   CreateService();
@@ -191,6 +219,38 @@ TEST_F(IndigoServiceTest, PolicyChangeTriggersUpdate) {
 
   SetPolicySettings(prefs::Policy::kDisallowed);
   EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kDisabledByPolicy));
+}
+
+TEST_F(IndigoServiceTest, ManagedDomain) {
+  CreateService();
+
+  AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
+      "test@example.com", signin::ConsentLevel::kSignin);
+  AccountCapabilitiesTestMutator mutator(&info);
+  mutator.set_can_use_model_execution_features(true);
+
+  AccountInfo::Builder builder(info);
+  builder.SetHostedDomain("example.com");
+  AccountInfo updated_info = builder.Build();
+  identity_test_env_.UpdateAccountInfoForAccount(updated_info);
+
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kManagedDomain));
+}
+
+TEST_F(IndigoServiceTest, GoogleInternalAccountNotManaged) {
+  CreateService();
+
+  AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
+      "test@google.com", signin::ConsentLevel::kSignin);
+  AccountCapabilitiesTestMutator mutator(&info);
+  mutator.set_can_use_model_execution_features(true);
+
+  AccountInfo::Builder builder(info);
+  builder.SetHostedDomain("google.com");
+  AccountInfo updated_info = builder.Build();
+  identity_test_env_.UpdateAccountInfoForAccount(updated_info);
+
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
 }
 
 TEST_F(IndigoServiceTest, AnchoredMessageTrigger) {

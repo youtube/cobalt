@@ -6,13 +6,20 @@
 #define CHROME_BROWSER_UI_VIEWS_PICTURE_IN_PICTURE_DOCUMENT_PIP_FRAME_VIEW_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/content_settings/content_setting_image_view_delegate.h"
+#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/widget/widget_observer.h"
 #include "ui/views/window/frame_view.h"
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace views {
 class Button;
@@ -23,6 +30,7 @@ class Label;
 class Widget;
 }  // namespace views
 
+class ContentSettingImageView;
 class DocumentPipHost;
 
 // DocumentPipFrameView is the non-client frame view for the standalone Document
@@ -44,7 +52,9 @@ class DocumentPipHost;
 // //chrome/browser/ui monolith and the associated circular include. Page Info
 // is opened through the //chrome/browser/ui/views/page_info bubble stack.
 class DocumentPipFrameView : public views::FrameView,
-                             public views::WidgetObserver {
+                             public views::WidgetObserver,
+                             public IconLabelBubbleView::Delegate,
+                             public ContentSettingImageViewDelegate {
   METADATA_HEADER(DocumentPipFrameView, views::FrameView)
 
  public:
@@ -81,6 +91,20 @@ class DocumentPipFrameView : public views::FrameView,
   // views::WidgetObserver:
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
   void OnWidgetDestroying(views::Widget* widget) override;
+
+  // IconLabelBubbleView::Delegate:
+  SkColor GetIconLabelBubbleSurroundingForegroundColor() const override;
+  SkColor GetIconLabelBubbleBackgroundColor() const override;
+
+  // ContentSettingImageViewDelegate:
+  bool ShouldHideContentSettingImage() override;
+  content::WebContents* GetContentSettingWebContents() override;
+  ContentSettingBubbleModelDelegate* GetContentSettingBubbleModelDelegate()
+      override;
+
+  // Updates the state of the camera/microphone content-setting icons from the
+  // opener WebContents. Called by the host when media-capture state changes.
+  void UpdateContentSettingsIcons();
 
   void set_close_reason(CloseReason reason) { close_reason_ = reason; }
 
@@ -134,6 +158,13 @@ class DocumentPipFrameView : public views::FrameView,
   raw_ptr<views::Label> origin_label_ = nullptr;
 
   raw_ptr<views::FlexLayoutView> button_container_view_ = nullptr;
+
+  // The camera/microphone content-setting icons, shown to the left of the
+  // window-control buttons. Mirrors PictureInPictureBrowserFrameView's
+  // content-setting views but reads from the opener WebContents and uses a
+  // null Browser (no feature-promo surface in standalone PiP).
+  std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>
+      content_setting_views_;
 
   raw_ptr<views::ImageButton> back_to_tab_button_ = nullptr;
   raw_ptr<views::ImageButton> close_image_button_ = nullptr;

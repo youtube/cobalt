@@ -15,43 +15,15 @@
 
 namespace ui {
 
-namespace {
-
-// The default blue color for the system highlight color, which can be obtained
-// through `skia::NSSystemColorToSkColor(NSColor.selectedTextBackgroundColor)`.
-// This results in #b3d7ff.
-constexpr SkColor kDefaultSystemHighlightColor =
-    SkColorSetRGB(0xb3, 0xd7, 0xff);
-
-}  // namespace
-
-void SetSystemColorForCurrentAppearance(ColorMixer& mixer) {
-  if (base::FeatureList::IsEnabled(features::kUseSystemDefaultAccentColors)) {
-    mixer[kColorCssSystemHighlight] = {kDefaultSystemHighlightColor};
-    return;
-  }
-  const SkColor system_highlight_color =
-      skia::NSSystemColorToSkColor(NSColor.selectedTextBackgroundColor);
-  mixer[kColorCssSystemHighlight] = {system_highlight_color};
-}
-
-// Maps the native Mac system colors to their corresponding CSS system
-// colors.
+// Maps the native Mac system colors to their corresponding CSS system colors.
 void MapNativeColorsToCssSystemColors(ColorMixer& mixer, ColorProviderKey key) {
-  // TODO(samomekarajr): Consider pulling other system colors for forced colors
-  // mode.
-  if (key.color_mode == ColorProviderKey::ColorMode::kLight) {
-    [[NSAppearance appearanceNamed:NSAppearanceNameAqua]
-        performAsCurrentDrawingAppearance:^{
-          SetSystemColorForCurrentAppearance(mixer);
-        }];
-  } else {
-    [[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
-        performAsCurrentDrawingAppearance:^{
-          SetSystemColorForCurrentAppearance(mixer);
-        }];
-  }
-
+  // The default blue color for the system highlight, can be obtained through:
+  // `skia::NSSystemColorToSkColor(NSColor.selectedTextBackgroundColor)`.
+  // This results in #b3d7ff.
+  //
+  // The actual system color isn't used due to fingerprinting concerns.
+  // See: https://crbug.com/436597797
+  mixer[kColorCssSystemHighlight] = {SkColorSetRGB(0xb3, 0xd7, 0xff)};
   mixer[kColorCssSystemHighlightText] = {SK_ColorBLACK};
 }
 

@@ -37,7 +37,6 @@ source_set("infobars") {
   ]
 
   deps = [
-    "//chrome/app:generated_resources_grit",
     "//chrome/browser/ui:ui_features",
     "//ui/base",
   ]

@@ -21,6 +21,11 @@ class TabGroupEditorBubbleInteractiveUiTest : public InteractiveBrowserTest {
   TabGroupEditorBubbleInteractiveUiTest() = default;
   ~TabGroupEditorBubbleInteractiveUiTest() override = default;
 
+  void TearDownOnMainThread() override {
+    bubble_widget_.reset();
+    InteractiveBrowserTest::TearDownOnMainThread();
+  }
+
   static void UpdateGroupIfOpen(TabGroupEditorBubbleView* bubble) {
     // If the widget is already closing, it means it has reacted to the
     // group closure and is safe from further updates.
@@ -31,6 +36,9 @@ class TabGroupEditorBubbleInteractiveUiTest : public InteractiveBrowserTest {
     // tab group is gone from the model but the bubble doesn't know yet.
     bubble->UpdateGroup();
   }
+
+ protected:
+  std::unique_ptr<views::Widget> bubble_widget_;
 };
 
 IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleInteractiveUiTest,
@@ -54,7 +62,7 @@ IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleInteractiveUiTest,
                     auto group = model->AddToNewGroup({tab_index});
                     // Bypassing tracker to ensure the fix is what closes the
                     // bubble
-                    TabGroupEditorBubbleView::Show(
+                    bubble_widget_ = TabGroupEditorBubbleView::Show(
                         browser(), group,
                         BrowserView::GetBrowserViewForBrowser(browser())
                             ->tab_strip_view(),

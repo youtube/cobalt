@@ -61,7 +61,6 @@ include_rules = [
   "+chrome/common/chrome_paths.h",
   "+chrome/common/chrome_switches.h",
   "+chrome/common/initialize_extensions_client.h",
-  "+chrome/common/pref_names.h",
 ]
 
 specific_include_rules = {
@@ -86,5 +85,6 @@ specific_include_rules = {
   "kiosk_troubleshooting_tools_browsertest\\.cc": [
     "+chrome/browser/ui/browser_window/public",
     "+chrome/browser/ui/views/task_manager_view.h",
+    "+chrome/common/pref_names.h",
   ],
 }

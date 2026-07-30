@@ -548,7 +548,7 @@ public class LayoutManagerTest implements MockTabModelDelegate {
         launchedChromeAndEnterTabSwitcher();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Assert.assertEquals(LayoutType.TAB_SWITCHER, getActiveLayout().getLayoutType());
+                    Assert.assertEquals(LayoutType.HUB, getActiveLayout().getLayoutType());
                 });
 
         // See https://crbug.com/41495937 this shouldn't crash.
@@ -622,14 +622,13 @@ public class LayoutManagerTest implements MockTabModelDelegate {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mManager.showLayout(LayoutType.TAB_SWITCHER, true);
+                    mManager.showLayout(LayoutType.HUB, true);
 
                     Assert.assertTrue(
                             "layoutManager is way too long to end motion",
                             simulateTime(mManager, 1000));
-                    Assert.assertEquals(
-                            LayoutType.TAB_SWITCHER, mManager.getActiveLayout().getLayoutType());
-                    Assert.assertTrue(mManager.isLayoutVisible(LayoutType.TAB_SWITCHER));
+                    Assert.assertEquals(LayoutType.HUB, mManager.getActiveLayout().getLayoutType());
+                    Assert.assertTrue(mManager.isLayoutVisible(LayoutType.HUB));
                 });
 
         // The |startedShowingCallback| callCount 0 is reserved for the default layout during
@@ -639,10 +638,10 @@ public class LayoutManagerTest implements MockTabModelDelegate {
         // TODO(crbug.com/40141330): update the callCount when LayoutManager explicitly hide the old
         // layout.
         startedShowingCallback.waitForCallback(1);
-        Assert.assertEquals(LayoutType.TAB_SWITCHER, startedShowingCallback.layoutType);
+        Assert.assertEquals(LayoutType.HUB, startedShowingCallback.layoutType);
 
         finishedShowingCallback.waitForCallback(0);
-        Assert.assertEquals(LayoutType.TAB_SWITCHER, finishedShowingCallback.layoutType);
+        Assert.assertEquals(LayoutType.HUB, finishedShowingCallback.layoutType);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -655,10 +654,10 @@ public class LayoutManagerTest implements MockTabModelDelegate {
                 });
 
         startedHidingCallback.waitForCallback(0);
-        Assert.assertEquals(LayoutType.TAB_SWITCHER, startedHidingCallback.layoutType);
+        Assert.assertEquals(LayoutType.HUB, startedHidingCallback.layoutType);
 
         finishedHidingCallback.waitForCallback(0);
-        Assert.assertEquals(LayoutType.TAB_SWITCHER, finishedHidingCallback.layoutType);
+        Assert.assertEquals(LayoutType.HUB, finishedHidingCallback.layoutType);
 
         startedShowingCallback.waitForCallback(2);
         Assert.assertEquals(LayoutType.BROWSING, startedShowingCallback.layoutType);
@@ -750,7 +749,7 @@ public class LayoutManagerTest implements MockTabModelDelegate {
 
     private void showTabSwitcherLayout() {
         LayoutTestUtils.startShowingAndWaitForLayout(
-                getLayoutManagerChrome(), LayoutType.TAB_SWITCHER, false);
+                getLayoutManagerChrome(), LayoutType.HUB, false);
     }
 
     private Layout getActiveLayout() {

@@ -14,7 +14,7 @@ import './passwords_shared.css.js';
 import './screen_reader_only.css.js';
 
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {loadTimeData} from '../i18n_setup.js';
@@ -22,16 +22,7 @@ import {CardBenefitsUserAction, MetricsBrowserProxyImpl} from '../metrics_browse
 
 import {getTemplate} from './credit_card_list_entry.html.js';
 
-const enum CardSummarySublabelType {
-  EXPIRATION_DATE,
-  EXPIRATION_DATE_WITH_BENEFITS_TAG,
-  EXPIRATION_DATE_WITH_CVC_TAG,
-  EXPIRATION_DATE_WITH_CVC_AND_BENEFITS_TAG,
-  VIRTUAL_CARD,
-  VIRTUAL_CARD_WITH_BENEFITS_TAG,
-  VIRTUAL_CARD_WITH_CVC_TAG,
-  VIRTUAL_CARD_WITH_CVC_AND_BENEFITS_TAG,
-}
+
 
 const SettingsCreditCardListEntryElementBase = I18nMixin(PolymerElement);
 
@@ -196,26 +187,7 @@ export class SettingsCreditCardListEntryElement extends
         this.creditCard.expirationYear.substring(2);
   }
 
-  private getCardSublabelType(): CardSummarySublabelType {
-    if (this.isVirtualCardEnrolled_()) {
-      if (this.isCardCvcAvailable_()) {
-        return this.isCardBenefitsProductUrlAvailable_() ?
-            CardSummarySublabelType.VIRTUAL_CARD_WITH_CVC_AND_BENEFITS_TAG :
-            CardSummarySublabelType.VIRTUAL_CARD_WITH_CVC_TAG;
-      }
-      return this.isCardBenefitsProductUrlAvailable_() ?
-          CardSummarySublabelType.VIRTUAL_CARD_WITH_BENEFITS_TAG :
-          CardSummarySublabelType.VIRTUAL_CARD;
-    }
-    if (this.isCardCvcAvailable_()) {
-      return this.isCardBenefitsProductUrlAvailable_() ?
-          CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_AND_BENEFITS_TAG :
-          CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_TAG;
-    }
-    return this.isCardBenefitsProductUrlAvailable_() ?
-        CardSummarySublabelType.EXPIRATION_DATE_WITH_BENEFITS_TAG :
-        CardSummarySublabelType.EXPIRATION_DATE;
-  }
+
 
   /**
    * Returns expiration date.
@@ -228,17 +200,10 @@ export class SettingsCreditCardListEntryElement extends
    * Returns one of the following sublabels, based on the card's status:
    *   Virtual card enrollment tag
    *   'CVC saved' tag
-   *   Benefit tag (Place the benefit tag last because it includes a link to
-   *                product terms.)
    * e.g., one of the following:
    *   CVC saved
-   *   Card benefits available (terms apply)
-   *   CVC saved | Card benefits available (terms apply)
    *   Virtual card turned on
    *   Virtual card turned on | CVC saved
-   *   Virtual card turned on | Card benefits available (terms apply)
-   *   Virtual card turned on | CVC saved | Card benefits available (terms
-   *     apply)
    */
   private getSummarySublabel_(): string {
     const separator = ' | ';
@@ -259,23 +224,13 @@ export class SettingsCreditCardListEntryElement extends
   }
 
   private getSummaryAriaSublabel_(): string {
-    switch (this.getCardSublabelType()) {
-      case CardSummarySublabelType.VIRTUAL_CARD_WITH_CVC_AND_BENEFITS_TAG:
-      case CardSummarySublabelType.VIRTUAL_CARD_WITH_BENEFITS_TAG:
-      case CardSummarySublabelType.VIRTUAL_CARD_WITH_CVC_TAG:
-      case CardSummarySublabelType.VIRTUAL_CARD:
-        return this.i18n(
-                   'creditCardExpDateA11yLabeled', this.getCardExpiryDate_()) +
-            this.getSummarySublabel_();
-      case CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_AND_BENEFITS_TAG:
-      case CardSummarySublabelType.EXPIRATION_DATE_WITH_BENEFITS_TAG:
-      case CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_TAG:
-      case CardSummarySublabelType.EXPIRATION_DATE:
-        return this.i18n(
-            'creditCardExpDateA11yLabeled', this.getCardExpiryDate_());
-      default:
-        assertNotReached();
+    const expirationDate =
+        this.i18n('creditCardExpDateA11yLabeled', this.getCardExpiryDate_());
+    const sublabel = this.getSummarySublabel_().replace('|', ',');
+    if (sublabel) {
+      return `${expirationDate}, ${sublabel}`;
     }
+    return expirationDate;
   }
 
   private shouldShowVirtualCardSecondarySublabel_(): boolean {

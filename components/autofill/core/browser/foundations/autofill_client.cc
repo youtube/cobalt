@@ -124,6 +124,8 @@ bool AutofillClient::ShouldShowPersonalContextAutofillNotice() const {
   return false;
 }
 
+void AutofillClient::MarkPersonalContextInAutofillNoticeAsAcknowledged() {}
+
 AutofillComposeDelegate* AutofillClient::GetComposeDelegate() {
   return nullptr;
 }
@@ -163,6 +165,11 @@ AutofillAiManager* AutofillClient::GetAutofillAiManager() {
 PersonalContextAccessManager*
 AutofillClient::GetPersonalContextAccessManager() {
   return nullptr;
+}
+
+const PersonalContextAccessManager*
+AutofillClient::GetPersonalContextAccessManager() const {
+  return const_cast<AutofillClient*>(this)->GetPersonalContextAccessManager();
 }
 
 AutofillAiModelCache* AutofillClient::GetAutofillAiModelCache() {
@@ -216,6 +223,11 @@ profile_metrics::BrowserProfileType AutofillClient::GetProfileType() const {
   return profile_metrics::BrowserProfileType::kRegular;
 }
 
+const subscription_eligibility::SubscriptionEligibilityService*
+AutofillClient::GetSubscriptionEligibilityService() const {
+  return nullptr;
+}
+
 LogManager* AutofillClient::GetCurrentLogManager() {
   return nullptr;
 }
@@ -234,7 +246,8 @@ bool AutofillClient::IsAndroidLargeFormFactor() const {
 
 #if BUILDFLAG(IS_ANDROID)
 void AutofillClient::ShowAtMemoryBottomSheet(
-    base::span<const Suggestion> suggestions) {}
+    base::span<const Suggestion> suggestions,
+    base::WeakPtr<AutofillSuggestionDelegate> delegate) {}
 
 AutofillSnackbarControllerImpl*
 AutofillClient::GetAutofillSnackbarController() {

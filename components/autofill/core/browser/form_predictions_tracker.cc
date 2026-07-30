@@ -100,8 +100,7 @@ void FormPredictionsTracker::OnAutofillManagerStateChanged(
     AutofillDriver::LifecycleState new_state) {
   if (new_state == AutofillDriver::LifecycleState::kPendingReset ||
       new_state == AutofillDriver::LifecycleState::kPendingDeletion) {
-    autofill::LocalFrameToken local_frame_token =
-        manager.driver().GetFrameToken();
+    LocalFrameToken local_frame_token = manager.driver().GetFrameToken();
     absl::erase_if(form_parsing_status_, [local_frame_token](const auto& pair) {
       return pair.first.frame_token == local_frame_token;
     });
@@ -144,8 +143,8 @@ void FormPredictionsTracker::OnAfterFormsSeen(
 }
 
 void FormPredictionsTracker::OnFieldTypesDetermined(
-    autofill::AutofillManager& manager,
-    autofill::FormGlobalId form_id,
+    AutofillManager& manager,
+    FormGlobalId form_id,
     FieldTypeSource source,
     bool small_forms_were_parsed) {
   if (!small_forms_were_parsed) {

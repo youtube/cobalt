@@ -18,7 +18,7 @@
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
-#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
+#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_payment_method_delegate.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_field_data.h"
 
@@ -98,7 +98,7 @@ class FormStructure;
 // interact with it and its |AutofillClient| and |AutofillDriver|.
 //
 // TODO(crbug.com/40839529): Consider using more descriptive name.
-class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
+class TouchToFillDelegateAndroidImpl : public TouchToFillPaymentMethodDelegate {
  public:
   explicit TouchToFillDelegateAndroidImpl(BrowserAutofillManager* manager);
   TouchToFillDelegateAndroidImpl(const TouchToFillDelegateAndroidImpl&) =
@@ -106,6 +106,8 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   TouchToFillDelegateAndroidImpl& operator=(
       const TouchToFillDelegateAndroidImpl&) = delete;
   ~TouchToFillDelegateAndroidImpl() override;
+
+  BrowserAutofillManager& GetAutofillManager() override;
 
   // Checks whether TTF is eligible for the given web form data.
   // Only if this is true, the controller will show the view.
@@ -130,7 +132,7 @@ class TouchToFillDelegateAndroidImpl : public TouchToFillDelegate {
   // Resets the delegate to its starting state (e.g. on navigation).
   void Reset() override;
 
-  // TouchToFillDelegate:
+  // TouchToFillPaymentMethodDelegate:
   bool ShouldShowScanCreditCard() override;
   bool ShouldShowGPayLogo() const override;
   void ScanCreditCard() override;

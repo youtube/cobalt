@@ -1614,6 +1614,34 @@ TEST_P(StoreSeedDataAllGroupsTest, ParsedSeed) {
   EXPECT_EQ(serialized_seed, SerializeSeed(stored_seed_));
 }
 
+TEST_P(StoreSeedDataAllGroupsTest, GzipUncompressSizeLimit) {
+  TestVariationsSeedStore seed_store(&prefs_, temp_dir_.GetPath());
+  ASSERT_EQ(base::FieldTrialList::FindFullName(kSeedFileTrial),
+            GetParam().field_trial_group);
+
+  std::string compressed;
+  ASSERT_TRUE(compression::GzipCompress(CreateTooLargeData(), &compressed));
+
+  base::HistogramTester histogram_tester;
+
+  // Storing should fail because the uncompressed size exceeds the 50 MiB limit.
+  EXPECT_FALSE(
+      StoreSeedData(seed_store, compressed, {.is_gzip_compressed = true}));
+
+  histogram_tester.ExpectBucketCount("Variations.SeedStoreResult",
+                                     StoreSeedResult::kGzipFullCount, 1);
+  histogram_tester.ExpectBucketCount(
+      "Variations.SeedStoreResult",
+      StoreSeedResult::kUncompressedSizeLimitExceeded, 1);
+  histogram_tester.ExpectTotalCount("Variations.SeedStoreResult", 2);
+
+  // Check that trying to store a too-large seed leaves the local state
+  // unchanged and does not write to the seed file.
+  CheckRegularSeedAndSeedPrefsAreCleared(prefs_, seed_store);
+  EXPECT_FALSE(timer_.IsRunning());
+  EXPECT_FALSE(base::PathExists(temp_seed_file_path_));
+}
+
 TEST_P(StoreSeedDataAllGroupsTest, CountryCode) {
   TestVariationsSeedStore seed_store(&prefs_, temp_dir_.GetPath());
   ASSERT_EQ(base::FieldTrialList::FindFullName(kSeedFileTrial),

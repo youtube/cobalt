@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ui.bottombar;
 
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.os.SystemClock;
 
@@ -23,14 +24,23 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.actions.ActionId;
+import org.chromium.chrome.browser.ui.actions.ActionProperties;
+import org.chromium.chrome.browser.ui.actions.ActionRegistry;
+import org.chromium.chrome.browser.ui.android.bars_common.IphIntent;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightParams;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightShape;
 import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Mediator for the bottom bar */
 @NullMarked
 public class BottomBarMediator
-        implements ThemeColorProvider.TintObserver, BottomBarButtonManager.Listener, Destroyable {
+        implements ThemeColorProvider.TintObserver,
+                BottomBarButtonManager.Listener,
+                BottomBarPromoDialogCoordinator.BottomBarPromoDialogListener,
+                Destroyable {
     /** Delegate for compositor-level visibility changes. */
     public interface VisibilityDelegate {
         /**
@@ -66,6 +76,10 @@ public class BottomBarMediator
     private final boolean mShouldIncludeHomeButton;
     private final NullableObservableSupplier<Profile> mProfileSupplier;
     private final Callback<@Nullable Profile> mProfileObserver = this::updateGlicVisibility;
+    private final BottomBarPromoDialogCoordinator mPromoDialogCoordinator;
+    private final NullableObservableSupplier<PropertyModel> mGlicActionSupplier;
+    private final NullableObservableSupplier<PropertyModel> mNewTabActionSupplier;
+
     private @Nullable GlicKeyedService mGlicKeyedService;
     private final GlicKeyedService.AllowedChangedObserver mAllowedChangedObserver =
             this::onGlicAllowedChanged;
@@ -78,14 +92,26 @@ public class BottomBarMediator
     private boolean mGlicTimeToAppearRecorded;
     private long mBottomBarShownTimeMs = -1;
     private long mGlicAppearedTimeMs = -1;
+    private @Nullable IphIntent mNewTabIphIntent;
+    private final Context mContext;
 
     /**
+     * @param context The context to use for the bottom bar.
      * @param model The property model to update.
+     * @param buttonManager The {@link BottomBarButtonManager} for the bottom bar buttons.
      * @param themeColorProvider The provider to observe theme changes from.
      * @param tabSupplier Supplier of the current tab.
+     * @param homepageEnabledSupplier Supplier of whether the homepage is enabled.
      * @param visibilityDelegate Delegate to handle compositor-level visibility changes.
+     * @param shouldIncludeHomeButton Whether the home button should be included in the bottom bar.
+     * @param profileSupplier Supplier of the current profile.
+     * @param omniboxFocusStateSupplier Supplier of the omnibox focus state.
+     * @param promoDialogCoordinator The {@link BottomBarPromoDialogCoordinator} for the promo
+     *     dialog.
+     * @param actionRegistry The {@link ActionRegistry}.
      */
     public BottomBarMediator(
+            Context context,
             PropertyModel model,
             BottomBarButtonManager buttonManager,
             ThemeColorProvider themeColorProvider,
@@ -94,7 +120,10 @@ public class BottomBarMediator
             VisibilityDelegate visibilityDelegate,
             boolean shouldIncludeHomeButton,
             NullableObservableSupplier<Profile> profileSupplier,
-            NonNullObservableSupplier<Boolean> omniboxFocusStateSupplier) {
+            NonNullObservableSupplier<Boolean> omniboxFocusStateSupplier,
+            BottomBarPromoDialogCoordinator promoDialogCoordinator,
+            ActionRegistry actionRegistry) {
+        mContext = context;
         mModel = model;
         mButtonManager = buttonManager;
         mThemeColorProvider = themeColorProvider;
@@ -104,6 +133,9 @@ public class BottomBarMediator
         mShouldIncludeHomeButton = shouldIncludeHomeButton;
         mProfileSupplier = profileSupplier;
         mOmniboxFocusStateSupplier = omniboxFocusStateSupplier;
+        mPromoDialogCoordinator = promoDialogCoordinator;
+        mGlicActionSupplier = actionRegistry.get(ActionId.GLIC);
+        mNewTabActionSupplier = actionRegistry.get(ActionId.NEW_TAB);
         mGlicTimeToAppearRecorded = false;
 
         mTabObserver =
@@ -155,30 +187,48 @@ public class BottomBarMediator
 
         if (mIsVisible != null && mIsVisible == isVisible) return;
 
-        if (isVisible && (mIsVisible == null || !mIsVisible)) {
+        boolean didBecomeVisible = isVisible && (mIsVisible == null || !mIsVisible);
+        mIsVisible = isVisible;
+
+        mModel.set(BottomBarProperties.IS_VISIBLE, isVisible);
+        mVisibilityDelegate.onVisibilityChanged(isVisible);
+
+        if (didBecomeVisible) {
             mBottomBarShownTimeMs = SystemClock.uptimeMillis();
             if (mGlicAppearedTimeMs != -1 && !mGlicTimeToAppearRecorded) {
                 RecordHistogram.recordLongTimesHistogram(GLIC_TIME_TO_APPEAR_HISTOGRAM, 0);
                 mGlicTimeToAppearRecorded = true;
             }
+            maybeShowIphs();
         }
+    }
 
-        mIsVisible = isVisible;
-
-        mModel.set(BottomBarProperties.IS_VISIBLE, isVisible);
-        mVisibilityDelegate.onVisibilityChanged(isVisible);
+    private void maybeShowIphs() {
+        boolean isBottomBarVisible = Boolean.TRUE.equals(mIsVisible);
+        boolean isGlicVisible =
+                Boolean.TRUE.equals(mModel.get(BottomBarProperties.IS_GLIC_BUTTON_VISIBLE));
+        if (isBottomBarVisible && isGlicVisible) {
+            if (!mPromoDialogCoordinator.maybeShowPromoDialog()) {
+                triggerNewTabIph();
+            }
+        } else if (isBottomBarVisible) {
+            // Trigger the new tab IPH if the bottom bar is visible but the GLIC button is not
+            // visible.
+            triggerNewTabIph();
+        }
     }
 
     private void updateGlicVisibility(@Nullable Profile profile) {
+        Profile originalProfile = profile != null ? profile.getOriginalProfile() : null;
+
+        // Manage observers for dynamic updates.
+        updateObservers(originalProfile);
+
         if (profile == null) {
             setButtonVisibility(ActionId.GLIC, false);
             return;
         }
 
-        Profile originalProfile = profile.getOriginalProfile();
-
-        // Manage observers for dynamic updates.
-        updateObservers(originalProfile);
 
         // Calculate and set visibility.
         long startTime = SystemClock.uptimeMillis();
@@ -202,7 +252,7 @@ public class BottomBarMediator
         setButtonVisibility(ActionId.GLIC, shouldBeVisible);
     }
 
-    private void updateObservers(Profile originalProfile) {
+    private void updateObservers(@Nullable Profile originalProfile) {
         if (mOriginalProfile == originalProfile) {
             return;
         }
@@ -212,6 +262,8 @@ public class BottomBarMediator
             mGlicKeyedService.removeAllowedChangedObserver(mAllowedChangedObserver);
             mGlicKeyedService = null;
         }
+
+        if (originalProfile == null) return;
 
         GlicKeyedService glicKeyedService = GlicKeyedServiceFactory.getForProfile(originalProfile);
         mGlicKeyedService = glicKeyedService;
@@ -234,7 +286,9 @@ public class BottomBarMediator
 
     @Override
     public void onButtonVisibilityChanged(int actionId, boolean visible) {
-        // TODO(517591009): Add IPH dialog when GLIC button becomes visible.
+        if (actionId == ActionId.GLIC && visible) {
+            maybeShowIphs();
+        }
     }
 
     @Override
@@ -263,6 +317,59 @@ public class BottomBarMediator
     }
 
     @Override
+    public void onPromoDialogAccepted() {
+        PropertyModel glicModel = mGlicActionSupplier.get();
+        if (glicModel == null) return;
+
+        HighlightParams glicHighlightParams = new HighlightParams(HighlightShape.RECTANGLE);
+        glicHighlightParams.setBoundsRespectPadding(true);
+        int circleRadius =
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.bottom_bar_button_highlight_radius);
+        glicHighlightParams.setCornerRadius(circleRadius);
+
+        IphIntent glicIph =
+                new IphIntent.Builder(FeatureConstants.ANDROID_BOTTOM_BAR_GLIC)
+                        .setStringResId(R.string.iph_android_bottom_bar_glic)
+                        .setAccessibilityResId(R.string.iph_android_bottom_bar_glic)
+                        .setHighlightParams(glicHighlightParams)
+                        .setOnDismissCallback(this::triggerNewTabIph)
+                        .build();
+
+        glicModel.set(ActionProperties.IPH_INTENT, glicIph);
+    }
+
+    private void triggerNewTabIph() {
+        PropertyModel newTabModel = mNewTabActionSupplier.get();
+        if (newTabModel == null) return;
+
+        // Only trigger the New Tab IPH once.
+        if (mNewTabIphIntent != null) return;
+
+        IphIntent.Builder newTabIphBuilder =
+                new IphIntent.Builder(FeatureConstants.ANDROID_BOTTOM_BAR_NEW_TAB)
+                        .setStringResId(R.string.iph_android_bottom_bar_new_tab)
+                        .setAccessibilityResId(R.string.iph_android_bottom_bar_new_tab);
+
+        HighlightParams newTabHighlightParams = new HighlightParams(HighlightShape.RECTANGLE);
+        newTabHighlightParams.setBoundsRespectPadding(true);
+        if (mButtonManager.hasCenteredButton()) {
+            newTabHighlightParams.setCornerRadius(
+                    mContext.getResources()
+                            .getDimensionPixelSize(R.dimen.bottom_bar_new_tab_background_radius));
+        } else {
+            int circleRadius =
+                    mContext.getResources()
+                            .getDimensionPixelSize(R.dimen.bottom_bar_button_highlight_radius);
+            newTabHighlightParams.setCornerRadius(circleRadius);
+        }
+        newTabIphBuilder.setHighlightParams(newTabHighlightParams);
+        IphIntent newTabIph = newTabIphBuilder.build();
+        newTabModel.set(ActionProperties.IPH_INTENT, newTabIph);
+        mNewTabIphIntent = newTabIph;
+    }
+
+    @Override
     public void destroy() {
         mThemeColorProvider.removeTintObserver(this);
         if (mCurrentTab != null) {
@@ -280,5 +387,15 @@ public class BottomBarMediator
         }
 
         mOmniboxFocusStateSupplier.removeObserver(mOmniboxFocusObserver);
+
+        PropertyModel glicModel = mGlicActionSupplier.get();
+        if (glicModel != null) {
+            glicModel.set(ActionProperties.IPH_INTENT, null);
+        }
+        PropertyModel newTabModel = mNewTabActionSupplier.get();
+        if (newTabModel != null) {
+            newTabModel.set(ActionProperties.IPH_INTENT, null);
+        }
+        mNewTabIphIntent = null;
     }
 }

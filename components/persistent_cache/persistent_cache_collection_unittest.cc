@@ -230,14 +230,26 @@ TEST_F(PersistentCacheCollectionTest, ContinuousFootPrintReduction) {
 
 TEST_F(PersistentCacheCollectionTest, BaseNameFromCacheId) {
   // Invalid tokens results in empty string and not a crash.
-  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("`"),
+  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("\x01"),
             base::FilePath());
-  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("``"),
+  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("\x80"),
             base::FilePath());
 
   // Verify '%' is mapped to '`p'.
   EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("%"),
             base::FilePath::FromASCII("`p"));
+
+  // Verify '{' is mapped to '`l'.
+  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("{"),
+            base::FilePath::FromASCII("`l"));
+
+  // Verify '}' is mapped to '`r'.
+  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("}"),
+            base::FilePath::FromASCII("`r"));
+
+  // Verify '`' is mapped to '`g'.
+  EXPECT_EQ(PersistentCacheCollection::BaseNameFromCacheId("`"),
+            base::FilePath::FromASCII("`g"));
 
   // Verify file name is obfuscated.
   std::string cache_id("devs_first_db");
@@ -481,20 +493,15 @@ TEST_F(PersistentCacheCollectionTest, PermanentErrorCausesDeletion) {
   EXPECT_THAT(GetPathsInDir(temp_dir_.GetPath()), IsEmpty());
 }
 
-using PersistentCacheCollectionDeathTest = PersistentCacheCollectionTest;
-
-// Tests that trying to operate on a cache in a collection crashes if an
+// Tests that trying to operate on a cache in a collection does not crash if an
 // invalid cache_id is used.
-TEST_F(PersistentCacheCollectionDeathTest, BadKeysCrash) {
-  EXPECT_CHECK_DEATH({
-    // There is no expectation for the return value we can test since death is
-    // expected
-    std::ignore =
-        PersistentCacheCollection(temp_dir_.GetPath(), kOneHundredMiB,
-                                  Client::kTest)
-            .Insert(std::string("BADKEY"), base::byte_span_from_cstring("key"),
-                    base::byte_span_from_cstring("value"));
-  });
+TEST_F(PersistentCacheCollectionTest, BadKeysAreIgnored) {
+  EXPECT_THAT(
+      PersistentCacheCollection(temp_dir_.GetPath(), kOneHundredMiB,
+                                Client::kTest)
+          .Insert(std::string("BADKEY"), base::byte_span_from_cstring("key"),
+                  base::byte_span_from_cstring("value")),
+      ErrorIs(TransactionError::kPermanent));
 }
 
 }  // namespace persistent_cache

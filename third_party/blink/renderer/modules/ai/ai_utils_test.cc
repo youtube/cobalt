@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/ai/ai_features.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -45,7 +46,13 @@ class AIUtilsTest : public PageTestBase,
   }
 };
 
-using ResolveSamplingParamsOptionTest = PageTestBase;
+class ResolveSamplingParamsOptionTest : public PageTestBase {
+ public:
+  ResolveSamplingParamsOptionTest() = default;
+
+ private:
+  ScopedAIPromptAPILegacyParamsForTest scoped_legacy_params_{true};
+};
 
 TEST_F(ResolveSamplingParamsOptionTest, NoOptions) {
   auto result = ResolveSamplingParamsOption(nullptr, GetFrame().DomWindow());

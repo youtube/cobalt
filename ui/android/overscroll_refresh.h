@@ -14,13 +14,26 @@
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
-// A Java counterpart will be generated for this enum.
+// Java counterparts will be generated for these enums.
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.ui
 enum class OverscrollAction {
   kNone = 0,
   kPullToRefresh = 1,
   kHistoryNavigation = 2,
   kPullFromBottomEdge = 3
+};
+
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.ui
+// kDisallowActivation: Prevents activation.
+// kAllowActivation: Allows activation, but the final decision depends on
+//                     Java-side logic (e.g. drag distance threshold).
+// kForceActivation: Forces the activation.
+// kReset: This is for NavigationHandler.java to reset the state
+enum class OverscrollActivationStatus {
+  kDisallowActivation = 0,
+  kAllowActivation = 1,
+  kForceActivation = 2,
+  kReset = 3
 };
 
 namespace cc {
@@ -109,10 +122,15 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
   OverscrollRefresh();
 
  private:
-  void Release(bool allow_refresh);
+  void Release(OverscrollActivationStatus status);
 
   // Returns velocity in the active action direction.
   float GetVelocityInActiveActionDirection(const gfx::Vector2dF& velocity);
+
+  // Returns the activation status based on velocity in the active action
+  // direction.
+  OverscrollActivationStatus GetActivationStatus(
+      const gfx::Vector2dF& velocity);
 
   bool scrolled_to_top_;
   bool scrolled_to_bottom_;
@@ -141,6 +159,7 @@ class UI_ANDROID_EXPORT OverscrollRefresh {
   struct ActiveAction {
     OverscrollAction action = OverscrollAction::kNone;
     std::optional<BackGestureEventSwipeEdge> edge;
+    std::optional<blink::WebGestureDevice> device;
   };
   std::optional<ActiveAction> active_action_;
 };

@@ -24,11 +24,13 @@
 #include "chrome/browser/apps/app_service/publisher_host.h"
 #include "chrome/browser/apps/app_service/publisher_host_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/web_applications/link_capturing_features.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "components/services/app_service/public/cpp/icon_effects.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
@@ -124,6 +126,8 @@ AppServiceProxyBase::AppServiceProxyBase(
       profile_(profile) {
   preferred_apps_impl_ = std::make_unique<apps::PreferredAppsImpl>(
       this, profile ? profile->GetPath() : base::FilePath());
+  preferred_apps_impl_->SetLongestPrefixMatchEnabled(
+      apps::features::IsNavigationCapturingOnByDefault());
 }
 
 AppServiceProxyBase::~AppServiceProxyBase() = default;
@@ -144,6 +148,8 @@ void AppServiceProxyBase::ReinitializeForTesting(
       this, profile ? profile->GetPath() : base::FilePath(),
       std::move(read_completed_for_testing),
       std::move(write_completed_for_testing));
+  preferred_apps_impl_->SetLongestPrefixMatchEnabled(
+      apps::features::IsNavigationCapturingOnByDefault());
 
   publishers_.clear();
   Initialize();
@@ -607,6 +613,22 @@ void AppServiceProxyBase::SetSupportedLinksPreference(
     IntentFilters all_link_filters) {
   DCHECK(!app_id.empty());
 
+  // If the app is a user-installed Web App, we must ensure it cannot be set
+  // as preferred if a non-web app (such as an ARC app) or a System Web App
+  // already captures the same link space. Abort designation if a conflicting
+  // non-web/system app is currently preferred.
+  if (apps::features::IsNavigationCapturingOnByDefault() &&
+      IsNonSystemWebapp(app_id)) {
+    base::flat_set<std::string> overlapping_apps =
+        preferred_apps_impl_->preferred_apps_list().FindPreferredAppsForFilters(
+            app_id, all_link_filters);
+    for (const auto& entry_app_id : overlapping_apps) {
+      if (!IsNonSystemWebapp(entry_app_id)) {
+        return;
+      }
+    }
+  }
+
   preferred_apps_impl_->SetSupportedLinksPreference(
       app_id, std::move(all_link_filters));
 }
@@ -706,6 +728,53 @@ IntentLaunchInfo AppServiceProxyBase::CreateIntentLaunchInfo(
       apps_util::IsGenericFileHandler(intent, filter);
   entry.is_file_extension_match = filter->IsFileExtensionsFilter();
   return entry;
+}
+
+bool AppServiceProxyBase::IsNonSystemWebapp(const std::string& app_id) {
+  if (AppRegistryCache().GetAppType(app_id) != AppType::kWeb) {
+    return false;
+  }
+  auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
+  if (!provider) {
+    return false;
+  }
+  // Check if the app is installed in the Web App Database. If not, it is
+  // not considered a valid user-installed web app for coexistence checks.
+  const web_app::WebApp* web_app =
+      provider->registrar_unsafe().GetAppById(app_id);
+  return web_app && !web_app->IsSystemApp();
+}
+
+bool AppServiceProxyBase::AppScopesMatchForUserLinkCapturing(
+    const std::string& app_id1,
+    const std::string& app_id2) {
+  auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
+  if (!provider) {
+    return false;
+  }
+  return provider->registrar_unsafe().AppScopesMatchForUserLinkCapturing(
+      app_id1, app_id2);
+}
+
+bool AppServiceProxyBase::QueryConflict(const std::string& first_app_id,
+                                        const IntentFilterPtr& first_filter,
+                                        const std::string& second_app_id,
+                                        const IntentFilterPtr& second_filter) {
+  if (!apps::features::IsNavigationCapturingOnByDefault()) {
+    return true;
+  }
+  // If both apps are non-system Web Apps, we check if their scopes match
+  // exactly. If they don't match exactly (e.g., one is nested inside the
+  // other), then we return false (meaning no conflict, they are allowed to
+  // co-exist).
+  //
+  // Standard web apps can co-exist this way. However, System Web Apps (SWAs)
+  // are kept on the traditional strict isolation path by treating them as
+  // conflicts (returning true on overlap).
+  if (IsNonSystemWebapp(first_app_id) && IsNonSystemWebapp(second_app_id)) {
+    return AppScopesMatchForUserLinkCapturing(first_app_id, second_app_id);
+  }
+  return true;
 }
 
 IntentLaunchInfo::IntentLaunchInfo() = default;

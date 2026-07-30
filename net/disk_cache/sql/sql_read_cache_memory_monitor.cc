@@ -30,4 +30,18 @@ void SqlReadCacheMemoryMonitor::ReleaseBytes(int size) {
   current_size_.fetch_sub(size, std::memory_order_relaxed);
 }
 
+MonitoredVectorIOBuffer::MonitoredVectorIOBuffer(
+    base::span<const uint8_t> data,
+    scoped_refptr<SqlReadCacheMemoryMonitor> monitor)
+    : monitor_(std::move(monitor)), vector_(data.begin(), data.end()) {
+  SetSpan(vector_);
+}
+
+MonitoredVectorIOBuffer::~MonitoredVectorIOBuffer() {
+  ClearSpan();
+  if (monitor_) {
+    monitor_->ReleaseBytes(vector_.size());
+  }
+}
+
 }  // namespace disk_cache

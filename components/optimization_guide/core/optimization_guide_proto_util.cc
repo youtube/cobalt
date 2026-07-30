@@ -137,6 +137,11 @@ optimization_guide::proto::AXStringAttribute StringAttributeToProto(
       return optimization_guide::proto::AXStringAttribute::AX_SA_VALUE;
     case ax::mojom::StringAttribute::kVirtualContent:
       return optimization_guide::proto::AXStringAttribute::AX_SA_VIRTUALCONTENT;
+    case ax::mojom::StringAttribute::kCanvasAnnotation:
+      return optimization_guide::proto::AXStringAttribute::
+          AX_SA_CANVASANNOTATION;
+    case ax::mojom::StringAttribute::kAriaValueText:
+      return optimization_guide::proto::AXStringAttribute::AX_SA_ARIAVALUETEXT;
   }
 }
 

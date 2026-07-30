@@ -10,7 +10,7 @@
 namespace web {
 
 // Creates a ScriptMessageValue from an Objective-C object.
-std::unique_ptr<ScriptMessageValue> CreateScriptMessageValue(id element);
+ScriptMessageValue CreateScriptMessageValue(id element);
 
 }  // namespace web
 

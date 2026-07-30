@@ -98,9 +98,11 @@ class Configurator : public update_client::Configurator {
   std::optional<std::vector<uint8_t>> GetCrxPublicKeyHash() const;
   base::TimeDelta MinimumEventLoggingCooldown() const;
 
+ protected:
+  ~Configurator() override;
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
-  ~Configurator() override;
 
   SEQUENCE_CHECKER(sequence_checker_);
   scoped_refptr<UpdaterPrefs> prefs_;

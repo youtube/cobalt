@@ -56,8 +56,6 @@ LoginScreenClientImpl* g_login_screen_client_instance = nullptr;
 LoginScreenClientImpl::Delegate::Delegate() = default;
 LoginScreenClientImpl::Delegate::~Delegate() = default;
 
-LoginScreenClientImpl::ParentAccessDelegate::~ParentAccessDelegate() = default;
-
 LoginScreenClientImpl::LoginScreenClientImpl(PrefService* local_state)
     : local_state_(CHECK_DEREF(local_state)),
       auth_recorder_(std::make_unique<ash::LoginAuthRecorder>()) {

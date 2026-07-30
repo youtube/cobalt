@@ -181,7 +181,9 @@ class TestRealtimeUrlLookupService
             min_allowed_timestamp_for_referrer_chains_getter,
             referrer_chain_provider,
             delegate,
-            /*intelligent_scan_delegate=*/nullptr) {}
+            /*intelligent_scan_delegate=*/nullptr,
+            // iOS doesn't support referrer chains yet.
+            /*network_context_getter=*/base::NullCallback()) {}
 
   bool CanCheckSafeBrowsingDb() const override {
     return can_check_safe_browsing_db_;

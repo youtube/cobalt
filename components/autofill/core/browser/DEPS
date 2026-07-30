@@ -34,6 +34,7 @@ include_rules = [
   "+components/signin/public",
   "+components/strike_database",
   "+components/strings",
+  "+components/subscription_eligibility",
   "+components/sync",
   "+components/sync_preferences",
   "+components/translate/core/browser",

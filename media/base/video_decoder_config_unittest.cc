@@ -39,4 +39,30 @@ TEST(VideoDecoderConfigTest, SetProfile) {
   EXPECT_EQ(config.profile(), VP9PROFILE_PROFILE2);
 }
 
+TEST(VideoDecoderConfigTest, MatchesWithProjection) {
+  VideoDecoderConfig config(VideoCodec::kVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
+                            VideoDecoderConfig::AlphaMode::kIsOpaque,
+                            VideoColorSpace(), kNoTransformation, kCodedSize,
+                            kVisibleRect, kNaturalSize, EmptyExtraData(),
+                            EncryptionScheme::kUnencrypted);
+  EXPECT_EQ(config.spatial_format().projection_type,
+            VideoProjectionType::kNone);
+  EXPECT_EQ(config.spatial_format().stereo_mode, VideoStereoMode::kMono);
+
+  VideoDecoderConfig config2 = config;
+  EXPECT_TRUE(config.Matches(config2));
+
+  config.set_spatial_format(VideoSpatialFormat{
+      VideoProjectionType::kEquirect360,
+      VideoStereoMode::kSideBySideLeftFirst,
+  });
+  EXPECT_FALSE(config.Matches(config2));
+
+  config2.set_spatial_format(VideoSpatialFormat{
+      VideoProjectionType::kEquirect360,
+      VideoStereoMode::kSideBySideLeftFirst,
+  });
+  EXPECT_TRUE(config.Matches(config2));
+}
+
 }  // namespace media

@@ -111,8 +111,8 @@ id<GREYMatcher> GeminiButton() {
   return config;
 }
 
-// Tests that the FRE is displayed correctly from the Page Action Menu.
-- (void)testFREFromPageActionMenu {
+// Tests that the First Run is displayed correctly from the Page Action Menu.
+- (void)testFirstRunFromPageActionMenu {
   if ([ChromeEarlGrey isChromeNextEnabled]) {
     // With ChromeNext, the entry point is directly the Gemini button in the
     // AppBar.

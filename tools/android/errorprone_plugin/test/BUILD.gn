@@ -3,12 +3,23 @@
 # found in the LICENSE file.
 
 import("//build/config/android/android_nocompile.gni")
+import("//build/config/android/rules.gni")
 import("nocompile_gn/nocompile_sources.gni")
+
+android_library("callback_bind_check_test_compile_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ "src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTestCompile.java" ]
+  deps = [ "//base:base_java" ]
+}
 
 android_nocompile_test_suite("errorprone_plugin_tests") {
   # Depend on errorprone_plugin so that the action is re-run whenever any custom
   # errorprone check is modified.
-  deps = [ "//tools/android/errorprone_plugin" ]
+  deps = [
+    ":callback_bind_check_test_compile_java",
+    "//tools/android/errorprone_plugin",
+  ]
   tests = [
     {
       target = "nocompile_gn:no_redundant_field_init_check_int_test_java"
@@ -31,6 +42,54 @@ android_nocompile_test_suite("errorprone_plugin_tests") {
       nocompile_sources =
           rebase_path(no_android_log_test_nocompile_sources, "", "nocompile_gn")
       expected_compile_output_regex = "warning: .NoAndroidLog"
+    },
+    {
+      target = "nocompile_gn:callback_bind_check_test_1_java"
+      nocompile_sources =
+          rebase_path(callback_bind_check_test_1_nocompile_sources,
+                      "",
+                      "nocompile_gn")
+      expected_compile_output_regex = "warning: .CallbackBind"
+    },
+    {
+      target = "nocompile_gn:callback_bind_check_test_2_java"
+      nocompile_sources =
+          rebase_path(callback_bind_check_test_2_nocompile_sources,
+                      "",
+                      "nocompile_gn")
+      expected_compile_output_regex = "warning: .CallbackBind"
+    },
+    {
+      target = "nocompile_gn:callback_bind_check_test_3_java"
+      nocompile_sources =
+          rebase_path(callback_bind_check_test_3_nocompile_sources,
+                      "",
+                      "nocompile_gn")
+      expected_compile_output_regex = "warning: .CallbackBind"
+    },
+    {
+      target = "nocompile_gn:callback_bind_check_test_4_java"
+      nocompile_sources =
+          rebase_path(callback_bind_check_test_4_nocompile_sources,
+                      "",
+                      "nocompile_gn")
+      expected_compile_output_regex = "warning: .CallbackBind"
+    },
+    {
+      target = "nocompile_gn:callback_bind_check_test_5_java"
+      nocompile_sources =
+          rebase_path(callback_bind_check_test_5_nocompile_sources,
+                      "",
+                      "nocompile_gn")
+      expected_compile_output_regex = "warning: .CallbackBind"
+    },
+    {
+      target = "nocompile_gn:callback_bind_check_test_6_java"
+      nocompile_sources =
+          rebase_path(callback_bind_check_test_6_nocompile_sources,
+                      "",
+                      "nocompile_gn")
+      expected_compile_output_regex = "warning: .CallbackBind"
     },
   ]
 }

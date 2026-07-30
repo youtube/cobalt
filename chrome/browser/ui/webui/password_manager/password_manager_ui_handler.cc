@@ -65,8 +65,6 @@ void PasswordManagerUIHandler::ExtendAuthValidity() {
 
 void PasswordManagerUIHandler::DeleteAllPasswordManagerData(
     DeleteAllPasswordManagerDataCallback callback) {
-  // TODO(crbug.com/432409279): don't use the delegate, but instead use the
-  // password manager backend directly.
   passwords_private_delegate_->DeleteAllPasswordManagerData(
       web_contents_, std::move(callback));
 }
@@ -156,4 +154,25 @@ void PasswordManagerUIHandler::GetPasswordManagerActionableError(
     GetPasswordManagerActionableErrorCallback callback) {
   std::move(callback).Run(ToActionableMojomError(
       passwords_private_delegate_->GetActionableError()));
+}
+
+void PasswordManagerUIHandler::ShowLastExportedFileInShell() {
+  passwords_private_delegate_->ShowLastExportedFileInShell(web_contents_);
+}
+
+void PasswordManagerUIHandler::DisconnectCloudAuthenticator(
+    DisconnectCloudAuthenticatorCallback callback) {
+  passwords_private_delegate_->DisconnectCloudAuthenticator(
+      web_contents_, std::move(callback));
+}
+
+void PasswordManagerUIHandler::IsConnectedToCloudAuthenticator(
+    IsConnectedToCloudAuthenticatorCallback callback) {
+  std::move(callback).Run(
+      passwords_private_delegate_->IsConnectedToCloudAuthenticator(
+          web_contents_));
+}
+
+void PasswordManagerUIHandler::UndoRemoveSavedPasswordOrException() {
+  passwords_private_delegate_->UndoRemoveSavedPasswordOrException();
 }

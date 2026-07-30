@@ -81,8 +81,10 @@ ServiceWorkerRegisterJob::ServiceWorkerRegisterJob(
       creator_network_restrictions_id_(
           [](GlobalRenderFrameHostId id)
               -> std::optional<base::UnguessableToken> {
-            auto* rfh = RenderFrameHostImpl::FromID(id);
-            return rfh ? rfh->GetNetworkRestrictionsID() : std::nullopt;
+            if (auto* rfh = RenderFrameHostImpl::FromID(id)) {
+              return rfh->GetNetworkRestrictionsID();
+            }
+            return std::nullopt;
           }(requesting_frame_id)),
       network_restrictions_id_(base::UnguessableToken::Create()) {
   CHECK(context_);

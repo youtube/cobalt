@@ -12,7 +12,7 @@ import {CriticalErrorPage} from 'chrome://shimless-rma/critical_error_page.js';
 import {DISABLE_ALL_BUTTONS} from 'chrome://shimless-rma/events.js';
 import {FakeShimlessRmaService} from 'chrome://shimless-rma/fake_shimless_rma_service.js';
 import {setShimlessRmaServiceForTesting} from 'chrome://shimless-rma/mojo_interface_provider.js';
-import {assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 suite('criticalErrorPageTest', function() {

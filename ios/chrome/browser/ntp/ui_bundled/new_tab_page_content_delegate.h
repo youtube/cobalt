@@ -30,6 +30,10 @@
 // visible.
 - (void)feedDidScroll;
 
+// Signals to the receiver that the tablet omnibox scroll progress should be
+// updated.
+- (void)didUpdateNTPTabOmniboxScrollProgress:(CGFloat)progress;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_CONTENT_DELEGATE_H_

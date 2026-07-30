@@ -20,7 +20,6 @@ class FakeAccountManagerUI : public account_manager::AccountManagerUI {
    public:
     virtual void OnAddAccountDialogShown() {}
     virtual void OnReauthAccountDialogShown() {}
-    virtual void OnManageAccountsSettingsShown() {}
   };
 
   FakeAccountManagerUI();
@@ -51,10 +50,6 @@ class FakeAccountManagerUI : public account_manager::AccountManagerUI {
     return last_reauth_email_;
   }
 
-  int show_manage_accounts_settings_calls() const {
-    return show_manage_accounts_settings_calls_;
-  }
-
   // AccountManagerUI overrides:
   void ShowAddAccountDialog(
       const account_manager::AccountAdditionOptions& options,
@@ -62,14 +57,12 @@ class FakeAccountManagerUI : public account_manager::AccountManagerUI {
   void ShowReauthAccountDialog(const std::string& email,
                                base::OnceClosure close_dialog_closure) override;
   bool IsDialogShown() override;
-  void ShowManageAccountsSettings() override;
 
  private:
   base::OnceClosure close_dialog_closure_;
   bool is_dialog_shown_ = false;
   int show_account_addition_dialog_calls_ = 0;
   int show_account_reauthentication_dialog_calls_ = 0;
-  int show_manage_accounts_settings_calls_ = 0;
   std::optional<account_manager::AccountAdditionOptions>
       last_add_account_options_;
   std::optional<std::string> last_reauth_email_;

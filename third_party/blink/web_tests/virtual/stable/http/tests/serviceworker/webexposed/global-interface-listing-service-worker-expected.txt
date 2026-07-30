@@ -74,6 +74,7 @@ interface Blob
     method slice
     method stream
     method text
+    method textStream
 interface BroadcastChannel : EventTarget
     attribute @@toStringTag
     getter name
@@ -1643,6 +1644,7 @@ interface Request
     method formData
     method json
     method text
+    method textStream
 interface Response
     static method error
     static method redirect
@@ -1664,6 +1666,7 @@ interface Response
     method formData
     method json
     method text
+    method textStream
 interface RestrictionTarget
     attribute @@toStringTag
     method constructor

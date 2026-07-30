@@ -32,6 +32,7 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.lens.LensController;
+import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
@@ -226,6 +227,8 @@ public class LensOverlayCoordinatorUnitTest {
         assertEquals(mockUri, capturedParams.getImageUri());
         assertEquals(testUrl.getSpec(), capturedParams.getPageUrl());
         assertFalse(capturedParams.getIsIncognito());
+        assertEquals(
+                LensEntryPoint.CONTEXT_MENU_SEARCH_MENU_ITEM, capturedParams.getLensEntryPoint());
     }
 
     @Test

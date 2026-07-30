@@ -15,14 +15,11 @@ include_rules = [
   # individually. Other dependencies within //chrome are listed on a per-
   # directory basis. See //tools/chromeos/gen_deps.sh for details.
   "+chrome/browser/ash/profiles",
-  "+chrome/browser/browser_features.h",
   "+chrome/browser/nearby_sharing",
   "+chrome/browser/profiles",
-  "+chrome/browser/push_notification",
   "+chrome/browser/signin",
   "+chrome/services/sharing/nearby/test_support",
 
   # Dependencies outside of //chrome:
   "+components/cross_device/logging",
-  "+components/push_notification",
 ]

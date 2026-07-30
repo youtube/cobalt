@@ -823,7 +823,15 @@ DropData PopulateDropDataFromPasteboard(NSPasteboard* pboard) {
       base::apple::CFToNSPtrCast(kPasteboardTypeFilePromiseContent);
   NSData* file_data;
   NSString* content_type_id;
-  if ([types containsObject:promise_content_type]) {
+  // A pasteboard item can advertise both a real file URL and file-promise
+  // content as two representations of the same file (e.g. an unsaved macOS
+  // screenshot). In this case, skip the promise content to avoid surfacing the
+  // file twice in `DataTransfer.files`.
+  //
+  // Note that a drag pairing a real file with a separate, distinct promise
+  // would lose that promise with this guard.
+  if (drop_data.filenames.empty() &&
+      [types containsObject:promise_content_type]) {
     content_type_id = [pboard stringForType:promise_content_type];
     if (content_type_id && [types containsObject:content_type_id]) {
       file_data = [pboard dataForType:content_type_id];

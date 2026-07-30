@@ -8,10 +8,13 @@
 #include <unicode/uchar.h>
 #include <unicode/uscript.h>
 
+#include <bitset>
+
 #include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -49,6 +52,7 @@ class PLATFORM_EXPORT ScriptRunIterator {
   bool MergeSets();
   void FixupStack(UScriptCode resolved_script, bool exclude_last);
   bool Fetch(wtf_size_t* pos, UChar32*);
+  bool FetchNextCharacter();
 
   UScriptCode ResolveCurrentScript() const;
 
@@ -109,9 +113,35 @@ class PLATFORM_EXPORT ScriptData {
   virtual UChar32 GetPairedBracket(UChar32) const = 0;
 
   virtual PairedBracketType GetPairedBracketType(UChar32) const = 0;
+
+  static constexpr unsigned kFirstSurrogate = 0xD800;
+  using UnicodeBitSet = std::bitset<kFirstSurrogate>;
+
+  // Get the set of Unicode code points that would be allowed to skip
+  // once we know which script we're in (i.e., current_set_ is a singleton
+  // that's not common or inherited). This set is, generally, the set
+  // of code points that either explicitly supports the given script,
+  // or is classified as common/inherited. However, we exclude brackets,
+  // which have special handling.
+  //
+  // This takes a bit of time to compute, so we cache it per-script
+  // across the entire rendering process (ICUScriptData is already
+  // a process-wide singleton). We also only care about the code points
+  // up to U+D800 (which covers most of the BMP), in order to never
+  // have to worry about surrogates; as long as the UChars we read
+  // fit in the bitset, we can assume one codepoint == one UChar.
+  //
+  // The second return value is the set of inherited and not-common
+  // characters (see inherited_not_common_chars_ for description).
+  struct RunExtensionLookups {
+    const ScriptData::UnicodeBitSet* can_remain_in_script;
+    const ScriptData::UnicodeBitSet* inherited_not_common_chars;
+  };
+  virtual RunExtensionLookups GetSafeToExtendExistingRun(
+      UScriptCode script) const = 0;
 };
 
-class PLATFORM_EXPORT ICUScriptData : public ScriptData {
+class PLATFORM_EXPORT ICUScriptData final : public ScriptData {
  public:
   ~ICUScriptData() override = default;
 
@@ -122,6 +152,35 @@ class PLATFORM_EXPORT ICUScriptData : public ScriptData {
   UChar32 GetPairedBracket(UChar32) const override;
 
   PairedBracketType GetPairedBracketType(UChar32) const override;
+
+ private:
+  RunExtensionLookups GetSafeToExtendExistingRun(
+      UScriptCode script) const override;
+
+  // For each script we've seen so far, a bitmap specifying which characters
+  // are acceptable in that script and can be simply skipped (and that are not
+  // brackets). Allowed to have false negatives.
+  mutable HashMap<UScriptCode, std::unique_ptr<UnicodeBitSet>> bits_cache_;
+
+  // There are some characters that have primary script USCRIPT_INHERITED
+  // but a nonempty script extension list (scx); this means that is inherits
+  // the previous character's script, but only if it is in the scx.
+  // Specifically, FetchNextCharacter() handles this by overwriting
+  // USCRIPT_COMMON script list by the following character's scx
+  // (if it is inherited); so if there's e.g. a run of Latin characters
+  // followed by a digit (normally common) and then a combining character
+  // that's only valid for e.g. Indic scripts, then the digit should
+  // _not_ be allowed to be part of the Latin run even though it's common.
+  //
+  // If this happens in the fast path where we skip characters, we would
+  // have accepted the digit, and then need to unaccept it (go back one
+  // character) when we see the inherited character one step later.
+  // This bitmap notes which characters have that property.
+  //
+  // Note that for any given script, a character may be in both its bits_cache_
+  // bitmap and this (because its scx contains the given script); if so,
+  // the former takes precedence.
+  mutable UnicodeBitSet inherited_not_common_chars_;
 };
 }  // namespace blink
 

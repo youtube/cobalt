@@ -846,6 +846,11 @@ void FakeServer::TriggerMigrationDoneError(syncer::DataTypeSet types) {
   loopback_server_->TriggerMigrationForTesting(types);
 }
 
+void FakeServer::EnableGcDirectiveForMigration() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  loopback_server_->EnableGcDirectiveForMigration();
+}
+
 int FakeServer::GetMigrationVersion(syncer::DataType type) const {
   DCHECK(thread_checker_.CalledOnValidThread());
   return loopback_server_->GetMigrationVersion(type);

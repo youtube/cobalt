@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -55,6 +56,9 @@ class SESSIONS_EXPORT SessionCommand {
 
   SessionCommand(const SessionCommand&) = delete;
   SessionCommand& operator=(const SessionCommand&) = delete;
+  bool operator==(const SessionCommand& command) const;
+
+  std::unique_ptr<SessionCommand> Clone() const;
 
   // An identifier for the command.  The meaning of the identifier is specific
   // to the service that creates the command.

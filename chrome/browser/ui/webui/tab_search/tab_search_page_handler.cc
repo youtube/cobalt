@@ -16,6 +16,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/i18n/string_search.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -44,6 +45,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
+#include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
@@ -439,6 +441,43 @@ void TabSearchPageHandler::MaybeShowUI() {
   if (embedder) {
     embedder->ShowUI();
   }
+}
+
+void TabSearchPageHandler::GetRangesIgnoringCaseAndAccents(
+    const std::string& search_text,
+    const std::vector<std::string>& targets,
+    GetRangesIgnoringCaseAndAccentsCallback callback) {
+  std::vector<std::vector<tab_search::mojom::TokenRangePtr>> results;
+  results.reserve(targets.size());
+
+  std::u16string find_this = base::UTF8ToUTF16(search_text);
+
+  if (find_this.empty()) {
+    for (size_t i = 0; i < targets.size(); ++i) {
+      results.emplace_back();
+    }
+    std::move(callback).Run(std::move(results));
+    return;
+  }
+
+  for (const auto& target : targets) {
+    std::vector<tab_search::mojom::TokenRangePtr> ranges;
+    std::u16string in_this = base::UTF8ToUTF16(target);
+    base::i18n::RepeatingStringSearch searcher(find_this, in_this,
+                                               /*case_sensitive=*/false);
+
+    int match_index = 0;
+    int match_length = 0;
+    while (searcher.NextMatchResult(match_index, match_length)) {
+      auto range = tab_search::mojom::TokenRange::New();
+      range->start = match_index;
+      range->length = match_length;
+      ranges.push_back(std::move(range));
+    }
+    results.push_back(std::move(ranges));
+  }
+
+  std::move(callback).Run(std::move(results));
 }
 
 tab_search::mojom::ProfileDataPtr TabSearchPageHandler::CreateProfileData() {

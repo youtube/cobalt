@@ -1980,6 +1980,11 @@ if (enable_java_templates) {
         "--target-sdk-version=${invoker.target_sdk_version}",
       ]
 
+      if (defined(invoker.inject_extract_native_libs) &&
+          invoker.inject_extract_native_libs) {
+        args += [ "--inject-extract-native-libs" ]
+      }
+
       if (defined(invoker.manifest_package)) {
         args += [ "--manifest-package=${invoker.manifest_package}" ]
       }

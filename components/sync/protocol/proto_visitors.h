@@ -595,6 +595,7 @@ VISIT_PROTO_FIELDS(const sync_pb::DataTypeProgressMarker& proto) {
 VISIT_PROTO_FIELDS(const sync_pb::GarbageCollectionDirective& proto) {
   VISIT(version_watermark);
   VISIT(collaboration_gc);
+  VISIT(clear_metadata);
 }
 
 VISIT_PROTO_FIELDS(

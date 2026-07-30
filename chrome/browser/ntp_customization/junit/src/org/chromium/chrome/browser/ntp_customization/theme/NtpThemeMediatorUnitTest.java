@@ -76,7 +76,7 @@ public class NtpThemeMediatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private Profile mProfile;
-    @Mock private Callback<Bitmap> mOnImageSelectedCallback;
+    @Mock private NtpCustomizationUtils.OnImageLoadedCallback mOnImageSelectedCallback;
     @Mock private BottomSheetDelegate mBottomSheetDelegate;
     @Mock private View mView;
     @Mock private NtpCustomizationConfigManager mNtpCustomizationConfigManager;

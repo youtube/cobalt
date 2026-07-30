@@ -67,10 +67,10 @@ class IOSSendTabToSelfInfoBarDelegateTest : public PlatformTest {
 
 // Tests that the infobar delegate properties are correctly set.
 TEST_F(IOSSendTabToSelfInfoBarDelegateTest, Properties) {
-  std::unique_ptr<SendTabToSelfEntry> entry =
-      SendTabToSelfEntry::FromRequiredFields(
-          "test-guid", GURL("http://www.test.com"), "device1");
-  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry.get(), &model_,
+  const SendTabToSelfEntry* entry =
+      model_.AddEntryRemotely(GURL("http://www.test.com"), "title", "device1",
+                              PageContext(), NavigationHistory());
+  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry, &model_,
                                                           mock_scene_commands_);
   ConfirmInfoBarDelegate* confirm_delegate = delegate.get();
 
@@ -84,10 +84,10 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, Properties) {
 
 // Tests that Accept() correctly marks the entry as opened and opens the URL.
 TEST_F(IOSSendTabToSelfInfoBarDelegateTest, Accept) {
-  std::unique_ptr<SendTabToSelfEntry> entry =
-      SendTabToSelfEntry::FromRequiredFields(
-          "test-guid", GURL("http://www.test.com"), "device1");
-  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry.get(), &model_,
+  const SendTabToSelfEntry* entry =
+      model_.AddEntryRemotely(GURL("http://www.test.com"), "title", "device1",
+                              PageContext(), NavigationHistory());
+  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry, &model_,
                                                           mock_scene_commands_);
   ConfirmInfoBarDelegate* delegate_ptr = delegate.get();
 
@@ -95,17 +95,19 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, Accept) {
       InfoBarManagerImpl::FromWebState(web_state());
   manager->AddInfoBar(CreateConfirmInfoBar(std::move(delegate)));
 
+  std::string guid = entry->GetGUID();
   OCMExpect([mock_scene_commands_
       openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
         EXPECT_EQ(GURL("http://www.test.com"), command.URL);
         EXPECT_NSEQ(nil, command.textFragment);
-        EXPECT_NSEQ(@"test-guid", command.sendTabToSelfEntryGUID);
+        EXPECT_NSEQ(base::SysUTF8ToNSString(guid),
+                    command.sendTabToSelfEntryGUID);
         return YES;
       }]]);
 
   EXPECT_TRUE(delegate_ptr->Accept());
 
-  EXPECT_EQ("test-guid", model_.last_opened_guid());
+  EXPECT_EQ(guid, model_.last_opened_guid());
 
   [(id)mock_scene_commands_ verify];
 }
@@ -120,11 +122,11 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, AcceptWithScrollPosition) {
   page_context.scroll_position.text_fragment.text_start = "start";
   page_context.scroll_position.text_fragment.text_end = "end";
 
-  SendTabToSelfEntry entry("test-guid", GURL("http://www.test.com"), "title",
-                           base::Time::Now(), "device", "target", page_context,
-                           NavigationHistory());
+  const SendTabToSelfEntry* entry =
+      model_.AddEntryRemotely(GURL("http://www.test.com"), "title", "device",
+                              page_context, NavigationHistory());
 
-  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(&entry, &model_,
+  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry, &model_,
                                                           mock_scene_commands_);
   ConfirmInfoBarDelegate* delegate_ptr = delegate.get();
 
@@ -132,11 +134,13 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, AcceptWithScrollPosition) {
       InfoBarManagerImpl::FromWebState(web_state());
   manager->AddInfoBar(CreateConfirmInfoBar(std::move(delegate)));
 
+  std::string guid = entry->GetGUID();
   OCMExpect([mock_scene_commands_
       openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
         EXPECT_EQ(GURL("http://www.test.com"), command.URL);
         EXPECT_NSEQ(nil, command.textFragment);
-        EXPECT_NSEQ(@"test-guid", command.sendTabToSelfEntryGUID);
+        EXPECT_NSEQ(base::SysUTF8ToNSString(guid),
+                    command.sendTabToSelfEntryGUID);
         return YES;
       }]]);
 
@@ -149,11 +153,11 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, AcceptWithScrollPosition) {
 // infobar) correctly passes nil for the text fragment if no scroll
 // position is present.
 TEST_F(IOSSendTabToSelfInfoBarDelegateTest, AcceptWithoutScrollPosition) {
-  std::unique_ptr<SendTabToSelfEntry> entry =
-      SendTabToSelfEntry::FromRequiredFields(
-          "test-guid", GURL("http://www.test.com"), "device1");
+  const SendTabToSelfEntry* entry =
+      model_.AddEntryRemotely(GURL("http://www.test.com"), "title", "device1",
+                              PageContext(), NavigationHistory());
 
-  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry.get(), &model_,
+  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry, &model_,
                                                           mock_scene_commands_);
   ConfirmInfoBarDelegate* delegate_ptr = delegate.get();
 
@@ -161,11 +165,13 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, AcceptWithoutScrollPosition) {
       InfoBarManagerImpl::FromWebState(web_state());
   manager->AddInfoBar(CreateConfirmInfoBar(std::move(delegate)));
 
+  std::string guid = entry->GetGUID();
   OCMExpect([mock_scene_commands_
       openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
         EXPECT_EQ(GURL("http://www.test.com"), command.URL);
         EXPECT_NSEQ(nil, command.textFragment);
-        EXPECT_NSEQ(@"test-guid", command.sendTabToSelfEntryGUID);
+        EXPECT_NSEQ(base::SysUTF8ToNSString(guid),
+                    command.sendTabToSelfEntryGUID);
         return YES;
       }]]);
 
@@ -176,15 +182,15 @@ TEST_F(IOSSendTabToSelfInfoBarDelegateTest, AcceptWithoutScrollPosition) {
 
 // Tests that Cancel() correctly dismisses the entry.
 TEST_F(IOSSendTabToSelfInfoBarDelegateTest, Cancel) {
-  std::unique_ptr<SendTabToSelfEntry> entry =
-      SendTabToSelfEntry::FromRequiredFields(
-          "test-guid", GURL("http://www.test.com"), "device1");
-  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry.get(), &model_,
+  const SendTabToSelfEntry* entry =
+      model_.AddEntryRemotely(GURL("http://www.test.com"), "title", "device1",
+                              PageContext(), NavigationHistory());
+  auto delegate = IOSSendTabToSelfInfoBarDelegate::Create(entry, &model_,
                                                           mock_scene_commands_);
   ConfirmInfoBarDelegate* confirm_delegate = delegate.get();
 
   EXPECT_TRUE(confirm_delegate->Cancel());
-  EXPECT_EQ("test-guid", model_.last_dismissed_guid());
+  EXPECT_EQ(entry->GetGUID(), model_.last_dismissed_guid());
 }
 
 }  // namespace

@@ -16,6 +16,37 @@
 
 namespace autofill {
 
+namespace {
+// Order reflects their priority in ascending order.
+// kSearch has the lowest precedence and kEmail has the highest precedence.
+inline constexpr std::array<HeuristicParser, 12>
+    kParserIncreasingPriorityOrder = {
+        HeuristicParser::kSearch,      HeuristicParser::kMerchantPromoCode,
+        HeuristicParser::kName,        HeuristicParser::kLoyaltyCard,
+        HeuristicParser::kPrice,       HeuristicParser::kIban,
+        HeuristicParser::kOneTimeCode, HeuristicParser::kCreditCard,
+        HeuristicParser::kAddress,     HeuristicParser::kTravel,
+        HeuristicParser::kPhone,       HeuristicParser::kEmail};
+
+// Returns `parser_type`'s priority as the index in
+// `kParserIncreasingPriorityOrder`.
+inline constexpr size_t GetParserPriority(HeuristicParser parser_type) {
+  for (size_t i = 0; i < kParserIncreasingPriorityOrder.size(); ++i) {
+    if (kParserIncreasingPriorityOrder[i] == parser_type) {
+      return i;
+    }
+  }
+  NOTREACHED();
+}
+
+}  // namespace
+
+FieldCandidatePriority::FieldCandidatePriority(
+    bool is_name_or_high_quality_label_match,
+    HeuristicParser parser_type)
+    : is_name_or_high_quality_label_match(is_name_or_high_quality_label_match),
+      parser_priority(GetParserPriority(parser_type)) {}
+
 FieldCandidates::FieldCandidates() = default;
 
 FieldCandidates::FieldCandidates(FieldCandidates&& other) = default;
@@ -25,9 +56,9 @@ FieldCandidates::~FieldCandidates() = default;
 
 void FieldCandidates::AddFieldCandidate(FieldType type,
                                         MatchAttribute match_attribute,
-                                        float score) {
+                                        FieldCandidatePriority priority) {
   field_candidates_.push_back(FieldCandidate{
-      .type = type, .match_attribute = match_attribute, .score = score});
+      .type = type, .match_attribute = match_attribute, .priority = priority});
 }
 
 // We currently select a type with the maximum score sum.
@@ -36,14 +67,9 @@ FieldType FieldCandidates::BestHeuristicType() const {
     return UNKNOWN_TYPE;
   }
 
-  std::array<float, MAX_VALID_FIELD_TYPE> type_scores{};
-  for (const FieldCandidate& candidate : field_candidates_) {
-    type_scores[candidate.type] += candidate.score;
-  }
-
-  const auto best_type_it = std::ranges::max_element(type_scores);
-  const size_t index = std::distance(type_scores.begin(), best_type_it);
-  return ToSafeFieldType(index).value_or(NO_SERVER_DATA);
+  return std::ranges::max_element(field_candidates_, {},
+                                  &FieldCandidate::priority)
+      ->type;
 }
 
 DenseSet<MatchAttribute> FieldCandidates::BestHeuristicTypeReason() const {

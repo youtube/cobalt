@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/not_fatal_until.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/optional_util.h"
 #include "content/browser/preloading/proxy_lookup_client_impl.h"
@@ -20,6 +21,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/connection_change_observer_client.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 
@@ -66,7 +68,7 @@ PreresolveJob::PreresolveJob(
     mojo::PendingRemote<network::mojom::ConnectionChangeObserverClient>
         connection_change_observer_client,
     PreresolveInfo* info,
-    base::optional_ref<base::UnguessableToken> network_restrictions_id)
+    const base::UnguessableToken& network_restrictions_id)
     : url(url),
       num_sockets(num_sockets),
       allow_credentials(allow_credentials),
@@ -78,7 +80,7 @@ PreresolveJob::PreresolveJob(
           std::move(connection_change_observer_client)),
       info(info),
       creation_time(base::TimeTicks::Now()),
-      network_restrictions_id(network_restrictions_id.CopyAsOptional()) {
+      network_restrictions_id(network_restrictions_id) {
   CHECK_GE(num_sockets, 0);
 
   CHECK(!this->network_anonymization_key.IsEmpty() ||
@@ -98,7 +100,8 @@ PreresolveJob::PreresolveJob(
                     std::nullopt,
                     mojo::NullRemote(),
                     info,
-                    preconnect_request.network_restrictions_id) {}
+                    preconnect_request.network_restrictions_id.value_or(
+                        network::GetTODONetworkRestrictionsId())) {}
 
 PreresolveJob::PreresolveJob(PreresolveJob&& other) = default;
 PreresolveJob::~PreresolveJob() = default;
@@ -164,8 +167,9 @@ void PreconnectManagerImpl::StartPreresolveHost(
     const net::NetworkAnonymizationKey& network_anonymization_key,
     net::NetworkTrafficAnnotationTag traffic_annotation,
     const content::StoragePartitionConfig* storage_partition_config,
-    base::optional_ref<base::UnguessableToken> network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M165);
   if (!delegate_ || !delegate_->IsPreconnectEnabled()) {
     return;
   }
@@ -187,8 +191,9 @@ void PreconnectManagerImpl::StartPreresolveHosts(
     const net::NetworkAnonymizationKey& network_anonymization_key,
     net::NetworkTrafficAnnotationTag traffic_annotation,
     const content::StoragePartitionConfig* storage_partition_config,
-    base::optional_ref<base::UnguessableToken> network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M165);
   if (!delegate_ || !delegate_->IsPreconnectEnabled()) {
     return;
   }
@@ -216,11 +221,12 @@ void PreconnectManagerImpl::StartPreconnectUrl(
     net::NetworkAnonymizationKey network_anonymization_key,
     net::NetworkTrafficAnnotationTag traffic_annotation,
     const content::StoragePartitionConfig* storage_partition_config,
-    base::optional_ref<base::UnguessableToken> network_restrictions_id,
+    const base::UnguessableToken& network_restrictions_id,
     std::optional<net::ConnectionKeepAliveConfig> keepalive_config,
     mojo::PendingRemote<network::mojom::ConnectionChangeObserverClient>
         connection_change_observer_client) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M165);
   if (!delegate_ || !delegate_->IsPreconnectEnabled()) {
     return;
   }
@@ -256,9 +262,11 @@ void PreconnectManagerImpl::PreconnectUrl(
     const net::NetworkAnonymizationKey& network_anonymization_key,
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
     const content::StoragePartitionConfig* storage_partition_config,
+    const base::UnguessableToken& network_restrictions_id,
     std::optional<net::ConnectionKeepAliveConfig> keepalive_config,
     mojo::PendingRemote<network::mojom::ConnectionChangeObserverClient>
         connection_change_observer_client) const {
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M165);
   DCHECK(url.DeprecatedGetOriginAsURL() == url);
   DCHECK(url.SchemeIsHTTPOrHTTPS());
   if (observer_) {
@@ -283,7 +291,7 @@ void PreconnectManagerImpl::PreconnectUrl(
       num_sockets, url,
       allow_credentials ? network::mojom::CredentialsMode::kInclude
                         : network::mojom::CredentialsMode::kOmit,
-      network_anonymization_key, /*network_restrictions_id=*/std::nullopt,
+      network_anonymization_key, network::GetTODONetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(traffic_annotation),
       std::move(keepalive_config),
       std::move(connection_change_observer_client));
@@ -293,7 +301,7 @@ std::unique_ptr<ResolveHostClientImpl> PreconnectManagerImpl::PreresolveUrl(
     const GURL& url,
     const net::NetworkAnonymizationKey& network_anonymization_key,
     const content::StoragePartitionConfig* storage_partition_config,
-    base::optional_ref<base::UnguessableToken> network_restrictions_id,
+    const base::UnguessableToken& network_restrictions_id,
     ResolveHostCallback callback) const {
   DCHECK(url.DeprecatedGetOriginAsURL() == url);
   DCHECK(url.SchemeIsHTTPOrHTTPS());
@@ -416,6 +424,7 @@ void PreconnectManagerImpl::FinishPreresolveJob(PreresolveJobId job_id,
     PreconnectUrl(job->url, job->num_sockets, job->allow_credentials,
                   job->network_anonymization_key, job->traffic_annotation_tag,
                   base::OptionalToPtr(job->storage_partition_config),
+                  job->network_restrictions_id,
                   std::move(job->keepalive_config),
                   std::move(job->connection_change_observer_client));
   }

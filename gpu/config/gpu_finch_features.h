@@ -63,6 +63,8 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kForceEnableWebGpuInterop);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphite);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphitePrecompilation);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphiteUsePersistentCache);
+GPU_CONFIG_EXPORT bool SkiaGraphiteUsesPersistentCache();
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
     kSkiaGraphiteDawnSkipValidation;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
@@ -71,8 +73,7 @@ GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
     kSkiaGraphiteDawnBackendDebugLabels;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
     kSkiaGraphiteDawnEnableAutoMap;
-GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
-    kSkiaGraphiteDawnUsePersistentCache;
+
 GPU_CONFIG_EXPORT extern const base::FeatureParam<int>
     kSkiaGraphiteMaxPendingRecordings;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
@@ -94,6 +95,10 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphiteDawnUseD3D12);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphiteSmallPathAtlas);
 GPU_CONFIG_EXPORT extern const base::FeatureParam<int>
     kSkiaGraphiteMinPathSizeForMsaa;
+
+// When enabled, the Graphite feature check (including blocklist) is deferred to
+// the GPU process rather than evaluated in the browser process.
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kLateGraphiteFeatureCheck);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kGpuPersistentCache);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kGpuPersistentCacheMetadata);

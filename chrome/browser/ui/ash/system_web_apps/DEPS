@@ -11,5 +11,4 @@ include_rules = [
   "+chrome/browser/ui/web_applications",
   "+chrome/browser/ui/webui/theme_source.h",
   "+chrome/browser/web_applications",
-  "+chrome/common",
 ]

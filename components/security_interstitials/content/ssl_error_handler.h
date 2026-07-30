@@ -5,7 +5,9 @@
 #ifndef COMPONENTS_SECURITY_INTERSTITIALS_CONTENT_SSL_ERROR_HANDLER_H_
 #define COMPONENTS_SECURITY_INTERSTITIALS_CONTENT_SSL_ERROR_HANDLER_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
@@ -67,18 +69,16 @@ BASE_DECLARE_FEATURE(kMITMSoftwareInterstitial);
 class SSLErrorHandler : public content::WebContentsUserData<SSLErrorHandler>,
                         public content::WebContentsObserver {
  public:
-  typedef base::RepeatingCallback<void(content::WebContents*)>
-      TimerStartedCallback;
-  typedef base::OnceCallback<void(
-      std::unique_ptr<security_interstitials::SecurityInterstitialPage>)>
-      BlockingPageReadyCallback;
+  using TimerStartedCallback =
+      base::RepeatingCallback<void(content::WebContents*)>;
+  using BlockingPageReadyCallback = base::OnceCallback<void(
+      std::unique_ptr<security_interstitials::SecurityInterstitialPage>)>;
 
   // Callback that is optionally used to inform the client that a blocking page
   // has been shown in the specified WebContents for the specified URL with the
   // given error string and network error code.
-  typedef base::RepeatingCallback<
-      void(content::WebContents*, const GURL&, const std::string&, int)>
-      OnBlockingPageShownCallback;
+  using OnBlockingPageShownCallback = base::RepeatingCallback<
+      void(content::WebContents*, const GURL&, const std::string&, int)>;
 
   SSLErrorHandler(const SSLErrorHandler&) = delete;
   SSLErrorHandler& operator=(const SSLErrorHandler&) = delete;

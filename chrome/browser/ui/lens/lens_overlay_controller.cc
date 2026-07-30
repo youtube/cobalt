@@ -499,12 +499,19 @@ void LensOverlayController::NotifyOverlayInitialized() {
 }
 
 void LensOverlayController::CopyText(const std::string& text) {
+  if (!tab_->IsActivated()) {
+    return;
+  }
   ui::ScopedClipboardWriter clipboard_writer(ui::ClipboardBuffer::kCopyPaste);
   clipboard_writer.WriteText(base::UTF8ToUTF16(text));
 }
 
 void LensOverlayController::CopyImage(lens::mojom::CenterRotatedBoxPtr region) {
-  if (initialization_data_->initial_screenshot_.drawsNothing()) {
+  if (!tab_->IsActivated()) {
+    return;
+  }
+  if (!initialization_data_ ||
+      initialization_data_->initial_screenshot_.drawsNothing()) {
     return;
   }
 

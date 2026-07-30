@@ -10,6 +10,7 @@ add_llvm_executable(rewrite_templated_container_fields
   RewriteTemplatedPtrFields.cpp
   ../raw_ptr_plugin/Util.cpp
   ../raw_ptr_plugin/RawPtrHelpers.cpp
+  ../raw_ptr_plugin/RawPtrManualPathsToIgnore.cpp
   )
 
 target_link_libraries(rewrite_templated_container_fields

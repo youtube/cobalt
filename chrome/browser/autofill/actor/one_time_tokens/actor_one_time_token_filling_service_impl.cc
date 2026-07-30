@@ -9,14 +9,67 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
+#include "base/memory/weak_ptr.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/types/expected.h"
+#include "chrome/browser/autofill/actor/actor_filling_observer.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/autofill/autofill_client_provider.h"
+#include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
+#include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_trigger_source.h"
+#include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/otp_suggestion.h"
+#include "components/autofill/core/common/form_data.h"
 #include "components/one_time_tokens/core/browser/one_time_token.h"
 #include "components/one_time_tokens/core/browser/one_time_token_service.h"
 #include "components/tabs/public/tab_interface.h"
 
 namespace autofill {
+
+namespace {
+
+// Retrieves the `AutofillManager` of the `tab`'s primary main frame.
+[[nodiscard]] base::expected<std::reference_wrapper<BrowserAutofillManager>,
+                             ActorFormFillingError>
+GetAutofillManager(const tabs::TabInterface& tab) {
+  using enum ActorFormFillingError;
+
+  Profile* const profile =
+      Profile::FromBrowserContext(tab.GetContents()->GetBrowserContext());
+  if (!profile) {
+    return base::unexpected(kAutofillNotAvailable);
+  }
+  if (AutofillClientProviderFactory::GetForProfile(profile)
+          .uses_platform_autofill()) {
+    // This is currently only possible on Android platforms, but this check
+    // guards against this becoming applicable for Desktop platforms as well.
+    // It is a requirement for the cast to `BrowserAutofillManager` to be
+    // safe.
+    return base::unexpected(kAutofillNotAvailable);
+  }
+
+  ContentAutofillClient* const client =
+      ContentAutofillClient::FromWebContents(tab.GetContents());
+  if (!client) {
+    return base::unexpected(kAutofillNotAvailable);
+  }
+  if (AutofillManager* autofill_manager =
+          client->GetAutofillManagerForPrimaryMainFrame()) {
+    return *static_cast<BrowserAutofillManager*>(autofill_manager);
+  }
+  return base::unexpected(kAutofillNotAvailable);
+}
+
+}  // namespace
 
 ActorOneTimeTokenFillingServiceImpl::ActorOneTimeTokenFillingServiceImpl(
     Profile* profile)
@@ -39,7 +92,7 @@ void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
   // Gemini should not be available in incognito, but should we check just to
   // be sure (and future-proof)?
   one_time_tokens::OneTimeTokenService* service =
-      autofill::OneTimeTokenServiceFactory::GetForProfile(profile_);
+      OneTimeTokenServiceFactory::GetForProfile(profile_);
   if (!service) {
     std::move(callback).Run("");
     return;
@@ -109,8 +162,113 @@ void ActorOneTimeTokenFillingServiceImpl::FillOtp(
     const std::vector<FieldGlobalId>& trigger_field_ids,
     const std::string& otp,
     base::OnceCallback<void(bool)> callback) {
-  // TODO(b/502907696): This should use AutofillManager to do real filling.
-  std::move(callback).Run(true);
+  tabs::TabInterface* tab = tab_handle.Get();
+  if (!tab || !tab->GetContents()) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  if (trigger_field_ids.empty()) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  // ActorFillingObserver::Activate only supports one callback at a time. If
+  // FillOtp is called while another filling operation is still in progress,
+  // the previous callback would be overwritten and lost. Assuming the Actor
+  // coordinates sequential usage, concurrent calls are unexpected.
+  if (filling_observer_) {
+    LOG(WARNING) << "FillOtp called while another filling operation is still "
+                    "in progress. The new request is ignored.";
+    std::move(callback).Run(false);
+    return;
+  }
+
+  // Get the BrowserAutofillManager associated with the tab's primary main
+  // frame.
+  base::expected<std::reference_wrapper<BrowserAutofillManager>,
+                 ActorFormFillingError>
+      maybe_manager = GetAutofillManager(*tab);
+  if (!maybe_manager.has_value()) {
+    LOG(WARNING) << "FillOtp failed: AutofillManager not available.";
+    std::move(callback).Run(false);
+    return;
+  }
+  BrowserAutofillManager& autofill_manager = maybe_manager.value();
+
+  // We only use the first trigger field ID. This is based on the assumption
+  // that all trigger fields belong to the same form. The actual mapping of the
+  // OTP to potentially multiple fields is handled downstream by
+  // `CreateFillDataForOtpSuggestion`, which examines the entire form structure.
+  const FieldGlobalId& trigger_field_id = trigger_field_ids.front();
+
+  // Find the cached form structure and field using the first trigger field ID.
+  const FormStructure* const form_structure =
+      autofill_manager.FindCachedFormById(trigger_field_id);
+  if (!form_structure) {
+    LOG(WARNING) << "FillOtp failed: Form structure containing trigger field "
+                 << trigger_field_id << " not found in cache.";
+    std::move(callback).Run(false);
+    return;
+  }
+  const AutofillField* const autofill_field =
+      form_structure->GetFieldById(trigger_field_id);
+  if (!autofill_field) {
+    LOG(WARNING) << "FillOtp failed: Trigger field " << trigger_field_id
+                 << " not found in the form structure.";
+    std::move(callback).Run(false);
+    return;
+  }
+
+  // OTPs are sometimes split across multiple single-digit input fields.
+  // `CreateFillDataForOtpSuggestion` maps the OTP value to the appropriate
+  // fields in the form.
+  OtpFillData otp_fill_data = CreateFillDataForOtpSuggestion(
+      *form_structure, *autofill_field, base::UTF8ToUTF16(otp));
+
+  if (otp_fill_data.empty()) {
+    LOG(WARNING) << "FillOtp failed: Generated OtpFillData is empty.";
+    std::move(callback).Run(false);
+    return;
+  }
+
+  // The `ActorFillingObserver` monitors the actual filling of fields in the
+  // renderer and notifies the service when it completes or times out.
+  // We have already verified that `!filling_observer_` holds true at the
+  // entry of this method.
+  filling_observer_ =
+      std::make_unique<ActorFillingObserver>(autofill_manager.client());
+
+  // Identify all fields that are expected to be filled to inform the observer.
+  std::vector<FieldGlobalId> filled_field_ids = base::ToVector(
+      otp_fill_data, [](const auto& pair) { return pair.first; });
+  filling_observer_->ObserveNewFilling(filled_field_ids);
+
+  // Trigger the filling operation through the Autofill manager.
+  autofill_manager.FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, form_structure->global_id(),
+      trigger_field_id, &otp_fill_data, AutofillTriggerSource::kGlic,
+      /*blocked_fields=*/{});
+
+  // Activate the observer and wait for completion.
+  filling_observer_->Activate(base::BindOnce(
+      [](base::WeakPtr<ActorOneTimeTokenFillingServiceImpl> service,
+         base::OnceCallback<void(bool)> callback,
+         base::expected<void, ActorFormFillingError> result) {
+        // Once the filling operation completes or times out, we must reset the
+        // observer to clear the busy state so subsequent OTP filling requests
+        // can proceed.
+        // We use `DeleteSoon` to destroy the observer asynchronously after this
+        // callback completes to avoid potential self-deletion/lifetime issues
+        // if the callback is triggered synchronously (leaving the observer
+        // in the call stack).
+        if (service && service->filling_observer_) {
+          base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(
+              FROM_HERE, std::move(service->filling_observer_));
+        }
+        std::move(callback).Run(result.has_value());
+      },
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 }  // namespace autofill

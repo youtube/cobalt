@@ -191,6 +191,10 @@ class CORE_EXPORT AnimationFrameTimingMonitor final
   WeakMember<LocalFrame> frame_handling_input_;
   bool multiple_focused_frames_in_same_task_ = false;
 
+  WeakMember<LocalDOMWindow> task_attributed_window_;
+  bool task_has_multiple_attributed_windows_ = false;
+  bool task_longtask_reported_ = false;
+
   unsigned entry_point_depth_ = 0;
 
   bool enabled_ = false;

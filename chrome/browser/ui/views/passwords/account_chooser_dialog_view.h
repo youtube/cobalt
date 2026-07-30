@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_PASSWORDS_ACCOUNT_CHOOSER_DIALOG_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -35,6 +36,7 @@ class AccountChooserDialogView : public views::DialogDelegate,
 
   // DialogDelegate:
   bool Accept() override;
+  bool ShouldAllowKeyEventsDuringInputProtection() const override;
 
  private:
   std::u16string GetWindowTitle() const override;
@@ -44,12 +46,12 @@ class AccountChooserDialogView : public views::DialogDelegate,
   // Sets up the child views.
   void InitWindow();
 
-  void CredentialsItemPressed(const password_manager::PasswordForm* form);
+  void CredentialsItemPressed(const password_manager::PasswordForm* form,
+                              const ui::Event& event);
 
   // A weak pointer to the controller.
-  raw_ptr<CredentialManagerDialogController, AcrossTasksDanglingUntriaged>
-      controller_;
-  raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged> web_contents_;
+  raw_ptr<CredentialManagerDialogController> controller_;
+  const base::WeakPtr<content::WebContents> web_contents_;
 
   std::unique_ptr<views::Widget> widget_;
 };

@@ -124,8 +124,31 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
 }
 
 - (ToolbarButton*)makeShareButton {
-  ToolbarButton* button = [self toolbarButtonForImageNamed:kShareSymbol
-                                              defaultImage:YES];
+  // Shift the button up 2px by adding 4px of padding at the bottom.
+  UIImage* (^imageLoader)(void) = ^UIImage* {
+    UIImage* image =
+        DefaultSymbolWithPointSize(kShareSymbol, kDefaultSymbolPointSize);
+    CGSize newSize = CGSizeMake(image.size.width, image.size.height + 4);
+
+    UIGraphicsImageRendererFormat* format =
+        [UIGraphicsImageRendererFormat preferredFormat];
+    format.opaque = NO;
+    format.scale = image.scale;
+    UIGraphicsImageRenderer* renderer =
+        [[UIGraphicsImageRenderer alloc] initWithSize:newSize format:format];
+
+    UIImage* newImage = [renderer
+        imageWithActions:^(UIGraphicsImageRendererContext* rendererContext) {
+          [image
+              drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+        }];
+
+    return [newImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+  };
+
+  ToolbarButton* button =
+      [[ToolbarButton alloc] initWithImageLoader:imageLoader
+                                       incognito:_incognito];
   button.visibilityMask = ToolbarButtonVisibility::kCompactHeight;
   button.accessibilityIdentifier = kToolbarShareButtonIdentifier;
   return button;

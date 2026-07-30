@@ -403,6 +403,7 @@ Některé funkce mohou být nedostupné. Zadejte prosím jiný adresář profilu
 <translation id="5234764350956374838">Zavřít</translation>
 <translation id="5239627039202700673">Použít Chrome pokaždé, když kliknete na odkazy ve zprávách, dokumentech a dalších aplikacích</translation>
 <translation id="5251420635869119124">Hosté mohou Chrome používat, aniž by po nich zůstaly jakékoliv stopy.</translation>
+<translation id="5271833978500241046">Dovednosti můžete používat společně s dalšími funkcemi Gemini v Chromu</translation>
 <translation id="5286907366254680517">Rozpoznáno</translation>
 <translation id="5320351714793324716">Pokud máte povolené soubory cookie, může je Chrome při předběžném načítání použít</translation>
 <translation id="5321325624576443340">Google Lens není k dispozici. Zkuste to později.</translation>
@@ -441,15 +442,6 @@ Aplikace Google Chrome nemůže vaše nastavení obnovit.</translation>
 <translation id="569897634095159764">Nelze se připojit k internetu. Proxy server vyžaduje ověření.</translation>
 <translation id="5709557627224531708">Nastavte si Chrome jako výchozí prohlížeč</translation>
 <translation id="5719246646468301581">Dodatečné smluvní podmínky prohlížeče Google Chrome a systému ChromeOS</translation>
-<translation id="5719324992913248873">Provedou se tyto akce:
-        <ph name="LINE_BREAKS" />
-          • Resetují se některá nastavení a zkratky Chromu.
-          <ph name="LINE_BREAK" />
-          • Deaktivují se rozšíření.
-          <ph name="LINE_BREAK" />
-          • Smažou se soubory cookie a jiná dočasná data webů.
-          <ph name="LINE_BREAKS" />
-          Záložky, historie ani uložená hesla nebudou dotčeny.</translation>
 <translation id="5736850870166430177">Pokud se web pokusí odcizit vám heslo nebo když stáhnete škodlivý soubor, může Chrome Bezpečnému prohlížení odeslat také adresy URL, včetně částí obsahu stránky</translation>
 <translation id="5756509061973259733">Profil Chrome s tímto účtem už v tomto zařízení existuje</translation>
 <translation id="5759947850379142561">Vyberte libovolný text nebo obrázek, který chcete vyhledat pomocí funkce Google Lens, nebo stisknutím klávesy Escape funkci Google Lens ukončete</translation>
@@ -647,6 +639,7 @@ Aplikace Google Chrome nemůže vaše nastavení obnovit.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Chraňte svá data tím, že prohlížeči Chrome povolíte odebírat oprávnění webům, které jste v poslední době nenavštívili.</translation>
 <translation id="7629695634924605473">Pokud vaše hesla někdo prolomí, Chrome vás o tom bude informovat</translation>
+<translation id="7629898584100520089">AI inovace, jako jsou dovednosti, se ukládají do vašeho účtu Google a spravují se odděleně od synchronizace Chromu</translation>
 <translation id="7641148173327520642">Administrátor systému nakonfiguroval prohlížeč Google Chrome tak, aby pro přístup k adrese <ph name="TARGET_URL_HOSTNAME" /> otevřel prohlížeč <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Nápověda</translation>
 <translation id="7651907282515937834">Logo Chrome Enterprise</translation>

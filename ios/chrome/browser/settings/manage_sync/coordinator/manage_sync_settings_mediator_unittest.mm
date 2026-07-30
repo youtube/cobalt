@@ -46,6 +46,7 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -75,12 +76,8 @@ class ManageSyncSettingsMediatorTest : public PlatformTest {
     system_identity_manager->AddIdentity(fake_system_identity_);
 
     TestProfileIOS::Builder builder;
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindOnce(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.AddTestingFactory(
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(

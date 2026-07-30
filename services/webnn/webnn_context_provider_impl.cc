@@ -39,6 +39,7 @@
 #include "services/webnn/ort/context_provider_ort.h"  // nogncheck
 #include "services/webnn/ort/dispatch_context_impl_ort.h"  // nogncheck
 #include "services/webnn/ort/environment.h"           // nogncheck
+#include "services/webnn/ort/ort_data_type.h"         // nogncheck
 #include "services/webnn/ort/ort_session_options.h"   // nogncheck
 #include "services/webnn/public/cpp/win_app_runtime_package_info.h"
 #include "services/webnn/webnn_switches.h"
@@ -806,50 +807,64 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
   const gpu::CommandBufferId command_buffer_id =
       gpu_task_scheduler->command_buffer_id();
   if (env_creation_results.has_value()) {
-    // When the Compiler process is enabled, create a dispatch-only context.
-    // Graph building and compilation happen in the Compiler process.
-    if (base::FeatureList::IsEnabled(mojom::features::kWebNNCompilerProcess)) {
-      scoped_trace.AddStep("ort::DispatchContextImplOrt::Create");
-      task_runner->PostTaskAndReplyWithResult(
-          FROM_HERE,
-          base::BindOnce(
-              &ort::DispatchContextImplOrt::Create, std::move(receiver),
-              AsWeakPtr(), std::move(options), std::move(write_tensor_consumer),
-              std::move(read_tensor_producer),
-              std::move(env_creation_results.value()),
-              std::move(gpu_task_scheduler), std::move(memory_tracker),
-              task_runner, base::Unretained(shared_image_manager_.get()),
-              main_thread_task_runner_, std::move(scoped_trace)),
-          base::BindOnce(&WebNNContextProviderImpl::OnDispatchContextCreated,
-                         AsWeakPtr(), std::move(callback), std::move(remote),
-                         std::move(write_tensor_producer),
-                         std::move(read_tensor_consumer), sequence_id));
-    } else {
-      scoped_trace.AddStep("ort::ContextImplOrt::Create");
-      // Safe to use base::Unretained for shared_image_manager_ since it
-      // lives on the GPU service, which is guaranteed to outlive the provider
-      // and its contexts.
-      task_runner->PostTaskAndReplyWithResult(
-          FROM_HERE,
-          base::BindOnce(
-              &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
-              std::move(options), std::move(write_tensor_consumer),
-              std::move(read_tensor_producer),
-              std::move(env_creation_results.value()),
-              std::move(gpu_task_scheduler), std::move(memory_tracker),
-              task_runner, base::Unretained(shared_image_manager_.get()),
-              main_thread_task_runner_, std::move(scoped_trace)),
-          base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
-                         AsWeakPtr(), std::move(callback), std::move(remote),
-                         std::move(write_tensor_producer),
-                         std::move(read_tensor_consumer), sequence_id,
-                         command_buffer_id));
-    }
-    return;
-  }
+    auto env = std::move(env_creation_results.value());
 
-  LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime environment: "
-             << env_creation_results.error();
+    // Create session options before posting context creation, so that
+    // if no EP device is available we can fall back to TFLite/LiteRT.
+    OrtHardwareDeviceType device_type =
+        ort::WebnnToOrtDeviceType(options->device);
+    auto session_options_result = ort::SessionOptions::Create(device_type, env);
+    if (session_options_result.has_value()) {
+      // When the Compiler process is enabled, create a dispatch-only context.
+      // Graph building and compilation happen in the Compiler process.
+      if (base::FeatureList::IsEnabled(
+              mojom::features::kWebNNCompilerProcess)) {
+        scoped_trace.AddStep("ort::DispatchContextImplOrt::Create");
+        task_runner->PostTaskAndReplyWithResult(
+            FROM_HERE,
+            base::BindOnce(&ort::DispatchContextImplOrt::Create,
+                           std::move(receiver), AsWeakPtr(), std::move(options),
+                           std::move(write_tensor_consumer),
+                           std::move(read_tensor_producer), std::move(env),
+                           std::move(session_options_result.value()),
+                           std::move(gpu_task_scheduler),
+                           std::move(memory_tracker), task_runner,
+                           base::Unretained(shared_image_manager_.get()),
+                           main_thread_task_runner_, std::move(scoped_trace)),
+            base::BindOnce(&WebNNContextProviderImpl::OnDispatchContextCreated,
+                           AsWeakPtr(), std::move(callback), std::move(remote),
+                           std::move(write_tensor_producer),
+                           std::move(read_tensor_consumer), sequence_id));
+      } else {
+        scoped_trace.AddStep("ort::ContextImplOrt::Create");
+        // Safe to use base::Unretained for shared_image_manager_ since it
+        // lives on the GPU service, which is guaranteed to outlive the provider
+        // and its contexts.
+        task_runner->PostTaskAndReplyWithResult(
+            FROM_HERE,
+            base::BindOnce(
+                &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
+                std::move(options), std::move(write_tensor_consumer),
+                std::move(read_tensor_producer), std::move(env),
+                std::move(session_options_result.value()),
+                std::move(gpu_task_scheduler), std::move(memory_tracker),
+                task_runner, base::Unretained(shared_image_manager_.get()),
+                main_thread_task_runner_, std::move(scoped_trace)),
+            base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
+                           AsWeakPtr(), std::move(callback), std::move(remote),
+                           std::move(write_tensor_producer),
+                           std::move(read_tensor_consumer), sequence_id,
+                           command_buffer_id));
+      }
+      return;
+    }
+
+    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
+               << session_options_result.error();
+  } else {
+    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime environment: "
+               << env_creation_results.error();
+  }
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
   // If the request would be served by the renderer-process TFLite backend,

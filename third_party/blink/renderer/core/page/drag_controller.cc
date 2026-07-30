@@ -546,7 +546,7 @@ DragOperation DragController::OperationForLoad(DragData* drag_data,
 // Returns true if node at |point| is editable with populating |dragCaret| and
 // |range|, otherwise returns false.
 static bool SetSelectionToDragCaret(LocalFrame* frame,
-                                    const SelectionInDOMTree& drag_caret,
+                                    const SelectionInDomTree& drag_caret,
                                     Range*& range,
                                     const PhysicalOffset& point) {
   frame->Selection().SetSelection(drag_caret, SetSelectionOptions());
@@ -562,7 +562,7 @@ static bool SetSelectionToDragCaret(LocalFrame* frame,
     return false;
 
   frame->Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(position).Build(),
+      SelectionInDomTree::Builder().Collapse(position).Build(),
       SetSelectionOptions());
   // TODO(crbug.com/40458806): Audit the usage of `UpdateStyleAndLayout`.
   frame->GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
@@ -587,7 +587,7 @@ DispatchEventResult DragController::DispatchTextInputEventFor(
   Element* target = FindEventTargetFrom(
       *inner_frame,
       CreateVisibleSelection(
-          SelectionInDOMTree::Builder().Collapse(caret_position).Build()));
+          SelectionInDomTree::Builder().Collapse(caret_position).Build()));
   if (!target)
     return DispatchEventResult::kNotCanceled;
   return target->DispatchEvent(
@@ -654,7 +654,7 @@ bool DragController::ConcludeEditDrag(DragData* drag_data) {
     return false;
   }
   VisibleSelection drag_caret = CreateVisibleSelection(
-      SelectionInDOMTree::Builder().Collapse(caret_position).Build());
+      SelectionInDomTree::Builder().Collapse(caret_position).Build());
   page_->GetDragCaret().Clear();
   // |innerFrame| can be removed by event handler called by
   // |dispatchTextInputEventFor()|.
@@ -718,7 +718,7 @@ bool DragController::ConcludeEditDrag(DragData* drag_data) {
       }
 
       inner_frame->Selection().SetSelection(
-          SelectionInDOMTree::Builder()
+          SelectionInDomTree::Builder()
               .SetBaseAndExtent(EphemeralRange(range))
               .Build(),
           SetSelectionOptions());
@@ -982,7 +982,7 @@ static void PrepareDataTransferForImageDrag(LocalFrame* source,
     Range* range = source->GetDocument()->createRange();
     range->selectNode(node, ASSERT_NO_EXCEPTION);
     source->Selection().SetSelection(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .SetBaseAndExtent(EphemeralRange(range))
             .Build(),
         SetSelectionOptions());
@@ -1256,7 +1256,7 @@ void SelectEnclosingAnchorIfContentEditable(LocalFrame* frame) {
     // the enclosing anchor element.
     if (Node* anchor = EnclosingAnchorElement(visible_selection.Anchor())) {
       frame->Selection().SetSelection(
-          SelectionInDOMTree::Builder().SelectAllChildren(*anchor).Build(),
+          SelectionInDomTree::Builder().SelectAllChildren(*anchor).Build(),
           SetSelectionOptions());
     }
   }

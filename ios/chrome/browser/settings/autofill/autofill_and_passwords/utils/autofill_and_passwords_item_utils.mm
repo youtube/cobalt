@@ -38,6 +38,33 @@ TableViewDetailIconItem* DetailItemWithType(
   detail_item.iconImage = symbol;
   if (IsYourSavedInfoSettingsPageIosEnabled()) {
     detail_item.iconTintColor = [UIColor colorNamed:kTextPrimaryColor];
+    detail_item.textLayoutConstraintAxis = UILayoutConstraintAxisVertical;
+    detail_item.trailingDetailText = detail_text;
+    switch (type) {
+      case SettingsItemTypePasswords:
+        detail_item.detailText = l10n_util::GetNSString(
+            IDS_AUTOFILL_AND_PASSWORDS_PASSWORD_MANAGER_SUMMARY);
+        break;
+      case SettingsItemTypeAutofillCreditCard:
+        detail_item.detailText =
+            l10n_util::GetNSString(IDS_AUTOFILL_AND_PASSWORDS_PAYMENTS_SUMMARY);
+        break;
+      case SettingsItemTypeAutofillProfile:
+        detail_item.detailText = l10n_util::GetNSString(
+            IDS_AUTOFILL_AND_PASSWORDS_CONTACT_INFO_SUMMARY);
+        break;
+      case SettingsItemTypeIdentityDocs:
+        detail_item.detailText = l10n_util::GetNSString(
+            IDS_AUTOFILL_AND_PASSWORDS_IDENTITY_DOCS_SUMMARY);
+        break;
+      case SettingsItemTypeTravelInfo:
+        detail_item.detailText =
+            l10n_util::GetNSString(IDS_AUTOFILL_AND_PASSWORDS_TRAVEL_SUMMARY);
+        break;
+      default:
+        detail_item.detailText = nil;
+        break;
+    }
   } else {
     detail_item.iconBackgroundColor = [UIColor colorNamed:kYellow500Color];
     detail_item.iconTintColor = UIColor.whiteColor;
@@ -106,8 +133,7 @@ TableViewDetailIconItem* AutofillProfileItem(BOOL enabled) {
 TableViewDetailIconItem* IdentityDocsItem(BOOL enabled) {
   NSString* title = l10n_util::GetNSString(IDS_AUTOFILL_IDENTITY_DOCS_TITLE);
   return DetailItemWithType(
-      SettingsItemTypeIdentityDocs, title,
-      IdentityDocsItemDetailText(enabled),
+      SettingsItemTypeIdentityDocs, title, IdentityDocsItemDetailText(enabled),
       DefaultSettingsRootSymbol(kPersonTextRectangleSymbol),
       kSettingsIdentityDocsCellId);
 }

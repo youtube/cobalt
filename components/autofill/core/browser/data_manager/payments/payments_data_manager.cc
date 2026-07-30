@@ -2106,12 +2106,22 @@ bool PaymentsDataManager::AreEwalletCreationOptionsSupported() const {
 }
 
 bool PaymentsDataManager::AreBnplIssuersSupported() const {
+  if (!base::FeatureList::IsEnabled(
+          features::kAutofillEnableBuyNowPayLaterSyncing)) {
+    return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableBnplAffirmInternationalization) ||
+      base::FeatureList::IsEnabled(
+          features::kAutofillEnableBnplKlarnaInternationalization)) {
+    return true;
+  }
+
   return app_locale_ == "en-US" &&
          (GetCountryCodeForExperimentGroup() == "US" ||
           base::FeatureList::IsEnabled(
-              features::kAutofillDisableBnplCountryCheckForTesting)) &&
-         base::FeatureList::IsEnabled(
-             features::kAutofillEnableBuyNowPayLaterSyncing);
+              features::kAutofillDisableBnplCountryCheckForTesting));
 }
 
 bool PaymentsDataManager::ArePaymentInstrumentsSupported() const {

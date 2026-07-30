@@ -5,24 +5,21 @@
 #ifndef COMPONENTS_BROWSER_APIS_TAB_DRAG_SESSIONS_TAB_DRAG_SESSION_MANAGER_H_
 #define COMPONENTS_BROWSER_APIS_TAB_DRAG_SESSIONS_TAB_DRAG_SESSION_MANAGER_H_
 
-#include <map>
 #include <memory>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
-#include "components/browser_apis/tab_drag/tab_drag_api.mojom.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
-#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/mojom/base/error.mojom-forward.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/native_ui_types.h"
 
 namespace tabs_api {
 
-class TabDragPlatformProvider;
+class TabDragSessionInjector;
 class TabDragSession;
+class DropTargetRegistry;
 class TabDragWindowAdapter;
 
 // Browser-process-wide manager that owns and coordinates the active
@@ -31,39 +28,29 @@ class TabDragWindowAdapter;
 class TabDragSessionManager {
  public:
   explicit TabDragSessionManager(
-      std::unique_ptr<TabDragPlatformProvider> platform_provider);
+      std::unique_ptr<TabDragSessionInjector> injector);
   TabDragSessionManager(const TabDragSessionManager&) = delete;
   TabDragSessionManager& operator=(const TabDragSessionManager&) = delete;
   ~TabDragSessionManager();
 
   // Starts a global drag session. Returns monostate if successful, or an error.
   base::expected<std::monostate, mojo_base::mojom::ErrorPtr> StartDrag(
+      TabDragWindowAdapter* source_window,
       const std::vector<tabs_api::NodeId>& source_tab_ids,
       const gfx::Point& start_point);
-
-  // Cancels the active session if one exists.
-  void CancelDrag();
 
   TabDragSession* active_session() { return active_session_.get(); }
 
   // Callback notified by the active session when it naturally terminates.
   void OnSessionEnded();
 
-  void RegisterDropTarget(
-      TabDragWindowAdapter* window_adapter,
-      mojo::PendingAssociatedRemote<mojom::DropTarget> target,
-      mojo::PendingAssociatedReceiver<mojom::DropTargetRegistration>
-          registration);
-  void UnregisterDropTarget(TabDragWindowAdapter* window_adapter);
+  DropTargetRegistry& GetDropTargetRegistry();
 
  private:
   void DestroyActiveSession();
 
-  std::unique_ptr<TabDragPlatformProvider> platform_provider_;
+  std::unique_ptr<TabDragSessionInjector> injector_;
   std::unique_ptr<TabDragSession> active_session_;
-
-  std::map<TabDragWindowAdapter*, mojo::AssociatedRemote<mojom::DropTarget>>
-      drop_targets_;
 
   base::WeakPtrFactory<TabDragSessionManager> weak_factory_{this};
 };

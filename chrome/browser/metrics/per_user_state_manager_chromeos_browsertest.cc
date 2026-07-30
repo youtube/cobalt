@@ -86,9 +86,9 @@ class ChromeOSPerUserMetricsBrowserTestBase : public ash::LoginManagerTest {
   }
 
   // Assumes that a user has logged in.
-  void ChangeUserMetricsConsent(bool user_metrics_consent) {
-    g_browser_process->metrics_service()->UpdateCurrentUserMetricsConsent(
-        user_metrics_consent);
+  void ChangeUserMetricsChoice(bool user_choice) {
+    g_browser_process->metrics_service()->UpdateCurrentUserMetricsChoice(
+        user_choice);
   }
 
   void CreatedBrowserMainParts(content::BrowserMainParts* parts) override {
@@ -99,7 +99,7 @@ class ChromeOSPerUserMetricsBrowserTestBase : public ash::LoginManagerTest {
         true);
   }
 
-  bool GetLocalStateMetricsConsent() const {
+  bool GetLocalStateMetricsChoice() const {
     return g_browser_process->local_state()->GetBoolean(
         prefs::kMetricsReportingEnabled);
   }
@@ -122,13 +122,13 @@ class ChromeOSPerUserRegularUserTest
  protected:
   void SetUpInProcessBrowserTestFixture() override {
     ChromeOSPerUserMetricsBrowserTestBase::SetUpInProcessBrowserTestFixture();
-    owner_consent_ = GetParam().first;
-    user_consent_ = GetParam().second;
+    owner_choice_ = GetParam().first;
+    user_choice_ = GetParam().second;
 
     // Set the owner parameter.
     policy::CachedDevicePolicyUpdater updater;
     updater.payload().mutable_metrics_enabled()->set_metrics_enabled(
-        owner_consent_);
+        owner_choice_);
     updater.Commit();
 
     // Establish ownership of the device.
@@ -144,8 +144,8 @@ class ChromeOSPerUserRegularUserTest
       &mixin_host_,
       ash::DeviceStateMixin::State::OOBE_COMPLETED_CONSUMER_OWNED};
 
-  bool owner_consent_ = false;
-  bool user_consent_ = false;
+  bool owner_choice_ = false;
+  bool user_choice_ = false;
 
   FakeGaiaMixin fake_gaia_{&mixin_host_};
 };
@@ -166,21 +166,21 @@ IN_PROC_BROWSER_TEST_P(ChromeOSPerUserRegularUserTest,
 
   // Secondary user consent is initially disabled until after user consent is
   // given.
-  EXPECT_FALSE(GetLocalStateMetricsConsent());
+  EXPECT_FALSE(GetLocalStateMetricsChoice());
 
-  // Try and toggle user metrics consent to |user_consent_|.
-  ChangeUserMetricsConsent(user_consent_);
+  // Try and toggle user metrics choice to |user_choice_|.
+  ChangeUserMetricsChoice(user_choice_);
 
   // Propagating metrics consent through the services happens async.
   base::RunLoop().RunUntilIdle();
 
   // User metrics consent is independent of owners consent.
-  EXPECT_THAT(GetLocalStateMetricsConsent(), Eq(user_consent_));
+  EXPECT_THAT(GetLocalStateMetricsChoice(), Eq(user_choice_));
 
   // User-Id will be set if user consent is enabled.
   EXPECT_THAT(
       g_browser_process->metrics_service()->GetCurrentUserId().has_value(),
-      Eq(user_consent_));
+      Eq(user_choice_));
 }
 
 INSTANTIATE_TEST_SUITE_P(MetricsConsentForRegularUser,
@@ -213,35 +213,34 @@ IN_PROC_BROWSER_TEST_P(ChromeOSPerUserGuestUserWithNoOwnerTest,
   if (ash::features::IsOobePreConsentMetricsEnabled()) {
     // Consent is set to true for pre-consent during OOBE.
     EXPECT_TRUE(ash::StatsReportingController::Get()->IsEnabled());
-    EXPECT_TRUE(GetLocalStateMetricsConsent());
+    EXPECT_TRUE(GetLocalStateMetricsChoice());
   } else {
     // Device consent should be false if device is not owned.
     EXPECT_FALSE(ash::StatsReportingController::Get()->IsEnabled());
-    EXPECT_FALSE(GetLocalStateMetricsConsent());
+    EXPECT_FALSE(GetLocalStateMetricsChoice());
   }
 
+  bool guest_choice = GetParam();
+  ChangeUserMetricsChoice(guest_choice);
 
-  bool guest_consent = GetParam();
-  ChangeUserMetricsConsent(guest_consent);
-
-  // Propagating metrics consent through the services happens async.
+  // Propagating user metrics choice through the services happens async.
   base::RunLoop().RunUntilIdle();
 
-  // Once consent is set for the first time, log store should be set
-  // appropriately. Log store should be the inverse of the first consent since
-  // consent means that log store used should be local state.
+  // Once metrics choice is set for the first time, log store should be set
+  // appropriately. Log store should be the inverse of the first metrics choice
+  // since metrics choice means that log store used should be local state.
   // Checks active user profile as current user is the guest.
   EXPECT_EQ(g_browser_process->profile_manager()
                 ->GetActiveUserProfile()
                 ->GetPrefs()
                 ->GetBoolean(prefs::kMetricsUserConsent),
-            guest_consent);
+            guest_choice);
 
   // Secondary users always set ephemeral partition.
   EXPECT_TRUE(log_store->has_alternate_ongoing_log_store());
 
-  // Guests should have a user id if guest consent is set.
-  EXPECT_EQ(metrics_service->GetCurrentUserId().has_value(), guest_consent);
+  // Guests should have a user id if guest metrics choice is set.
+  EXPECT_EQ(metrics_service->GetCurrentUserId().has_value(), guest_choice);
 
   if (ash::features::IsOobePreConsentMetricsEnabled()) {
     // Device settings consent should remain enabled since this is a guest
@@ -288,12 +287,12 @@ class ChromeOSPerUserOobeConsentTest : public ash::OobeBaseTest {
   }
 
   // Assumes that a user has logged in.
-  void ChangeUserMetricsConsent(bool user_metrics_consent) {
-    g_browser_process->metrics_service()->UpdateCurrentUserMetricsConsent(
-        user_metrics_consent);
+  void ChangeUserMetricsChoice(bool user_choice) {
+    g_browser_process->metrics_service()->UpdateCurrentUserMetricsChoice(
+        user_choice);
   }
 
-  bool GetLocalStateMetricsConsent() const {
+  bool GetLocalStateMetricsChoice() const {
     return g_browser_process->local_state()->GetBoolean(
         prefs::kMetricsReportingEnabled);
   }
@@ -320,10 +319,10 @@ IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
 
   if (ash::features::IsOobePreConsentMetricsEnabled()) {
     // Consent is set to true for pre-consent during OOBE.
-    EXPECT_TRUE(GetLocalStateMetricsConsent());
+    EXPECT_TRUE(GetLocalStateMetricsChoice());
   } else {
     // Device owner has not consented to reporting in OOBE flow yet.
-    EXPECT_FALSE(GetLocalStateMetricsConsent());
+    EXPECT_FALSE(GetLocalStateMetricsChoice());
   }
 
   // Device owner accepted consent.
@@ -331,7 +330,7 @@ IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
   ash::test::WaitForSyncConsentScreen();
 
   // Device owner has consented to reporting in OOBE.
-  EXPECT_TRUE(GetLocalStateMetricsConsent());
+  EXPECT_TRUE(GetLocalStateMetricsChoice());
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
@@ -343,25 +342,25 @@ IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
   ash::OobeScreenExitWaiter(ash::OobeBaseTest::GetFirstSigninScreen()).Wait();
 
   // Secondary user has not consented to reporting in OOBE flow yet.
-  EXPECT_FALSE(GetLocalStateMetricsConsent());
+  EXPECT_FALSE(GetLocalStateMetricsChoice());
 
   ash::test::WaitForConsolidatedConsentScreen();
   ash::test::TapConsolidatedConsentAccept();
   ash::test::WaitForSyncConsentScreen();
 
   // Secondary user was able to consent.
-  EXPECT_TRUE(GetLocalStateMetricsConsent());
+  EXPECT_TRUE(GetLocalStateMetricsChoice());
 
   // Try and disable regular user metrics consent.
   // Propagating metrics consent through the services happens async.
-  ChangeUserMetricsConsent(false);
+  ChangeUserMetricsChoice(false);
   base::RunLoop().RunUntilIdle();
 
   // User metrics consent is independent of owners consent.
   // The local state metrics consent represents the current active users
   // consent. Owner consent is managed by |ash::StatsReportingController|.
   EXPECT_TRUE(ash::StatsReportingController::Get()->IsEnabled());
-  EXPECT_FALSE(GetLocalStateMetricsConsent());
+  EXPECT_FALSE(GetLocalStateMetricsChoice());
 
   // User-Id will not be set if user consent is disabled.
   EXPECT_THAT(
@@ -383,10 +382,10 @@ IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
 
   if (ash::features::IsOobePreConsentMetricsEnabled()) {
     // Consent is set to true for pre-consent during OOBE.
-    EXPECT_TRUE(GetLocalStateMetricsConsent());
+    EXPECT_TRUE(GetLocalStateMetricsChoice());
   } else {
     // Device owner has not consented to reporting in OOBE flow yet.
-    EXPECT_FALSE(GetLocalStateMetricsConsent());
+    EXPECT_FALSE(GetLocalStateMetricsChoice());
   }
 
   ash::test::WaitForConsolidatedConsentScreen();
@@ -394,7 +393,7 @@ IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
   ash::test::WaitForSyncConsentScreen();
 
   // Owner user consented during OOBE.
-  EXPECT_TRUE(GetLocalStateMetricsConsent());
+  EXPECT_TRUE(GetLocalStateMetricsChoice());
 
   // User-Id is never set for device owner.
   EXPECT_THAT(
@@ -402,14 +401,14 @@ IN_PROC_BROWSER_TEST_F(ChromeOSPerUserOobeConsentTest,
       Eq(false));
 
   // Try and disable device owner user metrics consent.
-  // Device owner should not controller by per user metrics consent.
+  // Device owner should not controller by per user metrics choice.
   // Propagating metrics consent through the services happens async.
-  ChangeUserMetricsConsent(false);
+  ChangeUserMetricsChoice(false);
   base::RunLoop().RunUntilIdle();
 
-  // Owner consent cannot be updated by ChangeUserMetricsConsent since device
+  // Owner consent cannot be updated by ChangeUserMetricsChoice since device
   // owner consent is not controller by per user logic.
-  EXPECT_TRUE(GetLocalStateMetricsConsent());
+  EXPECT_TRUE(GetLocalStateMetricsChoice());
 
   // User-Id is never set for device owner.
   EXPECT_THAT(
@@ -458,12 +457,12 @@ class ChromeOSPerUserManagedOobeConsentTest
   void ValidateCurrentUser(const user_manager::User* user) {}
 
   // Assumes that a user has logged in.
-  void ChangeUserMetricsConsent(bool user_metrics_consent) {
-    g_browser_process->metrics_service()->UpdateCurrentUserMetricsConsent(
-        user_metrics_consent);
+  void ChangeUserMetricsChoice(bool user_choice) {
+    g_browser_process->metrics_service()->UpdateCurrentUserMetricsChoice(
+        user_choice);
   }
 
-  bool GetLocalStateMetricsConsent() const {
+  bool GetLocalStateMetricsChoice() const {
     return g_browser_process->local_state()->GetBoolean(
         prefs::kMetricsReportingEnabled);
   }
@@ -507,7 +506,7 @@ IN_PROC_BROWSER_TEST_P(ChromeOSPerUserManagedOobeConsentTest,
   // Pre-login state.
   bool policy_consent = GetParam();
   EXPECT_EQ(ash::StatsReportingController::Get()->IsEnabled(), policy_consent);
-  EXPECT_EQ(GetLocalStateMetricsConsent(), policy_consent);
+  EXPECT_EQ(GetLocalStateMetricsChoice(), policy_consent);
   EXPECT_FALSE(log_store->has_alternate_ongoing_log_store());
 
   LoginManagedUser();
@@ -519,17 +518,17 @@ IN_PROC_BROWSER_TEST_P(ChromeOSPerUserManagedOobeConsentTest,
   EXPECT_TRUE(log_store->has_alternate_ongoing_log_store());
 
   // Should still follow policy_consent.
-  EXPECT_EQ(GetLocalStateMetricsConsent(), policy_consent);
+  EXPECT_EQ(GetLocalStateMetricsChoice(), policy_consent);
 
   // Users should not have a user id since they do not have control over the
   // metrics consent.
   EXPECT_THAT(metrics_service->GetCurrentUserId(), Eq(std::nullopt));
 
   // Try to change the user consent.
-  metrics_service->UpdateCurrentUserMetricsConsent(!policy_consent);
+  metrics_service->UpdateCurrentUserMetricsChoice(!policy_consent);
 
   // Managed device users cannot control metrics consent.
-  EXPECT_EQ(GetLocalStateMetricsConsent(), policy_consent);
+  EXPECT_EQ(GetLocalStateMetricsChoice(), policy_consent);
 }
 
 INSTANTIATE_TEST_SUITE_P(ManagedDeviceDoesNotUsePerUserConsent,

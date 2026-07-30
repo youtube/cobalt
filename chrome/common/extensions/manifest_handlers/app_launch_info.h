@@ -78,6 +78,11 @@ class AppLaunchManifestHandler : public ManifestHandler {
 
  private:
   base::span<const char* const> Keys() const override;
+
+  // AppLaunchManifestHandler::Parse() requires "app.urls" to be parsed in
+  // advance so that extension->web_extent().is_empty() reflects information
+  // from AppURLsHandler::Parse().
+  const std::vector<std::string> PrerequisiteKeys() const override;
 };
 
 }  // namespace extensions

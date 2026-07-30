@@ -41,7 +41,7 @@ class NoPasskeysBottomSheetBridge {
       base::PassKey<class NoPasskeysBottomSheetBridgeTest>,
       std::unique_ptr<JniDelegate> jni_delegate);
   NoPasskeysBottomSheetBridge(
-      base::PassKey<class TouchToFillControllerWebAuthnTest>,
+      base::PassKey<class TouchToFillPasswordManagerWebAuthnDelegateTest>,
       std::unique_ptr<JniDelegate> jni_delegate);
   NoPasskeysBottomSheetBridge(const NoPasskeysBottomSheetBridge&) = delete;
   NoPasskeysBottomSheetBridge& operator=(const NoPasskeysBottomSheetBridge&) =

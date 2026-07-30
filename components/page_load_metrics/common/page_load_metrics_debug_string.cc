@@ -348,8 +348,7 @@ std::string DebugString(
   entries.emplace_back(
       "soft_navigation_slicing_time",
       base::NumberToString(
-          (soft_navigation_metrics.soft_navigation_slicing_time -
-           base::TimeTicks::UnixEpoch())
+          soft_navigation_metrics.soft_navigation_slicing_time.since_origin()
               .InMilliseconds()));
   entries.emplace_back(
       "navigation_type",

@@ -185,7 +185,7 @@ public class TopInsetCoordinatorUnitTest {
         mTabSupplier.set(null);
         mLayoutStateProviderSupplier.set(mLayoutStateProvider);
         setBackgroundType(NtpBackgroundType.DEFAULT, NtpBackgroundType.CHROME_COLOR);
-        when(mLayoutStateProvider.getActiveLayoutType()).thenReturn(LayoutType.TAB_SWITCHER);
+        when(mLayoutStateProvider.getActiveLayoutType()).thenReturn(LayoutType.HUB);
         clearInvocations(mObserver);
 
         mTopInsetCoordinator.onApplyWindowInsets(mView, mWindowInsetsCompat);
@@ -459,7 +459,7 @@ public class TopInsetCoordinatorUnitTest {
 
         // 1. Tests the transition from Tab switcher to a NTP
         // Switches to Tab switcher.
-        mLayoutStateObserverCaptor.getValue().onFinishedShowing(LayoutType.TAB_SWITCHER);
+        mLayoutStateObserverCaptor.getValue().onFinishedShowing(LayoutType.HUB);
         assertTrue(mTopInsetCoordinator.getIsTabSwitcherShowingForTesting());
 
         // Sets the next Tab is NTP.
@@ -468,7 +468,7 @@ public class TopInsetCoordinatorUnitTest {
         clearInvocations(mInsetObserver);
 
         // Finishes hiding the Tab switcher.
-        mLayoutStateObserverCaptor.getValue().onFinishedHiding(LayoutType.TAB_SWITCHER);
+        mLayoutStateObserverCaptor.getValue().onFinishedHiding(LayoutType.HUB);
         assertFalse(mTopInsetCoordinator.getInTabSwitcherToNtpTransitionForTesting());
         verify(mInsetObserver).retriggerOnApplyWindowInsets();
 

@@ -34,7 +34,7 @@ AutofillAddressUiComponentAndroid
 AutofillAddressUiComponentAndroid::FromJavaAutofillAddressUiComponent(
     JNIEnv* env,
     const jni_zero::JavaRef<jobject>& j_component) {
-  autofill::FieldType field_type =
+  FieldType field_type =
       ToSafeFieldType(
           Java_AutofillAddressUiComponent_getFieldType(env, j_component))
           .value_or(UNKNOWN_TYPE);

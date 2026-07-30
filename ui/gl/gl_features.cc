@@ -58,7 +58,7 @@ const base::FeatureParam<std::string>
 const base::FeatureParam<std::string>
     kPassthroughCommandDecoderBlockListByModel{
         &kDefaultPassthroughCommandDecoder, "BlockListByModel",
-        "SM-I610|SM-I610H|Robin XR"};
+        "SM-I610|SM-I610H|Robin XR|Android XR Puck|Aura"};
 
 const base::FeatureParam<std::string>
     kPassthroughCommandDecoderBlockListByBoard{
@@ -111,17 +111,12 @@ BASE_FEATURE(kDefaultPassthroughCommandDecoder,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 // Controls whether the GPU process falls back to software if GLES3 is not
 // supported.
 BASE_FEATURE(kFallbackToSWIfGLES3NotSupported,
-#if BUILDFLAG(IS_WIN)
-             // TODO(https://crbug.com/444049511): Currently disabled on
-             // Windows for D3D9 users that are still on ES 2. Enable once
-             // crbug.com/40874754 is fixed, deprecating D3D9 usage.
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
 // If true, VsyncThreadWin will use the compositor clock
@@ -279,8 +274,10 @@ bool ShouldFallbackToSWIfGLES3NotSupported() {
           ash::switches::kRevenBranding) &&
       base::FeatureList::IsEnabled(kFallbackToSWIfGLES3NotSupported);
   return is_enabled;
-#else   // !BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_WIN)
   return base::FeatureList::IsEnabled(kFallbackToSWIfGLES3NotSupported);
+#else   // BUILDFLAG(IS_CHROMEOS)
+  return true;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
@@ -309,6 +306,16 @@ bool IsSwiftShaderAllowedByCommandLine(const base::CommandLine* command_line) {
 
   return false;
 }
+
+bool IsSwiftShaderUsedForWebGLByCommandLine(
+    const base::CommandLine* command_line) {
+  std::string use_gl = command_line->GetSwitchValueASCII(switches::kUseGL);
+  if (!use_gl.empty() && use_gl != gl::kGLImplementationANGLEName) {
+    return false;
+  }
+  return command_line->GetSwitchValueASCII(switches::kUseANGLE) ==
+         gl::kANGLEImplementationSwiftShaderForWebGLName;
+}
 #endif
 
 // Allow fallback to SwfitShader without command line flags during the
@@ -324,6 +331,10 @@ bool IsSwiftShaderAllowedByCommandLine(const base::CommandLine*) {
 }
 
 bool IsSwiftShaderAllowedByFeature() {
+  return false;
+}
+
+bool IsSwiftShaderUsedForWebGLByCommandLine(const base::CommandLine*) {
   return false;
 }
 #endif

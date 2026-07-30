@@ -1161,17 +1161,6 @@ targets.legacy_basic_suite(
 )
 
 targets.legacy_basic_suite(
-    name = "gpu_webgl_conformance_d3d9_passthrough_telemetry_tests",
-    tests = {
-        "webgl_conformance_d3d9_passthrough_tests": targets.legacy_test_config(
-            swarming = targets.swarming(
-                shards = 2,
-            ),
-        ),
-    },
-)
-
-targets.legacy_basic_suite(
     name = "gpu_webgl_conformance_gl_passthrough_ganesh_telemetry_tests",
     tests = {
         "webgl_conformance_gl_passthrough_ganesh_tests": targets.legacy_test_config(

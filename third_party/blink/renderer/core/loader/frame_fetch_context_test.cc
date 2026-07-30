@@ -109,6 +109,7 @@ class DummyFrameOwner final : public GarbageCollected<DummyFrameOwner>,
   void DispatchLoad() override {}
   void NaturalSizingInfoChanged() override {}
   void ClearLastNaturalSizingInfo() override {}
+  void ClearAllNaturalSizingInfo() override {}
   void SetNeedsOcclusionTracking(bool) override {}
   AtomicString BrowsingContextContainerName() const override {
     return AtomicString();

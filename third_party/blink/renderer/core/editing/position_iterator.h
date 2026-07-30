@@ -98,8 +98,6 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
     SlowPositionIteratorAlgorithm<EditingInFlatTreeStrategy>;
 
 using SlowPositionIterator = SlowPositionIteratorAlgorithm<EditingStrategy>;
-using SlowPositionIteratorInFlatTree =
-    SlowPositionIteratorAlgorithm<EditingInFlatTreeStrategy>;
 
 // ----
 
@@ -208,8 +206,6 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
     FastPositionIteratorAlgorithm<EditingInFlatTreeStrategy>;
 
 using FastPositionIterator = FastPositionIteratorAlgorithm<EditingStrategy>;
-using FastPositionIteratorInFlatTree =
-    FastPositionIteratorAlgorithm<EditingInFlatTreeStrategy>;
 
 // --
 

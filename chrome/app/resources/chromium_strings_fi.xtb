@@ -116,19 +116,11 @@
 <translation id="2236949375853147973">Oma toiminta</translation>
 <translation id="2238130810669087193">Kirjaudu sisään Chromiumiin, niin voit käyttää osoitteita ja muita tietoja kaikilla laitteillasi Tämä osoite tallennetaan Google-tilillesi kirjautumisen jälkeen.</translation>
 <translation id="2241627712206172106">Jos käytät jaettua tietokonetta, kaverisi ja perheenjäsenesi voivat selata verkkoa omista profiileistaan käsin ja muokata Chromiumista juuri itselleen sopivan.</translation>
+<translation id="22571759390241347">Taidot Chromiumissa</translation>
 <translation id="2283803047247799269">Hae tältä välilehdeltä kuvahaulla</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium suosittelee selainta hidastavan välilehden keskeyttämistä}other{Chromium suosittelee selainta hidastavien välilehtien keskeyttämistä}}</translation>
 <translation id="2307973900865360088">Pidä Dock-palkissa</translation>
 <translation id="2313870531055795960">Tarkistaa URL-osoitteet Chromiumiin tallennetun vaarallisten sivustojen luettelon avulla. Jos sivusto yrittää varastaa salasanaasi tai jos lataat haitallisen tiedoston, Chromium voi myös lähettää Selaussuojan tarkistettavaksi URL-osoitteita, myös osia sivujen sisällöstä.</translation>
-<translation id="2332076562712130931">Tämä
-          <ph name="LINE_BREAKS" />
-           • nollaa joitakin Chromiumin asetuksia ja pikakuvakkeita
-           <ph name="LINE_BREAK" />
-           • poistaa laajennukset käytöstä
-           <ph name="LINE_BREAK" />
-           • poistaa evästeet ja muun tilapäisen sivustodatan.
-            <ph name="LINE_BREAKS" />
-           Tämä ei vaikuta kirjanmerkkeihin, historiaan eikä tallennettuihin salasanoihin.</translation>
 <translation id="2343156876103232566">Jos haluat lähettää numeron täältä Android-puhelimeesi, kirjaudu Chromiumiin molemmilla laitteilla.</translation>
 <translation id="2356070529366658676">Kysy</translation>
 <translation id="2359808026110333948">Jatka</translation>
@@ -190,6 +182,7 @@
 <translation id="3003694935412297923">Kaikki tehtävät</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromiumin on vahvistettava henkilöllisyytesi, ennen kuin tiettyä dataa voidaan tallentaa Google-tilillesi ja käyttää kaikilla laitteillasi. Jos kirjaudut ulos nyt, tämä data (1 kohde) poistetaan.}other{Chromiumin on vahvistettava henkilöllisyytesi, ennen kuin tiettyä dataa voidaan tallentaa Google-tilillesi ja käyttää kaikilla laitteillasi. Jos kirjaudut ulos nyt, tämä data ({count} kohde) poistetaan.}}</translation>
 <translation id="3013473503895162900">Avaa <ph name="URL" /> uudella välilehdellä Chromiumissa.</translation>
+<translation id="302551344979399011">Taidot ja muut tekoälyinnovaatiot tallennetaan Google-tilillesi ja niitä hallinnoidaan erillään Chromiumin synkronoinnista</translation>
 <translation id="3032787606318309379">Lisätään Chromiumiin...</translation>
 <translation id="3038232873781883849">Asennetaan…</translation>
 <translation id="3045032126857188731">Käännetty kieli: <ph name="LANGUAGE" /></translation>
@@ -381,6 +374,7 @@
 <translation id="5289287148052354622">Lataa Chromium-sovellus</translation>
 <translation id="5294316920224716406">Kun selaat incognito-tilassa, Chromium varoittaa sinua ennen kuin sivusto ladataan suojaamattomalla yhteydellä</translation>
 <translation id="5313228254328109263">Chromiumin sisäinen päivityspalvelu</translation>
+<translation id="5324450571874973775">Käytä niitä yhdessä muiden Gemini in Chromiumin ominaisuuksien kanssa</translation>
 <translation id="5346389065299425353">Tarkenna hakua lisäämällä useita välilehtiä, tiedostoja ja työkaluja</translation>
 <translation id="5348677704241861105">Nopea yleiskatsaus dokumentista ja mahdollisuus esittää kysymyksiä Gemini in Chromiumilla</translation>
 <translation id="5352264705793813212">Chromium on löytänyt turvallisuussuosituksia, jotka sinun täytyy tarkistaa</translation>
@@ -672,6 +666,7 @@ Chromium ei voi palauttaa asetuksiasi.</translation>
 <translation id="8318772038038596122">Kun Chromium on ollut käyttämättömänä <ph name="TIMEOUT_DURATION" />, organisaatiosi sulkee sen.</translation>
 <translation id="8321888067342493336">Tallenna kuvana</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> käytti aiemmin Chromiumia</translation>
+<translation id="8351551329754447960">Ota taidot käyttöön Chromiumissa</translation>
 <translation id="8359544530202147897">Päivitä Chromium, jotta voit jatkaa Chromium-datan käyttöä Google-tililläsi: <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Jotta saat tulevia Chromiumin päivityksiä, sinulla on oltava Windows 10 tai uudempi. Tietokoneen käyttöjärjestelmä on Windows 8.</translation>
 <translation id="8362914115861174987">Käännä kielelle</translation>

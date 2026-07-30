@@ -17,6 +17,6 @@ BASE_FEATURE_PARAM(int,
                    kPersonalContextForceEnablementStateParam,
                    &kPersonalContextForceEnablementState,
                    "state",
-                   0);
+                   4);
 
 }  // namespace personal_context::features::debug

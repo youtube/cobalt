@@ -129,7 +129,7 @@ class AutocompleteTableLabelSensitive : public WebDatabaseTable {
   // Records the form elements in `elements` in the database in the
   // autocomplete table.
   [[nodiscard]] bool AddFormFieldValues(
-      const std::vector<autofill::FormFieldData>& elements);
+      const std::vector<FormFieldData>& elements);
 
   // Retrieves a vector of all values which have been recorded in the
   // autocomplete table as the value in a form element with label `label`, name

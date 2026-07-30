@@ -35,7 +35,7 @@ class ParsedNative:
   static: bool
   name: str
   signature: java_types.JavaSignature
-  native_class_name: str
+  native_class_name: str = None
 
 
 @dataclasses.dataclass(order=True)  # Field order matters.
@@ -64,6 +64,8 @@ class ParsedClass:
   called_by_natives: List[ParsedCalledByNative] = (dataclasses.field(
       default_factory=list))
   fields: List[ParsedField] = dataclasses.field(default_factory=list)
+  non_proxy_methods: List[ParsedNative] = dataclasses.field(
+      default_factory=list)
 
 
 @dataclasses.dataclass
@@ -72,7 +74,6 @@ class ParsedFile:
   outer_class: ParsedClass
   classes_with_jni: List[ParsedClass]  # ParsedCalledByNative or CalledByNative
   proxy_methods: List[ParsedNative]
-  non_proxy_methods: List[ParsedNative]
   proxy_interface: Optional[java_types.JavaClass] = None
   proxy_visibility: Optional[str] = None
   jni_namespace: Optional[str] = None  # E.g. @JNINamespace("content")
@@ -482,8 +483,8 @@ _NON_PROXY_NATIVES_REGEX = re.compile(
     r'native(?P<name>\w+)\((?P<params>.*?)\);', re.DOTALL)
 
 
-def _parse_non_proxy_natives(type_resolver, contents):
-  ret = []
+def _parse_non_proxy_natives(outer_class, contents):
+  type_resolver = outer_class.type_resolver
   for match in _find_iter_with_note(_NON_PROXY_NATIVES_REGEX, contents):
     name = match.group('name')
     return_type = _parse_type(type_resolver, match.group('return_type'))
@@ -491,13 +492,11 @@ def _parse_non_proxy_natives(type_resolver, contents):
     signature = java_types.JavaSignature.from_params(return_type, params)
     native_class_name = match.group('native_class_name')
     static = 'static' in match.group('qualifiers')
-    ret.append(
+    outer_class.non_proxy_methods.append(
         ParsedNative(static=static,
                      name=name,
                      signature=signature,
                      native_class_name=native_class_name))
-  ret.sort()
-  return ret
 
 
 # javap shows inherited methods from interfaces / super classes, including when
@@ -523,7 +522,7 @@ def _make_called_by_native_regex(is_javap):
   if not is_javap:
     sb.append(r'\s*(?P<return_type_annotations>(?:\s*@[\w.]+(?:\(.*?\))?)+)?')
   sb.append(r'\s*(?P<return_type>[\S ]*?)'
-            r'\s*(?P<name>[\w.]+)'
+            r'\s*(?P<name>[\w.$]+)'
             r'\s*\(\s*(?P<params>[^{;]*)\)'
             r'\s*(?:throws\s+[^{;]+)?'
             r'[{;]')
@@ -545,16 +544,22 @@ _CALLED_BY_NATIVE_REGEX = _make_called_by_native_regex(is_javap=False)
 _JAVAP_METHOD_REGEX = _make_called_by_native_regex(is_javap=True)
 
 
-def _parse_called_by_natives(contents,
-                             parsed_classes,
-                             *,
-                             is_javap=False,
-                             allow_private_called_by_natives=False):
+def _parse_called_by_natives_or_javap(contents,
+                                      parsed_classes,
+                                      *,
+                                      is_javap=False,
+                                      natives_only=False,
+                                      allow_private_called_by_natives=False):
   regex = _JAVAP_METHOD_REGEX if is_javap else _CALLED_BY_NATIVE_REGEX
   pos = parsed_classes[0]._start_idx
   for match in _find_iter_with_note(regex, contents, pos=pos):
     modifiers = match.group('modifiers')
-    if 'private' in modifiers and not allow_private_called_by_natives:
+    is_native = 'native' in modifiers
+    if natives_only and not is_native:
+      continue
+
+    is_private = 'private' in modifiers
+    if is_private and not is_native and not allow_private_called_by_natives:
       raise ParseError(f'@CalledByNative methods must not be private. '
                        f'Found:\n{match.group(0)}\n')
 
@@ -584,14 +589,22 @@ def _parse_called_by_natives(contents,
 
     params = _parse_param_list(type_resolver, match.group('params'))
     signature = java_types.JavaSignature.from_params(return_type, params)
-
-    unchecked = not is_javap and 'Unchecked' in match.group('Unchecked')
-    parsed_class.called_by_natives.append(
-        ParsedCalledByNative(name=name,
-                             signature=signature,
-                             static='static' in modifiers,
-                             type_params=type_params,
-                             unchecked=unchecked))
+    if natives_only:
+      if parsed_class is not parsed_classes[0]:
+        raise ParseError(f'native methods on nested classes not currently '
+                         f'supported: {parsed_class}')
+      parsed_class.non_proxy_methods.append(
+          ParsedNative(static='static' in modifiers,
+                       name=name,
+                       signature=signature))
+    else:
+      unchecked = not is_javap and 'Unchecked' in match.group('Unchecked')
+      parsed_class.called_by_natives.append(
+          ParsedCalledByNative(name=name,
+                               signature=signature,
+                               static='static' in modifiers,
+                               type_params=type_params,
+                               unchecked=unchecked))
 
   if not is_javap:
     # Check for any @CalledByNative occurrences that were not matched.
@@ -663,6 +676,7 @@ def _sort_jni(parsed_classes):
   for c in parsed_classes:
     c.called_by_natives.sort()
     c.fields.sort()
+    c.non_proxy_methods.sort()
 
 
 def parse_java_file_data(filename, contents, *, package_prefix,
@@ -684,23 +698,22 @@ def parse_java_file_data(filename, contents, *, package_prefix,
   jni_namespace = _parse_jni_namespace(contents)
 
   if enable_legacy_natives:
-    non_proxy_methods = _parse_non_proxy_natives(type_resolver, contents)
-  else:
-    non_proxy_methods = []
-  _parse_called_by_natives(
+    _parse_non_proxy_natives(outer_class, contents)
+
+  _parse_called_by_natives_or_javap(
       contents,
       parsed_classes,
       allow_private_called_by_natives=allow_private_called_by_natives)
 
-  classes_with_jni = sorted(c for c in parsed_classes
-                            if c.called_by_natives or c.fields)
+  classes_with_jni = sorted(
+      c for c in parsed_classes
+      if c.called_by_natives or c.fields or c.non_proxy_methods)
   _sort_jni(classes_with_jni)
   ret = ParsedFile(filename=filename,
                    outer_class=outer_class,
                    classes_with_jni=classes_with_jni,
                    jni_namespace=jni_namespace,
-                   proxy_methods=[],
-                   non_proxy_methods=non_proxy_methods)
+                   proxy_methods=[])
 
   if parsed_proxy_natives:
     outer_java_class = outer_class.type_resolver.java_class
@@ -737,7 +750,7 @@ def parse_java_file(filename,
     raise
 
 
-def parse_javap_data(filename, contents):
+def parse_javap_data(filename, contents, natives_only=False):
   try:
     if contents.startswith('Compiled from'):
       contents = contents.split('\n', 1)[1]
@@ -748,14 +761,20 @@ def parse_javap_data(filename, contents):
     # For javap there is only ever one class.
     assert len(parsed_classes) == 1
 
-    _parse_fields(contents, parsed_classes)
-    _parse_called_by_natives(contents, parsed_classes, is_javap=True)
+    if natives_only:
+      _parse_called_by_natives_or_javap(contents,
+                                        parsed_classes,
+                                        is_javap=True,
+                                        natives_only=True)
+    else:
+      _parse_fields(contents, parsed_classes)
+      _parse_called_by_natives_or_javap(contents, parsed_classes, is_javap=True)
+
     _sort_jni(parsed_classes)
     return ParsedFile(filename=filename,
                       outer_class=parsed_classes[0],
                       classes_with_jni=parsed_classes,
-                      proxy_methods=[],
-                      non_proxy_methods=[])
+                      proxy_methods=[])
   except Exception as e:
     if _last_match:
       common.add_note(e, f'in match {_last_match}')

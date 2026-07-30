@@ -78,6 +78,11 @@ void AddWord(PlatformSpellChecker* spell_checker_instance,
 void RemoveWord(PlatformSpellChecker* spell_checker_instance,
                 const std::u16string& word) {}
 
+bool IsUserAddedWord(PlatformSpellChecker* spell_checker_instance,
+                     const std::u16string& word) {
+  return false;
+}
+
 int GetDocumentTag() {
   return 1;
 }

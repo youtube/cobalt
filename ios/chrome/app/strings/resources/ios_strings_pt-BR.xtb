@@ -117,6 +117,7 @@
 <translation id="1373120905936431262">Faça upload de uma imagem para fazer uma montagem com o Nano Banana</translation>
 <translation id="1377508275003315939">Senhas</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} de {count} endereço}one{{position} de {count} endereço}other{{position} de {count} endereços}}</translation>
+<translation id="13813615483058219">Algo deu errado. Verifique sua conexão de internet, aumente o volume ou tente de novo.</translation>
 <translation id="1383876407941801731">Pesquise</translation>
 <translation id="138618066238211776">Continuar como <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Opções para salvar cartão</translation>
@@ -874,6 +875,7 @@
 <translation id="4021447724486050609">Atualize o navegador</translation>
 <translation id="4021931095789478915">Adicionar ${url} à Lista de leitura</translation>
 <translation id="4028871427853484857">Salvar na conta…</translation>
+<translation id="4036529942385659684">Mostrar página inicial após um período de inatividade</translation>
 <translation id="4038354071007134711">Nenhum app deste dispositivo pode abrir o arquivo.</translation>
 <translation id="4042870976416480368">Buscar na página</translation>
 <translation id="4045441967987592849">Reabrir</translation>
@@ -911,7 +913,6 @@
 <translation id="417138788035229076">Gerenciar grupo</translation>
 <translation id="4172051516777682613">Sempre mostrar</translation>
 <translation id="417273154673973994">{count,plural, =1{1 grupo de guias fechado e salvo}one{{count} grupo de guias fechado e salvo}other{{count} grupos de guias fechados e salvos}}</translation>
-<translation id="417612446554534067">Enviar para seus dispositivos</translation>
 <translation id="4180726336228139707">Somente neste dispositivo</translation>
 <translation id="4181841719683918333">Idiomas</translation>
 <translation id="4183350924949589798">Mais segurança?</translation>
@@ -1135,6 +1136,7 @@
 <translation id="4896467949657706481">As guias foram fechadas e sua conta foi desconectada</translation>
 <translation id="4911042367886397055">Que bom ver você de novo, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Você pode compartilhar uma cópia da sua senha de forma segura com alguém do grupo familiar. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lupa</translation>
 <translation id="4917025507570489430">Você pode usar os dados de navegação atuais quando fizer login como <ph name="USER_EMAIL" />. Sua organização pode visualizar esses dados.</translation>
 <translation id="4918086044614829423">Aceitar</translation>
 <translation id="4930714375720679147">Ativar</translation>
@@ -2145,6 +2147,7 @@ Para continuar pelo computador, mude para <ph name="OTHER_EMAIL" />. Você vai r
 <translation id="8263809106706527890">Pode ter ocorrido uma mudança nas configurações padrão do seu navegador. Confira nas configurações.</translation>
 <translation id="8264966119170358612">Algumas das suas senhas salvas foram expostas em uma violação de dados de terceiros. <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Sua conta <ph name="USER_NAME" /> foi desconectada como parte da redefinição do iPad. Para fazer login novamente, toque em "Continuar" abaixo.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">As informações serão preenchidas em <ph name="URL" /></translation>
 <translation id="8275068909952022340">Mais…</translation>
 <translation id="8281781826761538115">Padrão: <ph name="DEFAULT_LOCALE" /></translation>

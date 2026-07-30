@@ -151,6 +151,7 @@ source_set("impl") {
       "share_target_utils.cc",
       "tabbed_web_app_navigation_throttle.cc",
       "web_app_browser_controller.cc",
+      "web_app_dialogs.cc",
       "web_app_info_image_source.cc",
       "web_app_launch_navigation_handle_user_data.cc",
       "web_app_launch_process.cc",

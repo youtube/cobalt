@@ -106,7 +106,19 @@ public class TemplateUrlService {
     }
 
     /**
+     * Returns two lists: The first including prepopulated and policy enforced engines and the
+     * default engine, the second one recently visited sites.
+     */
+    public PrepopulatedAndRecentlyVisitedTemplateURLs
+            getPrepopulatedAndRecentlyVisitedTemplateURLs() {
+        ThreadUtils.assertOnUiThread();
+        return TemplateUrlServiceJni.get()
+                .getPrepopulatedAndRecentlyVisitedTemplateURLs(mNativeTemplateUrlServiceAndroid);
+    }
+
+    /**
      * Called from native to populate the list of all available search engines.
+     *
      * @param templateUrls The list of {@link TemplateUrl} to be added.
      * @param templateUrl The {@link TemplateUrl} would add to the list.
      */
@@ -713,6 +725,9 @@ public class TemplateUrlService {
                 @Nullable String imageTranslateTargetLanguageParamKey);
 
         void getTemplateUrls(long nativeTemplateUrlServiceAndroid, List<TemplateUrl> templateUrls);
+
+        PrepopulatedAndRecentlyVisitedTemplateURLs getPrepopulatedAndRecentlyVisitedTemplateURLs(
+                long nativeTemplateUrlServiceAndroid);
 
         @JniType("std::vector<const TemplateURL*>")
         List<TemplateUrl> getTemplateUrlsByCategory(

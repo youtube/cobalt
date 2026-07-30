@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/suggestions/glic_cue_target.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/notimplemented.h"
 #include "base/strings/stringprintf.h"
@@ -65,6 +66,30 @@ GlicCueTarget::GlicCueTarget(
       optimization_guide_keyed_service_(optimization_guide_keyed_service),
       browser_window_interface_(browser_window_interface) {}
 GlicCueTarget::~GlicCueTarget() = default;
+
+contextual_cueing::CueTargetType GlicCueTarget::GetType() const {
+  return contextual_cueing::CueTargetType::kGlic;
+}
+
+void GlicCueTarget::CheckEligibility(
+    base::WeakPtr<content::WebContents> web_contents,
+    contextual_cueing::CueIntrusiveness intrusiveness,
+    EligibilityCallback callback) {
+  // TODO(b/520159219): Placeholder stub. Glic eligibility logic is wired up
+  // in upcoming CLs.
+  // TODO(b/520159219): To avoid reentrancy issues with barrier callbacks, post
+  // this callback to the main thread task runner instead of running
+  // synchronously.
+  std::move(callback).Run(false, ContentGenerator());
+}
+
+bool GlicCueTarget::IsPageEligible(
+    const page_content_annotations::PageContentAnnotationsResult& result,
+    content::WebContents* active_web_contents) const {
+  // TODO(b/520159219): Placeholder stub. Glic eligibility logic is wired up
+  // in upcoming CLs.
+  return false;
+}
 
 bool GlicCueTarget::IsEligible() const {
   return GlicEnabling::IsEnabledForProfile(

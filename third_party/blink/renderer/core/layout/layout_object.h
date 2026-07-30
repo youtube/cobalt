@@ -1056,7 +1056,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   bool IsButtonOrInputButton() const;
   bool IsInputButton() const;
   bool IsMenuList() const;
-  bool IsListBox() const;
 
   bool IsTablePart() const {
     NOT_DESTROYED();

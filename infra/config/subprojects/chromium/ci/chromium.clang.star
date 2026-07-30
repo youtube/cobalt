@@ -168,7 +168,7 @@ ci.builder(
     ),
     targets = targets.bundle(
         additional_compile_targets = [
-            "chromium_builder_asan",
+            "blackbox_fuzzing_targets",
         ],
     ),
     console_view_entry = consoles.console_view_entry(
@@ -257,7 +257,7 @@ ci.builder(
             "clang_tot_gtests",
         ],
         additional_compile_targets = [
-            "chromium_builder_asan",
+            "blackbox_fuzzing_targets",
         ],
         mixins = [
             "x86-64",
@@ -307,7 +307,7 @@ ci.builder(
             "clang_tot_gtests",
         ],
         additional_compile_targets = [
-            "chromium_builder_asan",
+            "blackbox_fuzzing_targets",
         ],
         mixins = [
             "x86-64",
@@ -609,9 +609,6 @@ ci.builder(
         ],
     ),
     targets = targets.bundle(
-        targets = [
-            "chrome_sizes_android",
-        ],
         additional_compile_targets = [
             "all",
         ],
@@ -657,9 +654,6 @@ ci.builder(
         ],
     ),
     targets = targets.bundle(
-        targets = [
-            "chrome_sizes_android",
-        ],
         additional_compile_targets = [
             "all",
         ],
@@ -1287,7 +1281,7 @@ ci.builder(
     targets = targets.bundle(
         targets = [
             "clang_tot_gtests",
-            "win_specific_isolated_scripts_and_sizes",
+            "win_specific_isolated_scripts",
         ],
         additional_compile_targets = [
             "all",
@@ -1389,7 +1383,7 @@ ci.builder(
     targets = targets.bundle(
         targets = [
             "clang_tot_gtests",
-            "win_specific_isolated_scripts_and_sizes",
+            "win_specific_isolated_scripts",
         ],
         additional_compile_targets = [
             "all",
@@ -1436,7 +1430,7 @@ ci.builder(
     targets = targets.bundle(
         targets = [
             "clang_tot_gtests",
-            "win_specific_isolated_scripts_and_sizes",
+            "win_specific_isolated_scripts",
         ],
         additional_compile_targets = [
             "all",
@@ -1484,7 +1478,7 @@ ci.builder(
     targets = targets.bundle(
         targets = [
             "clang_tot_gtests",
-            "win_specific_isolated_scripts_and_sizes",
+            "win_specific_isolated_scripts",
         ],
         additional_compile_targets = [
             "all",
@@ -1533,7 +1527,7 @@ ci.builder(
     targets = targets.bundle(
         targets = [
             "clang_tot_gtests",
-            "win_specific_isolated_scripts_and_sizes",
+            "win_specific_isolated_scripts",
         ],
         additional_compile_targets = [
             "all",
@@ -2028,7 +2022,7 @@ tot_mac_builder(
             "clang_tot_gtests",
         ],
         additional_compile_targets = [
-            "chromium_builder_asan",
+            "blackbox_fuzzing_targets",
         ],
         mixins = [
             targets.mixin(

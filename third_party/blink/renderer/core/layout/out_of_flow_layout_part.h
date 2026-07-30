@@ -148,6 +148,12 @@ class CORE_EXPORT OutOfFlowLayoutPart {
     LogicalRect rect;
     // https://drafts.csswg.org/css-position-4/#scrollable-containing-block
     std::optional<LogicalRect> scroll_rect;
+    // Used for allowing a fixed-pos to overflow its containing-block up to
+    // this limit (if applicable).
+    std::optional<LogicalRect> scroll_limit_rect;
+    // Used to determine the scroll direction for:
+    // https://drafts.csswg.org/css-align-3/#auto-safety-position
+    LogicalBoxSides scroll_direction = LogicalBoxSides(false);
     // The relative positioned offset to be applied after fragmentation is
     // completed.
     LogicalOffset relative_offset;

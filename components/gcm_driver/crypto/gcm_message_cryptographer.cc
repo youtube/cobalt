@@ -23,7 +23,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_view_util.h"
 #include "crypto/aead.h"
-#include "crypto/hkdf.h"
+#include "crypto/kdf.h"
 
 namespace gcm {
 
@@ -38,6 +38,18 @@ const size_t kDefaultRecordSize = 4096;
 
 // Key size, in bytes, of a valid AEAD_AES_128_GCM key.
 const size_t kContentEncryptionKeySize = 16;
+
+// Convenience wrapper for crypto/kdf that adapts strings to/from byte spans.
+std::string HkdfSha256(std::string_view secret,
+                       std::string_view salt,
+                       std::string_view info,
+                       size_t size) {
+  std::string result(size, 0);
+  crypto::kdf::Hkdf(crypto::hash::kSha256, base::as_byte_span(secret),
+                    base::as_byte_span(salt), base::as_byte_span(info),
+                    base::as_writable_byte_span(result));
+  return result;
+}
 
 // Implementation of draft 03 of the Web Push Encryption standard:
 // https://tools.ietf.org/html/draft-ietf-webpush-encryption-03
@@ -62,7 +74,7 @@ class WebPushEncryptionDraft03
     // This deliberately copies over the NUL terminus.
     std::string_view info(kInfo, sizeof(kInfo));
 
-    return crypto::HkdfSha256(ecdh_shared_secret, auth_secret, info, 32);
+    return HkdfSha256(ecdh_shared_secret, auth_secret, info, 32);
   }
 
   // Creates the info parameter for an HKDF value for the given
@@ -194,7 +206,7 @@ class WebPushEncryptionDraft08
     std::string info = base::StrCat({std::string_view(kInfo, sizeof(kInfo)),
                                      recipient_public_key, sender_public_key});
 
-    return crypto::HkdfSha256(ecdh_shared_secret, auth_secret, info, 32);
+    return HkdfSha256(ecdh_shared_secret, auth_secret, info, 32);
   }
 
   // The info string used for generating the content encryption key and the
@@ -419,9 +431,8 @@ std::string GCMMessageCryptographer::DeriveContentEncryptionKey(
           EncryptionScheme::EncodingType::CONTENT_ENCRYPTION_KEY,
           recipient_public_key, sender_public_key);
 
-  return crypto::HkdfSha256(ecdh_shared_secret, salt,
-                            content_encryption_key_info,
-                            kContentEncryptionKeySize);
+  return HkdfSha256(ecdh_shared_secret, salt, content_encryption_key_info,
+                    kContentEncryptionKeySize);
 }
 
 std::string GCMMessageCryptographer::DeriveNonce(
@@ -438,7 +449,7 @@ std::string GCMMessageCryptographer::DeriveNonce(
   // however, Web Push encryption is limited to a single record per
   // https://tools.ietf.org/html/draft-ietf-webpush-encryption-03.
 
-  return crypto::HkdfSha256(ecdh_shared_secret, salt, nonce_info, kNonceSize);
+  return HkdfSha256(ecdh_shared_secret, salt, nonce_info, kNonceSize);
 }
 
 }  // namespace gcm

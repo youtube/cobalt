@@ -47,5 +47,9 @@ enum class ToggleTabGroupCollapsedStateOrigin {
   // expand if the range of tabs include a collapsed group.
   kTabsSelected,
 };
+enum class TabStripOrientation {
+  kHorizontal,
+  kVertical,
+};
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_SHARED_TAB_STRIP_TYPES_H_

@@ -58,7 +58,7 @@ StandaloneCvcFieldParser::StandaloneCvcFieldParser(FieldAndMatchInfo match)
 void StandaloneCvcFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
   AddClassification(match_, CREDIT_CARD_STANDALONE_VERIFICATION_CODE,
-                    kBaseCreditCardParserScore, field_candidates);
+                    HeuristicParser::kCreditCard, field_candidates);
 }
 
 }  // namespace autofill

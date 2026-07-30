@@ -504,6 +504,33 @@ TEST_F(LayerContextImplAnimationTest, AnimationWithNoKeyframesFails) {
   EXPECT_EQ(result.error(), "Unexpected animation with no keyframes");
 }
 
+TEST_F(LayerContextImplAnimationTest, AnimationWithInvalidGroupFails) {
+  constexpr int kTimelineId = 7;
+  constexpr int kAnimationId = 70;
+  // Use an ElementId distinct from kDefaultElementId.
+  const cc::ElementId kDistinctElementId(777);
+  constexpr int kKeyframeModelId = 700;
+  constexpr int kGroupId = cc::KeyframeModel::kInvalidGroup;
+
+  auto update = CreateDefaultUpdate();
+  update->animation_timelines = std::vector<mojom::AnimationTimelinePtr>();
+
+  auto timeline_mojom = CreateDefaultMojomTimeline(kTimelineId);
+  auto animation_mojom = mojom::Animation::New();
+  animation_mojom->id = kAnimationId;
+  animation_mojom->element_id = kDistinctElementId;
+  auto keyframe_model_mojom = CreateDefaultMojomKeyframeModel(
+      kKeyframeModelId, kGroupId, cc::TargetProperty::OPACITY);
+  animation_mojom->keyframe_models.push_back(std::move(keyframe_model_mojom));
+
+  timeline_mojom->new_animations.push_back(std::move(animation_mojom));
+  update->animation_timelines->push_back(std::move(timeline_mojom));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "Invalid group_id");
+}
+
 TEST_F(LayerContextImplAnimationTest, DeserializeColorAnimationCurve) {
   constexpr int kTimelineId = 8;
   constexpr int kAnimationId = 80;

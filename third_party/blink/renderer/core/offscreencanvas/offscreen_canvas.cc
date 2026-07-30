@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/exported_canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
@@ -169,6 +170,7 @@ OffscreenCanvas* OffscreenCanvas::Create(ScriptState* script_state,
 void OffscreenCanvas::Dispose() {
   // We need to drop frame dispatcher, to prevent mojo calls from completing.
   disposing_ = true;
+  placeholder_client_ = nullptr;
   frame_dispatcher_ = nullptr;
   DiscardResources();
 
@@ -564,9 +566,27 @@ CanvasResourceDispatcher* OffscreenCanvas::GetOrCreateResourceDispatcher() {
     // (either main or worker) to the GPU process and will have to be recreated
     // if the GPU channel is lost.
     frame_dispatcher_ = std::make_unique<CanvasResourceDispatcher>(
-        this, std::move(dispatcher_task_runner),
-        std::move(agent_group_scheduler_compositor_task_runner), client_id_,
-        sink_id_, placeholder_canvas_id_, Size());
+        this, dispatcher_task_runner,
+        agent_group_scheduler_compositor_task_runner, client_id_, sink_id_,
+        placeholder_canvas_id_, Size());
+
+    if (placeholder_canvas_id_ !=
+            OffscreenCanvasPlaceholder::kNoPlaceholderId &&
+        agent_group_scheduler_compositor_task_runner) {
+      placeholder_client_ =
+          std::make_unique<OffscreenCanvasPlaceholder::Client>(
+              placeholder_canvas_id_,
+              std::move(agent_group_scheduler_compositor_task_runner),
+              std::move(dispatcher_task_runner),
+              blink::BindRepeating(
+                  [](OffscreenCanvas* canvas) {
+                    if (canvas->frame_dispatcher_) {
+                      canvas->frame_dispatcher_->SetAnimationState(
+                          canvas->placeholder_client_->GetAnimationState());
+                    }
+                  },
+                  WrapWeakPersistent(this)));
+    }
   }
   return frame_dispatcher_.get();
 }
@@ -615,8 +635,16 @@ bool OffscreenCanvas::PushFrame(
   }
   canvas_resource->SetOriginClean(OriginClean());
   current_frame_damage_rect_.Intersect(gfx::Rect(Size()));
-  GetOrCreateResourceDispatcher()->DispatchFrame(
-      std::move(canvas_resource), current_frame_damage_rect_, IsOpaque());
+
+  auto exported_resource =
+      base::MakeRefCounted<ExportedCanvasResource>(std::move(canvas_resource));
+
+  auto* dispatcher = GetOrCreateResourceDispatcher();
+  if (placeholder_client_) {
+    placeholder_client_->DispatchFrame(exported_resource);
+  }
+  dispatcher->DispatchFrame(std::move(exported_resource),
+                            current_frame_damage_rect_, IsOpaque());
   current_frame_damage_rect_ = gfx::Rect();
 
   return true;
@@ -639,10 +667,11 @@ void OffscreenCanvas::NotifyGpuContextLost() {
     DCHECK(context_->IsRenderingContext2D());
     context_->LoseContext(CanvasRenderingContext::kRealLostContext);
   }
-  if (context_->IsWebGL() && frame_dispatcher_ != nullptr) {
+  if (context_->IsWebGL()) {
     // We'll need to recreate a new frame dispatcher once the context is
     // restored in order to reestablish the compositor frame sink mojo
     // channel.
+    placeholder_client_ = nullptr;
     frame_dispatcher_ = nullptr;
   }
 }

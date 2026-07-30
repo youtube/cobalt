@@ -49,6 +49,7 @@
 #include "content/public/browser/preloading_trigger_type.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/referrer.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_request_headers.h"
@@ -804,7 +805,8 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
     auto* manager =
         PreloadActivationReportManager::GetOrCreateForBrowserContext(
             web_contents_->GetBrowserContext());
-    manager->ReportActivation(activation_beacon_url_, &*web_contents_);
+    manager->ReportActivation(activation_beacon_url_,
+                              GetFrameTree()->root()->current_frame_host());
   }
 
   FrameTree& target_frame_tree = web_contents_->GetPrimaryFrameTree();
@@ -1731,7 +1733,6 @@ bool PrerenderHost::ShouldAbortNavigationBecausePrefetchUnavailable() const {
         // Prefetch is not available for HTTP, but prerender is available
         // for HTTPS/HTTP.
       case PreloadingEligibility::kSchemeIsNotHttps:
-      case PreloadingEligibility::kBlockedByConnectionAllowlist:
         return true;
       case PreloadingEligibility::kEligible:
       case PreloadingEligibility::kUnspecified:
@@ -1764,6 +1765,7 @@ bool PrerenderHost::ShouldAbortNavigationBecausePrefetchUnavailable() const {
       case PreloadingEligibility::kPreloadingEligibilityContentEnd:
       case PreloadingEligibility::kPreloadingEligibilityContentStart2:
       case PreloadingEligibility::kPreloadingEligibilityContentEnd2:
+      case PreloadingEligibility::kBlockedByConnectionAllowlist:
         return false;
     }
   };

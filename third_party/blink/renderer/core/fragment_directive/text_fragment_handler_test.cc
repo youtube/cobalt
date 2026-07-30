@@ -63,7 +63,7 @@ class TextFragmentHandlerTest : public SimTest {
 
   void SetSelection(const Position& start, const Position& end) {
     GetDocument().GetFrame()->Selection().SetSelection(
-        SelectionInDOMTree::Builder().SetBaseAndExtent(start, end).Build(),
+        SelectionInDomTree::Builder().SetBaseAndExtent(start, end).Build(),
         SetSelectionOptions());
   }
 
@@ -1217,7 +1217,7 @@ TEST_F(TextFragmentHandlerTest,
   Node* text_node =
       GetDocument().QuerySelector(AtomicString("p"))->firstChild();
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(text_node, 0))
           .Extend(Position(text_node, 7))
           .Build(),
@@ -1271,7 +1271,7 @@ TEST_F(TextFragmentHandlerTest, RequestSelectorForSelection) {
   Node* text_node =
       GetDocument().QuerySelector(AtomicString("p"))->firstChild();
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(text_node, 0))
           .Extend(Position(text_node, 7))
           .Build(),
@@ -1317,7 +1317,7 @@ TEST_F(TextFragmentHandlerTest,
   Node* text_node =
       GetDocument().QuerySelector(AtomicString("p"))->firstChild();
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(text_node, 0))
           .Extend(Position(text_node, 47))
           .Build(),

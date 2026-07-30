@@ -116,8 +116,7 @@ status::Code ApplyCommon(base::File old_file,
       return status::kStatusFileReadError;
     }
 #if BUILDFLAG(IS_WIN)
-    exception_filter_helper.AddRange(
-        UNSAFE_TODO({mapped_patch.data(), mapped_patch.length()}));
+    exception_filter_helper.AddRange(mapped_patch.region().as_span());
 #endif
 
     auto patch_reader = EnsemblePatchReader::Create(mapped_patch.region());
@@ -133,8 +132,7 @@ status::Code ApplyCommon(base::File old_file,
       return status::kStatusFileReadError;
     }
 #if BUILDFLAG(IS_WIN)
-    exception_filter_helper.AddRange(
-        UNSAFE_TODO({mapped_old.data(), mapped_old.length()}));
+    exception_filter_helper.AddRange(mapped_old.region().as_span());
 #endif
 
     PatchHeader header = patch_reader->header();
@@ -151,8 +149,7 @@ status::Code ApplyCommon(base::File old_file,
       mapped_new.Keep();
     }
 #if BUILDFLAG(IS_WIN)
-    exception_filter_helper.AddRange(
-        UNSAFE_TODO({mapped_new.data(), mapped_new.length()}));
+    exception_filter_helper.AddRange(mapped_new.region().as_span());
 #endif
 
     status::Code result =

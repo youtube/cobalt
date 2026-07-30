@@ -15,6 +15,5 @@ include_rules = [
   "+chrome/browser/ash/arc/tracing",
   "+chrome/browser/browser_process.h",
   "+chrome/browser/profiles",
-  "+chrome/common",
   "+chrome/grit",
 ]

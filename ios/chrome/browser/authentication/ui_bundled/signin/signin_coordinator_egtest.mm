@@ -505,7 +505,8 @@ void SetSigninEnterprisePolicyValue(BrowserSigninMode signinMode) {
           IDS_IOS_ACCOUNT_IDENTITY_CHOOSER_ADD_ACCOUNT);
   [[EarlGrey selectElementWithMatcher:add_account_matcher]
       performAction:grey_tap()];
-  [ChromeEarlGreyUI waitForAppToIdle];
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
+                      grey_accessibilityID(kFakeAuthActivityViewIdentifier)];
 
   // Open new tab to cancel sign-in.
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");

@@ -97,14 +97,14 @@ bool CheckRequiredStylesPresent(IDWriteFontCollection* collection,
     if (base::EqualsCaseInsensitiveASCII(family_name, font_style.family_name)) {
       mswr::ComPtr<IDWriteFontFamily> family;
       if (FAILED(collection->GetFontFamily(family_index, &family))) {
-        DCHECK(false);
+        CHECK(false, base::NotFatalUntil::M152);
         return true;
       }
       mswr::ComPtr<IDWriteFont> font;
       if (FAILED(family->GetFirstMatchingFont(
               font_style.required_weight, font_style.required_stretch,
               font_style.required_style, &font))) {
-        DCHECK(false);
+        CHECK(false, base::NotFatalUntil::M152);
         return true;
       }
 
@@ -398,7 +398,7 @@ void DWriteFontProxyImpl::MapCharacters(
   if (FAILED(factory2_->CreateNumberSubstitution(
           DWRITE_NUMBER_SUBSTITUTION_METHOD_NONE, base::as_wcstr(locale_name),
           TRUE /* ignoreUserOverride */, &number_substitution))) {
-    DCHECK(false);
+    CHECK(false, base::NotFatalUntil::M152);
     return;
   }
   mswr::ComPtr<IDWriteTextAnalysisSource> analysis_source;
@@ -406,7 +406,7 @@ void DWriteFontProxyImpl::MapCharacters(
           &analysis_source, base::UTF16ToWide(text),
           base::UTF16ToWide(locale_name), number_substitution.Get(),
           static_cast<DWRITE_READING_DIRECTION>(reading_direction)))) {
-    DCHECK(false);
+    CHECK(false, base::NotFatalUntil::M152);
     return;
   }
 
@@ -422,7 +422,7 @@ void DWriteFontProxyImpl::MapCharacters(
           static_cast<DWRITE_FONT_STYLE>(font_style->font_slant),
           static_cast<DWRITE_FONT_STRETCH>(font_style->font_stretch),
           &result->mapped_length, &mapped_font, &result->scale))) {
-    DCHECK(false);
+    CHECK(false, base::NotFatalUntil::M152);
     return;
   }
 
@@ -433,12 +433,12 @@ void DWriteFontProxyImpl::MapCharacters(
 
   mswr::ComPtr<IDWriteFontFamily> mapped_family;
   if (FAILED(mapped_font->GetFontFamily(&mapped_family))) {
-    DCHECK(false);
+    CHECK(false, base::NotFatalUntil::M152);
     return;
   }
   mswr::ComPtr<IDWriteLocalizedStrings> family_names;
   if (FAILED(mapped_family->GetFamilyNames(&family_names))) {
-    DCHECK(false);
+    CHECK(false, base::NotFatalUntil::M152);
     return;
   }
 
@@ -471,8 +471,8 @@ void DWriteFontProxyImpl::MapCharacters(
   }
 
   // Could not find a matching family
-  DCHECK_EQ(result->family_index, UINT32_MAX);
-  DCHECK_GT(result->mapped_length, 0u);
+  CHECK_EQ(result->family_index, UINT32_MAX, base::NotFatalUntil::M152);
+  CHECK_GT(result->mapped_length, 0u, base::NotFatalUntil::M152);
 }
 
 void DWriteFontProxyImpl::MatchUniqueFont(
@@ -488,8 +488,8 @@ void DWriteFontProxyImpl::MatchUniqueFont(
 
   // We must not get here if this version of DWrite can't handle performing the
   // search.
-  DCHECK(factory3_.Get());
-  DCHECK(collection_);
+  CHECK(factory3_.Get(), base::NotFatalUntil::M152);
+  CHECK(collection_, base::NotFatalUntil::M152);
   Microsoft::WRL::ComPtr<IDWriteFontCollection1> collection1;
   HRESULT hr = collection_.As(&collection1);
   if (FAILED(hr)) {
@@ -501,7 +501,7 @@ void DWriteFontProxyImpl::MatchUniqueFont(
   if (FAILED(hr))
     return;
 
-  DCHECK_GT(system_font_set->GetFontCount(), 0U);
+  CHECK_GT(system_font_set->GetFontCount(), 0U, base::NotFatalUntil::M152);
 
   mswr::ComPtr<IDWriteFontSet> filtered_set;
 
@@ -589,17 +589,17 @@ void DWriteFontProxyImpl::InitializeDirectWrite() {
   // QueryInterface for IDWriteFactory2. This should succeed since we only
   // support >= Win10.
   factory_.As<IDWriteFactory2>(&factory2_);
-  DCHECK(factory2_);
+  CHECK(factory2_, base::NotFatalUntil::M152);
 
   // QueryInterface for IDwriteFactory3, needed for MatchUniqueFont on Windows.
   // This should succeed since we only support >= Win10.
   factory_.As<IDWriteFactory3>(&factory3_);
-  DCHECK(factory3_);
+  CHECK(factory3_, base::NotFatalUntil::M152);
 
   // Normally identical to factory_->GetSystemFontCollection() unless a
   // sideloaded font has been added using SideLoadFontForTesting().
   HRESULT hr = GetLocalFontCollection(factory3_, &collection_);
-  DCHECK(SUCCEEDED(hr));
+  CHECK(SUCCEEDED(hr), base::NotFatalUntil::M152);
 
   if (!collection_) {
     return;

@@ -140,23 +140,6 @@ FormData CreateForm() {
   return form;
 }
 
-// Creates a field type map for the form with N >= 0 repetitions of the fields
-// from CreateForm().
-auto CreateFieldTypeMap(const FormData& form) {
-  CHECK_EQ(form.fields().size() % 6, 0u);
-  CHECK_GT(form.fields().size() / 6, 0u);
-  absl::flat_hash_map<FieldGlobalId, FieldType> map;
-  for (size_t i = 0; i < form.fields().size() / 6; ++i) {
-    map[form.fields()[6 * i + 0].global_id()] = CREDIT_CARD_NAME_FIRST;
-    map[form.fields()[6 * i + 1].global_id()] = CREDIT_CARD_NAME_LAST;
-    map[form.fields()[6 * i + 2].global_id()] = CREDIT_CARD_NUMBER;
-    map[form.fields()[6 * i + 3].global_id()] = CREDIT_CARD_EXP_MONTH;
-    map[form.fields()[6 * i + 4].global_id()] = CREDIT_CARD_EXP_4_DIGIT_YEAR;
-    map[form.fields()[6 * i + 5].global_id()] = CREDIT_CARD_VERIFICATION_CODE;
-  }
-  return map;
-}
-
 // A profile is a 6-bit integer, whose bits indicate different values of first
 // and last name, credit card number, expiration month, expiration year, CVC.
 using Profile = base::StrongAlias<struct ProfileTag, size_t>;
@@ -185,10 +168,6 @@ FormData WithValues(FormData form, Profile profile = Profile(0)) {
 
 url::Origin Origin(const GURL& url) {
   return url::Origin::Create(url);
-}
-
-url::Origin Origin(std::string_view url) {
-  return Origin(GURL(url));
 }
 
 // Use strings for non-opaque origins and URLs because constructors must not be
@@ -1416,28 +1395,9 @@ class FormForestTestUnflatten : public FormForestTestWithMockedTree {
  protected:
   // The subject of this test fixture.
   std::vector<FormData> GetRendererFormsOfBrowserFields(
-      std::string_view form_name,
-      const FormForest::SecurityOptions& security) {
-    return flattened_forms_
-        .GetRendererFormsOfBrowserFields(
-            WithValues(GetFlattenedForm(form_name)).fields(), security)
-        .renderer_forms;
-  }
-
-  // This shorthand for GetRendererFormsOfBrowserFields() allows passing
-  // prvalues for `triggered_origin`, e.g. `Origin("...")`.
-  std::vector<FormData> GetRendererFormsOfBrowserFields(
-      std::string_view form_name,
-      const url::Origin& triggered_origin,
-      const absl::flat_hash_map<FieldGlobalId, FieldType>& field_type_map) {
-    return GetRendererFormsOfBrowserFields(
-        form_name,
-        FormForest::SecurityOptions{&GetDriverOfForm(form_name).main_origin(),
-                                    &triggered_origin, &field_type_map});
-  }
-
-  auto FieldTypeMap(std::string_view form_name) {
-    return CreateFieldTypeMap(WithValues(GetFlattenedForm(form_name)));
+      std::string_view form_name) {
+    return flattened_forms_.GetRendererFormsOfBrowserFields(
+        WithValues(GetFlattenedForm(form_name)).fields());
   }
 };
 
@@ -1449,7 +1409,7 @@ TEST_F(FormForestTestUnflatten, MainFrame) {
   MockFlattening({{"main"}});
   MockFlattening({{"main2"}});
   std::vector<FormData> expectation = {WithValues(GetMockedForm("main"))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kMainUrl), {}),
+  EXPECT_THAT(GetRendererFormsOfBrowserFields("main"),
               UnorderedArrayEquals(expectation));
 }
 
@@ -1461,8 +1421,9 @@ TEST_F(FormForestTestUnflatten, ChildFrame) {
                                          .forms = {{.name = "child"}}}}}}});
   MockFlattening({{"main"}, {"child"}});
   std::vector<FormData> expectation = {
-      GetMockedForm("main"), WithValues(GetMockedForm("child"), Profile(1))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kIframeUrl), {}),
+      WithValues(GetMockedForm("main"), Profile(0)),
+      WithValues(GetMockedForm("child"), Profile(1))};
+  EXPECT_THAT(GetRendererFormsOfBrowserFields("main"),
               UnorderedArrayEquals(expectation));
 }
 
@@ -1507,156 +1468,7 @@ TEST_F(FormForestTestUnflatten, LargeTree) {
       WithValues(GetMockedForm("grandchild3"), Profile(4)),
       WithValues(GetMockedForm("grandchild4"), Profile(5)),
       WithValues(GetMockedForm("child2"), Profile(6))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kMainUrl), {}),
-              UnorderedArrayEquals(expectation));
-}
-
-// Tests that (only) frames from the same origin are filled.
-TEST_F(FormForestTestUnflatten, SameOriginPolicy) {
-  MockFormForest(
-      {.url = kMainUrl,
-       .forms = {
-           {.name = "main",
-            .frames = {{.url = kOtherUrl, .forms = {{.name = "child1"}}},
-                       {.url = kIframeUrl, .forms = {{.name = "child2"}}}}}}});
-  MockFlattening({{"main"}, {"child1"}, {"child2"}});
-  std::vector<FormData> expectation = {
-      WithoutValues(GetMockedForm("main")),
-      WithoutValues(GetMockedForm("child1")),
-      WithValues(GetMockedForm("child2"), Profile(2))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kIframeUrl), {}),
-              UnorderedArrayEquals(expectation));
-}
-
-// Tests that (only) frames from the same origin are filled.
-TEST_F(FormForestTestUnflatten, SameOriginPolicyNoValuesErased) {
-  MockFormForest(
-      {.url = kMainUrl,
-       .forms = {
-           {.name = "main",
-            .frames = {{.url = kOtherUrl, .forms = {{.name = "child1"}}},
-                       {.url = kIframeUrl, .forms = {{.name = "child2"}}}}}}});
-  MockFlattening({{"main"}, {"child1"}, {"child2"}});
-  std::vector<FormData> expectation = {
-      WithValues(GetMockedForm("main"), Profile(0)),
-      WithValues(GetMockedForm("child1"), Profile(1)),
-      WithValues(GetMockedForm("child2"), Profile(2))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields(
-                  "main", FormForest::SecurityOptions::TrustAllOrigins()),
-              UnorderedArrayEquals(expectation));
-}
-
-// Tests that even if a different-origin frame interrupts two same-origin
-// frames, they are filled together.
-TEST_F(FormForestTestUnflatten, InterruptedSameOriginPolicy) {
-  MockFormForest(
-      {.url = kMainUrl,
-       .forms = {
-           {.name = "main",
-            .frames = {
-                {.url = kIframeUrl,
-                 .forms = {{.name = "inner",
-                            .frames = {{.url = kMainUrl,
-                                        .forms = {{.name = "leaf"}}}}}}}}}}});
-  MockFlattening({{"main"}, {"inner"}, {"leaf"}});
-  std::vector<FormData> expectation = {
-      WithValues(GetMockedForm("main"), Profile(0)),
-      WithoutValues(GetMockedForm("inner")),
-      WithValues(GetMockedForm("leaf"), Profile(2))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kMainUrl), {}),
-              UnorderedArrayEquals(expectation));
-}
-
-// Tests that (only) non-sensitive fields are filled across origin into the main
-// frame's origin (since the the policy-controlled feature "autofill" is enabled
-// in the main frame by default).
-TEST_F(FormForestTestUnflatten, MainOriginPolicy) {
-  MockFormForest(
-      {.url = kMainUrl,
-       .forms = {
-           {.name = "main",
-            .frames = {{.url = kMainUrl, .forms = {{.name = "child1"}}},
-                       {.url = kIframeUrl, .forms = {{.name = "child2"}}}}}}});
-  MockFlattening({{"main"}, {"child1"}, {"child2"}});
-  std::vector<FormData> expectation = {
-      WithValues(GetMockedForm("main"), Profile(0)),
-      WithValues(GetMockedForm("child1"), Profile(1)),
-      WithValues(GetMockedForm("child2"), Profile(2))};
-  // Clear sensitive fields: the credit card number (field index 2) and CVC
-  // (field index 5) in the two main-origin forms.
-  test_api(expectation[0]).field(2).set_value({});
-  test_api(expectation[0]).field(5).set_value({});
-  test_api(expectation[1]).field(2).set_value({});
-  test_api(expectation[1]).field(5).set_value({});
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kIframeUrl),
-                                              FieldTypeMap("main")),
-              UnorderedArrayEquals(expectation));
-}
-
-// Tests that no fields are filled across origin into frames where
-// the policy-controlled feature "autofill" is disabled (not even into
-// non-sensitive fields).
-TEST_F(FormForestTestUnflatten,
-       MainOriginPolicyWithoutPolicyControlledFeatureAutofill) {
-  MockFormForest(
-      {.url = kMainUrl,
-       .forms = {{.name = "main",
-                  .frames = {{.url = kMainUrl, .forms = {{.name = "child1"}}},
-                             {.url = kIframeUrl,
-                              .forms = {{.name = "child2"}}}}}},
-       .policy = FakeAutofillDriver::AutofillPermissionPolicy::kDisabled});
-  MockFlattening({{"main"}, {"child1"}, {"child2"}});
-  std::vector<FormData> expectation = {
-      WithoutValues(GetMockedForm("main")),
-      WithoutValues(GetMockedForm("child1")),
-      WithValues(GetMockedForm("child2"), Profile(2))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kIframeUrl),
-                                              FieldTypeMap("main")),
-              UnorderedArrayEquals(expectation));
-}
-
-// Fixture for the tests of the policy-controlled feature "autofill".
-class FormForestTestUnflattenPolicyControlledFeatureAutofill
-    : public FormForestTestUnflatten {
- public:
-  void SetUp() override {
-    FormForestTestUnflatten::SetUp();
-    MockFormForest(
-        {.url = kMainUrl,
-         .forms = {
-             {.name = "main",
-              .frames = {{.url = kOtherUrl, .forms = {{.name = "disallowed"}}},
-                         {.url = kIframeUrl,
-                          .forms = {{.name = "allowed"}},
-                          .policy = FakeAutofillDriver::
-                              AutofillPermissionPolicy::kEnabled}}}}});
-    ASSERT_NE(Origin("main"), Origin("allowed"));
-    ASSERT_NE(Origin("disallowed"), Origin("allowed"));
-  }
-};
-
-// Tests filling from the main origin into frames where the policy-controlled
-// feature "autofill" is enabled.
-TEST_F(FormForestTestUnflattenPolicyControlledFeatureAutofill, FromMainOrigin) {
-  MockFlattening({{"main"}, {"disallowed"}, {"allowed"}});
-  std::vector<FormData> expectation = {
-      WithValues(GetMockedForm("main"), Profile(0)),
-      WithoutValues(GetMockedForm("disallowed")),
-      WithValues(GetMockedForm("allowed"), Profile(2))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kMainUrl), {}),
-              UnorderedArrayEquals(expectation));
-}
-
-// Tests filling from a 3P origin into frames where the policy-controlled
-// feature "autofill" is enabled.
-TEST_F(FormForestTestUnflattenPolicyControlledFeatureAutofill,
-       FromOtherOrigin) {
-  MockFlattening({{"main"}, {"disallowed"}, {"allowed"}});
-  std::vector<FormData> expectation = {
-      WithoutValues(GetMockedForm("main")),
-      WithValues(GetMockedForm("disallowed"), Profile(1)),
-      WithoutValues(GetMockedForm("allowed"))};
-  EXPECT_THAT(GetRendererFormsOfBrowserFields("main", Origin(kOtherUrl), {}),
+  EXPECT_THAT(GetRendererFormsOfBrowserFields("main"),
               UnorderedArrayEquals(expectation));
 }
 

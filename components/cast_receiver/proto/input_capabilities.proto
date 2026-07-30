@@ -1,0 +1,73 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+edition = "2023";
+
+package cast_receiver;
+
+option optimize_for = LITE_RUNTIME;
+
+option features.field_presence = IMPLICIT;
+option java_multiple_files = true;
+option java_package = "com.google.pixel.exo.proto";
+option java_outer_classname = "InputCapabilitiesProto";
+
+// The types of input devices.
+enum InputType {
+  INPUT_TYPE_UNKNOWN = 0;
+  INPUT_TYPE_KEYBOARD = 1;
+  INPUT_TYPE_MOUSE = 2;
+  INPUT_TYPE_TOUCH = 3;
+}
+
+// Metadata specific to keyboards.
+message KeyboardMetadata {
+  bool is_virtual = 1;
+}
+
+// Metadata specific to mice/pointing devices.
+message MouseMetadata {}
+
+// Metadata specific to touch devices.
+message TouchMetadata {
+  int32 max_touch_points = 1;
+}
+
+// Represents a physical or virtual input device.
+message InputDevice {
+  // Unique identifier for this device instance.
+  string device_id = 1;
+
+  InputType type = 2;
+
+  // Optional user-visible name of the device (e.g. "Internal Keyboard", "BT
+  // Mouse").
+  string display_name = 3;
+
+  // Common metadata for all device types.
+
+  // The USB Vendor ID of the device. This can be used to identify the
+  // manufacturer of the input device. For virtual devices or cases where
+  // the physical hardware is not exposed, this may be set to 0 or a
+  // custom vendor identifier.
+  int32 vendor_id = 4;
+
+  // The USB Product ID of the device. This, in combination with the
+  // vendor_id, uniquely identifies the specific model of the input device.
+  // For virtual devices, this may be set to 0 or a custom product identifier.
+  int32 product_id = 5;
+
+  // Device-specific metadata.
+  oneof metadata {
+    KeyboardMetadata keyboard_metadata = 6;
+    MouseMetadata mouse_metadata = 7;
+    TouchMetadata touch_metadata = 8;
+  }
+}
+
+// Message used to communicate the supported inputs.
+message InputCapabilities {
+  // The list of input devices available/supported.
+  repeated InputDevice devices = 1;
+}

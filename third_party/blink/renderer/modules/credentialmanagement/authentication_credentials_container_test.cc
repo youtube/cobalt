@@ -347,21 +347,40 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
 
   bool IsDisconnected() const { return disconnected_; }
 
-  void WaitForCallToRequestToken() {
-    if (request_token_callback_) {
+  void WaitForCallToRequestToken(size_t count = 1) {
+    if (request_token_callbacks_.size() >= count) {
       return;
     }
-
-    loop_.Run();
+    expected_callbacks_ = count;
+    base::RunLoop run_loop;
+    quit_closure_ = run_loop.QuitClosure();
+    run_loop.Run();
   }
 
-  void InvokeRequestTokenCallback() {
+  void InvokeRequestTokenCallback(wtf_size_t index = 0) {
     EXPECT_TRUE(receiver_.is_bound());
+    EXPECT_LT(index, request_token_callbacks_.size());
 
-    std::move(request_token_callback_)
-        .Run(mojom::RequestTokenStatus::kSuccess, KURL("https://idp.example"),
-             base::Value("token"), /*error=*/nullptr,
-             /*is_auto_selected=*/false);
+    auto callback = std::move(request_token_callbacks_[index]);
+    request_token_callbacks_.EraseAt(index);
+
+    std::move(callback).Run(mojom::RequestTokenStatus::kSuccess,
+                            KURL("https://idp.example"), base::Value("token"),
+                            /*error=*/nullptr,
+                            /*is_auto_selected=*/false);
+  }
+
+  void InvokeRequestTokenCallbackWithError(mojom::RequestTokenStatus status,
+                                           wtf_size_t index = 0) {
+    EXPECT_TRUE(receiver_.is_bound());
+    EXPECT_LT(index, request_token_callbacks_.size());
+
+    auto callback = std::move(request_token_callbacks_[index]);
+    request_token_callbacks_.EraseAt(index);
+
+    std::move(callback).Run(status, std::nullopt, std::nullopt,
+                            /*error=*/nullptr,
+                            /*is_auto_selected=*/false);
   }
 
  protected:
@@ -370,9 +389,12 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
           idp_get_params_ptrs,
       mojom::CredentialMediationRequirement requirement,
       RequestTokenCallback callback) override {
-    request_token_callback_ = std::move(callback);
+    request_token_callbacks_.push_back(std::move(callback));
 
-    loop_.Quit();
+    if (request_token_callbacks_.size() >= expected_callbacks_ &&
+        quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
   }
 
   void RequestUserInfo(mojom::blink::IdentityProviderConfigPtr provider,
@@ -398,9 +420,10 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
  private:
   mojo::Receiver<::blink::mojom::blink::FederatedAuthRequest> receiver_{this};
 
-  RequestTokenCallback request_token_callback_;
+  Vector<RequestTokenCallback> request_token_callbacks_;
+  size_t expected_callbacks_ = 1;
+  base::OnceClosure quit_closure_;
   bool disconnected_ = false;
-  base::RunLoop loop_;
 };
 
 class CredentialManagerTestingContext {
@@ -1380,6 +1403,164 @@ TEST(AuthenticationCredentialsContainerTest,
   EXPECT_EQ(
       exception->message(),
       "crossDeviceFallbackUrl: The authenticator processed the fallback URL.");
+}
+
+TEST(AuthenticationCredentialsContainerTest,
+     GetRequest_ActiveThenPassiveCollision) {
+  test::TaskEnvironment task_environment;
+
+  MockFederatedAuthRequest mock_federated_auth_request;
+  CredentialManagerTestingContext context(
+      /*mock_credential_manager=*/nullptr, /*mock_authenticator=*/nullptr,
+      /*mock_federated_auth_request=*/&mock_federated_auth_request);
+
+  // First request: Active mode
+  CredentialRequestOptions* active_options = CredentialRequestOptions::Create();
+  IdentityCredentialRequestOptions* active_identity =
+      IdentityCredentialRequestOptions::Create();
+  auto* idp1 = IdentityProviderRequestOptions::Create();
+  idp1->setConfigURL("https://idp.example/config.json");
+  idp1->setClientId("clientId");
+  active_identity->setProviders({idp1});
+  active_identity->setMode(
+      V8IdentityCredentialRequestOptionsMode::Enum::kActive);
+  active_options->setIdentity(active_identity);
+
+  // Second request: Passive mode
+  CredentialRequestOptions* passive_options =
+      CredentialRequestOptions::Create();
+  IdentityCredentialRequestOptions* passive_identity =
+      IdentityCredentialRequestOptions::Create();
+  auto* idp2 = IdentityProviderRequestOptions::Create();
+  idp2->setConfigURL("https://idp.example/config.json");
+  idp2->setClientId("clientId");
+  passive_identity->setProviders({idp2});
+  passive_identity->setMode(
+      V8IdentityCredentialRequestOptionsMode::Enum::kPassive);
+  passive_options->setIdentity(passive_identity);
+
+  // Call active get() first
+  auto active_promise = AuthenticationCredentialsContainer::credentials(
+                            *context.DomWindow().navigator())
+                            ->get(context.GetScriptState(), active_options,
+                                  IGNORE_EXCEPTION_FOR_TESTING);
+
+  // Call passive get() second
+  auto passive_promise = AuthenticationCredentialsContainer::credentials(
+                             *context.DomWindow().navigator())
+                             ->get(context.GetScriptState(), passive_options,
+                                   IGNORE_EXCEPTION_FOR_TESTING);
+
+  mock_federated_auth_request.WaitForCallToRequestToken(2);
+
+  // Invoke second (passive) callback with kErrorTooManyRequests
+  mock_federated_auth_request.InvokeRequestTokenCallbackWithError(
+      mojom::blink::RequestTokenStatus::kErrorTooManyRequests, 1);
+
+  ScriptPromiseTester passive_tester(context.GetScriptState(), passive_promise);
+  passive_tester.WaitUntilSettled();
+  ASSERT_TRUE(passive_tester.IsRejected());
+
+  v8::Local<v8::Value> passive_error = passive_tester.Value().V8Value();
+  ASSERT_TRUE(passive_error->IsObject());
+  auto* passive_exception = V8DOMException::ToWrappable(
+      context.GetScriptState()->GetIsolate(), passive_error);
+  ASSERT_TRUE(passive_exception);
+  EXPECT_EQ(passive_exception->name(), "NotAllowedError");
+
+  // First (active) request is still pending. Now resolve it with error.
+  mock_federated_auth_request.InvokeRequestTokenCallbackWithError(
+      mojom::blink::RequestTokenStatus::kError, 0);
+
+  ScriptPromiseTester active_tester(context.GetScriptState(), active_promise);
+  active_tester.WaitUntilSettled();
+  ASSERT_TRUE(active_tester.IsRejected());
+
+  v8::Local<v8::Value> active_error = active_tester.Value().V8Value();
+  ASSERT_TRUE(active_error->IsObject());
+  auto* active_exception = V8DOMException::ToWrappable(
+      context.GetScriptState()->GetIsolate(), active_error);
+  ASSERT_TRUE(active_exception);
+  EXPECT_EQ(active_exception->name(), "NetworkError");
+}
+
+TEST(AuthenticationCredentialsContainerTest,
+     GetRequest_PassiveThenActiveCollision) {
+  test::TaskEnvironment task_environment;
+
+  MockFederatedAuthRequest mock_federated_auth_request;
+  CredentialManagerTestingContext context(
+      /*mock_credential_manager=*/nullptr, /*mock_authenticator=*/nullptr,
+      /*mock_federated_auth_request=*/&mock_federated_auth_request);
+
+  // First request: Passive mode
+  CredentialRequestOptions* passive_options =
+      CredentialRequestOptions::Create();
+  IdentityCredentialRequestOptions* passive_identity =
+      IdentityCredentialRequestOptions::Create();
+  auto* idp1 = IdentityProviderRequestOptions::Create();
+  idp1->setConfigURL("https://idp.example/config.json");
+  idp1->setClientId("clientId");
+  passive_identity->setProviders({idp1});
+  passive_identity->setMode(
+      V8IdentityCredentialRequestOptionsMode::Enum::kPassive);
+  passive_options->setIdentity(passive_identity);
+
+  // Second request: Active mode
+  CredentialRequestOptions* active_options = CredentialRequestOptions::Create();
+  IdentityCredentialRequestOptions* active_identity =
+      IdentityCredentialRequestOptions::Create();
+  auto* idp2 = IdentityProviderRequestOptions::Create();
+  idp2->setConfigURL("https://idp.example/config.json");
+  idp2->setClientId("clientId");
+  active_identity->setProviders({idp2});
+  active_identity->setMode(
+      V8IdentityCredentialRequestOptionsMode::Enum::kActive);
+  active_options->setIdentity(active_identity);
+
+  // Call passive get() first
+  auto passive_promise = AuthenticationCredentialsContainer::credentials(
+                             *context.DomWindow().navigator())
+                             ->get(context.GetScriptState(), passive_options,
+                                   IGNORE_EXCEPTION_FOR_TESTING);
+
+  // Call active get() second
+  auto active_promise = AuthenticationCredentialsContainer::credentials(
+                            *context.DomWindow().navigator())
+                            ->get(context.GetScriptState(), active_options,
+                                  IGNORE_EXCEPTION_FOR_TESTING);
+
+  mock_federated_auth_request.WaitForCallToRequestToken(2);
+
+  // First (passive) request is cancelled with kError
+  mock_federated_auth_request.InvokeRequestTokenCallbackWithError(
+      mojom::blink::RequestTokenStatus::kError, 0);
+
+  ScriptPromiseTester passive_tester(context.GetScriptState(), passive_promise);
+  passive_tester.WaitUntilSettled();
+  ASSERT_TRUE(passive_tester.IsRejected());
+
+  v8::Local<v8::Value> passive_error = passive_tester.Value().V8Value();
+  ASSERT_TRUE(passive_error->IsObject());
+  auto* passive_exception = V8DOMException::ToWrappable(
+      context.GetScriptState()->GetIsolate(), passive_error);
+  ASSERT_TRUE(passive_exception);
+  EXPECT_EQ(passive_exception->name(), "NetworkError");
+
+  // Second (active) request is still pending. Now resolve it with error.
+  mock_federated_auth_request.InvokeRequestTokenCallbackWithError(
+      mojom::blink::RequestTokenStatus::kError, 0);
+
+  ScriptPromiseTester active_tester(context.GetScriptState(), active_promise);
+  active_tester.WaitUntilSettled();
+  ASSERT_TRUE(active_tester.IsRejected());
+
+  v8::Local<v8::Value> active_error = active_tester.Value().V8Value();
+  ASSERT_TRUE(active_error->IsObject());
+  auto* active_exception = V8DOMException::ToWrappable(
+      context.GetScriptState()->GetIsolate(), active_error);
+  ASSERT_TRUE(active_exception);
+  EXPECT_EQ(active_exception->name(), "NetworkError");
 }
 
 }  // namespace blink

@@ -24,8 +24,8 @@
 
 namespace autofill {
 
-using autofill::test::MakeFormGlobalId;
-using base::Bucket;
+using ::autofill::test::MakeFormGlobalId;
+using ::base::Bucket;
 using ::testing::ElementsAre;
 using ::testing::InSequence;
 using ::testing::IsEmpty;
@@ -178,8 +178,8 @@ class OtpFieldDetectorAutofillManagerObserverTest
     form.set_url(url);
     form.set_main_frame_origin(
         main_frame_origin.value_or(url::Origin::Create(url)));
-    form.set_renderer_id(autofill::test::MakeFormRendererId());
-    FormFieldData field = {autofill::test::CreateTestFormField(
+    form.set_renderer_id(test::MakeFormRendererId());
+    FormFieldData field = {test::CreateTestFormField(
         "some_label", "some_name", "some_value", FormControlType::kInputText)};
     field.set_origin(url::Origin::Create(url));
     field.set_is_focusable(is_focusable);
@@ -219,7 +219,7 @@ class OtpFieldDetectorAutofillManagerObserverTest
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  autofill::test::AutofillUnitTestEnvironment autofill_environment_;
+  test::AutofillUnitTestEnvironment autofill_environment_;
   // Passing no autofill client disables subscription to
   // AutofillManager::Observer events.
   OtpFieldDetector otp_field_detector_{nullptr};

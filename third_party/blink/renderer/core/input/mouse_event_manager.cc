@@ -29,6 +29,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/html_label_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/html_dialog_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
@@ -869,8 +870,14 @@ WebInputEventResult MouseEventManager::HandleMouseDraggedEvent(
       return WebInputEventResult::kNotHandled;
 
     layout_object = parent->GetLayoutObject();
-    if (!layout_object || !layout_object->IsListBox()) {
+    if (!layout_object) {
       return WebInputEventResult::kNotHandled;
+    }
+
+    if (const auto* select = DynamicTo<HTMLSelectElement>(parent)) {
+      if (select->UsesMenuList()) {
+        return WebInputEventResult::kNotHandled;
+      }
     }
   }
 

@@ -175,7 +175,7 @@ class LobsterSystemStateProviderImplBaseTest : public testing::Test {
     AccountInfo account =
         identity_test_environment_.MakePrimaryAccountAvailable(
             "someone@gmail.com", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account);
     mutator.set_can_use_manta_service(satisfied);
     signin::UpdateAccountInfoForAccount(
         identity_test_environment_.identity_manager(), account);

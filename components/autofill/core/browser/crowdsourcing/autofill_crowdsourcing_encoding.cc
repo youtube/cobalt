@@ -462,8 +462,9 @@ void PopulateThreeBitHashedFieldMetadata(
     field_metadata->set_aria_description(
         StrToHash3Bit(field.aria_description()));
   }
-  if (!field.placeholder().empty()) {
-    field_metadata->set_placeholder(StrToHash3Bit(field.placeholder()));
+  if (!field.placeholder_attribute().empty()) {
+    field_metadata->set_placeholder(
+        StrToHash3Bit(field.placeholder_attribute()));
   }
   if (!field.autocomplete_attribute().empty()) {
     field_metadata->set_autocomplete(

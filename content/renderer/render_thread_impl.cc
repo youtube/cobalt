@@ -970,10 +970,13 @@ media::GpuVideoAcceleratorFactories* RenderThreadImpl::GetGpuFactories() {
   if (is_gpu_compositing_disabled_)
     return nullptr;
 
-  auto media_context_provider = viz::ContextProviderCommandBuffer::CreateForGL(
-      gpu_channel_host, kGpuStreamIdMedia, kGpuStreamPriorityMedia,
-      GURL("chrome://gpu/RenderThreadImpl::CreateOffscreenContext/Media"),
-      viz::command_buffer_metrics::ContextType::MEDIA);
+  auto media_context_provider =
+      viz::ContextProviderCommandBuffer::CreateForRaster(
+          gpu_channel_host, kGpuStreamIdMedia, kGpuStreamPriorityMedia,
+          GURL("chrome://gpu/RenderThreadImpl::CreateOffscreenContext/Media"),
+          /*automatic_flushes=*/false, /*support_locking=*/false,
+          gpu::SharedMemoryLimits::ForMailboxContext(),
+          viz::command_buffer_metrics::ContextType::MEDIA);
 
   const bool enable_video_decode_accelerator =
 #if BUILDFLAG(IS_LINUX)

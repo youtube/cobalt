@@ -26,7 +26,7 @@ class AppServiceMojomImpl;
 class AppServiceProxyPreferredAppsTest;
 
 // The implementation of the preferred apps to manage the PreferredAppsList.
-class PreferredAppsImpl {
+class PreferredAppsImpl : public PreferredAppsList::Delegate {
  public:
   class Host {
    public:
@@ -40,6 +40,14 @@ class PreferredAppsImpl {
     // publisher (if any) of the change.
     virtual void OnSupportedLinksPreferenceChanged(const std::string& app_id,
                                                    bool open_in_app) = 0;
+
+    // Returns true if `first_app_id` and `second_app_id` have conflicting
+    // settings for the given filters, which means the older preference must be
+    // disabled.
+    virtual bool QueryConflict(const std::string& first_app_id,
+                               const IntentFilterPtr& first_filter,
+                               const std::string& second_app_id,
+                               const IntentFilterPtr& second_filter) = 0;
   };
 
   PreferredAppsImpl(
@@ -51,11 +59,21 @@ class PreferredAppsImpl {
   PreferredAppsImpl(const PreferredAppsImpl&) = delete;
   PreferredAppsImpl& operator=(const PreferredAppsImpl&) = delete;
 
-  ~PreferredAppsImpl();
+  ~PreferredAppsImpl() override;
 
   void RemovePreferredApp(const std::string& app_id);
   void SetSupportedLinksPreference(const std::string& app_id,
                                    IntentFilters all_link_filters);
+
+  // PreferredAppsList::Delegate overrides:
+  bool QueryConflict(const std::string& first_app_id,
+                     const IntentFilterPtr& first_filter,
+                     const std::string& second_app_id,
+                     const IntentFilterPtr& second_filter) override;
+
+  void SetLongestPrefixMatchEnabled(bool enabled) {
+    preferred_apps_list_.SetLongestPrefixMatchEnabled(enabled);
+  }
 #if BUILDFLAG(IS_CHROMEOS)
   void SetProtocolLinkPreference(const std::string& app_id,
                                  IntentFilterPtr protocol_link_filter);

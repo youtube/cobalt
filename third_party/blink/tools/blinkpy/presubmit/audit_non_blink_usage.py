@@ -798,6 +798,7 @@ _CONFIG = [
             'cc::SnapStrictness',
             'cc::TargetSnapAreaElementIds',
             'ui::ScrollGranularity',
+            'ui::ScrollInputType',
 
             # View transitions
             'cc::ViewTransitionContentLayer',
@@ -1561,6 +1562,7 @@ _CONFIG = [
         ],
         'allowed': [
             'network::HttpRequestHeadersUpdateParams',
+            'network::mojom::RequestDestination',
         ],
     },
     {
@@ -1860,6 +1862,7 @@ _CONFIG = [
             'gpu::raster::RasterInterface',
             'gpu::RasterScopedAccess',
             'gpu::SHARED_IMAGE_USAGE_.+',
+            'gpu::SharedImageExportResult',
             'gpu::SharedImageInterface',
             'gpu::SharedImageTexture',
             'gpu::SharedImageUsageSet',
@@ -2453,6 +2456,7 @@ _CONFIG = [
             'third_party/blink/renderer/core/layout/layout_theme.cc',
             'third_party/blink/renderer/core/layout/layout_theme.h',
             'third_party/blink/renderer/core/scroll/',
+            'third_party/blink/renderer/core/skeleton/skeleton_pseudo_element.cc',
             'third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.cc',
             'third_party/blink/renderer/modules/canvas/canvas2d/canvas_2d_recorder_context.h',
         ],
@@ -2637,8 +2641,14 @@ _CONFIG = [
         'paths': [
             'third_party/blink/renderer/core/frame/local_frame_view.cc',
             'third_party/blink/renderer/core/frame/local_frame_view.h',
+            'third_party/blink/renderer/core/html/canvas/canvas_rendering_context.cc',
+            'third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h',
+            'third_party/blink/renderer/core/html/canvas/canvas_rendering_context_host.cc',
+            'third_party/blink/renderer/core/html/canvas/canvas_rendering_context_host.h',
             'third_party/blink/renderer/core/html/canvas/html_canvas_element.cc',
             'third_party/blink/renderer/core/html/canvas/html_canvas_element.h',
+            'third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc',
+            'third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h',
         ],
         'allowed': ['cc::AnimatedImageFrameIndexMap'],
     },

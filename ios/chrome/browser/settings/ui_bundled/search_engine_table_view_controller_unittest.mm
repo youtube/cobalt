@@ -8,6 +8,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "components/search_engines/search_engines_switches.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_service_factory.h"
@@ -20,9 +21,9 @@
 
 SearchEngineTableViewControllerTest::SearchEngineTableViewControllerTest()
     : prepopulated_search_engine_({
-          {"google.com", GURL("https://p1.com?q={searchTerms}")},
           {"bing.com", GURL("https://p2.com?q={searchTerms}")},
           {"duckduckgo.com", GURL("https://p3.com?q={searchTerms}")},
+          {"google.com", GURL("https://p1.com?q={searchTerms}")},
       }),
       custom_search_engine_({
           {"custom-1", GURL("https://c1.com?q={searchTerms}")},
@@ -34,6 +35,7 @@ SearchEngineTableViewControllerTest::SearchEngineTableViewControllerTest()
 SearchEngineTableViewControllerTest::~SearchEngineTableViewControllerTest() {}
 
 void SearchEngineTableViewControllerTest::SetUp() {
+  scoped_feature_list_.InitAndEnableFeature(switches::kSearchSettingsUpdateV2);
   LegacyChromeTableViewControllerTest::SetUp();
 
   TestProfileIOS::Builder builder;
@@ -205,7 +207,6 @@ TEST_F(SearchEngineTableViewControllerTest, TestStarterPackSearchEngine) {
       prepopulated_search_engine_[1].searchable_url.possibly_invalid_spec());
   starter_pack_engine_data.favicon_url = TemplateURL::GenerateFaviconURL(
       prepopulated_search_engine_[1].searchable_url);
-  starter_pack_engine_data.prepopulate_id = 1001;
   starter_pack_engine_data.starter_pack_id = 1;
   template_url_service_->Add(
       std::make_unique<TemplateURL>(starter_pack_engine_data));
@@ -234,7 +235,6 @@ TEST_F(SearchEngineTableViewControllerTest,
       custom_search_engine_[0].searchable_url.possibly_invalid_spec());
   starter_pack_engine_data_1.favicon_url =
       TemplateURL::GenerateFaviconURL(custom_search_engine_[0].searchable_url);
-  starter_pack_engine_data_1.prepopulate_id = 1001;
   starter_pack_engine_data_1.starter_pack_id = 1;
   template_url_service_->Add(
       std::make_unique<TemplateURL>(starter_pack_engine_data_1));
@@ -248,7 +248,6 @@ TEST_F(SearchEngineTableViewControllerTest,
       custom_search_engine_[1].searchable_url.possibly_invalid_spec());
   starter_pack_engine_data_2.favicon_url =
       TemplateURL::GenerateFaviconURL(custom_search_engine_[1].searchable_url);
-  starter_pack_engine_data_2.prepopulate_id = 1002;
   starter_pack_engine_data_2.starter_pack_id = 2;
   template_url_service_->Add(
       std::make_unique<TemplateURL>(starter_pack_engine_data_2));

@@ -30,7 +30,6 @@
 #include "chrome/browser/ui/webui/ash/login/sync_consent_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/settings/pref_names.h"
 #include "chrome/browser/unified_consent/unified_consent_service_factory.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/osauth/public/auth_session_storage.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/consent_auditor/consent_auditor.h"
@@ -89,7 +88,7 @@ bool IsMinorMode(Profile* profile, const user_manager::User* user) {
   const AccountInfo account_info =
       identity_manager->FindExtendedAccountInfoByGaiaId(gaia_id);
   auto capability =
-      account_info.capabilities
+      account_info.GetAccountCapabilities()
           .can_show_history_sync_opt_ins_without_minor_mode_restrictions();
   base::UmaHistogramBoolean("OOBE.SyncConsentScreen.IsCapabilityKnown",
                             capability != signin::Tribool::kUnknown);
@@ -124,7 +123,7 @@ void SyncConsentScreen::MaybeLaunchSyncConsentSettings(Profile* profile) {
   // moment we show Settings, it might crash here because profile could be
   // already destroyed. This needs to be fixed.
   if (profile->GetPrefs()->GetBoolean(
-          ::prefs::kShowSyncSettingsOnSessionStart)) {
+          ash::prefs::kShowSyncSettingsOnSessionStart)) {
     // SyncSetupSubPage here is shown in the browser instead of the OS
     // Settings. We delay showing chrome sync settings by
     // kSyncConsentSettingsShowDelay to make the settings tab shows on top of
@@ -134,13 +133,13 @@ void SyncConsentScreen::MaybeLaunchSyncConsentSettings(Profile* profile) {
         base::BindOnce(
             [](Profile* profile) {
               profile->GetPrefs()->ClearPref(
-                  ::prefs::kShowSyncSettingsOnSessionStart);
+                  ash::prefs::kShowSyncSettingsOnSessionStart);
               chrome::ShowSettingsSubPageForProfile(
                   profile,
-                  (base::FeatureList::IsEnabled(
-                       syncer::kReplaceSyncPromosWithSignInPromos) &&
+                  (!IdentityManagerFactory::GetForProfile(profile)
+                        ->HasPrimaryAccount(signin::ConsentLevel::kSync) &&
                    base::FeatureList::IsEnabled(
-                       ::switches::kChromeOsUseConsentLevelSigninForNewUsers))
+                       syncer::kReplaceSyncPromosWithSignInPromos))
                       ? ash::chrome_urls::kAccountSubPage
                       : ash::chrome_urls::kSyncSetupSubPage);
             },
@@ -176,7 +175,9 @@ void SyncConsentScreen::Finish(Result result) {
   // Record whether the dialog was shown, skipped, etc.
   base::UmaHistogramEnumeration("OOBE.SyncConsentScreen.Behavior", behavior_);
   if (!base::FeatureList::IsEnabled(
-          ::switches::kChromeOsUseConsentLevelSigninForNewUsers)) {
+          syncer::kReplaceSyncPromosWithSignInPromos) ||
+      IdentityManagerFactory::GetForProfile(profile_)->HasPrimaryAccount(
+          signin::ConsentLevel::kSync)) {
     // Record the final state of the sync service.
     syncer::SyncService* service = GetSyncService(profile_);
     bool sync_enabled = service && service->IsSyncFeatureEnabled() &&
@@ -462,7 +463,7 @@ void SyncConsentScreen::OnAshContinue(
       "OOBE.SyncConsentScreen.UserChoice",
       opted_in ? SyncConsentScreenHandler::UserChoice::kAccepted
                : SyncConsentScreenHandler::UserChoice::kDeclined);
-  profile_->GetPrefs()->SetBoolean(::prefs::kShowSyncSettingsOnSessionStart,
+  profile_->GetPrefs()->SetBoolean(ash::prefs::kShowSyncSettingsOnSessionStart,
                                    review_sync);
   SetSyncEverythingEnabled(opted_in);
   RecordAllConsents(opted_in, consent_description_list, consent_confirmation);

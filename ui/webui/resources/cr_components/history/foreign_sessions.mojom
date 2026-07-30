@@ -33,11 +33,16 @@ struct ForeignSession {
   array<ForeignSessionWindow> windows;
 };
 
+// Used by the WebUI page to bootstrap bidirectional communication.
+interface ForeignSessionPageHandlerFactory {
+  // The WebUI calls this method when the page is first initialized.
+  CreateForeignSessionPageHandler(
+      pending_remote<ForeignSessionPage> page,
+      pending_receiver<ForeignSessionPageHandler> handler);
+};
+
 // Browser-side handler for requests from WebUI page.
 interface ForeignSessionPageHandler {
-  // The BrowserProxy singleton calls this when it's first initialized.
-  SetPage(pending_remote<ForeignSessionPage> page);
-
   // Queries for the list of foreign sessions.
   GetForeignSessions() => (array<ForeignSession> sessions);
 
@@ -53,6 +58,9 @@ interface ForeignSessionPageHandler {
 
   // Sets the collapsed state of a foreign session.
   SetForeignSessionCollapsed(string session_tag, bool collapsed);
+
+  // Notifies the browser that the page is ready to be shown.
+  ShowUi();
 };
 
 // WebUI-side handler for requests from browser.

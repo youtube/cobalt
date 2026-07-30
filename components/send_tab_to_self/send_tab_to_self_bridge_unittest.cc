@@ -22,6 +22,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/pref_names.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
@@ -29,6 +30,7 @@
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/sessions/core/serialized_navigation_entry.h"
 #include "components/sessions/core/serialized_navigation_entry_test_helper.h"
+#include "components/sync/base/features.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"
@@ -57,6 +59,7 @@ namespace {
 using testing::_;
 using testing::AllOf;
 using testing::ElementsAre;
+using testing::Field;
 using testing::IsEmpty;
 using testing::Return;
 using testing::SizeIs;
@@ -116,6 +119,16 @@ sync_pb::DataTypeState StateWithEncryption(
   return state;
 }
 
+syncer::EntityData CreateEntityData(const std::string& guid,
+                                    const std::string& url) {
+  syncer::EntityData entity_data;
+  sync_pb::SendTabToSelfSpecifics* specifics =
+      entity_data.specifics.mutable_send_tab_to_self();
+  specifics->set_guid(guid);
+  specifics->set_url(url);
+  return entity_data;
+}
+
 class MockSendTabToSelfModelObserver : public SendTabToSelfModelObserver {
  public:
   MOCK_METHOD(void,
@@ -126,6 +139,7 @@ class MockSendTabToSelfModelObserver : public SendTabToSelfModelObserver {
               OnEntriesOpenedRemotely,
               (base::span<const SendTabToSelfEntry* const>),
               (override));
+  MOCK_METHOD(void, OnModelReady, (), (override));
   MOCK_METHOD(void,
               OnEntriesRemovedRemotely,
               (base::span<const std::string>),
@@ -202,15 +216,16 @@ class SendTabToSelfBridgeTest : public testing::Test {
 
   // Initialized the bridge based on the current local device and store. Can
   // only be called once per run, as it passes |store_|.
-  void InitializeBridge() {
+  void InitializeBridge(bool is_tracking_metadata = true) {
     InitializeLocalDeviceIfNeeded();
-    InitializeBridgeWithoutDevice();
+    InitializeBridgeWithoutDevice(is_tracking_metadata);
   }
 
   // Initializes only the bridge without creating local device. This is useful
   // to test the case when the device info tracker is not initialized yet.
-  void InitializeBridgeWithoutDevice() {
-    ON_CALL(mock_processor_, IsTrackingMetadata()).WillByDefault(Return(true));
+  void InitializeBridgeWithoutDevice(bool is_tracking_metadata = true) {
+    ON_CALL(mock_processor_, IsTrackingMetadata())
+        .WillByDefault(Return(is_tracking_metadata));
     bridge_ = std::make_unique<SendTabToSelfBridge>(
         mock_processor_.CreateForwardingProcessor(), &clock_,
         syncer::DataTypeStoreTestUtil::MoveStoreToFactory(std::move(store_)),
@@ -360,6 +375,31 @@ TEST_F(SendTabToSelfBridgeTest, SyncAddOneEntry) {
   bridge()->MergeFullSyncData(std::move(metadata_change_list),
                               std::move(remote_input));
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
+}
+
+TEST_F(SendTabToSelfBridgeTest, MergeFullSyncDataNotifiesOnModelReady) {
+  InitializeBridge(/*is_tracking_metadata=*/false);
+  ASSERT_FALSE(bridge()->IsReady());
+
+  ON_CALL(*processor(), IsTrackingMetadata()).WillByDefault(Return(true));
+  ASSERT_TRUE(bridge()->IsReady());
+
+  syncer::EntityChangeList remote_input;
+  auto metadata_change_list =
+      std::make_unique<syncer::InMemoryMetadataChangeList>();
+  EXPECT_CALL(*mock_observer(), OnModelReady());
+  bridge()->MergeFullSyncData(std::move(metadata_change_list),
+                              std::move(remote_input));
+}
+
+TEST_F(SendTabToSelfBridgeTest, ModelReadyCalledOnStartupWithMetadata) {
+  EXPECT_CALL(*mock_observer(), OnModelReady());
+  InitializeBridge(/*is_tracking_metadata=*/true);
+}
+
+TEST_F(SendTabToSelfBridgeTest, ModelReadyNotCalledOnStartupWithoutMetadata) {
+  EXPECT_CALL(*mock_observer(), OnModelReady()).Times(0);
+  InitializeBridge(/*is_tracking_metadata=*/false);
 }
 
 TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesAddTwoSpecifics) {
@@ -714,6 +754,49 @@ TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
                                          kLocalDeviceCacheGuid, PageContext(),
                                          NavigationHistory(),
                                          mock_callback_fail_3.Get()));
+
+  // Add Entry should fail on invalid schemes.
+  base::MockCallback<base::OnceCallback<void(SendTabToSelfResult)>>
+      mock_callback_fail_scheme_1;
+  EXPECT_CALL(mock_callback_fail_scheme_1,
+              Run(SendTabToSelfResult::kFailureInvalidUrl));
+  EXPECT_EQ(nullptr, bridge()->SendEntry(GURL("chrome://flags"), "d",
+                                         kLocalDeviceCacheGuid, PageContext(),
+                                         NavigationHistory(),
+                                         mock_callback_fail_scheme_1.Get()));
+
+  base::MockCallback<base::OnceCallback<void(SendTabToSelfResult)>>
+      mock_callback_fail_scheme_2;
+  EXPECT_CALL(mock_callback_fail_scheme_2,
+              Run(SendTabToSelfResult::kFailureInvalidUrl));
+  EXPECT_EQ(nullptr,
+            bridge()->SendEntry(GURL("about:blank"), "d", kLocalDeviceCacheGuid,
+                                PageContext(), NavigationHistory(),
+                                mock_callback_fail_scheme_2.Get()));
+}
+
+TEST_F(SendTabToSelfBridgeTest, IsEntityDataValid) {
+  InitializeBridge();
+
+  // Valid entries.
+  EXPECT_TRUE(bridge()->IsEntityDataValid(
+      CreateEntityData("guid", "http://www.google.com")));
+  EXPECT_TRUE(bridge()->IsEntityDataValid(
+      CreateEntityData("guid", "https://www.google.com")));
+
+  // Invalid entries.
+  EXPECT_FALSE(bridge()->IsEntityDataValid(
+      CreateEntityData("", "http://www.google.com")));  // Empty GUID.
+  EXPECT_FALSE(
+      bridge()->IsEntityDataValid(CreateEntityData("guid", "")));  // Empty URL.
+  EXPECT_FALSE(bridge()->IsEntityDataValid(
+      CreateEntityData("guid", "invalid_url")));  // Invalid URL.
+  EXPECT_FALSE(bridge()->IsEntityDataValid(
+      CreateEntityData("guid", "chrome://flags")));  // Invalid scheme.
+  EXPECT_FALSE(bridge()->IsEntityDataValid(
+      CreateEntityData("guid", "about:blank")));  // Invalid scheme.
+  EXPECT_FALSE(bridge()->IsEntityDataValid(CreateEntityData(
+      "guid", "file:///sdcard/test.html")));  // Invalid scheme.
 }
 
 // Tests that the pending commit callback is fired with success when the
@@ -923,10 +1006,34 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryAdded) {
   EXPECT_EQ(2ul, bridge()->GetAllGuids().size());
 }
 
-// Tests that only the most recent device's guid is returned when multiple
-// devices have the same name.
-TEST_F(SendTabToSelfBridgeTest,
-       GetTargetDeviceInfoSortedList_OneDevicePerName) {
+enum class DeviceNamingMode {
+  kLegacyWithDeduplication,
+  kSimplifiedWithoutDeduplication,
+};
+
+class SendTabToSelfBridgeNamingTest
+    : public SendTabToSelfBridgeTest,
+      public testing::WithParamInterface<DeviceNamingMode> {
+ public:
+  SendTabToSelfBridgeNamingTest() {
+    if (GetParam() == DeviceNamingMode::kSimplifiedWithoutDeduplication) {
+      scoped_feature_list_.InitAndEnableFeature(
+          syncer::kSyncSimplifyDeviceNaming);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          syncer::kSyncSimplifyDeviceNaming);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that GetTargetDeviceInfoSortedList handles deduplication correctly
+// based on the kSyncSimplifyDeviceNaming feature flag. Parameterized by whether
+// simplified device naming is enabled.
+TEST_P(SendTabToSelfBridgeNamingTest,
+       GetTargetDeviceInfoSortedList_DeduplicationBehavior) {
   const std::string kRecentGuid = "guid1";
   const std::string kOldGuid = "guid2";
   const std::string kOlderGuid = "guid3";
@@ -946,12 +1053,32 @@ TEST_F(SendTabToSelfBridgeTest,
       CreateDevice(kOlderGuid, "device_name", clock()->Now() - base::Days(5));
   AddTestDevice(older_device.get());
 
-  TargetDeviceInfo target_device_info(
-      recent_device->client_name(), recent_device->guid(),
-      recent_device->form_factor(), recent_device->last_updated_timestamp());
+  if (GetParam() == DeviceNamingMode::kSimplifiedWithoutDeduplication) {
+    // With kSyncSimplifyDeviceNaming enabled: all devices should be returned
+    // (no deduplication). Sorted by recency.
+    TargetDeviceInfo target_device_info1(
+        recent_device->client_name(), recent_device->guid(),
+        recent_device->form_factor(), recent_device->last_updated_timestamp());
+    TargetDeviceInfo target_device_info2(
+        old_device->client_name(), old_device->guid(),
+        old_device->form_factor(), old_device->last_updated_timestamp());
+    TargetDeviceInfo target_device_info3(
+        older_device->client_name(), older_device->guid(),
+        older_device->form_factor(), older_device->last_updated_timestamp());
 
-  EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
-              ElementsAre(target_device_info));
+    EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
+                ElementsAre(target_device_info1, target_device_info2,
+                            target_device_info3));
+  } else {
+    // With kSyncSimplifyDeviceNaming disabled: only the most recent device's
+    // guid is returned.
+    TargetDeviceInfo target_device_info(
+        recent_device->client_name(), recent_device->guid(),
+        recent_device->form_factor(), recent_device->last_updated_timestamp());
+
+    EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
+                ElementsAre(target_device_info));
+  }
 }
 
 // Tests that only devices that have the send tab to self receiving feature
@@ -1295,8 +1422,8 @@ TEST_F(SendTabToSelfBridgeTest,
               ElementsAre(expected_device_info));
 }
 
-TEST_F(SendTabToSelfBridgeTest,
-       GetTargetDeviceInfoSortedList_ShortNameCollisionFallsBackToFullName) {
+TEST_P(SendTabToSelfBridgeNamingTest,
+       GetTargetDeviceInfoSortedList_ShortNameCollisionBehavior) {
   InitializeBridge();
 
   // Create two devices with the same manufacturer and form factor, but
@@ -1310,10 +1437,10 @@ TEST_F(SendTabToSelfBridgeTest,
           .WithLastUpdatedTimestamp(clock()->Now())
           .WithSendTabToSelfReceivingEnabled(true)
           .Build();
-  syncer::DeviceDisplayNames names1 =
-      syncer::GetDeviceDisplayNames(device1.get());
-  ASSERT_EQ("Manufacturer Phone model1", names1.full_name);
-  ASSERT_EQ("Manufacturer Phone", names1.short_name);
+  syncer::DisplayNameCandidates candidates1 =
+      syncer::GetDisplayNameCandidates(device1.get());
+  ASSERT_EQ("Manufacturer Phone model1", candidates1.fallback_full_name);
+  ASSERT_EQ("Manufacturer Phone", candidates1.preferred_name_if_unique);
   AddTestDevice(device1.get());
 
   std::unique_ptr<syncer::DeviceInfo> device2 =
@@ -1324,10 +1451,10 @@ TEST_F(SendTabToSelfBridgeTest,
           .WithLastUpdatedTimestamp(clock()->Now() - base::Seconds(1))
           .WithSendTabToSelfReceivingEnabled(true)
           .Build();
-  syncer::DeviceDisplayNames names2 =
-      syncer::GetDeviceDisplayNames(device2.get());
-  ASSERT_EQ("Manufacturer Phone model2", names2.full_name);
-  ASSERT_EQ("Manufacturer Phone", names2.short_name);
+  syncer::DisplayNameCandidates candidates2 =
+      syncer::GetDisplayNameCandidates(device2.get());
+  ASSERT_EQ("Manufacturer Phone model2", candidates2.fallback_full_name);
+  ASSERT_EQ("Manufacturer Phone", candidates2.preferred_name_if_unique);
   AddTestDevice(device2.get());
 
   // Short name for both should be "Manufacturer Phone" (Manufacturer
@@ -1337,8 +1464,13 @@ TEST_F(SendTabToSelfBridgeTest,
       bridge()->GetTargetDeviceInfoSortedList();
   ASSERT_EQ(2ul, list.size());
 
-  EXPECT_EQ("Manufacturer Phone model1", list[0].device_name);
-  EXPECT_EQ("Manufacturer Phone model2", list[1].device_name);
+  if (GetParam() == DeviceNamingMode::kSimplifiedWithoutDeduplication) {
+    EXPECT_EQ("Manufacturer Phone", list[0].device_name);
+    EXPECT_EQ("Manufacturer Phone", list[1].device_name);
+  } else {
+    EXPECT_EQ("Manufacturer Phone model1", list[0].device_name);
+    EXPECT_EQ("Manufacturer Phone model2", list[1].device_name);
+  }
 }
 
 TEST_F(SendTabToSelfBridgeTest,
@@ -1509,8 +1641,8 @@ TEST_F(SendTabToSelfBridgeTest, GetTargetDeviceInfo) {
 
 // Tests that the local device is not returned even if its full name matches
 // another device.
-TEST_F(SendTabToSelfBridgeTest,
-       GetTargetDeviceInfoSortedList_ExcludeLocalDeviceByFullName) {
+TEST_P(SendTabToSelfBridgeNamingTest,
+       GetTargetDeviceInfoSortedList_ExcludeLocalDeviceBehavior) {
   const std::string kMyLocalGuid = "unique_local_guid";
   const std::string kMyDuplicateGuid = "unique_duplicate_guid";
 
@@ -1520,25 +1652,34 @@ TEST_F(SendTabToSelfBridgeTest,
   // Set local cache GUID.
   SetLocalDeviceCacheGuid(kMyLocalGuid);
 
-  // Add a local device where GetDeviceDisplayNames returns a specific full
-  // name. Using a specific model ensures the complex naming logic is used.
+  // Add a local device where GetDisplayNameCandidates returns a specific
+  // fallback full name. Using a specific model ensures the complex naming logic
+  // is used.
   std::unique_ptr<syncer::DeviceInfo> local_device =
       CreateDevice(kMyLocalGuid, "local_name", clock()->Now(), "local_model");
 
   device_info_tracker()->Add(std::move(local_device));
   device_info_tracker()->SetLocalCacheGuid(kMyLocalGuid);
 
-  // Add another device with the same full name but different GUID.
+  // Add another device with the same fallback full name but different GUID.
   std::unique_ptr<syncer::DeviceInfo> duplicate_device = CreateDevice(
       kMyDuplicateGuid, "local_name", clock()->Now(), "local_model");
   device_info_tracker()->Add(std::move(duplicate_device));
 
-  // The duplicate device should be excluded because its full name matches the
-  // local device's full name.
-  EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(), IsEmpty());
+  if (GetParam() == DeviceNamingMode::kSimplifiedWithoutDeduplication) {
+    // In simplified mode, name-based local device filtering is disabled.
+    EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
+                ElementsAre(AllOf(
+                    Field(&TargetDeviceInfo::cache_guid, kMyDuplicateGuid),
+                    Field(&TargetDeviceInfo::device_name, "local_name"))));
+  } else {
+    // The duplicate device should be excluded because its fallback full name
+    // matches the local device's fallback full name.
+    EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(), IsEmpty());
+  }
 }
 
-// Tests that SendEntry uses the full name of the local device.
+// Tests that SendEntry uses the fallback full name of the local device.
 TEST_F(SendTabToSelfBridgeTest, SendEntry_UsesFullName) {
   const std::string kMyLocalGuid = "unique_local_guid_2";
   InitializeBridgeWithoutDevice();
@@ -1547,7 +1688,7 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_UsesFullName) {
   std::unique_ptr<syncer::DeviceInfo> local_device =
       CreateDevice(kMyLocalGuid, "local_name", clock()->Now(), "local_model");
   const std::string full_name =
-      syncer::GetDeviceDisplayNames(local_device.get()).full_name;
+      syncer::GetDisplayNameCandidates(local_device.get()).fallback_full_name;
 
   device_info_tracker()->Add(std::move(local_device));
   device_info_tracker()->SetLocalCacheGuid(kMyLocalGuid);
@@ -1558,6 +1699,59 @@ TEST_F(SendTabToSelfBridgeTest, SendEntry_UsesFullName) {
 
   ASSERT_NE(nullptr, result);
   EXPECT_EQ(full_name, result->GetDeviceName());
+}
+
+TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsDeviceFormFactorCombination) {
+  InitializeBridge();
+  base::HistogramTester histogram_tester;
+
+  // Add the local device as a desktop.
+  std::unique_ptr<syncer::DeviceInfo> local_device =
+      syncer::TestDeviceInfoBuilder(syncer::DeviceInfo::OsType::kLinux)
+          .WithGuid("local_guid")
+          .WithFormFactor(syncer::DeviceInfo::FormFactor::kDesktop)
+          .Build();
+  AddTestDevice(local_device.get(), /*local=*/true);
+  SetLocalDeviceCacheGuid("local_guid");
+
+  // Add a target device as a phone.
+  std::unique_ptr<syncer::DeviceInfo> target_device =
+      syncer::TestDeviceInfoBuilder(syncer::DeviceInfo::OsType::kAndroid)
+          .WithGuid("target_phone_guid")
+          .WithFormFactor(syncer::DeviceInfo::FormFactor::kPhone)
+          .WithSendTabToSelfReceivingEnabled(true)
+          .Build();
+  AddTestDevice(target_device.get());
+
+  bridge()->SendEntry(GURL("https://example.com"), "Title", "target_phone_guid",
+                      PageContext(), NavigationHistory(), base::DoNothing());
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.DeviceFormFactorCombination",
+      SendTabToSelfFormFactorCombination::kDesktopToPhone, 1);
+}
+
+TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsDeviceFormFactorCombinationUnknown) {
+  InitializeBridge();
+  base::HistogramTester histogram_tester;
+
+  // Add the local device as a desktop.
+  std::unique_ptr<syncer::DeviceInfo> local_device =
+      syncer::TestDeviceInfoBuilder(syncer::DeviceInfo::OsType::kLinux)
+          .WithGuid("local_guid")
+          .WithFormFactor(syncer::DeviceInfo::FormFactor::kDesktop)
+          .Build();
+  AddTestDevice(local_device.get(), /*local=*/true);
+  SetLocalDeviceCacheGuid("local_guid");
+
+  // There is no DeviceInfo for the target device.
+
+  bridge()->SendEntry(GURL("https://example.com"), "Title", "target_phone_guid",
+                      PageContext(), NavigationHistory(), base::DoNothing());
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.DeviceFormFactorCombination",
+      SendTabToSelfFormFactorCombination::kDesktopToUnknown, 1);
 }
 
 TEST_F(SendTabToSelfBridgeTest, SendEntry_RecordsPageContextSize) {
@@ -1869,6 +2063,12 @@ TEST_F(SendTabToSelfBridgeTest, GetUnopenedEntriesTargetedToLocalDevice) {
       unopened_entries,
       UnorderedElementsAre(GuidIs("guid1"), GuidIs("guid4"), GuidIs("guid5")));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    SendTabToSelfBridgeNamingTest,
+    testing::Values(DeviceNamingMode::kLegacyWithDeduplication,
+                    DeviceNamingMode::kSimplifiedWithoutDeduplication));
 
 }  // namespace
 

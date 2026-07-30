@@ -8,6 +8,7 @@
 #include <Foundation/Foundation.h>
 
 #include <optional>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -30,8 +31,10 @@ class ScriptMessageValue {
   // Deleted to prevent accidental copying.
   ScriptMessageValue(const ScriptMessageValue&) = delete;
   ScriptMessageValue& operator=(const ScriptMessageValue&) = delete;
-  explicit ScriptMessageValue(base::Value value);
+  explicit ScriptMessageValue(std::string&& value);
+  explicit ScriptMessageValue(std::string_view value);
   explicit ScriptMessageValue(std::u16string_view value);
+  explicit ScriptMessageValue(int value);
   explicit ScriptMessageValue(double value);
   explicit ScriptMessageValue(bool value);
   explicit ScriptMessageValue(ScriptMessageDictValue value);
@@ -45,7 +48,7 @@ class ScriptMessageValue {
 
   // Accesses the underlying data structures, but fails with a `CHECK()` on a
   // type mismatch.
-  const base::Value& GetValue();
+  const base::Value& GetValue() const;
   const ScriptMessageDictValue& GetDict() const;
   const ScriptMessageListValue& GetList() const;
 

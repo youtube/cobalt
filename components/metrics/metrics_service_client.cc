@@ -258,7 +258,7 @@ bool MetricsServiceClient::ShouldUploadMetricsForUserId(uint64_t user_id) {
   return true;
 }
 
-std::optional<bool> MetricsServiceClient::GetCurrentUserMetricsConsent() const {
+std::optional<bool> MetricsServiceClient::GetCurrentUserMetricsChoice() const {
   return std::nullopt;
 }
 

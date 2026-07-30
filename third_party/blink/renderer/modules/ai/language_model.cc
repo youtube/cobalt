@@ -546,7 +546,9 @@ ScriptPromise<LanguageModel> LanguageModel::create(
   }
 
   if (options && options->hasSamplingMode() &&
-      (options->hasTemperature() || options->hasTopK())) {
+      (options->hasTemperature() || options->hasTopK()) &&
+      RuntimeEnabledFeatures::AIPromptAPILegacyParamsEnabled(
+          execution_context)) {
     // TODO(crbug.com/502214118): Merge this check into
     // ResolveSamplingParamsOption.
     exception_state.ThrowTypeError(
@@ -614,7 +616,9 @@ ScriptPromise<V8Availability> LanguageModel::availability(
   LogCreateOptionMetrics(*options, "availability");
 
   if (options && options->hasSamplingMode() &&
-      (options->hasTemperature() || options->hasTopK())) {
+      (options->hasTemperature() || options->hasTopK()) &&
+      RuntimeEnabledFeatures::AIPromptAPILegacyParamsEnabled(
+          execution_context)) {
     // TODO(crbug.com/502214118): Merge this check into
     // ResolveSamplingParamsOption.
     exception_state.ThrowTypeError(
@@ -684,16 +688,11 @@ ScriptPromise<IDLNullable<LanguageModelParams>> LanguageModel::params(
     return EmptyPromise();
   }
 
-  // Count deprecation if only legacy params are enabled, i.e. for extensions.
+  // Count deprecation unconditionally (since this method is gated by
+  // [RuntimeEnabled=AIPromptAPILegacyParams] in IDL).
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
-  const bool count_deprecation =
-      RuntimeEnabledFeatures::AIPromptAPILegacyParamsEnabled(
-          execution_context) &&
-      !RuntimeEnabledFeatures::AIPromptAPIParamsEnabled(execution_context);
-  if (count_deprecation) {
-    Deprecation::CountDeprecation(
-        execution_context, mojom::blink::WebFeature::kLanguageModel_Params);
-  }
+  Deprecation::CountDeprecation(
+      execution_context, mojom::blink::WebFeature::kLanguageModel_Params);
 
   auto* resolver = MakeGarbageCollected<
       ScriptPromiseResolver<IDLNullable<LanguageModelParams>>>(script_state);

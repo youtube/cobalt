@@ -16,6 +16,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
@@ -151,8 +152,8 @@ void RemoteLoggingDelegate::DoPostRequest(
             // The fetcher and response code are retained by
             // the completion callback.
             auto response_code =
-                std::make_unique<std::optional<int>>(std::nullopt);
-            std::optional<int>* response_code_ptr = response_code.get();
+                base::MakeRefCounted<base::RefCountedData<std::optional<int>>>(
+                    std::nullopt);
             update_client::NetworkFetcher* fetcher_ptr = fetcher.get();
 
             fetcher_ptr->PostRequest(
@@ -163,17 +164,18 @@ void RemoteLoggingDelegate::DoPostRequest(
                        GetLoggingCookieValue(
                            now, configurator->GetUpdaterPersistedData())})}},
                 base::BindRepeating(
-                    [](std::optional<int>* response_code_out, int response_code,
-                       int64_t content_length) {
-                      *response_code_out = response_code;
+                    [](base::RefCountedData<std::optional<int>>*
+                           response_code_out,
+                       int response_code, int64_t content_length) {
+                      response_code_out->data = response_code;
                     },
-                    response_code_ptr),
+                    base::RetainedRef(response_code)),
                 /*progress_callback=*/base::DoNothing(),
                 base::BindOnce(
                     [](base::Time now,
                        scoped_refptr<PersistedData> persisted_data,
                        HttpRequestCallback callback,
-                       std::unique_ptr<std::optional<int>> response_code,
+                       base::RefCountedData<std::optional<int>>* response_code,
                        std::unique_ptr<update_client::NetworkFetcher> fetcher,
                        std::optional<std::string> response_body, int net_error,
                        const std::string& header_etag,
@@ -183,8 +185,9 @@ void RemoteLoggingDelegate::DoPostRequest(
                       if (net_error) {
                         VLOG(1)
                             << "Upload failed due to net error " << net_error;
-                        VLOG_IF(1, response_code->has_value())
-                            << "HTTP response code: " << response_code->value();
+                        VLOG_IF(1, response_code->data.has_value())
+                            << "HTTP response code: "
+                            << response_code->data.value();
                         base::SequencedTaskRunner::GetCurrentDefault()
                             ->PostTask(
                                 FROM_HERE,
@@ -199,11 +202,11 @@ void RemoteLoggingDelegate::DoPostRequest(
                       }
                       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
                           FROM_HERE,
-                          base::BindOnce(std::move(callback), *response_code,
-                                         response_body));
+                          base::BindOnce(std::move(callback),
+                                         response_code->data, response_body));
                     },
                     now, configurator->GetUpdaterPersistedData(),
-                    std::move(callback), std::move(response_code),
+                    std::move(callback), base::RetainedRef(response_code),
                     std::move(fetcher)));
           },
           configurator_, event_logging_url_, request_body, clock_->Now(),

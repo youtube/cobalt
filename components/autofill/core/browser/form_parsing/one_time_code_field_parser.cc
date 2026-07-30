@@ -38,7 +38,7 @@ OneTimeCodeFieldParser::OneTimeCodeFieldParser(FieldAndMatchInfo match)
 
 void OneTimeCodeFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
-  AddClassification(match_, ONE_TIME_CODE, kBaseOneTimeCodeParserScore,
+  AddClassification(match_, ONE_TIME_CODE, HeuristicParser::kOneTimeCode,
                     field_candidates);
 }
 

@@ -1,0 +1,68 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//third_party/protobuf/proto_library.gni")
+
+visibility = [
+  ":*",
+  "//third_party/federated_compute:*",
+]
+
+proto_library("google_type_date_proto") {
+  sources = [ "src/google/type/date.proto" ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+proto_library("google_type_datetime_proto") {
+  sources = [ "src/google/type/datetime.proto" ]
+
+  deps = [ "//third_party/protobuf:duration_proto" ]
+
+  import_dirs = [ "//third_party/protobuf/src" ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+proto_library("google_type_timeofday_proto") {
+  sources = [ "src/google/type/timeofday.proto" ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+proto_library("google_rpc_code_proto") {
+  sources = [ "src/google/rpc/code.proto" ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+proto_library("google_rpc_status_proto") {
+  sources = [ "src/google/rpc/status.proto" ]
+
+  deps = [ "//third_party/protobuf:any_proto" ]
+
+  import_dirs = [ "//third_party/protobuf/src" ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+proto_library("google_longrunning_operations_proto") {
+  sources = [ "src/google/longrunning/operations.proto" ]
+
+  deps = [
+    ":google_rpc_status_proto",
+    "//third_party/protobuf:any_proto",
+    "//third_party/protobuf:duration_proto",
+  ]
+
+  import_dirs = [ "//third_party/protobuf/src" ]
+
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}

@@ -265,6 +265,7 @@ enum class TabGridTransitionType {
     if (IsFullscreenRefactoringEnabled()) {
       browserLayout.view.translatesAutoresizingMaskIntoConstraints = NO;
       AddSameConstraints(browserLayout.view, appContentGuide);
+      [parentViewController.view layoutIfNeeded];
     }
   } else {
     [tabGrid addChildViewController:browserLayout];
@@ -272,6 +273,7 @@ enum class TabGridTransitionType {
     if (IsFullscreenRefactoringEnabled()) {
       browserLayout.view.translatesAutoresizingMaskIntoConstraints = NO;
       AddSameConstraints(browserLayout.view, tabGrid.view);
+      [tabGrid.view layoutIfNeeded];
     }
   }
 
@@ -295,6 +297,10 @@ enum class TabGridTransitionType {
   UIViewController* browserLayout = _params->browser_layout_view_controller;
   UIViewController* parentViewController = _params->parent_view_controller;
   [browserLayout didMoveToParentViewController:parentViewController];
+
+  if (_transitionType == TabGridTransitionType::kDisabledAnimation) {
+    [browserLayout.view layoutIfNeeded];
+  }
 
   [browserLayout setNeedsStatusBarAppearanceUpdate];
 }

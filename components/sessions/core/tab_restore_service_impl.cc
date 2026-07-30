@@ -547,6 +547,15 @@ std::unique_ptr<sessions::tab_restore::Split> CreateSplitEntryFromCommand(
   return split;
 }
 
+void MaybeAddSplitToGroup(sessions::tab_restore::Group& group,
+                          const sessions::tab_restore::Tab& tab) {
+  if (tab.split_id.has_value() &&
+      !group.split_tabs.contains(tab.split_id.value())) {
+    group.split_tabs.emplace(tab.split_id.value(),
+                             sessions::tab_restore::Split::FromTab(tab));
+  }
+}
+
 }  // namespace
 
 // TabRestoreServiceImpl::PersistenceDelegate
@@ -616,6 +625,10 @@ class TabRestoreServiceImpl::PersistenceDelegate
   void ScheduleCommandsForTab(const tab_restore::Tab& tab, int selected_index);
 
   void ScheduleRestoredEntryCommandsForTest(SessionID id);
+
+  CommandStorageManager* command_storage_manager() {
+    return command_storage_manager_.get();
+  }
 
   // Creates a window close command.
   static std::unique_ptr<SessionCommand> CreateWindowCommand(
@@ -1597,9 +1610,7 @@ void TabRestoreServiceImpl::PersistenceDelegate::CreateEntriesFromCommands(
       auto& group = static_cast<tab_restore::Group&>(*entry);
       group.split_tabs.clear();
       for (auto& tab : group.tabs) {
-        if (tab->split_id.has_value()) {
-          group.split_tabs[tab->split_id.value()].push_back(tab.get());
-        }
+        MaybeAddSplitToGroup(group, *tab);
       }
     }
   }
@@ -1661,6 +1672,19 @@ bool TabRestoreServiceImpl::PersistenceDelegate::ConvertSessionWindowToWindow(
     groups[group_id] = std::move(group);
   }
 
+  // The splits in ` window`. The split visual data must also be explicitly set
+  // on split tabs.
+  std::map<split_tabs::SplitTabId, std::unique_ptr<tab_restore::Split>> splits;
+  for (auto& split_tab : session_window->split_tabs) {
+    auto split_id = split_tab->id_;
+    auto split = std::make_unique<sessions::tab_restore::Split>();
+
+    split->split_id = split_tab->id_;
+    split->visual_data = split_tab->split_visual_data_;
+    split->timestamp = base::Time::Now();
+    splits[split_id] = std::move(split);
+  }
+
   for (auto& i : session_window->tabs) {
     if (i->navigations.empty()) {
       continue;
@@ -1672,6 +1696,16 @@ bool TabRestoreServiceImpl::PersistenceDelegate::ConvertSessionWindowToWindow(
     if (group_id.has_value()) {
       tab.group = group_id;
       tab.group_visual_data = groups[group_id.value()]->visual_data;
+    }
+
+    auto split_id = i->split_id;
+    if (split_id.has_value()) {
+      tab.split_id = split_id;
+      tab.split_visual_data = splits[split_id.value()]->visual_data;
+    }
+
+    if (group_id.has_value() && split_id.has_value()) {
+      MaybeAddSplitToGroup(*groups[group_id.value()], tab);
     }
 
     tab.pinned = i->pinned;
@@ -1686,6 +1720,7 @@ bool TabRestoreServiceImpl::PersistenceDelegate::ConvertSessionWindowToWindow(
     return false;
   }
   window->tab_groups = std::move(groups);
+  window->split_tabs = std::move(splits);
   window->selected_tab_index =
       std::min(session_window->selected_tab_index,
                static_cast<int>(window->tabs.size() - 1));
@@ -1929,6 +1964,13 @@ void TabRestoreServiceImpl::CreateRestoredEntryCommandForTest(SessionID id) {
   if (persistence_delegate_) {
     persistence_delegate_->ScheduleRestoredEntryCommandsForTest(id);
   }
+}
+
+CommandStorageManager*
+TabRestoreServiceImpl::command_storage_manager_for_testing() {
+  return persistence_delegate_
+             ? persistence_delegate_->command_storage_manager()
+             : nullptr;
 }
 
 }  // namespace sessions

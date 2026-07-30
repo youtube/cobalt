@@ -239,23 +239,29 @@ TEST_F(WKWebViewConfigurationProviderTest, ResetConfiguration) {
 
   WKWebViewConfiguration* config = [[WKWebViewConfiguration alloc] init];
   config.allowsInlineMediaPlayback = NO;
+  config.preferences.minimumFontSize = 42;
+  config.applicationNameForUserAgent = @"TestUserAgent";
+
   provider->ResetWithWebViewConfiguration(config);
 
   WKWebViewConfiguration* recorded_configuration =
       provider->GetWebViewConfiguration();
   ASSERT_TRUE(recorded_configuration);
 
-  // To check the configuration inside is reset.
-  EXPECT_EQ(config.preferences, recorded_configuration.preferences);
+  // Check that preferences are reset/applied using config.
+  EXPECT_EQ(config.preferences.minimumFontSize,
+            recorded_configuration.preferences.minimumFontSize);
 
-  // To check Chrome's initialization logic has been applied to `actual`,
-  // where the `actual.allowsInlineMediaPlayback` should be overwriten by YES.
+  // Check that top-level configuration properties are preserved.
+  EXPECT_NSEQ(recorded_configuration.applicationNameForUserAgent,
+              config.applicationNameForUserAgent);
+
+  // Check Chrome's initialization logic has been applied to
+  // `recorded_configuration`, where
+  // `recorded_configuration.allowsInlineMediaPlayback` should be overwritten by
+  // YES.
   EXPECT_EQ(NO, config.allowsInlineMediaPlayback);
   EXPECT_EQ(YES, recorded_configuration.allowsInlineMediaPlayback);
-
-  // Compares the POINTERS to make sure the `config` has been shallow cloned
-  // inside the `provider`.
-  EXPECT_NE(config, recorded_configuration);
 }
 
 // Tests that WKWebViewConfiguration has a different data store if browser state

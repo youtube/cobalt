@@ -1,0 +1,49 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("actor_login") {
+  sources = [
+    "ios_chrome_actor_login_delegate_client.h",
+    "ios_chrome_actor_login_delegate_client.mm",
+  ]
+
+  deps = [
+    ":factories",
+    "//base",
+    "//components/password_manager/core/browser/actor_login/internal:delegate",
+    "//components/password_manager/ios",
+    "//components/prefs",
+    "//components/translate/core/browser",
+    "//components/ukm",
+    "//components/ukm/ios:ukm_url_recorder",
+    "//ios/chrome/browser/passwords/model",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/translate/model",
+    "//ios/web/public",
+    "//ios/web/public/js_messaging",
+    "//ios/web/public/navigation",
+  ]
+}
+
+source_set("factories") {
+  sources = [
+    "ios_chrome_actor_login_permission_cleaning_service_factory.h",
+    "ios_chrome_actor_login_permission_cleaning_service_factory.mm",
+    "ios_chrome_actor_login_permission_service_factory.h",
+    "ios_chrome_actor_login_permission_service_factory.mm",
+  ]
+
+  deps = [
+    "//base",
+    "//components/keyed_service/core",
+    "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser/actor_login/internal:permission_cleaner",
+    "//components/password_manager/core/browser/actor_login/internal:permission_service_impl",
+    "//ios/chrome/browser/passwords/model:store_factory",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/signin/model",
+    "//services/network/public/cpp",
+  ]
+}

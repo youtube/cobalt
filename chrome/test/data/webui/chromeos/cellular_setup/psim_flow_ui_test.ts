@@ -6,6 +6,7 @@ import 'chrome://os-settings/strings.m.js';
 import 'chrome://resources/ash/common/cellular_setup/psim_flow_ui.js';
 
 import {ButtonState} from 'chrome://resources/ash/common/cellular_setup/cellular_types.js';
+import {MetricsBrowserProxy} from 'chrome://resources/ash/common/cellular_setup/metrics_browser_proxy.js';
 import {setCellularSetupRemoteForTesting} from 'chrome://resources/ash/common/cellular_setup/mojo_interface_provider.js';
 import type {PsimFlowUiElement} from 'chrome://resources/ash/common/cellular_setup/psim_flow_ui.js';
 import {FAILED_PSIM_SETUP_DURATION_METRIC_NAME, PsimPageName, PsimSetupFlowResult, PsimUiState, SUCCESSFUL_PSIM_SETUP_DURATION_METRIC_NAME} from 'chrome://resources/ash/common/cellular_setup/psim_flow_ui.js';
@@ -17,7 +18,7 @@ import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
 import {FakeCellularSetupDelegate} from './fake_cellular_setup_delegate.js';
 import {FakeCarrierPortalHandlerRemote, FakeCellularSetupRemote} from './fake_cellular_setup_remote.js';
-import {MockMetricsPrivate} from './mock_metrics_private.js';
+import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
 suite('CrComponentsPsimFlowUiTest', function() {
   let pSimPage: PsimFlowUiElement;
@@ -25,7 +26,7 @@ suite('CrComponentsPsimFlowUiTest', function() {
   let cellularCarrierHandler: FakeCarrierPortalHandlerRemote|null;
   let cellularActivationDelegate: ActivationDelegateRemote|null;
   let timeoutFunction: Function|null;
-  let metrics: MockMetricsPrivate;
+  let metrics: TestMetricsBrowserProxy;
 
   async function flushAsync() {
     flush();
@@ -58,8 +59,8 @@ suite('CrComponentsPsimFlowUiTest', function() {
     cellularCarrierHandler = new FakeCarrierPortalHandlerRemote();
     cellularSetupRemote = new FakeCellularSetupRemote(cellularCarrierHandler);
     setCellularSetupRemoteForTesting(cellularSetupRemote);
-    metrics = new MockMetricsPrivate();
-    chrome.metricsPrivate = metrics as unknown as typeof chrome.metricsPrivate;
+    metrics = new TestMetricsBrowserProxy();
+    MetricsBrowserProxy.setInstance(metrics);
     flush();
 
     pSimPage = document.createElement('psim-flow-ui');

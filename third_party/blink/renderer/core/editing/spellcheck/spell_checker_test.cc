@@ -96,7 +96,7 @@ TEST_P(SpellCheckerTest, AdvancedToNextMisspellingWrapSearchNoCrash) {
 
   Element* div = QuerySelector("div");
   div->Focus();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position::LastPositionInNode(*div))
                                .Build(),
                            SetSelectionOptions());
@@ -114,7 +114,7 @@ TEST_P(SpellCheckerTest, SpellCheckDoesNotCauseUpdateLayout) {
 
   Position new_position(input->InnerEditorElement()->firstChild(), 3);
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(new_position).Build(),
+      SelectionInDomTree::Builder().Collapse(new_position).Build(),
       SetSelectionOptions());
   ASSERT_EQ(3u, input->selectionStart());
 
@@ -227,7 +227,7 @@ TEST_P(SpellCheckerTest, GetSpellCheckMarkerUnderSelection_FirstCharSelected) {
       EphemeralRange(Position(text, 0), Position(text, 8)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 0), Position(text, 1))
           .Build(),
       SetSelectionOptions());
@@ -255,7 +255,7 @@ TEST_P(SpellCheckerTest, GetSpellCheckMarkerUnderSelection_LastCharSelected) {
       EphemeralRange(Position(text, 0), Position(text, 8)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 7), Position(text, 8))
           .Build(),
       SetSelectionOptions());
@@ -284,7 +284,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 0), Position(text, 1)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 0), Position(text, 1))
           .Build(),
       SetSelectionOptions());
@@ -313,7 +313,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 0), Position(text, 1)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 0), Position(text, 0))
           .Build(),
       SetSelectionOptions());
@@ -342,7 +342,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 0), Position(text, 1)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 1), Position(text, 1))
           .Build(),
       SetSelectionOptions());
@@ -371,7 +371,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 0), Position(text, 8)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 0), Position(text, 0))
           .Build(),
       SetSelectionOptions());
@@ -400,7 +400,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 0), Position(text, 8)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 8), Position(text, 8))
           .Build(),
       SetSelectionOptions());
@@ -428,7 +428,7 @@ TEST_P(SpellCheckerTest, GetSpellCheckMarkerUnderSelection_CaretMiddleOfWord) {
       EphemeralRange(Position(text, 0), Position(text, 8)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 4), Position(text, 4))
           .Build(),
       SetSelectionOptions());
@@ -457,7 +457,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 2), Position(text, 10)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 1), Position(text, 1))
           .Build(),
       SetSelectionOptions());
@@ -482,7 +482,7 @@ TEST_P(SpellCheckerTest,
       EphemeralRange(Position(text, 0), Position(text, 8)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 9), Position(text, 9))
           .Build(),
       SetSelectionOptions());
@@ -508,7 +508,7 @@ TEST_P(SpellCheckerTest, GetSpellCheckMarkerUnderSelection_MultiNodeMisspell) {
       EphemeralRange(Position(first_text, 0), Position(third_text, 3)));
 
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(second_text, 1), Position(second_text, 1))
           .Build(),
       SetSelectionOptions());

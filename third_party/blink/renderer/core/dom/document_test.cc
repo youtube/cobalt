@@ -2310,8 +2310,10 @@ class DocumentFocusUseCounterTest : public DocumentSimTest {
   void SetUpChildFrameWithHeader(
       const char* allow_attribute,
       const char* permissions_policy_header,
-      const char* report_only_permissions_policy_header = nullptr) {
-    std::string iframe_tag = "<iframe src=\"https://example.com/child.html\"";
+      const char* report_only_permissions_policy_header = nullptr,
+      const char* child_origin = "https://example.com") {
+    std::string child_url = std::string(child_origin) + "/child.html";
+    std::string iframe_tag = "<iframe src=\"" + child_url + "\"";
     if (allow_attribute) {
       iframe_tag += " allow=\"";
       iframe_tag += allow_attribute;
@@ -2330,7 +2332,7 @@ class DocumentFocusUseCounterTest : public DocumentSimTest {
           String("Permissions-Policy-Report-Only"),
           String(report_only_permissions_policy_header));
     }
-    SimRequest child_resource("https://example.com/child.html", "text/html",
+    SimRequest child_resource(child_url.c_str(), "text/html",
                               std::move(child_params));
     LoadURL("https://example.com/test.html");
     main_resource.Complete(String("<!DOCTYPE html>") + iframe_tag.c_str());
@@ -2471,6 +2473,53 @@ TEST_F(DocumentFocusUseCounterTest, PolicySetNotFiredWithFeatureDisabled) {
 
   EXPECT_FALSE(ChildDocument()->IsUseCounted(
       WebFeature::kFocusWithoutUserActivationPolicySet));
+}
+
+// Regression coverage for crbug.com/513330788:
+// `Document::IsFocusAllowed` used to short-circuit on the *target* frame
+// being a main frame, which let a restricted initiator (e.g. an iframe with
+// `allow="focus-without-user-activation 'none'"`) bypass the policy by
+// targeting the main frame.
+TEST_F(DocumentFocusUseCounterTest,
+       MainFrameTargetDoesNotBypassRestrictedInitiator) {
+  ScopedBlockingFocusWithoutUserActivationForTest feature(true);
+  SetUpChildFrame("focus-without-user-activation 'none'");
+
+  // Call IsFocusAllowed on the *main* document with the restricted child
+  // frame as initiator. The main frame had focus from the load, so it is not
+  // a descendant of the initiator, and the initiator has no activation and a
+  // denied policy. Focus must be blocked.
+  EXPECT_FALSE(
+      GetDocument().IsFocusAllowed(FocusTrigger::kScript, *ChildFrame()));
+
+  EXPECT_TRUE(GetDocument().IsUseCounted(
+      WebFeature::kFocusWithoutUserActivationBlocked));
+}
+
+// Regression coverage for the activated-target variant of crbug.com/513330788:
+// the target frame holds transient user activation but the policy-restricted
+// initiator does not.
+TEST_F(DocumentFocusUseCounterTest,
+       ActivatedMainFrameTargetDoesNotBypassCrossOriginInitiator) {
+  ScopedBlockingFocusWithoutUserActivationForTest feature(true);
+  SetUpChildFrameWithHeader(
+      /*allow_attribute=*/"focus-without-user-activation 'none'",
+      /*permissions_policy_header=*/nullptr,
+      /*report_only_permissions_policy_header=*/nullptr,
+      /*child_origin=*/"https://other-origin.example");
+
+  // Activate only the main frame.
+  LocalFrame::NotifyUserActivation(
+      GetDocument().GetFrame(),
+      mojom::blink::UserActivationNotificationType::kTest);
+  ASSERT_TRUE(LocalFrame::HasTransientUserActivation(GetDocument().GetFrame()));
+  ASSERT_FALSE(LocalFrame::HasTransientUserActivation(ChildFrame()));
+
+  EXPECT_FALSE(
+      GetDocument().IsFocusAllowed(FocusTrigger::kScript, *ChildFrame()));
+
+  EXPECT_TRUE(GetDocument().IsUseCounted(
+      WebFeature::kFocusWithoutUserActivationBlocked));
 }
 
 }  // namespace blink

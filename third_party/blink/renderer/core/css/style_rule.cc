@@ -1164,9 +1164,7 @@ void StyleRuleNavigation::SetConditionText(
     StyleSheetContents* parent_sheet_contents,
     String value) {
   CSSParserTokenStream stream(value);
-  auto* context = MakeGarbageCollected<CSSParserContext>(*execution_context);
-  NavigationQuery* query =
-      NavigationParser::ParseQuery(stream, *context->GetDocument());
+  NavigationQuery* query = NavigationParser::ParseQuery(stream);
 
   if (query) {
     navigation_query_ = query;

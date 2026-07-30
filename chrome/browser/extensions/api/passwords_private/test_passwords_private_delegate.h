@@ -174,6 +174,10 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
     return disconnect_cloud_authenticator_called_;
   }
 
+  bool get_undo_remove_saved_password_or_exception_called() const {
+    return undo_remove_saved_password_or_exception_called_;
+  }
+
   bool get_delete_all_password_manager_data_called() const {
     return delete_all_password_manager_data_called_;
   }
@@ -257,6 +261,9 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
 
   // Used to track whether `DisconnectCloudAuthenticator` was called.
   bool disconnect_cloud_authenticator_called_ = false;
+
+  // Used to track whether `UndoRemoveSavedPasswordOrException` was called.
+  bool undo_remove_saved_password_or_exception_called_ = false;
 
   // Used to track whether `DeleteAllPasswordManagerData` was called.
   bool delete_all_password_manager_data_called_ = false;

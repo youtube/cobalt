@@ -547,7 +547,7 @@ public class TabModelMergingTest {
     @DisabledTest(message = "https://crbug.com/40808075")
     public void testMergeWhileInTabSwitcher() {
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivity1.getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivity1.getLayoutManager(), LayoutType.HUB, false);
 
         mergeTabsAndAssert(mActivity1, mMergeIntoActivity1ExpectedTabs);
         assertTrue("Overview mode should still be showing", mActivity1.isInOverviewMode());
@@ -562,7 +562,7 @@ public class TabModelMergingTest {
         // Enter the tab switcher before closing all tabs with grid tab switcher enabled, otherwise
         // the activity is killed and the test fails.
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivity1.getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivity1.getLayoutManager(), LayoutType.HUB, false);
 
         // Close all tabs and wait for the callback.
         ChromeTabUtils.closeAllTabs(InstrumentationRegistry.getInstrumentation(), mActivity1);

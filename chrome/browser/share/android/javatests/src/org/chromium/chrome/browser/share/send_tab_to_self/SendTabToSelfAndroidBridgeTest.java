@@ -39,8 +39,8 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutManagerChrome;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.SendTabToSelfTabCardLabelData;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.state.SendTabToSelfTabCardLabelData;
 import org.chromium.components.messages.ManagedMessageDispatcher;
 import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageIdentifier;
@@ -418,7 +418,7 @@ public class SendTabToSelfAndroidBridgeTest {
         // Verify that the banner dismisses immediately and showLayout is called to show the tab
         // switcher.
         Assert.assertEquals(PrimaryActionClickBehavior.DISMISS_IMMEDIATELY, result);
-        verify(layoutManager).showLayout(LayoutType.TAB_SWITCHER, true);
+        verify(layoutManager).showLayout(LayoutType.HUB, true);
 
         // Clean up global static state.
         ApplicationStatus.onStateChangeForTesting(tabbedActivity, ActivityState.DESTROYED);

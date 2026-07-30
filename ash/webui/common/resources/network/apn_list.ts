@@ -19,7 +19,7 @@ import {assert} from '//resources/js/assert.js';
 import type {ApnProperties, ManagedCellularProperties} from '//resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import {ApnSource, ApnState} from '//resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
 import type {PortalState} from '//resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
-import {afterNextRender, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 
 import type {ApnDetailDialog} from './apn_detail_dialog.js';
@@ -87,6 +87,8 @@ export class ApnListElement extends ApnListElementBase {
         value: ApnDetailDialogMode.CREATE,
       },
 
+      apnDetailDialogApnProperties_: Object,
+
       shouldShowApnSelectionDialog_: {
         type: Boolean,
         value: false,
@@ -105,6 +107,7 @@ export class ApnListElement extends ApnListElementBase {
   private shouldShowApnDetailDialog_: boolean;
   private apnDetailDialogMode_: ApnDetailDialogMode;
   private shouldShowApnSelectionDialog_: boolean;
+  private apnDetailDialogApnProperties_: ApnProperties|undefined;
 
   private onZeroStateCreateApnLinkClicked_(e: CustomEvent<{event: Event}>):
       void {
@@ -245,19 +248,14 @@ export class ApnListElement extends ApnListElementBase {
 
   private showApnDetailDialog_(
       mode: ApnDetailDialogMode, apn: ApnProperties|undefined): void {
-    this.shouldShowApnDetailDialog_ = true;
     this.apnDetailDialogMode_ = mode;
-    // Added to ensure dom-if stamping.
-    afterNextRender(this, () => {
-      const apnDetailDialog =
-          this.shadowRoot!.querySelector<ApnDetailDialog>('#apnDetailDialog');
-      assert(!!apnDetailDialog);
-      apnDetailDialog.apnProperties = apn;
-    });
+    this.apnDetailDialogApnProperties_ = apn;
+    this.shouldShowApnDetailDialog_ = true;
   }
 
   private onApnDetailDialogClose_(): void {
     this.shouldShowApnDetailDialog_ = false;
+    this.apnDetailDialogApnProperties_ = undefined;
   }
 
   private onApnSelectionDialogClose_(): void {

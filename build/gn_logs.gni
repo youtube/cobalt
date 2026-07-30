@@ -13,7 +13,12 @@ build_gn_logs += [ "" ]
 build_gn_logs += [ "### rbe.gni ###" ] + rbe_logs
 build_gn_logs += [ "" ]
 
-# Log lines for gn_logs.txt that originate from within //build.
+build_gn_logs += [
+  "### BUILDCONFIG.gn ###",
+  "is_component_build=$is_component_build",
+  "",
+]
+
 build_gn_logs += [ "### compiler.gni ###" ] + compiler_logs
 build_gn_logs += [ "" ]
 

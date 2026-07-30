@@ -113,6 +113,10 @@ void AddWord(PlatformSpellChecker* spell_checker_instance,
 void RemoveWord(PlatformSpellChecker* spell_checker_instance,
                 const std::u16string& word);
 
+// Whether |word| has been added to the dictionary by the user.
+bool IsUserAddedWord(PlatformSpellChecker* spell_checker_instance,
+                     const std::u16string& word);
+
 // Gets a unique tag to identify a document. Used in ignoring words.
 int GetDocumentTag();
 

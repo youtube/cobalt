@@ -101,9 +101,6 @@ class ComponentExtensionContentSettingsAllowlist final
       ContentSettingsType content_type,
       ContentSetting content_setting);
 
-  static std::optional<ExtensionsContentSettingsTypes>
-      component_extensions_content_settings_types_for_testing_;
-
   raw_ptr<content::BrowserContext> context_;
   content_settings::OriginValueMap value_map_;
   ContentSettingsCallbackList content_callback_list_;

@@ -1151,7 +1151,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[ash::prefs::kPowerBatterySaver] =
       settings_api::PrefType::kBoolean;
-  (*s_allowlist)[::prefs::kConsumerAutoUpdateToggle] =
+  (*s_allowlist)[ash::prefs::kConsumerAutoUpdateToggle] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::ash::prefs::kChargingSoundsEnabled] =
       settings_api::PrefType::kBoolean;
@@ -1221,7 +1221,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  (*s_allowlist)[::prefs::kDocumentScanAPITrustedExtensions] =
+  (*s_allowlist)[::ash::prefs::kDocumentScanAPITrustedExtensions] =
       settings_api::PrefType::kList;
   (*s_allowlist)[::prefs::kPrintingAPIExtensionsAllowlist] =
       settings_api::PrefType::kList;

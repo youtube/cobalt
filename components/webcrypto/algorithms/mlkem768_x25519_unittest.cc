@@ -167,9 +167,6 @@ TEST_F(WebCryptoMlKem768X25519Test, UnsupportedFormats) {
   // Exporting public key to SPKI should fail
   EXPECT_EQ(Status::ErrorUnsupportedExportKeyFormat(),
             ExportKey(blink::kWebCryptoKeyFormatSpki, public_key, &buffer));
-  // Exporting public key to JWK should fail
-  EXPECT_EQ(Status::ErrorUnsupportedExportKeyFormat(),
-            ExportKey(blink::kWebCryptoKeyFormatJwk, public_key, &buffer));
 
   // Exporting private key to SPKI should fail
   EXPECT_EQ(Status::ErrorUnsupportedExportKeyFormat(),
@@ -177,9 +174,64 @@ TEST_F(WebCryptoMlKem768X25519Test, UnsupportedFormats) {
   // Exporting private key to PKCS8 should fail
   EXPECT_EQ(Status::ErrorUnsupportedExportKeyFormat(),
             ExportKey(blink::kWebCryptoKeyFormatPkcs8, private_key, &buffer));
-  // Exporting private key to JWK should fail
-  EXPECT_EQ(Status::ErrorUnsupportedExportKeyFormat(),
-            ExportKey(blink::kWebCryptoKeyFormatJwk, private_key, &buffer));
+}
+
+TEST_F(WebCryptoMlKem768X25519Test, ImportExportJwk) {
+  blink::WebCryptoKey public_key;
+  blink::WebCryptoKey private_key;
+  blink::WebCryptoAlgorithm algorithm = CreateMlKem768X25519Algorithm();
+  ASSERT_EQ(Status::Success(),
+            GenerateKeyPair(algorithm, true,
+                            blink::kWebCryptoKeyUsageEncapsulateBits |
+                                blink::kWebCryptoKeyUsageDecapsulateBits,
+                            &public_key, &private_key));
+
+  // Export public key to JWK
+  std::vector<uint8_t> jwk_public;
+  ASSERT_EQ(Status::Success(),
+            ExportKey(blink::kWebCryptoKeyFormatJwk, public_key, &jwk_public));
+  EXPECT_FALSE(jwk_public.empty());
+
+  // Import public key from JWK
+  blink::WebCryptoKey imported_public_key;
+  ASSERT_EQ(Status::Success(),
+            ImportKey(blink::kWebCryptoKeyFormatJwk, jwk_public, algorithm,
+                      true, blink::kWebCryptoKeyUsageEncapsulateBits,
+                      &imported_public_key));
+  EXPECT_EQ(blink::kWebCryptoKeyTypePublic, imported_public_key.GetType());
+  EXPECT_TRUE(imported_public_key.Extractable());
+  EXPECT_EQ(blink::kWebCryptoKeyUsageEncapsulateBits,
+            imported_public_key.Usages());
+
+  // Export private key to JWK
+  std::vector<uint8_t> jwk_private;
+  ASSERT_EQ(Status::Success(), ExportKey(blink::kWebCryptoKeyFormatJwk,
+                                         private_key, &jwk_private));
+  EXPECT_FALSE(jwk_private.empty());
+
+  // Import private key from JWK
+  blink::WebCryptoKey imported_private_key;
+  ASSERT_EQ(Status::Success(),
+            ImportKey(blink::kWebCryptoKeyFormatJwk, jwk_private, algorithm,
+                      true, blink::kWebCryptoKeyUsageDecapsulateBits,
+                      &imported_private_key));
+  EXPECT_EQ(blink::kWebCryptoKeyTypePrivate, imported_private_key.GetType());
+  EXPECT_TRUE(imported_private_key.Extractable());
+  EXPECT_EQ(blink::kWebCryptoKeyUsageDecapsulateBits,
+            imported_private_key.Usages());
+
+  // Test encapsulation/decapsulation using the imported JWK keys
+  EncapsulateBitsResult encap_result;
+  ASSERT_EQ(Status::Success(),
+            EncapsulateBits(algorithm, imported_public_key, &encap_result));
+  EXPECT_FALSE(encap_result.shared_bits().empty());
+  EXPECT_FALSE(encap_result.ciphertext().empty());
+
+  std::vector<uint8_t> decap_shared_bits;
+  ASSERT_EQ(Status::Success(),
+            DecapsulateBits(algorithm, imported_private_key,
+                            encap_result.ciphertext(), &decap_shared_bits));
+  EXPECT_EQ(encap_result.shared_bits(), decap_shared_bits);
 }
 
 }  // namespace

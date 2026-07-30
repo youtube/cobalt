@@ -23,6 +23,7 @@
 #include "base/test/gmock_move_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router_factory.h"
@@ -37,6 +38,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "components/affiliations/core/browser/fake_affiliation_service.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -198,10 +200,13 @@ auto ExpectCompromisedInfo(
 
 // Creates matcher for a given compromised credential
 auto ExpectCredential(const std::optional<std::string>& change_password_url,
-                      const std::u16string& username) {
+                      const std::u16string& username,
+                      bool is_automatic_password_change_supported = false) {
   return AllOf(
       Field(&PasswordUiEntry::username, base::UTF16ToASCII(username)),
-      Field(&PasswordUiEntry::change_password_url, change_password_url));
+      Field(&PasswordUiEntry::change_password_url, change_password_url),
+      Field(&PasswordUiEntry::is_automatic_password_change_supported,
+            is_automatic_password_change_supported));
 }
 
 // Creates matcher for a given compromised credential
@@ -210,20 +215,22 @@ auto ExpectCompromisedCredential(
     const std::u16string& username,
     base::TimeDelta elapsed_time_since_compromise,
     const std::string& elapsed_time_since_compromise_str,
-    std::vector<api::passwords_private::CompromiseType> compromise_types) {
+    std::vector<api::passwords_private::CompromiseType> compromise_types,
+    bool is_automatic_password_change_supported = false) {
   auto change_password_url_field_matcher =
       change_password_url.has_value()
           ? Field(&PasswordUiEntry::change_password_url,
                   change_password_url.value())
           : Field(&PasswordUiEntry::change_password_url,
                   testing::Eq(std::nullopt));
-  return AllOf(
-      Field(&PasswordUiEntry::username, base::UTF16ToASCII(username)),
-      change_password_url_field_matcher,
-      Field(&PasswordUiEntry::compromised_info,
-            Optional(ExpectCompromisedInfo(elapsed_time_since_compromise,
-                                           elapsed_time_since_compromise_str,
-                                           compromise_types))));
+  return AllOf(Field(&PasswordUiEntry::username, base::UTF16ToASCII(username)),
+               change_password_url_field_matcher,
+               Field(&PasswordUiEntry::compromised_info,
+                     Optional(ExpectCompromisedInfo(
+                         elapsed_time_since_compromise,
+                         elapsed_time_since_compromise_str, compromise_types))),
+               Field(&PasswordUiEntry::is_automatic_password_change_supported,
+                     is_automatic_password_change_supported));
 }
 
 std::unique_ptr<TestingProfile> CreateTestingProfile() {
@@ -354,9 +361,34 @@ TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsFillsFieldsCorrectly) {
       MakeSavedPassword(kExampleCom, kUsername1, kWeakPassword1)));
   store().AddLogin(password_manager::FromPasswordForm(MakeSavedAndroidPassword(
       kExampleApp, kUsername2, "Example App", kExampleCom, kWeakPassword2)));
+  store().AddLogin(password_manager::FromPasswordForm(
+      MakeSavedPassword(kExampleOrg, kUsername3, kPassword1)));
   RunUntilIdle();
   delegate().StartPasswordCheck(
       password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
+  RunUntilIdle();
+
+  EXPECT_THAT(
+      delegate().GetInsecureCredentials(),
+      UnorderedElementsAre(
+          ExpectCredential("https://example.com/.well-known/change-password",
+                           kUsername1),
+          ExpectCredential("https://example.com/.well-known/change-password",
+                           kUsername2)));
+}
+
+// Verify that GetInsecureCredentials() returns all saved credentials when the
+// kMarkAllCredentialsAsLeaked feature is enabled.
+TEST_F(PasswordCheckDelegateTest,
+       GetInsecureCredentialsWithkMarkAllCredentialsAsLeaked) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kMarkAllCredentialsAsLeaked);
+
+  store().AddLogin(password_manager::FromPasswordForm(
+      MakeSavedPassword(kExampleCom, kUsername1, kPassword1)));
+  store().AddLogin(password_manager::FromPasswordForm(MakeSavedAndroidPassword(
+      kExampleApp, kUsername2, "Example App", kExampleCom, kPassword2)));
   RunUntilIdle();
 
   EXPECT_THAT(

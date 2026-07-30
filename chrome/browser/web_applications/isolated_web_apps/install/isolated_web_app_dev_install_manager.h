@@ -95,6 +95,9 @@ class IsolatedWebAppDevInstallManager {
       base::RepeatingCallback<void(MaybeInstallIsolatedWebAppCommandSuccess)>
           on_report_installation_result) {
     on_report_installation_result_ = std::move(on_report_installation_result);
+    if (last_installation_result_.has_value()) {
+      on_report_installation_result_.Run(*last_installation_result_);
+    }
   }
 
   // if `expected_bundle_id` is non null, then the installation
@@ -214,6 +217,10 @@ class IsolatedWebAppDevInstallManager {
   base::RepeatingCallback<void(
       base::expected<InstallIsolatedWebAppCommandSuccess, std::string>)>
       on_report_installation_result_ = base::DoNothing();
+
+  std::optional<
+      base::expected<InstallIsolatedWebAppCommandSuccess, std::string>>
+      last_installation_result_;
 
   // Signals when `GarbageCollectStoragePartitionsCommand` completes.
   base::OneShotEvent on_garbage_collect_storage_partitions_done_for_testing_;

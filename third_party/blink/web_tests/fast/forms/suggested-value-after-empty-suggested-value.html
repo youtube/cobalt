@@ -77,12 +77,13 @@ else {
     var innerTextValue = internals.shadowRoot(input).lastChild.innerText;
     var innerTextWithPlaceholderValue = internals.shadowRoot(inputWithPlaceholder).lastChild.innerText;
     var innerTextAreaValue = internals.shadowRoot(textarea).lastChild.innerText;
+    // Note: Empty TEXTAREA might have a placeholder break element.
     var innerTextAreaWithPlaceholderValue = internals.shadowRoot(textareaWithPlaceholder).lastChild.innerText;
     var selectedValues = getSelectedValues(select);
     addText(innerTextValue == 'initial value' &&
             innerTextWithPlaceholderValue == '' &&
             innerTextAreaValue == 'initial value' &&
-            innerTextAreaWithPlaceholderValue == '' &&
+            (innerTextAreaWithPlaceholderValue == '' || innerTextAreaWithPlaceholderValue == '\n') &&
             selectedValues == '' ? 'PASS' : 'FAIL');
     Markup.dump(input.parentNode, 'After resetting suggestedValue value');
 }

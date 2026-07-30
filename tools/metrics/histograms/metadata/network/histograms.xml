@@ -5353,7 +5353,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.SecCHHeaderSize" units="bytes"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -5364,7 +5364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.SecSpeculationTagsHeaderSize" units="bytes"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>toyoshim@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -5428,6 +5428,16 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2024-10-23 to 2025-06-24; data may
     be missing.
+  </summary>
+</histogram>
+
+<histogram name="NetworkService.TimeToFirstCreateNetworkContext" units="ms"
+    expires_after="2026-09-04">
+  <owner>horo@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    The time taken from NetworkService creation to the first
+    CreateNetworkContext call. Recorded once per NetworkService initialization.
   </summary>
 </histogram>
 

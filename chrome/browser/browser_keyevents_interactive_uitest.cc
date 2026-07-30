@@ -30,10 +30,6 @@
 #include "third_party/blink/public/common/switches.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
-
 using content::NavigationController;
 
 namespace {
@@ -879,13 +875,6 @@ IN_PROC_BROWSER_TEST_F(BrowserKeyEventsTest, FocusMenuBarByAltKey) {
 // test sends keyboard events to the browser window and verifies that the
 // webpage receives the keystrokes.
 IN_PROC_BROWSER_TEST_F(BrowserKeyEventsTest, FocusAfterHideAndShow) {
-#if BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/407601713): This test is failing on Mac 12.
-  if (base::mac::MacOSVersion() < 13'00'00) {
-    GTEST_SKIP();
-  }
-#endif  // BUILDFLAG(IS_MAC)
-
   static const KeyEventTestData kTestKeystrokes = {
       ui::VKEY_A,
       false,

@@ -836,36 +836,36 @@ ios_builder(
 )
 
 ios_builder(
-    name = "ios18-beta-simulator",
+    name = "ios26-beta-simulator",
     mirrors = [
-        "ci/ios18-beta-simulator",
+        "ci/ios26-beta-simulator",
     ],
-    gn_args = "ci/ios18-beta-simulator",
+    gn_args = "ci/ios26-beta-simulator",
     cpu = cpu.ARM64,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
 ios_builder(
-    name = "ios26-beta-simulator",
-    mirrors = ["ci/ios26-beta-simulator"],
-    gn_args = "ci/ios26-beta-simulator",
+    name = "ios27-beta-simulator",
+    mirrors = ["ci/ios27-beta-simulator"],
+    gn_args = "ci/ios27-beta-simulator",
     cpu = cpu.ARM64,
 )
 
 ios_builder(
-    name = "ios18-sdk-simulator",
+    name = "ios26-sdk-simulator",
     mirrors = [
-        "ci/ios18-sdk-simulator",
+        "ci/ios26-sdk-simulator",
     ],
-    gn_args = "ci/ios18-sdk-simulator",
+    gn_args = "ci/ios26-sdk-simulator",
     cpu = cpu.ARM64,
     xcode = xcode.xcode_beta,
 )
 
 ios_builder(
-    name = "ios26-sdk-simulator",
-    mirrors = ["ci/ios26-sdk-simulator"],
-    gn_args = "ci/ios26-sdk-simulator",
+    name = "ios27-sdk-simulator",
+    mirrors = ["ci/ios27-sdk-simulator"],
+    gn_args = "ci/ios27-sdk-simulator",
     cpu = cpu.ARM64,
     xcode = xcode.xcode_beta,
 )

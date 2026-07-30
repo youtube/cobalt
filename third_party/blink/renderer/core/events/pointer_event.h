@@ -12,6 +12,7 @@
 
 namespace blink {
 
+class Document;
 class PointerEventInit;
 
 class CORE_EXPORT PointerEvent : public MouseEvent {

@@ -17,7 +17,7 @@ NavigationCapturingSettings::Create(Profile& profile) {
 
 NavigationCapturingSettingsImpl::NavigationCapturingSettingsImpl(
     Profile& profile)
-    : profile_(profile) {}
+    : NavigationCapturingSettings(profile) {}
 
 NavigationCapturingSettingsImpl::~NavigationCapturingSettingsImpl() = default;
 

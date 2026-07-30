@@ -1,0 +1,82 @@
+<!DOCTYPE HTML>
+<head>
+  <title>texElementImage2D paints video frames in worker thread</title>
+  <link rel="help" href="https://github.com/WICG/html-in-canvas">
+  <link rel="stylesheet" href="/wpt_internal/resources/canvas-draw-element/styles.css" />
+  <script src="/resources/testdriver.js"></script>
+  <script src="/resources/testdriver-vendor.js"></script>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+
+  <canvas id="canvas" width="100" height="100" layoutsubtree>
+    <div id="child" class="draw-element-wrapper">
+      <video width="100" height="100" src="/wpt_internal/resources/canvas-draw-element/rgb100.webm" loop></video>
+    </div>
+  </canvas>
+
+  <script>
+  const canvas = document.getElementById("canvas");
+  const child = document.getElementById("child");
+  const video = child.querySelector("video");
+
+  // Video color reproduction is not 100% consistent.
+  const channelTolerance = 3;
+  const approxEquals = (a, b) => Math.abs(a-b) < channelTolerance;
+  const colorApproxEquals = (a, b) => {
+    return approxEquals(a[0], b[0]) &&
+           approxEquals(a[1], b[1]) &&
+           approxEquals(a[2], b[2]) &&
+           approxEquals(a[3], b[3]);
+  };
+
+  promise_test(() => new Promise((resolve, reject) => {
+    let seenColors = [];
+    let sawRed = false, sawGreen = false, sawBlue = false;
+    let paintCount = 0;
+
+    const worker = new Worker("webgl-video-worker.js");
+    const offscreen = canvas.transferControlToOffscreen();
+    worker.postMessage({ canvas: offscreen, pixeltest: true }, [offscreen]);
+
+    worker.addEventListener("message", e => {
+      if (e.data.gl_ready) {
+        test_driver.bless('play video', () => {
+          const pushFrame = () => {
+            canvas.addEventListener("paint", evt => {
+              if (evt.changedElements.length != 1
+                  || evt.changedElements[0] != child) {
+                reject("Canvas paint event 'changedElements' should contain " +
+                       "just the child element.");
+              }
+              if (++paintCount > 10) {
+                reject(`After ${paintCount} paints the colors seen are (${seenColors.join(", ")}).`);
+              }
+              const elementImage = canvas.captureElementImage(child);
+              worker.postMessage({ elementImage: elementImage }, [elementImage]);
+            }, {once:true});
+            video.requestVideoFrameCallback(pushFrame);
+          };
+          video.play();
+          pushFrame();
+        });
+      }
+      if (e.data.pixel) {
+        seenColors.push(
+          `#${e.data.pixel.map(n => n.toString(16).padStart(2, "0")).join("")}`);
+        if (colorApproxEquals(e.data.pixel, [255, 1, 0, 255])) {
+          sawRed = true;
+        } else if (colorApproxEquals(e.data.pixel, [0, 153, 0, 255])) {
+          sawGreen = true;
+        } else if (colorApproxEquals(e.data.pixel, [0, 0, 255, 255])) {
+          sawBlue = true;
+        }
+      }
+      if (sawRed && sawGreen && sawBlue) {
+        resolve("Saw red, green, and blue video frames.");
+      }
+    });
+  }));
+</script>
+</html>

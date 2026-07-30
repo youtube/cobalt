@@ -87,6 +87,8 @@ chromium-metrics-reviews@google.com.
   <int value="500" label="ScrollNoScrollingElement"/>
   <int value="501" label="ScrollTargetNotUserScrollable"/>
   <int value="502" label="ScrollOffsetDidNotChange"/>
+  <int value="503" label="ScrollMissingDirection"/>
+  <int value="504" label="ScrollMissingDistance"/>
   <int value="600" label="SelectInvalidElement"/>
   <int value="601" label="SelectNoSuchOption"/>
   <int value="602" label="SelectOptionDisabled"/>

@@ -37,8 +37,6 @@ typedef NS_ENUM(NSInteger, SectionIdentifier) {
   SectionIdentifierLocation = kSectionIdentifierEnumZero,
   SectionIdentifierCamera,
   SectionIdentifierPageContent,
-  SectionIdentifierActivity,
-  SectionIdentifierExtensions,
 };
 
 typedef NS_ENUM(NSInteger, ItemType) {
@@ -146,12 +144,6 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
                               l10n_util::GetNSString(
                                   IDS_IOS_BWG_SETTINGS_PAGE_CONTENT_FOOTER_TEXT)
                        linkURL:GURL(kGeminiPageContentSharingURL)];
-  TableViewLinkHeaderFooterItem* geminiAppActivityFooterItem = [self
-      headerFooterItemWithType:ItemTypeAppActivityFooter
-                          text:
-                              l10n_util::GetNSString(
-                                  IDS_IOS_BWG_SETTINGS_APP_ACTIVITY_FOOTER_TEXT)
-                       linkURL:GURL()];
 
   TableViewModel* model = self.tableViewModel;
   if (IsGeminiPreciseLocationEnabled()) {
@@ -174,20 +166,6 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
       toSectionWithIdentifier:SectionIdentifierPageContent];
   [model setFooter:pageContentSharingFooterItem
       forSectionWithIdentifier:SectionIdentifierPageContent];
-
-  if (!IsGeminiDynamicSettingsEnabled()) {
-    [model addSectionWithIdentifier:SectionIdentifierActivity];
-    [model addItem:[self GeminiAppActivityItem]
-        toSectionWithIdentifier:SectionIdentifierActivity];
-    [model setFooter:geminiAppActivityFooterItem
-        forSectionWithIdentifier:SectionIdentifierActivity];
-    RecordGeminiSettingsItemShown(IOSGeminiSettingsItem::kGeminiAppsActivity);
-
-    [model addSectionWithIdentifier:SectionIdentifierExtensions];
-    [model addItem:[self GeminiExtensionsItem]
-        toSectionWithIdentifier:SectionIdentifierExtensions];
-    RecordGeminiSettingsItemShown(IOSGeminiSettingsItem::kExtensions);
-  }
 }
 
 #pragma mark - SettingsControllerProtocol
@@ -285,30 +263,6 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
   return headerFooterItem;
 }
 
-// Creates the Gemini app activity item.
-- (TableViewDetailTextItem*)GeminiAppActivityItem {
-  TableViewDetailTextItem* geminiAppActivityItem =
-      [[TableViewDetailTextItem alloc] initWithType:ItemTypeAppActivity];
-  geminiAppActivityItem.text =
-      l10n_util::GetNSString(IDS_IOS_BWG_SETTINGS_APP_ACTIVITY_TITLE);
-  geminiAppActivityItem.accessorySymbol =
-      TableViewDetailTextCellAccessorySymbolExternalLink;
-  geminiAppActivityItem.accessibilityTraits = UIAccessibilityTraitLink;
-  return geminiAppActivityItem;
-}
-
-// Creates the Gemini extensions item.
-- (TableViewDetailTextItem*)GeminiExtensionsItem {
-  TableViewDetailTextItem* geminiExtensionsItem =
-      [[TableViewDetailTextItem alloc] initWithType:ItemTypeExtensions];
-  geminiExtensionsItem.text =
-      l10n_util::GetNSString(IDS_IOS_BWG_SETTINGS_EXTENSIONS_TITLE);
-  geminiExtensionsItem.accessorySymbol =
-      TableViewDetailTextCellAccessorySymbolExternalLink;
-  geminiExtensionsItem.accessibilityTraits = UIAccessibilityTraitLink;
-  return geminiExtensionsItem;
-}
-
 // Called from the PageContentSharing setting's UIControlEventTouchUpInside.
 // Updates underlying page content sharing pref.
 - (void)pageContentSharingSwitchTapped:(UISwitch*)switchView {
@@ -373,35 +327,33 @@ NSString* const kPageContentSharingAction = @"PageContentSharingAction";
     [self.mutator openNewTabWithURL:GURL(kGeminiExtensionsURL)];
   }
 
-  if (IsGeminiDynamicSettingsEnabled()) {
-    TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
-    GeminiDynamicSettingsItem* dynamicSettingsItem =
-        base::apple::ObjCCast<GeminiDynamicSettingsItem>(item);
+  TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
+  GeminiDynamicSettingsItem* dynamicSettingsItem =
+      base::apple::ObjCCast<GeminiDynamicSettingsItem>(item);
 
-    if (dynamicSettingsItem) {
-      switch (dynamicSettingsItem.action.type) {
-        case GeminiSettingsActionTypeViewController: {
-          UIViewController* viewController =
-              dynamicSettingsItem.action.viewController;
-          if (viewController) {
-            [self.navigationController pushViewController:viewController
-                                                 animated:YES];
-          }
-          break;
+  if (dynamicSettingsItem) {
+    switch (dynamicSettingsItem.action.type) {
+      case GeminiSettingsActionTypeViewController: {
+        UIViewController* viewController =
+            dynamicSettingsItem.action.viewController;
+        if (viewController) {
+          [self.navigationController pushViewController:viewController
+                                               animated:YES];
         }
-
-        case GeminiSettingsActionTypeURL: {
-          GURL gURL = net::GURLWithNSURL(dynamicSettingsItem.action.URL);
-          [self.mutator openNewTabWithURL:gURL];
-          break;
-        }
-
-        case GeminiSettingsActionTypeUnknown:
-          break;
+        break;
       }
 
-      [self recordItemUsedForContext:dynamicSettingsItem.metadata.context];
+      case GeminiSettingsActionTypeURL: {
+        GURL gURL = net::GURLWithNSURL(dynamicSettingsItem.action.URL);
+        [self.mutator openNewTabWithURL:gURL];
+        break;
+      }
+
+      case GeminiSettingsActionTypeUnknown:
+        break;
     }
+
+    [self recordItemUsedForContext:dynamicSettingsItem.metadata.context];
   }
 
   [self.tableView deselectRowAtIndexPath:indexPath animated:YES];

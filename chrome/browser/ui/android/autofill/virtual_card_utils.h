@@ -15,7 +15,7 @@ namespace autofill {
 // Converts VirtualCardEnrollmentFields native object to it's Java counterpart.
 base::android::ScopedJavaLocalRef<jobject>
 CreateVirtualCardEnrollmentFieldsJavaObject(
-    autofill::VirtualCardEnrollmentFields* virtual_card_enrollment_fields);
+    VirtualCardEnrollmentFields* virtual_card_enrollment_fields);
 
 }  // namespace autofill
 

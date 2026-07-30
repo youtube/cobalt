@@ -413,7 +413,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   // See the comment describing the address layout above.
   //
   // These are write-once fields, frequently accessed thereafter. Make sure they
-  // don't share a cacheline with other, potentially writeable data, through
+  // don't share a cacheline with other, potentially writable data, through
   // alignment and padding.
   PA_CONSTINIT static PoolSetup setup_;
 

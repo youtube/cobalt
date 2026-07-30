@@ -269,6 +269,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="1407135791313364759">Tümünü aç</translation>
 <translation id="1408696301184924537">Bir dahaki sefere bu IBAN'ı otomatik doldurmak için Google Hesabınıza kaydedin</translation>
 <translation id="1408787208417187241">Üstte üçlü tel zımba</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> grubunda <ph name="NUM_MATCHES_IN_GROUP" /> eşleşmeden <ph name="MATCH_POSITION" />.</translation>
 <translation id="1410365862999780287">Etkinliğiniz bu cihazı kullanan diğer kullanıcılar tarafından görülmediğinden daha gizli bir şekilde göz atabilirsiniz. Bu durum, Google da dahil olmak üzere ziyaret ettiğiniz web siteleri ve kullandıkları hizmetler tarafından verilerin toplanma şeklini değiştirmez. Yine de indirdikleriniz, yer işaretleri ve okuma listesi öğeleri kaydedilir.</translation>
 <translation id="1410941016594047814">Zarf Invite</translation>
 <translation id="1413235258620101697">Daha hızlı ödeme için bu kartın CVC'si şifrelenerek Google Cüzdan'a kaydedilecek</translation>
@@ -660,6 +661,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="2045871135676061132">Zarf Personal</translation>
 <translation id="2046951263634619614">Kitapçılar</translation>
 <translation id="2048261947532620704">Sayfa çevriliyor</translation>
+<translation id="2055016614992422886">Görüşme</translation>
 <translation id="2059166748188874810">Belediye</translation>
 <translation id="2059202684901022309">22 x 34 inç</translation>
 <translation id="2064568741209980952">Kredi ve Borç</translation>
@@ -2216,7 +2218,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="4434045419905280838">Pop-up ve yönlendirmeler</translation>
 <translation id="443673843213245140">Proxy kullanımı devre dışı, ancak açık bir proxy yapılandırması belirtildi.</translation>
 <translation id="4438821706955556403">Normal fiyat</translation>
-<translation id="4439687924334332880">Bu penceredeki açık sekmeler bu ileti dizisiyle alakalıysa sekmeleri otomatik paylaşarak daha kişiselleştirilmiş yanıtlar alın. Bunu Ayarlar'dan tüm ileti dizileri için etkinleştirebilirsiniz.</translation>
+<translation id="4439687924334332880">Bu penceredeki açık sekmeler bu sohbet dizisiyle alakalıysa sekmeleri otomatik paylaşarak daha kişiselleştirilmiş yanıtlar alın. Bunu Ayarlar'dan tüm sohbet dizileri için etkinleştirebilirsiniz.</translation>
 <translation id="4441832193888514600">Yalnızca bulut kullanıcı politikası olarak ayarlanabileceği için politika yoksayıldı.</translation>
 <translation id="4444062564459679679"><ph name="DEVICE_NAME" /> cihazınızdaki Chrome'a zaten gönderildi</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, sekme aramak için Enter tuşuna basın</translation>
@@ -3179,7 +3181,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="5995727681868049093">Google Hesabınızda bilgilerinizi, gizliliğinizi ve güvenliğinizi yönetin</translation>
 <translation id="5996255674476750320">Otomobil Fuarları</translation>
 <translation id="5997247540087773573">Az önce kullandığınız şifrenin bir veri ihlali sonucunda açığa çıktığı anlaşıldı. Google Şifre Yöneticisi, hesaplarınızın güvenliğini sağlamak için bu şifreyi hemen değiştirmenizi ve kayıtlı şifrelerinizi kontrol etmenizi öneriyor.</translation>
-<translation id="5997915162652837008">Tüm ileti dizileri için otomatik sekme paylaşımını etkinleştirerek zaman kazanabilirsiniz. Daha fazla bilgi edinin.</translation>
+<translation id="5997915162652837008">Tüm sohbet dizileri için otomatik sekme paylaşımını etkinleştirerek zaman kazanabilirsiniz. Daha fazla bilgi edinin.</translation>
 <translation id="6000528814684428358">Hard Rock ve Progresif Müzik</translation>
 <translation id="6000758707621254961">"<ph name="SEARCH_TEXT" />" için bulunan <ph name="RESULT_COUNT" /> sonuç gösteriliyor</translation>
 <translation id="6002122790816966947">Cihazlarınız</translation>
@@ -3557,6 +3559,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="6550245281449521513">Fare kilidine izin verilmiyor</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, yeni</translation>
 <translation id="6552566579578780089">Ödemeler</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> grubunda <ph name="NUM_MATCHES_IN_GROUP" /> eşleşmeden <ph name="MATCH_POSITION" />.</translation>
 <translation id="6554732001434021288">En son <ph name="NUM_DAYS" /> gün önce ziyaret edildi</translation>
 <translation id="6556866813142980365">Yeniden yap</translation>
 <translation id="6557715786897013164">14 x 17 inç</translation>
@@ -4723,7 +4726,7 @@ Ek ayrıntılar:
 <translation id="8381674639488873545">Bu ödemeler bir defalık alınabileceği gibi yinelenen ödemeler de olabilir ve bu durum açıkça belli olmayabilir. <ph name="BEGIN_LINK" />Yine de göster<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Otomatik tam ekran</translation>
 <translation id="838307841291975086">Steyşın Otomobiller</translation>
-<translation id="838953173259347825">Bu penceredeki açık sekmeler bu ileti dizisiyle alakalıysa sekmeleri otomatik paylaşarak daha kişiselleştirilmiş yanıtlar alın. Bunu tüm ileti dizileri için etkinleştirebilirsiniz.</translation>
+<translation id="838953173259347825">Bu penceredeki açık sekmeler bu sohbet dizisiyle alakalıysa sekmeleri otomatik paylaşarak daha kişiselleştirilmiş yanıtlar alın. Bunu tüm sohbet dizileri için etkinleştirebilirsiniz.</translation>
 <translation id="8389532092404711541">Normal şartlarda <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Özel Araçlar ve Performans Araçları</translation>
 <translation id="8390725133630534698"><ph name="ORIGIN_NAME" /> sitesinden <ph name="VM_NAME" /> ile paylaşma işlevi, yönetici politikası tarafından engellendi</translation>
@@ -5009,7 +5012,7 @@ Ek ayrıntılar:
 <translation id="8861482055962701239">Bu bilgiler Google Cüzdan'ınıza kaydedilemedi. Bunun yerine bu cihazdaki Chrome'a kaydedildi. Chrome, bir sonraki kullanımınızda bu bilgileri Cüzdan'a kaydetmeyi önerir.</translation>
 <translation id="8863218129525348270">Gelecek sefer daha hızlı ödeme yapmak için kartınızı cihazınıza kaydedin</translation>
 <translation id="8864939224504814334">Takım Elbiseler ve İş Giysileri</translation>
-<translation id="8865650218866129025">Bu ileti dizisinde daha iyi yanıtlar almak için açık sekmeler otomatik olarak paylaşılsın mı?</translation>
+<translation id="8865650218866129025">Bu sohbet dizisinde daha iyi yanıtlar almak için açık sekmeler otomatik olarak paylaşılsın mı?</translation>
 <translation id="8866132857352163524">Film müzikleri</translation>
 <translation id="8866481888320382733">Politika ayarlarını ayrıştırma hatası</translation>
 <translation id="8866928039507595380">Kat</translation>

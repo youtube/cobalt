@@ -27,6 +27,7 @@ class CORE_EXPORT CSPHashReportBody : public ReportBody {
   const String& type() const { return type_; }
   const String& destination() const { return destination_; }
   void BuildJSONValue(V8ObjectBuilder& builder) const override;
+  bool IsExtensionSource() const override;
 
  private:
   const String subresource_url_;

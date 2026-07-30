@@ -731,7 +731,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Memory.UrlChainLength.{Location}" units="count"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -742,7 +742,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Memory.UrlChainSizeKb.{Location}" units="KB"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -757,6 +757,17 @@ chromium-metrics-reviews@google.com.
   <owner>dtrainor@chromium.org</owner>
   <summary>
     Network connection type when starting a new download. {DownloadSource}
+  </summary>
+</histogram>
+
+<histogram name="Download.NonDangerousDialog.Events"
+    enum="DangerousDownloadDialogEvent" expires_after="2026-12-05">
+  <owner>yawfrempong@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records user interactions with the non-dangerous download dialog on Android.
+    Records when the dialog is shown, or when user clicks on a button or
+    dismisses the dialog.
   </summary>
 </histogram>
 
@@ -844,12 +855,15 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Download.Progress.InfoBar.Shown"
-    enum="DownloadInfoBar.ShownState" expires_after="2023-06-25">
-  <owner>shaktisahu@chromium.org</owner>
+    enum="DownloadInfoBar.ShownState" expires_after="2026-12-05">
+  <owner>yawfrempong@google.com</owner>
   <owner>clank-downloads@google.com</owner>
   <summary>
     Records various types of messages representing the state of the downloads as
     they are shown on the download progress infobar on android.
+
+    Warning: this histogram was expired from 2023-06-25 to 2026-12-04; data may
+    be missing.
   </summary>
 </histogram>
 

@@ -12,7 +12,7 @@ import {assert} from 'chrome://resources/js/assert.js';
 import {FakeShimlessRmaService} from 'chrome://shimless-rma/fake_shimless_rma_service.js';
 import {HardwareErrorPage} from 'chrome://shimless-rma/hardware_error_page.js';
 import {setShimlessRmaServiceForTesting} from 'chrome://shimless-rma/mojo_interface_provider.js';
-import {assertEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 const ERROR_CODE = 1004;

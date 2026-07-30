@@ -214,58 +214,6 @@ class UserInfoSection final {
 
 std::ostream& operator<<(std::ostream& os, const UserInfoSection& field);
 
-class PlusAddressInfo final {
- public:
-  PlusAddressInfo(std::string origin, std::u16string plus_address);
-
-  PlusAddressInfo(const PlusAddressInfo&);
-  PlusAddressInfo& operator=(const PlusAddressInfo&);
-  PlusAddressInfo(PlusAddressInfo&&);
-  PlusAddressInfo& operator=(PlusAddressInfo&&);
-
-  ~PlusAddressInfo();
-
-  const std::string& origin() const { return origin_; }
-  const AccessorySheetField& plus_address() const { return plus_address_; }
-
-  bool operator==(const PlusAddressInfo&) const = default;
-
- private:
-  std::string origin_;
-  AccessorySheetField plus_address_;
-};
-
-std::ostream& operator<<(std::ostream& out, const PlusAddressInfo& field);
-
-class PlusAddressSection final {
- public:
-  explicit PlusAddressSection(std::u16string title);
-
-  PlusAddressSection(const PlusAddressSection&);
-  PlusAddressSection& operator=(const PlusAddressSection&);
-  PlusAddressSection(PlusAddressSection&&);
-  PlusAddressSection& operator=(PlusAddressSection&&);
-
-  ~PlusAddressSection();
-
-  const std::u16string& title() const { return title_; }
-  const std::vector<PlusAddressInfo>& plus_address_info_list() const {
-    return plus_address_info_list_;
-  }
-
-  void add_plus_address_info(PlusAddressInfo info) {
-    plus_address_info_list_.emplace_back(std::move(info));
-  }
-
-  bool operator==(const PlusAddressSection&) const = default;
-
- private:
-  std::u16string title_;
-  std::vector<PlusAddressInfo> plus_address_info_list_;
-};
-
-std::ostream& operator<<(std::ostream& out, const PlusAddressSection& field);
-
 // Represents a passkey entry shown in the password accessory.
 class PasskeySection final {
  public:
@@ -437,11 +385,9 @@ class AccessorySheetData final {
   class Builder;
 
   AccessorySheetData(AccessoryTabType sheet_type,
-                     std::u16string user_info_title,
-                     std::u16string plus_address_title);
+                     std::u16string user_info_title);
   AccessorySheetData(AccessoryTabType sheet_type,
                      std::u16string user_info_title,
-                     std::u16string plus_address_title,
                      std::u16string warning);
 
   AccessorySheetData(const AccessorySheetData&);
@@ -470,10 +416,6 @@ class AccessorySheetData final {
     user_info_section_.add_user_info(std::move(user_info));
   }
 
-  void add_plus_address_info(PlusAddressInfo plus_address_info) {
-    plus_address_section_.add_plus_address_info(std::move(plus_address_info));
-  }
-
   void add_passkey_section(PasskeySection passkey_section) {
     passkey_section_list_.emplace_back(std::move(passkey_section));
   }
@@ -484,18 +426,6 @@ class AccessorySheetData final {
 
   const std::vector<UserInfo>& user_info_list() const {
     return user_info_section_.user_info_list();
-  }
-
-  const PlusAddressSection& plus_address_section() const {
-    return plus_address_section_;
-  }
-
-  const std::u16string plus_address_title() const {
-    return plus_address_section_.title();
-  }
-
-  const std::vector<PlusAddressInfo>& plus_address_info_list() const {
-    return plus_address_section_.plus_address_info_list();
   }
 
   const std::vector<PasskeySection>& passkey_section_list() const {
@@ -544,7 +474,7 @@ class AccessorySheetData final {
   AccessoryTabType sheet_type_;
   std::u16string warning_;
   std::optional<OptionToggle> option_toggle_;
-  PlusAddressSection plus_address_section_;
+
   std::vector<PasskeySection> passkey_section_list_;
   UserInfoSection user_info_section_;
   std::vector<PromoCodeInfo> promo_code_info_list_;
@@ -570,9 +500,7 @@ std::ostream& operator<<(std::ostream& out, const AccessorySheetData& data);
 //       .Build();
 class AccessorySheetData::Builder final {
  public:
-  Builder(AccessoryTabType type,
-          std::u16string user_info_title,
-          std::u16string plus_address_title);
+  Builder(AccessoryTabType type, std::u16string user_info_title);
   ~Builder();
 
   // Adds a warning string to the accessory sheet.
@@ -643,12 +571,6 @@ class AccessorySheetData::Builder final {
                         int icon_id,
                         bool is_obfuscated,
                         bool selectable) &&;
-
-  // Adds a new PlusAddressInfo `accessory_sheet_data_`.
-  Builder&& AddPlusAddressInfo(std::string origin,
-                               std::u16string plus_address) &&;
-  Builder& AddPlusAddressInfo(std::string origin,
-                              std::u16string plus_address) &;
 
   // Adds a new PasskeySection `accessory_sheet_data_`.
   Builder&& AddPasskeySection(std::string username,

@@ -31,7 +31,8 @@ IbanFieldParser::IbanFieldParser(FieldAndMatchInfo match)
 
 void IbanFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
-  AddClassification(match_, IBAN_VALUE, kBaseIbanParserScore, field_candidates);
+  AddClassification(match_, IBAN_VALUE, HeuristicParser::kIban,
+                    field_candidates);
 }
 
 }  // namespace autofill

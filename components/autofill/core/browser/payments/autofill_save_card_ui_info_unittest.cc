@@ -115,7 +115,7 @@ TEST(AutofillSaveCardUiInfoTestForLocalSave,
 // Tests confirm text for local save card bottomsheet.
 TEST(AutofillSaveCardUiInfoTestForLocalSave, VerifyConfirmTextForBottomSheet) {
   auto ui_info = AutofillSaveCardUiInfo::CreateForLocalSave(
-      autofill::payments::PaymentsAutofillClient::SaveCreditCardOptions()
+      payments::PaymentsAutofillClient::SaveCreditCardOptions()
           .with_card_save_type(CardSaveType::kCardSaveOnly),
       test::GetCreditCard());
   EXPECT_EQ(ui_info.confirm_text,
@@ -127,7 +127,7 @@ TEST(AutofillSaveCardUiInfoTestForLocalSave, VerifyConfirmTextForBottomSheet) {
 TEST(AutofillSaveCardUiInfoTestForLocalSave,
      VerifyConfirmTextForBottomSheetWhenRequestingNameFromUser) {
   auto ui_info = AutofillSaveCardUiInfo::CreateForLocalSave(
-      autofill::payments::PaymentsAutofillClient::SaveCreditCardOptions()
+      payments::PaymentsAutofillClient::SaveCreditCardOptions()
           .with_card_save_type(CardSaveType::kCardSaveOnly)
           .with_should_request_name_from_user(true),
       test::GetCreditCard());
@@ -140,7 +140,7 @@ TEST(AutofillSaveCardUiInfoTestForLocalSave,
 TEST(AutofillSaveCardUiInfoTestForLocalSave,
      VerifyConfirmTextForBottomSheetWhenRequestingExpiryDateFromUser) {
   auto ui_info = AutofillSaveCardUiInfo::CreateForLocalSave(
-      autofill::payments::PaymentsAutofillClient::SaveCreditCardOptions()
+      payments::PaymentsAutofillClient::SaveCreditCardOptions()
           .with_card_save_type(CardSaveType::kCardSaveOnly)
           .with_should_request_expiration_date_from_user(true),
       test::GetCreditCard());
@@ -153,7 +153,7 @@ TEST(AutofillSaveCardUiInfoTestForLocalSave,
 TEST(AutofillSaveCardUiInfoTestForLocalSave,
      VerifyConfirmTextForBottomSheetWhenRequestingExpiryDateAndNameFromUser) {
   auto ui_info = AutofillSaveCardUiInfo::CreateForLocalSave(
-      autofill::payments::PaymentsAutofillClient::SaveCreditCardOptions()
+      payments::PaymentsAutofillClient::SaveCreditCardOptions()
           .with_card_save_type(CardSaveType::kCardSaveOnly)
           .with_should_request_expiration_date_from_user(true)
           .with_should_request_name_from_user(true),

@@ -41,6 +41,11 @@ UI_ANDROID_EXPORT BASE_DECLARE_FEATURE(kBlockMouseEventsOnView);
 // access a URI before returning the result.
 UI_ANDROID_EXPORT BASE_DECLARE_FEATURE(kCheckIntentCallerPermission);
 
+// Controls defense against Confused Deputy clipboard URI exfiltration.
+UI_ANDROID_EXPORT BASE_DECLARE_FEATURE(kClipboardConfusedDeputyDefenseText);
+UI_ANDROID_EXPORT BASE_DECLARE_FEATURE(kClipboardConfusedDeputyDefenseImages);
+UI_ANDROID_EXPORT BASE_DECLARE_FEATURE(kClipboardConfusedDeputyDefenseFiles);
+
 // Use the old-style opening of an External Picker when uploading files.
 UI_ANDROID_EXPORT BASE_DECLARE_FEATURE(kDeprecatedExternalPickerFunction);
 

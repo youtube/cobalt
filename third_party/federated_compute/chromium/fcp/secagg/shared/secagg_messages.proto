@@ -1,0 +1,263 @@
+/*
+ * Copyright 2017 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Definition of the protocol buffers for the SecAgg protocol
+
+syntax = "proto3";
+
+package fcp.secagg;
+
+option java_package = "fcp.secagg.shared";
+option java_outer_classname = "SecAggMessages";
+
+// TODO(team): remove container class, using
+// option java_multiple_files = true;
+
+// # MESSAGE WRAPPERS EXPOSED TO THE OUTSIDE
+
+// This message is a wrapper (simulating polymorphism) for all messages sent
+// from a client to the server during the protocol.
+message ClientToServerWrapperMessage {
+  // Each message from client to server contains exactly one of these
+  // semantic types, depending on the phase of the protocol.
+  oneof message_content {
+    // Abort the protocol.
+    AbortMessage abort = 1;
+
+    // Round 0 message; see details at message definition.
+    AdvertiseKeys advertise_keys = 2;
+
+    // Round 1 message; see details at message definition.
+    ShareKeysResponse share_keys_response = 3;
+
+    // Round 2 message; see details at message definition.
+    MaskedInputCollectionResponse masked_input_response = 4;
+
+    // Round 3 message; see details at message definition.
+    UnmaskingResponse unmasking_response = 5;
+  }
+}
+
+// This message is a wrapper (simulating polymorphism) for all messages sent
+// from the server to a client during the protocol.
+message ServerToClientWrapperMessage {
+  // Each message from server to client contains exactly one of these
+  // semantic types, depending on the phase of the protocol.
+  oneof message_content {
+    // Abort the protocol.
+    AbortMessage abort = 1;
+
+    // Round 1 message; see details at message definition.
+    ShareKeysRequest share_keys_request = 2;
+
+    // Round 2 message; see details at message definition.
+    MaskedInputCollectionRequest masked_input_request = 3;
+
+    // Round 3 message; see details at message definition.
+    UnmaskingRequest unmasking_request = 4;
+  }
+}
+
+// # MESSAGES INTERNAL TO THE LIBRARY
+
+// ## ABORT MESSAGE
+// Sent by the server to the client to cause the client to abort and erase all
+// the state relate to the current session. Can signify either an abort due to
+// some error or an abort because the server needs no more messages.
+// Sent by the client to the server to notify it that the sending client
+// aborted.
+message AbortMessage {
+  // Can contain optional logging/diagnostic info.
+  string diagnostic_info = 1;
+  // If true, the client will halt early but mark the protocol as a success,
+  // rather than as aborted because its data was already incorporated into the
+  // aggregation. This means that this field must only be set after the server
+  // has received a MaskedInputCollectionResponse from the client and the server
+  // has sent the client an UnmaskingRequest.
+  bool early_success = 2;
+}
+
+// ## ROUND 0 MESSAGES: ADVERTISE KEYS
+// AdvertiseKeys is sent by clients who wish to participate in the protocol.
+
+// Part of a ClientToServerWrapperMessage. Contains a pair of public keys.
+message AdvertiseKeys {
+  // Pair of public keys for this client.
+  PairOfPublicKeys pair_of_public_keys = 1;
+}
+
+// A pair of public keys. Used as part of AdvertiseKeys and ShareKeysRequest.
+// TODO(team): move away from comprossed encoding of ECPoint into
+// encoding the complete PublicKey, including the other parameters.
+message PairOfPublicKeys {
+  // An encoding of the Diffie Hellman public key used to generate correlated
+  // noise to be added to ciphertexts.
+  // The encoding used is the one returned by the getEncoded(compressed=true)
+  // method of the class org.bouncycastle.math.ec.ECPoint
+  // TODO(team): figure out the actual encoding used.
+  bytes noise_pk = 1;
+
+  // An encoding of the Diffie Hellman public key used to establish private
+  // channels between the protocol parties.
+  // The encoding used is the one returned by the getEncoded(compressed=true)
+  // method of the class org.bouncycastle.math.ec.ECPoint
+  // TODO(team): figure out the actual encoding used.
+  bytes enc_pk = 2;
+}
+
+// ## ROUND 1 MESSAGES: SHARE KEYS
+// Clients who are selected to participate in the protocol receive a list of the
+// (pairs of) public keys of all other clients. Each client secret-shares its
+// own noise_sk and prf_sk with all the other clients (encrypting shares for
+// client j with their own enc_pk) and sends all these encrypted shares to the
+// server for distribution.
+
+// Part of a ServerToClientWrapperMessage. Contains a list of pairs of public
+// keys, as well as the logging ID for the SecAgg execution.
+message ShareKeysRequest {
+  // List of public keys for all clients, ordered by the clients'
+  // logical ids. Each client infers its logical id "i" from the
+  // position "i" of its pair of keys in the list.
+  // Note that the logical ids are assumed to be 1-indexed (i.e. the first
+  // public key in the repeated field corresponds to client with logical id 1)
+  repeated PairOfPublicKeys pairs_of_public_keys = 1;
+  // The logging ID for the SecAgg execution. All participants in the protocol
+  // will use this ID while logging, to allow metrics for the entire execution
+  // to be collected.
+  int64 sec_agg_execution_logging_id = 2;
+
+  // May be populated with implementation-specific data.
+  // repeated google.protobuf.Any extra_data = 3; // Unused in Chromium.
+
+  // The session ID for the Secagg execution. All clients will use this session
+  // ID as part of the seed of PRNGs used during the execution of the protocol,
+  bytes session_id = 4 ;
+}
+
+// Part of a ClientToServerWrapperMessage. Contains a list of encrypted pairs of
+// key shares (one for each other client).
+message ShareKeysResponse {
+  // The (1-indexed) j'th element of the repeated field (of a ShareKeysResponse
+  // message sent from client i) contains the j'th shares of each of client i's
+  // noise_sk and prf_sk, encrypted under client j's enc_pk and intended to be
+  // sent to him. The i'th share (i.e. the share the a client would send to
+  // himself) will be empty.
+  // The client indexes above refer to their logical ids.
+  // This field is opaque, as it will be the output of an AES/GCM encryption.
+  // However, once decrypted, each entry should be interpreted as the
+  // serialization of a PairOfKeyShares message.
+  repeated bytes encrypted_key_shares = 1;
+}
+
+// Each of the encrypted_key_shares bytes in ShareKeysResponse and
+// MaskedInputCollectionRequest is an encryption of the serialization of this
+// message.
+message PairOfKeyShares {
+  // The two shares are encodings of BigIntegers which represents elements of
+  // the group Z_p, where p is the prime denoting the field over which the
+  // elliptic curve prime256v1 is defined. See the ShamirSecretSharing
+  // class for more details on the sharing.
+  //
+  // The following comes from the BigInteger documentation (the encoding is
+  // computed using the toByteArray() method):
+  // [The encoding consists of] a byte array containing the two's-complement
+  // representation of the BigInteger and is in big-endian byte-order: the most
+  // significant byte is in the zeroth element.
+  // The array will contain the minimum number of bytes required to represent
+  // this BigInteger, including at least one sign bit, which is
+  // (ceil((this.bitLength() + 1)/8)).
+  bytes noise_sk_share = 1;
+  bytes prf_sk_share = 2;
+}
+
+// ## ROUND 2 MESSAGES: MASKED INPUT COLLECTION
+// The server gives each client his shares of the keys of each other client who
+// responded in the previous round. Each client computes a masked version of its
+// own input and sends it to the server.
+
+// Part of a ServerToClientWrapperMessage. Contains a list of shares of other
+// clients' keys encrypted and intended for the client who receives this
+// message.
+message MaskedInputCollectionRequest {
+  // Each bytes field of this message (intended for party with logical id i)
+  // contains an encryption of a PairOfKeyShares message.
+  // The bytes are ordered according to the clients' logical ids. If a client
+  // j did not send the ShareKeysResponse in the previous round, the
+  // corresponding encrypted_key_shares bytes field will be empty (the receiving
+  // client i will therefore consider such a client j dead from now on).
+  repeated bytes encrypted_key_shares = 1;
+}
+
+// Part of a ClientToServerWrapperMessage. Contains a map of masked input
+// vectors (each identified by a name string).
+message MaskedInputCollectionResponse {
+  // The string key of the map represents the name of the input vector.
+  map<string, MaskedInputVector> vectors = 1;
+}
+
+// Part of a MaskedInputCollectionResponse message. Contains an encoding of an
+// input vector masked by the addition of pseudo-random values (which will be
+// removed later).
+message MaskedInputVector {
+  // The vector contains a packed representation of a masked SecAggVector,
+  // where each element is packed in little-endian order.
+  bytes encoded_vector = 1;
+
+  // May be populated with implementation-specific data.
+  // repeated google.protobuf.Any extra_data = 2; // Unused in Chromium.
+}
+
+// ## ROUND 3 MESSAGES: UNMASKING
+// The server communicates to the clients the list of clients which did not
+// complete the previous round (and therefore are considered dead). Each client
+// i, for each other client j, responds with either the share of noise_sk (if
+// client j is dead) OR share of prf_sk (if client j is still alive).
+
+// Part of a ServerToClientWrapperMessage.
+message UnmaskingRequest {
+  // Clients which were alive at round 2, but did not send a ROUND 2 response,
+  // so they are considered dead from round 3 onwards.
+  // NOTE: to minimize bandwidth, this DOES NOT include clients which dropped
+  // before round 2 (i.e. those who did not send a round 1 response).
+  repeated uint32 dead_3_client_ids = 1;
+}
+
+// Part of a ClientToServerWrapperMessage.
+message UnmaskingResponse {
+  // These shares are NOT encrypted. For each other client j, client i sends to
+  // the server his share of noise_sk (if client j is dead) OR share of prf_sk
+  // (if client j is still alive).
+  // The entries corresponding to clients who died before round 2 (i.e. the
+  // ones for which the client sending the message never got any key shares) are
+  // empty. The entry corresponding to the client sending the message must be
+  // a prf_sk_share (otherwise the client would be dead and would not be sending
+  // this response.
+  repeated NoiseOrPrfKeyShare noise_or_prf_key_shares = 1;
+}
+
+// Part of an UnmaskingResponse. Contains either a share of a noise secret key
+// or a share of a prf secret key.
+message NoiseOrPrfKeyShare {
+  // Either a share of a noise secrete key or a share of a prf secret key.
+  // An honest client never reveals both, therefore oneof is appropriate.
+  oneof oneof_shares {
+    // A share of a noise secret key.
+    bytes noise_sk_share = 1;
+
+    // A share of a prf secret key.
+    bytes prf_sk_share = 2;
+  }
+}

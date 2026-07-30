@@ -18,4 +18,24 @@
   return self;
 }
 
+- (NSArray<LevelUpTask*>*)activeTasks {
+  NSMutableArray<LevelUpTask*>* active = [[NSMutableArray alloc] init];
+  for (LevelUpTask* task in self.tasks) {
+    if (!task.completed) {
+      [active addObject:task];
+    }
+  }
+  return [active copy];
+}
+
+- (NSArray<LevelUpTask*>*)completedTasks {
+  NSMutableArray<LevelUpTask*>* completed = [[NSMutableArray alloc] init];
+  for (LevelUpTask* task in self.tasks) {
+    if (task.completed) {
+      [completed addObject:task];
+    }
+  }
+  return [completed copy];
+}
+
 @end

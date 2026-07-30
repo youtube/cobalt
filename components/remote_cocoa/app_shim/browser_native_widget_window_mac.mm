@@ -151,18 +151,16 @@ const double kThinControllerHeight = 0.5;
            selector:@selector(windowDidBecomeKey:)
                name:NSWindowDidBecomeKeyNotification
              object:nil];
-    if (base::mac::MacOSMajorVersion() >= 13) {
-      _thinTitlebarViewController =
-          [[NSTitlebarAccessoryViewController alloc] init];
-      NSView* thinView = [[NSView alloc] init];
-      thinView.wantsLayer = YES;
-      thinView.layer.backgroundColor = NSColor.blackColor.CGColor;
-      _thinTitlebarViewController.view = thinView;
-      _thinTitlebarViewController.layoutAttribute = NSLayoutAttributeBottom;
-      _thinTitlebarViewController.fullScreenMinHeight = kThinControllerHeight;
-      _thinTitlebarViewController.hidden = YES;
-      [self addTitlebarAccessoryViewController:_thinTitlebarViewController];
-    }
+    _thinTitlebarViewController =
+        [[NSTitlebarAccessoryViewController alloc] init];
+    NSView* thinView = [[NSView alloc] init];
+    thinView.wantsLayer = YES;
+    thinView.layer.backgroundColor = NSColor.blackColor.CGColor;
+    _thinTitlebarViewController.view = thinView;
+    _thinTitlebarViewController.layoutAttribute = NSLayoutAttributeBottom;
+    _thinTitlebarViewController.fullScreenMinHeight = kThinControllerHeight;
+    _thinTitlebarViewController.hidden = YES;
+    [self addTitlebarAccessoryViewController:_thinTitlebarViewController];
   }
   return self;
 }

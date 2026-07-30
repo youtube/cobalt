@@ -44,6 +44,7 @@ class MEDIA_EXPORT HlsManifestDemuxerEngine : public ManifestDemuxer::Engine,
                            scoped_refptr<base::SequencedTaskRunner> task_runner,
                            std::unique_ptr<TrackManager> track_manager,
                            bool was_already_tainted,
+                           url::Origin security_origin,
                            GURL root_playlist_uri,
                            MediaLog* media_log);
   ~HlsManifestDemuxerEngine() override;
@@ -277,11 +278,17 @@ class MEDIA_EXPORT HlsManifestDemuxerEngine : public ManifestDemuxer::Engine,
   hls::ParseStatus::Or<scoped_refptr<hls::MediaPlaylist>>
   ParseMediaPlaylistFromStringSource(std::string_view source,
                                      GURL uri,
+                                     const url::Origin& manifest_origin,
                                      hls::types::DecimalInteger version);
 
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   std::unique_ptr<TrackManager> track_manager_
       GUARDED_BY_CONTEXT(media_sequence_checker_);
+
+  // The security origin of the frame in which the player is hosted. For
+  // manifests that are loaded via data urls, the frame security origin becomes
+  // the manifest security origin.
+  url::Origin security_origin_;
 
   // root playlist, either multivariant or media.
   GURL root_playlist_uri_;

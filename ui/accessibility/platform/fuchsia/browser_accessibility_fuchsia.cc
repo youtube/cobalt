@@ -5,9 +5,10 @@
 #include "ui/accessibility/platform/fuchsia/browser_accessibility_fuchsia.h"
 
 #include "base/fuchsia/fuchsia_logging.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_enums.mojom.h"
-#include "ui/accessibility/platform/fuchsia/browser_accessibility_manager_fuchsia.h"
 #include "ui/accessibility/platform/fuchsia/accessibility_bridge_fuchsia_registry.h"
+#include "ui/accessibility/platform/fuchsia/browser_accessibility_manager_fuchsia.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace ui {
@@ -232,12 +233,9 @@ BrowserAccessibilityFuchsia::GetFuchsiaStates() const {
   // Indicates if the node is hidden.
   states.hidden(IsInvisibleOrIgnored());
 
-  // The user entered value of the node, if applicable.
-  if (HasStringAttribute(ax::mojom::StringAttribute::kValue)) {
-    const std::string& value =
-        GetStringAttribute(ax::mojom::StringAttribute::kValue);
+  if (std::optional<std::string> value = GetAriaValueTextOrValue(); value) {
     states.value(
-        value.substr(0, fuchsia_accessibility_semantics::kMaxLabelSize));
+        value->substr(0, fuchsia_accessibility_semantics::kMaxLabelSize));
   }
 
   // The value a range element currently has.

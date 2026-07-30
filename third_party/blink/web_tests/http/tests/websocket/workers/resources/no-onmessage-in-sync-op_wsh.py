@@ -1,5 +1,3 @@
-import six
-
 from mod_pywebsocket import handshake
 from mod_pywebsocket import msgutil
 
@@ -16,5 +14,5 @@ def web_socket_transfer_data(request):
 
     for expected in (u'1', u'2', u'3'):
         message = msgutil.receive_message(request)
-        if not isinstance(message, six.text_type) or message != expected:
+        if not isinstance(message, str) or message != expected:
             raise handshake.AbortedByUserException('Abort the connection')

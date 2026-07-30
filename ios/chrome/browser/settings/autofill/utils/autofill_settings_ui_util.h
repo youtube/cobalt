@@ -32,4 +32,12 @@ NSString* GetDeletionConfirmationStringWithEntities(
     bool has_server_data,
     const std::u16string& user_email);
 
+@class TableViewItem;
+
+// Returns whether the given `item` can be deleted.
+bool IsDeletableItem(TableViewItem* item);
+
+// Returns YES if `items` contains any local (deletable) entities.
+BOOL ContainsLocalEntity(NSArray<TableViewItem*>* items);
+
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_UTILS_AUTOFILL_SETTINGS_UI_UTIL_H_

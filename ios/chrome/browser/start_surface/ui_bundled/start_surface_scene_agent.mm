@@ -68,12 +68,6 @@ bool IsEmptyNTP(const web::WebState* web_state) {
 // Caches the previous activation level.
 @property(nonatomic, assign) SceneActivationLevel previousActivationLevel;
 
-// YES if The ProfileState was not ready before the SceneState reached a valid
-// activation level, so therefore this agent needs to wait for the ProfileState
-// initStage to reach a valid stage before checking whether the Start Surface
-// should be shown.
-@property(nonatomic, assign) BOOL waitingForProfileStateAfterSceneStateReady;
-
 @end
 
 @implementation StartSurfaceSceneAgent
@@ -93,32 +87,31 @@ bool IsEmptyNTP(const web::WebState* web_state) {
 - (void)profileState:(ProfileState*)profileState
     didTransitionToInitStage:(ProfileInitStage)nextInitStage
                fromInitStage:(ProfileInitStage)fromInitStage {
-  if (nextInitStage == ProfileInitStage::kFinal &&
-      self.waitingForProfileStateAfterSceneStateReady) {
-    self.waitingForProfileStateAfterSceneStateReady = NO;
-    [self showStartSurfaceIfNecessary];
-    [self showTabGroupInGridIfNecessary];
+  if (nextInitStage == ProfileInitStage::kFinal) {
+    [profileState removeObserver:self];
+    [self sceneState:self.sceneState
+        transitionedToActivationLevel:self.sceneState.activationLevel];
   }
 }
 
 #pragma mark - SceneStateObserver
 
 - (void)sceneStateDidEnableUI:(SceneState*)sceneState {
-  if (self.waitingForProfileStateAfterSceneStateReady) {
-    self.waitingForProfileStateAfterSceneStateReady = NO;
-    [self showStartSurfaceIfNecessary];
-    [self showTabGroupInGridIfNecessary];
-  }
+  [self sceneState:self.sceneState
+      transitionedToActivationLevel:self.sceneState.activationLevel];
 }
 
 - (void)sceneStateDidDisableUI:(SceneState*)sceneState {
   // Tear down objects tied to the scene state before it is deleted.
   [self.sceneState.profileState removeObserver:self];
-  self.waitingForProfileStateAfterSceneStateReady = NO;
 }
 
 - (void)sceneState:(SceneState*)sceneState
     transitionedToActivationLevel:(SceneActivationLevel)level {
+  if (sceneState.profileState.initStage < ProfileInitStage::kFinal) {
+    return;
+  }
+
   if (level != SceneActivationLevelForegroundActive &&
       self.previousActivationLevel == SceneActivationLevelForegroundActive) {
     SetStartSurfaceSessionObjectForSceneState(sceneState);
@@ -153,12 +146,10 @@ bool IsEmptyNTP(const web::WebState* web_state) {
   if (self.sceneState.profileState.initStage < ProfileInitStage::kFinal) {
     // NO if the app is not yet ready to present normal UI that is required by
     // Start Surface.
-    self.waitingForProfileStateAfterSceneStateReady = YES;
     return;
   }
 
   if (!self.sceneState.UIEnabled) {
-    self.waitingForProfileStateAfterSceneStateReady = YES;
     return;
   }
 
@@ -408,7 +399,6 @@ bool IsEmptyNTP(const web::WebState* web_state) {
   if (self.sceneState.profileState.initStage < ProfileInitStage::kFinal) {
     // Do not show if the app is not yet ready to present normal UI that is
     // required by tab group in grid.
-    self.waitingForProfileStateAfterSceneStateReady = YES;
     return;
   }
 

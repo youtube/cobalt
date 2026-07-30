@@ -287,12 +287,6 @@ class TestCommands(unittest.TestCase):
         self.assertIsNone(stdout)
         self.assertIsNone(stderr)
 
-    def test_macos_version(self):
-        version = commands.macos_version()
-        self.assertGreaterEqual(len(version), 2)
-        self.assertGreaterEqual(version, [10, 10])
-        self.assertLess(version, [30])
-
     def test_plist_context_xml(self):
         path = os.path.join(self.tempdir, 'plist.strings')
         with commands.PlistContext(

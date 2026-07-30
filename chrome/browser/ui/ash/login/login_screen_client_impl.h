@@ -59,14 +59,6 @@ class LoginScreenClientImpl : public ash::LoginScreenClient,
                                            const std::string& input_method) = 0;
   };
 
-  // Handles methods related to parent access coming from ash into chrome.
-  class ParentAccessDelegate {
-   public:
-    virtual ~ParentAccessDelegate();
-
-    virtual bool ValidateParentAccessCode(const std::string& access_code) = 0;
-  };
-
   // `local_state` must be non-null and must outlive `this`.
   explicit LoginScreenClientImpl(PrefService* local_state);
 

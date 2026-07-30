@@ -6,29 +6,29 @@
   {
     "routes": [
       {
-        "name": "r1",
+        "name": "--r1",
         "pattern": [ "/matchme/" ]
       },
       {
-        "name": "r2",
+        "name": "--r2",
         "pattern": [ "should-not-match" ]
       },
       {
-        "name": "r3",
+        "name": "--r3",
         "pattern": { "protocol": "http*" }
       }
     ]
   }
 </script>
 <div class="tests">
-  <div id="elm1" style="--match:if(navigation(at:r1):true; else:false);"></div>
-  <div id="elm2" style="--match:if(navigation(at:r2):true; else:false);" nevermatch></div>
-  <div id="elm3" style="--match:if(not navigation(at:r3):true; else:false);" inactivematch></div>
-  <div id="elm4" style="--match:if(navigation(not (at:r2)):true; else:false);" alwaysmatch></div>
-  <div id="elm5" style="--match:if(navigation((at:r2) or (at:r3)):true; else:false);"></div>
+  <div id="elm1" style="--match:if(navigation(at:--r1):true; else:false);"></div>
+  <div id="elm2" style="--match:if(navigation(at:--r2):true; else:false);" nevermatch></div>
+  <div id="elm3" style="--match:if(not navigation(at:--r3):true; else:false);" inactivematch></div>
+  <div id="elm4" style="--match:if(navigation(not (at:--r2)):true; else:false);" alwaysmatch></div>
+  <div id="elm5" style="--match:if(navigation((at:--r2) or (at:--r3)):true; else:false);"></div>
   <div id="elm6" style="--match:if(navigation(at:url-pattern('/matchme/')):true; else:false);"></div>
   <div id="elm7" style="--match:if(navigation(at:url-pattern('should-not-match')):true; else:false);" nevermatch></div>
-  <div id="elm8" style="--match:if(navigation((at:url-pattern('should-not-match')) or (at:r3)):true; else:false);"></div>
+  <div id="elm8" style="--match:if(navigation((at:url-pattern('should-not-match')) or (at:--r3)):true; else:false);"></div>
   <div id="elm9" style="--match:if(navigation((at:url-pattern('should-not-match')) or (at:url-pattern('/matchme/'))):true; else:false);"></div>
 </div>
 

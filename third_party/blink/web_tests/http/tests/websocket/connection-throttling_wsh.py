@@ -1,4 +1,5 @@
-from six.moves.urllib import parse
+from urllib import parse
+
 import time
 import threading
 

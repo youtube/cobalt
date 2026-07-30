@@ -14,7 +14,7 @@ from blinkpy.w3c.chromium_commit_mock import MockChromiumCommit
 from blinkpy.w3c.chromium_exportable_commits import (
     _exportable_commits_since, get_commit_export_state, CommitExportState)
 from blinkpy.w3c.local_wpt_mock import MockLocalWPT
-from blinkpy.w3c.known_exported_change_ids_mock import MockKnownExportedChangeIds
+from blinkpy.w3c.known_exported_change_ids import KnownExportedChangeIdsSet
 from blinkpy.w3c.wpt_github import PullRequest
 from blinkpy.w3c.wpt_github_mock import MockWPTGitHub
 
@@ -75,6 +75,10 @@ class ChromiumExportableCommitsTest(unittest.TestCase):
                 'add087a97844f4b9e307d9a216940582d96db306', '--',
                 RELATIVE_WEB_TESTS + 'external/wpt/some',
                 RELATIVE_WEB_TESTS + 'external/wpt/files'
+            ],
+            [
+                'git', 'footers', '--key', 'Change-Id',
+                'add087a97844f4b9e307d9a216940582d96db306'
             ],
         ])
 
@@ -290,36 +294,24 @@ class ChromiumExportableCommitsTest(unittest.TestCase):
     def test_commit_exported_via_known_ids_override(self):
         """Tests that a commit is EXPORTED if its Change-Id is in the override list."""
         known_change_id = 'IdOverrideTest1'
-
-        mock_known_ids = MockKnownExportedChangeIds([known_change_id])
+        known_ids = KnownExportedChangeIdsSet({known_change_id})
 
         commit = MockChromiumCommit(MockHost(), change_id=known_change_id)
-        github = MockWPTGitHub(pull_requests=[
-            PullRequest('PR1', 1, f'body\nChange-Id: {known_change_id}',
-                        'closed', 'head_sha_1', [])
-        ],
-                               merged_index=0)
+        github = MockWPTGitHub(pull_requests=[])
         local_wpt = MockLocalWPT(change_ids=[], test_patch=[(False, '')])
 
-        # Without patching, the export state should be "exportable" (clean or dirty).
-        # This means the ID is not in the list yet.
-        state, error = get_commit_export_state(commit,
-                                               local_wpt,
-                                               github,
-                                               verify_merged_pr=True)
-
+        # Without patching, the export state should be "exportable" because no
+        # existing PR is detected.
+        state, error = get_commit_export_state(commit, local_wpt, github)
         self.assertEqual(state, CommitExportState.EXPORTABLE_DIRTY)
         self.assertEqual(error, '')
 
-        # After patching, the export state should be "exported".
-        # This means it has been added to the list.
+        # After patching, the export state should be "exported", even without a
+        # PR.
         with patch(
                 'blinkpy.w3c.chromium_exportable_commits.KNOWN_EXPORTED_CHANGE_IDS',
-                mock_known_ids):
-            state, error = get_commit_export_state(commit,
-                                                   local_wpt,
-                                                   github,
-                                                   verify_merged_pr=True)
+                known_ids):
+            state, error = get_commit_export_state(commit, local_wpt, github)
 
         self.assertEqual(state, CommitExportState.EXPORTED)
         self.assertEqual(error, '')

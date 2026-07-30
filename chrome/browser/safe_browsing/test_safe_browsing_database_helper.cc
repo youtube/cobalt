@@ -67,7 +67,8 @@ class InsertingDatabaseFactory : public safe_browsing::TestV4DatabaseFactory {
         store_map->insert(
             {id, store_factory_->CreateV4Store(
                      db_task_runner,
-                     store_path.empty() ? base_store_path : store_path)});
+                     store_path.empty() ? base_store_path : store_path,
+                     /*v5_prefix_size=*/0)});
       }
     }
 

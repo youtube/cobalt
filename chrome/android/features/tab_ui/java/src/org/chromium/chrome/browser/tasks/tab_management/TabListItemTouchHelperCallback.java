@@ -5,8 +5,6 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
-import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
-import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
 
 import android.content.Context;
 import android.view.InputDevice;
@@ -192,7 +190,7 @@ public abstract class TabListItemTouchHelperCallback extends ItemTouchHelper2.Si
         if (viewHolder instanceof SimpleRecyclerViewAdapter.ViewHolder simpleViewHolder) {
             PropertyModel model = simpleViewHolder.model;
             assumeNonNull(model);
-            return model.get(CARD_TYPE) == TAB;
+            return TabListModel.isTabOrTabGroup(model);
         }
         return false;
     }
@@ -207,7 +205,7 @@ public abstract class TabListItemTouchHelperCallback extends ItemTouchHelper2.Si
     protected boolean isPinnedRegularTab(RecyclerView.@Nullable ViewHolder viewHolder) {
         if (viewHolder instanceof SimpleRecyclerViewAdapter.ViewHolder simpleViewHolder) {
             PropertyModel model = simpleViewHolder.model;
-            if (model != null && model.get(CARD_TYPE) == TAB) {
+            if (model != null && TabListModel.isTabOrTabGroup(model)) {
                 return model.get(TabProperties.IS_PINNED);
             }
         }
@@ -224,7 +222,7 @@ public abstract class TabListItemTouchHelperCallback extends ItemTouchHelper2.Si
         if (viewHolder instanceof SimpleRecyclerViewAdapter.ViewHolder simpleViewHolder) {
             PropertyModel model = simpleViewHolder.model;
             assumeNonNull(model);
-            if (model.get(CARD_TYPE) == TAB) {
+            if (TabListModel.isTabOrTabGroup(model)) {
                 @Nullable TabGroupColorViewProvider provider =
                         model.get(TabProperties.TAB_GROUP_COLOR_VIEW_PROVIDER);
                 return provider != null && provider.hasCollaborationId();

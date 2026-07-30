@@ -36,8 +36,14 @@ class CONTENT_EXPORT SurfaceEmbedConnector {
   // surface_embed::SurfaceEmbedHost.
   class Delegate {
    public:
-    // Embeds a surface by its FrameSinkId.
-    virtual void SetFrameSinkId(const viz::FrameSinkId& frame_sink_id) = 0;
+    // Embeds a surface by its FrameSinkId. When `allow_paint_holding` is true,
+    // the old surface will be used as a fallback until the new surface produces
+    // its first frame (or a timeout expires), preventing a visual flash during
+    // navigation.
+    // The `allow_paint_holding` is decided in Navigator::DidNavigate(). See
+    // crbug.com/40942531 for why we cannot always enable paint holding.
+    virtual void SetFrameSinkId(const viz::FrameSinkId& frame_sink_id,
+                                bool allow_paint_holding) = 0;
 
     // Called when the child frame initiates a LocalSurfaceId update.
     // This typically happens when an auto-resized child frame has a new
@@ -79,7 +85,7 @@ class CONTENT_EXPORT SurfaceEmbedConnector {
   virtual void OnVisibilityChanged(
       blink::mojom::FrameVisibility visibility) = 0;
 
-  // Called by the SecureEmbedHost to synchronize visual properties between the
+  // Called by the SurfaceEmbedHost to synchronize visual properties between the
   // parent and child WebContents.
   virtual void OnSynchronizeVisualProperties(
       const blink::FrameVisualProperties& visual_properties) = 0;

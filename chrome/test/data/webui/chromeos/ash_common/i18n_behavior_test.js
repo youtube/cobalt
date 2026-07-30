@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 import {I18nBehavior} from 'chrome://resources/ash/common/i18n_behavior.js';
-
-import {assertEquals, assertThrows, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertThrows, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('I18nBehaviorModuleTest', function() {
   const allowedByDefault = '<a href="https://google.com">Google!</a>';

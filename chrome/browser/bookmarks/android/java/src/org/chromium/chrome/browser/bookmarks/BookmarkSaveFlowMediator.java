@@ -72,7 +72,8 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
      * @param context The {@link Context} associated with this mediator.
      * @param closeRunnable A {@link Runnable} which closes the bookmark save flow.
      * @param shoppingService Used to manage the price-tracking subscriptions.
-     * @param bookmarkImageFetcher Used to fetch images/favicons for bookmarks.
+     * @param bookmarkImageFetcher Used to fetch images/favicons for bookmarks. This class takes
+     *     ownership of it (will call destroy() on it).
      * @param profile The current chrome profile.
      * @param identityManager The {@link IdentityManager} which supplies the account data.
      * @param bookmarkManagerOpener The BookmarkManagerOpener used to open bookmark activites.
@@ -97,9 +98,7 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
         mCloseRunnable = closeRunnable;
 
         mShoppingService = shoppingService;
-        if (mShoppingService != null) {
-            mShoppingService.addSubscriptionsObserver(this);
-        }
+        mShoppingService.addSubscriptionsObserver(this);
 
         mBookmarkImageFetcher = bookmarkImageFetcher;
         mProfile = profile;
@@ -296,15 +295,12 @@ public class BookmarkSaveFlowMediator extends BookmarkModelObserver
     @SuppressWarnings("NullAway")
     void destroy() {
         mBookmarkModel.removeObserver(this);
-        if (mShoppingService != null) {
-            mShoppingService.removeSubscriptionsObserver(this);
-        }
+        mShoppingService.removeSubscriptionsObserver(this);
 
         mBookmarkId = null;
 
-        if (mCallbackController != null) {
-            mCallbackController.destroy();
-        }
+        mCallbackController.destroy();
+        mBookmarkImageFetcher.destroy();
     }
 
     @VisibleForTesting

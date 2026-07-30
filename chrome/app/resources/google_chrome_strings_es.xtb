@@ -404,6 +404,7 @@ Puede que algunas funciones no estén disponibles. Especifica otro directorio de
 <translation id="5234764350956374838">Cerrar</translation>
 <translation id="5239627039202700673">Usa Chrome cada vez que hagas clic en enlaces de mensajes, documentos y otras aplicaciones</translation>
 <translation id="5251420635869119124">Los invitados pueden utilizar Chrome sin dejar nada atrás.</translation>
+<translation id="5271833978500241046">Úsalas junto con otras funciones de Gemini en Chrome</translation>
 <translation id="5286907366254680517">Detectado</translation>
 <translation id="5320351714793324716">Si permites las cookies, es posible que Chrome las use en la precarga</translation>
 <translation id="5321325624576443340">Google Lens no está disponible. Inténtalo de nuevo más tarde.</translation>
@@ -442,15 +443,6 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="569897634095159764">No se puede conectar a Internet. El servidor proxy requiere autenticación.</translation>
 <translation id="5709557627224531708">Establece Chrome como navegador predeterminado</translation>
 <translation id="5719246646468301581">Términos del Servicio Adicionales de Google Chrome y ChromeOS</translation>
-<translation id="5719324992913248873">Al realizar esta acción:
-          <ph name="LINE_BREAKS" />
-           • Se restablecerán algunos ajustes y combinaciones de teclas de Chrome
-           <ph name="LINE_BREAK" />
-           • Se inhabilitarán las extensiones
-           <ph name="LINE_BREAK" />
-           • Se eliminarán las cookies y otros datos temporales de sitios
-            <ph name="LINE_BREAKS" />
-           Los marcadores, el historial y las contraseñas guardadas no se verán afectados.</translation>
 <translation id="5736850870166430177">Si un sitio intenta robarte tu contraseña o si descargas un archivo dañino, es posible que Chrome también envíe URLs, incluidos fragmentos de contenido de la página, a Navegación segura.</translation>
 <translation id="5756509061973259733">Ya existe un perfil de Chrome con esa cuenta en este dispositivo.</translation>
 <translation id="5759947850379142561">Selecciona cualquier texto o imagen para buscar con Google Lens o pulsa la tecla Esc para salir de Google Lens</translation>
@@ -648,6 +640,7 @@ Google Chrome no puede recuperar tu configuración.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Para proteger tus datos, permite que Chrome quite los permisos de los sitios que no hayas visitado recientemente.</translation>
 <translation id="7629695634924605473">Chrome te avisará si tus contraseñas están en riesgo</translation>
+<translation id="7629898584100520089">Las innovaciones de IA, como las habilidades, se guardan en tu cuenta de Google y se gestionan por separado de la sincronización de Chrome</translation>
 <translation id="7641148173327520642">El administrador del sistema ha configurado Google Chrome para que abra <ph name="ALTERNATIVE_BROWSER_NAME" /> al acceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Ayuda</translation>
 <translation id="7651907282515937834">Logotipo de Chrome Enterprise</translation>

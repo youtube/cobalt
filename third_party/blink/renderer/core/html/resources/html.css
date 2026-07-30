@@ -959,9 +959,13 @@ option:-internal-spatial-navigation-focus {
     outline-offset: -1px;
 }
 
-input:not([type="image" i], [type="range" i], [type="checkbox" i], [type="radio" i]) {
+input:not([type="range" i], [type="checkbox" i], [type="radio" i]) {
   overflow: clip !important;
   overflow-clip-margin: 0px !important;
+}
+
+input[type="image" i] {
+  overflow-clip-margin: content-box !important;
 }
 
 /* https://html.spec.whatwg.org/multipage/rendering.html#hidden-elements */
@@ -1184,7 +1188,13 @@ select:-internal-list-box {
 }
 
 select:not(:-internal-list-box) {
-    overflow: visible !important;
+    @supports not blink-feature(SelectUsesUAClip) {
+        overflow: -internal-auto-base(visible, revert-rule) !important;
+    }
+    @supports blink-feature(SelectUsesUAClip) {
+        overflow: -internal-auto-base(clip, revert-rule) !important;
+        overflow-clip-margin: -internal-auto-base(content-box, revert-rule) !important;
+    }
 }
 
 /* The padding here should match the value of
@@ -1816,7 +1826,9 @@ dialog:-internal-dialog-in-top-layer {
 
 [popover] {
     position: fixed;
-    position-anchor: auto;
+    @supports not blink-feature(RemovePositionAnchorUAStyle) {
+        position-anchor: auto;
+    }
     inset: 0;
     width: fit-content;
     height: fit-content;
@@ -2363,7 +2375,9 @@ select optgroup optgroup {
   menulist {
     display: block;
     position: fixed;
-    position-anchor: auto;
+    @supports not blink-feature(RemovePositionAnchorUAStyle) {
+        position-anchor: auto;
+    }
     margin: 0;
     inset: auto;
     /* TODO(https://crbug.com/406566432): width:max-content probably isn't
@@ -2518,7 +2532,9 @@ select optgroup optgroup {
     /* [popover] styles */
     position: fixed;
     inset: 0;
-    position-anchor: auto;
+    @supports not blink-feature(RemovePositionAnchorUAStyle) {
+        position-anchor: auto;
+    }
     width: fit-content;
     height: fit-content;
     margin: auto;

@@ -19,7 +19,7 @@ import re
 import sys
 
 
-_FILENAME_PATTERN = re.compile('(CU: |)(.+)\:')
+_FILENAME_PATTERN = re.compile(r'(CU: |)(.+):')
 
 
 def reduce_decoded_debugline(input_file):

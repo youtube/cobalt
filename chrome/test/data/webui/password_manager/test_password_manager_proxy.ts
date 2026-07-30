@@ -107,7 +107,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
       'requestChangePassword',
       'sharePassword',
       'showAddShortcutDialog',
-      'showExportedFileInShell',
+      'showLastExportedFileInShell',
       'startBulkPasswordCheck',
       'switchBiometricAuthBeforeFillingState',
       'undoRemoveSavedPasswordOrException',
@@ -331,8 +331,8 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     this.methodCalled('undoRemoveSavedPasswordOrException');
   }
 
-  showExportedFileInShell() {
-    this.methodCalled('showExportedFileInShell');
+  showLastExportedFileInShell() {
+    this.methodCalled('showLastExportedFileInShell');
   }
 
   getUrlCollection(url: string) {

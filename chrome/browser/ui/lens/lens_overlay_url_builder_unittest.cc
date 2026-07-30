@@ -851,6 +851,29 @@ TEST_F(LensOverlayUrlBuilderTest, ShouldOpenSearchURLInNewTab) {
       results_url_aim_mode, /*is_aim_feature_enabled=*/true));
 }
 
+TEST_F(LensOverlayUrlBuilderTest, MaybeStripParamsForShopping) {
+  const GURL non_shopping_url =
+      GURL(std::string(kResultsSearchBaseUrl) + "?q=query&stick=abc");
+  const GURL shopping_url =
+      GURL(std::string(kResultsSearchBaseUrl) + "?q=query&udm=28&stick=abc");
+  const GURL expected_shopping_url =
+      GURL(std::string(kResultsSearchBaseUrl) + "?q=query&udm=28");
+  const GURL external_shopping_url =
+      GURL("https://example.com/search?q=query&udm=28&stick=abc");
+
+  // Non-shopping search results URL should not be modified.
+  EXPECT_EQ(lens::MaybeStripParamsForShopping(non_shopping_url),
+            non_shopping_url);
+
+  // Shopping search results URL should have 'stick' parameter stripped.
+  EXPECT_EQ(lens::MaybeStripParamsForShopping(shopping_url),
+            expected_shopping_url);
+
+  // Non-search URL with shopping params should not be modified.
+  EXPECT_EQ(lens::MaybeStripParamsForShopping(external_shopping_url),
+            external_shopping_url);
+}
+
 TEST_F(LensOverlayUrlBuilderTest, URLsMatchWithoutTextFragment) {
   // Text fragments do not match.
   EXPECT_TRUE(URLsMatchWithoutTextFragment(

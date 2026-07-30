@@ -22,6 +22,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
+#include "base/scoped_environment_variable_override.h"
 #include "base/strings/cstring_view.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -700,6 +701,24 @@ TEST(ShellIntegrationTest, GetDesktopEntryStringValueFromFromDesktopFile) {
   EXPECT_EQ("", shell_integration_linux::internal::
                     GetDesktopEntryStringValueFromFromDesktopFileForTest(
                         "Action1", kDesktopFileContents));
+}
+
+TEST(ShellIntegrationTest, GetXdgAppIdForWebApp) {
+  base::ScopedEnvironmentVariableOverride scoped_override(
+      "CHROME_WEB_APP_DESKTOP_ID_PREFIX");
+
+  EXPECT_EQ("chrome-extensionid-Profile_1",
+            GetXdgAppIdForWebApp("_crx_extensionid",
+                                 base::FilePath("/tmp/Profile 1")));
+}
+
+TEST(ShellIntegrationTest, GetXdgAppIdForWebAppWithDesktopIdPrefix) {
+  base::ScopedEnvironmentVariableOverride scoped_override(
+      "CHROME_WEB_APP_DESKTOP_ID_PREFIX", "org.example.Browser.");
+
+  EXPECT_EQ("org.example.Browser.chrome-extensionid-Profile_1",
+            GetXdgAppIdForWebApp("_crx_extensionid",
+                                 base::FilePath("/tmp/Profile 1")));
 }
 
 TEST(ShellIntegrationLinuxTest,

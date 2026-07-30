@@ -38,7 +38,7 @@ export function getHtml(this: ContextHubAppElement) {
     <div class="content-area">
         ${
       this.currentView_ === 'ai-taskbox' ? html`
-          <ai-taskbox></ai-taskbox>
+          <ai-taskbox .todos="${this.todos_}"></ai-taskbox>
         ` :
                                            ''}
         ${

@@ -138,6 +138,7 @@ void OverscrollControllerAndroid::OnGestureEvent(
       if (event.SourceDevice() == blink::WebGestureDevice::kTouchpad) {
         gfx::Vector2dF scroll_delta(event.data.scroll_update.delta_x,
                                     event.data.scroll_update.delta_y);
+        scroll_delta.Scale(dpi_scale_);
         refresh_effect_->WillHandleScrollUpdate(scroll_delta);
       }
     } break;

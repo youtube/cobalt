@@ -123,7 +123,8 @@ public class TabbedOpenInAppEntryPointUnitTest {
                 /* isPdf= */ false,
                 /* mimeType= */ "",
                 Page.createForTesting(),
-                /* isSameOrigin= */ true);
+                /* isSameOrigin= */ true,
+                /* ignoredDuplicateNavigationCount= */ 0);
 
         mEntryPoint = new TabbedOpenInAppEntryPoint(mTabSupplier, mOmniboxChipManager, mContext);
         mTabSupplier.set(mTab);

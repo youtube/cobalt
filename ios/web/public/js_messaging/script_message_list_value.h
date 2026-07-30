@@ -7,13 +7,47 @@
 
 #include <Foundation/Foundation.h>
 
-#include <memory>
+#include <optional>
+
+#include "base/types/pass_key.h"
 
 namespace web {
 class ScriptMessageValue;
 
+// An iterator that traverses a ScriptMessageListValue.
+class ScriptMessageListIterator {
+ public:
+  using PassKey = base::PassKey<ScriptMessageListValue>;
+
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = ScriptMessageValue;
+  using difference_type = std::ptrdiff_t;
+
+  ScriptMessageListIterator(PassKey, NSArray* data, size_t index);
+
+  // Overload dereference operator
+  ScriptMessageValue operator*() const;
+
+  // Overload increment operators (Prefix and Postfix)
+  ScriptMessageListIterator& operator++();
+  ScriptMessageListIterator operator++(int);
+
+  friend bool operator==(const ScriptMessageListIterator& a,
+                         const ScriptMessageListIterator& b);
+  friend bool operator!=(const ScriptMessageListIterator& a,
+                         const ScriptMessageListIterator& b);
+
+ private:
+  // The array over which the iterator traverses.
+  NSArray* data_;
+  // The current index the iterator with respect to the NSArray.
+  size_t index_;
+};
+
 class ScriptMessageListValue {
  public:
+  using iterator = ScriptMessageListIterator;
+
   ScriptMessageListValue(ScriptMessageListValue&&);
   ScriptMessageListValue& operator=(ScriptMessageListValue&&);
 
@@ -25,18 +59,26 @@ class ScriptMessageListValue {
   ~ScriptMessageListValue();
 
   // Returns true if there are no elements in the list.
-  bool Empty() const;
+  bool empty() const;
 
   // Returns the number of elements in the list.
-  size_t Size() const;
+  size_t size() const;
 
-  // Returns the value stored at the beginning of the list.
-  std::unique_ptr<ScriptMessageValue> Front() const;
+  // Returns the value stored at the beginning of the list or `std::nullopt
+  // if the list is empty.
+  std::optional<ScriptMessageValue> front() const;
 
-  // Returns the value stored at the end of the list.
-  std::unique_ptr<ScriptMessageValue> Back() const;
+  // Returns the value stored at the end of the list or `std::nullopt
+  // if the list is empty.
+  std::optional<ScriptMessageValue> back() const;
 
-  // TODO(crbug.com/509501985): Add support for iteration.
+  // Returns an iterator used to traverse the list.
+  iterator begin();
+
+  // Returns an iterator used to traverse the list in reverse starting at the
+  // end.
+  iterator end();
+
  private:
   NSArray* data_;
 };

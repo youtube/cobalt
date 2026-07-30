@@ -11,7 +11,6 @@
 
 namespace blink {
 
-class CrosKiosk;
 class ExecutionContext;
 class IsolatedWebApp;
 
@@ -21,7 +20,6 @@ class EXTENSIONS_CHROMEOS_EXPORT ChromeOS : public ScriptWrappable {
  public:
   ChromeOS();
   IsolatedWebApp* isolatedWebApp(ExecutionContext*);
-  CrosKiosk* kiosk(ExecutionContext*);
 
   void Trace(Visitor*) const override;
 };

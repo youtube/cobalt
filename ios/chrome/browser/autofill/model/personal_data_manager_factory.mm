@@ -55,10 +55,10 @@ PersonalDataManagerFactory::~PersonalDataManagerFactory() = default;
 
 std::unique_ptr<KeyedService>
 PersonalDataManagerFactory::BuildServiceInstanceFor(ProfileIOS* profile) const {
-  scoped_refptr<autofill::AutofillWebDataService> local_storage =
+  scoped_refptr<AutofillWebDataService> local_storage =
       ios::WebDataServiceFactory::GetAutofillWebDataForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS);
-  scoped_refptr<autofill::AutofillWebDataService> account_storage =
+  scoped_refptr<AutofillWebDataService> account_storage =
       ios::WebDataServiceFactory::GetAutofillWebDataForAccount(
           profile, ServiceAccessType::EXPLICIT_ACCESS);
   history::HistoryService* history_service =

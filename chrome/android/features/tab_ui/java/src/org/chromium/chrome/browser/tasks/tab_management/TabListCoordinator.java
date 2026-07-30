@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.tasks.tab_management;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.RecyclerViewScroller.smoothScrollToPosition;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
-import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_ID;
 
 import android.app.Activity;
@@ -24,7 +23,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import androidx.annotation.DrawableRes;
-import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -53,6 +51,7 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tab_ui.ThumbnailProvider;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.PriceMessageService.PriceWelcomeMessageProvider;
@@ -82,8 +81,6 @@ import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 import org.chromium.ui.recyclerview.widget.ItemTouchHelper2;
 import org.chromium.ui.widget.ViewLookupCachingFrameLayout;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -111,21 +108,6 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
         void onDragStart();
 
         void onDragEnd();
-    }
-
-    /**
-     * Modes of showing the list of tabs.
-     *
-     * <p>NOTE: STRIP and GRID modes will have height equal to that of the container view.
-     */
-    @IntDef({TabListMode.GRID, TabListMode.STRIP, TabListMode.NUM_ENTRIES})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface TabListMode {
-        int GRID = 0;
-        int STRIP = 1;
-        // int CAROUSEL_DEPRECATED = 2;
-        // int LIST_DEPRECATED = 3;
-        int NUM_ENTRIES = 4;
     }
 
     static final int GRID_LAYOUT_SPAN_COUNT_COMPACT = 2;
@@ -187,7 +169,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
      *     group cards.
      * @param dialogHandler A handler to handle requests about updating TabGridDialog.
      * @param initialTabActionState The initial {@link TabActionState} to use for the shown tabs.
-     *     Must always be CLOSABLE for TabListMode.STRIP.
+     *     Must always be CLOSABLE for TabListMode.BOTTOM_STRIP.
      * @param selectionDelegateProvider Provider to provide selected Tabs for a selectable tab list.
      *     It's NULL when selection is not possible.
      * @param priceWelcomeMessageControllerSupplier A supplier for a controller to show
@@ -197,7 +179,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
      * @param componentId The {@link TabComponentId} identifying the parent UI container hosting
      *     this tab list.
      * @param onModelTokenChange Callback to invoke whenever a model changes. Only currently
-     *     respected in TabListMode.STRIP mode.
+     *     respected in TabListMode.BOTTOM_STRIP mode.
      * @param emptyViewParent {@link ViewGroup} The root view of the empty state view.
      * @param emptyImageResId Drawable resource for empty state. @StringRes int
      *     emptyHeadingStringResId, @StringRes int emptySubheadingStringResId, @Nullable Runnable
@@ -251,7 +233,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
                         assumeNonNull(model);
                         if (mMode == TabListMode.GRID) {
                             TabGridViewBinder.onViewRecycled(model, viewHolder.itemView);
-                        } else if (mMode == TabListMode.STRIP) {
+                        } else if (mMode == TabListMode.BOTTOM_STRIP) {
                             TabStripViewBinder.onViewRecycled(model, viewHolder.itemView);
                         }
                         super.onViewRecycled(viewHolder);
@@ -314,7 +296,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
 
                         thumbnail.setImageDrawable(null);
                     };
-        } else if (mMode == TabListMode.STRIP) {
+        } else if (mMode == TabListMode.BOTTOM_STRIP) {
             mAdapter.registerType(
                     UiType.STRIP,
                     parent -> {
@@ -334,7 +316,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
                         mActivity,
-                        mMode == TabListMode.STRIP,
+                        mMode,
                         R.dimen.default_favicon_corner_radius,
                         TabFavicon::getBitmap);
 
@@ -402,7 +384,8 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
 
             // GRID has a fixed size. STRIP has a fixed size only if DATA_SHARING is off.
             boolean hasFixedSize =
-                    mMode != TabListMode.STRIP || !TabUiUtils.isDataSharingFunctionalityEnabled();
+                    mMode != TabListMode.BOTTOM_STRIP
+                            || !TabUiUtils.isDataSharingFunctionalityEnabled();
             mRecyclerView.setAdapter(mAdapter);
             mRecyclerView.setHasFixedSize(hasFixedSize);
             mRecyclerView.setOnDragListener(mTabSwitcherDragHandler);
@@ -426,7 +409,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
                 Rect frame = new Rect();
                 mActivity.getWindow().getDecorView().getWindowVisibleDisplayFrame(frame);
                 updateGridCardLayout(frame.width());
-            } else if (mMode == TabListMode.STRIP) {
+            } else if (mMode == TabListMode.BOTTOM_STRIP) {
                 LinearLayoutManager layoutManager =
                         new LinearLayoutManager(activity, LinearLayoutManager.HORIZONTAL, false) {
                             @Override
@@ -444,7 +427,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
             mListLayoutListener =
                     (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
                             updateGridCardLayout(right - left);
-        } else if (mMode == TabListMode.STRIP) {
+        } else if (mMode == TabListMode.BOTTOM_STRIP) {
             assert onModelTokenChange != null;
             mTabStripSnapshotter =
                     new TabStripSnapshotter(onModelTokenChange, mModelList, mRecyclerView);
@@ -851,6 +834,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
     @Override
     public void onDestroy() {
         mMediator.destroy();
+        mModelList.clear();
         destroyEmptyView();
         if (mTabListEmptyCoordinator != null) {
             mTabListEmptyCoordinator.removeListObserver();
@@ -955,7 +939,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
         List<Integer> indexes = new ArrayList<>();
         for (int i = 0; i < mModelList.size(); i++) {
             PropertyModel model = mModelList.get(i).model;
-            if (model.get(CARD_TYPE) == TAB && tabIdSet.contains(model.get(TAB_ID))) {
+            if (TabListModel.isTabOrTabGroup(model) && tabIdSet.contains(model.get(TAB_ID))) {
                 indexes.add(i);
             }
         }

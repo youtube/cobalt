@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">ເປີດ​ທັງ​ຫມົດ</translation>
 <translation id="1408696301184924537">ເພື່ອຕື່ມຂໍ້ມູນ IBAN ນີ້ອັດຕະໂນມັດໃນເທື່ອຕໍ່ໄປ, ໃຫ້ບັນທຶກໄວ້ໃນບັນຊີ Google ຂອງທ່ານ</translation>
 <translation id="1408787208417187241">ໜີບກະຫຼັບເຟີຢູ່ເທິງສຸດສາມເທື່ອ</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> ຈາກທັງໝົດ <ph name="NUM_MATCHES_IN_GROUP" /> ໃນກຸ່ມ <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">ຄົນອື່ນໆທີ່ໃຊ້ອຸປະກອນນີ້ຈະບໍ່ເຫັນການເຄື່ອນໄຫວຂອງທ່ານ, ດັ່ງນັ້ນທ່ານຈຶ່ງສາມາດທ່ອງເວັບໄດ້ແບບສ່ວນຕົວຫຼາຍຂຶ້ນ. ໂໝດນີ້ຈະບໍ່ປ່ຽນວິທີຮວບຮວມຂໍ້ມູນໂດຍເວັບໄຊທີ່ທ່ານເຂົ້າເບິ່ງ ແລະ ບໍລິການທີ່ເວັບໄຊເຫຼົ່ານັ້ນໃຊ້, ເຊິ່ງຮວມທັງ Google. ລະບົບຈະບັນທຶກລາຍການທີ່ດາວໂຫຼດ, ບຸກມາກ ແລະ ລາຍຊື່ການອ່ານໄວ້.</translation>
 <translation id="1410941016594047814">Envelope Invite</translation>
 <translation id="1413235258620101697">ລະບົບຈະເຂົ້າລະຫັດ CVC ຂອງບັດນີ້ ແລະ ບັນທຶກໄວ້ໃນ Google Wallet ເພື່ອການຈ່າຍເງິນທີ່ໄວຂຶ້ນ</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">Envelope Personal</translation>
 <translation id="2046951263634619614">ຮ້ານຂາຍປຶ້ມລາຍຍ່ອຍ</translation>
 <translation id="2048261947532620704">ກຳລັງແປພາສາໜ້ານີ້</translation>
+<translation id="2055016614992422886">ການສົນທະນາ</translation>
 <translation id="2059166748188874810">ເທດສະບານ</translation>
 <translation id="2059202684901022309">22 x 34 ນິ້ວ</translation>
 <translation id="2064568741209980952">ສິນເຊື່ອ ແລະ ການກູ້ຢືມ</translation>
@@ -3016,6 +3018,7 @@
 <translation id="5718601519531438273">ຮວມທັງຂໍ້ມູນຕ່າງໆ ເຊັ່ນ: ໜັງສືຜ່ານແດນ ແລະ ໃບອະນຸຍາດຂັບຂີ່</translation>
 <translation id="5720705177508910913">ຜູ້​ໃຊ້​ປະ​ຈຸ​ບັນ</translation>
 <translation id="5720895412771013401">ຄອມພິວເຕີຕັ້ງໂຕະ</translation>
+<translation id="5721147290164931316">ສະແກນເພື່ອເຂົ້າສູ່ລະບົບດ້ວຍໂທລະສັບຂອງທ່ານ</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} ແລະ ອີກ 1 ເວັບໄຊ}other{{website_1}, {website_2} ແລະ ອີກ {more_count} ເວັບໄຊ}}</translation>
 <translation id="572328651809341494">ແຖບບໍ່ດົນມານີ້</translation>
 <translation id="5723873695528696965">ຄວບຄຸມ ແລະ ຕັ້ງໂປຣແກຣມໃໝ່ໃນອຸປະກອນ MIDI ຂອງທ່ານ</translation>
@@ -3557,6 +3560,7 @@
 <translation id="6550245281449521513">ບໍ່ອະນຸຍາດໃຫ້ລັອກເມົ້າ</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, ໃໝ່</translation>
 <translation id="6552566579578780089">ການຈ່າຍເງິນ</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> ຈາກທັງໝົດ <ph name="NUM_MATCHES_IN_GROUP" /> ໃນກຸ່ມ <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">ເຂົ້າເບິ່ງຫຼ້າສຸດ <ph name="NUM_DAYS" /> ມື້ກ່ອນ</translation>
 <translation id="6556866813142980365">ເຮັດຄືນ</translation>
 <translation id="6557715786897013164">14 x 17 ນິ້ວ</translation>
@@ -4261,6 +4265,7 @@
 <translation id="7646681339175747202">ພົບລະຫັດຜ່ານທີ່ທ່ານຫາກໍໃຊ້ນັ້ນໃນການຮົ່ວໄຫຼຂໍ້ມູນ. ຕົວຈັດການລະຫັດຜ່ານ Google ແນະນຳໃຫ້ປ່ຽນລະຫັດຜ່ານຂອງທ່ານດຽວນີ້.</translation>
 <translation id="7647206758853451655">ຄຸນນະພາບການພິມ</translation>
 <translation id="7648133459447652947">ເພື່ອສະແດງເຄີເຊີຂອງທ່ານ, ໃຫ້ສະຫຼັບແອັບ, ໂຫຼດໜ້າເວັບໃໝ່ ຫຼື ກັບຄືນ</translation>
+<translation id="764847582138410250">ສະແກນເພື່ອເຂົ້າສູ່ລະບົບດ້ວຍໂທລະສັບຂອງທ່ານ</translation>
 <translation id="7648527891719919697">ເວັບໄຊນີ້ຈະຍັງຖືກບລັອກຢູ່ ຍ້ອນວ່າທ່ານໄດ້ເປີດການປົກປ້ອງຂັ້ນສູງໃນ <ph name="BEGIN_ANDROID_SETTINGS_LINK" />ການຕັ້ງຄ່າ Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />ສຶກສາເພີ່ມເຕີມກ່ຽວກັບຄຳເຕືອນນີ້<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">ເກັ​ບ​ຮັກ​ສາ​ໄຟ​ລ໌​ໄວ້​ຢູ່​ໃນ​ອຸ​ປະ​ກອນ​ນີ້</translation>
 <translation id="7649070708921625228">ຊ່ວຍ​ເຫຼືອ</translation>

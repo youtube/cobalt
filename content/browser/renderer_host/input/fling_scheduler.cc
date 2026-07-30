@@ -25,7 +25,7 @@
 namespace content {
 
 FlingScheduler::FlingScheduler(RenderWidgetHostImpl* host) : host_(host) {
-  DCHECK(host);
+  CHECK(host, base::NotFatalUntil::M152);
 }
 
 FlingScheduler::~FlingScheduler() {
@@ -35,7 +35,7 @@ FlingScheduler::~FlingScheduler() {
 
 void FlingScheduler::ScheduleFlingProgress(
     base::WeakPtr<input::FlingController> fling_controller) {
-  DCHECK(fling_controller);
+  CHECK(fling_controller, base::NotFatalUntil::M152);
   fling_controller_ = fling_controller;
   // Don't do anything if a ui::Compositor is already being observed.
   if (observed_compositor_)
@@ -50,7 +50,7 @@ void FlingScheduler::ScheduleFlingProgress(
 
 void FlingScheduler::DidStopFlingingOnBrowser(
     base::WeakPtr<input::FlingController> fling_controller) {
-  DCHECK(fling_controller);
+  CHECK(fling_controller, base::NotFatalUntil::M152);
   if (observed_compositor_) {
     observed_compositor_->RemoveAnimationObserver(this);
     observed_compositor_ = nullptr;
@@ -105,13 +105,13 @@ ui::Compositor* FlingScheduler::GetCompositor() {
 }
 
 void FlingScheduler::OnAnimationStep(base::TimeTicks timestamp) {
-  DCHECK(observed_compositor_);
+  CHECK(observed_compositor_, base::NotFatalUntil::M152);
   if (fling_controller_)
     fling_controller_->ProgressFling(timestamp);
 }
 
 void FlingScheduler::OnCompositingShuttingDown(ui::Compositor* compositor) {
-  DCHECK_EQ(observed_compositor_, compositor);
+  CHECK_EQ(observed_compositor_, compositor, base::NotFatalUntil::M152);
   observed_compositor_->RemoveAnimationObserver(this);
   observed_compositor_ = nullptr;
 }

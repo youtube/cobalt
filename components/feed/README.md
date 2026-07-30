@@ -7,6 +7,5 @@ Primary responsibilities:
 * Fetching, loading and persisting Feed content.
 * Sending actions
 * Recording metrics
-* Configuration of WebFeeds
 
 Note that 'v2' is now the only Feed implementation available.

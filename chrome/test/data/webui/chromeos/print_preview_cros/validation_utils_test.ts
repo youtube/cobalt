@@ -8,7 +8,7 @@ import {PDF_DESTINATION} from 'chrome://os-print/js/data/destination_constants.j
 import {DestinationManager} from 'chrome://os-print/js/data/destination_manager.js';
 import {FAKE_PRINT_SESSION_CONTEXT_SUCCESSFUL} from 'chrome://os-print/js/fakes/fake_print_preview_page_handler.js';
 import {isValidDestination} from 'chrome://os-print/js/utils/validation_utils.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {createTestDestination, resetDataManagersAndProviders} from './test_utils.js';
 

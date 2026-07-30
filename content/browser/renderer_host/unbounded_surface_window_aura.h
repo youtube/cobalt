@@ -1,0 +1,125 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CONTENT_BROWSER_RENDERER_HOST_UNBOUNDED_SURFACE_WINDOW_AURA_H_
+#define CONTENT_BROWSER_RENDERER_HOST_UNBOUNDED_SURFACE_WINDOW_AURA_H_
+
+#include <memory>
+#include <optional>
+
+#include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
+#include "components/viz/host/host_frame_sink_client.h"
+#include "content/browser/renderer_host/unbounded_surface_window.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom.h"
+#include "ui/aura/client/focus_change_observer.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_delegate.h"
+#include "ui/aura/window_observer.h"
+#include "ui/base/cursor/cursor.h"
+#include "ui/base/hit_test.h"
+#include "ui/events/gestures/motion_event_aura.h"
+
+namespace content {
+
+class RenderWidgetHostViewAura;
+
+class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
+                                   public aura::WindowDelegate,
+                                   public aura::WindowObserver,
+                                   public aura::client::FocusChangeObserver,
+                                   public viz::HostFrameSinkClient,
+                                   public blink::mojom::UnboundedSurfaceHost {
+ public:
+  static std::unique_ptr<UnboundedSurfaceWindowAura> Create(
+      RenderWidgetHostViewAura* parent_view,
+      mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
+      mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
+          client,
+      const gfx::Rect& bounds_in_dips);
+
+  ~UnboundedSurfaceWindowAura() override;
+
+  // UnboundedSurfaceWindow overrides:
+  bool is_valid() const override;
+  void SetBounds(const gfx::Rect& bounds_in_screen) override;
+  viz::FrameSinkId GetFrameSinkId() const override;
+  viz::LocalSurfaceId GetLocalSurfaceId() const override;
+  void GetCompositorFrameSink(
+      mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
+      mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client)
+      override;
+
+  void RouteMouseEvent(const blink::WebMouseEvent& event) override;
+  gfx::Rect GetBounds() const override;
+
+  // blink::mojom::UnboundedSurfaceHost overrides:
+  void UpdateBounds(const gfx::Rect& bounds) override;
+
+  // aura::WindowDelegate overrides:
+  gfx::Size GetMinimumSize() const override;
+  std::optional<gfx::Size> GetMaximumSize() const override;
+  void OnBoundsChanged(const gfx::Rect& old_bounds,
+                       const gfx::Rect& new_bounds) override {}
+  gfx::NativeCursor GetCursor(const gfx::Point& point) override;
+  int GetNonClientComponent(const gfx::Point& point) const override;
+  bool ShouldDescendIntoChildForEventHandling(
+      aura::Window* child,
+      const gfx::Point& location) override;
+  bool CanFocus() override;
+  void OnCaptureLost() override {}
+
+  void Dismiss() override;
+  void OnPaint(const ui::PaintContext& context) override {}
+  void OnDeviceScaleFactorChanged(float old_device_scale_factor,
+                                  float new_device_scale_factor) override {}
+  void OnWindowDestroying(aura::Window* window) override;
+  void OnWindowDestroyed(aura::Window* window) override {}
+  void OnWindowTargetVisibilityChanged(bool visible) override {}
+  bool HasHitTestMask() const override;
+  void GetHitTestMask(SkPath* mask) const override {}
+
+  // ui::EventHandler overrides (from WindowDelegate):
+  void OnKeyEvent(ui::KeyEvent* event) override;
+  void OnMouseEvent(ui::MouseEvent* event) override;
+  void OnTouchEvent(ui::TouchEvent* event) override;
+
+  // aura::client::FocusChangeObserver overrides:
+  void OnWindowFocused(aura::Window* gained_focus,
+                       aura::Window* lost_focus) override;
+
+  // viz::HostFrameSinkClient overrides:
+  void OnFirstSurfaceActivation(const viz::SurfaceInfo& surface_info) override {
+  }
+  void OnFrameTokenChanged(uint32_t frame_token,
+                           base::TimeTicks activation_time) override {}
+
+ private:
+  UnboundedSurfaceWindowAura(
+      RenderWidgetHostViewAura* parent_view,
+      mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
+      mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
+          client);
+  bool InitWindow(const gfx::Rect& bounds_in_dips);
+  void OnConnectionError();
+  gfx::Rect ConvertDIPToScreenBounds(const gfx::Rect& bounds_in_dips) const;
+
+  raw_ptr<RenderWidgetHostViewAura> parent_view_;
+  viz::FrameSinkId frame_sink_id_;
+  viz::FrameSinkId parent_frame_sink_id_;
+  viz::ParentLocalSurfaceIdAllocator local_surface_id_allocator_;
+  mojo::AssociatedReceiver<blink::mojom::UnboundedSurfaceHost> receiver_{this};
+  mojo::AssociatedRemote<blink::mojom::UnboundedSurfaceClient> client_remote_;
+  std::unique_ptr<aura::Window> window_;
+  raw_ptr<aura::Window> root_window_ = nullptr;
+  ui::MotionEventAura pointer_state_;
+};
+
+}  // namespace content
+
+#endif  // CONTENT_BROWSER_RENDERER_HOST_UNBOUNDED_SURFACE_WINDOW_AURA_H_

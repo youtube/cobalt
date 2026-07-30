@@ -217,6 +217,9 @@ inline constexpr char kEnterpriseSwitch[] =
 // Specifies that no UI should be shown.
 inline constexpr char kSilentSwitch[] = "silent";  // backward-compatibility.
 
+// Valid values for the kSilentSwitch.
+inline constexpr char kSilentSwitchValueAllowUAC[] = "allow-uac";
+
 // The "alwayslaunchcmd" switch specifies that launch commands are to be run
 // unconditionally, even for silent modes.
 inline constexpr char kAlwaysLaunchCmdSwitch[] = "alwayslaunchcmd";

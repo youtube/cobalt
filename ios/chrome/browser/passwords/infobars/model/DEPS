@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/trusted_vault",
+  "+ios/chrome/browser/infobars/model",
+]

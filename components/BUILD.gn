@@ -389,6 +389,7 @@ test("components_unittests") {
     "//components/url_pattern:unit_tests",
     "//components/url_pattern_index:unit_tests",
     "//components/user_data_importer/utility:unit_tests",
+    "//components/user_education/product_messaging:unit_tests",
     "//components/user_prefs:unit_tests",
     "//components/variations:unit_tests",
     "//components/variations/field_trial_config:unit_tests",
@@ -795,7 +796,10 @@ test("components_unittests") {
     # guest_contents is a supporting component for any solution that embeds
     # unowned inner WebContents. As it is for embedding WebContents, only
     # add the deps when use_blink is true.
-    deps += [ "//components/guest_contents/browser:unit_tests" ]
+    deps += [
+      "//components/guest_contents/browser:unit_tests",
+      "//components/surface_embed/renderer:unit_tests",
+    ]
   }
 
   if (enable_guest_view) {
@@ -1142,6 +1146,7 @@ if (use_blink) {
       "dom_distiller/content/browser/test/test_util.cc",
       "dom_distiller/content/browser/test/test_util.h",
       "dom_distiller/content/browser/test/viewer_js_browsertest.cc",
+      "optimization_guide/content/browser/page_content_image_extractor_browsertest.cc",
       "optimization_guide/content/browser/page_content_metadata_observer_browsertest.cc",
       "optimization_guide/content/browser/page_content_proto_provider_browsertest.cc",
       "optimization_guide/content/renderer/page_text_agent_browsertest.cc",
@@ -1449,8 +1454,8 @@ if (use_blink) {
     if (safe_browsing_mode == 1 || is_ios) {
       sources += [ "safe_browsing/core/browser/db/v4_store_perftest.cc" ]
       deps += [
+        "//components/safe_browsing/core/browser/db:sb_store",
         "//components/safe_browsing/core/browser/db:v4_protocol_manager_util",
-        "//components/safe_browsing/core/browser/db:v4_store",
         "//components/safe_browsing/core/browser/db:v4_test_util",
         "//crypto",
       ]

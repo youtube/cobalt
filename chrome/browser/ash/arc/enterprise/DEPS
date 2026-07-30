@@ -31,6 +31,5 @@ include_rules = [
   "+chrome/browser/profiles",
   "+chrome/browser/ui/browser.h",
   "+chrome/common/net",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]

@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/private_verification_tokens/common",
+  "+components/private_verification_tokens/mojom",
+]

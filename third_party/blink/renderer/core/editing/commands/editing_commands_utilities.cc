@@ -485,13 +485,13 @@ VisibleSelection SelectionForParagraphIteration(
           PreviousPositionOf(end_of_selection, kCannotCrossEditingBoundary);
       if (new_end.IsNotNull()) {
         new_selection = CreateVisibleSelection(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(start_of_selection.ToPositionWithAffinity())
                 .Extend(new_end.DeepEquivalent())
                 .Build());
       } else {
         new_selection = CreateVisibleSelection(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(start_of_selection.ToPositionWithAffinity())
                 .Build());
       }
@@ -509,13 +509,13 @@ VisibleSelection SelectionForParagraphIteration(
           NextPositionOf(start_of_selection, kCannotCrossEditingBoundary);
       if (new_start.IsNotNull()) {
         new_selection = CreateVisibleSelection(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(new_start.ToPositionWithAffinity())
                 .Extend(end_of_selection.DeepEquivalent())
                 .Build());
       } else {
         new_selection = CreateVisibleSelection(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(end_of_selection.ToPositionWithAffinity())
                 .Build());
       }
@@ -656,12 +656,12 @@ void DispatchInputEventEditableContentChanged(
     DispatchInputEvent(end_root, input_type, data, is_composing, data_transfer);
 }
 
-SelectionInDOMTree CorrectedSelectionAfterCommand(
+SelectionInDomTree CorrectedSelectionAfterCommand(
     const SelectionForUndoStep& passed_selection,
     Document* document) {
   if (!passed_selection.Anchor().IsValidFor(*document) ||
       !passed_selection.Focus().IsValidFor(*document)) {
-    return SelectionInDOMTree();
+    return SelectionInDomTree();
   }
   if (RuntimeEnabledFeatures::RemoveVisibleSelectionInDOMSelectionEnabled()) {
     document->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
@@ -672,14 +672,14 @@ SelectionInDOMTree CorrectedSelectionAfterCommand(
 }
 
 void ChangeSelectionAfterCommand(LocalFrame* frame,
-                                 const SelectionInDOMTree& new_selection,
+                                 const SelectionInDomTree& new_selection,
                                  const SetSelectionOptions& options) {
   if (new_selection.IsNone())
     return;
   // See <rdar://problem/5729315> Some shouldChangeSelectedDOMRange contain
   // Ranges for selections that are no longer valid
   const bool selection_did_not_change_dom_position =
-      new_selection == frame->Selection().GetSelectionInDOMTree() &&
+      new_selection == frame->Selection().GetSelectionInDomTree() &&
       options.IsDirectional() == frame->Selection().IsDirectional();
   const bool handle_visible =
       frame->Selection().IsHandleVisible() && new_selection.IsRange();
@@ -702,7 +702,7 @@ void ChangeSelectionAfterCommand(LocalFrame* frame,
   if (!selection_did_not_change_dom_position)
     return;
   frame->Client()->DidChangeSelection(
-      !frame->Selection().GetSelectionInDOMTree().IsRange(),
+      !frame->Selection().GetSelectionInDomTree().IsRange(),
       blink::SyncCondition::kNotForced);
 }
 

@@ -12,6 +12,8 @@
 
 namespace blink {
 
+class DOMException;
+
 class CORE_EXPORT HTMLUserMediaElement
     : public HTMLCapabilityElementBase,
       public Supplementable<HTMLUserMediaElement> {
@@ -22,6 +24,9 @@ class CORE_EXPORT HTMLUserMediaElement
 
   explicit HTMLUserMediaElement(Document& document);
   void Trace(Visitor*) const override;
+
+  DOMException* error() const { return error_.Get(); }
+  void SetError(DOMException* error) { error_ = error; }
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(stream, kStream)
 
@@ -36,6 +41,8 @@ class CORE_EXPORT HTMLUserMediaElement
   // HTMLCapabilityElementBase
   void OnPermissionStatusChange(mojom::blink::PermissionName permission_name,
                                 mojom::blink::PermissionStatus status) override;
+  void OnEmbeddedPermissionsDecided(
+      mojom::blink::EmbeddedPermissionControlResult result) override;
   void DefaultEventHandler(Event& event) override;
   mojom::blink::EmbeddedPermissionRequestDescriptorPtr
   CreateEmbeddedPermissionRequestDescriptor() override;
@@ -66,6 +73,7 @@ class CORE_EXPORT HTMLUserMediaElement
   void StartMediaStreamRequest();
   bool has_constraints_ = false;
   base::TimeTicks media_stream_request_start_time_;
+  Member<DOMException> error_;
 };
 
 // The custom type casting is required for the UserMediaElement OT because the

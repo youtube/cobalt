@@ -65,12 +65,11 @@ class AnnotationIndexClient {
           void(std::optional<std::vector<FilterSuggestionCandidate>>)> callback,
       int64_t navigation_id) = 0;
 
-  // Retrieves the supported task types for a specific domain. If the domain is
-  // not supported, invokes `callback` with `std::nullopt`.
-  virtual void GetSupportedTaskTypesForDomain(
-      std::string_view domain,
-      base::OnceCallback<void(std::optional<std::vector<std::string>>)>
-          callback,
+  // Retrieves the supported task types for `url`. If none are supported or an
+  // error occurs, invokes `callback` with an empty vector.
+  virtual void GetSupportedTasks(
+      const GURL& url,
+      base::OnceCallback<void(std::vector<std::string>)> callback,
       int64_t navigation_id) = 0;
 
   // Parses a raw URL to identify and extract a `FilterAnnotation`. If no

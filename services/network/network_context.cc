@@ -15,6 +15,7 @@
 #include "base/barrier_closure.h"
 #include "base/base64.h"
 #include "base/build_time.h"
+#include "base/byte_size.h"
 #include "base/callback_list.h"
 #include "base/check.h"
 #include "base/check_op.h"
@@ -137,6 +138,7 @@
 #include "services/network/proxy_lookup_request.h"
 #include "services/network/proxy_resolving_socket_factory_mojo.h"
 #include "services/network/public/cpp/cert_verifier/mojo_cert_verifier.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
@@ -2076,7 +2078,7 @@ void NetworkContext::CreateWebSocket(
     mojo::PendingRemote<mojom::WebSocketAuthenticationHandler> auth_handler,
     mojo::PendingRemote<mojom::TrustedHeaderClient> header_client,
     const std::optional<base::UnguessableToken>& throttling_profile_id,
-    const std::optional<base::UnguessableToken>& network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
 #if BUILDFLAG(ENABLE_WEBSOCKETS)
   if (!websocket_factory_) {
     websocket_factory_ = std::make_unique<WebSocketFactory>(this);
@@ -2111,11 +2113,9 @@ void NetworkContext::CreateWebTransport(
     mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
         url_loader_network_observer,
     mojom::ClientSecurityStatePtr client_security_state,
-    const std::optional<base::UnguessableToken>& network_restrictions_id) {
-  if (network_restrictions_id.has_value() &&
-          !IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
-              *network_restrictions_id,
-      url, key)) {
+    const base::UnguessableToken& network_restrictions_id) {
+  if (!IsNetworkForNetworkRestrictionsIdAndUrlAllowed(network_restrictions_id,
+                                                      url, key)) {
     mojo::Remote<mojom::WebTransportHandshakeClient> remote_handshake_client(
         std::move(pending_handshake_client));
     remote_handshake_client->OnHandshakeFailed(
@@ -2304,6 +2304,19 @@ void NetworkContext::NotifyExternalCacheHit(const GURL& url,
   cache->OnExternalCacheHit(url, http_method, key, include_credentials);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+void NetworkContext::SetHttpCacheMaxSize(base::ByteSize http_cache_max_size,
+                                         bool force_initialization) {
+  // Note: we do not update params_->http_cache_max_size.
+  net::HttpCache* cache =
+      url_request_context_->http_transaction_factory()->GetCache();
+  if (!cache) {
+    return;
+  }
+  cache->SetMaxBytes(http_cache_max_size, force_initialization);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 void NetworkContext::SetCorsOriginAccessListsForOrigin(
     const url::Origin& source_origin,
     std::vector<mojom::CorsOriginPatternPtr> allow_patterns,
@@ -2479,7 +2492,7 @@ void NetworkContext::PreconnectSockets(
     const GURL& original_url,
     mojom::CredentialsMode credentials_mode,
     const net::NetworkAnonymizationKey& network_anonymization_key,
-    const std::optional<base::UnguessableToken>& network_restrictions_id,
+    const base::UnguessableToken& network_restrictions_id,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
     const std::optional<net::ConnectionKeepAliveConfig>& keepalive_config,
     mojo::PendingRemote<mojom::ConnectionChangeObserverClient>
@@ -2505,9 +2518,8 @@ void NetworkContext::PreconnectSockets(
 
   // Preconnect is disallowed if network access is disabled for the
   // network_restrictions_id.
-  if (network_restrictions_id.has_value() &&
-      !IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
-          *network_restrictions_id, url, network_anonymization_key)) {
+  if (!IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
+          network_restrictions_id, url, network_anonymization_key)) {
     return;
   }
 
@@ -3778,8 +3790,11 @@ bool NetworkContext::IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
   // If network hasn't been revoked for the network restrictions ID, it's
   // allowed. Likewise, local schemes that reach this point should be excluded
   // as they don't generate network requests.
+  if (network_restrictions_ids_.empty() || url.SchemeIsLocal()) {
+    return true;
+  }
   auto it = network_restrictions_ids_.find(network_restrictions_id);
-  if (it == network_restrictions_ids_.end() || url.SchemeIsLocal()) {
+  if (it == network_restrictions_ids_.end()) {
     return true;
   }
 

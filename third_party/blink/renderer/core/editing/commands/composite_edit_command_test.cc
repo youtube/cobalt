@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/core/html/html_br_element.h"
 #include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
+#include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 
 namespace blink {
 
@@ -40,6 +41,10 @@ class SampleCommand final : public CompositeEditCommand {
                       EditingState* editing_state);
   void CleanupAfterDeletion(EditingState*);
   void CleanupAfterDeletion(EditingState*, const Position& destination);
+
+  void PrepareWhitespaceAtPositionForSplit(Position& position);
+  void ReplaceCollapsibleWhitespaceWithNonBreakingSpaceIfNeeded(
+      const Position&);
 
   // CompositeEditCommand member implementations
   void DoApply(EditingState*) final {}
@@ -92,6 +97,16 @@ void SampleCommand::CleanupAfterDeletion(EditingState* editing_state) {
 void SampleCommand::CleanupAfterDeletion(EditingState* editing_state,
                                          const Position& destination) {
   CompositeEditCommand::CleanupAfterDeletion(editing_state, destination);
+}
+
+void SampleCommand::PrepareWhitespaceAtPositionForSplit(Position& position) {
+  CompositeEditCommand::PrepareWhitespaceAtPositionForSplit(position);
+}
+
+void SampleCommand::ReplaceCollapsibleWhitespaceWithNonBreakingSpaceIfNeeded(
+    const Position& position) {
+  CompositeEditCommand::
+      ReplaceCollapsibleWhitespaceWithNonBreakingSpaceIfNeeded(position);
 }
 
 }  // namespace
@@ -174,7 +189,7 @@ TEST_F(CompositeEditCommandTest,
 }
 
 TEST_F(CompositeEditCommandTest,
-       MoveParagraphContentsToNewBlockWithUAShadowDOM1) {
+       MoveParagraphContentsToNewBlockWithUAShadowDom1) {
   SetBodyContent("<object contenteditable><input></object>");
   base::RunLoop().RunUntilIdle();
 
@@ -191,7 +206,7 @@ TEST_F(CompositeEditCommandTest,
 }
 
 TEST_F(CompositeEditCommandTest,
-       MoveParagraphContentsToNewBlockWithUAShadowDOM2) {
+       MoveParagraphContentsToNewBlockWithUAShadowDom2) {
   GetDocument().setDesignMode("on");
   SetBodyContent("<span></span><button><meter></meter></button>");
 
@@ -350,8 +365,8 @@ TEST_F(CompositeEditCommandTest, DomLaneSeedsFromRawDomSelection) {
   SetBodyContent("<div contenteditable id='ed'>X<br></div>");
   Element* div = GetElementById("ed");
   const Position raw(div, 1);
-  Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(raw).Build(), SetSelectionOptions());
+  Selection().SetSelection(SelectionInDomTree::Builder().Collapse(raw).Build(),
+                           SetSelectionOptions());
 
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
   EXPECT_EQ(raw, sample.StartingDomSelection().Anchor());
@@ -412,6 +427,55 @@ TEST_F(CompositeEditCommandTest, CleanupAfterDeletionNonNullDestinationDomApi) {
       "<p id=\"dst\">destination</p>"
       "</div>",
       GetDocument().body()->GetInnerHTMLString());
+}
+
+TEST_F(CompositeEditCommandTest, PrepareWhitespaceAtPositionForSplitDomApi) {
+  ScopedEditingUseDomPositionApiForTest scoped_dom_position(true);
+
+  SetBodyContent("<div contenteditable>hello world</div>");
+  Element* div = QuerySelector("div");
+  Text* text = To<Text>(div->firstChild());
+
+  Position pos(text, 5);
+
+  SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
+  sample.PrepareWhitespaceAtPositionForSplit(pos);
+
+  text = To<Text>(div->firstChild());
+  EXPECT_TRUE(text->data().contains(uchar::kNoBreakSpace));
+}
+
+TEST_F(CompositeEditCommandTest,
+       ReplaceCollapsibleWhitespacePositionWithWhitespaceDomApi) {
+  SetBodyContent("<div contenteditable>hello world</div>");
+  Element* div = QuerySelector("div");
+  Text* text = To<Text>(div->firstChild());
+
+  // Position right before the space character.
+  Position pos(text, 5);
+
+  SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
+  sample.ReplaceCollapsibleWhitespaceWithNonBreakingSpaceIfNeeded(pos);
+
+  text = To<Text>(div->firstChild());
+  EXPECT_TRUE(text->data().contains(uchar::kNoBreakSpace));
+}
+
+TEST_F(CompositeEditCommandTest,
+       ReplaceCollapsibleWhitespacePositionNonWhitespaceDomApi) {
+  SetBodyContent("<div contenteditable>hello world</div>");
+  Element* div = QuerySelector("div");
+  Text* text = To<Text>(div->firstChild());
+
+  // Position before a non-whitespace character ('e' at index 1).
+  Position pos(text, 1);
+
+  SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
+  sample.ReplaceCollapsibleWhitespaceWithNonBreakingSpaceIfNeeded(pos);
+
+  text = To<Text>(div->firstChild());
+  // No replacement should occur; the text remains unchanged.
+  EXPECT_FALSE(text->data().contains(uchar::kNoBreakSpace));
 }
 
 }  // namespace blink

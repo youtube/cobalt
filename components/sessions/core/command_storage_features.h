@@ -59,7 +59,7 @@ enum class EncryptSessionStorageStage {
                                        // backwards compatibility.
 };
 
-EncryptSessionStorageStage GetEncryptSessionStorageStage();
+SESSIONS_EXPORT EncryptSessionStorageStage GetEncryptSessionStorageStage();
 
 }  // namespace sessions
 

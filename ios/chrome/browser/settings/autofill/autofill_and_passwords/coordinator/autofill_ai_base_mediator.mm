@@ -18,6 +18,7 @@
 #import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_labels.h"
 #import "components/autofill/core/browser/integrators/autofill_ai/management_utils.h"
+#import "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #import "ios/chrome/browser/autofill/autofill_ai/public/autofill_ai_ui_util.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_observer_bridge.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
@@ -96,6 +97,25 @@
 - (void)didSelectAddEntityWithType:(autofill::EntityType)type {
   [self.delegate autofillAIBaseMediator:self
        didRequestToCreateEntityWithType:type];
+}
+
+- (void)didSelectDeleteEntityItems:(NSArray<TableViewItem*>*)items {
+  if (!_entityDataManager) {
+    return;
+  }
+  for (TableViewItem* item in items) {
+    AutofillAIEntityItem* aiItem =
+        base::apple::ObjCCast<AutofillAIEntityItem>(item);
+    if (aiItem && !aiItem.isServerWalletItem) {
+      // Entities with record type `kPersonalContext` are not displayed in the
+      // settings, therefore, assigning `kLocal` here is okay.
+      autofill::EntityInstance::RecordType recordType =
+          autofill::EntityInstance::RecordType::kLocal;
+      autofill::LogEntityDeletedFromSettings(
+          autofill::EntityType(aiItem.entityTypeName), recordType);
+      _entityDataManager->RemoveEntityInstance(aiItem.guid);
+    }
+  }
 }
 
 #pragma mark - Public

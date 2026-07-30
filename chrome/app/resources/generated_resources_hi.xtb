@@ -597,7 +597,6 @@
 <translation id="1433478348197382180">रीडिंग मोड</translation>
 <translation id="1433980411933182122">शुरू करने पर</translation>
 <translation id="1434659328474177625"><ph name="ISSUER" /> ने आपके ईमेल पते की पुष्टि की है</translation>
-<translation id="1434696352799406980">यह आपके शुरुआती पेज, नए टैब पेज, खोज इंजन और पिन किए गए टैब को रीसेट करेगा. यह सभी एक्सटेंशन को भी बंद करेगा और कुकी जैसे अस्थायी डेटा को मिटाएगा. आपके बुकमार्क, इतिहास और सेव किए गए पासवर्ड नहीं मिटाए जाएंगे.</translation>
 <translation id="1434886155212424586">मुख्यपेज, नया टैब पेज है</translation>
 <translation id="1435940442311036198">Use a passkey on a different device</translation>
 <translation id="1436390408194692385"><ph name="TICKET_TIME_LEFT" /> के लिए मान्य</translation>
@@ -2575,6 +2574,7 @@
 <translation id="2822551631199737692">कैमरा इस्तेमाल हो रहा है</translation>
 <translation id="2822634587701817431">छोटा करें / पूरा खोलें</translation>
 <translation id="2824942875887026017"><ph name="IDS_SHORT_PRODUCT_NAME" /> आपके एडमिन की प्रॉक्सी सेटिंग का इस्तेमाल कर रहा है</translation>
+<translation id="2825200993288778739">खुद की स्किल बनाएं या स्किल लाइब्रेरी से कोई स्किल जोड़ें</translation>
 <translation id="282525059261716597">कमांड लाइन:</translation>
 <translation id="2825758591930162672">विषय की सार्वजनिक कुंजी</translation>
 <translation id="2826576843404243001">सुरक्षित कनेक्शन की सुविधा न देने वाली साइटों पर विज़िट करने से पहले आपको चेतावनी मिलेगी. इस सेटिंग को नहीं बदला जा सकता, क्योंकि आपने ऐडवांस सुरक्षा की सेटिंग चालू की हुई है.</translation>
@@ -3715,7 +3715,6 @@
 <translation id="366484203224589850"><ph name="TASK_TITLE" />: Gemini इस पर लंबे समय से काम कर रहा है. बैटरी बचाने के लिए, यह जल्द ही इस काम को रोक देगा</translation>
 <translation id="3664911592976620204">{NUM_OTHER_MEMBERS,plural, =0{<ph name="OWNER_FIRST_NAME" /> के साथ टैब ग्रुप में शामिल हों}=1{<ph name="OWNER_FIRST_NAME" /> और # अन्य व्यक्ति के साथ टैब ग्रुप में शामिल हों}one{<ph name="OWNER_FIRST_NAME" /> और # अन्य व्यक्ति के साथ टैब ग्रुप में शामिल हों}other{<ph name="OWNER_FIRST_NAME" /> और # अन्य लोगों के साथ टैब ग्रुप में शामिल हों}}</translation>
 <translation id="3665301845536101715">साइड पैनल में खोलें</translation>
-<translation id="3665589677786828986">Chrome को पता चला है कि आपकी कुछ सेटिंग किसी दूसरे प्रोग्राम के द्वारा दूषित कर दी गई हैं और उन्हें उनके मूल डिफ़ॉल्ट पर रीसेट कर दिया गया है.</translation>
 <translation id="3665918214153961651">फ़ाइल अपलोड हो रही है</translation>
 <translation id="3666196264870170605">Intel के वाई-फ़ाई एनआईसी का डीबग डंप</translation>
 <translation id="3666971425390608309">डाउनलोड रोका गया: <ph name="FILE_NAME" />.</translation>
@@ -4651,6 +4650,7 @@
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="432160826079505197"><ph name="FILE_NAME" /> को Finder में दिखाएं</translation>
 <translation id="4322394346347055525">अन्य टैब बंद करें</translation>
+<translation id="4322400254469690320"><ph name="FILENAME" /> को <ph name="FEATURE_NAME" /> फ़ोल्डर में ढूंढें</translation>
 <translation id="4324577459193912240">फ़ाइल अधूरी है</translation>
 <translation id="4325433082696797523">स्टोरेज और पावर</translation>
 <translation id="4325515113816851466">साइन आउट करने के बाद, माता-पिता की चुनी गई सेटिंग लागू नहीं होंगी</translation>
@@ -5001,7 +5001,6 @@
 <translation id="4580596421317071374">इस डिवाइस पर, पासवर्ड, <ph name="GOOGLE_PASSWORD_MANAGER" /> में सेव किए जाते हैं.</translation>
 <translation id="4580939929828762295">Google Password Manager की मदद से सुरक्षित रहें</translation>
 <translation id="4582297591746054421">आम तौर पर, साइटें आपके क्लिपबोर्ड को पढ़ती हैं. आप जो टेक्स्ट कॉपी करते हैं उसकी फ़ॉर्मैटिंग सही रखने जैसी सुविधाओं के लिए ऐसा किया जाता है</translation>
-<translation id="4582563038311694664">सभी सेटिंग रीसेट करें</translation>
 <translation id="4584094413232466841">क्या आपको Chrome की ऑटोमैटिक तरीके से जानकारी भरने वाली सुविधा से यह जानकारी हटानी है?</translation>
 <translation id="4584770411839426377">विंडो</translation>
 <translation id="4584836561445313300">आपका संगठन, इस प्रोफ़ाइल पर मौजूद पूरा ब्राउज़िंग डेटा देख और मैनेज कर पाएगा. जैसे, पासवर्ड वगैरह</translation>
@@ -6644,6 +6643,7 @@
 <translation id="5826993284769733527">आधा-पारदर्शी</translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5827591412833386477">साइटों को एक ही ग्रुप में दिखाएं</translation>
+<translation id="5827835011646404677">स्किल आपके Google खाते में सेव की जाती हैं</translation>
 <translation id="5828181959764767444">सूर्यास्त</translation>
 <translation id="5828545842856466741">प्रोफ़ाइल जोड़ें...</translation>
 <translation id="5828633471261496623">प्रिंट हो रहा है...</translation>
@@ -7969,6 +7969,7 @@
 <translation id="6805478749741295868">एआई की इस सुविधा को फ़िलहाल आज़माया जा रहा है. यह ज़रूरी नहीं है कि यह सुविधा हमेशा सही हो.</translation>
 <translation id="6805817411033102703">शेयर किए गए टैब ग्रुप के बारे में सुझाव, शिकायत या राय दें</translation>
 <translation id="6806089545527108739">अनुमति न दें, लेकिन बाद में पूछें</translation>
+<translation id="6806123901116522137">'एआई की नई सुविधाएं' पर जाएं</translation>
 <translation id="6806781719264274042">सिर्फ़ Google खाते में सेव किए गए संपर्क. <ph name="LINK_BEGIN" />संपर्क देखें<ph name="LINK_END" /></translation>
 <translation id="6808039367995747522">जारी रखने के लिए, अपनी सुरक्षा कुंजी डालें और छुएं</translation>
 <translation id="6808166974213191158">ChromeOS Flex का सिस्टम इमेज राइटर</translation>
@@ -10086,7 +10087,6 @@
 <translation id="8327386430364625757">मैथमैटिकल फ़ॉन्ट</translation>
 <translation id="8327490658947427005">चुना गया कॉन्टेंट <ph name="LANGUAGE" /> भाषा में नहीं है</translation>
 <translation id="8327544198829180337">इस व्यू को बंद करें</translation>
-<translation id="8327676037044516220">अनुमतियां और सामग्री सेटिंग</translation>
 <translation id="8328228852664998535">जारी रखने पर, <ph name="BRAND" /> से आपके पासवर्ड, पासकी, और अन्य डेटा हमेशा के लिए मिटा दिया जाएगा. साइटों और ऐप्लिकेशन के लिए बनाए गए किसी भी खाते को नहीं मिटाया जाएगा.</translation>
 <translation id="8328777765163860529">सभी बंद करें</translation>
 <translation id="8330617762701840933">उन वेबसाइटों की सूची जिन्हें वैकल्पिक ब्राउज़र पर रीडायरेक्ट किया जाता है.</translation>
@@ -10907,7 +10907,6 @@
 <translation id="8925458182817574960">&amp;सेटिंग</translation>
 <translation id="8926389886865778422">दोबारा न पूछें</translation>
 <translation id="8926555406617248399">टैब छिपाए गए</translation>
-<translation id="892706138619340876">कुछ सेटिंग रीसेट कर दी गई हैं</translation>
 <translation id="8927438609932588163">साइटों को आपके डिवाइस पर डेटा सेव करने की अनुमति दें</translation>
 <translation id="8929696694736010839">गुप्त मोड वाले मौजूदा सत्र पर ही लागू हो</translation>
 <translation id="8929738682246584251">ज़ूम करने की सुविधा चालू/बंद है</translation>
@@ -11216,6 +11215,7 @@
 <translation id="9130015405878219958">गलत मोड डाला गया.</translation>
 <translation id="9130135798965366513">जारी रखने के लिए, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> इस साइट के साथ आपका <ph name="FIELDS_STRING" /> शेयर करेगा. इस साइट की <ph name="BEGIN_LINK1" />निजता नीति<ph name="END_LINK1" /> और <ph name="BEGIN_LINK2" />सेवा की शर्तें<ph name="END_LINK2" /> देखें.</translation>
 <translation id="9130364135697530260">इस साइट पर एम्बेड किए गए कॉन्टेंट में, आपके बारे में सेव की गई जानकारी का इस्तेमाल हो सकता है</translation>
+<translation id="9130857050314385402">स्किल का इस्तेमाल करने पर, टैब के टाइटल और यूआरएल की जानकारी Google को भेजी जाती है</translation>
 <translation id="9131209053278896908">ब्लॉक की गई साइटों को यहां देखा जा सकता है</translation>
 <translation id="9131487537093447019">ब्लूटूथ डिवाइस से मैसेज भेजें और मैसेज पाएं.</translation>
 <translation id="9133568201369135151">गड़बड़ी से जुड़ा डेटा इकट्ठा हो गया है. इस डेटा में आपकी कुछ निजी जानकारी शामिल है.</translation>

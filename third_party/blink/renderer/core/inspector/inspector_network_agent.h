@@ -97,6 +97,10 @@ class CORE_EXPORT InspectorNetworkAgent final
   ~InspectorNetworkAgent() override;
   void Trace(Visitor*) const override;
 
+  void Init(CoreProbeSink*,
+            protocol::UberDispatcher*,
+            InspectorSessionState*) override;
+
   void Restore() override;
 
   // Probes.
@@ -416,12 +420,13 @@ class CORE_EXPORT InspectorNetworkAgent final
   Vector<URLPatternMatcher> blocked_pattern_matchers_;
 
   HeapHashSet<Member<XMLHttpRequest>> replay_xhrs_;
+  HashMap<String, String> extra_request_headers_;
+
   InspectorAgentState::Boolean enabled_;
   InspectorAgentState::Boolean cache_disabled_;
   InspectorAgentState::Boolean bypass_service_worker_;
   InspectorAgentState::BooleanMap blocked_urls_;
   InspectorAgentState::Bytes blocked_patterns_cbor_;
-  InspectorAgentState::StringMap extra_request_headers_;
   InspectorAgentState::Boolean attach_debug_stack_enabled_;
   InspectorAgentState::Integer total_buffer_size_;
   InspectorAgentState::Integer resource_buffer_size_;

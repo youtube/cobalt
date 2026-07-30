@@ -26,6 +26,7 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/defaults.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/extension_ui_util.h"
 #include "chrome/browser/feedback/report_unsafe_site_dialog.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
@@ -106,6 +107,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/bookmarks/common/bookmark_bar_visibility_state.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/dom_distiller/content/browser/distillable_page_utils.h"
 #include "components/dom_distiller/content/browser/uma_helper.h"
@@ -1977,9 +1979,22 @@ void AppMenuModel::LogMenuMetrics(int command_id) {
 }
 
 bool AppMenuModel::IsCommandIdChecked(int command_id) const {
+  PrefService* prefs = browser_->profile()->GetPrefs();
   if (command_id == IDC_SHOW_BOOKMARK_BAR) {
-    return browser_->profile()->GetPrefs()->GetBoolean(
-        bookmarks::prefs::kShowBookmarkBar);
+    return prefs->GetBoolean(bookmarks::prefs::kShowBookmarkBar);
+  }
+  if (command_id == IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW) {
+    return prefs->GetInteger(bookmarks::prefs::kBookmarkBarVisibilityState) ==
+           static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysShow);
+  }
+  if (command_id == IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE) {
+    return prefs->GetInteger(bookmarks::prefs::kBookmarkBarVisibilityState) ==
+           static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysHide);
+  }
+  if (command_id == IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP) {
+    return prefs->GetInteger(bookmarks::prefs::kBookmarkBarVisibilityState) ==
+           static_cast<int>(
+               bookmarks::BookmarkBarVisibilityState::kOnlyShowOnNtp);
   }
   if (command_id == IDC_PROFILING_ENABLED) {
     return content::Profiling::BeingProfiled();
@@ -2327,6 +2342,14 @@ void AppMenuModel::Build() {
 
     SetAccessibleNameAt(GetIndexOfCommandId(IDC_SHOW_MANAGEMENT_PAGE).value(),
                         GetManagedUiMenuItemTooltip(browser_->profile()));
+#if BUILDFLAG(IS_LINUX)
+    if (enterprise_util::IsBrowserManaged(browser_->profile()) &&
+        base::FeatureList::IsEnabled(features::kEnterpriseReleaseNotes)) {
+      AddItemWithStringIdAndVectorIcon(
+          this, IDC_CHROME_ENTERPRISE_RELEASE_NOTES,
+          IDS_CHROME_ENTERPRISE_RELEASE_NOTES, omnibox::kChromeProductIcon);
+    }
+#endif  // BUILDFLAG(IS_LINUX)
   }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 

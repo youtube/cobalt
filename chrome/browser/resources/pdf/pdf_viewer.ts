@@ -10,6 +10,7 @@ import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import './elements/viewer_error_dialog.js';
 import './elements/viewer_password_dialog.js';
 // <if expr="enable_pdf_ink2">
+import './elements/ink_text_annotations.js';
 import './elements/ink_text_box.js';
 import './elements/viewer_bottom_toolbar.js';
 import './elements/viewer_side_panel.js';

@@ -372,7 +372,8 @@ void VerticalTabStripController::ShowGroupEditorBubble(
       group_header_view, gfx::Point(), ui::mojom::MenuSourceType::kNone);
 }
 
-views::Widget* VerticalTabStripController::ShowGroupEditorBubble(
+std::unique_ptr<views::Widget>
+VerticalTabStripController::ShowGroupEditorBubble(
     const tab_groups::TabGroupId& group_id,
     views::View* anchor_view,
     bool stop_context_menu_propagation) {

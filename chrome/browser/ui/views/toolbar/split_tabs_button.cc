@@ -90,7 +90,8 @@ void SplitTabsToolbarButton::OnTabStripModelChanged(
 void SplitTabsToolbarButton::OnSplitTabChanged(const SplitTabChange& change) {
   if (change.type == SplitTabChange::Type::kAdded ||
       change.type == SplitTabChange::Type::kRemoved ||
-      change.type == SplitTabChange::Type::kContentsChanged) {
+      change.type == SplitTabChange::Type::kContentsChanged ||
+      change.type == SplitTabChange::Type::kVisualsChanged) {
     UpdateButtonVisibility();
   }
 }

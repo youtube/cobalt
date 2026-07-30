@@ -1,0 +1,82 @@
+%PDF-1.7
+% ò¤ô
+1 0 obj <<
+  /Type /Catalog
+  /Pages 2 0 R
+>>
+endobj
+2 0 obj <<
+  /Type /Pages
+  /MediaBox [0 0 300 300]
+  /Count 1
+  /Kids [3 0 R]
+>>
+endobj
+3 0 obj <<
+  /Type /Page
+  /Parent 2 0 R
+  /Resources <<
+    /Font <<
+      /F1 4 0 R
+    >>
+    /XObject <<
+      /Im1 6 0 R
+    >>
+  >>
+  /Contents 5 0 R
+>>
+endobj
+4 0 obj <<
+  /Type /Font
+  /Subtype /Type1
+  /BaseFont /Helvetica
+>>
+endobj
+5 0 obj <<
+  /Length 179
+>>
+stream
+BT
+20 200 Td
+/F1 12 Tf
+(This sentence has a length of exactly 101 characters, ) Tj
+0 -14 Td
+(including spaces and punctuation.!!!!!!!!!!!!!!) Tj
+
+ET
+q
+50 0 0 50 20 50 cm
+/Im1 Do
+Q
+endstream
+endobj
+6 0 obj <<
+  /Type /XObject
+  /Subtype /Image
+  /Width 50
+  /Height 50
+  /BitsPerComponent 8
+  /ColorSpace /DeviceRGB
+  /Filter [/ASCIIHexDecode /FlateDecode]
+  /Length 60
+>>
+stream
+789cedc13101000000c2a0f54fed6f06a00000000000000078031d4c0001
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000068 00000 n 
+0000000157 00000 n 
+0000000323 00000 n 
+0000000399 00000 n 
+0000000631 00000 n 
+trailer <<
+  /Root 1 0 R
+  /Size 7
+>>
+startxref
+891
+%%EOF

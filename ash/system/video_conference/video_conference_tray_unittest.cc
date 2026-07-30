@@ -1000,13 +1000,13 @@ TEST_F(VideoConferenceTrayTest, MutingChangesTooltip) {
   // The button is not toggled by default, and should not be capturing.
   ASSERT_FALSE(audio_icon()->toggled());
 
-  EXPECT_EQ(
-      audio_icon()->GetTooltipText(),
-      l10n_util::GetStringFUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
-          l10n_util::GetStringUTF16(
-              VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE),
-          l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON)));
+  EXPECT_EQ(audio_icon()->GetTooltipText(),
+            l10n_util::GetStringFUTF16(
+                IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+                l10n_util::GetStringUTF16(
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE),
+                l10n_util::GetStringUTF16(
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON)));
 
   // Update the state to capturing, the tooltip should update.
   state.is_capturing_microphone = true;
@@ -1014,24 +1014,24 @@ TEST_F(VideoConferenceTrayTest, MutingChangesTooltip) {
 
   EXPECT_EQ(audio_icon()->GetTooltipText(),
             l10n_util::GetStringFUTF16(
-                VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+                IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
                 l10n_util::GetStringUTF16(
-                    VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE),
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE),
                 l10n_util::GetStringUTF16(
-                    VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON_AND_IN_USE)));
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON_AND_IN_USE)));
 
   // Toggle the audio off, the tooltip should be updated.
   LeftClickOn(audio_icon());
   ASSERT_TRUE(controller()->GetMicrophoneMuted());
   ASSERT_TRUE(audio_icon()->toggled());
 
-  EXPECT_EQ(
-      audio_icon()->GetTooltipText(),
-      l10n_util::GetStringFUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
-          l10n_util::GetStringUTF16(
-              VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE),
-          l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
+  EXPECT_EQ(audio_icon()->GetTooltipText(),
+            l10n_util::GetStringFUTF16(
+                IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+                l10n_util::GetStringUTF16(
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE),
+                l10n_util::GetStringUTF16(
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
 }
 
 TEST_F(VideoConferenceTrayTest, CloseBubbleOnEffectSupportStateChange) {

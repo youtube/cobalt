@@ -41,20 +41,22 @@
 #include "components/autofill/android/payments_jni_headers/BnplIssuerTosDetail_jni.h"
 #include "components/autofill/android/payments_jni_headers/TouchToFillDisplayOptions_jni.h"
 
+namespace autofill {
+
 namespace {
 
 static base::android::ScopedJavaLocalRef<jobject>
 ConvertBnplIssuerTosDetailToJavaObject(
     JNIEnv* env,
     const jni_zero::JavaRef<jobject>& obj,
-    const autofill::payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
+    const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
   return Java_BnplIssuerTosDetail_Constructor(
       env,
       std::string(
           ConvertToBnplIssuerIdString(bnpl_issuer_tos_detail.issuer_id)),
       bnpl_issuer_tos_detail.is_linked_issuer,
       bnpl_issuer_tos_detail.issuer_name,
-      autofill::LegalMessageLineAndroid::ConvertToJavaLinkedList(
+      LegalMessageLineAndroid::ConvertToJavaLinkedList(
           bnpl_issuer_tos_detail.legal_message_lines));
 }
 
@@ -63,14 +65,14 @@ ConvertBnplIssuerTosDetailToJavaObject(
 static base::android::ScopedJavaLocalRef<jobject>
 CreateJavaBnplIssuerContextFromNative(
     JNIEnv* env,
-    const autofill::payments::BnplIssuerContext& bnpl_issuer_context,
+    const payments::BnplIssuerContext& bnpl_issuer_context,
     const std::string& app_locale) {
   const std::u16string selection_text =
-      autofill::payments::GetBnplIssuerSelectionOptionText(
+      payments::GetBnplIssuerSelectionOptionText(
           bnpl_issuer_context.issuer.issuer_id(), app_locale,
           {bnpl_issuer_context});
 
-  return autofill::Java_BnplIssuerContext_Constructor(
+  return Java_BnplIssuerContext_Constructor(
       env,
       std::string(
           ConvertToBnplIssuerIdString(bnpl_issuer_context.issuer.issuer_id())),
@@ -80,8 +82,6 @@ CreateJavaBnplIssuerContextFromNative(
 }
 
 }  // namespace
-
-namespace autofill {
 
 TouchToFillPaymentMethodViewImpl::TouchToFillPaymentMethodViewImpl(
     content::WebContents* web_contents)
@@ -172,7 +172,7 @@ bool TouchToFillPaymentMethodViewImpl::ShowPaymentMethods(
 
 bool TouchToFillPaymentMethodViewImpl::ShowIbans(
     TouchToFillPaymentMethodViewController* controller,
-    base::span<const autofill::Iban> ibans_to_suggest) {
+    base::span<const Iban> ibans_to_suggest) {
   JNIEnv* env = base::android::AttachCurrentThread();
   if (!IsReadyToShow(controller, env)) {
     return false;
@@ -180,7 +180,7 @@ bool TouchToFillPaymentMethodViewImpl::ShowIbans(
 
   std::vector<base::android::ScopedJavaLocalRef<jobject>> ibans_array;
   ibans_array.reserve(ibans_to_suggest.size());
-  for (const autofill::Iban& iban : ibans_to_suggest) {
+  for (const Iban& iban : ibans_to_suggest) {
     ibans_array.push_back(
         PersonalDataManagerAndroid::CreateJavaIbanFromNative(env, iban));
   }

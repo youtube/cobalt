@@ -370,7 +370,6 @@ after discussions on the right group.
       <annotation id="ntp_composebox_query_controller"/>
       <annotation id="password_change_submission_model_execution"/>
       <annotation id="glic_web_ui"/>
-      <annotation id="glic_fre_web_ui"/>
       <annotation id="aim_eligibility_fetch"/>
       <annotation id="enterprise_logo_fetcher_for_browser"/>
       <annotation id="devtools_gdp_service"/>

@@ -27,12 +27,12 @@ std::pair<std::string, std::string> SplitHTTP(std::string_view http_text);
 // Streams in text format. For consistency, taken from anonymous namespace in
 // components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc
 std::ostream& operator<<(std::ostream& out,
-                         const autofill::AutofillPageQueryRequest& query);
+                         const AutofillPageQueryRequest& query);
 
 // Streams in text format. For consistency, taken from anonymous namespace in
 // components/autofill/core/browser/form_structure.cc
 std::ostream& operator<<(std::ostream& out,
-                         const autofill::AutofillQueryResponse& response);
+                         const AutofillQueryResponse& response);
 enum class RequestType {
   kQueryProtoGET,
   kQueryProtoPOST,

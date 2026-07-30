@@ -15,6 +15,7 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/network_context.h"
 #include "services/network/network_service.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/websocket_utils.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/websocket.h"
@@ -49,7 +50,7 @@ void WebSocketFactory::CreateWebSocket(
     mojo::PendingRemote<mojom::WebSocketAuthenticationHandler> auth_handler,
     mojo::PendingRemote<mojom::TrustedHeaderClient> header_client,
     const std::optional<base::UnguessableToken>& throttling_profile_id,
-    const std::optional<base::UnguessableToken>& network_restrictions_id) {
+    const base::UnguessableToken& network_restrictions_id) {
   if (auto error = VerifyWebSocketConnectParameters(url, requested_protocols,
                                                     isolation_info)) {
     mojo::ReportBadMessage(*error);
@@ -74,9 +75,8 @@ void WebSocketFactory::CreateWebSocket(
   // Enforce Connection-Allowlist restrictions for WebSocket connections. Convert
   // ws(s):// to http(s):// for allowlist matching, since the allowlist patterns
   // use HTTP schemes.
-  if (network_restrictions_id.has_value() &&
-      !context_->IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
-          *network_restrictions_id, net::ChangeWebSocketSchemeToHttpScheme(url),
+  if (!context_->IsNetworkForNetworkRestrictionsIdAndUrlAllowed(
+          network_restrictions_id, net::ChangeWebSocketSchemeToHttpScheme(url),
           isolation_info.network_anonymization_key())) {
     mojo::Remote<mojom::WebSocketHandshakeClient> handshake_client_remote(
         std::move(handshake_client));

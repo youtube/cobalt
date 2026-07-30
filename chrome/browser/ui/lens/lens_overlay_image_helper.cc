@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/lens/lens_overlay_image_helper.h"
 
+#include <algorithm>
 #include <numbers>
 
 #include "base/compiler_specific.h"
@@ -306,18 +307,10 @@ lens::mojom::CenterRotatedBoxPtr GetCenterRotatedBoxFromTabViewAndImageBounds(
                  tab_bounds.height();
 
   // Clip to remain inside tab bounds.
-  if (left < 0) {
-    left = 0;
-  }
-  if (right > 1) {
-    right = 1;
-  }
-  if (top < 0) {
-    top = 0;
-  }
-  if (bottom > 1) {
-    bottom = 1;
-  }
+  left = std::max(0.f, left);
+  right = std::min(1.f, right);
+  top = std::max(0.f, top);
+  bottom = std::min(1.f, bottom);
 
   float width = right - left;
   float height = bottom - top;

@@ -282,10 +282,18 @@ base::RefCountedMemory* HistoryUI::GetFaviconResourceBytes(
 }
 
 void HistoryUI::BindInterface(
-    mojo::PendingReceiver<history_embeddings::mojom::PageHandler>
-        pending_page_handler) {
+    mojo::PendingReceiver<history_embeddings::mojom::PageHandlerFactory>
+        pending_page_handler_factory) {
+  history_embeddings_handler_factory_receiver_.reset();
+  history_embeddings_handler_factory_receiver_.Bind(
+      std::move(pending_page_handler_factory));
+}
+
+void HistoryUI::CreatePageHandler(
+    mojo::PendingRemote<history_embeddings::mojom::Page> page,
+    mojo::PendingReceiver<history_embeddings::mojom::PageHandler> receiver) {
   history_embeddings_handler_ = std::make_unique<HistoryEmbeddingsHandler>(
-      std::move(pending_page_handler),
+      std::move(receiver), std::move(page),
       Profile::FromWebUI(web_ui())->GetWeakPtr(), web_ui(),
       /*for_side_panel=*/false);
 }
@@ -298,11 +306,19 @@ void HistoryUI::BindInterface(
 }
 
 void HistoryUI::BindInterface(
-    mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler>
-        pending_page_handler) {
+    mojo::PendingReceiver<history::mojom::ForeignSessionPageHandlerFactory>
+        pending_receiver) {
+  foreign_session_page_handler_factory_receiver_.reset();
+  foreign_session_page_handler_factory_receiver_.Bind(
+      std::move(pending_receiver));
+}
+
+void HistoryUI::CreateForeignSessionPageHandler(
+    mojo::PendingRemote<history::mojom::ForeignSessionPage> page,
+    mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler> receiver) {
   foreign_session_handler_ =
       std::make_unique<browser_sync::ForeignSessionHandler>(
-          std::move(pending_page_handler), Profile::FromWebUI(web_ui()),
+          std::move(receiver), std::move(page), Profile::FromWebUI(web_ui()),
           web_ui()->GetWebContents(),
           base::BindRepeating([](content::WebContents* source_web_contents,
                                  const ::sessions::SessionTab& tab,

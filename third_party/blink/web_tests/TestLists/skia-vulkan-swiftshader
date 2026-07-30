@@ -138,7 +138,6 @@ css3/filters/effect-combined-hw.html
 css3/filters/effect-drop-shadow-hw.html
 external/wpt/css/filter-effects/backdrop-filter-basic-blur.html
 images/yuv-decode-eligible/color-profile-layer-filter.html
-transforms/3d/point-mapping/3d-point-mapping-deep.html
 
 # No Video Rendering - crbug.com/935570
 compositing/geometry/video-fixed-scrolling.html

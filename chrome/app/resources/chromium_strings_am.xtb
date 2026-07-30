@@ -118,19 +118,11 @@
 <translation id="2236949375853147973">የእኔ እንቅስቃሴ</translation>
 <translation id="2238130810669087193">የእርስዎን አድራሻዎች እና ሌሎችንም በሁሉም መሣሪያዎችዎ ላይ ለማግኘት ወደ Chromium በመለያ ይግቡ። በመለያ ከገቡ በኋላ ይህ አድራሻ Google መለያዎ ውስጥ ይቀመጣል።</translation>
 <translation id="2241627712206172106">ኮምፒውተር የሚጋሩ ከሆኑ ጓደኛዎች እና ቤተሰብ ተለይተው ሊያስሱ እና Chromiumን በሚፈልጉበት መንገድ ማዋቀር ይችላሉ።</translation>
+<translation id="22571759390241347">Chromium ውስጥ ያሉ ክህሎቶች</translation>
 <translation id="2283803047247799269">ይህን ትር በምስል ፍለጋ ይፈልጉ</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium አሳሽዎን እያዘገየ ያለውን ትር ባለበት እንዲያቆሙ ይመክራል}one{Chromium አሳሽዎን እያዘገየ ያለውን ትር ባለበት እንዲያቆሙ ይመክራል}other{Chromium አሳሽዎን እያዘገዩ ያሉትን ትሮች ባሉበት እንዲያቆሙ ይመክራል}}</translation>
 <translation id="2307973900865360088">መትከያ ውስጥ አቆይ</translation>
 <translation id="2313870531055795960">በChromium ላይ በተከማቹ ደህንነታቸው ያልተጠበቁ ጣቢያዎች ዝርዝር ጋር ዩአርኤሎችን ይፈትሻል። አንድ ጣቢያ የእርስዎን የይለፍ ቃል ለመስረቅ ከሞከረ ወይም ጎጂ ፋይል ሲያወርዱ Chromium እንዲሁም የገጽ ይዘት ቢትስንም ጨምሮ ዩአርኤሎችን ወደ የጥንቃቄ አሰሳ ሊልክ ይችላል።</translation>
-<translation id="2332076562712130931">ይህ እርምጃ፦
-          <ph name="LINE_BREAKS" />
-           • አንዳንድ የChromium ቅንብሮችን እና የChromium አቋራጮችን ዳግም ያስጀምራል
-           <ph name="LINE_BREAK" />
-           • ቅጥያዎችን ያሰናክላል
-           <ph name="LINE_BREAK" />
-           • ኩኪዎችን እና ሌላ ጊዜያዊ የጣቢያ ውሂብን ይሰርዛል
-            <ph name="LINE_BREAKS" />
-           ዕልባቶች፣ ታሪክ እና የተቀመጡ የይለፍ ቃላት አይነኩም።</translation>
 <translation id="2343156876103232566">አንድ ቁጥር ከዚህ ወደ የእርስዎ Android ስልክ ለመላክ በሁለቱም መሣሪያዎች ላይ በመለያ ወደ Chromium ይግቡ።</translation>
 <translation id="2356070529366658676">ጠይቅ</translation>
 <translation id="2359808026110333948">ቀጥል</translation>
@@ -192,6 +184,7 @@
 <translation id="3003694935412297923">ሁሉም ተግባሮች</translation>
 <translation id="3012615494352020668">{count,plural, =1{የተወሰነ ውሂብ በGoogle መለያዎ ውስጥ መቀመጥ እና በሁሉም መሣሪያዎችዎ ላይ ጥቅም ላይ መዋል ከመቻሉ በፊት Chromium እርስዎ መሆንዎን ማረጋገጥ አለበት። አሁን ዘግተው ከወጡ ይህ ውሂብ (1 ንጥል) ይሰረዛል።}one{የተወሰነ ውሂብ በGoogle መለያዎ ውስጥ መቀመጥ እና በሁሉም መሣሪያዎችዎ ላይ ጥቅም ላይ መዋል ከመቻሉ በፊት Chromium እርስዎ መሆንዎን ማረጋገጥ አለበት። አሁን ዘግተው ከወጡ ይህ ውሂብ ({count} ንጥል) ይሰረዛል።}other{የተወሰነ ውሂብ በGoogle መለያዎ ውስጥ መቀመጥ እና በሁሉም መሣሪያዎችዎ ላይ ጥቅም ላይ መዋል ከመቻሉ በፊት Chromium እርስዎ መሆንዎን ማረጋገጥ አለበት። አሁን ዘግተው ከወጡ ይህ ውሂብ ({count} ንጥሎች) ይሰረዛል።}}</translation>
 <translation id="3013473503895162900"><ph name="URL" />ን በChromium ውስጥ በአዲስ ትር ይክፈቱ።</translation>
+<translation id="302551344979399011">እንደ ክህሎቶች ያሉ የሰው ሠራሽ አስተውሎት ፈጠራዎች ወደ Google መለያዎ ይቀመጣሉ እና ከChromium ሥምረት በተለየ መልኩ ይተዳደራሉ</translation>
 <translation id="3032787606318309379">ወደ Chromium በማከል ላይ...</translation>
 <translation id="3038232873781883849">ለመጫን በመጠበቅ ላይ...</translation>
 <translation id="3045032126857188731">የተተረጎመው ቋንቋ፦ <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@
 <translation id="5289287148052354622">የChromium መተግበሪያን አግኝ</translation>
 <translation id="5294316920224716406">ማንነትን በማያሳውቅ ሁነታ ሲያስሱ፣ Chromium ደህንነቱ ያልተጠበቀ ግንኙነት በመጠቀም ጣቢያ ከመጫንዎ በፊት ያስጠነቅቀዎታል</translation>
 <translation id="5313228254328109263">የChromium ማዘመኛ ውስጣዊ አገልግሎት</translation>
+<translation id="5324450571874973775">በChromium ውስጥ ከሌሎች የGemini ባህሪያት ጋር አብረው ይጠቀሙባቸው</translation>
 <translation id="5346389065299425353">ብዙ ትሮች፣ ፋይሎች እና መሣሪያዎችን በማከል ፍለጋዎን ያሳድጉ</translation>
 <translation id="5348677704241861105">የዚህን ሰነድ ፈጣን አጠቃላይ ዕይታ ያግኙ እና በChromium ውስጥ በGemini ጥያቄዎችን ይጠይቁ</translation>
 <translation id="5352264705793813212">Chromium ለግምገማዎ አንዳንድ የደህንነት ምክሮችን አግኝቷል</translation>
@@ -674,6 +668,7 @@ Chromium ቅንብሮችዎን ማስመለስ አልቻለም።</translation>
 <translation id="8318772038038596122">ድርጅትዎ Chromium ለ<ph name="TIMEOUT_DURATION" /> ያህል ሥራ ላይ ሳይውል ይዘጋዋል።</translation>
 <translation id="8321888067342493336">እንደ ምስል አስቀምጥ</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> ከዚህ ቀደም Chromiumን እየተጠቀመ ነበር</translation>
+<translation id="8351551329754447960">Chromium ውስጥ ክህሎቶችን አንቃ</translation>
 <translation id="8359544530202147897">በእርስዎ Google መለያ <ph name="ACCOUNT_EMAIL" /> ውስጥ Chromium ውሂብን መጠቀም ለመቀጠል Chromiumን ያዘምኑ</translation>
 <translation id="8360718212975266891">የወደፊት የChromium ዝማኔዎችን ለማግኘት Windows 10 ወይም ከዚያ በላይ ያስፈልግዎታል። ይህ ኮምፒውተር Windows 8 እየተጠቀመ ነው።</translation>
 <translation id="8362914115861174987">ወደዚህ መተርጎም</translation>

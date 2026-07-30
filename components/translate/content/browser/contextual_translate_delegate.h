@@ -13,7 +13,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/translate/content/browser/partial_translate_manager.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "url/gurl.h"
 
 namespace network {
@@ -47,17 +46,10 @@ class ContextualTranslateDelegate {
 
  private:
   // Callback invoked when the network request to the Translate API completes.
-  // It checks the response code and, on success, starts parsing the JSON body.
+  // It checks the response code and, on success, parses the JSON body.
   void OnUrlLoadComplete(std::string target_language,
                          std::optional<std::string> source_language,
                          std::optional<std::string> response_body);
-
-  // Callback invoked when the JSON response from the Translate API is parsed.
-  // It extracts the translated text and source language, then runs the
-  // pending callback with the result.
-  void OnJsonParsed(std::string target_language,
-                    std::optional<std::string> source_language,
-                    data_decoder::DataDecoder::ValueOrError result);
 
   // Cancels any ongoing request and fires the callback with an error status.
   // Returns true if the object is still alive after the callback is run, or
@@ -75,7 +67,6 @@ class ContextualTranslateDelegate {
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> url_loader_;
   Callback pending_callback_;
-  data_decoder::DataDecoder data_decoder_;
   base::WeakPtrFactory<ContextualTranslateDelegate> weak_ptr_factory_{this};
 };
 

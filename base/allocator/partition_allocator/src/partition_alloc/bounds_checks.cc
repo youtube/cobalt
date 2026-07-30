@@ -10,6 +10,7 @@
 #include "partition_alloc/internal/partition_root_internal.h"
 #include "partition_alloc/partition_address_space.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
+#include "partition_alloc/partition_alloc_base/numerics/checked_math.h"
 #include "partition_alloc/partition_alloc_check.h"
 #include "partition_alloc/partition_alloc_constants.h"
 #include "partition_alloc/partition_direct_map_extent.h"
@@ -81,8 +82,10 @@ bool IsExtentOutOfBounds(const void* ptr,
     return false;
   }
 
-  return IsPtrWithinSameAlloc(address, address + extent_bytes, type_size,
-                              pool) == PtrPosWithinAlloc::kFarOOB;
+  return IsPtrWithinSameAlloc(
+             address,
+             internal::base::CheckAdd(address, extent_bytes).ValueOrDie(),
+             type_size, pool) == PtrPosWithinAlloc::kFarOOB;
 #else
   return false;
 #endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)

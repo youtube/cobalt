@@ -14,7 +14,6 @@
 
 namespace blink {
 
-struct LogicalDelta;
 struct PhysicalSize;
 
 // LogicalOffset is the position of a rect (typically a fragment) relative to

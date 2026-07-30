@@ -48,10 +48,10 @@
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/cobalt_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
@@ -172,6 +172,8 @@ using base::UserMetricsAction;
   [self.browser->GetCommandDispatcher() stopDispatchingToTarget:self];
   [self.overflowMenuMediator disconnect];
   self.overflowMenuMediator = nil;
+  self.contentBlockerMediator.consumer = nil;
+  self.contentBlockerMediator = nil;
 }
 
 #pragma mark - Public
@@ -281,7 +283,7 @@ using base::UserMetricsAction;
   }
 
   if (IsPageActionMenuEnabled()) {
-    mediator.BWGHandler = HandlerForProtocol(dispatcher, BWGCommands);
+    mediator.geminiHandler = HandlerForProtocol(dispatcher, GeminiCommands);
   }
 
   mediator.browserCoordinatorHandler =
@@ -496,6 +498,8 @@ using base::UserMetricsAction;
     _overflowMenuOrderer = nil;
     [self.overflowMenuMediator disconnect];
     self.overflowMenuMediator = nil;
+    self.contentBlockerMediator.consumer = nil;
+    self.contentBlockerMediator = nil;
   }
 }
 

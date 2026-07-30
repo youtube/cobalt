@@ -57,8 +57,7 @@ std::string GetIbanUploadDetailsRequest::GetRequestContent() {
   base::DictValue request_dict;
   base::DictValue context;
   context.Set("language_code", app_locale_);
-  context.Set("billable_service",
-              payments::kUploadPaymentMethodBillableServiceNumber);
+  context.Set("billable_service", kUploadPaymentMethodBillableServiceNumber);
   if (billing_customer_number_ != 0) {
     context.Set("customer_context",
                 BuildCustomerContextDictionary(billing_customer_number_));

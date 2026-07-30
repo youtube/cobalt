@@ -834,6 +834,20 @@ InspectorNetworkAgent::URLPatternMatcher::Create(const String& pattern,
   };
 }
 
+void InspectorNetworkAgent::Init(CoreProbeSink* instrumenting_agents,
+                                 protocol::UberDispatcher* dispatcher,
+                                 InspectorSessionState* session_state) {
+  InspectorBaseAgent::Init(instrumenting_agents, dispatcher, session_state);
+  extra_request_headers_.clear();
+  const auto* reattach_state = session_state->ReattachState();
+  if (reattach_state && reattach_state->browser_originating_session_state) {
+    for (const auto& entry : reattach_state->browser_originating_session_state
+                                 ->extra_request_headers) {
+      extra_request_headers_.Set(entry.key, entry.value);
+    }
+  }
+}
+
 void InspectorNetworkAgent::Restore() {
   if (enabled_.Get()) {
     Enable();
@@ -1530,9 +1544,10 @@ void InspectorNetworkAgent::PrepareRequest(DocumentLoader* loader,
     return;
   }
 
-  if (!extra_request_headers_.IsEmpty()) {
-    for (const String& key : extra_request_headers_.Keys()) {
-      const String& value = extra_request_headers_.Get(key);
+  if (!extra_request_headers_.empty()) {
+    for (const auto& entry : extra_request_headers_) {
+      const String& key = entry.key;
+      const String& value = entry.value;
       AtomicString header_name = AtomicString(key);
       // When overriding referrer, also override referrer policy
       // for this request to assure the request will be allowed.
@@ -2427,6 +2442,7 @@ protocol::Response InspectorNetworkAgent::disable() {
     GetNetworkStateNotifier().ClearOverride();
   instrumenting_agents_->RemoveInspectorNetworkAgent(this);
   agent_state_.ClearAllFields();
+  extra_request_headers_.clear();
   resources_data_->Clear();
   streaming_request_ids_.clear();
   clearAcceptedEncodingsOverride();
@@ -2435,7 +2451,7 @@ protocol::Response InspectorNetworkAgent::disable() {
 
 protocol::Response InspectorNetworkAgent::setExtraHTTPHeaders(
     std::unique_ptr<protocol::Network::Headers> headers) {
-  extra_request_headers_.Clear();
+  extra_request_headers_.clear();
   std::unique_ptr<protocol::DictionaryValue> in = headers->toValue();
   for (size_t i = 0; i < in->size(); ++i) {
     const auto& entry = in->at(i);
@@ -2878,7 +2894,6 @@ InspectorNetworkAgent::InspectorNetworkAgent(
       bypass_service_worker_(&agent_state_, /*default_value=*/false),
       blocked_urls_(&agent_state_, /*default_value=*/false),
       blocked_patterns_cbor_(&agent_state_, /*default_value=*/{}),
-      extra_request_headers_(&agent_state_, /*default_value=*/String()),
       attach_debug_stack_enabled_(&agent_state_, /*default_value=*/false),
       total_buffer_size_(&agent_state_,
                          /*default_value=*/kDefaultTotalBufferSize),

@@ -60,6 +60,14 @@ bool ChromeWebViewGuestDelegate::HandleContextMenu(
   DCHECK_EQ(web_contents,
             content::WebContents::FromRenderFrameHost(&render_frame_host));
 
+  ContextMenuDelegate* menu_delegate =
+      ContextMenuDelegate::FromWebContents(web_contents);
+#if BUILDFLAG(IS_ANDROID)
+  if (!menu_delegate) {  // TODO(b/479602478): May be null on Android.
+    return false;
+  }
+#endif
+
   if ((params.source_type == ui::mojom::MenuSourceType::kLongPress ||
        params.source_type == ui::mojom::MenuSourceType::kLongTap ||
        params.source_type == ui::mojom::MenuSourceType::kTouch) &&
@@ -74,13 +82,6 @@ bool ChromeWebViewGuestDelegate::HandleContextMenu(
     return true;
   }
 
-  ContextMenuDelegate* menu_delegate =
-      ContextMenuDelegate::FromWebContents(web_contents);
-#if BUILDFLAG(IS_ANDROID)
-  if (!menu_delegate) {  // TODO(b/479602478): May be null on Android.
-    return false;
-  }
-#endif
   CHECK(menu_delegate);
 
   int request_id = ++pending_context_menu_request_id_;

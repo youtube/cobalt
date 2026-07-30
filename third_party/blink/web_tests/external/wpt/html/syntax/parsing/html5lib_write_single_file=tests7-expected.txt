@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] <!doctype html><select><input>X
+  assert_equals: expected "#document\\n| <!DOCTYPE html>\\n| <html>\\n|   <head>\\n|   <body>\\n|     <select>\\n|     <input>\\n|     \\"X\\"" but got "#document\\n| <!DOCTYPE html>\\n| <html>\\n|   <head>\\n|   <body>\\n|     <select>\\n|       <input>\\n|       \\"X\\""
+Harness: the test ran to completion.
+

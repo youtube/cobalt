@@ -63,6 +63,18 @@ using base::test::ios::WaitUntilConditionOrTimeout;
 
 @end
 
+@interface FailedPushNavigationController : UINavigationController
+@end
+
+@implementation FailedPushNavigationController
+
+- (void)pushViewController:(UIViewController*)viewController
+                  animated:(BOOL)animated {
+  // Simulate push failure by doing nothing.
+}
+
+@end
+
 // Test fixture for LocalReauthenticationCoordinator.
 class ReauthenticationCoordinatorTest : public PlatformTest {
  protected:
@@ -350,4 +362,27 @@ TEST_F(ReauthenticationCoordinatorTest,
   UIViewController* topViewController =
       base_navigation_controller_.topViewController;
   EXPECT_TRUE(topViewController.modalInPresentation);
+}
+
+// Tests that if pushing the reauth view controller fails on ForegroundInactive,
+// the coordinator dismisses the sensitive UI.
+TEST_F(ReauthenticationCoordinatorTest,
+       ReauthViewControllerClosesUIOnFailedVCPush) {
+  FailedPushNavigationController* navigation_controller =
+      [[FailedPushNavigationController alloc]
+          initWithRootViewController:[[UIViewController alloc] init]];
+  scoped_window_.Get().rootViewController = navigation_controller;
+
+  LocalReauthenticationCoordinator* coordinator =
+      [[LocalReauthenticationCoordinator alloc]
+          initWithBaseNavigationController:navigation_controller
+                                   browser:browser_.get()
+                               authOnStart:NO];
+  coordinator.delegate = delegate_;
+  [coordinator start];
+
+  scene_state_.activationLevel = SceneActivationLevelForegroundInactive;
+  EXPECT_TRUE(delegate_.dismissUICalled);
+
+  [coordinator stop];
 }

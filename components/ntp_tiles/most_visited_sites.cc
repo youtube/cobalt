@@ -857,10 +857,7 @@ void MostVisitedSites::ReloadCustomLinksCache() {
 
   // The maximum number of custom links that can be shown is independent of the
   // maximum number of Most Visited sites that can be shown.
-  size_t max_links = kMaxNumCustomLinks;
-  if (base::FeatureList::IsEnabled(ntp_features::kNtpShortcutsRedesign)) {
-    max_links = ntp_features::GetMaxShortcutsInExpandedState();
-  }
+  size_t max_links = custom_links_manager_->GetMaxLinks();
   size_t num_tiles = std::min(links.size(), max_links);
   for (size_t i = 0; i < num_tiles; ++i) {
     const CustomLinksManager::Link& link = links.at(i);

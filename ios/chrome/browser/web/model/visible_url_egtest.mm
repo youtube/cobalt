@@ -396,15 +396,15 @@ class PausableRequestHandler {
 @end
 
 // Test using synthesized restore.
-@interface VisibleURLWithWithSynthesizedRestoreTestCase
+@interface VisibleURLWithSynthesizedRestoreTestCase
     : VisibleURLWithCachedRestoreTestCase
 @end
 
-@implementation VisibleURLWithWithSynthesizedRestoreTestCase
+@implementation VisibleURLWithSynthesizedRestoreTestCase
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_disabled.push_back(
+  config.features_enabled.push_back(
       web::features::kForceSynthesizedRestoreSession);
   return config;
 }

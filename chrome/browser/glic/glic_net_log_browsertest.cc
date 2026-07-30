@@ -28,7 +28,6 @@ namespace glic {
 namespace {
 
 const char kTestGlicURL[] = "about:blank?main-page";
-const char kTestGlicFreURL[] = "about:blank?fre-page";
 
 }  // namespace
 
@@ -41,7 +40,6 @@ class GlicNetLogBrowserTest : public InProcessBrowserTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     // Load blank page in glic guest view
     command_line->AppendSwitchASCII(::switches::kGlicGuestURL, kTestGlicURL);
-    command_line->AppendSwitchASCII(::switches::kGlicFreURL, kTestGlicFreURL);
   }
 
   net::RecordingNetLogObserver& net_log_observer() { return net_log_observer_; }
@@ -52,41 +50,6 @@ class GlicNetLogBrowserTest : public InProcessBrowserTest {
   net::RecordingNetLogObserver net_log_observer_;
   base::test::ScopedFeatureList feature_list_;
 };
-
-// Tests that opening the UI logs a request to the Glic FRE.
-// TODO(b/489172662): This does not work with GlicMultiInstance.
-// chrome/browser/glic/fre/glic_fre_ui.cc is not used with unified FRE,
-// so we will end up getting the glic_web_ui annotation instead.
-IN_PROC_BROWSER_TEST_F(GlicNetLogBrowserTest,
-                       DISABLED_LogGlicFreRequestOnOpenUI) {
-  Profile* profile = browser()->profile();
-
-  ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile));
-
-  auto* glic_service =
-      GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
-  glic_service->ToggleUI(nullptr, false, mojom::InvocationSource::kOsHotkey);
-
-  std::vector<net::NetLogEntry> entries = net_log_observer().GetEntries();
-  auto it = std::ranges::find_if(entries, [&](const auto& entry) {
-    if (entry.source.type != net::NetLogSourceType::URL_REQUEST ||
-        entry.type != net::NetLogEventType::REQUEST_ALIVE) {
-      return false;
-    }
-    std::optional<int> traffic_annotation =
-        entry.params.FindInt("traffic_annotation");
-    return traffic_annotation.has_value() &&
-           traffic_annotation.value() ==
-               net::internal::ComputeAnnotationHash("glic_fre_web_ui");
-  });
-
-  ASSERT_NE(it, entries.end())
-      << "NetLog did not contain URL_REQUEST_START_JOB for Glic FRE WeUI";
-  EXPECT_EQ(true, it->params.FindBool("dummy_request"));
-  const std::string* url = it->params.FindString("url");
-  ASSERT_TRUE(url);
-  EXPECT_THAT(*url, testing::StartsWith(kTestGlicFreURL));
-}
 
 // Tests that opening the UI logs a request to the Glic main page.
 IN_PROC_BROWSER_TEST_F(GlicNetLogBrowserTest, LogGlicRequestOnOpenUI) {

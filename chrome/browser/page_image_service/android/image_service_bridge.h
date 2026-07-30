@@ -11,15 +11,13 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/page_image_service/image_service.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
 #include "url/android/gurl_android.h"
 
 // Provides the native implementation of the java bridge. Allowing java code to
 // access ImageService.
 class ImageServiceBridge {
  public:
-  ImageServiceBridge(page_image_service::ImageService* image_service,
-                     signin::IdentityManager* identity_manager);
+  explicit ImageServiceBridge(page_image_service::ImageService* image_service);
   ImageServiceBridge(const ImageServiceBridge&) = delete;
   ImageServiceBridge& operator=(const ImageServiceBridge&) = delete;
 
@@ -36,9 +34,6 @@ class ImageServiceBridge {
                         const GURL& page_url,
                         const base::android::JavaRef<jobject>& j_callback);
 
-  // Returns whether the client has consented to fetch images.
-  bool HasConsentToFetchImages(JNIEnv* env, const bool is_account_data);
-
  private:
   friend class ImageServiceBridgeTest;
   FRIEND_TEST_ALL_PREFIXES(ImageServiceBridgeTest, TestGetImageUrl);
@@ -51,10 +46,8 @@ class ImageServiceBridge {
       const page_image_service::mojom::ClientId client_id,
       const GURL& page_url,
       page_image_service::ImageService::ResultCallback callback);
-  bool HasConsentToFetchImagesImpl(const bool is_account_data);
 
   const raw_ptr<page_image_service::ImageService> image_service_;  // weak
-  const raw_ptr<signin::IdentityManager> identity_manager_;        // weak
 };
 
 #endif  // CHROME_BROWSER_PAGE_IMAGE_SERVICE_ANDROID_IMAGE_SERVICE_BRIDGE_H_

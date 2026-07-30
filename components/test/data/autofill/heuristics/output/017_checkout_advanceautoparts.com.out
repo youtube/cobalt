@@ -1,3 +1,5 @@
+ADDRESS_HOME_ZIP | zipCode |  |  | zipCode_1
+
 EMAIL_ADDRESS | logonId | Email Address: |  | logonId_1
 UNKNOWN_TYPE | logonPassword | Password: |  | logonId_1
 
@@ -27,5 +29,3 @@ PHONE_HOME_NUMBER_SUFFIX | shipDayPhonePart3 | *Day Phone: |  | shipFirstName_2
 PHONE_HOME_CITY_CODE_WITH_TRUNK_PREFIX | shipNightPhonePart1 | Night Phone: |  | shipFirstName_2
 PHONE_HOME_NUMBER_PREFIX | shipNightPhonePart2 | Night Phone: |  | shipFirstName_2
 PHONE_HOME_NUMBER_SUFFIX | shipNightPhonePart3 | Night Phone: |  | shipFirstName_2
-
-UNKNOWN_TYPE | zipCode |  |  | zipCode_1

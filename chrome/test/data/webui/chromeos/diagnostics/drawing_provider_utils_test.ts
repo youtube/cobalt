@@ -7,7 +7,7 @@ import 'chrome://webui-test/chromeos/mojo_webui_test_support.js';
 
 import {constructRgba, getTrailOpacityFromPressure, lookupCssVariableValue, MARK_COLOR, MARK_OPACITY, TRAIL_COLOR, TRAIL_MAX_OPACITY} from 'chrome://diagnostics/drawing_provider_utils.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
-import {assertEquals} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/mock_controller.js';
 
 // A helper function to mock getPropertyValue function.

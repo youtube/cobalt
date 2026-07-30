@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
@@ -268,7 +269,7 @@ class FlagsState {
   // b) Is not excluded by |exclude_predicate_|, if it is set (i.e. for which
   //    |exclude_predicate_| returns false).
   bool IsSupportedFeature(const FlagsStorage* storage,
-                          const std::string& name,
+                          std::string_view name,
                           int platform_mask) const;
 
   // Stores the flags in both FlagsStorage and SharedPreferences.

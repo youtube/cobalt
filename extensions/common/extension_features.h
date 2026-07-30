@@ -72,6 +72,9 @@ BASE_DECLARE_FEATURE(kApiUserScriptsMultipleWorlds);
 // Controls the availability of the odfsConfigPrivate API.
 BASE_DECLARE_FEATURE(kApiOdfsConfigPrivate);
 
+// Controls the availability of the contextualTasksPrivate API.
+BASE_DECLARE_FEATURE(kApiContextualTasksPrivate);
+
 // Controls the availability of the glicPrivate API.
 BASE_DECLARE_FEATURE(kApiGlicPrivate);
 
@@ -156,13 +159,6 @@ BASE_DECLARE_FEATURE(kExtensionLocalizationGuid);
 
 // A replacement key for declaring icons, in addition to supporting dark mode.
 BASE_DECLARE_FEATURE(kExtensionIconVariants);
-
-// A feature to allow legacy MV2 extensions, even if they are not supported by
-// the browser or experiment configuration. This is important to allow
-// developers of MV2 extensions to continue loading, running, and testing their
-// extensions for as long as MV2 is supported in any variant.
-// TODO(https://crbug.com/431097630): Remove this feature.
-BASE_DECLARE_FEATURE(kAllowLegacyMV2Extensions);
 
 // If enabled, allows an extension to specify protocol_handlers keys in the
 // Manifest, registering a group of custom handlers so that the browser can
@@ -273,15 +269,9 @@ BASE_DECLARE_FEATURE(kEnterpriseExtensionDOMActivityTelemetry);
 // capability, even when no other API/feature might be restricted by it.
 BASE_DECLARE_FEATURE(kDebuggerAPIRestrictedToDevMode);
 
-// Creates a `browser` object that can be used in place of `chrome` where
-// extension APIs are available. It does not include non-extension APIs like
-// `loadTimes`, `csi`, etc. or deprecated APIs (e.g. `app`).
-// Also aligns one-time message (e.g. runtime.sendMessage) behavior more closely
-// with the mozilla/webextension-polyfill. This includes supporting
-// chrome.runtime.onMessage() listeners returning a Promise. Also in more error
-// cases (like listeners sending unserializable responses or throwing errors
-// during execution) the error is passed back to the sender.
-BASE_DECLARE_FEATURE(kExtensionBrowserNamespaceAndPolyfillSupport);
+// When enabled, the `browser` namespace is made available on web pages
+// even if they are not externally connectable.
+BASE_DECLARE_FEATURE(kExtensionBrowserNamespaceOnWebPages);
 
 // When enabled, a call to base::ListValue::Clone is avoided when dispatching an
 // extension function. Behind a feature to assess impact

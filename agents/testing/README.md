@@ -83,6 +83,18 @@ echo "$HOME/btrfs_virtual_disk.img $HOME/btrfs btrfs loop,defaults 0 0" | sudo t
 After Chromium is checked out, `agents/testing/eval_prompts.py` can then
 be run from `~/btrfs/chromium/src/`.
 
+> [!TIP]
+> When compiling inside a Btrfs workspace (e.g., created via Rift), you can enable Siso path virtualization to reuse build artifacts and file states from the original base workspace. Since Siso normally uses absolute paths to track file states, path virtualization makes the new workspace directory appear at the same virtual path as the base workspace, maximizing cache hits.
+>
+> To enable path virtualization, you can:
+> - Pass the `--virtual-build-path` flag to `autoninja`.
+> - Set the environment variable `SISO_USE_VIRTUAL_BUILD_PATH=1`.
+>
+> For example:
+> ```bash
+> SISO_USE_VIRTUAL_BUILD_PATH=1 autoninja -C out/Default chrome
+> ```
+
 This checkout should function just like your original so you don't need to
 maintain both if you prefer.
 

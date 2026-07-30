@@ -14,6 +14,8 @@
 namespace accessibility_annotator {
 
 // Interface for resolving data from 1P source.
+// TODO(crbug.com/515050857): Remove `OnePResolver` and its implementation once
+// `PersonalContextResolver` is implemented.
 class OnePResolver {
  public:
   using QueryCallback =

@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ՏՏՏՏ</translation>
 <translation id="1013952917065545813">Դուք կարող եք վերադառնալ այստեղ՝ վերջերս փակած ներդիրները նորից բացելու համար։</translation>
 <translation id="1016495303386450659">Տարրը թարմացվեց</translation>
+<translation id="1018804590490383958">Սկանավորել և ավտոմատ լրացնել</translation>
 <translation id="1019990162050689579">Gemini հավելվածներում գործողությունների պատմություն</translation>
 <translation id="102916930470544692">Մուտքի բանալի</translation>
 <translation id="1030376737535466765">Բացել Գաղտնաբառերի կառավարիչը</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Վերբեռնեք պատկեր՝ Nano Banana-ի միջոցով ռեմիքս ստեղծելու համար</translation>
 <translation id="1377508275003315939">Գաղտնաբառեր</translation>
 <translation id="1381022135873211423">{count,plural, =1{Հասցե {position}՝ {count}-ից}one{Հասցե {position}՝ {count}-ից}other{Հասցե {position}՝ {count}-ից}}</translation>
+<translation id="13813615483058219">Սխալ առաջացավ։ Ստուգեք ինտերնետ կապը, բարձրացրեք ձայնի ուժգնությունը կամ նորից փորձեք։</translation>
 <translation id="1383876407941801731">Որոնում</translation>
 <translation id="138618066238211776">Շարունակել <ph name="USER_NAME" /> հաշվով</translation>
 <translation id="138692594145659985">Քարտը պահելու կարգավորումներ</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Թարմացրեք ձեր դիտարկիչը</translation>
 <translation id="4021931095789478915">Ավելացնել ${url} հասցեն ընթերցանության ցանկում</translation>
 <translation id="4028871427853484857">Պահել հաշվում…</translation>
+<translation id="4036529942385659684">Անգործունության ժամանակահատվածից հետո ցույց տալ մեկնարկային էջը</translation>
 <translation id="4038354071007134711">Այս սարքի ոչ մի հավելված չի կարող բացել ֆայլը:</translation>
 <translation id="4042870976416480368">Գտնել էջում</translation>
 <translation id="4045441967987592849">Նորից բացել</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Կառավարել խումբը</translation>
 <translation id="4172051516777682613">Միշտ ցույց տալ</translation>
 <translation id="417273154673973994">{count,plural, =1{Ներդիրների 1 խումբ փակվեց և պահվեց}one{Ներդիրների {count} խումբ փակվեց և պահվեց}other{Ներդիրների {count} խումբ փակվեց և պահվեց}}</translation>
-<translation id="417612446554534067">Ուղարկել իմ սարքերին</translation>
 <translation id="4180726336228139707">Միայն այս սարքում</translation>
 <translation id="4181841719683918333">Լեզուներ</translation>
 <translation id="4183350924949589798">Ուզո՞ւմ եք ուժեղացնել հաշվի պաշտպանությունը</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Ներդիրները փակվեցին, դուք դուրս եկաք հաշվից</translation>
 <translation id="4911042367886397055">Բարի վերադարձ, <ph name="USER_NAME" /></translation>
 <translation id="4913626501929406101">Դուք կարող եք կիսվել ձեր գաղտնաբառի պատճենով ընտանեկան խմբի անդամի հետ։ Դա անվտանգ է։ <ph name="BEGIN_LINK" />Իմանալ ավելին<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Ոսպնապակի</translation>
 <translation id="4917025507570489430">Որպեսզի կարողանաք օգտվել այցելությունների գոյություն ունեցող պատմությունից, դուք պետք է մտած լինեք <ph name="USER_EMAIL" /> հաշիվ։ Ձեր կազմակերպությունը հնարավոր է, որ կարողանա դիտել այս տվյալները։</translation>
 <translation id="4918086044614829423">Ընդունել</translation>
 <translation id="4930714375720679147">Միացնել</translation>
@@ -1549,6 +1552,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Ընտրեք ձեր հասցեագոտու դիրքը</translation>
 <translation id="6307241780749477694">Հաստատեք ձեր ինքնությունը, որպեսզի ձեզ հասանելի լինեն ձեր բոլոր գաղտնաբառերն այս սարքում</translation>
+<translation id="6307792728709337290">Պահեք ձեր քարտը Google հաշվում, որպեսզի այն ավտոմատ լրացվի այս և հետագա գնումների ժամանակ, որոնք կկատարեք Chrome-ում։</translation>
 <translation id="6316141353357700666">Հայտնվող ցանկից ընտրեք գաղտնաբառը, որը ցանկանում եք օգտագործել։</translation>
 <translation id="6321526113093607004">Ավելացնել «Էջանիշներ» բաժնում</translation>
 <translation id="6327249202318869726">Gemini-ը անջատված է ձեր հաշվի համար։ Լրացուցիչ տեղեկությունների համար դիմեք ձեր ադմինիստրատորին։</translation>
@@ -2143,6 +2147,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="8263809106706527890">Հնարավոր է՝ կանխադրված դիտարկիչի կարգավորումներում փոփոխություն է տեղի ունեցել։ Դա կարող եք ստուգել կարգավորումներում։</translation>
 <translation id="8264966119170358612">Google-ին չպատկանող սերվերներից տվյալների արտահոսքի հետևանքով ձեր որոշ պահված գաղտնաբառեր կոտրվել են։ <ph name="BEGIN_LINK" />Իմանալ ավելին<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Ձեր iPad-ը վերակայելիս դուք դուրս եք գրվել ձեր <ph name="USER_NAME" /> հաշվից։ Մուտք գործելու համար ստորև սեղմեք «Շարունակել»։</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Տեղեկությունները կլրացվեն <ph name="URL" /> էջում</translation>
 <translation id="8275068909952022340">Ավելին…</translation>
 <translation id="8281781826761538115">Կանխադրված՝ <ph name="DEFAULT_LOCALE" /></translation>

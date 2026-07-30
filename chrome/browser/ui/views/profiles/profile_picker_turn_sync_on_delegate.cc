@@ -305,6 +305,9 @@ void ProfilePickerTurnSyncOnDelegate::OnManagedUserNoticeClosed(
     case ManagedUserProfileNoticeUI::ScreenType::kProfilePicker:
       NOTREACHED() << "Screen type is used only on the revamped history sync "
                       "helper flow";
+    case ManagedUserProfileNoticeUI::ScreenType::kDeviceSignalsDisclaimer:
+      NOTREACHED() << "Device signals disclaimer should never be shown in the "
+                      "profile picker";
   }
 }
 

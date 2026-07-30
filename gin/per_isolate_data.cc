@@ -12,14 +12,15 @@
 #include "gin/public/gin_embedders.h"
 #include "gin/v8_foreground_task_runner.h"
 #include "gin/v8_foreground_task_runner_with_locker.h"
+#include "v8/include/v8-external.h"
 #include "v8/include/v8-isolate.h"
 
 using v8::ArrayBuffer;
 using v8::Eternal;
+using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
-using v8::FunctionTemplate;
 using v8::ObjectTemplate;
 
 namespace {
@@ -38,6 +39,12 @@ std::shared_ptr<gin::V8ForegroundTaskRunnerBase> CreateV8ForegroundTaskRunner(
 }  // namespace
 
 namespace gin {
+
+// Ensure Gin's external pointer tags do not collide with V8's internal tags.
+static_assert(
+    static_cast<uint16_t>(kLastExternalPointerTypeTag) <
+        static_cast<uint16_t>(v8::kFirstInternalExternalPointerTypeTag),
+    "Gin embedder tags are colliding with V8 internal tags.");
 
 PerIsolateData::PerIsolateData(
     Isolate* isolate,

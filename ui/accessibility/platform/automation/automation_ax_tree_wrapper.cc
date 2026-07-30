@@ -44,7 +44,9 @@ std::map<std::string, std::vector<AppNodeInfo>>& GetAppIDToTreeNodeMap() {
 
 AutomationAXTreeWrapper::AutomationAXTreeWrapper(
     AutomationTreeManagerOwner* owner)
-    : AXTreeManager(std::make_unique<AXTree>()), owner_(owner) {}
+    : AXTreeManager(std::make_unique<AXTree>()), owner_(owner) {
+  ax_tree_->language_detection_manager->RegisterLanguageDetectionObserver();
+}
 
 AutomationAXTreeWrapper::~AutomationAXTreeWrapper() {
   // Code paths, when not exiting gracefully, may leave a reference to an
@@ -122,29 +124,6 @@ bool AutomationAXTreeWrapper::OnAccessibilityEvents(
     child_tree_id_reverse_map.insert(std::make_pair(child_tree_id, this));
   }
 
-  // Perform language detection first thing if we see a load complete event.
-  // We have to run *before* we send the load complete event to javascript
-  // otherwise code which runs immediately on load complete will not be able
-  // to see the results of language detection.
-  //
-  // Currently language detection only runs once for initial load complete, any
-  // content loaded after this will not have language detection performed for
-  // it.
-  for (const auto& event : events) {
-    if (event.event_type == ax::mojom::Event::kLoadComplete) {
-      ax_tree_->language_detection_manager->DetectLanguages();
-      ax_tree_->language_detection_manager->LabelLanguages();
-
-      // After initial language detection, enable language detection for future
-      // content updates in order to support dynamic content changes.
-      //
-      // If the LanguageDetectionDynamic feature flag is not enabled then this
-      // is a no-op.
-      ax_tree_->language_detection_manager->RegisterLanguageDetectionObserver();
-
-      break;
-    }
-  }
 
   // Send all blur and focus events first.
   owner_->MaybeSendFocusAndBlur(this, tree_id, updates, events, mouse_location);

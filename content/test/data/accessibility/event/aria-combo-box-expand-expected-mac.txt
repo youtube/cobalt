@@ -1,9 +1,9 @@
-AXFocusedUIElementChanged on AXComboBox AXAutocompleteValue='list'
-AXSelectedTextChanged on AXComboBox AXAutocompleteValue='list' AXTextSelectionDirection=AXTextSelectionDirectionUnknown AXTextSelectionGranularity=AXTextSelectionGranularityUnknown AXTextStateChangeType=AXTextStateChangeTypeSelectionMove
+AXFocusedUIElementChanged on AXComboBox AXAutocompleteValue='list' AXDescription='Fruit Selector'
+AXSelectedTextChanged on AXComboBox AXAutocompleteValue='list' AXDescription='Fruit Selector' AXTextSelectionDirection=AXTextSelectionDirectionUnknown AXTextSelectionGranularity=AXTextSelectionGranularityUnknown AXTextStateChangeType=AXTextStateChangeTypeSelectionMove
 AXSelectedTextChanged on AXWebArea AXTextSelectionDirection=AXTextSelectionDirectionUnknown AXTextSelectionGranularity=AXTextSelectionGranularityUnknown AXTextStateChangeType=AXTextStateChangeTypeSelectionMove
 === Start Continuation ===
-AXExpandedChanged on AXComboBox AXAutocompleteValue='list'
+AXExpandedChanged on AXComboBox AXAutocompleteValue='list' AXDescription='Fruit Selector'
 === Start Continuation ===
 AXFocusedUIElementChanged on AXMenuItem AXValue='Apple'
-AXSelectedChildrenChanged on AXComboBox AXAutocompleteValue='list'
+AXSelectedChildrenChanged on AXComboBox AXAutocompleteValue='list' AXDescription='Fruit Selector'
 AXSelectedChildrenChanged on AXList

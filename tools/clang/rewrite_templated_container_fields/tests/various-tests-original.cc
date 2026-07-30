@@ -540,6 +540,7 @@ void any_function(std::vector<int*>& v) {
   v.push_back(nullptr);
 }
 
+// These should be rewritten but are not for now.
 namespace templated_stuff {
 template <class T>
 void do_something(std::vector<T*>& t) {

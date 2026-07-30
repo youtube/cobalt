@@ -520,7 +520,7 @@ void OfflinePageRequestHandler::OpenFile(
 void OfflinePageRequestHandler::UpdateDigestOnBackground(
     scoped_refptr<net::IOBuffer> buffer,
     size_t len,
-    base::OnceCallback<void(void)> digest_updated_callback) {
+    base::OnceClosure digest_updated_callback) {
   DCHECK_GT(len, 0u);
 
   if (!archive_validator_)

@@ -69,6 +69,7 @@ source_set("impl") {
       "//chrome/browser/ui/search_engine_choice",
       "//chrome/browser/ui/signin",
       "//chrome/browser/ui/web_applications",
+      "//chrome/browser/ui/webui/ntp",
       "//chrome/common:non_code_constants",
       "//components/country_codes",
     ]

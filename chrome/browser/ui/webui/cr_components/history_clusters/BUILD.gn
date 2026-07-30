@@ -1,0 +1,23 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("history_clusters") {
+  sources = [ "history_clusters_util.cc" ]
+  public = [ "history_clusters_util.h" ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  deps = [
+    "//base",
+    "//chrome/app:generated_resources_grit",
+    "//chrome/browser/history_clusters",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/webui:webui_util",
+    "//components/history/core/common",
+    "//components/history_clusters/core",
+    "//components/prefs",
+    "//components/strings:components_strings_grit",
+    "//content/public/browser",
+    "//ui/base",
+    "//ui/webui",
+  ]
+}

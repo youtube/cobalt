@@ -4,8 +4,8 @@
 
 #include "chrome/browser/ui/webui/ash/login/app_downloading_screen_handler.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "components/login/localized_values_builder.h"
 #include "components/prefs/pref_service.h"

@@ -1195,34 +1195,6 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "chrome_sizes_android",
-    targets = [
-        "chrome_sizes",
-    ],
-    per_test_modifications = {
-        "chrome_sizes": targets.per_test_modification(
-            mixins = targets.mixin(
-                args = [
-                    "--platform=android",
-                ],
-                swarming = targets.swarming(
-                    dimensions = {
-                        "cpu": "x86-64",
-                        "os": "Ubuntu-22.04",
-                    },
-                ),
-            ),
-            remove_mixins = [
-                "chromium_nexus_5x_oreo",
-                "chromium_pixel_2_pie",
-                "marshmallow",
-                "oreo_mr1_fleet",
-            ],
-        ),
-    },
-)
-
-targets.bundle(
     name = "chromedriver_py_tests_isolated_scripts",
     targets = [
         "chromedriver_py_tests",
@@ -3323,7 +3295,6 @@ targets.bundle(
         "gpu_info_collection_telemetry_tests",
         "gpu_webgl2_conformance_d3d11_passthrough_telemetry_tests",
         "gpu_webgl_conformance_d3d11_passthrough_telemetry_tests",
-        "gpu_webgl_conformance_d3d9_passthrough_telemetry_tests",
         "gpu_webgl_conformance_vulkan_passthrough_telemetry_tests",
     ],
 )
@@ -4411,7 +4382,6 @@ targets.bundle(
         "gpu_webrtc_telemetry_test",
         "gpu_webgl2_conformance_d3d11_passthrough_telemetry_tests",
         "gpu_webgl_conformance_d3d11_passthrough_telemetry_tests",
-        "gpu_webgl_conformance_d3d9_passthrough_telemetry_tests",
     ],
 )
 
@@ -4421,7 +4391,6 @@ targets.bundle(
         "gpu_common_and_optional_telemetry_tests",
         "gpu_passthrough_telemetry_tests",
         "gpu_webgl_conformance_d3d11_passthrough_telemetry_tests",
-        "gpu_webgl_conformance_d3d9_passthrough_telemetry_tests",
         "gpu_webgl_conformance_vulkan_passthrough_telemetry_tests",
     ],
 )
@@ -4447,7 +4416,6 @@ targets.bundle(
         "gpu_webrtc_telemetry_test",
         "gpu_webgl2_conformance_d3d11_passthrough_telemetry_tests",
         "gpu_webgl_conformance_d3d11_passthrough_telemetry_tests",
-        "gpu_webgl_conformance_d3d9_passthrough_telemetry_tests",
         "gpu_webgl_conformance_vulkan_passthrough_telemetry_tests",
     ],
 )
@@ -4815,7 +4783,7 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "ios18_beta_simulator_tests",
+    name = "ios26_beta_simulator_tests",
     targets = [
         targets.bundle(
             targets = "ios_common_tests",
@@ -4870,7 +4838,7 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "ios18_sdk_simulator_tests",
+    name = "ios26_sdk_simulator_tests",
     targets = [
         targets.bundle(
             targets = "ios_common_tests",
@@ -4931,13 +4899,13 @@ targets.bundle(
 )
 
 targets.bundle(
-    name = "ios26_beta_simulator_tests",
+    name = "ios27_beta_simulator_tests",
     targets = [
         targets.bundle(
             targets = "ios_common_tests",
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
@@ -4946,8 +4914,8 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
@@ -4957,8 +4925,8 @@ targets.bundle(
                 "record_failed_tests",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
@@ -4968,23 +4936,23 @@ targets.bundle(
                 "record_failed_tests",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
             targets = "ios_screen_size_dependent_tests",
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
-                "SIM_IPHONE_SE_3RD_GEN_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
+                "SIM_IPHONE_SE_3RD_GEN_27_0",
             ],
         ),
     ],
 )
 
 targets.bundle(
-    name = "ios26_sdk_simulator_tests",
+    name = "ios27_sdk_simulator_tests",
     targets = [
         targets.bundle(
             targets = "ios_common_tests",
@@ -4992,8 +4960,8 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
@@ -5003,8 +4971,8 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
@@ -5014,8 +4982,8 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
@@ -5024,9 +4992,9 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_26_5",
-                "SIM_IPHONE_16_26_5",
-                "SIM_IPHONE_SE_3RD_GEN_26_5",
+                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPHONE_16_27_0",
+                "SIM_IPHONE_SE_3RD_GEN_27_0",
             ],
         ),
     ],
@@ -7248,13 +7216,6 @@ targets.bundle(
         ),
         targets.bundle(
             targets = "gpu_webgl_conformance_d3d11_passthrough_telemetry_tests",
-            variants = [
-                "WIN10_INTEL_UHD_630_STABLE",
-                "WIN10_NVIDIA_GTX_1660_STABLE",
-            ],
-        ),
-        targets.bundle(
-            targets = "gpu_webgl_conformance_d3d9_passthrough_telemetry_tests",
             variants = [
                 "WIN10_INTEL_UHD_630_STABLE",
                 "WIN10_NVIDIA_GTX_1660_STABLE",

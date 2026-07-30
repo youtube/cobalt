@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "content/browser/xr/metrics/session_metrics_helper.h"
 #include "content/common/content_export.h"
@@ -40,7 +39,6 @@ class WebContents;
 namespace content {
 
 class XRRuntimeManagerImpl;
-class XRRuntimeManagerTest;
 class BrowserXRRuntimeImpl;
 
 // Browser process implementation of the VRService mojo interface. Instantiated
@@ -49,9 +47,6 @@ class CONTENT_EXPORT VRServiceImpl : public device::mojom::VRService,
                                      content::WebContentsObserver {
  public:
   explicit VRServiceImpl(content::RenderFrameHost* render_frame_host);
-
-  // Constructor for tests.
-  explicit VRServiceImpl(base::PassKey<XRRuntimeManagerTest>);
 
   VRServiceImpl(const VRServiceImpl&) = delete;
   VRServiceImpl& operator=(const VRServiceImpl&) = delete;
@@ -135,6 +130,7 @@ class CONTENT_EXPORT VRServiceImpl : public device::mojom::VRService,
   void OnWebContentsFocusChanged(content::RenderWidgetHost* host, bool focused);
 
   void ResolvePendingRequests();
+  void Teardown();
 
   // Returns currently active instance of SessionMetricsHelper from WebContents.
   // If the instance is not present on WebContents, it will be created with the

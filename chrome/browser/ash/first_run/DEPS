@@ -24,5 +24,4 @@ include_rules = [
   "+chrome/browser/ui/ash/system_web_apps",
   "+chrome/common/chrome_switches.h",
   "+chrome/common/extensions",
-  "+chrome/common/pref_names.h",
 ]

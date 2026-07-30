@@ -14,7 +14,6 @@
 #import "components/reading_list/core/reading_list_model_observer.h"
 
 class ProfileIOS;
-class ReadingListDownloadService;
 
 namespace reading_list {
 
@@ -48,7 +47,6 @@ class ReadingListRemoverHelper : public ReadingListModelObserver {
   Callback completion_;
   base::Location location_;
   raw_ptr<ReadingListModel> reading_list_model_ = nullptr;
-  raw_ptr<ReadingListDownloadService> reading_list_download_service_ = nullptr;
   base::ScopedObservation<ReadingListModel, ReadingListModelObserver>
       scoped_observation_{this};
 

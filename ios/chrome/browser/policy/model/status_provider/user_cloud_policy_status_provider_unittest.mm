@@ -86,7 +86,7 @@ class UserCloudPolicyStatusProviderTest
     AccountInfo account = identity_test_env_.MakePrimaryAccountAvailable(
         kTestUsername, signin::ConsentLevel::kSignin);
 
-    AccountCapabilitiesTestMutator mutator(&account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account);
     mutator.set_is_subject_to_enterprise_features(true);
     account =
         AccountInfo::Builder(account).SetHostedDomain(std::string()).Build();

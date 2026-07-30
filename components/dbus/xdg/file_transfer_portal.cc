@@ -18,6 +18,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/self_deleting.h"
 #include "base/no_destructor.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/task/sequenced_task_runner.h"
@@ -47,18 +48,24 @@ constexpr char kMethodAddFiles[] = "AddFiles";
 constexpr char kMethodRetrieveFiles[] = "RetrieveFiles";
 constexpr char kMethodStopTransfer[] = "StopTransfer";
 
-class FileTransferSession {
+class FileTransferSession : public base::SelfDeleting {
  public:
   static void Start(const std::vector<std::string>& files,
                     base::OnceCallback<void(std::string)> callback,
                     dbus::ObjectProxy* proxy) {
-    (new FileTransferSession(files, std::move(callback), proxy))->DoStart();
+    auto* session = base::MakeSelfDeleting<FileTransferSession>(
+        files, std::move(callback), proxy);
+    session->DoStart();
   }
 
   FileTransferSession(const std::vector<std::string>& files,
                       base::OnceCallback<void(std::string)> callback,
-                      dbus::ObjectProxy* proxy)
-      : files_(files), callback_(std::move(callback)), proxy_(proxy) {}
+                      dbus::ObjectProxy* proxy,
+                      base::SelfDeletingPassKey key)
+      : base::SelfDeleting(key),
+        files_(files),
+        callback_(std::move(callback)),
+        proxy_(proxy) {}
 
  private:
   ~FileTransferSession() = default;

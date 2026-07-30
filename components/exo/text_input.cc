@@ -87,22 +87,43 @@ void TextInput::Activate(Seat* seat,
   focus_reason_ = reason;
   if (surface_ == surface)
     return;
+
   DetachInputMethod();
+
+  if (surface_) {
+    surface_->RemoveSurfaceObserver(this);
+  }
   surface_ = surface;
-  seat_ = seat;
-  seat_->AddObserver(this, kTextInputSeatObserverPriority);
-  if (seat_->GetFocusedSurface() == surface_)
+  if (surface_) {
+    surface_->AddSurfaceObserver(this);
+  }
+
+  if (seat_.get() != seat) {
+    if (seat_) {
+      seat_->RemoveObserver(this);
+    }
+    seat_ = seat->GetWeakPtr();
+    if (seat_) {
+      seat_->AddObserver(this, kTextInputSeatObserverPriority);
+    }
+  }
+
+  if (seat_ && seat_->GetFocusedSurface() == surface_) {
     AttachInputMethod();
+  }
 }
 
 void TextInput::Deactivate() {
   focus_reason_ = ui::TextInputClient::FOCUS_REASON_NONE;
-  if (!surface_)
-    return;
   DetachInputMethod();
-  seat_->RemoveObserver(this);
-  surface_ = nullptr;
-  seat_ = nullptr;
+  if (surface_) {
+    surface_->RemoveSurfaceObserver(this);
+    surface_ = nullptr;
+  }
+  if (seat_) {
+    seat_->RemoveObserver(this);
+    seat_ = nullptr;
+  }
 }
 
 void TextInput::ShowVirtualKeyboardIfEnabled() {
@@ -609,6 +630,7 @@ void TextInput::AttachInputMethod() {
     LOG(ERROR) << "input method not found";
     return;
   }
+  input_method_->AddObserver(this);
 
   input_mode_ = ui::TEXT_INPUT_MODE_TEXT;
   input_type_ = ui::TEXT_INPUT_TYPE_TEXT;
@@ -628,6 +650,7 @@ void TextInput::DetachInputMethod() {
     return;
   input_mode_ = ui::TEXT_INPUT_MODE_DEFAULT;
   input_type_ = ui::TEXT_INPUT_TYPE_NONE;
+  input_method_->RemoveObserver(this);
   input_method_->DetachTextInputClient(this);
   virtual_keyboard_observation_.Reset();
   input_method_ = nullptr;
@@ -652,6 +675,16 @@ void TextInput::SendStagedVKOccludedBounds() {
         *staged_vk_occluded_bounds_);
     staged_vk_occluded_bounds_.reset();
   }
+}
+
+void TextInput::OnSurfaceDestroying(Surface* surface) {
+  DCHECK_EQ(surface_, surface);
+  Deactivate();
+}
+
+void TextInput::OnInputMethodDestroyed(const ui::InputMethod* input_method) {
+  DCHECK_EQ(input_method_, input_method);
+  Deactivate();
 }
 
 }  // namespace exo

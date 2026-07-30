@@ -18,6 +18,7 @@ import androidx.annotation.WorkerThread;
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.extensions.ExtensionsBuildflags;
 import org.chromium.google_apis.gaia.GaiaId;
 
 import java.lang.annotation.Retention;
@@ -130,6 +131,12 @@ public interface AccountManagerDelegate {
      */
     void confirmCredentials(
             Account account, @Nullable Activity activity, Callback<@Nullable Bundle> callback);
+
+    /** Whether the account manager migration feature is enabled for this device. */
+    static boolean isAccountManagerDelegateMigrationEnabled() {
+        return !ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE
+                && SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled();
+    }
 
     /**
      * Get all the accounts on device synchronously.

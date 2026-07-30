@@ -70,7 +70,7 @@ RendererCancellationThrottle::WaitForRendererCancellationIfNeeded() {
   }
 
   NavigationRequest* request = NavigationRequest::From(navigation_handle());
-  DCHECK(request);
+  CHECK(request, base::NotFatalUntil::M152);
   if (request->renderer_cancellation_window_ended()) {
     // The cancellation window had already ended, so the navigation doesn't need
     // deferring.
@@ -151,7 +151,7 @@ void RendererCancellationThrottle::OnTimeout() {
   }
   // Warn that the renderer is unresponsive.
   NavigationRequest* request = NavigationRequest::From(navigation_handle());
-  DCHECK(request);
+  CHECK(request, base::NotFatalUntil::M152);
 
   auto* previous_rfh =
       RenderFrameHostImpl::FromID(request->GetPreviousRenderFrameHostId());

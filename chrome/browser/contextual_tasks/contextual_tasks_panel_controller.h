@@ -53,6 +53,9 @@ class ContextualTasksPanelController {
   // Close the panel.
   virtual void Close() = 0;
 
+  // Open the panel in zero state, or reset to zero state if already open.
+  virtual void OpenInZeroState() = 0;
+
   // State checks.
   // Check if the panel is currently opening for ContextualTask as another
   // feature might also show panel.

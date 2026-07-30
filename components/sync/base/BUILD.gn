@@ -47,6 +47,7 @@ static_library("base") {
     "progress_marker_map.h",
     "report_unrecoverable_error.cc",
     "report_unrecoverable_error.h",
+    "server_defined_unique_tags.h",
     "stop_source.h",
     "storage_type.h",
     "sync_invalidation.cc",

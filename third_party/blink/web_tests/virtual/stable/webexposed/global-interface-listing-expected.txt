@@ -449,6 +449,7 @@ interface Blob
     method slice
     method stream
     method text
+    method textStream
 interface BlobEvent : Event
     attribute @@toStringTag
     getter data
@@ -6105,7 +6106,9 @@ interface MediaStreamTrackGenerator : MediaStreamTrack
     method constructor
 interface MediaStreamTrackProcessor
     attribute @@toStringTag
+    getter discardedFrames
     getter readable
+    getter totalFrames
     method constructor
 interface MediaStreamTrackVideoStats
     attribute @@toStringTag
@@ -7706,6 +7709,7 @@ interface Request
     method formData
     method json
     method text
+    method textStream
 interface ResizeObserver
     attribute @@toStringTag
     method constructor
@@ -7746,6 +7750,7 @@ interface Response
     method formData
     method json
     method text
+    method textStream
 interface RestrictionTarget
     static method fromElement
     attribute @@toStringTag

@@ -56,7 +56,7 @@ public class ChromeTriggers {
                 () ->
                         station.getActivity()
                                 .getLayoutManager()
-                                .showLayout(LayoutType.TAB_SWITCHER, /* animate= */ false));
+                                .showLayout(LayoutType.HUB, /* animate= */ false));
     }
 
     /** Close all tabs in the current tab model programmatically. */

@@ -96,7 +96,7 @@ void AutofillKeyboardAccessoryViewImpl::Show() {
     std::u16string sublabel = base::JoinString(
         base::ToVector(suggestion.minor_texts, &Suggestion::Text::value), u" ");
 
-    if (std::vector<std::vector<autofill::Suggestion::Text>> suggestion_labels =
+    if (std::vector<std::vector<Suggestion::Text>> suggestion_labels =
             controller_->GetSuggestionLabelsAt(i);
         !suggestion_labels.empty()) {
       // Verify that there is a single line of label, and it contains a single
@@ -168,7 +168,7 @@ void AutofillKeyboardAccessoryViewImpl::SuggestionSelected(JNIEnv* env,
                                                            int32_t list_index) {
   if (controller_) {
     controller_->AcceptSuggestion(
-        list_index, autofill::AutofillMetrics::SuggestionAcceptedMethod::kTap);
+        list_index, AutofillMetrics::SuggestionAcceptedMethod::kTap);
   }
 }
 

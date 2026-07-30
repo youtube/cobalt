@@ -95,7 +95,6 @@ var FORBIDDEN_HEADER_NAMES = [
   'Accept-Encoding',
   'Access-Control-Request-Headers',
   'Access-Control-Request-Method',
-  'Access-Control-Request-Private-Network',
   'Connection',
   'Content-Length',
   'Cookie',

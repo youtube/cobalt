@@ -581,6 +581,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Cookie.OnPreconnect.LoadCookie" enum="BooleanAttempted"
+    expires_after="2026-09-08">
+  <owner>yoichio@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    Whether a task to load cookies for a url from the backing store was posted
+    in response to a preconnect request for the url.
+
+    Recorded when kEarlyCookieLoadOnPreconnect is enabled,
+    NetworkContext::PreconnectSockets() is called and the URLRequestContext has
+    a cookie store.
+  </summary>
+</histogram>
+
 <histogram name="Cookie.Parse.EmptyName" enum="Boolean"
     expires_after="2026-11-01">
   <owner>morlovich@chromium.org</owner>

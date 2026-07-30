@@ -44,6 +44,10 @@ class Statement;
 class Transaction;
 }  // namespace sql
 
+namespace base::trace_event {
+class ProcessMemoryDump;
+}
+
 namespace content::indexed_db {
 struct IndexedDBValue;
 
@@ -114,6 +118,12 @@ class CONTENT_EXPORT DatabaseConnection {
   // Get the size of the database, calculated as the number of pages in use
   // (i.e., excluding free pages) multiplied by the page size.
   uint64_t GetSize() const;
+
+  // Creates a memory dump for this connection at `dump_name`, suballocated to
+  // the canonical `sqlite/IndexedDB_connection/0x?` dump owned by the
+  // underlying `sql::Database`.
+  void ReportMemoryUsage(base::trace_event::ProcessMemoryDump* pmd,
+                         const std::string& dump_name) const;
 
   // Called when `BucketContext` is not currently serving requests. `long_idle`
   // is true if the `BucketContext` has been idle for a relatively long time,
@@ -367,6 +377,11 @@ class CONTENT_EXPORT DatabaseConnection {
   // `metadata_`).
   StatusOr<blink::IndexedDBDatabaseMetadata> GenerateIndexedDbMetadata();
 
+  // `sql::Database` error callback. Records the error in `sql_error_` so it
+  // survives a later successful op (e.g. an aborted transaction's rollback)
+  // that would otherwise reset the last-error code.
+  void OnSqlError(int error, sql::Statement* statement);
+
   // Serves as the checkpoint callback. This is static because it may be
   // called on a different thread, and it's not possible to check the validity
   // of a WeakPtr-bound callback on a different sequence.
@@ -454,6 +469,11 @@ class CONTENT_EXPORT DatabaseConnection {
   const base::FilePath path_;
 
   std::unique_ptr<sql::Database> db_;
+
+  // Stores the error code reported by `db_`. See `OnSqlError()` for specifics
+  // on when this is updated.
+  std::optional<int> sql_error_;
+
   std::unique_ptr<sql::MetaTable> meta_table_;
   blink::IndexedDBDatabaseMetadata metadata_;
   raw_ref<BackingStoreImpl> backing_store_;

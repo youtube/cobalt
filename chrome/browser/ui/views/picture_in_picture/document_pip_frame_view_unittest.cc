@@ -9,6 +9,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
+#include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_host.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_widget_delegate.h"
@@ -52,6 +53,10 @@ blink::mojom::PictureInPictureWindowOptions MakePipOptions(
   opts.disallow_return_to_opener = disallow_return_to_opener;
   opts.prefer_initial_window_placement = false;
   return opts;
+}
+
+gfx::Rect MakeDefaultInitialBounds() {
+  return gfx::Rect(20, 30, 400, 300);
 }
 
 }  // namespace
@@ -107,8 +112,9 @@ class DocumentPipFrameViewTest : public ChromeViewsTestBase {
     auto* host = DocumentPipHost::FromWebContents(opener());
     auto child =
         content::WebContentsTester::CreateTestWebContents(&profile_, nullptr);
-    host->CreatePipWidget(std::move(child),
-                          MakePipOptions(disallow_return_to_opener));
+    host->CreateAndShowPipWindow(std::move(child),
+                                 MakePipOptions(disallow_return_to_opener),
+                                 MakeDefaultInitialBounds());
 
     views::Widget* widget = host->GetWidget();
     EXPECT_TRUE(widget);
@@ -143,6 +149,11 @@ class DocumentPipFrameViewTest : public ChromeViewsTestBase {
 
   views::FlexLayoutView* GetButtonContainer(DocumentPipFrameView* frame_view) {
     return frame_view->button_container_view_;
+  }
+
+  const std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>&
+  GetContentSettingViews(DocumentPipFrameView* frame_view) {
+    return frame_view->content_setting_views_;
   }
 
   bool ShowPageInfo(DocumentPipFrameView* frame_view) {
@@ -443,7 +454,10 @@ TEST_F(DocumentPipFrameViewTest, MouseInsideKeepsRenderActive) {
 
   // OnMouseEnteredOrExitedWindow reads Widget::IsActive() directly, so the
   // following expectation only holds if the widget really is inactive at the
-  // OS level (not just that the observer was notified above).
+  // OS level (not just that the observer was notified above). The widget is
+  // shown (and thus activated) when it is created; hiding it deactivates it
+  // (NativeWidgetMac::Deactivate() is a no-op, so Hide() is used here).
+  frame_view->GetWidget()->Hide();
   ASSERT_FALSE(frame_view->GetWidget()->IsActive());
   OnMouseEnteredOrExitedWindow(frame_view, /*entered=*/false);
   EXPECT_FALSE(GetRenderActive(frame_view));
@@ -469,4 +483,48 @@ TEST_F(DocumentPipFrameViewTest, ShowPageInfoOpensBubble) {
   EXPECT_EQ(GetOriginChip(frame_view), bubble->GetAnchorView());
 
   bubble->GetWidget()->CloseNow();
+}
+
+// The camera/microphone content-setting icon is created and parented under the
+// button container, to the left of the window-control buttons.
+TEST_F(DocumentPipFrameViewTest, ContentSettingViewsPresent) {
+  auto* frame_view =
+      CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
+
+  const auto& content_setting_views = GetContentSettingViews(frame_view);
+  ASSERT_EQ(1u, content_setting_views.size());
+  EXPECT_EQ(GetButtonContainer(frame_view), content_setting_views[0]->parent());
+}
+
+// UpdateContentSettingsIcons() refreshes without crashing and leaves the media
+// icon hidden when there is no active capture.
+//
+// TODO(crbug.com/515252142): The icon currently stays hidden because standalone
+// PiP cannot yet grant media permissions (DocumentPipHost::
+// RequestMediaAccessPermission returns PERMISSION_DENIED, so there is never an
+// active capture). This GetVisible() expectation is temporary; once the
+// standalone permission dialog is wired up, the icon should become
+// visible while capture is active and this test should be updated accordingly.
+TEST_F(DocumentPipFrameViewTest, UpdateContentSettingsIconsHidesIdleIcon) {
+  content::WebContentsTester::For(opener())->NavigateAndCommit(
+      GURL("https://www.example.com/"));
+  auto* frame_view =
+      CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
+
+  frame_view->UpdateContentSettingsIcons();
+
+  const auto& content_setting_views = GetContentSettingViews(frame_view);
+  ASSERT_EQ(1u, content_setting_views.size());
+  EXPECT_FALSE(content_setting_views[0]->GetVisible());
+}
+
+// The content-setting icon's delegate reads from the opener WebContents and
+// surfaces no Browser-backed bubble-model delegate (standalone PiP).
+TEST_F(DocumentPipFrameViewTest, ContentSettingDelegateUsesOpener) {
+  auto* frame_view =
+      CreatePipAndGetFrameView(/*disallow_return_to_opener=*/false);
+
+  EXPECT_EQ(opener(), frame_view->GetContentSettingWebContents());
+  EXPECT_EQ(nullptr, frame_view->GetContentSettingBubbleModelDelegate());
+  EXPECT_FALSE(frame_view->ShouldHideContentSettingImage());
 }

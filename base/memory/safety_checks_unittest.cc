@@ -231,9 +231,7 @@ TEST(MemorySafetyCheckTest, InfiniteQuarantine) {
 
   auto* root = partition_alloc::PartitionRoot::GetRootFromAddress(obj1);
   ASSERT_NE(root, nullptr);
-  EXPECT_EQ(reinterpret_cast<uintptr_t>(root),
-            base::internal::
-                GetPartitionRootForLeakySecurityObjectAllocationForTesting());
+  EXPECT_EQ(root, base::internal::LeakedSecurityObjectAllocator());
   partition_alloc::internal::
       ScopedSchedulerLoopQuarantineBranchAccessorForTesting branch(root);
   EXPECT_FALSE(branch.IsQuarantined(obj1));

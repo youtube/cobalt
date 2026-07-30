@@ -12,12 +12,10 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
-#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
-#include "components/prefs/pref_service.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_metrics.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -165,10 +163,6 @@ class GlicSelectionObserverTest : public ChromeRenderViewHostTestHarness {
   bool ShouldShowSelectionWidget() {
     return static_cast<GlicSelectionObserver*>(observer_.get())
         ->ShouldShowSelectionWidget();
-  }
-
-  void OnWidgetDismissed() {
-    static_cast<GlicSelectionObserver*>(observer_.get())->OnWidgetDismissed();
   }
 
   void CallOnLinkGenerated(
@@ -800,27 +794,6 @@ TEST_F(GlicSelectionObserverTest, SelectionShowOnShiftClick) {
   EXPECT_EQ(u"Initial Text Extended", *observer->last_processed_text());
 }
 
-TEST_F(GlicSelectionObserverTest, WidgetFrequencyCapping) {
-  auto* observer = GetObserver();
-  ASSERT_TRUE(observer);
-
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  PrefService* prefs = profile->GetPrefs();
-
-  // Initially we should be able to show the widget.
-  EXPECT_TRUE(ShouldShowSelectionWidget());
-
-  // Test total dismiss capping.
-  prefs->SetInteger(
-      prefs::kGlicSelectionWidgetDismissCount,
-      features::kGlicSelectionPromptWidgetMaxTotalDismisses.Get());
-  EXPECT_FALSE(ShouldShowSelectionWidget());
-
-  // Reset total dismiss capping.
-  prefs->SetInteger(prefs::kGlicSelectionWidgetDismissCount, 0);
-  EXPECT_TRUE(ShouldShowSelectionWidget());
-}
 
 TEST_F(GlicSelectionObserverTest, UpdateSelectionStatePanelShowingWithWidget) {
   base::test::ScopedFeatureList feature_list;

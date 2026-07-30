@@ -31,6 +31,7 @@
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/cpu.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/i18n/icu_util.h"
 #include "base/i18n/rtl.h"
@@ -51,6 +52,7 @@
 #include "components/memory_system/parameters.h"
 #include "components/metrics/unsent_log_store_metrics.h"
 #include "components/safe_browsing/android/safe_browsing_api_handler_bridge.h"
+#include "components/sampling_profiler/process_type.h"
 #include "components/services/heap_profiling/public/cpp/profiling_client.h"
 #include "components/spellcheck/spellcheck_buildflags.h"
 #include "components/variations/variations_ids_provider.h"
@@ -403,26 +405,46 @@ void AwMainDelegate::InitializeMemorySystem(const bool is_browser_process) {
   const version_info::Channel channel = version_info::android::GetChannel();
   const bool is_canary_dev = (channel == version_info::Channel::CANARY ||
                               channel == version_info::Channel::DEV);
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
   const std::string process_type =
-      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kProcessType);
+      command_line.GetSwitchValueASCII(switches::kProcessType);
   const bool gwp_asan_boost_sampling = is_canary_dev || is_browser_process;
 
   // Add PoissonAllocationSampler. On Android WebView we do not have obvious
-  // observers of PoissonAllocationSampler. Unfortunately, some potential
-  // candidates are still linked and may sneak in through hidden paths.
-  // Therefore, we include PoissonAllocationSampler unconditionally.
-  // TODO(crbug.com/40062835): Which observers of PoissonAllocationSampler are
-  // really in use on Android WebView? Can we add the sampler conditionally or
-  // remove it completely?
-  memory_system::Initializer()
-      .SetGwpAsanParameters(gwp_asan_boost_sampling, process_type)
+  // observers of PoissonAllocationSampler (unless
+  // kEnableWebViewMemoryProfilingCliient is enabled). Unfortunately, some
+  // potential candidates are still linked and may sneak in through hidden
+  // paths. Therefore, we include PoissonAllocationSampler unconditionally.
+  memory_system::Initializer initializer;
+  initializer.SetGwpAsanParameters(gwp_asan_boost_sampling, process_type)
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
                                    AllocationTraceRecorderInclusion::kIgnore,
-                               process_type)
-      .Initialize(memory_system_);
+                               process_type);
+  if (base::FeatureList::IsEnabled(features::kWebViewMemoryProfilingClient)) {
+    sampling_profiler::ProfilerProcessType profiler_process_type;
+    if (is_browser_process) {
+      profiler_process_type = sampling_profiler::ProfilerProcessType::kBrowser;
+    } else if (process_type == switches::kRendererProcess) {
+      // TODO(crbug.com/40150046): If webview ever supports extensions, exclude
+      // extension renderers.
+      profiler_process_type = sampling_profiler::ProfilerProcessType::kRenderer;
+    } else if (process_type == switches::kGpuProcess) {
+      profiler_process_type = sampling_profiler::ProfilerProcessType::kGpu;
+    } else if (process_type == switches::kUtilityProcess) {
+      // TODO(crbug.com/41412949): If webview ever runs the network service OOP,
+      // detect it and use ProfilerProcessType::kNetworkService.
+      profiler_process_type = sampling_profiler::ProfilerProcessType::kUtility;
+    } else if (process_type == switches::kZygoteProcess) {
+      profiler_process_type = sampling_profiler::ProfilerProcessType::kZygote;
+    } else {
+      profiler_process_type = sampling_profiler::ProfilerProcessType::kUnknown;
+    }
+    initializer.SetProfilingClientParameters(channel, profiler_process_type);
+  }
+  initializer.Initialize(memory_system_);
 }
 
 bool AwMainDelegate::ShouldInitializePerfetto(InvokedIn invoked_in) {

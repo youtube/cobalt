@@ -66,12 +66,12 @@ class POLICY_EXPORT PolicyConversionsClient {
   // values. Enabled by default.
   void EnableShowMachineValues(bool enabled);
 
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   base::DictValue ConvertUpdaterPolicies(
       PolicyMap updater_policies,
       std::optional<PolicyConversions::PolicyToSchemaMap>
           updater_policy_schemas);
-#endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
   // Converts the given |value| to JSON, respecting the configuration
   // preferences that were set on this client.

@@ -203,8 +203,8 @@ class CORE_EXPORT StyleCommands {
   static String ValueStyle(LocalFrame&, CSSPropertyID);
   static bool IsUnicodeBidiNestedOrMultipleEmbeddings(CSSValueID);
 
-  // TODO(editing-dev): We should make |textDirectionForSelection()| to take
-  // |selectionInDOMTree|.
+  // TODO(editing-dev): We should make |TextDirectionForSelection()| to take
+  // |SelectionInDomTree|.
   static mojo_base::mojom::blink::TextDirection
   TextDirectionForSelection(const VisibleSelection&, EditingStyle*, bool&);
   static EditingTriState StateTextWritingDirection(

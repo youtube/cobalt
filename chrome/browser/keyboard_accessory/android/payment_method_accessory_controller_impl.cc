@@ -250,8 +250,7 @@ PaymentMethodAccessoryControllerImpl::GetSheetData() const {
 
   AccessorySheetData data = CreateAccessorySheetData(
       AccessoryTabType::CREDIT_CARDS, GetTitle(has_suggestions),
-      /*plusAddressTitle=*/std::u16string(), std::move(info_to_add),
-      std::move(footer_commands));
+      std::move(info_to_add), std::move(footer_commands));
 
   for (auto* offer : GetPromoCodeOffers()) {
     data.add_promo_code_info(TranslateOffer(offer));

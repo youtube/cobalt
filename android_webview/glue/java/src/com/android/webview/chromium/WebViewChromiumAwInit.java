@@ -191,6 +191,8 @@ public class WebViewChromiumAwInit {
     @GuardedBy("mLazyInitLock")
     private WebViewDatabaseAdapter mDefaultWebViewDatabase;
 
+    private final ProfileStore mProfileStore = new ProfileStore(this);
+
     // Volatile to guard for incorrectly trying to use this without calling `startChromium`.
     // TODO(crbug.com/389871700): Consider hiding the variable where it can't be incorrectly
     // accessed. See crrev.com/c/6081452/comment/9dff4e5e_c049d778/ for context.
@@ -369,6 +371,10 @@ public class WebViewChromiumAwInit {
         CallSite.GET_PROFILE_STORE,
         CallSite.WEBVIEW_INSTANCE_GET_SETTINGS,
         CallSite.WEBVIEW_INSTANCE_GET_AW_CONTENTS,
+        CallSite.GET_PROFILE,
+        CallSite.GET_OR_CREATE_PROFILE,
+        CallSite.GET_ALL_PROFILE_NAMES,
+        CallSite.DELETE_PROFILE,
         CallSite.COUNT,
     })
     public @interface CallSite {
@@ -482,8 +488,12 @@ public class WebViewChromiumAwInit {
         int GET_PROFILE_STORE = 108;
         int WEBVIEW_INSTANCE_GET_SETTINGS = 109;
         int WEBVIEW_INSTANCE_GET_AW_CONTENTS = 110;
+        int GET_PROFILE = 111;
+        int GET_OR_CREATE_PROFILE = 112;
+        int GET_ALL_PROFILE_NAMES = 113;
+        int DELETE_PROFILE = 114;
         // Remember to update WebViewStartupCallSite in enums.xml when adding new values here.
-        int COUNT = 111;
+        int COUNT = 115;
     };
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:WebViewStartupCallSite)
@@ -698,13 +708,6 @@ public class WebViewChromiumAwInit {
                                     "WebViewChromiumAwInit.initThreadUnsafeSingletons")) {
                         mChromiumStartedGlobals = new ChromiumStartedGlobals();
                     }
-                    if (mShouldInitializeDefaultProfile) {
-                        try (DualTraceEvent e =
-                                DualTraceEvent.scoped(
-                                        "WebViewChromiumAwInit.initializeDefaultProfile")) {
-                            mDefaultProfileHolder.initializeDefaultProfileOnUI();
-                        }
-                    }
 
                     if (ApkInfo.isDebugAndroidOrApp()) {
                         getSharedStatics().setWebContentsDebuggingEnabledUnconditionally(true);
@@ -732,12 +735,35 @@ public class WebViewChromiumAwInit {
                     }
 
                     AwCrashyClassUtils.maybeCrashIfEnabled();
+                    // This must happen before `mStartupFinished.countDown()`. Otherwise, a method
+                    // called on the background thread that calls into the run queue would crash if
+                    // the run queue is not notified that Chromium has started. See b/520483584.
+                    // This must also happen before we set `mInitState` to `INIT_FINISHED`,
+                    // otherwise it's possible for the method call on the background thread to
+                    // happen at the same time that the UI thread is setting the state to
+                    // INIT_FINISHED, so the background thread may see that init is done, not block
+                    // on the latch and then call into `runOnUiThreadBlocking` before the run queue
+                    // has been notified, which would still crash.
+                    mFactory.getRunQueue().notifyChromiumStarted();
                     // Must happen right after Chromium initialization is complete.
                     mInitState.set(INIT_FINISHED);
                     mStartupFinished.countDown();
+
+                    // Initialize the default profile once Chromium initialization is fully
+                    // complete,
+                    // ensuring it is available before executing pending post-init tasks.
+                    if (mShouldInitializeDefaultProfile) {
+                        try (DualTraceEvent e =
+                                DualTraceEvent.scoped(
+                                        "WebViewChromiumAwInit.initializeDefaultProfile")) {
+                            mDefaultProfileHolder.initializeDefaultProfileOnUI();
+                        }
+                    }
+
                     // This runs all the pending tasks queued for after Chromium init is
-                    // finished, so should run after `mInitState` is `INIT_FINISHED`.
-                    mFactory.getRunQueue().notifyChromiumStarted();
+                    // finished, so should run after `mInitState` is `INIT_FINISHED` and after
+                    // notifying the run queue.
+                    mFactory.getRunQueue().drainQueue();
                     if (mRunStartupTasksAsync) {
                         // Re-enables the taskrunners
                         PostTask.disablePreNativeUiTasks(false);
@@ -818,6 +844,7 @@ public class WebViewChromiumAwInit {
         mWebViewStartUpDiagnostics.setMaxTimePerTaskUiThreadChromiumInitMillis(
                 longestUiBlockingTaskTimeMs);
         mWebViewStartUpCallbackRunQueue.notifyChromiumStarted();
+        mWebViewStartUpCallbackRunQueue.drainQueue();
 
         // Record histograms
         String startupModeString =
@@ -848,13 +875,6 @@ public class WebViewChromiumAwInit {
                 StartupTasksRunner.StartupMode.COUNT);
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.WebView.Startup.CreationTime.InitReason2", startCallSite, CallSite.COUNT);
-        if (startupMode == StartupTasksRunner.StartupMode.ASYNC_BUT_FULLY_SYNC
-                || startupMode == StartupTasksRunner.StartupMode.PARTIAL_ASYNC_THEN_SYNC) {
-            RecordHistogram.recordEnumeratedHistogram(
-                    "Android.WebView.Startup.ChromiumInitTime.AsyncToSyncSwitchReason2",
-                    finishCallSite,
-                    CallSite.COUNT);
-        }
         RecordHistogram.recordTimesHistogram(
                 "Android.WebView.Startup.ChromiumInitTime.WallClockTime", wallClockTimeMs);
         RecordHistogram.recordTimesHistogram(
@@ -1120,8 +1140,10 @@ public class WebViewChromiumAwInit {
     }
 
     public ProfileStore getProfileStore() {
-        triggerAndWaitForChromiumStarted(CallSite.GET_PROFILE_STORE);
-        return mChromiumStartedGlobals.mProfileStore;
+        if (ProfileStore.requiresStartup()) {
+            triggerAndWaitForChromiumStarted(CallSite.GET_PROFILE_STORE);
+        }
+        return mProfileStore;
     }
 
     public CookieManager getDefaultCookieManager() {
@@ -1234,7 +1256,7 @@ public class WebViewChromiumAwInit {
                                     : Set.of(AwBrowserContext.getDefaultContextName());
 
                     for (String context : profilesCopy) {
-                        mChromiumStartedGlobals.mProfileStore.getOrCreateProfile(
+                        mProfileStore.getOrCreateProfile(
                                 context, ProfileStore.CallSite.ASYNC_WEBVIEW_STARTUP);
                     }
                     callback.onSuccess(mWebViewStartUpDiagnostics);
@@ -1247,12 +1269,10 @@ public class WebViewChromiumAwInit {
     private static final class ChromiumStartedGlobals {
         final AwTracingController mAwTracingController;
         final AwProxyController mAwProxyController;
-        final ProfileStore mProfileStore;
 
         ChromiumStartedGlobals() {
             mAwProxyController = new AwProxyController();
             mAwTracingController = new AwTracingController();
-            mProfileStore = new ProfileStore();
         }
     }
 
@@ -1272,7 +1292,7 @@ public class WebViewChromiumAwInit {
             }
             if (mDefaultProfile != null) return;
             mDefaultProfile =
-                    mChromiumStartedGlobals.mProfileStore.getOrCreateProfile(
+                    mProfileStore.getOrCreateProfile(
                             AwBrowserContext.getDefaultContextName(),
                             ProfileStore.CallSite.GET_DEFAULT_PROFILE);
             mDefaultProfileIsInitialized.countDown();

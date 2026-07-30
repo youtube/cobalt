@@ -7,6 +7,7 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/exit_type_service_factory.h"
@@ -26,9 +27,9 @@
 namespace {
 
 // Value written to prefs for ExitType::kCrashed and ExitType::kForcedShutdown.
-const char kPrefExitTypeCrashed[] = "Crashed";
-const char kPrefExitTypeNormal[] = "Normal";
-const char kPrefExitTypeForcedShutdown[] = "SessionEnded";
+constexpr char kPrefExitTypeCrashed[] = "Crashed";
+constexpr char kPrefExitTypeNormal[] = "Normal";
+constexpr char kPrefExitTypeForcedShutdown[] = "SessionEnded";
 
 // Converts the `kSessionExitType` pref to the corresponding EXIT_TYPE.
 ExitType SessionTypePrefValueToExitType(const std::string& value) {
@@ -227,6 +228,10 @@ void ExitTypeService::CheckUserAckedCrash() {
             &ExitTypeService::OnSessionRestoreDone, base::Unretained(this)));
     return;
   }
+
+#if BUILDFLAG(IS_WIN)
+  profile_->AckCrashForTracking();
+#endif
 
   waiting_for_user_to_ack_crash_ = false;
 

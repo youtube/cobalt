@@ -79,7 +79,7 @@ auto AreAutofillFieldsWithTypes(const std::vector<Matcher>& matchers) {
 
 class AutofillAiFormRationalizationTest : public testing::Test {
  private:
-  autofill::test::AutofillUnitTestEnvironment autofill_environment_;
+  test::AutofillUnitTestEnvironment autofill_environment_;
 };
 
 // For each entity type, this test checks that if a set of attribute types match

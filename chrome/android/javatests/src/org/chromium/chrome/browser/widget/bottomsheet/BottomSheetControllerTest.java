@@ -1122,7 +1122,7 @@ public class BottomSheetControllerTest {
      * @param shown Whether the tab switcher should be shown.
      */
     private void setTabSwitcherState(boolean shown) {
-        @LayoutType int targetLayout = shown ? LayoutType.TAB_SWITCHER : LayoutType.BROWSING;
+        @LayoutType int targetLayout = shown ? LayoutType.HUB : LayoutType.BROWSING;
         LayoutTestUtils.startShowingAndWaitForLayout(
                 mActivity.getLayoutManager(), targetLayout, false);
         ThreadUtils.runOnUiThreadBlocking(mTestSupport::endAllAnimations);

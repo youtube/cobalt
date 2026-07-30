@@ -37,18 +37,19 @@ TEST_F(RouteMapTest, ParseAndMatch) {
     ]
   })");
 
-  const Route* route1 = route_map.FindRoute("route1");
+  const Route* route1 = route_map.FindRoute(AtomicString("route1"));
   ASSERT_TRUE(route1);
-  const Route* route2 = route_map.FindRoute("route2");
+  const Route* route2 = route_map.FindRoute(AtomicString("route2"));
   ASSERT_TRUE(route2);
 
   // Nothing should match when there's no active navigation.
   EXPECT_FALSE(route1->Matches(NavigationPreposition::kAt));
   EXPECT_FALSE(route2->Matches(NavigationPreposition::kAt));
 
+  Element* source_element = nullptr;
   KURL from = start_url;
   KURL to = start_url;
-  route_map.OnNavigationStart(from, to);
+  route_map.OnNavigationStart(from, to, source_element);
   EXPECT_TRUE(route1->Matches(NavigationPreposition::kAt));
   EXPECT_FALSE(route2->Matches(NavigationPreposition::kAt));
   route_map.OnNavigationCommitted();
@@ -59,7 +60,7 @@ TEST_F(RouteMapTest, ParseAndMatch) {
   EXPECT_FALSE(route2->Matches(NavigationPreposition::kAt));
 
   to = KURL("https://example.com/bar");
-  route_map.OnNavigationStart(from, to);
+  route_map.OnNavigationStart(from, to, source_element);
   EXPECT_TRUE(route1->Matches(NavigationPreposition::kAt));
   EXPECT_FALSE(route2->Matches(NavigationPreposition::kAt));
   GetDocument().SetURL(to);
@@ -72,7 +73,7 @@ TEST_F(RouteMapTest, ParseAndMatch) {
 
   from = to;
   to = KURL("https://example.com/baz");
-  route_map.OnNavigationStart(from, to);
+  route_map.OnNavigationStart(from, to, source_element);
   EXPECT_FALSE(route1->Matches(NavigationPreposition::kAt));
   EXPECT_TRUE(route2->Matches(NavigationPreposition::kAt));
   GetDocument().SetURL(to);
@@ -84,7 +85,7 @@ TEST_F(RouteMapTest, ParseAndMatch) {
   EXPECT_FALSE(route2->Matches(NavigationPreposition::kAt));
 }
 
-TEST_F(RouteMapTest, GetActiveRoutes) {
+TEST_F(RouteMapTest, GetActiveRoutesForTesting) {
   KURL start_url("https://example.com/foo");
   GetDocument().SetURL(start_url);
 
@@ -107,34 +108,35 @@ TEST_F(RouteMapTest, GetActiveRoutes) {
   })");
 
   RouteMap::MatchCollection collection;
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   // No active routes when there's no active navigation.
   EXPECT_EQ(0u, collection.size());
 
   KURL from = start_url;
   KURL to = start_url;
-  route_map.OnNavigationStart(from, to);
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  Element* source_element = nullptr;
+  route_map.OnNavigationStart(from, to, source_element);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   EXPECT_EQ(2u, collection.size());
   GetDocument().SetURL(to);
   route_map.OnNavigationCommitted();
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   EXPECT_EQ(2u, collection.size());
   route_map.OnNavigationDone();
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   // No active routes when there's no active navigation.
   EXPECT_EQ(0u, collection.size());
 
   to = KURL("https://example.com/bar");
-  route_map.OnNavigationStart(from, to);
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  route_map.OnNavigationStart(from, to, source_element);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   EXPECT_EQ(2u, collection.size());
   GetDocument().SetURL(to);
   route_map.OnNavigationCommitted();
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   EXPECT_EQ(1u, collection.size());
   route_map.OnNavigationDone();
-  route_map.GetActiveRoutes(NavigationPreposition::kAt, &collection);
+  route_map.GetActiveRoutesForTesting(NavigationPreposition::kAt, &collection);
   // No active routes when there's no active navigation.
   EXPECT_EQ(0u, collection.size());
 }

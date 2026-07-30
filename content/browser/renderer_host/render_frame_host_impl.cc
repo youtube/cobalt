@@ -119,6 +119,7 @@
 #include "content/browser/media/webaudio/audio_context_manager_impl.h"
 #include "content/browser/navigation_or_document_handle.h"
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
+#include "content/browser/network/declarative_performance_observer.h"
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/permissions/permission_service_context.h"
 #include "content/browser/permissions/permission_util.h"
@@ -331,6 +332,7 @@
 #include "ui/base/window_open_disposition.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
@@ -1939,17 +1941,21 @@ void RecordNavigationTraceEventsAndMetrics(
   }
 
   if (ukm_builder.has_value()) {
-    if (!timeline.renderer_process_created.is_null() &&
-        timeline.renderer_process_created >= timeline.start) {
-      ukm_builder->SetRendererProcessCreated(
-          (timeline.renderer_process_created - timeline.start)
-              .InMilliseconds());
+    if (!timeline.renderer_process_created.is_null()) {
+      int64_t ms = 0;
+      if (timeline.renderer_process_created > timeline.start) {
+        ms = (timeline.renderer_process_created - timeline.start)
+                 .InMilliseconds();
+      }
+      ukm_builder->SetRendererProcessCreated(ms);
     }
-    if (!timeline.renderer_process_launched.is_null() &&
-        timeline.renderer_process_launched >= timeline.start) {
-      ukm_builder->SetRendererProcessLaunched(
-          (timeline.renderer_process_launched - timeline.start)
-              .InMilliseconds());
+    if (!timeline.renderer_process_launched.is_null()) {
+      int64_t ms = 0;
+      if (timeline.renderer_process_launched > timeline.start) {
+        ms = (timeline.renderer_process_launched - timeline.start)
+                 .InMilliseconds();
+      }
+      ukm_builder->SetRendererProcessLaunched(ms);
     }
     ukm_builder->Record(ukm::UkmRecorder::Get());
   }
@@ -2196,7 +2202,7 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
     return cookie_setting_overrides_;
   }
 
-  const std::optional<base::UnguessableToken>& network_restrictions_id() const {
+  const base::UnguessableToken& network_restrictions_id() const {
     return network_restrictions_id_;
   }
 
@@ -2215,7 +2221,7 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
       trust_token_redemption_policy_;
   ukm::SourceIdObj ukm_source_id_;
   net::CookieSettingOverrides cookie_setting_overrides_;
-  std::optional<base::UnguessableToken> network_restrictions_id_;
+  base::UnguessableToken network_restrictions_id_;
 };
 
 class PendingNavigation {
@@ -2809,7 +2815,6 @@ RenderFrameHostImpl::RenderFrameHostImpl(
 }
 
 RenderFrameHostImpl::~RenderFrameHostImpl() {
-  DismissUnboundedSurface();
   base::trace_event::TraceSessionObserverList::RemoveObserver(this);
   TRACE_EVENT("navigation", "RenderFrameHostImpl::~RenderFrameHostImpl",
               perfetto::TerminatingFlow::FromPointer(this));
@@ -3375,9 +3380,7 @@ void RenderFrameHostImpl::ForEachRenderFrameHostImplIncludingSpeculative(
 void RenderFrameHostImpl::ForEachRenderFrameHostImpl(
     base::FunctionRef<FrameIterationAction(RenderFrameHostImpl*)> on_frame,
     bool include_speculative) {
-  // TODO(https://crbug.com/508709711): Convert this to a CHECK once callers are
-  // on the UI thread.
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (!include_speculative &&
       (lifecycle_state() == LifecycleStateImpl::kSpeculative ||
@@ -3585,8 +3588,7 @@ RenderFrameHostImpl::GetPendingIsolationInfoForSubresources() {
   return config.isolation_info();
 }
 
-std::optional<base::UnguessableToken>
-RenderFrameHostImpl::GetNetworkRestrictionsID() {
+base::UnguessableToken RenderFrameHostImpl::GetNetworkRestrictionsID() {
   // TODO(crbug.com/447954811): Consider refactoring this method after
   // RenderDocument launches, because we may not need to consider pending
   // navigations anymore.
@@ -3632,7 +3634,9 @@ bool RenderFrameHostImpl::IsErrorDocument() const {
   // set during call to RenderFrameHostImpl::DidNavigate which happens after
   // commit.
   CHECK_NE(lifecycle_state(), LifecycleStateImpl::kSpeculative);
-  CHECK_NE(lifecycle_state(), LifecycleStateImpl::kPendingCommit);
+  // TODO(523031825): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK_NE(lifecycle_state(), LifecycleStateImpl::kPendingCommit);
   return is_error_document_;
 }
 
@@ -8756,7 +8760,9 @@ void RenderFrameHostImpl::DidBlockNavigation(
 
   // Cross-origin navigations are not allowed in prerendering so we can not
   // reach here while prerendering.
-  CHECK_NE(lifecycle_state(), LifecycleStateImpl::kPrerendering);
+  // TODO(522986874): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK_NE(lifecycle_state(), LifecycleStateImpl::kPrerendering);
   delegate_->OnDidBlockNavigation(validated_blocked_url, GetLastCommittedURL(),
                                   GetLastCommittedOrigin(), reason);
 }
@@ -9170,7 +9176,9 @@ void RenderFrameHostImpl::EvictFromBackForwardCacheWithFlattenedAndTreeReasons(
               "EvictFromBackForwardCacheWithFlattenedAndTreeReasons",
               ChromeTrackEvent::kBackForwardCacheCanStoreDocumentResult,
               can_store.flattened_reasons);
-  CHECK(IsBackForwardCacheEnabled());
+  // TODO(523032062): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK(IsBackForwardCacheEnabled());
 
   RenderFrameHostImpl* top_document = GetOutermostMainFrame();
 
@@ -11101,6 +11109,12 @@ void RenderFrameHostImpl::StartDragging(
     const gfx::Vector2d& cursor_offset_in_dip,
     const gfx::Rect& drag_obj_rect_in_dip,
     blink::mojom::DragEventSourceInfoPtr event_info) {
+  if (IsInactiveAndDisallowActivation(
+          DisallowActivationReasonId::kStartDragging)) {
+    // Don't process dragging from inactive documents.
+    // TODO(crbug.com/523886022): Add more checks for e.g. visibility.
+    return;
+  }
 #if BUILDFLAG(IS_ANDROID)
   RenderWidgetHostImpl* widget = GetRenderWidgetHost();
   RenderWidgetHostViewBase* view = (widget) ? widget->GetView() : nullptr;
@@ -11217,33 +11231,6 @@ void RenderFrameHostImpl::InitializeCrashReportContext(
   std::move(callback).Run(std::move(region));
 }
 
-void RenderFrameHostImpl::DismissUnboundedSurface() {
-  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
-    return;
-  }
-
-  if (unbounded_surface_client_.is_bound()) {
-    unbounded_surface_client_->OnDismissed();
-    unbounded_surface_client_.reset();
-  }
-
-  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
-  if (outermost && outermost != this) {
-    outermost->DismissUnboundedSurface();
-    return;
-  }
-
-  if (active_unbounded_frame_) {
-    CHECK_EQ(active_unbounded_frame_->GetOutermostMainFrame(), this);
-    // Copy the pointer to a local variable and clear the member first to avoid
-    // footguns if subsequent code or re-entrant calls try to access it.
-    base::WeakPtr<RenderFrameHostImpl> active_frame = active_unbounded_frame_;
-    active_unbounded_frame_.reset();
-    if (active_frame && active_frame.get() != this) {
-      active_frame->DismissUnboundedSurface();
-    }
-  }
-}
 
 void RenderFrameHostImpl::RequestUnboundedSurface(
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
@@ -11282,106 +11269,32 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
         "RequestUnboundedSurface called with empty bounds.");
     return;
   }
-  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
-  if (!outermost) {
-    return;
+  if (auto* root_view = GetUnboundedSurfaceRootView()) {
+    root_view->CreateUnboundedSurface(std::move(host), std::move(client),
+                                      bounds);
   }
-  RenderWidgetHostView* parent_view = GetRenderWidgetHost()->GetView();
-  if (!parent_view) {
-    return;
-  }
+}
 
-  DismissUnboundedSurface();
-  CHECK(!unbounded_surface_client_.is_bound());
-  CHECK(!outermost->active_unbounded_frame_);
-
-  unbounded_surface_host_receiver_.reset();
-  unbounded_surface_host_receiver_.Bind(std::move(host));
-
-  unbounded_surface_client_.Bind(std::move(client));
-  unbounded_surface_client_.set_disconnect_handler(base::BindOnce(
-      &RenderFrameHostImpl::DismissUnboundedSurface, base::Unretained(this)));
-  outermost->active_unbounded_frame_ = GetWeakPtr();
-
-  // Allocate a dedicated popup widget for the unbounded element rendering
-  // surface. The popup is used only as a container for the rendering surface
-  // where unbounded content will be painted. It does not represent DOM content
-  // directly, which is why it doesn't have a corresponding WebWidget. For that
-  // reason, this widget is purposely left in `waiting_for_init_`, permanently,
-  // so that it doesn't try to talk back to the non-existent WebWidget. The
-  // widget is self-owned and will be destroyed automatically when the popup is
-  // closed.
-  int32_t widget_route_id = GetProcess()->GetNextRoutingID();
-  mojo::PendingAssociatedRemote<blink::mojom::Widget> widget_remote;
-  auto widget_receiver = widget_remote.InitWithNewEndpointAndPassReceiver();
-  mojo::PendingAssociatedRemote<blink::mojom::WidgetHost> widget_host_remote;
-  mojo::PendingAssociatedRemote<blink::mojom::PopupWidgetHost>
-      popup_widget_host_remote;
-  RenderWidgetHostImpl* widget = delegate_->CreateNewPopupWidget(
-      site_instance_->group()->GetSafeRef(), widget_route_id,
-      popup_widget_host_remote.InitWithNewEndpointAndPassReceiver(),
-      widget_host_remote.InitWithNewEndpointAndPassReceiver(),
-      std::move(widget_remote), GetGlobalId());
-  if (widget) {
-    active_unbounded_widget_ = widget->GetWeakPtr();
-    RenderWidgetHostViewBase* widget_host_view =
-        static_cast<RenderWidgetHostViewBase*>(widget->GetView());
-    if (widget_host_view) {
-      float dsf = GetScaleFactorForView(parent_view);
-      gfx::Rect initial_rect = gfx::ScaleToRoundedRect(bounds, 1.f / dsf);
-      initial_rect.Offset(parent_view->GetViewBounds().OffsetFromOrigin());
-      widget_host_view->InitAsPopup(parent_view, initial_rect, initial_rect);
-      unbounded_surface_client_->OnSurfaceAllocated(
-          widget->GetFrameSinkId(), widget_host_view->GetLocalSurfaceId());
+RenderWidgetHostViewBase* RenderFrameHostImpl::GetUnboundedSurfaceRootView(
+    RenderWidgetHostViewBase** out_parent_view) {
+  DCHECK(!out_parent_view || !*out_parent_view) << "Pointer should start null";
+  if (RenderWidgetHostViewBase* parent_view =
+          static_cast<RenderWidgetHostViewBase*>(
+              GetRenderWidgetHost()->GetView())) {
+    if (out_parent_view) {
+      *out_parent_view = parent_view;
     }
+    return parent_view->GetRootView();
   }
+  return nullptr;
 }
-
-void RenderFrameHostImpl::GetCompositorFrameSink(
-    mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
-    mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client) {
-  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
-    mojo::ReportBadMessage("kUnboundedElement feature must be enabled.");
-    return;
+UnboundedSurfaceWindow* RenderFrameHostImpl::GetUnboundedSurfaceWindow() {
+  UnboundedSurfaceWindow* window = nullptr;
+  if (RenderWidgetHostViewBase* view = GetUnboundedSurfaceRootView()) {
+    CHECK(base::FeatureList::IsEnabled(blink::features::kUnboundedElement));
+    window = view->GetUnboundedSurfaceWindow();
   }
-  if (!active_unbounded_widget_) {
-    return;
-  }
-  active_unbounded_widget_->CreateFrameSink(
-      std::move(sink), std::move(client),
-      mojo::PendingRemote<blink::mojom::RenderInputRouterClient>());
-}
-
-void RenderFrameHostImpl::UpdateBounds(const gfx::Rect& bounds) {
-  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
-    mojo::ReportBadMessage("kUnboundedElement feature must be enabled.");
-    return;
-  }
-  if (!active_unbounded_widget_) {
-    return;
-  }
-  RenderWidgetHostViewBase* widget_host_view =
-      static_cast<RenderWidgetHostViewBase*>(
-          active_unbounded_widget_->GetView());
-  if (!widget_host_view) {
-    return;
-  }
-  RenderWidgetHostView* parent_view = GetRenderWidgetHost()->GetView();
-  // TODO(crbug.com/508672616): This will break in some circumstances (such as
-  // going between monitors with different DSFs, mixed DSF multi-monitor
-  // setups, or dynamic scaling changes) and we need to propagate changes to
-  // the renderer.
-  float dsf = GetScaleFactorForView(parent_view);
-  gfx::Rect updated_rect = gfx::ScaleToRoundedRect(bounds, 1.f / dsf);
-  if (parent_view) {
-    updated_rect.Offset(parent_view->GetViewBounds().OffsetFromOrigin());
-  }
-  widget_host_view->SetBounds(updated_rect);
-  if (unbounded_surface_client_.is_bound()) {
-    unbounded_surface_client_->OnSurfaceAllocated(
-        active_unbounded_widget_->GetFrameSinkId(),
-        widget_host_view->GetLocalSurfaceId());
-  }
+  return window;
 }
 
 void RenderFrameHostImpl::CreateNewPopupWidget(
@@ -12689,7 +12602,9 @@ bool RenderFrameHostImpl::ShouldDispatchPagehideAndVisibilitychangeDuringCommit(
     const UrlInfo& dest_url_info) {
   // Only return true if this is a same-site navigation and we did a proactive
   // BrowsingInstance swap but we're reusing the old page's renderer process.
-  CHECK(old_frame_host);
+  // TODO(523863753): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK(old_frame_host);
   if (old_frame_host->GetSiteInstance()->IsRelatedSiteInstance(
           GetSiteInstance())) {
     return false;
@@ -13560,7 +13475,9 @@ void RenderFrameHostImpl::SetWebUI(NavigationRequest& request) {
   CHECK(!web_ui_);
 
   // Verify expectation that WebUI should not be created for error pages.
-  CHECK(!GetSiteInstance()->GetSiteInfo().is_error_page());
+  // TODO(522875554): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK(!GetSiteInstance()->GetSiteInfo().is_error_page());
 
   // Ensure that the RenderFrameHost's process is locked.  Usually this happens
   // as part of creating a speculative RFH for WebUI navigations, but it's also
@@ -13799,7 +13716,9 @@ RenderFrameHostImpl::GetOrCreateBrowserAccessibilityManager() {
   // At least basic mode is required; it contains kWebContents and KNativeAPIs.
   ui::AXMode accessibility_mode = delegate_->GetAccessibilityMode();
   if (!accessibility_mode.has_mode(ui::AXMode::kNativeAPIs)) {
-    CHECK(!browser_accessibility_manager_);
+    // TODO(522872707): CHECK-exclusion: Convert to a CHECK once we are
+    // confident it won't be triggered.
+    DCHECK(!browser_accessibility_manager_);
     return nullptr;
   }
 
@@ -13846,7 +13765,9 @@ bool RenderFrameHostImpl::IsRenderFrameLive() {
 
   // Sanity check: the `blink::WebView` should always be live if the RenderFrame
   // is.
-  CHECK(!is_live || render_view_host_->IsRenderViewLive());
+  // TODO(522867283): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK(!is_live || render_view_host_->IsRenderViewLive());
 
   return is_live;
 }
@@ -15038,7 +14959,14 @@ void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
   webid::RequestService* service =
       webid::RequestService::GetOrCreateForCurrentDocument(this);
-  service->BindReceiver(std::move(receiver));
+  service->BindFederatedAuthRequest(std::move(receiver));
+}
+
+void RenderFrameHostImpl::BindFederatedRequestServiceReceiver(
+    mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver) {
+  webid::RequestService* service =
+      webid::RequestService::GetOrCreateForCurrentDocument(this);
+  service->BindFederatedRequestService(std::move(receiver));
 }
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
@@ -15959,8 +15887,10 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
   const bool is_same_document_navigation = !!same_document_params;
   // Sanity-check the page transition for frame type. Fenced Frames
   // will set page transition to AUTO_SUBFRAME.
-  CHECK_EQ(ui::PageTransitionIsMainFrame(params->transition),
-           !GetParent() && !IsFencedFrameRoot());
+  // TODO(523085714): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK_EQ(ui::PageTransitionIsMainFrame(params->transition),
+            !GetParent() && !IsFencedFrameRoot());
   // TODO(https://crbug.com/445585641): Make this enforceable on Android.
   if (navigation_request &&
       navigation_request->commit_params().navigation_token !=
@@ -16685,6 +16615,17 @@ void RenderFrameHostImpl::TakeNewDocumentPropertiesFromNavigation(
   }
   RuntimeFeatureStateDocumentData::CreateForCurrentDocument(
       this, navigation_request->GetRuntimeFeatureStateContext());
+
+  // Create DeclarativePerformanceObserver for all main frames, including
+  // prerendered ones, but excluding Fenced Frames or embedded outer documents.
+  if (!GetParentOrOuterDocument()) {
+    const network::mojom::DeclarativePerformanceObserverPolicy* policy =
+        navigation_request->GetDeclarativePerformanceObserverPolicy();
+    if (policy && policy->reporting_endpoint && !policy->entry_types.empty()) {
+      DeclarativePerformanceObserver::CreateForCurrentDocument(
+          this, navigation_request);
+    }
+  }
 
   // TODO(crbug.com/40092527): Once we are able to compute the origin to
   // commit in the browser, `navigation_request->commit_params().storage_key`
@@ -18017,8 +17958,16 @@ RendererLoadType CalculateRendererLoadType(NavigationRequest* request,
 
   if (!is_error_document && is_reload) {
     // For non-error documents, if the NavigationType given by the browser is
-    // a reload, then the navigation will be classified as a reload.
-    return RendererLoadType::kReload;
+    // a reload, then the navigation will normally be classified as a reload.
+    // However, if should_replace_current_entry is set (e.g., reloading before
+    // the initial entry has been replaced), use kReplaceCurrentItem so that
+    // the renderer replaces the entry rather than treating it as a standard
+    // reload.
+    // TODO(crbug.com/519762182): Consider treating reload-before-initial-
+    // entry-replacement as a new navigation (DIFFERENT_DOCUMENT) rather than
+    // a reload because the document never actually loaded.
+    return should_replace_current_entry ? RendererLoadType::kReplaceCurrentItem
+                                        : RendererLoadType::kReload;
   }
 
   return should_replace_current_entry ? RendererLoadType::kReplaceCurrentItem
@@ -18470,10 +18419,10 @@ void RenderFrameHostImpl::
                         request->WasInitiatedByLinkClick());
 
   SCOPED_CRASH_KEY_STRING256("VerifyDidCommit", "original_req_url",
-                             request->commit_params().original_url.spec());
-  SCOPED_CRASH_KEY_BOOL("VerifyDidCommit", "original_same_doc",
-                        request->commit_params().original_url.EqualsIgnoringRef(
-                            GetLastCommittedURL()));
+                             request->original_url().spec());
+  SCOPED_CRASH_KEY_BOOL(
+      "VerifyDidCommit", "original_same_doc",
+      request->original_url().EqualsIgnoringRef(GetLastCommittedURL()));
 
   SCOPED_CRASH_KEY_BOOL(
       "VerifyDidCommit", "on_initial_empty_doc",
@@ -19592,8 +19541,10 @@ void RenderFrameHostImpl::SetFrameTree(FrameTree& frame_tree) {
 
 void RenderFrameHostImpl::SetPolicyContainerForEarlyCommitAfterCrash(
     scoped_refptr<PolicyContainerHost> policy_container_host) {
-  CHECK_EQ(lifecycle_state(), LifecycleStateImpl::kSpeculative);
-  CHECK(!policy_container_host_);
+  // TODO(https://crbug.com/497761255): CHECK-exclusion: Speculatively reverted
+  // to DCHECK because of a past crash spike. See crbug.com/517224615.
+  DCHECK_EQ(lifecycle_state(), LifecycleStateImpl::kSpeculative);
+  DCHECK(!policy_container_host_);
   SetPolicyContainerHost(std::move(policy_container_host));
 }
 

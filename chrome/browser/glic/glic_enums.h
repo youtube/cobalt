@@ -79,7 +79,9 @@ enum class GlicZoomAction {
   kZoomIn = 0,
   kZoomOut = 1,
   kReset = 2,
-  kMaxValue = kReset,
+  kZoomInAtMax = 3,
+  kZoomOutAtMin = 4,
+  kMaxValue = kZoomOutAtMin,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicZoomAction)
 

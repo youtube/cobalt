@@ -552,10 +552,6 @@ BOOL IsAllSelected(NSUInteger selected_unread_count,
                                      incognito:YES];
 }
 
-- (void)openItemOffline:(id<ReadingListListItem>)item {
-  [self.delegate readingListListViewController:self
-                       openItemOfflineInNewTab:item];
-}
 
 - (void)markItemRead:(id<ReadingListListItem>)item {
   TableViewModel* model = self.tableViewModel;

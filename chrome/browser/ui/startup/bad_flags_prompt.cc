@@ -113,6 +113,10 @@ const char* const kBadFlags[] = {
     // chrome-extension:// URLs.
     extensions::switches::kExtensionsOnChromeURLs,
     extensions::switches::kExtensionsOnExtensionURLs,
+
+    // This flag gives the specified extension(s) access to restricted extension
+    // APIs.
+    extensions::switches::kAllowlistedExtensionID,
 #endif
 
 #if BUILDFLAG(IS_LINUX)

@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/location_report_body.h"
 #include "third_party/blink/renderer/core/frame/report_body.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -26,6 +27,11 @@ class CORE_EXPORT ConnectionAllowlistViolationReportBody
 
  public:
   static void QueueWebRTCReport(
+      V8ConnectionAllowlistDisposition::Enum disposition,
+      const ExecutionContext& execution_context);
+
+  static void QueueServiceWorkerReport(
+      const KURL& connection,
       V8ConnectionAllowlistDisposition::Enum disposition,
       const ExecutionContext& execution_context);
 
@@ -62,6 +68,10 @@ class CORE_EXPORT ConnectionAllowlistViolationReportBody
       const V8ConnectionAllowlistDisposition& disposition);
 
  private:
+  static void QueueReport(const String& connection,
+                          V8ConnectionAllowlistDisposition::Enum disposition,
+                          const ExecutionContext& execution_context);
+
   const String url_;
   const String connection_;
   const Vector<String> allowlist_;

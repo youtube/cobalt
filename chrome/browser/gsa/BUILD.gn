@@ -11,6 +11,7 @@ android_library("java") {
 
   deps = [
     "//base:base_java",
+    "//components/externalauth/android:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
   ]
 }

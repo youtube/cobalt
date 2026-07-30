@@ -36,6 +36,8 @@ import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.sync_device_info.FormFactor;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.RenderTestRule;
 import org.chromium.url.JUnitTestGURLs;
@@ -160,6 +162,45 @@ public class SendTabToSelfBottomSheetRenderTest {
                     activity.setContentView(sheetContent.getContentView());
                 });
         onView(withText(account.getEmail())).check(doesNotExist());
+    }
+
+    @Test
+    @MediumTest
+    @Feature("RenderTest")
+    public void testEnhancedTargetDevicePickerBottomSheet() throws Throwable {
+        setUpAccountData(TestAccounts.ACCOUNT1);
+        List<TargetDeviceInfo> devices =
+                Arrays.asList(
+                        new TargetDeviceInfo("My Phone", "guid1", FormFactor.PHONE, "Active today"),
+                        new TargetDeviceInfo(
+                                "My Computer", "guid2", FormFactor.DESKTOP, "Active 1 day ago"),
+                        new TargetDeviceInfo(
+                                "My Tablet", "guid3", FormFactor.TABLET, "Active 2 days ago"));
+        Activity activity = sActivityTestRule.getActivity();
+        View view =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            EnhancedTargetDevicePickerView viewContent =
+                                    new EnhancedTargetDevicePickerView(
+                                            activity, mBottomSheetController);
+                            PropertyModel model =
+                                    EnhancedTargetDevicePickerProperties.createDefaultModel();
+                            model.set(
+                                    EnhancedTargetDevicePickerProperties.DISMISS_CALLBACK,
+                                    reason -> {});
+                            new EnhancedTargetDevicePickerMediator(
+                                    JUnitTestGURLs.HTTP_URL.getSpec(),
+                                    "Title",
+                                    devices,
+                                    mProfile,
+                                    () -> null,
+                                    model);
+                            PropertyModelChangeProcessor.create(
+                                    model, viewContent, EnhancedTargetDevicePickerViewBinder::bind);
+                            activity.setContentView(viewContent.getContentView());
+                            return viewContent.getContentView();
+                        });
+        mRenderTestRule.render(view, "enhanced_device_picker");
     }
 
     /** Set up account data to be shown by the UI. */

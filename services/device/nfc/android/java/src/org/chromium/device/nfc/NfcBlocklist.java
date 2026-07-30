@@ -28,25 +28,16 @@ import java.util.List;
 public class NfcBlocklist {
     private static final String TAG = "NfcBlocklist";
 
-    private static final byte[][] STATIC_HISTORICAL_BYTES = {
-        new byte[] {
-            (byte) 0x80,
-            0x73,
-            (byte) 0xc0,
-            0x21,
-            (byte) 0xc0,
-            0x57,
-            0x59,
-            0x75,
-            0x62,
-            0x69,
-            0x4b,
-            0x65,
-            0x79
-        }, // YubiKey 5 series
-        new byte[] {
-            (byte) 0x59, 0x75, 0x62, 0x69, 0x6b, 0x65, 0x79, 0x4e, 0x45, 0x4f, 0x72, 0x33
-        } // YubiKey NEO
+    // The YubiKey 5 historical bytes end with the proprietary information field:
+    // 0x57 (compact-TLV Tag 5, Length 7) followed by the ASCII bytes for "YubiKey".
+    // We match starting from 0x57 to ignore the preceding card capability flags
+    // (indices 2-4 in the full sequence) which can change with firmware updates.
+    private static final byte[] YUBIKEY_5_HISTORICAL_BYTES_SUFFIX = {
+        0x57, 0x59, 0x75, 0x62, 0x69, 0x4b, 0x65, 0x79
+    };
+
+    private static final byte[] YUBIKEY_NEO_HISTORICAL_BYTES = {
+        (byte) 0x59, 0x75, 0x62, 0x69, 0x6b, 0x65, 0x79, 0x4e, 0x45, 0x4f, 0x72, 0x33
     };
 
     private static final String TRIAL_NAME = "WebNFCBlockList";
@@ -115,8 +106,8 @@ public class NfcBlocklist {
     }
 
     /**
-     * Returns true if tag is blocked, otherwise false. A tag is blocked if it is part of
-     * STATIC_HISTORICAL_BYTES or server provided historical bytes.
+     * Returns true if tag is blocked, otherwise false. A tag is blocked if its historical bytes
+     * match a blocked device (e.g. YubiKeys) or server provided historical bytes.
      *
      * @see android.nfc.Tag
      * @return true if tag is blocked, otherwise false.
@@ -130,8 +121,11 @@ public class NfcBlocklist {
 
         IsoDep iso = IsoDep.get(tag);
         if (iso != null) {
-            byte[] historicalBytes = iso.getHistoricalBytes();
-            if (areHistoricalBytesBlocked(historicalBytes)) {
+            byte[] identifierBytes = iso.getHistoricalBytes();
+            if (identifierBytes == null || identifierBytes.length == 0) {
+                identifierBytes = iso.getHiLayerResponse();
+            }
+            if (areHistoricalBytesBlocked(identifierBytes)) {
                 Log.w(TAG, "Access to NFC tag is blocked.");
                 return true;
             }
@@ -141,20 +135,35 @@ public class NfcBlocklist {
     }
 
     /**
-     * Returns true if historical bytes are part of STATIC_HISTORICAL_BYTES or server provided
+     * Returns true if historical bytes match a blocked device (e.g. YubiKeys) or server provided
      * historical bytes.
      *
      * @return true if historical bytes are blocked, otherwise false.
      */
     @VisibleForTesting
-    boolean areHistoricalBytesBlocked(byte[] historicalBytes) {
-        for (int i = 0; i < STATIC_HISTORICAL_BYTES.length; i++) {
-            if (Arrays.equals(historicalBytes, STATIC_HISTORICAL_BYTES[i])) return true;
+    boolean areHistoricalBytesBlocked(byte @Nullable [] historicalBytes) {
+        if (historicalBytes == null) return false;
+
+        if (endsWith(historicalBytes, YUBIKEY_5_HISTORICAL_BYTES_SUFFIX)) {
+            return true;
+        }
+        if (Arrays.equals(historicalBytes, YUBIKEY_NEO_HISTORICAL_BYTES)) {
+            return true;
         }
         for (int i = 0; i < mServerProvidedHistoricalBytes.size(); i++) {
             if (Arrays.equals(historicalBytes, mServerProvidedHistoricalBytes.get(i))) return true;
         }
         return false;
+    }
+
+    private static boolean endsWith(byte[] array, byte[] suffix) {
+        if (array.length < suffix.length) return false;
+        for (int i = 0; i < suffix.length; i++) {
+            if (array[array.length - suffix.length + i] != suffix[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Block/unblock NFC tag access for testing use only. */

@@ -20,12 +20,14 @@
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 
-#if BUILDFLAG(IS_CHROMEOS)
 #include "base/callback_list.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
 #include "base/memory/raw_ref.h"
 #endif
 
 class Browser;
+class BrowserWindowInterface;
 
 namespace tab_groups {
 enum class TabGroupColorId;
@@ -45,6 +47,9 @@ class TabGroupEditorBubbleView : public views::BubbleDialogDelegateView,
   METADATA_HEADER(TabGroupEditorBubbleView, views::BubbleDialogDelegateView)
 
  public:
+  using Colors =
+      std::vector<std::pair<tab_groups::TabGroupColorId, std::u16string>>;
+
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kTabGroupEditorBubbleViewId);
 
   static constexpr int TAB_GROUP_HEADER_CXMENU_SAVE_GROUP = 1;
@@ -62,16 +67,15 @@ class TabGroupEditorBubbleView : public views::BubbleDialogDelegateView,
 
   friend class TabGroupEditorBubbleInteractiveUiTest;
 
-  using Colors =
-      std::vector<std::pair<tab_groups::TabGroupColorId, std::u16string>>;
+  ~TabGroupEditorBubbleView() override;
 
-  // Shows the editor for `group`. Returns a *non-owning* pointer to the
-  // bubble's widget.
-  static views::Widget* Show(Browser* browser,
-                             const tab_groups::TabGroupId& group,
-                             views::View* anchor_view,
-                             std::optional<gfx::Rect> anchor_rect,
-                             bool stop_context_menu_propagation);
+  // Shows the editor for `group`. Returns the bubble's widget.
+  static std::unique_ptr<views::Widget> Show(
+      Browser* browser,
+      const tab_groups::TabGroupId& group,
+      views::View* anchor_view,
+      std::optional<gfx::Rect> anchor_rect,
+      bool stop_context_menu_propagation);
 
   // views::BubbleDialogDelegateView:
   views::View* GetInitiallyFocusedView() override;
@@ -86,7 +90,6 @@ class TabGroupEditorBubbleView : public views::BubbleDialogDelegateView,
                            views::View* anchor_view,
                            std::optional<gfx::Rect> anchor_rect,
                            bool stop_context_menu_propagation);
-  ~TabGroupEditorBubbleView() override;
 
   // TabStripModelObserver:
   void OnTabGroupChanged(const TabGroupChange& change) override;
@@ -231,7 +234,7 @@ class TabGroupEditorBubbleView : public views::BubbleDialogDelegateView,
   TitleFieldController title_field_controller_;
   Colors colors_;
 
-  const raw_ptr<Browser> browser_;
+  raw_ptr<Browser> browser_;
   const tab_groups::TabGroupId group_;
 
   // Ptr access to specific children. Must be cleared and reset by
@@ -257,6 +260,9 @@ class TabGroupEditorBubbleView : public views::BubbleDialogDelegateView,
 
   // Stored value for constructor param.
   bool stop_context_menu_propagation_;
+
+  base::CallbackListSubscription browser_close_subscription_;
+  void OnBrowserDidClose(BrowserWindowInterface* browser);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Ensures the bubble dialog remains open when the emoji picker menu steals

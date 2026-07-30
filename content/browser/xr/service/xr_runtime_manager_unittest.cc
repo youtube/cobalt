@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/public/browser/xr_runtime_manager.h"
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -10,10 +12,9 @@
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/test/task_environment.h"
 #include "content/browser/xr/service/vr_service_impl.h"
 #include "content/browser/xr/service/xr_runtime_manager_impl.h"
-#include "content/public/browser/xr_runtime_manager.h"
+#include "content/public/test/test_renderer_host.h"
 #include "device/vr/public/cpp/vr_device_provider.h"
 #include "device/vr/public/mojom/vr_service.mojom.h"
 #include "device/vr/public/mojom/xr_session.mojom.h"
@@ -25,7 +26,7 @@
 
 namespace content {
 
-class XRRuntimeManagerTest : public testing::Test {
+class XRRuntimeManagerTest : public RenderViewHostTestHarness {
  public:
   XRRuntimeManagerTest(const XRRuntimeManagerTest&) = delete;
   XRRuntimeManagerTest& operator=(const XRRuntimeManagerTest&) = delete;
@@ -35,27 +36,25 @@ class XRRuntimeManagerTest : public testing::Test {
   ~XRRuntimeManagerTest() override = default;
 
   void SetUp() override {
+    RenderViewHostTestHarness::SetUp();
     std::vector<std::unique_ptr<device::VRDeviceProvider>> providers;
     provider_ = new device::FakeVRDeviceProvider();
     providers.emplace_back(base::WrapUnique(provider_.get()));
-    xr_runtime_manager_ =
-        XRRuntimeManagerImpl::CreateInstance(std::move(providers), nullptr);
+    xr_runtime_manager_ = XRRuntimeManagerImpl::CreateInstance(
+        std::move(providers), web_contents());
   }
 
   void TearDown() override {
     ClearProvider();
     DropRuntimeManagerRef();
     EXPECT_EQ(XRRuntimeManager::GetInstanceIfCreated(), nullptr);
+    RenderViewHostTestHarness::TearDown();
   }
 
   std::unique_ptr<VRServiceImpl> BindService() {
-    // The mojom bindings that get run as part of adding a device need to run on
-    // a single thread.
-    base::test::SingleThreadTaskEnvironment task_environment;
     mojo::PendingRemote<device::mojom::VRServiceClient> proxy;
     device::FakeVRServiceClient client(proxy.InitWithNewPipeAndPassReceiver());
-    auto service =
-        std::make_unique<VRServiceImpl>(base::PassKey<XRRuntimeManagerTest>());
+    auto service = std::make_unique<VRServiceImpl>(main_rfh());
     service->SetClient(std::move(proxy));
     base::RunLoop run_loop;
     run_loop.RunUntilIdle();
@@ -132,9 +131,6 @@ TEST_F(XRRuntimeManagerTest, AddRemoveDevices) {
   EXPECT_EQ(1u, ServiceCount());
   EXPECT_TRUE(Provider()->Initialized());
 
-  // The mojom bindings that get run as part of adding a device need to run on
-  // a single thread.
-  base::test::SingleThreadTaskEnvironment task_environment;
   base::RunLoop run_loop;
   device::FakeVRDevice* device = new device::FakeVRDevice(
       device::mojom::XRDeviceId::ORIENTATION_DEVICE_ID);

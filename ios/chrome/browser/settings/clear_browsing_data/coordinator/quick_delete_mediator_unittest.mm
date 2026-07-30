@@ -300,7 +300,12 @@ TEST_F(QuickDeleteMediatorTest, TestBrowsingHistorySummary) {
   // Trigger the callback for data types not in test. The summary is only
   // dispatches if all counters have returned.
   TriggerUpdateUICallbackForTabsResults(0);
-  TriggerUpdateUICallbackForPasswordsResults(0);
+  // TODO(crbug.com/463402932): Clean up once the
+  // kPasswordRemovalFromDeleteBrowsingData feature flag has been enabled on
+  // stable 100% for a month.
+  if (!IsPasswordRemovalFromDeleteBrowsingDataEnabled()) {
+    TriggerUpdateUICallbackForPasswordsResults(0);
+  }
   TriggerUpdateUICallbackForAutofillResults(0, 0, 0);
 
   // clang-format off
@@ -357,7 +362,12 @@ TEST_F(QuickDeleteMediatorTest, TestTabsSummary) {
   // Trigger the callback for data types not in test. The summary is only
   // dispatches if all counters have returned.
   TriggerUpdateUICallbackForHistoryResults(0);
-  TriggerUpdateUICallbackForPasswordsResults(0);
+  // TODO(crbug.com/463402932): Clean up once the
+  // kPasswordRemovalFromDeleteBrowsingData feature flag has been enabled on
+  // stable 100% for a month.
+  if (!IsPasswordRemovalFromDeleteBrowsingDataEnabled()) {
+    TriggerUpdateUICallbackForPasswordsResults(0);
+  }
   TriggerUpdateUICallbackForAutofillResults(0, 0, 0);
 
   // clang-format off
@@ -480,7 +490,12 @@ TEST_F(QuickDeleteMediatorTest, TestAddressesSummary) {
   // dispatches if all counters have returned.
   TriggerUpdateUICallbackForTabsResults(0);
   TriggerUpdateUICallbackForHistoryResults(0);
-  TriggerUpdateUICallbackForPasswordsResults(0);
+  // TODO(crbug.com/463402932): Clean up once the
+  // kPasswordRemovalFromDeleteBrowsingData feature flag has been enabled on
+  // stable 100% for a month.
+  if (!IsPasswordRemovalFromDeleteBrowsingDataEnabled()) {
+    TriggerUpdateUICallbackForPasswordsResults(0);
+  }
 
   // clang-format off
   const struct TestCase {
@@ -636,6 +651,8 @@ TEST_F(QuickDeleteMediatorTest, TestSuggestionsSummary) {
 
 TEST_F(QuickDeleteMediatorTest,
        TestBrowsingHistorySummaryWithPasswordsUnselected) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kPasswordRemovalFromDeleteBrowsingData);
   // Select browsing history for deletion, but not passwords.
   prefs()->SetBoolean(browsing_data::prefs::kDeleteBrowsingHistory, true);
 

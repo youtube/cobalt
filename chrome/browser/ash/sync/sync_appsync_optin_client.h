@@ -42,11 +42,6 @@ class SyncAppsyncOptinClient : public syncer::SyncServiceObserver {
   explicit SyncAppsyncOptinClient(syncer::SyncService* sync_service,
                                   user_manager::UserManager* user_manager,
                                   const base::FilePath& daemon_store_location);
-  explicit SyncAppsyncOptinClient(
-      syncer::SyncService* sync_service,
-      user_manager::UserManager* user_manager,
-      const base::FilePath& daemon_store_location,
-      const base::FilePath& old_daemon_store_location);
   SyncAppsyncOptinClient(const SyncAppsyncOptinClient& other) = delete;
   SyncAppsyncOptinClient& operator=(const SyncAppsyncOptinClient& other) =
       delete;
@@ -70,11 +65,6 @@ class SyncAppsyncOptinClient : public syncer::SyncServiceObserver {
   // run - or it may fail, but will be attempted again on state change or
   // client instantiation.
   void UpdateOptinFile(bool opted_in, const syncer::SyncService* sync_service);
-  // Attmepts to remove any existing contents from defunct daemon-store
-  // location. May silently fail (with debug log), but should be reattempted the
-  // next time Client is instantiated so should eventually go through. Posted as
-  // a task to the ThreadPool.
-  void RemoveOldAppsyncDaemonDir(const syncer::SyncService* sync_service);
   // Looks up active profile and returns hash of username. String will be empty
   // if no profile can be found.
   std::string GetActiveProfileHash(const syncer::SyncService* sync_service);
@@ -86,9 +76,6 @@ class SyncAppsyncOptinClient : public syncer::SyncServiceObserver {
 
   // Location of daemon-store - can be changed for testing.
   base::FilePath daemon_store_filepath_;
-  // Only for use during migration from appsync-consent to appsync-optin
-  // directory.
-  base::FilePath old_daemon_store_filepath_;
 };
 }  // namespace ash
 

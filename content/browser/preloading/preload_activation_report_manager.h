@@ -27,7 +27,7 @@ class SimpleURLLoader;
 namespace content {
 
 class BrowserContext;
-class WebContents;
+class RenderFrameHost;
 
 // Manages sending activation beacons for prefetched or prerendered pages
 // that have been consumed.
@@ -47,7 +47,7 @@ class CONTENT_EXPORT PreloadActivationReportManager
       BrowserContext* browser_context);
 
   // Sends a credentialless HEAD request to the specified endpoint.
-  void ReportActivation(const GURL& endpoint, WebContents* web_contents);
+  void ReportActivation(const GURL& endpoint, RenderFrameHost* rfh);
 
   size_t GetLoaderCountForTesting() const { return loaders_.size(); }
 

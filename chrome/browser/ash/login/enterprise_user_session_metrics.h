@@ -13,36 +13,10 @@ class PrefService;
 
 namespace ash {
 
-class UserContext;
-
 namespace enterprise_user_session_metrics {
-
-// Enum for logins metrics on an enrolled device.
-enum class SignInEventType {
-  // A regular user login.
-  REGULAR_USER = 0,
-  // Manually started public session.
-  MANUAL_PUBLIC_SESSION = 1,
-  // Automatically started public session.
-  AUTOMATIC_PUBLIC_SESSION = 2,
-  // Manually started kiosk session.
-  MANUAL_KIOSK = 3,
-  // Automatically started kiosk session.
-  AUTOMATIC_KIOSK = 4,
-  // Count of sign-in event types. Must be the last one.
-  SIGN_IN_EVENT_COUNT,
-};
 
 // Register local state preferences.
 void RegisterPrefs(PrefRegistrySimple* registry);
-
-// Records a sign-in event for an enrolled device.
-void RecordSignInEvent(SignInEventType sign_in_event_type);
-
-// Records a sign-in event by UserContext for an enrolled device.
-// `is_auto_login` indicates whether the sign-in is a policy configured
-// automatic login or a manual login in response to user action.
-void RecordSignInEvent(const UserContext& user_context, bool is_auto_login);
 
 // Stores session length for regular user, public session user for enrolled
 // device to be reported on the next run. It stores the duration in a local

@@ -116,19 +116,11 @@
 <translation id="2236949375853147973">Hoạt động của tôi</translation>
 <translation id="2238130810669087193">Để sử dụng địa chỉ và các dữ liệu khác trên mọi thiết bị của bạn, hãy đăng nhập vào Chromium. Địa chỉ này sẽ được lưu trong Tài khoản Google của bạn sau khi bạn đăng nhập.</translation>
 <translation id="2241627712206172106">Nếu bạn chia sẻ máy tính, bạn bè và gia đình có thể duyệt web một cách riêng biệt và thiết lập Chromium theo ý của họ.</translation>
+<translation id="22571759390241347">Kỹ năng trong Chromium</translation>
 <translation id="2283803047247799269">Tìm kiếm thẻ này bằng tính năng Tìm kiếm hình ảnh</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium đề xuất tạm dừng thẻ làm chậm trình duyệt của bạn}other{Chromium đề xuất tạm dừng các thẻ làm chậm trình duyệt của bạn}}</translation>
 <translation id="2307973900865360088">Ghim vào thanh Dock</translation>
 <translation id="2313870531055795960">Kiểm tra đối chiếu các URL với danh sách trang web không an toàn được lưu trữ trong Chromium. Nếu một trang web cố ăn cắp mật khẩu của bạn hoặc nếu bạn tải một tệp gây hại xuống, thì Chrome cũng có thể gửi các URL đến tính năng Duyệt web an toàn, bao gồm cả các đoạn nội dung trên trang.</translation>
-<translation id="2332076562712130931">Hành động này sẽ:
-          <ph name="LINE_BREAKS" />
-           • Đặt lại một số chế độ cài đặt Chromium và lối tắt Chromium
-           <ph name="LINE_BREAK" />
-           • Tắt các tiện ích
-           <ph name="LINE_BREAK" />
-           • Xoá cookie và dữ liệu trang web tạm thời khác
-            <ph name="LINE_BREAKS" />
-           Dấu trang, nhật ký và mật khẩu đã lưu sẽ không bị ảnh hưởng.</translation>
 <translation id="2343156876103232566">Để gửi số điện thoại từ thiết bị này đến điện thoại Android của bạn, hãy đăng nhập vào Chromium trên cả hai thiết bị.</translation>
 <translation id="2356070529366658676">Yêu cầu</translation>
 <translation id="2359808026110333948">Tiếp tục</translation>
@@ -190,6 +182,7 @@
 <translation id="3003694935412297923">Tất cả tác vụ</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium cần xác minh danh tính của bạn thì mới có thể lưu một số dữ liệu vào Tài khoản Google và cho phép bạn sử dụng dữ liệu đó trên tất cả các thiết bị. Nếu bạn đăng xuất ngay, dữ liệu này (1 mục) sẽ bị xoá.}other{Chromium cần xác minh danh tính của bạn thì mới có thể lưu một số dữ liệu vào Tài khoản Google và cho phép bạn sử dụng dữ liệu đó trên tất cả các thiết bị. Nếu bạn đăng xuất ngay, dữ liệu này ({count}) sẽ bị xoá.}}</translation>
 <translation id="3013473503895162900">Mở <ph name="URL" /> trong một thẻ mới trên Chromium.</translation>
+<translation id="302551344979399011">Các phát kiến về AI, chẳng hạn như kỹ năng, được lưu vào Tài khoản Google của bạn và được quản lý riêng với tính năng đồng bộ hoá Chromium</translation>
 <translation id="3032787606318309379">Đang thêm vào Chromium...</translation>
 <translation id="3038232873781883849">Đang chờ cài đặt...</translation>
 <translation id="3045032126857188731">Ngôn ngữ dịch: <ph name="LANGUAGE" /></translation>
@@ -381,6 +374,7 @@
 <translation id="5289287148052354622">Tải ứng dụng Chromium</translation>
 <translation id="5294316920224716406">Khi bạn duyệt web ở Chế độ ẩn danh, Chromium sẽ cảnh báo bạn trước khi tải một trang web bằng kết nối không an toàn</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+<translation id="5324450571874973775">Sử dụng các kỹ năng này cùng với các tính năng khác của Gemini trong Chromium</translation>
 <translation id="5346389065299425353">Mở rộng phạm vi tìm kiếm bằng cách thêm nhiều thẻ, tệp và công cụ</translation>
 <translation id="5348677704241861105">Xem tổng quan nhanh về tài liệu này và đặt câu hỏi cho Gemini trong Chromium</translation>
 <translation id="5352264705793813212">Chromium có một số ý kiến đề xuất về sự an toàn cần bạn xem xét</translation>
@@ -672,6 +666,7 @@ Chromium không thể khôi phục cài đặt của bạn.</translation>
 <translation id="8318772038038596122">Tổ chức của bạn sẽ đóng Chromium khi Chromium không được dùng đến trong <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Lưu dưới dạng hình ảnh</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> trước đó đã sử dụng Chromium</translation>
+<translation id="8351551329754447960">Bật tính năng Kỹ năng trong Chromium</translation>
 <translation id="8359544530202147897">Cập nhật Chromium để tiếp tục sử dụng dữ liệu Chromium trong Tài khoản Google <ph name="ACCOUNT_EMAIL" /> của bạn</translation>
 <translation id="8360718212975266891">Để nhận các bản cập nhật Chromium sau này, bạn cần có Windows 10 trở lên. Máy tính này đang sử dụng Windows 8.</translation>
 <translation id="8362914115861174987">Dịch sang</translation>

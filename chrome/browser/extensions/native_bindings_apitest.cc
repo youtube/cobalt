@@ -8,6 +8,7 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/with_feature_override.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/extension_apitest.h"
@@ -517,19 +518,13 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsApiTest, PromiseBasedAPI) {
 
 class NativeBindingsBrowserNamespaceTest : public NativeBindingsApiTest {
  public:
-  NativeBindingsBrowserNamespaceTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport);
-  }
+  NativeBindingsBrowserNamespaceTest() = default;
 
   NativeBindingsBrowserNamespaceTest(
       const NativeBindingsBrowserNamespaceTest&) = delete;
   const NativeBindingsBrowserNamespaceTest& operator=(
       const NativeBindingsBrowserNamespaceTest&) = delete;
   ~NativeBindingsBrowserNamespaceTest() override = default;
-
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that extension background script contexts have access to
@@ -926,6 +921,96 @@ IN_PROC_BROWSER_TEST_F(NativeBindingsBrowserNamespaceTest,
 
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
+
+class NativeBindingsBrowserNamespaceOnWebPagesTest
+    : public base::test::WithFeatureOverride,
+      public NativeBindingsApiTest {
+ public:
+  NativeBindingsBrowserNamespaceOnWebPagesTest()
+      : base::test::WithFeatureOverride(
+            extensions_features::kExtensionBrowserNamespaceOnWebPages) {}
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    NativeBindingsApiTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kExtensionTestApiOnWebPages);
+  }
+};
+
+// Tests that the `browser` namespace is defined on web pages if and only if
+// the `extensions_features::kExtensionBrowserNamespaceOnWebPages` feature
+// is enabled. Also confirms that when enabled, attributes on `chrome` and
+// `browser` (like `test` API) point to the exact same object.
+IN_PROC_BROWSER_TEST_P(NativeBindingsBrowserNamespaceOnWebPagesTest,
+                       BrowserObjectOnWebPages) {
+  // Start the test server and navigate to a non-extension web page `a.com`.
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  const GURL& test_website =
+      embedded_test_server()->GetURL("a.com", "/title1.html");
+  auto* web_contents = GetActiveWebContents();
+  ASSERT_TRUE(NavigateToURL(web_contents, test_website));
+
+  // The `chrome` namespace should always be defined on web pages.
+  EXPECT_TRUE(ObjectIsDefined(web_contents, "chrome"));
+
+  // The `browser` namespace should be defined if the feature is enabled,
+  // and undefined otherwise.
+  if (IsParamFeatureEnabled()) {
+    EXPECT_TRUE(ObjectIsDefined(web_contents, "browser"));
+    // Confirm that the `test` API on both namespaces points to the exact same
+    // object.
+    EXPECT_TRUE(ApiExists(web_contents, "chrome.test"));
+    EXPECT_TRUE(ApiExists(web_contents, "browser.test"));
+    EXPECT_TRUE(content::EvalJs(web_contents, "chrome.test === browser.test")
+                    .ExtractBool());
+  } else {
+    EXPECT_FALSE(ObjectIsDefined(web_contents, "browser"));
+  }
+}
+
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
+    NativeBindingsBrowserNamespaceOnWebPagesTest);
+
+class NativeBindingsBrowserNamespaceOnWebPagesNoTestApiTest
+    : public base::test::WithFeatureOverride,
+      public NativeBindingsApiTest {
+ public:
+  NativeBindingsBrowserNamespaceOnWebPagesNoTestApiTest()
+      : base::test::WithFeatureOverride(
+            extensions_features::kExtensionBrowserNamespaceOnWebPages) {}
+};
+
+// Tests that the `browser` namespace is defined on web pages if and only if
+// the `extensions_features::kExtensionBrowserNamespaceOnWebPages` feature
+// is enabled, even if there are no features available to the page.
+IN_PROC_BROWSER_TEST_P(NativeBindingsBrowserNamespaceOnWebPagesNoTestApiTest,
+                       BrowserObjectOnWebPagesWithoutAPIs) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  const GURL& test_website =
+      embedded_test_server()->GetURL("a.com", "/title1.html");
+  auto* web_contents = GetActiveWebContents();
+  ASSERT_TRUE(NavigateToURL(web_contents, test_website));
+
+  EXPECT_TRUE(ObjectIsDefined(web_contents, "chrome"));
+
+  if (IsParamFeatureEnabled()) {
+    EXPECT_TRUE(ObjectIsDefined(web_contents, "browser"));
+    // Note: We cannot test that `browser` has the same attributes as `chrome`
+    // here because the only attributes present on `chrome` for a regular
+    // web page without any extension APIs are legacy properties like
+    // `chrome.loadTimes` and `chrome.csi` (and `chrome.app` which is explicitly
+    // skipped for `browser` in `NativeExtensionBindingsSystem`).
+    // `loadTimes` and `csi` are injected via a separate V8 extension script
+    // (v8/LoadTimes) which explicitly only populates the `chrome` object and
+    // does not alias to `browser`. `browser` is not a generic proxy of
+    // `chrome`, but rather a separate object where extension APIs are
+    // explicitly mirrored.
+  } else {
+    EXPECT_FALSE(ObjectIsDefined(web_contents, "browser"));
+  }
+}
+
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
+    NativeBindingsBrowserNamespaceOnWebPagesNoTestApiTest);
 
 // TODO(crbug.com/401226626): Test that the browser object also has dev mode
 // restricted APIs set on correctly as well.

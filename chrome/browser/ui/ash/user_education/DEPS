@@ -21,6 +21,5 @@ include_rules = [
   "+chrome/browser/ui/views/user_education",
   "+chrome/browser/ui/web_applications",
   "+chrome/browser/user_education",
-  "+chrome/browser/web_applications",
   "+chrome/test",
 ]

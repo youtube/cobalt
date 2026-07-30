@@ -7,8 +7,6 @@ assert(is_chromeos)
 static_library("discovery") {
   sources = [
     "host_locator.h",
-    "in_memory_host_locator.cc",
-    "in_memory_host_locator.h",
     "mdns_host_locator.cc",
     "mdns_host_locator.h",
     "netbios_client.cc",
@@ -42,6 +40,8 @@ static_library("test_support") {
   sources = [
     "fake_netbios_client.cc",
     "fake_netbios_client.h",
+    "in_memory_host_locator.cc",
+    "in_memory_host_locator.h",
   ]
 
   deps = [

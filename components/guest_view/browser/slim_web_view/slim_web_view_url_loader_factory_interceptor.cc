@@ -35,7 +35,8 @@ class SlimWebViewHeaderClient : public network::mojom::TrustedHeaderClient {
   ~SlimWebViewHeaderClient() override = default;
 
   // network::mojom::TrustedHeaderClient:
-  void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+  void OnBeforeSendHeaders(const GURL& request_url,
+                           const net::HttpRequestHeaders& headers,
                            OnBeforeSendHeadersCallback callback) override {
     net::HttpRequestHeaders modified_headers = headers;
     if (guest_) {
@@ -47,7 +48,7 @@ class SlimWebViewHeaderClient : public network::mojom::TrustedHeaderClient {
       }
     }
     if (target_client_) {
-      target_client_->OnBeforeSendHeaders(modified_headers,
+      target_client_->OnBeforeSendHeaders(request_url, modified_headers,
                                           std::move(callback));
     } else {
       std::move(callback).Run(net::OK, modified_headers);

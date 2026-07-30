@@ -194,7 +194,7 @@ float SyntheticGestureTargetMac::GetMinScalingSpanInDips() const {
 RenderWidgetHostViewMac* SyntheticGestureTargetMac::GetView() const {
   auto* view =
       static_cast<RenderWidgetHostViewMac*>(render_widget_host()->GetView());
-  DCHECK(view);
+  CHECK(view, base::NotFatalUntil::M152);
   return view;
 }
 

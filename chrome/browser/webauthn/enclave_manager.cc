@@ -627,9 +627,7 @@ cbor::Value BuildPINRenewalRequest(std::string cert_xml,
   request.emplace(enclave::kRecoveryKeyStoreSigXml, ToVector(sig_xml));
   request.emplace(enclave::kRequestWrappedSecretKey, wrapped_secret);
   request.emplace(enclave::kRequestWrappedPINDataKey, wrapped_pin);
-  if (base::FeatureList::IsEnabled(device::kWebAuthnNewRefreshFlow)) {
-    request.emplace(enclave::kRecoveryKeyStoreCreateNewVault, true);
-  }
+  request.emplace(enclave::kRecoveryKeyStoreCreateNewVault, true);
 
   return cbor::Value(std::move(request));
 }
@@ -4458,9 +4456,7 @@ void EnclaveManager::HandleIdentityChange(bool is_post_load) {
     // If the user has signed out of any non-primary accounts, erase their
     // enclave state.
     const base::flat_set<GaiaId> gaia_ids_in_cookie_jar =
-        base::STLSetUnion<base::flat_set<GaiaId>>(
-            GetGaiaIDs(in_jar.GetPotentiallyInvalidSignedInAccounts()),
-            GetGaiaIDs(in_jar.GetSignedOutAccounts()));
+        GetGaiaIDs(in_jar.GetAllAccounts());
     const base::flat_set<GaiaId> gaia_ids_in_state =
         GetGaiaIDs(local_state_->users());
     to_remove = base::STLSetDifference<base::flat_set<GaiaId>>(

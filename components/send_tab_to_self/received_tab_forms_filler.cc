@@ -408,12 +408,22 @@ void ReceivedTabFormsFiller::FillForms(
           NOTREACHED();
       }
 
-      manager->FillOrPreviewField(autofill::mojom::ActionPersistence::kFill,
-                                  autofill::mojom::FieldActionType::kReplaceAll,
-                                  form.ToFormData(), *field, match.field->value,
-                                  autofill::FillingProduct::kNone,
-                                  std::nullopt);
-      // Erase the successfully filled field immediately to prevent duplicate
+      // Do not fill fields that have been edited by the user.
+      // We also skip filling if the user has cleared a pre-filled field,
+      // as they likely want it to remain empty. We only fill if the field
+      // is empty and was initially empty as well.
+      const bool should_skip_filling =
+          (field->properties_mask() & autofill::kUserTyped) &&
+          (!field->value().empty() || !field->initial_value().empty());
+
+      if (!should_skip_filling) {
+        manager->FillOrPreviewField(
+            autofill::mojom::ActionPersistence::kFill,
+            autofill::mojom::FieldActionType::kReplaceAll, form.global_id(),
+            field->global_id(), match.field->value,
+            autofill::FillingProduct::kNone, std::nullopt);
+      }
+      // Erase the successfully matched field immediately to prevent duplicate
       // fills or double-logging in the destructor.
       pending_fields_.erase(*match.field);
     }

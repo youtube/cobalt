@@ -168,7 +168,7 @@ public class SendTabToSelfReceiverTest {
         onView(withId(R.id.message_primary_button)).perform(click());
 
         // Verify that the tab switcher is opened.
-        waitForLayout(mSyncTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER);
+        waitForLayout(mSyncTestRule.getActivity().getLayoutManager(), LayoutType.HUB);
 
         // Verify that the message banner goes away.
         onView(withId(R.id.message_primary_button)).check(doesNotExist());
@@ -226,5 +226,29 @@ public class SendTabToSelfReceiverTest {
         mRenderTestRule.render(
                 mSyncTestRule.getActivity().findViewById(R.id.tab_list_recycler_view),
                 "stts_tab_card_label");
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"Sync"})
+    public void testSendTabToSelfLabelRemovalOnInteraction() throws Exception {
+        long now = getCurrentTimeSinceWindowsEpochMicros();
+        injectSendTabToSelfEntity(
+                "stts_test_guid", "https://www.example.com", "Example", "Example Phone", now);
+        SyncTestUtil.triggerSyncAndWaitForCompletion();
+
+        TabUiTestHelper.verifyTabModelTabCount(mSyncTestRule.getActivity(), 2, 0);
+
+        // Open the Tab Switcher
+        TabUiTestHelper.enterTabSwitcher(mSyncTestRule.getActivity());
+        onView(withText("From Example Phone")).check(matches(isDisplayed()));
+
+        // Click on the STTS tab card to select/interact with it
+        TabUiTestHelper.clickNthCardFromTabSwitcher(mSyncTestRule.getActivity(), 1);
+        waitForLayout(mSyncTestRule.getActivity().getLayoutManager(), LayoutType.BROWSING);
+
+        // Re-open the Tab Switcher to verify the label is gone
+        TabUiTestHelper.enterTabSwitcher(mSyncTestRule.getActivity());
+        onView(withText("From Example Phone")).check(doesNotExist());
     }
 }

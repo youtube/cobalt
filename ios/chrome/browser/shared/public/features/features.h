@@ -258,6 +258,15 @@ bool IsDownloadListEnabled();
 // Feature flag to control the download list UI type.
 BASE_DECLARE_FEATURE(kDownloadList);
 
+// Feature flag to switch the iOS download list service layer to the new
+// paginated, keyset-cursor-backed reader path with an active-records-only
+// cache. When disabled, the service falls back to the legacy full-table
+// cache + bulk load behavior.
+BASE_DECLARE_FEATURE(kDownloadListPagination);
+
+// Returns true if the iOS download list pagination feature is enabled.
+bool IsDownloadListPaginationEnabled();
+
 // Feature param under `kEnableFeedBackgroundRefresh` to enable server driven
 // background refresh schedule.
 extern const char kEnableServerDrivenBackgroundRefreshSchedule[];
@@ -893,6 +902,11 @@ BASE_DECLARE_FEATURE(kUseSceneViewController);
 
 // Returns true if the UseSceneViewController feature is enabled.
 bool IsUseSceneViewControllerEnabled();
+
+BASE_DECLARE_FEATURE(kDisplayTracing);
+
+// Returns true if the DisplayTracing feature is enabled.
+bool IsDisplayTracingEnabled();
 
 // Enables the DisableComposeboxFromAIMNTP feature.
 BASE_DECLARE_FEATURE(kDisableComposeboxFromAIMNTP);

@@ -740,12 +740,33 @@ TEST_F(WinAuthenticatorTest, SignalAllAcceptedCredentials_NotFound) {
   EXPECT_TRUE(fake_webauthn_api_->registrations().empty());
 }
 
-TEST_F(WinAuthenticatorTest, HmacSecretAvailability) {
-  for (bool available : {false, true}) {
-    SCOPED_TRACE(available);
-    SetVersion(available ? WEBAUTHN_API_VERSION_6 : WEBAUTHN_API_VERSION_5);
-    EXPECT_EQ(authenticator_->Options().supports_hmac_secret, available);
-  }
+// Regression test for crbug.com/512385679.
+// Tests that Chrome allows passing the hmac secret extension on create to the
+// Windows WebAuthn DLL version >= 2.
+TEST_F(WinAuthenticatorTest, HmacSecret) {
+  SetVersion(WEBAUTHN_API_VERSION_2);
+  EXPECT_EQ(authenticator_->Options().supports_hmac_secret, true);
+  PublicKeyCredentialRpEntity rp(kRpId);
+  PublicKeyCredentialUserEntity user(std::vector<uint8_t>{1, 2, 3, 4},
+                                     kUserName, kUserDisplayName);
+  CtapMakeCredentialRequest mc_request(
+      test_data::kClientDataJson, rp, user,
+      PublicKeyCredentialParams({{CredentialType::kPublicKey, -257}}));
+  mc_request.hmac_secret = true;
+  MakeCredentialFuture mc_future;
+  authenticator_->MakeCredential(std::move(mc_request), MakeCredentialOptions(),
+                                 mc_future.GetCallback());
+  ASSERT_TRUE(mc_future.Wait());
+  ASSERT_EQ(std::get<0>(mc_future.Get()), MakeCredentialStatus::kSuccess);
+  const AuthenticatorMakeCredentialResponse& response =
+      *std::get<1>(mc_future.Get());
+
+  const cbor::Value& extensions =
+      *response.attestation_object.authenticator_data().extensions();
+  const cbor::Value::MapValue& extensions_map = extensions.GetMap();
+  const auto hmac_secret_it =
+      extensions_map.find(cbor::Value(device::kExtensionHmacSecret));
+  ASSERT_NE(hmac_secret_it, extensions_map.end());
 }
 
 TEST_F(WinAuthenticatorTest, HmacSecretMakeCredentialAvailability) {

@@ -9,8 +9,11 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/values_equivalent.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -32,10 +35,81 @@ namespace {
 // backend.
 constexpr base::TimeDelta kSaveDelay = base::Milliseconds(2500);
 
-void AdaptGetLastSessionCommands(
+std::vector<std::unique_ptr<SessionCommand>> DeepCopyCommands(
+    const std::vector<std::unique_ptr<SessionCommand>>& commands) {
+  std::vector<std::unique_ptr<SessionCommand>> commands_copy;
+  commands_copy.reserve(commands.size());
+  for (const auto& command : commands) {
+    commands_copy.push_back(command->Clone());
+  }
+  return commands_copy;
+}
+
+bool CommandsEqual(const std::vector<std::unique_ptr<SessionCommand>>& a,
+                   const std::vector<std::unique_ptr<SessionCommand>>& b) {
+  return std::ranges::equal(a, b, [](const auto& x, const auto& y) {
+    return base::ValuesEquivalent(x, y);
+  });
+}
+
+// Result of comparing the commands read from the cleartext and encrypted
+// backends.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SessionReadComparisonResult)
+enum class SessionReadComparisonResult {
+  kMatch = 0,
+  kErrorMismatch = 1,
+  kCommandsMismatch = 2,
+  kMaxValue = kCommandsMismatch,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/session/enums.xml:SessionReadComparisonResult)
+
+// Which operation encountered an uninitialized encrypted backend.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SessionEncryptedBackendUninitialized)
+enum class SessionEncryptedBackendUninitialized {
+  kSave = 0,
+  kMoveCurrentSessionToLastSession = 1,
+  kDeleteLastSession = 2,
+  kGetLastSessionCommands = 3,
+  kMaxValue = kGetLastSessionCommands,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/session/enums.xml:SessionEncryptedBackendUninitialized)
+
+void OnBackendReadFinished(
+    scoped_refptr<base::RefCountedData<
+        CommandStorageBackend::ReadCommandsResult>> saved_result,
     CommandStorageManager::GetCommandsCallback callback,
     CommandStorageBackend::ReadCommandsResult result) {
+  if (saved_result) {
+    saved_result->data.commands = DeepCopyCommands(result.commands);
+    saved_result->data.error_reading = result.error_reading;
+  }
   std::move(callback).Run(std::move(result.commands), result.error_reading);
+}
+
+void OnEncryptedBackendReadFinished(
+    scoped_refptr<base::RefCountedData<
+        CommandStorageBackend::ReadCommandsResult>> cleartext_result,
+    CommandStorageBackend::ReadCommandsResult encrypted_result) {
+  SessionReadComparisonResult comparison_result =
+      SessionReadComparisonResult::kMatch;
+  if (cleartext_result->data.error_reading != encrypted_result.error_reading) {
+    comparison_result = SessionReadComparisonResult::kErrorMismatch;
+  } else if (!CommandsEqual(cleartext_result->data.commands,
+                            encrypted_result.commands)) {
+    comparison_result = SessionReadComparisonResult::kCommandsMismatch;
+  }
+  base::UmaHistogramEnumeration(
+      "Session.CommandStorageManager.EncryptedReadMatch", comparison_result);
+}
+
+void LogEncryptedBackendUninitialized(
+    SessionEncryptedBackendUninitialized reason) {
+  base::UmaHistogramEnumeration(
+      "Session.CommandStorageManager.EncryptedBackendUninitialized", reason);
 }
 
 #if DCHECK_IS_ON()
@@ -56,14 +130,15 @@ CommandStorageManager::CommandStorageManager(
     scoped_refptr<base::SequencedTaskRunner> backend_task_runner)
     : file_path_(path),
       session_type_(type),
-      backend_(base::MakeRefCounted<CommandStorageBackend>(
-          backend_task_runner ? backend_task_runner
-                              : CreateDefaultBackendTaskRunner(),
-          path,
-          type,
-          /*encryptor=*/nullptr)),
-      delegate_(delegate),
-      backend_task_runner_(backend_->owning_task_runner()) {
+      backend_task_runner_(backend_task_runner
+                               ? backend_task_runner
+                               : CreateDefaultBackendTaskRunner()),
+      backend_(
+          base::MakeRefCounted<CommandStorageBackend>(backend_task_runner_,
+                                                      path,
+                                                      type,
+                                                      /*encryptor=*/nullptr)),
+      delegate_(delegate) {
   CHECK(os_crypt_async);
   if (ShouldWriteEncryptedFiles()) {
     os_crypt_async->GetInstance(base::BindOnce(
@@ -79,6 +154,12 @@ scoped_refptr<base::SequencedTaskRunner>
 CommandStorageManager::CreateDefaultBackendTaskRunner() {
   return base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
+}
+
+bool CommandStorageManager::ShouldWriteCleartextFiles() const {
+  EncryptSessionStorageStage stage = GetEncryptSessionStorageStage();
+  return stage !=
+         EncryptSessionStorageStage::kWriteEncryptedReadPreferEncrypted;
 }
 
 bool CommandStorageManager::ShouldWriteEncryptedFiles() const {
@@ -98,11 +179,14 @@ bool CommandStorageManager::ShouldWriteEncryptedFiles() const {
 void CommandStorageManager::OnEncryptorReady(
     base::TimeTicks start_time,
     scoped_refptr<os_crypt_async::Encryptor> encryptor) {
-  DCHECK(ShouldWriteEncryptedFiles());
+  CHECK(ShouldWriteEncryptedFiles());
+  CHECK(encrypted_backend_ == nullptr);
   base::UmaHistogramTimes(
       "Session.CommandStorageManager.OnEncryptorReadyDuration",
       base::TimeTicks::Now() - start_time);
-  // TODO: crbug.com/b/479420496 - Use encryptor to create encrypted backend.
+  encrypted_backend_ = base::MakeRefCounted<CommandStorageBackend>(
+      backend_task_runner_, file_path_, session_type_, std::move(encryptor),
+      /*clock=*/nullptr);
 }
 
 void CommandStorageManager::ScheduleCommand(
@@ -187,10 +271,42 @@ void CommandStorageManager::Save() {
 
   auto error_callback = base::BindOnce(
       &CommandStorageManager::OnErrorWritingToFile, weak_factory_.GetWeakPtr());
-  backend_task_runner_->PostNonNestableTask(
-      FROM_HERE, base::BindOnce(&CommandStorageBackend::AppendCommands,
-                                backend_, std::move(pending_commands_),
-                                pending_reset_, std::move(error_callback)));
+  EncryptSessionStorageStage encrypt_stage = GetEncryptSessionStorageStage();
+  switch (encrypt_stage) {
+    case EncryptSessionStorageStage::kClearOnly:
+      backend_task_runner_->PostNonNestableTask(
+          FROM_HERE, base::BindOnce(&CommandStorageBackend::AppendCommands,
+                                    backend_, std::move(pending_commands_),
+                                    pending_reset_, std::move(error_callback)));
+      break;
+    case EncryptSessionStorageStage::kWriteBothReadOnlyClear:
+    // TODO: crbug.com/479420496 - Implement these later encrypted stages.
+    // Since these stages are not implemented yet, we treat them like
+    // kWriteBothReadOnlyClear.
+    case EncryptSessionStorageStage::kWriteBothReadPreferEncrypted:
+    case EncryptSessionStorageStage::kWriteEncryptedReadPreferEncrypted: {
+      // The clear backend is the primary backend (called first, reports errors)
+      // The encrypted backend is secondary (uses a copy of the commands).
+      std::vector<std::unique_ptr<SessionCommand>> pending_commands_copy =
+          DeepCopyCommands(pending_commands_);
+      backend_task_runner_->PostNonNestableTask(
+          FROM_HERE, base::BindOnce(&CommandStorageBackend::AppendCommands,
+                                    backend_, std::move(pending_commands_),
+                                    pending_reset_, std::move(error_callback)));
+      if (encrypted_backend_) {
+        backend_task_runner_->PostNonNestableTask(
+            FROM_HERE,
+            base::BindOnce(&CommandStorageBackend::AppendCommands,
+                           encrypted_backend_, std::move(pending_commands_copy),
+                           pending_reset_, base::DoNothing()));
+      } else {
+        // This should be uncommon, but could occur if OnEncryptorReady is slow.
+        LogEncryptedBackendUninitialized(
+            SessionEncryptedBackendUninitialized::kSave);
+      }
+      break;
+    }
+  }
   if (pending_reset_) {
     commands_since_reset_ = 0;
     pending_reset_ = false;
@@ -206,22 +322,81 @@ void CommandStorageManager::MoveCurrentSessionToLastSession() {
   backend_task_runner_->PostNonNestableTask(
       FROM_HERE,
       base::BindOnce(&CommandStorageBackend::MoveCurrentSessionToLastSession,
-                     backend()));
+                     backend_.get()));
+  if (ShouldWriteEncryptedFiles()) {
+    if (!encrypted_backend_) {
+      // This should be uncommon, but could occur if OnEncryptorReady is slow.
+      LogEncryptedBackendUninitialized(SessionEncryptedBackendUninitialized::
+                                           kMoveCurrentSessionToLastSession);
+      return;
+    }
+    backend_task_runner_->PostNonNestableTask(
+        FROM_HERE,
+        base::BindOnce(&CommandStorageBackend::MoveCurrentSessionToLastSession,
+                       encrypted_backend_.get()));
+  }
 }
 
 void CommandStorageManager::DeleteLastSession() {
   backend_task_runner_->PostNonNestableTask(
-      FROM_HERE,
-      base::BindOnce(&CommandStorageBackend::DeleteLastSession, backend()));
+      FROM_HERE, base::BindOnce(&CommandStorageBackend::DeleteLastSession,
+                                backend_.get()));
+  if (ShouldWriteEncryptedFiles()) {
+    if (!encrypted_backend_) {
+      // This should be uncommon, but could occur if OnEncryptorReady is slow.
+      LogEncryptedBackendUninitialized(
+          SessionEncryptedBackendUninitialized::kDeleteLastSession);
+      return;
+    }
+    backend_task_runner_->PostNonNestableTask(
+        FROM_HERE, base::BindOnce(&CommandStorageBackend::DeleteLastSession,
+                                  encrypted_backend_.get()));
+  }
 }
 
 void CommandStorageManager::GetLastSessionCommands(
     GetCommandsCallback callback) {
-  backend_task_runner_->PostTaskAndReplyWithResult(
-      FROM_HERE,
-      base::BindOnce(&CommandStorageBackend::ReadLastSessionCommands,
-                     backend()),
-      base::BindOnce(&AdaptGetLastSessionCommands, std::move(callback)));
+  EncryptSessionStorageStage encrypt_stage = GetEncryptSessionStorageStage();
+  switch (encrypt_stage) {
+    case EncryptSessionStorageStage::kClearOnly:
+      backend_task_runner_->PostTaskAndReplyWithResult(
+          FROM_HERE,
+          base::BindOnce(&CommandStorageBackend::ReadLastSessionCommands,
+                         backend_.get()),
+          base::BindOnce(&OnBackendReadFinished, /*saved_result=*/nullptr,
+                         std::move(callback)));
+      break;
+    case EncryptSessionStorageStage::kWriteBothReadOnlyClear:
+    // TODO: crbug.com/479420496 - Implement these later encrypted stages.
+    // Since these stages are not implemented yet, we treat them like
+    // kWriteBothReadOnlyClear.
+    case EncryptSessionStorageStage::kWriteBothReadPreferEncrypted:
+    case EncryptSessionStorageStage::kWriteEncryptedReadPreferEncrypted: {
+      // Read the cleartext backend first and save the result so that we can
+      // compare it to the result of the read from the encrypted backend.
+      auto saved_cleartext_result = base::MakeRefCounted<
+          base::RefCountedData<CommandStorageBackend::ReadCommandsResult>>();
+      backend_task_runner_->PostTaskAndReplyWithResult(
+          FROM_HERE,
+          base::BindOnce(&CommandStorageBackend::ReadLastSessionCommands,
+                         backend_.get()),
+          base::BindOnce(&OnBackendReadFinished, saved_cleartext_result,
+                         std::move(callback)));
+      if (encrypted_backend_) {
+        backend_task_runner_->PostTaskAndReplyWithResult(
+            FROM_HERE,
+            base::BindOnce(&CommandStorageBackend::ReadLastSessionCommands,
+                           encrypted_backend_.get()),
+            base::BindOnce(&OnEncryptedBackendReadFinished,
+                           saved_cleartext_result));
+      } else {
+        // This should be uncommon, but could occur if OnEncryptorReady is slow.
+        LogEncryptedBackendUninitialized(
+            SessionEncryptedBackendUninitialized::kGetLastSessionCommands);
+      }
+      break;
+    }
+  }
 }
 
 #if DCHECK_IS_ON()

@@ -36,8 +36,7 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
         bool is_success,
         bool should_display_wallet_logo,
         std::u16string title_text,
-        std::u16string description_text,
-        std::u16string failure_ok_button_accessible_name = std::u16string())
+        std::u16string description_text)
     : is_success(is_success),
       should_display_wallet_logo(should_display_wallet_logo),
       title_text(std::move(title_text)),
@@ -47,10 +46,6 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
               ? std::u16string()
               : l10n_util::GetStringUTF16(
                     IDS_AUTOFILL_SAVE_CARD_AND_VIRTUAL_CARD_ENROLL_CONFIRMATION_BUTTON_TEXT)) {
-  if (!is_success) {
-    this->failure_ok_button_accessible_name =
-        std::move(failure_ok_button_accessible_name);
-  }
 }
 
 // static
@@ -107,10 +102,7 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
       l10n_util::GetStringUTF16(
           base::FeatureList::IsEnabled(features::kAutofillEnableWalletBranding)
               ? IDS_AUTOFILL_SAVE_CARD_TO_WALLET_CONFIRMATION_FAILURE_DESCRIPTION_TEXT
-              : IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_FAILURE_DESCRIPTION_TEXT),
-      /*failure_ok_button_accessible_name=*/
-      l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_FAILURE_OK_BUTTON_ACCESSIBLE_NAME));
+              : IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_FAILURE_DESCRIPTION_TEXT));
 }
 
 // static
@@ -126,10 +118,7 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
       /*description_text=*/
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_VIRTUAL_CARD_ENROLL_CONFIRMATION_FAILURE_DESCRIPTION_TEXT,
-          card_label),
-      /*failure_ok_button_accessible_name=*/
-      l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_VIRTUAL_CARD_ENROLL_CONFIRMATION_FAILURE_OK_BUTTON_ACCESSIBLE_NAME));
+          card_label));
 }
 
 // static
@@ -170,10 +159,7 @@ SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams::
                 base::FeatureList::IsEnabled(
                     features::kAutofillEnableWalletBranding)
                     ? IDS_AUTOFILL_SAVE_IBAN_TO_WALLET_CONFIRMATION_FAILURE_DESCRIPTION_TEXT
-                    : IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_FAILURE_DESCRIPTION_TEXT),
-      /*failure_ok_button_accessible_name=*/
-      l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_FAILURE_OK_BUTTON_ACCESSIBLE_NAME));
+                    : IDS_AUTOFILL_SAVE_IBAN_CONFIRMATION_FAILURE_DESCRIPTION_TEXT));
 }
 
 }  // namespace autofill

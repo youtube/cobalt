@@ -6,6 +6,7 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -609,10 +610,7 @@ std::vector<uint8_t> MSIBinary::ReadStream(const std::string& name,
       // Ran out of sectors in copying stream.
       return {};
     }
-    uint64_t n = size;
-    if (n > sector_size) {
-      n = sector_size;
-    }
+    const uint64_t n = std::min(size, sector_size);
     const uint64_t offset = sector_size * sector;
     stream.insert(stream.end(), contents->begin() + offset,
                   contents->begin() + offset + n);

@@ -6614,6 +6614,36 @@ class DeclarativeNetRequestGlobalRulesBrowserTest
 using DeclarativeNetRequestGlobalRulesBrowserTest_Packed =
     DeclarativeNetRequestGlobalRulesBrowserTest;
 
+// Test that session-scoped rules do not count towards the extension's static
+// rule budget.
+IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestGlobalRulesBrowserTest_Packed,
+                       SessionRulesDoNotConsumeStaticBudget) {
+  // Load the extension with a background page so we can call APIs.
+  set_config_flags(ConfigFlag::kConfig_HasBackgroundScript);
+
+  std::vector<TestRulesetInfo> rulesets;
+  // Start with an extension that has 2 rules in a static ruleset.
+  rulesets.emplace_back(
+      "ruleset_1", ToListValue({CreateGenericRule(1), CreateGenericRule(2)}));
+
+  ASSERT_NO_FATAL_FAILURE(
+      LoadExtensionWithRulesets(rulesets, "test_extension", /*hosts=*/{}));
+
+  // The static rule limit for this test is 3 (1 guaranteed minimum + 2 global).
+  // We have enabled 2 static rules.
+  // So available static rules should be 3 - 2 = 1.
+  EXPECT_EQ("1", GetAvailableStaticRuleCount(last_loaded_extension_id()));
+
+  // Now add 2 session rules.
+  ASSERT_NO_FATAL_FAILURE(UpdateSessionRules(
+      last_loaded_extension_id(), /*rule_ids_to_remove=*/{},
+      /*rules_to_add=*/{CreateGenericRule(3), CreateGenericRule(4)}));
+
+  // The available static rule count should NOT change because session rules
+  // should not consume the static budget.
+  EXPECT_EQ("1", GetAvailableStaticRuleCount(last_loaded_extension_id()));
+}
+
 // Test that extensions with allocated global rules keep their allocations after
 // the browser restarts.
 IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestGlobalRulesBrowserTest_Packed,

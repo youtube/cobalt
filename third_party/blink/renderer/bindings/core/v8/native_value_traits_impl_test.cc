@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest-death-test.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -397,8 +398,10 @@ TEST(NativeValueTraitsImplTest, IDLBigint) {
 template <typename Arr>
 v8::Local<Arr> MakeArray(v8::Isolate* isolate, size_t size) {
   auto arr = Arr::New(isolate, size);
-  v8::MemorySpan<uint8_t> span(static_cast<uint8_t*>(arr->Data()),
-                               arr->ByteLength());
+  // SAFETY: `v8::[Shared]ArrayBuffer::New` ensures that using `arr->Data()`
+  // and `arr->ByteLength()` below is safe.
+  auto span = UNSAFE_BUFFERS(base::span<uint8_t>(
+      static_cast<uint8_t*>(arr->Data()), arr->ByteLength()));
   std::iota(span.begin(), span.end(), 0);
   return arr;
 }

@@ -132,8 +132,8 @@ void NigoriDataTypeProcessor::OnUpdateReceived(
     return;
   }
 
-  // TODO(crbug.com/40860698): validate incoming updates, e.g. `gc_directive`
-  // must be empty for Nigori.
+  // TODO(crbug.com/40860698): validate incoming updates, e.g.
+  // `gc_directive.version_watermark` must be empty for Nigori.
   std::optional<ModelError> error;
 
   const bool is_initial_sync =
@@ -158,6 +158,18 @@ void NigoriDataTypeProcessor::OnUpdateReceived(
       ReportError(*error);
     }
     return;
+  }
+
+  if (gc_directive && gc_directive->clear_metadata()) {
+    if (updates.empty()) {
+      ReportError({FROM_HERE,
+                   ModelError::Type::kNigoriEmptyEntityDataDuringInitialSync});
+      return;
+    }
+    if (entity_) {
+      entity_->OverrideServerMetadata(updates[0].entity.id,
+                                      updates[0].response_version - 1);
+    }
   }
 
   if (updates.empty()) {

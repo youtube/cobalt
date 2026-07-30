@@ -54,22 +54,22 @@ using FetchPiiEntitiesResponseCallback = base::OnceCallback<void(
 class PersonalContextFetcher {
  public:
   PersonalContextFetcher(
+      proto::ContextMemoryFeature feature,
       signin::IdentityManager* identity_manager,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      GURL memory_service_url);
   PersonalContextFetcher(const PersonalContextFetcher&) = delete;
   PersonalContextFetcher& operator=(const PersonalContextFetcher&) = delete;
   ~PersonalContextFetcher();
 
   // Starts the HTTP fetch and invokes the callback with the response.
-  void FetchContext(proto::ContextMemoryFeature feature,
-                    const google::protobuf::MessageLite& request_metadata,
+  void FetchContext(const google::protobuf::MessageLite& request_metadata,
                     std::optional<base::TimeDelta> timeout,
                     FetchContextResponseCallback callback);
 
   // Starts the HTTP fetch for PII entities and invokes the callback with the
   // response.
-  void FetchPiiEntities(proto::ContextMemoryFeature feature,
-                        const proto::FetchPiiEntitiesRequest& request,
+  void FetchPiiEntities(const proto::FetchPiiEntitiesRequest& request,
                         std::optional<base::TimeDelta> timeout,
                         FetchPiiEntitiesResponseCallback callback);
 
@@ -84,15 +84,13 @@ class PersonalContextFetcher {
 
   // Generic helper to launch an HTTP fetch request.
   template <typename RequestProto, typename CallbackType>
-  void Fetch(proto::ContextMemoryFeature feature,
-             const RequestProto& request,
+  void Fetch(const RequestProto& request,
              std::string_view rpc_method,
              std::optional<base::TimeDelta> timeout,
              CallbackType callback);
 
   // Invoked when the access token is received, to continue with the request.
-  void OnAccessTokenReceived(proto::ContextMemoryFeature feature,
-                             GURL endpoint_url,
+  void OnAccessTokenReceived(GURL endpoint_url,
                              std::string serialized_request,
                              std::optional<base::TimeDelta> timeout,
                              std::string_view access_token);
@@ -112,6 +110,12 @@ class PersonalContextFetcher {
 
   raw_ptr<signin::IdentityManager> identity_manager_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+
+  // Holds the memory service url.
+  const GURL memory_service_url_;
+
+  // The feature associated with the request.
+  const proto::ContextMemoryFeature feature_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

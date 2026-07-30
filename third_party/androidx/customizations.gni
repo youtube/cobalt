@@ -73,11 +73,23 @@ template("_androidx_prebuilt") {
       deps += [ "//third_party/androidx/local_modifications/graphics_core:graphics_core_java" ]
     } else if (target_name == "androidx_ink_ink_nativeloader_android_java") {
       ignore_native_libraries = true
-      bytecode_rewriter_target =
-          "//build/android/bytecode:system_load_library_remover"
+
+      # Avoid dep onto //third_party/ink for non-chrome checkouts.
+      if (build_with_chromium) {
+        bytecode_rewriter_target =
+            "//build/android/bytecode:system_load_library_remover"
+        bytecode_rewriter_args = [ "org.chromium.androidx.InkJniLoader" ]
+        deps += [ "//third_party/androidx/local_modifications/ink:ink_java" ]
+        if (defined(visibility)) {
+          visibility += [ "//third_party/ink:*" ]
+        }
+      }
     } else if (filter_include([ target_name ], [ "androidx_ink_*" ]) != []) {
       if (invoker.target_type == "android_aar_prebuilt") {
         ignore_native_libraries = true
+      }
+      if (defined(visibility) && build_with_chromium) {
+        visibility += [ "//third_party/ink:*" ]
       }
     } else if (target_name == "androidx_graphics_graphics_path_java") {
       ignore_native_libraries = true

@@ -3,12 +3,16 @@
 // found in the LICENSE file.
 
 #include "components/autofill/core/browser/proto/password_requirements.pb.h"
+#include "components/autofill/core/browser/proto/password_requirements_fuzzable.pb.h"
 #include "components/password_manager/core/browser/generation/password_generator.h"
 #include "testing/libfuzzer/proto/lpm_interface.h"
 
 namespace autofill {
 
-DEFINE_PROTO_FUZZER(const PasswordRequirementsSpec& spec) {
+DEFINE_PROTO_FUZZER(
+    const fuzzable::autofill::PasswordRequirementsSpec& fuzzable_spec) {
+  PasswordRequirementsSpec spec;
+  spec.ParseFromString(fuzzable_spec.SerializeAsString());
   GeneratePassword(spec);
 }
 

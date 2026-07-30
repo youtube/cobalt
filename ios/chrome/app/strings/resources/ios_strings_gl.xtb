@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">AAAA</translation>
 <translation id="1013952917065545813">Podes volver aquí para abrir de novo as pestanas que pechaches recentemente</translation>
 <translation id="1016495303386450659">Actualizouse o elemento</translation>
+<translation id="1018804590490383958">Escanear e autocompletar</translation>
 <translation id="1019990162050689579">Actividade na aplicación Gemini</translation>
 <translation id="102916930470544692">Clave de acceso</translation>
 <translation id="1030376737535466765">Abrir xestor de contrasinais</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Actualizar o navegador</translation>
 <translation id="4021931095789478915">Engadir ${url} á lista de lectura</translation>
 <translation id="4028871427853484857">Gardar na conta…</translation>
+<translation id="4036529942385659684">Mostrar páxina de inicio despois dun período de inactividade</translation>
 <translation id="4038354071007134711">Ningunha aplicación do dispositivo pode abrir o ficheiro.</translation>
 <translation id="4042870976416480368">Buscar na páxina</translation>
 <translation id="4045441967987592849">Volver abrir</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Xestionar o grupo</translation>
 <translation id="4172051516777682613">Mostrar sempre</translation>
 <translation id="417273154673973994">{count,plural, =1{Pechouse e gardouse 1 grupo de pestanas}other{Pecháronse e gardáronse {count} grupos de pestanas}}</translation>
-<translation id="417612446554534067">Enviar aos teus dispositivos</translation>
 <translation id="4180726336228139707">Só neste dispositivo</translation>
 <translation id="4181841719683918333">Idiomas</translation>
 <translation id="4183350924949589798">Queres aumentar a seguranza?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Pecháronse as pestanas e mais a túa sesión</translation>
 <translation id="4911042367886397055">Dámosche a benvida de novo, <ph name="USER_NAME" /></translation>
 <translation id="4913626501929406101">Podes compartir de maneira segura unha copia do teu contrasinal con calquera persoa do teu grupo familiar. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Obxectivo</translation>
 <translation id="4917025507570489430">Poderás usar os datos de navegación actuais cando teñas a sesión iniciada como <ph name="USER_EMAIL" />. É posible que a túa organización poida ver estes datos.</translation>
 <translation id="4918086044614829423">Aceptar</translation>
 <translation id="4930714375720679147">Activar</translation>
@@ -1549,6 +1551,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Escolle a posición da túa barra de enderezos</translation>
 <translation id="6307241780749477694">Verifica a túa identidade para ter todos os teus contrasinais neste dispositivo</translation>
+<translation id="6307792728709337290">Garda a túa tarxeta na túa Conta de Google para que se autocomplete a información cando fagas esta compra e outras futuras en Chrome.</translation>
 <translation id="6316141353357700666">Escolle o contrasinal que queiras usar na lista que se mostre.</translation>
 <translation id="6321526113093607004">Engadir aos marcadores</translation>
 <translation id="6327249202318869726">Non podes acceder a Gemini coa túa conta. Fala con quen a administra se necesitas máis información.</translation>
@@ -2143,6 +2146,7 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="8263809106706527890">Pode que haxa algún cambio na configuración do teu navegador predeterminado. Compróbao na configuración.</translation>
 <translation id="8264966119170358612">Algúns dos teus contrasinais gardados quedaron expostos nunha violación da seguranza dos datos allea a Google. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Para poder restablecer o iPad, pechouse a sesión da túa conta (<ph name="USER_NAME" />). Se queres volver iniciar a sesión, toca Continuar máis abaixo.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Completarás a información en <ph name="URL" /></translation>
 <translation id="8275068909952022340">Máis…</translation>
 <translation id="8281781826761538115">Idioma predeterminado: <ph name="DEFAULT_LOCALE" /></translation>

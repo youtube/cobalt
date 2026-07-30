@@ -161,7 +161,7 @@ class DragSession {
 // allows to get information from different sources.
 export class PowerBookmarksDragManager {
   private delegate_: PowerBookmarksDragDelegate;
-  private dragSession_: DragSession|null;
+  private dragSession_: DragSession|null = null;
   private eventTracker_: EventTracker = new EventTracker();
 
   constructor(delegate: PowerBookmarksDragDelegate) {

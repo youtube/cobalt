@@ -15,87 +15,148 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.Dismissa
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarController;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.List;
 
 /** A data structure that holds all the {@link Snackbar}s managed by {@link SnackbarManager}. */
 @NullMarked
 class SnackbarCollection {
+    // Standard FIFO queue for normal notifications (e.g., "Copied to clipboard").
     private final Deque<Snackbar> mSnackbars = new ArrayDeque<>();
+    // Queue for persistent notifications (e.g., "Offline mode").
     private final Deque<Snackbar> mPersistentSnackbars = new ArrayDeque<>();
+    // Holds a single High Priority security warning (e.g., Fullscreen).
+    // This isolates HP snackbars from the standard queues, allowing O(1) interruption.
+    private @Nullable Snackbar mActiveHighPriority;
 
-    /**
-     * Adds a new snackbar to the collection. If the new snackbar is of
-     * {@link Snackbar#TYPE_ACTION} and current snackbar is of
-     * {@link Snackbar#TYPE_NOTIFICATION}, the current snackbar will be removed from the
-     * collection immediately. Snackbars of {@link Snackbar#TYPE_PERSISTENT} will appear after all
-     * action and notification type snackbars are dismissed and will be hidden if an action or
-     * notifications are added after it.
-     */
+    private static final int MAX_SNACKBARS = 10;
+
     void add(Snackbar snackbar) {
-        if (snackbar.isTypeAction()) {
+        RecordHistogram.recordExactLinearHistogram(
+                "Snackbar.QueueDepthAtInsertion",
+                mSnackbars.size()
+                        + mPersistentSnackbars.size()
+                        + (mActiveHighPriority != null ? 1 : 0),
+                MAX_SNACKBARS + 1);
+
+        if (snackbar.isHighPriority()) {
+            // High Priority (HP) Security Warnings bypass the regular queues entirely.
+            if (mActiveHighPriority != null) {
+                // State Deduplication: Rapid oscillation attacks (e.g., spamming requestFullscreen)
+                // are collapsed here. If it's the exact same warning, we ignore the duplicate.
+                if (mActiveHighPriority.getController() == snackbar.getController()
+                        && objectsAreEqual(
+                                mActiveHighPriority.getActionData(), snackbar.getActionData())) {
+                    return; // Deduplication: already have this HP snackbar.
+                }
+                // LIFO Immediate Interruption: The new HP warning instantly overwrites the old one.
+                RecordHistogram.recordEnumeratedHistogram(
+                        "Snackbar.DismissalReason",
+                        DismissalReason.REPLACED_BY_HIGH_PRIORITY,
+                        DismissalReason.NUM_ENTRIES);
+                assert mActiveHighPriority.getController() != null;
+                if (mActiveHighPriority.getController() != null) {
+                    mActiveHighPriority
+                            .getController()
+                            .onDismissNoAction(mActiveHighPriority.getActionData());
+                }
+            }
+            // Assign to the VIP slot. getCurrent() will now prioritize this above all else.
+            mActiveHighPriority = snackbar;
+            return;
+        }
+
+        if (snackbar.isTypePersistent()) {
+            assert !TextUtils.isEmpty(snackbar.getActionText())
+                    : "Persistent snackbars require action text.";
+            mPersistentSnackbars.addFirst(snackbar);
+        } else if (snackbar.isTypeAction()) {
             if (getCurrent() != null && !getCurrent().isTypeAction()) {
                 removeCurrent(DismissalReason.REPLACED_BY_ACTION_SNACKBAR);
             }
             mSnackbars.addFirst(snackbar);
-        } else if (snackbar.isTypePersistent()) {
-            // Although persistent snackbars set their action text by default, it is possible that
-            // the developer overrides it. This is a safeguard to ensure all persistent snackbars
-            // have a method of dismissal.
-            assert !TextUtils.isEmpty(snackbar.getActionText())
-                    : "Persistent snackbars require action text.";
-            mPersistentSnackbars.addFirst(snackbar);
         } else {
             mSnackbars.addLast(snackbar);
         }
+
+        // Enforce a hard capacity limit to prevent queue exhaustion.
+        // Drop the oldest unseen standard notifications from the front of the queue.
+        while (mSnackbars.size() > MAX_SNACKBARS) {
+            removeOldestUnseenSnackbar(mSnackbars);
+        }
+        while (mPersistentSnackbars.size() > MAX_SNACKBARS) {
+            removeOldestUnseenSnackbar(mPersistentSnackbars);
+        }
     }
 
-    /**
-     * Removes the current snackbar from the collection after the user has clicked on the action
-     * button.
-     */
-    Snackbar removeCurrentDueToAction() {
+    private void removeOldestUnseenSnackbar(Deque<Snackbar> list) {
+        Iterator<Snackbar> iter = list.iterator();
+        if (iter.hasNext() && list.peekFirst() == getCurrent()) {
+            iter.next(); // Skip the currently showing one
+        }
+        if (!iter.hasNext()) return;
+        Snackbar toRemove = iter.next();
+        iter.remove();
+        RecordHistogram.recordEnumeratedHistogram(
+                "Snackbar.DismissalReason", DismissalReason.OTHERS, DismissalReason.NUM_ENTRIES);
+        SnackbarController controller = toRemove.getController();
+        if (controller != null) {
+            controller.onDismissNoAction(toRemove.getActionData());
+        }
+    }
+
+    boolean contains(Snackbar snackbar) {
+        return snackbar == mActiveHighPriority
+                || mSnackbars.contains(snackbar)
+                || mPersistentSnackbars.contains(snackbar);
+    }
+
+    @Nullable Snackbar getCurrent() {
+        if (mActiveHighPriority != null) return mActiveHighPriority;
+        Snackbar actionCurrent = mSnackbars.peekFirst();
+        Snackbar persistentCurrent = mPersistentSnackbars.peekFirst();
+        return actionCurrent != null ? actionCurrent : persistentCurrent;
+    }
+
+    @Nullable Snackbar removeCurrentDueToAction() {
         return removeCurrent(DismissalReason.ACTION_BUTTON);
     }
 
-    /** Removes the current snackbar from the collection after the user has swiped it away. */
     @Nullable Snackbar removeCurrentDueToSwipe() {
         return removeCurrent(DismissalReason.SWIPE);
     }
 
-    private Snackbar removeCurrent(@DismissalReason int reason) {
-        Snackbar current = mSnackbars.pollFirst();
-        if (current == null) {
-            current = mPersistentSnackbars.pollFirst();
-        }
-        if (current != null) {
-            RecordHistogram.recordEnumeratedHistogram(
-                    "Snackbar.DismissalReason", reason, DismissalReason.NUM_ENTRIES);
-            SnackbarController controller = current.getController();
-            if (controller != null) {
-                if (reason == DismissalReason.ACTION_BUTTON) {
-                    controller.onAction(current.getActionData());
-                } else {
-                    controller.onDismissNoAction(current.getActionData());
-                }
-            }
-        }
-        return current;
-    }
+    private @Nullable Snackbar removeCurrent(@DismissalReason int reason) {
+        Snackbar current = getCurrent();
+        if (current == null) return null;
 
-    /**
-     * @return The snackbar that is currently displayed.
-     */
-    Snackbar getCurrent() {
-        Snackbar current = mSnackbars.peekFirst();
-        if (current == null) {
-            current = mPersistentSnackbars.peekFirst();
+        if (current == mActiveHighPriority) {
+            mActiveHighPriority = null;
+        } else if (!mSnackbars.isEmpty() && mSnackbars.peekFirst() == current) {
+            mSnackbars.pollFirst();
+        } else {
+            mPersistentSnackbars.pollFirst();
+        }
+
+        RecordHistogram.recordEnumeratedHistogram(
+                "Snackbar.DismissalReason", reason, DismissalReason.NUM_ENTRIES);
+        SnackbarController controller = current.getController();
+        if (controller != null) {
+            if (reason == DismissalReason.ACTION_BUTTON) {
+                controller.onAction(current.getActionData());
+            } else {
+                controller.onDismissNoAction(current.getActionData());
+            }
         }
         return current;
     }
 
     boolean isEmpty() {
-        return mSnackbars.isEmpty() && mPersistentSnackbars.isEmpty();
+        return mActiveHighPriority == null
+                && mSnackbars.isEmpty()
+                && mPersistentSnackbars.isEmpty();
     }
 
     void clear() {
@@ -107,54 +168,75 @@ class SnackbarCollection {
     void removeCurrentDueToTimeout() {
         Snackbar current = getCurrent();
         if (current == null || current.isTypePersistent()) {
-            // In theory, this method should never be called on a persistent snackbar as the
-            // dismissal handler is disabled. As a precaution, we exit early if the snackbar is
-            // meant to be persistent.
             return;
         }
         removeCurrent(DismissalReason.TIMEOUT);
-        // Security-sensitive snackbars (High Priority) are shielded from the timeout-induced
-        // purge of action-type snackbars to ensure they are not accidentally suppressed.
-        while ((current = getCurrent()) != null
-                && current.isTypeAction()
-                && !current.isHighPriority()) {
-            removeCurrent(DismissalReason.TIMEOUT);
-        }
     }
 
     boolean removeMatchingSnackbars(SnackbarController controller) {
-        return removeSnackbarFromList(mSnackbars, controller, DismissalReason.DISMISSED_BY_CALLER)
-                || removeSnackbarFromList(
+        boolean removed = false;
+        if (mActiveHighPriority != null && mActiveHighPriority.getController() == controller) {
+            Snackbar removedHp = mActiveHighPriority;
+            mActiveHighPriority = null;
+            RecordHistogram.recordEnumeratedHistogram(
+                    "Snackbar.DismissalReason",
+                    DismissalReason.DISMISSED_BY_CALLER,
+                    DismissalReason.NUM_ENTRIES);
+            controller.onDismissNoAction(removedHp.getActionData());
+            removed = true;
+        }
+        removed |=
+                removeSnackbarFromList(mSnackbars, controller, DismissalReason.DISMISSED_BY_CALLER);
+        removed |=
+                removeSnackbarFromList(
                         mPersistentSnackbars, controller, DismissalReason.DISMISSED_BY_CALLER);
+        return removed;
     }
 
     private static boolean removeSnackbarFromList(
             Deque<Snackbar> list, SnackbarController controller, @DismissalReason int reason) {
         if (controller == null) return false;
-        boolean snackbarRemoved = false;
+        List<Snackbar> removedSnackbars = new ArrayList<>();
         Iterator<Snackbar> iter = list.iterator();
         while (iter.hasNext()) {
             Snackbar snackbar = iter.next();
-
-            if (snackbar.getController() != controller) continue;
-
-            iter.remove();
+            if (snackbar.getController() == controller) {
+                iter.remove();
+                removedSnackbars.add(snackbar);
+            }
+        }
+        for (Snackbar snackbar : removedSnackbars) {
             RecordHistogram.recordEnumeratedHistogram(
                     "Snackbar.DismissalReason", reason, DismissalReason.NUM_ENTRIES);
             controller.onDismissNoAction(snackbar.getActionData());
-            snackbarRemoved = true;
         }
-        return snackbarRemoved;
+        return !removedSnackbars.isEmpty();
     }
 
     boolean removeMatchingSnackbars(SnackbarController controller, Object data) {
-        return removeSnackbarFromList(
-                        mSnackbars, controller, data, DismissalReason.DISMISSED_BY_CALLER)
-                || removeSnackbarFromList(
+        boolean removed = false;
+        if (mActiveHighPriority != null
+                && mActiveHighPriority.getController() == controller
+                && objectsAreEqual(mActiveHighPriority.getActionData(), data)) {
+            Snackbar removedHp = mActiveHighPriority;
+            mActiveHighPriority = null;
+            RecordHistogram.recordEnumeratedHistogram(
+                    "Snackbar.DismissalReason",
+                    DismissalReason.DISMISSED_BY_CALLER,
+                    DismissalReason.NUM_ENTRIES);
+            controller.onDismissNoAction(assumeNonNull(removedHp.getActionData()));
+            removed = true;
+        }
+        removed |=
+                removeSnackbarFromList(
+                        mSnackbars, controller, data, DismissalReason.DISMISSED_BY_CALLER);
+        removed |=
+                removeSnackbarFromList(
                         mPersistentSnackbars,
                         controller,
                         data,
                         DismissalReason.DISMISSED_BY_CALLER);
+        return removed;
     }
 
     private static boolean removeSnackbarFromList(
@@ -163,21 +245,22 @@ class SnackbarCollection {
             Object data,
             @DismissalReason int reason) {
         if (controller == null) return false;
-        boolean snackbarRemoved = false;
+        List<Snackbar> removedSnackbars = new ArrayList<>();
         Iterator<Snackbar> iter = list.iterator();
         while (iter.hasNext()) {
             Snackbar snackbar = iter.next();
-
-            if (snackbar.getController() != controller) continue;
-            if (!objectsAreEqual(snackbar.getActionData(), data)) continue;
-
-            iter.remove();
+            if (snackbar.getController() == controller
+                    && objectsAreEqual(snackbar.getActionData(), data)) {
+                iter.remove();
+                removedSnackbars.add(snackbar);
+            }
+        }
+        for (Snackbar snackbar : removedSnackbars) {
             RecordHistogram.recordEnumeratedHistogram(
                     "Snackbar.DismissalReason", reason, DismissalReason.NUM_ENTRIES);
             controller.onDismissNoAction(assumeNonNull(snackbar.getActionData()));
-            snackbarRemoved = true;
         }
-        return snackbarRemoved;
+        return !removedSnackbars.isEmpty();
     }
 
     private static boolean objectsAreEqual(@Nullable Object a, @Nullable Object b) {

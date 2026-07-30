@@ -5522,3 +5522,42 @@ TEST_F(ReadAnythingAppControllerReadabilitySelectTextTest,
   // requires_post_process_selection to false.
   EXPECT_FALSE(model().requires_post_process_selection());
 }
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnIsSpeechActiveChanged_LogsPlaybackContext) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kImmersiveReadAnything);
+  base::HistogramTester histograms;
+  const char* histogram_name =
+      "Accessibility.ReadAnything.ReadAloud.PlaybackContext";
+
+  // Test Side Panel
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+  controller().OnIsSpeechActiveChanged(true);
+  histograms.ExpectUniqueSample(
+      histogram_name,
+      ReadAloudAppModel::ReadAnythingPlaybackContext::kSidePanel, 1);
+  controller().OnIsSpeechActiveChanged(false);
+
+  // Test Immersive
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+  controller().OnIsSpeechActiveChanged(true);
+  histograms.ExpectBucketCount(
+      histogram_name,
+      ReadAloudAppModel::ReadAnythingPlaybackContext::kImmersive, 1);
+  histograms.ExpectTotalCount(histogram_name, 2);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnIsSpeechActiveChanged_NoLogWhenFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(features::kImmersiveReadAnything);
+  base::HistogramTester histograms;
+  const char* histogram_name =
+      "Accessibility.ReadAnything.ReadAloud.PlaybackContext";
+
+  controller().OnIsSpeechActiveChanged(true);
+  histograms.ExpectTotalCount(histogram_name, 0);
+}

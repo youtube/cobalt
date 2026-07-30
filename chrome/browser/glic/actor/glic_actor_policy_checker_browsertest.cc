@@ -41,6 +41,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/actor/core/actor_features.h"
 #include "components/actor/core/actor_util.h"
+#include "components/actor/core/origin_gating_cache.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/features.h"
@@ -146,7 +147,7 @@ class GlicActorPolicyCheckerBrowserTestBase : public NonInteractiveGlicTest {
     AccountInfo account_info = identity_test_env_->MakePrimaryAccountAvailable(
         std::string(account->email), signin::ConsentLevel::kSignin);
 
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     mutator.set_is_subject_to_enterprise_features(
         !account->host_domain.empty());
@@ -278,7 +279,7 @@ class GlicActorPolicyCheckerBrowserTestNonManagedBrowser
     AccountInfo account_info =
         identity_manager_->FindExtendedAccountInfoByAccountId(
             core_account_info.account_id);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     identity_test_env_->UpdateAccountInfoForAccount(account_info);
   }
@@ -468,7 +469,8 @@ class GlicActorPolicyCheckerBrowserTestManagedBrowser
 
     base::test::TestFuture<actor::MayActOnUrlBlockReason> allowed;
     MayActOnUrl(url_to_check, /*allow_insecure_http=*/true, GetProfile(),
-                actor_service->GetJournal(), TaskId(123), policy_checker,
+                actor_service->GetJournal(), TaskId(123),
+                actor::OriginGatingCache(), policy_checker,
                 allowed.GetCallback());
     EXPECT_EQ(expected_result.may_act_on_url_block_reason, allowed.Get());
   }
@@ -978,7 +980,7 @@ IN_PROC_BROWSER_TEST_P(GlicActorPolicyCheckerBrowserTestWithManagedAccount,
       identity_manager_->FindExtendedAccountInfoByAccountId(
           core_account_info.account_id);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(false);
   identity_test_env_->UpdateAccountInfoForAccount(account_info);
   EXPECT_FALSE(GetPolicyChecker().CanActOnWeb());
@@ -996,7 +998,7 @@ IN_PROC_BROWSER_TEST_P(GlicActorPolicyCheckerBrowserTestWithManagedAccount,
       identity_manager_->FindExtendedAccountInfoByAccountId(
           core_account_info.account_id);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(true);
   identity_test_env_->UpdateAccountInfoForAccount(account_info);
   EXPECT_TRUE(GetPolicyChecker().CanActOnWeb());

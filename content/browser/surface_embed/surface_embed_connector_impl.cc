@@ -200,8 +200,6 @@ void SurfaceEmbedConnectorImpl::OnSynchronizeVisualProperties(
   // changed, then the viz::LocalSurfaceId must also change.
   if ((last_received_local_frame_size_ != visual_properties.local_frame_size ||
        screen_infos_.current() != visual_properties.screen_infos.current() ||
-       GetCaptureSequenceNumber() !=
-           visual_properties.capture_sequence_number ||
        last_received_zoom_level_ != visual_properties.zoom_level ||
        last_received_css_zoom_factor_ != visual_properties.css_zoom_factor) &&
       local_surface_id_ == visual_properties.local_surface_id) {
@@ -357,7 +355,7 @@ void SurfaceEmbedConnectorImpl::SetView(RenderWidgetHostViewChildFrame* view,
     frame_sink_id_ = view_->GetFrameSinkId();
 
     if (delegate_) {
-      delegate_->SetFrameSinkId(frame_sink_id_);
+      delegate_->SetFrameSinkId(frame_sink_id_, allow_paint_holding);
     }
 
     MaybeRefreshKeepSurfaceAlive();
@@ -420,8 +418,6 @@ void SurfaceEmbedConnectorImpl::SynchronizeVisualProperties(
   bool local_surface_id_changed =
       (local_surface_id_ != visual_properties.local_surface_id);
   local_surface_id_ = visual_properties.local_surface_id;
-  capture_sequence_number_ = visual_properties.capture_sequence_number;
-
   SetRectInParentView(visual_properties.rect_in_local_root);
   SetLocalFrameSize(visual_properties.local_frame_size);
 
@@ -497,9 +493,6 @@ SurfaceEmbedConnectorImpl::GetIntersectionState() {
   return intersection_state_;
 }
 
-uint32_t SurfaceEmbedConnectorImpl::GetCaptureSequenceNumber() {
-  return capture_sequence_number_;
-}
 
 const gfx::Rect& SurfaceEmbedConnectorImpl::GetRectInParentViewInDip() {
   return rect_in_parent_view_in_dip_;

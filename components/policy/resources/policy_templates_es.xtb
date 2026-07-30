@@ -476,7 +476,6 @@ Si se inhabilita la política o se deja sin definir, la configuración de restau
       Si se habilita esta política, se activarán las combinaciones de teclas internacionales mejoradas.
       Si no se le asigna ningún valor, esta política estará habilitada en dispositivos gestionados y en dispositivos propiedad de consumidores.
       Ten en cuenta que esta política es temporal y su objetivo es permitir que los usuarios gestionados puedan usar combinaciones de teclas antiguas y obsoletas. Esta política quedará obsoleta cuando estén disponibles las combinaciones de teclas personalizadas.</translation>
-<translation id="1359459742455216057">Identificador único de la aplicación <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />.</translation>
 <translation id="1361661842732478894">Mostrar el botón de inicio en la barra de herramientas</translation>
 <translation id="1363275621236827384">Habilitar consultas a Quirks Server para los perfiles de hardware</translation>
 <translation id="1363839375295535439">Si se habilita esta política o no se define, se habilitará el entorno aislado de LPAC para los servicios de impresión siempre que la configuración del sistema lo admita.
@@ -7272,9 +7271,6 @@ Si no se define o si no se puede determinar la antigüedad de lanzamiento, se us
 <translation id="5649788773465136073">No permite que los sitios usen identificadores de contenido protegido, lo que puede provocar una menor calidad de reproducción de contenido protegido.</translation>
 <translation id="5650256117857913687">Inhabilitar que los usuarios con acceso remoto abran URLs del host en su navegador de cliente local</translation>
 <translation id="5650716720715977549">Aplicar restricciones a las solicitudes a puntos finales más privados de la red</translation>
-<translation id="5651538748810288218">Si se le asigna el valor 1 a esta política, los sitios web podrán usar y acceder a los sensores, como los de luz o movimiento. Si se le asigna el valor 2 a esta política, se denegará el acceso a los sensores.
-
-      Si no se le asigna ningún valor, se aplicará la política <ph name="ALLOW_SENSORS_POLICY_NAME" />, pero los usuarios podrán cambiar esta opción.</translation>
 <translation id="5652250453612826983">Controla las políticas de supervisión parental, que se aplican exclusivamente a las cuentas infantiles.
       Estas políticas no se configuran en la consola de administración, sino en el servidor de APIs para niños directamente.</translation>
 <translation id="5654682237531873653">Si se habilita la política, se activará el corrector ortográfico y los usuarios no podrán desactivarlo. En <ph name="MS_WIN_NAME" />, <ph name="PRODUCT_OS_NAME" /> y <ph name="LINUX_OS_NAME" />, los idiomas del corrector ortográfico se pueden activar o desactivar de forma individual, por lo que los usuarios podrán desactivar el corrector ortográfico inhabilitando idiomas del corrector ortográfico. Para evitarlo, usa la política <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> para forzar idiomas específicos del corrector ortográfico.
@@ -7756,6 +7752,7 @@ A partir de la versión 147 de <ph name="PRODUCT_NAME" />, esta política dejar�
 <translation id="5962271004971310788">Extensiones que el usuario debe permitir que se ejecuten en Incógnito para navegar en modo Incógnito</translation>
 <translation id="5963752574792883406">puerto 990 (puede desbloquearse hasta el 01/02/2022)</translation>
 <translation id="596523880465577341">Esta política está obsoleta y no se admite. Usa la política <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" /> en su lugar.</translation>
+<translation id="5965344524743236327">El ID o número del proyecto de <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> correspondiente a la instancia de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> que se va a habilitar. Consulta más información sobre los IDs de proyecto en https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Extensiones con permiso para utilizar la API de confirmación remota</translation>
 <translation id="596732417280023843">El nombre del perfil del certificado.</translation>
 <translation id="5972538402066550344">Permitir los controles de informes granulares</translation>
@@ -8169,6 +8166,7 @@ Si la política <ph name="ALLOWED_INPUT_METHODS_POLICY_NAME" /> no se define o s
 <translation id="6264247808139384018">Si se habilita esta política o no se define, se permitirá que los usuarios que usen la autenticación con contraseña bloqueen la pantalla.
 
 Si se inhabilita, los usuarios no podrán bloquear la pantalla. Solo podrán cerrar la sesión de usuario.</translation>
+<translation id="6265114688953151459">El identificador único del motor de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />. El formato debe tener entre 1 y 63 caracteres y coincidir con el patrón [a-z0-9][a-z0-9-_]*. Consulta más información en https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Permitir el acceso a los sensores en estos sitios web</translation>
 <translation id="6266043141694454734">Determina si Chrome Root Store y el verificador de certificados integrado se usarán para verificar los certificados de los servidores</translation>
 <translation id="6266686172120601139">Habilitar el almacenamiento en búfer adaptable para Web Audio</translation>
@@ -8983,7 +8981,6 @@ Si se habilita, se recogerán y subirán los datos a la <ph name="GOOGLE_ADMIN_C
 
 En el caso de <ph name="PRODUCT_NAME" />, esta política solo es efectiva si el equipo está registrado en <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
 En el caso de <ph name="PRODUCT_OS_NAME" />, esta política siempre es efectiva.</translation>
-<translation id="6714333117401088746">El ID del proyecto de <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> correspondiente a la instancia de <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> que se va a habilitar.</translation>
 <translation id="6720330829631914048">Horas que han pasado desde el inicio del día, en formato de 24 horas.</translation>
 <translation id="6720862827454058309">Anular asignaciones de espacio de direcciones IP</translation>
 <translation id="6721252203593581486">WebSQL está desactivada en contextos de terceros (por ejemplo, iframes entre sitios) de forma predeterminada desde la versión M97 y se eliminará por completo en la versión M101.

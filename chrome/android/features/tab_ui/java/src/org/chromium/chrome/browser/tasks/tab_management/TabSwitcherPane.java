@@ -40,12 +40,12 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tabmodel.TabGroupObserver;
 import org.chromium.chrome.browser.tabmodel.TabGroupObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.archived_tabs_auto_delete_promo.ArchivedTabsAutoDeletePromoManager;
 import org.chromium.chrome.browser.ui.actions.button.DelegateButtonData;
 import org.chromium.chrome.browser.ui.actions.button.ResourceButtonData;
@@ -426,7 +426,7 @@ public class TabSwitcherPane extends TabSwitcherPaneBase implements TabSwitcherD
         if (tab == null) return;
 
         Profile profile = tab.getProfile();
-        if (getTabListMode() == TabListCoordinator.TabListMode.GRID
+        if (getTabListMode() == TabListMode.GRID
                 && !profile.isOffTheRecord()
                 && PriceTrackingUtilities.isTrackPricesOnTabsEnabled(profile)) {
             RecordUserAction.record(

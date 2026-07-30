@@ -111,6 +111,11 @@ class MockScriptData : public ScriptData {
     return PairedBracketType::kBracketTypeOpen;
   }
 
+  RunExtensionLookups GetSafeToExtendExistingRun(
+      UScriptCode script) const override {
+    return {nullptr, nullptr};
+  }
+
   static int TableLookup(int value) {
     for (int i = 0; i < 16; ++i) {
       if (kTable[i] == value) {
@@ -780,6 +785,13 @@ TEST_F(ScriptRunIteratorTest, OddLatinString) {
 
 TEST_F(ScriptRunIteratorTest, CommonMalayalam) {
   CHECK_SCRIPT_RUNS({{"100-ാം", USCRIPT_MALAYALAM}});
+}
+
+TEST_F(ScriptRunIteratorTest, IdeographicCommaDoesNotCountAsLatin) {
+  CHECK_SCRIPT_RUNS({{"也：", USCRIPT_HAN},
+                     {"ABC", USCRIPT_LATIN},
+                     {"、", USCRIPT_BOPOMOFO},
+                     {"DEF", USCRIPT_LATIN}});
 }
 
 std::pair<int, UChar32> MaximumScriptExtensions() {

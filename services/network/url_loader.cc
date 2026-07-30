@@ -1865,7 +1865,7 @@ int URLLoader::OnBeforeStartTransaction(
   if (header_client_) {
     on_before_send_headers_start_time_ = base::TimeTicks::Now();
     header_client_->OnBeforeSendHeaders(
-        *used_headers,
+        url_request_->url(), *used_headers,
         base::BindOnce(&URLLoader::OnBeforeSendHeadersComplete,
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     return net::ERR_IO_PENDING;

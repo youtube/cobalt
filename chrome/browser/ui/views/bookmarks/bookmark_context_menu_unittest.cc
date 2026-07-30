@@ -16,6 +16,7 @@
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "base/values.h"
@@ -42,6 +43,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -629,6 +631,95 @@ TEST_P(BookmarkContextMenuUpdateSubMenuStateTest, UpdateSubMenuState) {
   EXPECT_FALSE(is_checked(always_show_item));
   EXPECT_FALSE(is_checked(always_hide_item));
   EXPECT_TRUE(is_checked(only_on_ntp_item));
+}
+
+// Tests that the submenu items are disabled when kBookmarkBarVisibilityState is
+// managed.
+TEST_P(BookmarkContextMenuUpdateSubMenuStateTest, ManagedVisibilityState) {
+  const BookmarkNode* bb_node = model_->bookmark_bar_node();
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes = {
+      bb_node->children().front().get(),
+  };
+
+  BookmarkContextMenu controller(nullptr, nullptr, profile_.get(),
+                                 BookmarkLaunchLocation::kNone, nodes, false,
+                                 false);
+
+  EXPECT_TRUE(
+      controller.IsCommandEnabled(IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW));
+  EXPECT_TRUE(
+      controller.IsCommandEnabled(IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE));
+  EXPECT_TRUE(
+      controller.IsCommandEnabled(IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP));
+
+  profile_->GetTestingPrefService()->SetManagedPref(
+      bookmarks::prefs::kBookmarkBarVisibilityState,
+      base::Value(static_cast<int>(
+          bookmarks::BookmarkBarVisibilityState::kAlwaysShow)));
+
+  EXPECT_FALSE(
+      controller.IsCommandEnabled(IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW));
+  EXPECT_FALSE(
+      controller.IsCommandEnabled(IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE));
+  EXPECT_FALSE(
+      controller.IsCommandEnabled(IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP));
+}
+
+TEST_P(BookmarkContextMenuUpdateSubMenuStateTest,
+       UpdateBookmarkBarVisibilityOnUserAction) {
+  const BookmarkNode* bb_node = model_->bookmark_bar_node();
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes = {
+      bb_node->children().front().get(),
+  };
+
+  BookmarkContextMenu controller(nullptr, nullptr, profile_.get(),
+                                 BookmarkLaunchLocation::kAttachedBar, nodes,
+                                 false, false);
+
+  EXPECT_TRUE(
+      profile_->GetPrefs()
+          ->FindPreference(bookmarks::prefs::kBookmarkBarVisibilityState)
+          ->IsDefaultValue());
+
+  controller.ExecuteCommand(IDC_BOOKMARK_BAR_REMOVE, 0);
+
+  EXPECT_FALSE(
+      profile_->GetPrefs()
+          ->FindPreference(bookmarks::prefs::kBookmarkBarVisibilityState)
+          ->IsDefaultValue());
+}
+
+// Tests that changing bookmark bar visibility from the context menu logs the
+// correct user action metrics.
+TEST_P(BookmarkContextMenuUpdateSubMenuStateTest, LogsUserActions) {
+  const BookmarkNode* bb_node = model_->bookmark_bar_node();
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes = {
+      bb_node->children().front().get(),
+  };
+
+  BookmarkContextMenu controller(nullptr, nullptr, profile_.get(),
+                                 BookmarkLaunchLocation::kNone, nodes, false,
+                                 false);
+
+  base::UserActionTester user_action_tester;
+
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "BookmarkBar_ContextMenu_AlwaysShow"));
+  controller.ExecuteCommand(IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW, 0);
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "BookmarkBar_ContextMenu_AlwaysShow"));
+
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "BookmarkBar_ContextMenu_AlwaysHide"));
+  controller.ExecuteCommand(IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE, 0);
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "BookmarkBar_ContextMenu_AlwaysHide"));
+
+  EXPECT_EQ(0, user_action_tester.GetActionCount(
+                   "BookmarkBar_ContextMenu_OnlyShowOnNtp"));
+  controller.ExecuteCommand(IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP, 0);
+  EXPECT_EQ(1, user_action_tester.GetActionCount(
+                   "BookmarkBar_ContextMenu_OnlyShowOnNtp"));
 }
 
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(BookmarkContextMenuTest);

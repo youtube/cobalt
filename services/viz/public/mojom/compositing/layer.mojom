@@ -121,6 +121,12 @@ struct TileDisplayLayerExtra {
   // Will be set to true for PictureLayers that use nearest neighbor filtering.
   bool nearest_neighbor;
 
+  // Indicates whether the PictureLayer has an animated image update rect.
+  bool has_animated_image_update_rect;
+
+  // Indicates whether the PictureLayer has a non-animated image update rect.
+  bool has_non_animated_image_update_rect;
+
   // The color usage of the layer's content.
   gfx.mojom.ContentColorUsage content_color_usage;
 

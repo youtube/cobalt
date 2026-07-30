@@ -19,6 +19,7 @@
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
+#include "chrome/browser/password_manager/actor_login/chrome_actor_login_delegate_client.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
@@ -29,6 +30,7 @@
 #include "chrome/test/base/platform_browser_test.h"
 #include "components/actor/core/actor_features.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_delegate_client.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
@@ -83,7 +85,7 @@ MockActorLoginService::MockActorLoginService() = default;
 MockActorLoginService::~MockActorLoginService() = default;
 
 void MockActorLoginService::GetCredentials(
-    tabs::TabInterface* tab,
+    actor_login::ActorLoginDelegateClient* client,
     bool has_sign_in_with_google_button,
     base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
     actor_login::CredentialsOrErrorReply callback) {
@@ -91,7 +93,7 @@ void MockActorLoginService::GetCredentials(
 }
 
 void MockActorLoginService::AttemptLogin(
-    tabs::TabInterface* tab,
+    actor_login::ActorLoginDelegateClient* client,
     const actor_login::Credential& credential,
     bool should_store_permission,
     base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
@@ -113,6 +115,9 @@ void MockActorLoginService::AttemptLogin(
 
   if (credential.type == actor_login::CredentialType::kFederated &&
       on_federated_login_delay_) {
+    auto* chrome_client =
+        static_cast<actor_login::ChromeActorLoginDelegateClient*>(client);
+    content::WebContents* web_contents = &chrome_client->GetWebContents();
     // A minimal enum translation for testing purposes.
     auto to_login_status = [](content::webid::FederatedLoginResult result) {
       switch (result) {
@@ -131,7 +136,7 @@ void MockActorLoginService::AttemptLogin(
       }
     };
     content::webid::FederatedEmbedderLoginRequest::Set(
-        tab->GetContents(), credential.federation_detail->idp_origin,
+        web_contents, credential.federation_detail->idp_origin,
         credential.federation_detail->account_id,
         base::BindOnce(to_login_status)
             .Then(base::BindOnce(
@@ -139,7 +144,7 @@ void MockActorLoginService::AttemptLogin(
                 action_sequence_delegate_)));
     std::move(on_federated_login_delay_)
         .Run(base::BindOnce(&MockActorLoginService::OnFederatedLoginResume,
-                            tab));
+                            web_contents));
   }
 
   std::move(callback).Run(login_status_);
@@ -167,9 +172,9 @@ void MockActorLoginService::SetFederatedLoginDelay(
 
 // static
 void MockActorLoginService::OnFederatedLoginResume(
-    tabs::TabInterface* tab,
+    content::WebContents* web_contents,
     content::webid::FederatedLoginResult result) {
-  content::webid::FederatedEmbedderLoginRequest::Get(tab->GetContents())
+  content::webid::FederatedEmbedderLoginRequest::Get(web_contents)
       ->OnFederatedResultReceived(result);
 }
 

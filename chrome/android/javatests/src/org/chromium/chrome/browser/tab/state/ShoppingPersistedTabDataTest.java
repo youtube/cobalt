@@ -955,23 +955,6 @@ public class ShoppingPersistedTabDataTest {
         helper.waitForCallback(count);
     }
 
-    @SmallTest
-    @Test
-    public void testNullTab() throws TimeoutException {
-        CallbackHelper helper = new CallbackHelper();
-        int count = helper.getCallCount();
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    ShoppingPersistedTabData.from(
-                            null,
-                            (res) -> {
-                                Assert.assertNull(res);
-                                helper.notifyCalled();
-                            });
-                });
-        helper.waitForCallback(count);
-    }
-
     static class DeserializeAndLogCheckerShoppingPersistedTabData extends ShoppingPersistedTabData {
         DeserializeAndLogCheckerShoppingPersistedTabData(Tab tab) {
             super(tab);

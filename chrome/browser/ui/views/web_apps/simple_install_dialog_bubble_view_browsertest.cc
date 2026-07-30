@@ -16,7 +16,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/views/web_apps/web_app_dialog_test_utils.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
@@ -86,8 +85,10 @@ class SimpleInstallDialogBubbleViewBrowserTest : public WebAppBrowserTestBase {
 
  private:
   base::test::ScopedFeatureList feature_list_;
-  web_app::test::ScopedDontCloseInstallDialogsOnDeactivate
-      prevent_close_on_deactivate_;
+  base::AutoReset<web_app::InstallDialogDeactivateAction>
+      prevent_close_on_deactivate_{
+          web_app::SetPwaInstallationDialogDeactivateActionForTesting(
+              web_app::InstallDialogDeactivateAction::kKeepOpen)};
 };  // namespace
 
 IN_PROC_BROWSER_TEST_F(SimpleInstallDialogBubbleViewBrowserTest,

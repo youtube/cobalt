@@ -254,7 +254,7 @@ void GetHistoryQueryResultForModelPrototyping(
                          .start_time()
                          .seconds())),
         history_query.num_history_visits(),
-        /*skip_answering=*/true, history_search_callback);
+        /*skip_answering=*/true, /*url_id_filter=*/{}, history_search_callback);
   }
 }
 

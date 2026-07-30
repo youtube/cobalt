@@ -72,6 +72,7 @@ build_webui_tests("build") {
       "ink2_side_panel_test.ts",
       "ink2_size_selector_test.ts",
       "ink2_test.ts",
+      "ink2_text_annotations_test.ts",
       "ink2_text_alignment_selector_test.ts",
       "ink2_text_bottom_toolbar_test.ts",
       "ink2_text_box_basic_test.ts",
@@ -82,6 +83,7 @@ build_webui_tests("build") {
       "ink2_text_side_panel_test.ts",
       "ink2_text_styles_selector_test.ts",
       "ink2_viewer_toolbar_test.ts",
+      "ink_text_annotation_utils_test.ts",
       "selectable_icon_button_test.ts",
       "undo_redo_stack_test.ts",
     ]

@@ -11,6 +11,7 @@ import static org.chromium.components.search_engines.TemplateUrlTestHelpers.buil
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.view.View;
+import android.widget.ListView;
 
 import androidx.fragment.app.FragmentManager;
 import androidx.test.filters.MediumTest;
@@ -27,6 +28,9 @@ import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.regional_capabilities.RegionalCapabilitiesServiceFactory;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
@@ -36,7 +40,9 @@ import org.chromium.components.favicon.GoogleFaviconServerRequestStatus;
 import org.chromium.components.favicon.IconType;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridgeJni;
+import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.regional_capabilities.RegionalCapabilitiesService;
+import org.chromium.components.search_engines.PrepopulatedAndRecentlyVisitedTemplateURLs;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.browser.BrowserContextHandle;
@@ -73,7 +79,8 @@ public class SearchEngineSettingsRenderTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    public void testRenderWithSecFeature() throws Exception {
+    @DisableFeatures(ChromeFeatureList.SEARCH_SETTINGS_UPDATE_V2)
+    public void testRenderWithSecFeature_Legacy() throws Exception {
         TemplateUrl engine1 = buildTemplateUrl("Custom Engine", 0);
         GURL engine1Gurl = new GURL("https://gurl1.example.com");
         TemplateUrl engine2 = buildTemplateUrl("Prepopulated Engine", 2);
@@ -149,12 +156,122 @@ public class SearchEngineSettingsRenderTest {
                     bitmap2.eraseColor(Color.BLUE);
                     largeIconBridge.provideFaviconForUrl(engine2Gurl, bitmap2);
                 });
-        mRenderTestRule.render(view, "search_engine_settings");
+        mRenderTestRule.render(view, "search_engine_settings_legacy");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    @EnableFeatures(ChromeFeatureList.SEARCH_SETTINGS_UPDATE_V2)
+    @DisableFeatures(OmniboxFeatureList.OMNIBOX_SITE_SEARCH)
+    public void testRenderWithSecFeature_New() throws Exception {
+        TemplateUrl engine1 = buildTemplateUrl("Custom Default Engine", 0);
+        GURL engine1Gurl = new GURL("https://gurl1.example.com");
+        TemplateUrl engine2 = buildTemplateUrl("Prepopulated Engine", 2);
+        GURL engine2Gurl = new GURL("https://gurl2.example.com");
+        TemplateUrl engine3 = buildTemplateUrl("Recently Visited Engine", 0);
+        GURL engine3Gurl = new GURL("https://gurl3.example.com");
+
+        RegionalCapabilitiesServiceFactory.setInstanceForTesting(mMockRegionalCapabilities);
+
+        // engine1 is the default search engine, so it also gets added to the first list.
+        // engine2 (prepopulated) should come before engine1 (custom DSE) in the list.
+        doReturn(
+                        new PrepopulatedAndRecentlyVisitedTemplateURLs(
+                                List.of(engine2, engine1), List.of(engine3)))
+                .when(mMockTemplateUrlService)
+                .getPrepopulatedAndRecentlyVisitedTemplateURLs();
+        doReturn(engine1).when(mMockTemplateUrlService).getDefaultSearchEngineTemplateUrl();
+        doReturn(true).when(mMockTemplateUrlService).isLoaded();
+        String engine1Keyword = engine1.getKeyword();
+        doReturn(engine1Gurl.getSpec())
+                .when(mMockTemplateUrlService)
+                .getSearchEngineUrlFromTemplateUrl(engine1Keyword);
+        String engine2Keyword = engine2.getKeyword();
+        doReturn(engine2Gurl.getSpec())
+                .when(mMockTemplateUrlService)
+                .getSearchEngineUrlFromTemplateUrl(engine2Keyword);
+        String engine3Keyword = engine3.getKeyword();
+        doReturn(engine3Gurl.getSpec())
+                .when(mMockTemplateUrlService)
+                .getSearchEngineUrlFromTemplateUrl(engine3Keyword);
+
+        TemplateUrlServiceFactory.setInstanceForTesting(mMockTemplateUrlService);
+        LargeIconBridgeJni.setInstanceForTesting(mLargeIconBridgeNativeMock);
+
+        mActivityTestRule.launchActivity(null);
+        TestLargeIconBridge largeIconBridge = new TestLargeIconBridge(mProfile);
+
+        View view =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            FragmentManager fragmentManager =
+                                    mActivityTestRule.getActivity().getSupportFragmentManager();
+                            SearchEngineSettings fragment =
+                                    (SearchEngineSettings)
+                                            fragmentManager
+                                                    .getFragmentFactory()
+                                                    .instantiate(
+                                                            SearchEngineSettings.class
+                                                                    .getClassLoader(),
+                                                            SearchEngineSettings.class.getName());
+                            fragment.setProfile(mProfile);
+
+                            SearchEngineAdapter adapter =
+                                    new SearchEngineAdapter(
+                                            mActivityTestRule.getActivity(),
+                                            mProfile,
+                                            /* siteSearchClickHandler= */ null) {
+                                        @Override
+                                        LargeIconBridge createLargeIconBridge() {
+                                            return largeIconBridge;
+                                        }
+                                    };
+                            fragment.overrideSearchEngineAdapterForTesting(adapter);
+
+                            fragmentManager
+                                    .beginTransaction()
+                                    .replace(android.R.id.content, fragment)
+                                    .commitNow();
+
+                            return fragment.getView();
+                        });
+
+        // Scroll to the end of the list to ensure all items are bound and icons requested.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    SearchEngineSettings fragment =
+                            (SearchEngineSettings)
+                                    mActivityTestRule
+                                            .getActivity()
+                                            .getSupportFragmentManager()
+                                            .findFragmentById(android.R.id.content);
+                    ListView listView = fragment.getListView();
+                    listView.smoothScrollToPosition(listView.getAdapter().getCount() - 1);
+                });
+
+        // Wait for icons to be requested.
+        CriteriaHelper.pollUiThread(() -> largeIconBridge.getCallbackCount() == 3);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Bitmap bitmap1 = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888);
+                    bitmap1.eraseColor(Color.GREEN);
+                    largeIconBridge.provideFaviconForUrl(engine1Gurl, bitmap1);
+
+                    Bitmap bitmap2 = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888);
+                    bitmap2.eraseColor(Color.BLUE);
+                    largeIconBridge.provideFaviconForUrl(engine2Gurl, bitmap2);
+
+                    Bitmap bitmap3 = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888);
+                    bitmap3.eraseColor(Color.RED);
+                    largeIconBridge.provideFaviconForUrl(engine3Gurl, bitmap3);
+                });
+        mRenderTestRule.render(view, "search_engine_settings_new");
     }
 
     private static TemplateUrl buildTemplateUrl(String shortName, int prepopulatedId) {
-        TemplateUrl templateUrl =
-                buildMockTemplateUrl("prepopulatedId=" + prepopulatedId, prepopulatedId);
+        TemplateUrl templateUrl = buildMockTemplateUrl("keyword_" + shortName, prepopulatedId);
         doReturn(shortName).when(templateUrl).getShortName();
         return templateUrl;
     }

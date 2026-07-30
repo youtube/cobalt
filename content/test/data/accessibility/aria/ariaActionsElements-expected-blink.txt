@@ -1,0 +1,38 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++heading name='Interesting Sharks'
+++++++++staticText name='Interesting Sharks'
+++++++++++inlineTextBox name='Interesting Sharks'
+++++++tabList horizontal name='Interesting Sharks'
+++++++++genericContainer
+++++++++++tab name='Nurse shark' selected=false actionsIds=button
+++++++++++++staticText name='Nurse shark'
+++++++++++++++inlineTextBox name='Nurse shark'
+++++++++++button name='X'
+++++++++++++staticText name='X'
+++++++++++++++inlineTextBox name='X'
+++++++++genericContainer
+++++++++++tab name='Basking shark' selected=false actionsIds=button
+++++++++++++staticText name='Basking shark'
+++++++++++++++inlineTextBox name='Basking shark'
+++++++++++button name='X'
+++++++++++++staticText name='X'
+++++++++++++++inlineTextBox name='X'
+++++++++genericContainer
+++++++++++tab name='Whale shark' selected=false actionsIds=button
+++++++++++++staticText name='Whale shark'
+++++++++++++++inlineTextBox name='Whale shark'
+++++++++++button name='X'
+++++++++++++staticText name='X'
+++++++++++++++inlineTextBox name='X'
+++++++++genericContainer
+++++++++++tab name='Goblin shark' selected=false actionsIds=button
+++++++++++++staticText name='Goblin shark'
+++++++++++++++inlineTextBox name='Goblin shark'
+++++++++++button name='X'
+++++++++++++staticText name='X'
+++++++++++++++inlineTextBox name='X'
+++++++genericContainer
+++++++++staticText name='Done'
+++++++++++inlineTextBox name='Done'

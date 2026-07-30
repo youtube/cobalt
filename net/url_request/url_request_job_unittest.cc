@@ -762,45 +762,4 @@ TEST(URLRequestJobComputeReferrer, InvalidSchemeReferrer) {
             GURL());
 }
 
-TEST(URLRequestJobComputeReferrer, CapReferrerOnCrossOrigin) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      features::kCapReferrerToOriginOnCrossOrigin);
-
-  const GURL kOriginalReferrer("https://boggle.com/path");
-
-  EXPECT_EQ(URLRequestJob::ComputeReferrerForPolicy(ReferrerPolicy::NEVER_CLEAR,
-                                                    kOriginalReferrer,
-                                                    GURL("https://google.com")),
-            GURL("https://boggle.com/"));
-}
-
-TEST(URLRequestJobComputeReferrer,
-     CapReferrerOnCrossOriginRespectsStricterPolicy) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      features::kCapReferrerToOriginOnCrossOrigin);
-
-  const GURL kOriginalReferrer("https://boggle.com/path");
-
-  EXPECT_EQ(URLRequestJob::ComputeReferrerForPolicy(ReferrerPolicy::NO_REFERRER,
-                                                    kOriginalReferrer,
-                                                    GURL("https://google.com")),
-            GURL());
-}
-
-TEST(URLRequestJobComputeReferrer,
-     CapReferrerOnCrossOriginDoesntCapOnSameOrigin) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      features::kCapReferrerToOriginOnCrossOrigin);
-
-  const GURL kOriginalReferrer("https://boggle.com/path");
-
-  EXPECT_EQ(URLRequestJob::ComputeReferrerForPolicy(ReferrerPolicy::NEVER_CLEAR,
-                                                    kOriginalReferrer,
-                                                    GURL("https://boggle.com")),
-            kOriginalReferrer);
-}
-
 }  // namespace net

@@ -24,15 +24,15 @@ export function getHtml(this: ManagedUserProfileNoticeDisclosureElement) {
     <section class="disclaimer">
       <cr-icon class="icon" icon="signin:person-outline"></cr-icon>
       <div>
-        <h2>$i18n{profileInformationTitle}</h2>
-        <p>$i18n{profileInformationDetails}</p>
+        <h2>${this.i18n('profileInformationTitle')}</h2>
+        <p>${this.i18n('profileInformationDetails')}</p>
       </div>
     </section>
     <section class="disclaimer">
       <cr-icon class="icon" icon="cr:phonelink"></cr-icon>
       <div>
-        <h2>$i18n{deviceInformationTitle}</h2>
-        <p>$i18n{deviceInformationDetails}</p>
+        <h2>${this.i18n('deviceInformationTitle')}</h2>
+        <p>${this.i18n('deviceInformationDetails')}</p>
       </div>
     </section>
   </div>

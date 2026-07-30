@@ -1382,8 +1382,15 @@ IN_PROC_BROWSER_TEST_P(BrowsingDataHistoryRemoverBrowserTest,
 
 // Restart after creating the data to ensure that everything was written to
 // disk.
+// TODO(crbug.com/522179929): Flaky on ASAN/LSAN/MSAN. Re-enable this test.
+#if defined(ADDRESS_SANITIZER) || defined(LEAK_SANITIZER) || \
+    defined(MEMORY_SANITIZER)
+#define MAYBE_StorageRemovedFromDisk DISABLED_StorageRemovedFromDisk
+#else
+#define MAYBE_StorageRemovedFromDisk StorageRemovedFromDisk
+#endif
 IN_PROC_BROWSER_TEST_P(BrowsingDataHistoryRemoverBrowserTest,
-                       StorageRemovedFromDisk) {
+                       MAYBE_StorageRemovedFromDisk) {
   EXPECT_EQ(1, GetSiteDataCount());
   ExpectTotalModelCount(1);
   RemoveAndWait(chrome_browsing_data_remover::DATA_TYPE_SITE_DATA |

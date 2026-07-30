@@ -1,0 +1,86 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//third_party/protobuf/proto_library.gni")
+
+visibility = [
+  ":*",
+  "//third_party/federated_compute:*",
+]
+
+config("tensorflow_federated_include") {
+  include_dirs = [ "src" ]
+}
+
+proto_library("tensor_proto") {
+  sources =
+      [ "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor.proto" ]
+  proto_in_dir = "src"
+  cc_generator_options = "lite"
+}
+
+source_set("tensorflow_federated_base") {
+  sources = [
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/base_name.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/base_name.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/monitoring.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/monitoring.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/move_to_lambda.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/platform.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/base/platform.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  public_configs = [ ":tensorflow_federated_include" ]
+
+  deps = [
+    "//third_party/abseil-cpp:absl",
+    "//third_party/protobuf:protobuf_lite",
+  ]
+}
+
+source_set("tensorflow_federated") {
+  sources = [
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/agg_vector.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/agg_vector_iterator.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/datatype.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/datatype.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/input_tensor_list.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/input_tensor_list.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/mutable_vector_data.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/scalar_data.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_data.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_data.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_shape.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_shape.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_slice_data.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_slice_data.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_spec.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/tensor_spec.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/core/vector_data.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/protocol/checkpoint_builder.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/protocol/checkpoint_header.h",
+    "src/tensorflow_federated/cc/core/impl/aggregation/protocol/federated_compute_checkpoint_builder.cc",
+    "src/tensorflow_federated/cc/core/impl/aggregation/protocol/federated_compute_checkpoint_builder.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  public_configs = [ ":tensorflow_federated_include" ]
+
+  public_deps = [
+    ":tensor_proto",
+    ":tensorflow_federated_base",
+  ]
+
+  deps = [
+    "//third_party/abseil-cpp:absl",
+    "//third_party/protobuf:protobuf_lite",
+  ]
+}

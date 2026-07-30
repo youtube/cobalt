@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">RRRR</translation>
 <translation id="1013952917065545813">Możesz wrócić tu później, by ponownie otworzyć ostatnio zamknięte karty</translation>
 <translation id="1016495303386450659">Zaktualizowano element</translation>
+<translation id="1018804590490383958">Zeskanuj i wypełnij automatycznie</translation>
 <translation id="1019990162050689579">Aktywność w aplikacji Gemini</translation>
 <translation id="102916930470544692">Klucz dostępu</translation>
 <translation id="1030376737535466765">Otwórz Menedżera haseł</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Zaktualizuj przeglądarkę</translation>
 <translation id="4021931095789478915">Dodaj ${url} do listy Do przeczytania</translation>
 <translation id="4028871427853484857">Zapisz na koncie…</translation>
+<translation id="4036529942385659684">Pokaż stronę startową po okresie bezczynności</translation>
 <translation id="4038354071007134711">Nie masz aplikacji, która może otworzyć ten plik.</translation>
 <translation id="4042870976416480368">Znajdź na stronie</translation>
 <translation id="4045441967987592849">Otwórz ponownie</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Zarządzaj grupą</translation>
 <translation id="4172051516777682613">Zawsze pokazuj</translation>
 <translation id="417273154673973994">{count,plural, =1{Zamknięto i zapisano 1 grupę kart}few{Zamknięto i zapisano {count} grupy kart}many{Zamknięto i zapisano {count} grup kart}other{Zamknięto i zapisano {count} grupy kart}}</translation>
-<translation id="417612446554534067">Wyślij na swoje urządzenia</translation>
 <translation id="4180726336228139707">Tylko na tym urządzeniu</translation>
 <translation id="4181841719683918333">Języki</translation>
 <translation id="4183350924949589798">Więcej ustawień bezpieczeństwa?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Karty zostały zamknięte i nastąpiło wylogowanie</translation>
 <translation id="4911042367886397055">Witaj ponownie, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Możesz bezpiecznie udostępnić kopię hasła innej osobie w grupie rodzinnej. <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lupa</translation>
 <translation id="4917025507570489430">Możesz używać dotychczasowych danych przeglądania, gdy się zalogujesz na konto <ph name="USER_EMAIL" />. Dostęp do tych danych może mieć Twoja organizacja.</translation>
 <translation id="4918086044614829423">Akceptuj</translation>
 <translation id="4930714375720679147">Włącz</translation>
@@ -1549,6 +1551,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Wybierz położenie paska adresu</translation>
 <translation id="6307241780749477694">Aby pobrać wszystkie swoje hasła na to urządzenie, potwierdź swoją tożsamość</translation>
+<translation id="6307792728709337290">Zapisz kartę na koncie Google, żeby uzupełniać ją automatycznie podczas tego i przyszłych zakupów w Chrome.</translation>
 <translation id="6316141353357700666">Wybierz z wyświetlonej listy hasło, którego chcesz użyć.</translation>
 <translation id="6321526113093607004">Dodaj do Zakładek</translation>
 <translation id="6327249202318869726">Gemini jest wyłączony na Twoim koncie. Aby uzyskać więcej informacji, skontaktuj się z administratorem.</translation>
@@ -2143,6 +2146,7 @@ Aby kontynuować na komputerze, przełącz się na <ph name="OTHER_EMAIL" />. B�
 <translation id="8263809106706527890">Być może zostały zmienione ustawienia domyślnej przeglądarki. Możesz to sprawdzić w ustawieniach.</translation>
 <translation id="8264966119170358612">Niektóre z Twoich zapisanych haseł zostały ujawnione w wyniku naruszenia bezpieczeństwa danych poza firmą Google. <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">W ramach resetowania iPada nastąpiło wylogowanie z konta <ph name="USER_NAME" />. Aby ponownie się zalogować, kliknij „Dalej” poniżej.</translation>
+<translation id="8270320981823560179">Dysk</translation>
 <translation id="8273982424131314219">Informacje zostaną podane na stronie <ph name="URL" /></translation>
 <translation id="8275068909952022340">Więcej…</translation>
 <translation id="8281781826761538115">Domyślny – <ph name="DEFAULT_LOCALE" /></translation>

@@ -6,7 +6,7 @@
 #define COMPONENTS_BROWSER_APIS_UI_CONTROLLERS_TOOLBAR_ICON_HANDLE_MOJOM_TRAITS_H_
 
 #include "components/browser_apis/ui_controllers/toolbar/icon_handle.h"
-#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/icon_handle.mojom-shared.h"
 
 namespace mojo {
 

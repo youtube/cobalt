@@ -114,8 +114,8 @@ public class TabSwitcherTabletTest {
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
 
         LayoutManagerChrome layoutManager = cta.getLayoutManager();
-        if (layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)
-                && !layoutManager.isLayoutStartingToHide(LayoutType.TAB_SWITCHER)) {
+        if (layoutManager.isLayoutVisible(LayoutType.HUB)
+                && !layoutManager.isLayoutStartingToHide(LayoutType.HUB)) {
             TabModelSelector selector = cta.getTabModelSelectorSupplier().get();
             if (getTabCountOnUiThread(selector.getModel(false)) == 0) {
                 ThreadUtils.runOnUiThreadBlocking(
@@ -159,7 +159,7 @@ public class TabSwitcherTabletTest {
         checkTabSwitcherViewHolder(cta, true);
 
         exitSwitcherWithTabClick(0);
-        assertFalse(cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER));
+        assertFalse(cta.getLayoutManager().isLayoutVisible(LayoutType.HUB));
     }
 
     @Test
@@ -222,7 +222,7 @@ public class TabSwitcherTabletTest {
         ChromeTabUtils.closeAllTabs(
                 InstrumentationRegistry.getInstrumentation(), cta.getTabModelSelectorSupplier());
 
-        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.TAB_SWITCHER);
+        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.HUB);
 
         // Assert the grid tab switcher is shown automatically, since there is no next tab.
         checkTabSwitcherViewHolderVisibility(true);
@@ -310,7 +310,7 @@ public class TabSwitcherTabletTest {
         // Close the last tab.
         closeTab(false, cta.getCurrentTabModel().getTabAt(0).getId());
 
-        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.TAB_SWITCHER);
+        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.HUB);
 
         // Check whether empty view show up.
         @IdRes int tabSwitcherAncestorId = TabUiTestHelper.getTabSwitcherAncestorId(cta);

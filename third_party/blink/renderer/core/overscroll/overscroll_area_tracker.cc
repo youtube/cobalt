@@ -177,7 +177,7 @@ void OverscrollAreaTracker::CloseAllAreas() {
 }
 
 void OverscrollAreaTracker::Trace(Visitor* visitor) const {
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 
   visitor->Trace(container_);
   visitor->Trace(overscroll_members_);

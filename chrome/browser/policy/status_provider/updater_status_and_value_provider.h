@@ -6,23 +6,21 @@
 #define CHROME_BROWSER_POLICY_STATUS_PROVIDER_UPDATER_STATUS_AND_VALUE_PROVIDER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
+#include "chrome/browser/google/google_update_policy_fetcher.h"
 #include "chrome/browser/policy/value_provider/policy_value_provider.h"
 #include "components/policy/core/browser/webui/policy_status_provider.h"
 
-struct GoogleUpdateState;
-struct GoogleUpdatePoliciesAndState;
-
 class Profile;
 
-namespace policy {
-class PolicyMap;
-}
 
 // A status and value provider for Google Updater policies. Starts to load the
 // policy values and status asynchronously during construction and
@@ -45,14 +43,22 @@ class UpdaterStatusAndValueProvider : public policy::PolicyStatusProvider,
   void Refresh() override;
 
  private:
+  void DoRefresh();
+  static std::string GetUpdaterAppId();
+
+  void Init();
+
+#if BUILDFLAG(IS_WIN)
+  // Called when the Active Directory domain query completes.
   void OnDomainReceived(std::string domain);
+#endif  // BUILDFLAG(IS_WIN)
 
   void OnUpdaterPoliciesRefreshed(
-      std::unique_ptr<GoogleUpdatePoliciesAndState> updater_policies_and_state);
+      std::vector<GoogleUpdatePoliciesAndState> results);
 
   SEQUENCE_CHECKER(sequence_checker_);
-  std::unique_ptr<GoogleUpdateState> updater_status_;
-  std::unique_ptr<policy::PolicyMap> updater_policies_;
+  std::optional<GoogleUpdateState> updater_status_;
+  std::optional<policy::PolicyMap> updater_policies_;
   std::string domain_;
   raw_ptr<Profile> profile_;
   base::WeakPtrFactory<UpdaterStatusAndValueProvider> weak_factory_{this};

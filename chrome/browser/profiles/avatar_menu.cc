@@ -29,7 +29,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "content/public/browser/browser_thread.h"

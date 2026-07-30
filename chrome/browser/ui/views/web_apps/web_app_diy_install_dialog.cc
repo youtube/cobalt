@@ -56,8 +56,6 @@
 
 namespace {
 
-bool g_auto_accept_diy_dialog_for_testing = false;
-
 #if BUILDFLAG(IS_CHROMEOS)
 namespace cros_events = metrics::structured::events::v2::cr_os_events;
 #endif
@@ -180,13 +178,11 @@ void ShowDiyAppInstallDialog(
   delegate_weak_ptr->OnWidgetShownStartTracking(diy_dialog_widget);
 
   base::RecordAction(base::UserMetricsAction("WebAppDiyInstallShown"));
-  if (g_auto_accept_diy_dialog_for_testing) {
+  InstallDialogTestResponse auto_response =
+      GetPwaInstallationDialogAutoResponseForTesting();  // IN-TEST
+  if (auto_response != InstallDialogTestResponse::kNone) {
     dialog_delegate->AcceptDialog();
   }
-}
-
-void SetAutoAcceptDiyAppsInstallDialogForTesting(bool auto_accept) {
-  g_auto_accept_diy_dialog_for_testing = auto_accept;
 }
 
 // Creates a view for the DIY install dialog that contains the

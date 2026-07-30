@@ -40,12 +40,13 @@ class AccountConsistencyBrowserAgent
 
   // ManageAccountsDelegate
   void OnRestoreGaiaCookies() override;
-  void OnManageAccounts(const GURL& url) override;
+  void OnManageAccounts(const GURL& url, web::WebState* web_state) override;
   void OnAddAccount(const GURL& url,
-                    const std::string& prefilled_email) override;
+                    const std::string& prefilled_email,
+                    web::WebState* web_state) override;
   void OnShowConsistencyPromo(const GURL& url,
-                              web::WebState* webState) override;
-  void OnGoIncognito(const GURL& url) override;
+                              web::WebState* web_state) override;
+  void OnGoIncognito(const GURL& url, web::WebState* web_state) override;
   bool SigninEnabled() const override;
 
  private:
@@ -75,6 +76,9 @@ class AccountConsistencyBrowserAgent
   // Opens the account menu, offering to switch to a different account (even one
   // that's in a different profile).
   void ShowAccountMenu(const GURL& url);
+
+  // Whether `web_state` is the active one.
+  bool IsActiveWebstate(web::WebState* web_state);
 
   UIViewController* base_view_controller_;
   id<SceneCommands> application_handler_;

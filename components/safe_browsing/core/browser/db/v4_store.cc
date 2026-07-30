@@ -23,15 +23,18 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/to_address.h"
 #include "components/safe_browsing/core/browser/db/prefix_iterator.h"
+#include "components/safe_browsing/core/browser/db/sb_store_file_format.h"
 #include "components/safe_browsing/core/browser/db/v4_rice.h"
 #include "components/safe_browsing/core/browser/db/v4_store.pb.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/proto/v5_store.pb.h"
 #include "components/safe_browsing/core/common/proto/webui.pb.h"
 #include "crypto/hash.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
@@ -70,9 +73,6 @@ const char kChromeExtMalwareUmaSuffix[] = ".ChromeExtMalware";
 const char kUrlMalBinUmaSuffix[] = ".UrlMalBin";
 const char kUrlSocengUmaSuffix[] = ".UrlSoceng";
 
-const uint32_t kFileMagic = 0x600D71FE;
-const uint32_t kFileVersion = 9;
-
 // The maximum size of additions hashes in a single update response.
 const int32_t ADDITIONS_HASHES_COUNT_PARTIAL_UPDATE_MAX = 10000;
 const int32_t ADDITIONS_HASHES_COUNT_FULL_UPDATE_MAX = 5000000;
@@ -87,14 +87,6 @@ void RecordEnumWithAndWithoutSuffix(const std::string& metric,
   base::UmaHistogramExactLinear(metric + kResult, value, maximum);
   std::string suffix = GetUmaSuffixForStore(file_path);
   base::UmaHistogramExactLinear(metric + kResult + suffix, value, maximum);
-}
-
-void RecordBooleanWithAndWithoutSuffix(const std::string& metric,
-                                       bool value,
-                                       const base::FilePath& file_path) {
-  base::UmaHistogramBoolean(metric, value);
-  std::string suffix = GetUmaSuffixForStore(file_path);
-  base::UmaHistogramBoolean(metric + suffix, value);
 }
 
 void RecordCountWithAndWithoutSuffix(const std::string& metric,
@@ -113,20 +105,6 @@ void RecordApplyUpdateResult(const std::string& base_metric,
                              const base::FilePath& file_path) {
   RecordEnumWithAndWithoutSuffix(base_metric + kApplyUpdate, result,
                                  APPLY_UPDATE_RESULT_MAX, file_path);
-}
-
-void RecordDecodeAdditionsResult(const std::string& base_metric,
-                                 V4DecodeResult result,
-                                 const base::FilePath& file_path) {
-  RecordEnumWithAndWithoutSuffix(base_metric + kDecodeAdditions, result,
-                                 DECODE_RESULT_MAX, file_path);
-}
-
-void RecordDecodeRemovalsResult(const std::string& base_metric,
-                                V4DecodeResult result,
-                                const base::FilePath& file_path) {
-  RecordEnumWithAndWithoutSuffix(base_metric + kDecodeRemovals, result,
-                                 DECODE_RESULT_MAX, file_path);
 }
 
 void RecordAdditionsHashesCount(const std::string& base_metric,
@@ -163,6 +141,8 @@ void RecordVerifyChecksumDuration(const std::string& base_metric,
 void RecordStoreReadResult(StoreReadResult result) {
   UMA_HISTOGRAM_ENUMERATION("SafeBrowsing.V4StoreRead.Result", result,
                             STORE_READ_RESULT_MAX);
+  base::UmaHistogramBoolean("SafeBrowsing.SBStoreRead.Success",
+                            result == READ_SUCCESS);
 }
 
 void RecordStoreWriteResult(StoreWriteResult result) {
@@ -255,77 +235,6 @@ class BaseFileOutputStream
   CopyingBaseFileOutputStream stream_;
 };
 
-// A ZeroCopyInputStream that reads from a file using base::File. Any errors
-// during deserialization close the file.
-class BaseFileInputStream : public google::protobuf::io::ZeroCopyInputStream {
- public:
-  // Creates and opens `input_file`.
-  explicit BaseFileInputStream(const base::FilePath& input_file)
-      : stream_(input_file), impl_(&stream_) {}
-  BaseFileInputStream(const BaseFileInputStream&) = delete;
-  BaseFileInputStream& operator=(const BaseFileInputStream&) = delete;
-
-  // Closes the file, if it was still open.
-  ~BaseFileInputStream() override = default;
-
-  // Returns `base::File::FILE_OK` if no error and the file is still open; else
-  // the error that led to closure of the file.
-  base::File::Error GetError() const { return stream_.GetError(); }
-
-  // google::protobuf::io::ZeroCopyInputStream:
-  bool Next(const void** data, int* size) override {
-    return impl_.Next(data, size);
-  }
-  void BackUp(int count) override { return impl_.BackUp(count); }
-  bool Skip(int count) override { return impl_.Skip(count); }
-  int64_t ByteCount() const override { return impl_.ByteCount(); }
-
- private:
-  class CopyingBaseFileInputStream
-      : public google::protobuf::io::CopyingInputStream {
-   public:
-    explicit CopyingBaseFileInputStream(const base::FilePath& input_file)
-        : file_(input_file,
-                base::File::FLAG_OPEN | base::File::FLAG_READ |
-                    base::File::FLAG_WIN_EXCLUSIVE_WRITE |
-                    base::File::FLAG_WIN_SHARE_DELETE) {}
-    CopyingBaseFileInputStream(const CopyingBaseFileInputStream&) = delete;
-    CopyingBaseFileInputStream& operator=(const CopyingBaseFileInputStream&) =
-        delete;
-    ~CopyingBaseFileInputStream() override = default;
-
-    base::File::Error GetError() const { return file_.error_details(); }
-
-    // google::protobuf::io::CopyingInputStream:
-    int Read(void* buffer, int size) override {
-      if (!file_.IsValid()) {
-        return -1;
-      }
-      const std::optional<size_t> bytes_read = file_.ReadAtCurrentPos(
-          UNSAFE_TODO(base::span(reinterpret_cast<uint8_t*>(buffer),
-                                 base::checked_cast<size_t>(size))));
-      if (bytes_read) {
-        return base::checked_cast<int>(*bytes_read);
-      }
-      file_ = base::File(base::File::GetLastFileError());
-      return -1;
-    }
-
-    int Skip(int count) override {
-      if (file_.Seek(base::File::FROM_CURRENT, count) != -1) {
-        return count;
-      }
-      return CopyingInputStream::Skip(count);
-    }
-
-   private:
-    base::File file_;
-  };
-
-  CopyingBaseFileInputStream stream_;
-  google::protobuf::io::CopyingInputStreamAdaptor impl_;
-};
-
 }  // namespace
 
 using ::google::protobuf::RepeatedField;
@@ -338,8 +247,9 @@ std::ostream& operator<<(std::ostream& os, const V4Store& store) {
 
 V4StorePtr V4StoreFactory::CreateV4Store(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    const base::FilePath& store_path) {
-  V4StorePtr new_store(new V4Store(task_runner, store_path),
+    const base::FilePath& store_path,
+    PrefixSize v5_prefix_size) {
+  V4StorePtr new_store(new V4Store(task_runner, store_path, v5_prefix_size),
                        V4StoreDeleter(task_runner));
   new_store->Initialize();
   return new_store;
@@ -354,26 +264,36 @@ void V4Store::Initialize() {
   RecordStoreReadResult(store_read_result);
 }
 
-bool V4Store::HasValidData() {
-  // Record every 256th time (`record_has_valid_data_counter_` is 8-bit).
-  if (++record_has_valid_data_counter_ == 1) {
-    RecordBooleanWithAndWithoutSuffix("SafeBrowsing.V4Store.IsStoreValid",
-                                      has_valid_data_, store_path_);
-  }
-  return has_valid_data_;
+std::string V4Store::GetMetricPrefix() const {
+  return "SafeBrowsing.V4Store";
 }
 
 V4Store::V4Store(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                  const base::FilePath& store_path,
+                 PrefixSize v5_prefix_size,
                  const int64_t old_file_size)
-    : hash_prefix_map_(
+    : SBStore(task_runner, store_path, old_file_size),
+      hash_prefix_map_(
           std::make_unique<HashPrefixMap>(store_path, task_runner)),
-      file_size_(old_file_size),
-      has_valid_data_(false),
-      store_path_(store_path),
-      task_runner_(task_runner) {}
+      v5_prefix_size_(v5_prefix_size) {}
 
 V4Store::~V4Store() = default;
+
+// static
+void V4Store::RecordDecodeAdditionsResult(const std::string& base_metric,
+                                          V4DecodeResult result,
+                                          const base::FilePath& file_path) {
+  RecordEnumWithAndWithoutSuffix(base_metric + kDecodeAdditions, result,
+                                 DECODE_RESULT_MAX, file_path);
+}
+
+// static
+void V4Store::RecordDecodeRemovalsResult(const std::string& base_metric,
+                                         V4DecodeResult result,
+                                         const base::FilePath& file_path) {
+  RecordEnumWithAndWithoutSuffix(base_metric + kDecodeRemovals, result,
+                                 DECODE_RESULT_MAX, file_path);
+}
 
 std::string V4Store::DebugString() const {
   std::string state_base64 = base::Base64Encode(state_);
@@ -515,8 +435,9 @@ void V4Store::ApplyUpdate(
     const scoped_refptr<base::SequencedTaskRunner>& callback_task_runner,
     UpdatedStoreReadyCallback callback) {
   base::ElapsedThreadTimer thread_timer;
-  V4StorePtr new_store(new V4Store(task_runner_, store_path_, file_size_),
-                       V4StoreDeleter(task_runner_));
+  V4StorePtr new_store(
+      new V4Store(task_runner_, store_path_, v5_prefix_size_, file_size_),
+      V4StoreDeleter(task_runner_));
   ApplyUpdateResult apply_update_result;
   std::optional<std::string> metric;
   ApplyUpdateType apply_update_type;
@@ -955,48 +876,61 @@ ApplyUpdateResult V4Store::MergeUpdate(
   return APPLY_UPDATE_SUCCESS;
 }
 
+V5ToV4MigrationResult V4Store::AttemptV5ToV4Migration() {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (base::PathExists(store_path_)) {
+    return V5ToV4MigrationResult::kDiskAlreadyV4;
+  }
+  base::FilePath v5_store_path =
+      store_path_.InsertBeforeExtension(FILE_PATH_LITERAL("_v5"));
+  if (!base::PathExists(v5_store_path)) {
+    return V5ToV4MigrationResult::kV5StoreNotFound;
+  }
+  return MigrateFromV5(v5_store_path);
+}
 
 StoreReadResult V4Store::ReadFromDisk() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  V4StoreFileFormat file_format;
-  int64_t file_size;
-  {
-    BaseFileInputStream input_stream(store_path_);
-    if (!file_format.ParseFromZeroCopyStream(&input_stream)) {
-      return input_stream.GetError() != base::File::FILE_OK
-                 ? FILE_UNREADABLE_FAILURE
-                 : PROTO_PARSING_FAILURE;
-    }
-    // `ParseFromZeroCopyStream` will return true if the file didn't exist, so
-    // explicitly check for an error when reading from the file.
-    if (input_stream.GetError() != base::File::FILE_OK) {
+  if (!base::FeatureList::IsEnabled(
+          kAllowSafeBrowsingV4StoreDiskMigrationChanges)) {
+    return ReadFromDiskInternal();
+  }
+
+  V5ToV4MigrationResult migration_result = AttemptV5ToV4Migration();
+  base::UmaHistogramEnumeration("SafeBrowsing.V4Store.V5ToV4MigrationResult",
+                                migration_result);
+  switch (migration_result) {
+    case V5ToV4MigrationResult::kDiskAlreadyV4:
+    case V5ToV4MigrationResult::kV5ToV4MigrationSucceeded:
+      return ReadFromDiskInternal();
+    case V5ToV4MigrationResult::kV5StoreNotFound:
       return FILE_UNREADABLE_FAILURE;
-    }
-    file_size = input_stream.ByteCount();
-    if (!file_size) {
-      return FILE_EMPTY_FAILURE;
-    }
+    case V5ToV4MigrationResult::kReadV5Failed:
+    case V5ToV4MigrationResult::kPrefixSizeMismatchFailure:
+    case V5ToV4MigrationResult::kHashFileMissingFailure:
+    case V5ToV4MigrationResult::kRenameHashFileFailure:
+    case V5ToV4MigrationResult::kWriteV4FileFailure:
+    case V5ToV4MigrationResult::kRenameV4StoreFileFailure:
+    case V5ToV4MigrationResult::kProtoSerializationFailure:
+      return V5_TO_V4_MIGRATION_FAILURE;
   }
+}
 
-  if (file_format.magic_number() != kFileMagic) {
-    return UNEXPECTED_MAGIC_NUMBER_FAILURE;
-  }
+StoreReadResult V4Store::ReadFromDiskInternal() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  if (file_format.version_number() != kFileVersion) {
-    return FILE_VERSION_INCOMPATIBLE_FAILURE;
-  }
-
-  if (!file_format.has_list_update_response()) {
-    return HASH_PREFIX_INFO_MISSING_FAILURE;
-  }
-
-  if (!file_format.list_update_response().additions().empty()) {
-    return PRE_MMAP_MIGRATION_FILE_FORMAT_FAILURE;
+  V4StoreFileFormat file_format;
+  int64_t file_size = 0;
+  StoreReadResult validation_result =
+      ParseAndValidateV4StoreFileFormat(store_path_, file_format, &file_size);
+  if (validation_result != READ_SUCCESS) {
+    return validation_result;
   }
 
   ApplyUpdateResult apply_update_result =
-      hash_prefix_map_->ReadFromDisk(file_format);
+      hash_prefix_map_->ReadFromDisk(SBStoreFileFormat(&file_format));
   if (apply_update_result == APPLY_UPDATE_SUCCESS) {
     std::unique_ptr<ListUpdateResponse> response(new ListUpdateResponse);
     response->Swap(file_format.mutable_list_update_response());
@@ -1018,6 +952,115 @@ StoreReadResult V4Store::ReadFromDisk() {
   }
 
   return READ_SUCCESS;
+}
+
+V5ToV4MigrationResult V4Store::MigrateFromV5(
+    const base::FilePath& v5_store_path) {
+  V5StoreFileFormat v5_file_format;
+  int64_t v5_file_size = 0;
+  base::FilePath v5_hash_file_path;
+  base::FilePath v4_hash_file_path;
+  base::FilePath temp_store_path = store_path_.AddExtensionASCII("tmp");
+  bool migration_succeeded = false;
+
+  // If we fail to migrate from v5, we wipe the v5 files and the attempted v4
+  // file format temp file.
+  absl::Cleanup cleanup_on_failure = [&v5_store_path, &v5_hash_file_path,
+                                      &v4_hash_file_path, &temp_store_path,
+                                      &migration_succeeded] {
+    if (!migration_succeeded) {
+      base::DeleteFile(v5_store_path);
+      if (!v5_hash_file_path.empty()) {
+        base::DeleteFile(v5_hash_file_path);
+      }
+      if (!v4_hash_file_path.empty()) {
+        base::DeleteFile(v4_hash_file_path);
+      }
+      base::DeleteFile(temp_store_path);
+    }
+  };
+
+  // Parse and validate the existing V5 store file.
+  V5StoreReadResult validation_result = ParseAndValidateV5StoreFileFormat(
+      v5_store_path, v5_file_format, &v5_file_size);
+  if (validation_result != V5StoreReadResult::kReadSuccess) {
+    base::UmaHistogramEnumeration(
+        "SafeBrowsing.V4Store.V5ToV4Migration.V5ReadFailureReason",
+        validation_result);
+    return V5ToV4MigrationResult::kReadV5Failed;
+  }
+
+  const auto& list_details = v5_file_format.list_details();
+  std::string v4_ext;
+  uint64_t file_size = 0;
+
+  // Move the V5 hash file to the V4 path if it exists.
+  if (list_details.has_hash_file()) {
+    const auto& hash_file = list_details.hash_file();
+    // This is used in `cleanup_on_failure` above so it needs to run as soon as
+    // we have the `hash_file.extension()` available.
+    v5_hash_file_path =
+        HashPrefixContainer::GetPath(v5_store_path, hash_file.extension());
+    // TODO(crbug.com/362791941): Eventually change `v5_prefix_size_ != 0` to a
+    // CHECK in the constructor.
+    if (v5_prefix_size_ == 0 || hash_file.file_size() % v5_prefix_size_ != 0) {
+      return V5ToV4MigrationResult::kPrefixSizeMismatchFailure;
+    }
+    file_size = hash_file.file_size();
+    v4_ext =
+        base::NumberToString(v5_prefix_size_) + "_" + hash_file.extension();
+    v4_hash_file_path = HashPrefixContainer::GetPath(store_path_, v4_ext);
+
+    if (!base::PathExists(v5_hash_file_path)) {
+      return V5ToV4MigrationResult::kHashFileMissingFailure;
+    }
+
+    if (!base::Move(v5_hash_file_path, v4_hash_file_path)) {
+      return V5ToV4MigrationResult::kRenameHashFileFailure;
+    }
+  }
+
+  // Construct the new V4StoreFileFormat proto.
+  V4StoreFileFormat v4_file_format;
+  v4_file_format.set_magic_number(v5_file_format.magic_number());
+  v4_file_format.set_version_number(kV4FileVersion);
+
+  ListUpdateResponse* response = v4_file_format.mutable_list_update_response();
+  if (list_details.has_version()) {
+    response->set_new_client_state(list_details.version());
+  }
+  if (list_details.has_checksum()) {
+    response->mutable_checksum()->set_sha256(list_details.checksum().sha256());
+  }
+  response->set_response_type(ListUpdateResponse::FULL_UPDATE);
+
+  if (list_details.has_hash_file()) {
+    HashFile* hash_file = v4_file_format.add_hash_files();
+    hash_file->set_prefix_size(v5_prefix_size_);
+    hash_file->set_extension(v4_ext);
+    hash_file->set_file_size(file_size);
+  }
+
+  // Serialize and write the new V4 proto to disk.
+  std::string v4_file_format_string;
+  if (!v4_file_format.SerializeToString(&v4_file_format_string)) {
+    return V5ToV4MigrationResult::kProtoSerializationFailure;
+  }
+
+  if (!base::WriteFile(temp_store_path, v4_file_format_string)) {
+    return V5ToV4MigrationResult::kWriteV4FileFailure;
+  }
+
+  if (!base::Move(temp_store_path, store_path_)) {
+    return V5ToV4MigrationResult::kRenameV4StoreFileFailure;
+  }
+
+  migration_succeeded = true;
+
+  // Delete the old V5 store file.
+  base::DeleteFile(v5_store_path);
+
+  return V5ToV4MigrationResult::kV5ToV4MigrationSucceeded;
 }
 
 StoreWriteResult V4Store::WriteToDisk(const Checksum& checksum) {
@@ -1045,10 +1088,11 @@ StoreWriteResult V4Store::WriteToDisk(V4StoreFileFormat* file_format) {
   // `write_session` must remain alive until `file_format` is committed to disk.
   // Additionally, note that `hash_prefix_map_` is unusable throughout the
   // lifetime of `write_session`.
-  if (auto write_session = hash_prefix_map_->WriteToDisk(file_format);
+  SBStoreFileFormat sb_file_format(file_format);
+  if (auto write_session = hash_prefix_map_->WriteToDisk(sb_file_format);
       write_session) {
     file_format->set_magic_number(kFileMagic);
-    file_format->set_version_number(kFileVersion);
+    file_format->set_version_number(kV4FileVersion);
     {
       BaseFileOutputStream output_stream(new_filename);
       if (!file_format->SerializeToZeroCopyStream(&output_stream) ||

@@ -53,7 +53,8 @@ class V4StoreFuzzer {
         temp_dir.GetPath().AppendASCII("V4StoreTest.store");
 
     auto task_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
-    auto store = std::make_unique<V4Store>(task_runner, store_path);
+    auto store = std::make_unique<V4Store>(task_runner, store_path,
+                                           /*v5_prefix_size=*/0);
     // Assume no removals.
     google::protobuf::RepeatedField<int32_t> raw_removals;
     // Empty checksum indicates that the checksum calculation should be skipped.

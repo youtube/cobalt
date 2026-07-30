@@ -39,6 +39,9 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_web_ui.h"
 #include "google_apis/gaia/gaia_id.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -148,7 +151,11 @@ class AccountManagerUIHandlerTest
     : public InProcessBrowserTest,
       public testing::WithParamInterface<DeviceAccountInfo> {
  public:
-  AccountManagerUIHandlerTest() = default;
+  AccountManagerUIHandlerTest()
+      : test_shared_loader_factory_(
+            base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+                &test_url_loader_factory_)) {}
+
   AccountManagerUIHandlerTest(const AccountManagerUIHandlerTest&) = delete;
   AccountManagerUIHandlerTest& operator=(const AccountManagerUIHandlerTest&) =
       delete;
@@ -219,7 +226,7 @@ class AccountManagerUIHandlerTest
 
     account_manager_ = AccountManagerFactory::Get()->GetAccountManager(
         profile_->GetPath().value());
-
+    account_manager_->SetUrlLoaderFactoryForTests(test_shared_loader_factory_);
     account_manager_->UpsertAccount(
         ::account_manager::AccountKey{GetDeviceAccountInfo().id,
                                       GetDeviceAccountInfo().account_type},
@@ -265,6 +272,9 @@ class AccountManagerUIHandlerTest
   content::TestWebUI web_ui_;
   std::unique_ptr<TestingAccountManagerUIHandler> handler_;
   raw_ptr<AccountAppsAvailability> account_apps_availability_;
+
+  network::TestURLLoaderFactory test_url_loader_factory_;
+  scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
 };
 
 IN_PROC_BROWSER_TEST_P(AccountManagerUIHandlerTest,
@@ -423,8 +433,6 @@ IN_PROC_BROWSER_TEST_P(AccountManagerUIHandlerTest,
               Optional(StrEq(kReauthAccountEmail)));
   EXPECT_EQ(0,
             fake_account_manager_ui_ptr->show_account_addition_dialog_calls());
-  EXPECT_EQ(0,
-            fake_account_manager_ui_ptr->show_manage_accounts_settings_calls());
   histogram_tester.ExpectUniqueSample(
       account_manager::kAccountAdditionSourceHistogramName,
       account_manager::AccountAdditionSource::kSettingsReauthAccountButton,
@@ -460,8 +468,6 @@ IN_PROC_BROWSER_TEST_P(AccountManagerUIHandlerTest,
             fake_account_manager_ui_ptr->show_account_addition_dialog_calls());
   EXPECT_EQ(0, fake_account_manager_ui_ptr
                    ->show_account_reauthentication_dialog_calls());
-  EXPECT_EQ(0,
-            fake_account_manager_ui_ptr->show_manage_accounts_settings_calls());
   ASSERT_TRUE(
       fake_account_manager_ui_ptr->last_add_account_options().has_value());
   EXPECT_TRUE(fake_account_manager_ui_ptr->last_add_account_options()

@@ -75,14 +75,6 @@ void NetworkServiceNetworkDelegate::MaybeTruncateReferrer(
     request->set_referrer_policy(net::ReferrerPolicy::NO_REFERRER);
     return;
   }
-
-  if (base::FeatureList::IsEnabled(
-          net::features::kCapReferrerToOriginOnCrossOrigin)) {
-    if (!url::IsSameOriginWith(effective_url, GURL(request->referrer()))) {
-      auto capped_referrer = url::Origin::Create(GURL(request->referrer()));
-      request->SetReferrer(capped_referrer.GetURL().spec());
-    }
-  }
 }
 
 int NetworkServiceNetworkDelegate::OnBeforeURLRequest(

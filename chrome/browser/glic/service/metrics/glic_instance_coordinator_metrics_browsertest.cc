@@ -6,6 +6,7 @@
 
 #include "base/test/run_until.h"
 #include "build/build_config.h"
+#include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -20,7 +21,17 @@ namespace {
 
 class GlicInstanceCoordinatorMetricsBrowserTest : public GlicBrowserTest {
  public:
-  GlicInstanceCoordinatorMetricsBrowserTest() = default;
+  GlicInstanceCoordinatorMetricsBrowserTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlicActor,
+                               {{features::kGlicActorPolicyControlExemption
+                                     .name,
+                                 "true"}}}},
+        /*disabled_features=*/{features::kGlicDefaultToLastActiveConversation});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsBrowserTest,
@@ -85,8 +96,10 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsBrowserTest,
 class GlicInstanceCoordinatorMetricsPeriodicTest : public GlicBrowserTest {
  public:
   GlicInstanceCoordinatorMetricsPeriodicTest() {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        features::kGlicRecordMemoryFootprintMetrics, {{"period", "1s"}});
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlicRecordMemoryFootprintMetrics,
+                               {{"period", "1s"}}}},
+        /*disabled_features=*/{features::kGlicDefaultToLastActiveConversation});
   }
 
  private:
@@ -145,9 +158,11 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsBrowserTest,
 class GlicInstanceCoordinatorMetricsWarmingTest : public GlicBrowserTest {
  public:
   GlicInstanceCoordinatorMetricsWarmingTest() {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        features::kGlicWebContentsWarming,
-        {{features::kGlicWebContentsWarmingDelay.name, "0ms"}});
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlicWebContentsWarming,
+                               {{features::kGlicWebContentsWarmingDelay.name,
+                                 "0ms"}}}},
+        /*disabled_features=*/{features::kGlicDefaultToLastActiveConversation});
   }
 
  private:
@@ -192,6 +207,113 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsWarmingTest,
 
   histogram_tester.ExpectSampleValueGreaterThan(
       "Glic.Instance.TotalPrivateMemoryFootprint.CriticalPressure", 0);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsBrowserTest,
+                       CountsOnCreation) {
+  GlicHistogramTester histogram_tester;
+
+  histogram_tester.ExpectTotalCount("Glic.Instances.Count.OnCreation", 0);
+  histogram_tester.ExpectTotalCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 0);
+
+  // Open the first instance.
+  ASSERT_OK(OpenGlicForActiveTab());
+  histogram_tester.ExpectBucketCount("Glic.Instances.Count.OnCreation", 1, 1);
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 1, 1);
+
+  // Open the second instance.
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK(OpenGlicForActiveTab());
+
+  // Count should be 2 for the second instance creation.
+  histogram_tester.ExpectBucketCount("Glic.Instances.Count.OnCreation", 2, 1);
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 2, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsBrowserTest,
+                       CountActuatingOnTaskCreation) {
+  GlicHistogramTester histogram_tester;
+
+  histogram_tester.ExpectTotalCount(
+      "Glic.Instances.CountActuating.OnTaskCreation", 0);
+
+  // Create two instances.
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * inst1, OpenGlicForActiveTab());
+
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * inst2, OpenGlicForActiveTab());
+
+  // Actuate on inst1. It should record that 1 out of 2 instances is actuating.
+  ASSERT_OK(CreateActorTask(inst1));
+  histogram_tester.ExpectUniqueSample(
+      "Glic.Instances.CountActuating.OnTaskCreation", 1, 1);
+
+  // Now actuate on inst2. It should record that 2 out of 2 instances are
+  // actuating.
+  ASSERT_OK(CreateActorTask(inst2));
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountActuating.OnTaskCreation", 2, 1);
+}
+
+class GlicInstanceCoordinatorMetricsHibernationTest
+    : public GlicInstanceCoordinatorMetricsBrowserTest {
+ public:
+  GlicInstanceCoordinatorMetricsHibernationTest() {
+    feature_list_.InitAndEnableFeatureWithParameters(kGlicMaxAwakeInstances,
+                                                     {{"limit", "2"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsHibernationTest,
+                       CountAwakeOnContentsCreatedWithHibernation) {
+  GlicHistogramTester histogram_tester;
+
+  tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(tab1);
+
+  histogram_tester.ExpectTotalCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 0);
+
+  // 1. Create instance 1 (awake count = 1).
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* instance1 = GetOnlyGlicInstance();
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 1, 1);
+
+  // 2. Create instance 2 (awake count = 2).
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK(OpenGlicForActiveTab());
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 2, 1);
+
+  // 3. Create instance 3 (awake count = 2, because instance 1 is hibernated to
+  // enforce limit=2).
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK(OpenGlicForActiveTab());
+  // Awake count should still be 2 (instance 2 and 3 are awake, instance 1 is
+  // hibernated).
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 2, 2);
+
+  // Verify instance 1 is hibernated.
+  EXPECT_TRUE(instance1->IsHibernated());
+
+  // 4. Now, activate the tab of instance 1 and open Glic to awaken it.
+  GetTabListInterface()->ActivateTab(tab1->GetHandle());
+  ASSERT_OK(OpenGlicForActiveTab());
+
+  // Wait for the instance to become awakened.
+  ASSERT_OK(WaitForInstanceAwakened(instance1));
+
+  // Upon wakeup, it records AwakeCount.OnContentsCreated again.
+  histogram_tester.ExpectBucketCount(
+      "Glic.Instances.CountAwake.OnContentsCreated", 3, 1);
 }
 
 }  // namespace

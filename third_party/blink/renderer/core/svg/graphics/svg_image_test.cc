@@ -40,6 +40,36 @@
 
 namespace blink {
 
+namespace {
+
+Animation* GetAnimationForElement(LocalFrame& local_frame,
+                                  const AtomicString& id) {
+  Element* element = local_frame.GetDocument()->getElementById(id);
+  CHECK(element);
+  HeapVector<Member<Animation>> animations = element->getAnimations();
+  CHECK_EQ(animations.size(), 1u);
+  return animations[0].Get();
+}
+
+// Safety bound for tests that advance the SVG image timeline until a target
+// animation time is reached. This is not a product behavior threshold.
+constexpr int kMaxAnimationFramesToAdvance = 120;
+
+void AdvanceSVGImageAnimationUntil(SVGImage& image,
+                                   Animation& animation,
+                                   AnimationTimeDelta target_time) {
+  for (int i = 0; i < kMaxAnimationFramesToAdvance; ++i) {
+    image.AdvanceAnimationForTesting();
+    if (animation.CurrentTimeInternal().has_value() &&
+        animation.CurrentTimeInternal().value() >= target_time) {
+      return;
+    }
+  }
+  FAIL() << "Timed out while advancing SVGImage animation";
+}
+
+}  // namespace
+
 class SVGImageTest : public testing::Test, private ScopedMockOverlayScrollbars {
  public:
   SVGImage& GetImage() { return *image_; }
@@ -119,6 +149,38 @@ const char kAnimatedDocument[] =
     "1.125,8' stroke-width='2' stroke='blue'/>"
     "</svg>";
 
+const char kFiniteCssAnimatedDocument[] = R"SVG(
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10'>
+  <style>
+    @keyframes slide {
+      from { transform: translateX(0px); }
+      to { transform: translateX(90px); }
+    }
+    #box {
+      transform-box: fill-box;
+      animation: slide 1s linear 1 normal forwards;
+    }
+  </style>
+  <rect id='box' width='10' height='10' fill='blue'/>
+</svg>
+)SVG";
+
+const char kPausedFiniteCssAnimatedDocument[] = R"SVG(
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10'>
+  <style>
+    @keyframes slide {
+      from { transform: translateX(0px); }
+      to { transform: translateX(90px); }
+    }
+    #box {
+      transform-box: fill-box;
+      animation: slide 1s linear -0.5s 1 normal forwards paused;
+    }
+  </style>
+  <rect id='box' width='10' height='10' fill='blue'/>
+</svg>
+)SVG";
+
 TEST_F(SVGImageTest, TimelineSuspendAndResume) {
   const bool kShouldPause = true;
   Load(base::span_from_cstring(kAnimatedDocument), kShouldPause);
@@ -182,6 +244,155 @@ TEST_F(SVGImageTest, ResetAnimation) {
   PumpFrame();
   EXPECT_FALSE(chrome_client.IsSuspended());
   EXPECT_TRUE(timer->Value().IsActive());
+}
+
+// Verifies that a finished finite CSS animation is still treated as animated
+// so reload/reset paths can restart it from the beginning.
+TEST_F(SVGImageTest, FinishedFiniteCssAnimationStillMaybeAnimated) {
+  const bool kShouldPause = false;
+  Load(base::span_from_cstring(kFiniteCssAnimatedDocument), kShouldPause);
+  PumpFrame();
+
+  LocalFrame* local_frame =
+      To<LocalFrame>(GetImage().GetPageForTesting()->MainFrame());
+  Animation* animation =
+      GetAnimationForElement(*local_frame, AtomicString("box"));
+  ASSERT_TRUE(animation);
+  AdvanceSVGImageAnimationUntil(GetImage(), *animation,
+                                ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_GE(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+
+  EXPECT_TRUE(GetImage().MaybeAnimated());
+}
+
+// Verifies that ResetAnimation() rewinds a finished finite CSS animation back
+// to the first frame even after it has remained idle, and leaves playback in a
+// runnable state.
+TEST_F(SVGImageTest,
+       ResetAnimationRestoresPlaybackForFinishedFiniteCssAnimation) {
+  const bool kShouldPause = false;
+  Load(base::span_from_cstring(kFiniteCssAnimatedDocument), kShouldPause);
+
+  SVGImageChromeClient& chrome_client = GetImage().ChromeClientForTesting();
+  DisallowNewWrapper<HeapTaskRunnerTimer<SVGImageChromeClient>>* timer =
+      MakeGarbageCollected<
+          DisallowNewWrapper<HeapTaskRunnerTimer<SVGImageChromeClient>>>(
+          scheduler::GetSingleThreadTaskRunnerForTesting(), &chrome_client,
+          &SVGImageChromeClient::AnimationTimerFired);
+  chrome_client.SetTimerForTesting(timer);
+
+  PumpFrame();
+
+  LocalFrame* local_frame =
+      To<LocalFrame>(GetImage().GetPageForTesting()->MainFrame());
+  Animation* animation =
+      GetAnimationForElement(*local_frame, AtomicString("box"));
+  ASSERT_TRUE(animation);
+  AdvanceSVGImageAnimationUntil(GetImage(), *animation,
+                                ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_GE(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+
+  test::RunDelayedTasks(base::Milliseconds(1) +
+                        timer->Value().NextFireInterval());
+  PumpFrame();
+
+  GetImage().ResetAnimation();
+  PumpFrame();
+
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_LT(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+
+  EXPECT_FALSE(chrome_client.IsSuspended());
+  EXPECT_TRUE(timer->Value().IsActive());
+  EXPECT_NE(animation->playState(), V8AnimationPlayState::Enum::kPaused);
+  EXPECT_NE(animation->playState(), V8AnimationPlayState::Enum::kFinished);
+}
+
+// Verifies that ResetAnimation() rewinds a running finite CSS animation in an
+// isolated SVG image and keeps it runnable after the reset frame.
+TEST_F(SVGImageTest, ResetAnimationRewindsRunningFiniteCssAnimation) {
+  const bool kShouldPause = false;
+  Load(base::span_from_cstring(kFiniteCssAnimatedDocument), kShouldPause);
+
+  SVGImageChromeClient& chrome_client = GetImage().ChromeClientForTesting();
+  DisallowNewWrapper<HeapTaskRunnerTimer<SVGImageChromeClient>>* timer =
+      MakeGarbageCollected<
+          DisallowNewWrapper<HeapTaskRunnerTimer<SVGImageChromeClient>>>(
+          scheduler::GetSingleThreadTaskRunnerForTesting(), &chrome_client,
+          &SVGImageChromeClient::AnimationTimerFired);
+  chrome_client.SetTimerForTesting(timer);
+
+  PumpFrame();
+
+  LocalFrame* local_frame =
+      To<LocalFrame>(GetImage().GetPageForTesting()->MainFrame());
+  Animation* animation =
+      GetAnimationForElement(*local_frame, AtomicString("box"));
+  ASSERT_TRUE(animation);
+  AdvanceSVGImageAnimationUntil(GetImage(), *animation,
+                                ANIMATION_TIME_DELTA_FROM_SECONDS(0.5));
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_GE(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(0.5));
+
+  GetImage().ResetAnimation();
+  PumpFrame();
+
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_LT(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(0.5));
+  EXPECT_FALSE(chrome_client.IsSuspended());
+  EXPECT_TRUE(timer->Value().IsActive());
+  EXPECT_NE(animation->playState(), V8AnimationPlayState::Enum::kPaused);
+  EXPECT_NE(animation->playState(), V8AnimationPlayState::Enum::kFinished);
+}
+
+// Verifies that ResetAnimation() does not resume a CSS-paused finite animation.
+TEST_F(SVGImageTest, ResetAnimationPreservesPausedFiniteCssAnimation) {
+  const bool kShouldPause = false;
+  Load(base::span_from_cstring(kPausedFiniteCssAnimatedDocument), kShouldPause);
+
+  SVGImageChromeClient& chrome_client = GetImage().ChromeClientForTesting();
+  DisallowNewWrapper<HeapTaskRunnerTimer<SVGImageChromeClient>>* timer =
+      MakeGarbageCollected<
+          DisallowNewWrapper<HeapTaskRunnerTimer<SVGImageChromeClient>>>(
+          scheduler::GetSingleThreadTaskRunnerForTesting(), &chrome_client,
+          &SVGImageChromeClient::AnimationTimerFired);
+  chrome_client.SetTimerForTesting(timer);
+
+  PumpFrame();
+
+  LocalFrame* local_frame =
+      To<LocalFrame>(GetImage().GetPageForTesting()->MainFrame());
+  Animation* animation =
+      GetAnimationForElement(*local_frame, AtomicString("box"));
+  ASSERT_TRUE(animation);
+  EXPECT_EQ(animation->playState(), V8AnimationPlayState::Enum::kPaused);
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_EQ(animation->CurrentTimeInternal().value(), AnimationTimeDelta());
+
+  GetImage().ResetAnimation();
+  PumpFrame();
+
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_EQ(animation->CurrentTimeInternal().value(), AnimationTimeDelta());
+  EXPECT_EQ(animation->playState(), V8AnimationPlayState::Enum::kPaused);
+
+  AnimationTimeDelta rewind_time = animation->CurrentTimeInternal().value();
+
+  EXPECT_TRUE(timer->Value().IsActive());
+  test::RunDelayedTasks(base::Milliseconds(1) +
+                        timer->Value().NextFireInterval());
+  PumpFrame();
+
+  ASSERT_TRUE(animation->CurrentTimeInternal().has_value());
+  EXPECT_EQ(animation->CurrentTimeInternal().value(), rewind_time);
+  EXPECT_EQ(animation->playState(), V8AnimationPlayState::Enum::kPaused);
 }
 
 TEST_F(SVGImageTest, SupportsSubsequenceCaching) {
@@ -527,6 +738,89 @@ TEST_F(SVGImageSimTest, TwoImagesSameSVGImageDifferentSize) {
   // The previous frame should result in a stable state and should not schedule
   // new visual updates.
   EXPECT_FALSE(Compositor().NeedsBeginFrame());
+}
+
+// Verifies that a cached SVGImage reused by a detached <img> paints from the
+// initial frame once the new element attaches layout, even after a finite CSS
+// animation has finished and remained idle.
+TEST_F(SVGImageSimTest, CachedFiniteCssAnimationResetWhileDetached) {
+  SimRequest main_resource("https://example.com/page.html", "text/html");
+  SimSubresourceRequest image_resource("https://example.com/image.svg",
+                                       "image/svg+xml");
+  LoadURL("https://example.com/page.html");
+  main_resource.Complete(
+      "<img src='image.svg' width='100' id='visible'>"
+      "<img width='100' id='hidden' style='display: none'>");
+  image_resource.Complete(kFiniteCssAnimatedDocument);
+
+  Compositor().BeginFrame();
+  test::RunPendingTasks();
+
+  Element* visible_element =
+      GetDocument().getElementById(AtomicString("visible"));
+  ASSERT_TRUE(IsA<HTMLImageElement>(visible_element));
+  ImageResourceContent* visible_image_content =
+      To<HTMLImageElement>(*visible_element).CachedImage();
+  ASSERT_TRUE(visible_image_content);
+  ASSERT_TRUE(visible_image_content->IsLoaded());
+  ASSERT_TRUE(visible_image_content->HasImage());
+  Image* first_image = visible_image_content->GetImage();
+  ASSERT_TRUE(IsA<SVGImage>(first_image));
+
+  LocalFrame* first_local_frame = To<LocalFrame>(
+      To<SVGImage>(*first_image).GetPageForTesting()->MainFrame());
+  Animation* first_animation =
+      GetAnimationForElement(*first_local_frame, AtomicString("box"));
+  ASSERT_TRUE(first_animation);
+  SVGImage& svg_image = To<SVGImage>(*first_image);
+  AdvanceSVGImageAnimationUntil(svg_image, *first_animation,
+                                ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+  ASSERT_TRUE(first_animation->CurrentTimeInternal().has_value());
+  EXPECT_GE(first_animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+
+  Compositor().BeginFrame();
+  test::RunPendingTasks();
+
+  Element* hidden_element =
+      GetDocument().getElementById(AtomicString("hidden"));
+  ASSERT_TRUE(IsA<HTMLImageElement>(hidden_element));
+  EXPECT_FALSE(hidden_element->GetLayoutObject());
+  hidden_element->setAttribute(html_names::kSrcAttr, AtomicString("image.svg"));
+  test::RunPendingTasks();
+
+  ImageResourceContent* hidden_image_content =
+      To<HTMLImageElement>(*hidden_element).CachedImage();
+  ASSERT_TRUE(hidden_image_content);
+  ASSERT_TRUE(hidden_image_content->IsLoaded());
+  ASSERT_TRUE(hidden_image_content->HasImage());
+  Image* second_image = hidden_image_content->GetImage();
+  ASSERT_TRUE(IsA<SVGImage>(second_image));
+  EXPECT_EQ(second_image, first_image);
+
+  LocalFrame* second_local_frame = To<LocalFrame>(
+      To<SVGImage>(*second_image).GetPageForTesting()->MainFrame());
+  Animation* hidden_animation =
+      GetAnimationForElement(*second_local_frame, AtomicString("box"));
+  ASSERT_TRUE(hidden_animation);
+  ASSERT_TRUE(hidden_animation->CurrentTimeInternal().has_value());
+  EXPECT_GE(hidden_animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+
+  visible_element->setAttribute(html_names::kStyleAttr,
+                                AtomicString("display: none"));
+  hidden_element->removeAttribute(html_names::kStyleAttr);
+  Compositor().BeginFrame();
+  test::RunPendingTasks();
+
+  EXPECT_TRUE(hidden_element->GetLayoutObject());
+
+  Animation* visible_animation =
+      GetAnimationForElement(*second_local_frame, AtomicString("box"));
+  ASSERT_TRUE(visible_animation);
+  ASSERT_TRUE(visible_animation->CurrentTimeInternal().has_value());
+  EXPECT_LT(visible_animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(0.1));
 }
 
 TEST_F(SVGImageSimTest, SVGWithXSLT) {

@@ -68,7 +68,7 @@ public class MockitoHelper {
                 });
     }
 
-    /** Similar to {@link #doCallback(Callback)} but able to return a value as well. */
+    /** Similar to {@link #doCallback(Callback)} but able to return a value. */
     public static <T, R> Stubber doFunction(Function<T, R> function) {
         return doFunction(function, 0);
     }
@@ -79,6 +79,7 @@ public class MockitoHelper {
     }
 
     /** Forwards {@link Callback#bind} back to the callback object, allowing mocks to work. */
+    @SuppressWarnings("CallbackBind") // Would cause infinite recursion.
     public static <T> void forwardBind(Callback<T> callback) {
         Mockito.doAnswer(
                         (Answer<Runnable>)
@@ -129,6 +130,8 @@ public class MockitoHelper {
      */
     @SuppressWarnings("unchecked")
     public static <T> Callback<T> mockCallback() {
-        return Mockito.mock(Callback.class);
+        Callback<T> mock = Mockito.mock(Callback.class);
+        forwardBind(mock);
+        return mock;
     }
 }

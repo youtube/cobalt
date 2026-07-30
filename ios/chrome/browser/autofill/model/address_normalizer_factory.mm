@@ -18,13 +18,13 @@ namespace autofill {
 namespace {
 
 std::unique_ptr<::i18n::addressinput::Source> GetAddressInputSource() {
-  return base::WrapUnique(new autofill::ChromeMetadataSource(
+  return base::WrapUnique(new ChromeMetadataSource(
       I18N_ADDRESS_VALIDATION_DATA_URL,
       GetApplicationContext()->GetSharedURLLoaderFactory()));
 }
 
 std::unique_ptr<::i18n::addressinput::Storage> GetAddressInputStorage() {
-  return autofill::ValidationRulesStorageFactory::CreateStorage();
+  return ValidationRulesStorageFactory::CreateStorage();
 }
 
 }  // namespace

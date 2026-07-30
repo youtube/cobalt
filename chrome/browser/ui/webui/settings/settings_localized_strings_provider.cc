@@ -1076,7 +1076,6 @@ void AddResetStrings(content::WebUIDataSource* html_source, Profile* profile) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"resetPageTitle", IDS_SETTINGS_RESET},
       {"resetTrigger", IDS_SETTINGS_RESET_SETTINGS_TRIGGER},
-      {"resetPageExplanation", IDS_RESET_PROFILE_SETTINGS_EXPLANATION},
       {"resetPageExplanationBulletPoints",
        IDS_RESET_PROFILE_SETTINGS_EXPLANATION_IN_BULLET_POINTS},
       {"triggeredResetPageExplanation",
@@ -1087,15 +1086,11 @@ void AddResetStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"resetPageFeedback", IDS_SETTINGS_RESET_PROFILE_FEEDBACK},
 
       // Automatic reset banner (now a dialog).
-      {"resetAutomatedDialogTitle", IDS_SETTINGS_RESET_AUTOMATED_DIALOG_TITLE},
-      {"resetAutomatedDialogV2Title",
+      {"resetAutomatedDialogTitle",
        IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_TITLE},
-      {"resetAutomatedDialogV2Body",
-       IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_BODY},
+      {"resetAutomatedDialogBody", IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_BODY},
       {"resetPinnedTabs", IDS_SETTINGS_RESET_PINNED_TABS},
       {"gotIt", IDS_SETTINGS_GOT_IT},
-      {"resetProfileBannerButton", IDS_SETTINGS_RESET_BANNER_RESET_BUTTON_TEXT},
-      {"resetProfileBannerDescription", IDS_SETTINGS_RESET_BANNER_TEXT},
       {"resetLearnMoreAccessibilityText",
        IDS_SETTINGS_RESET_LEARN_MORE_ACCESSIBILITY_TEXT},
   };
@@ -1104,13 +1099,6 @@ void AddResetStrings(content::WebUIDataSource* html_source, Profile* profile) {
   html_source->AddBoolean(
       "showResetProfileBanner",
       ResetSettingsHandler::ShouldShowResetProfileBanner(profile));
-  bool is_reset_shortcuts_feature_enabled = false;
-#if BUILDFLAG(IS_WIN)
-  // TODO(crbug.com/40192052): Remove this flag from the JS.
-  is_reset_shortcuts_feature_enabled = true;
-#endif
-  html_source->AddBoolean("showExplanationWithBulletPoints",
-                          is_reset_shortcuts_feature_enabled);
 
   html_source->AddString("resetPageLearnMoreUrl",
                          chrome::kResetProfileSettingsLearnMoreURL);
@@ -1672,8 +1660,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"addVirtualCard", IDS_AUTOFILL_ADD_VIRTUAL_CARD},
       {"savedToThisDeviceOnly",
        IDS_SETTINGS_PAYMENTS_SAVED_TO_THIS_DEVICE_ONLY},
-      {"localPasswordManager",
-       IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE},
+      {"localPasswordManager", IDS_PASSWORD_MANAGER_BRAND_NAME},
       {"removeVirtualCard", IDS_AUTOFILL_REMOVE_VIRTUAL_CARD},
       {"editServerCard", IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD},
       {"editServerCardInWallet",
@@ -1956,6 +1943,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
 
   html_source->AddString("personalContextSettingsUrl",
                          personal_context::kPersonalContextSettingsURL);
+  html_source->AddString("personalContextConnectedAppsUrl",
+                         personal_context::kPersonalContextConnectedAppsURL);
 }
 
 void AddSignOutDialogStrings(content::WebUIDataSource* html_source,
@@ -2218,7 +2207,11 @@ void AddPeopleStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SYNC_UNAVAILABLE_FOR_NON_GOOGLE_ACCOUNT},
       {"accountPageTitle", IDS_SETTINGS_ACCOUNT_PAGE_TITLE},
       {"accountDataTypesHeading", IDS_SETTINGS_ACCOUNT_DATATYPES_HEADING},
+#if BUILDFLAG(IS_CHROMEOS)
+      {"accountDataTypesBody", IDS_SETTINGS_ACCOUNT_BODY_CHROMEOS},
+#else
       {"accountDataTypesBody", IDS_SETTINGS_ACCOUNT_BODY},
+#endif
       {"googleServicesPageTitle", IDS_SETTINGS_GOOGLE_SERVICES_PAGE_TITLE},
       {"syncDisabledUserInformation", IDS_SETTINGS_ACCOUNT_SYNC_DISABLED},
 #if BUILDFLAG(IS_CHROMEOS)
@@ -2361,8 +2354,6 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
       {"doNotTrackDialogMessage", IDS_SETTINGS_ENABLE_DO_NOT_TRACK_DIALOG_TEXT},
       {"doNotTrackDialogLearnMoreA11yLabel",
        IDS_SETTINGS_ENABLE_DO_NOT_TRACK_DIALOG_LEARN_MORE_ACCESSIBILITY_LABEL},
-      // TODO(crbug.com/40122957): This string is no longer used. Remove.
-      {"permissionsPageTitle", IDS_SETTINGS_PERMISSIONS},
       {"siteSettingsSublabel", IDS_SETTINGS_PERMISSIONS_DESCRIPTION},
       {"securityPageTitle", IDS_SETTINGS_SECURITY},
       {"securityPageDescription", IDS_SETTINGS_SECURITY_DESCRIPTION},

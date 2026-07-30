@@ -65,7 +65,6 @@ class CORE_EXPORT DevToolsSession
           main_receiver,
       mojo::PendingReceiver<mojom::blink::DevToolsSession> io_receiver,
       mojom::blink::DevToolsSessionStatePtr reattach_session_state,
-      const String& script_to_evaluate_on_load,
       bool client_expects_binary_responses,
       bool client_is_trusted,
       const String& session_id,

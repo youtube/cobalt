@@ -1,0 +1,89 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/ui/views/permissions/chip/webui_permission_chip.h"
+
+#include <memory>
+#include <string>
+
+#include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
+#include "chrome/browser/ui/views/toolbar/mock_webui_toolbar_control_delegate.h"
+#include "chrome/test/base/testing_profile.h"
+#include "components/omnibox/browser/test_location_bar_model.h"
+#include "content/public/test/browser_task_environment.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace {
+
+class TestLocationBarViewDelegate : public LocationBarView::Delegate {
+ public:
+  explicit TestLocationBarViewDelegate(LocationBarModel* model)
+      : model_(model) {}
+  content::WebContents* GetWebContents() override { return nullptr; }
+  LocationBarModel* GetLocationBarModel() override { return model_; }
+  const LocationBarModel* GetLocationBarModel() const override {
+    return model_;
+  }
+  ContentSettingBubbleModelDelegate* GetContentSettingBubbleModelDelegate()
+      override {
+    return nullptr;
+  }
+
+ private:
+  raw_ptr<LocationBarModel> model_;
+};
+
+}  // namespace
+
+class WebUIPermissionChipTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    location_bar_model_ = std::make_unique<TestLocationBarModel>();
+    delegate_ = std::make_unique<TestLocationBarViewDelegate>(
+        location_bar_model_.get());
+    location_bar_ =
+        std::make_unique<WebUILocationBar>(nullptr, delegate_.get());
+    // Manually set the delegate to avoid Init() which needs a valid Browser.
+    location_bar_->toolbar_delegate_ = &mock_toolbar_delegate_;
+
+    ON_CALL(mock_toolbar_delegate_, GetView())
+        .WillByDefault(testing::Return(&dummy_view_));
+  }
+
+  content::BrowserTaskEnvironment browser_threads_;
+  TestingProfile profile_;
+  views::View dummy_view_;
+  testing::NiceMock<MockWebUIToolbarControlDelegate> mock_toolbar_delegate_;
+  std::unique_ptr<TestLocationBarModel> location_bar_model_;
+  std::unique_ptr<TestLocationBarViewDelegate> delegate_;
+  std::unique_ptr<WebUILocationBar> location_bar_;
+};
+
+TEST_F(WebUIPermissionChipTest, AnnounceAlertOnExpandEnded) {
+  WebUIPermissionChip chip(location_bar_.get());
+  const std::u16string message = u"Test Announcement";
+  chip.SetMessage(message);
+
+  EXPECT_CALL(mock_toolbar_delegate_, AnnounceAlert(message));
+
+  // Simulate expansion animation ended IPC from WebUI. This should trigger the
+  // a11y announcement so that screen readers speak the permission request
+  // text once the chip has fully expanded and is visible.
+  // In WebUIPermissionChip, OnExpandAnimationEnded() explicitly calls
+  // AnnounceAlert() to perform this announcement.
+  chip.AnimateExpand(base::Milliseconds(350));
+  chip.OnExpandAnimationEnded();
+}
+
+TEST_F(WebUIPermissionChipTest, AnnounceAlertAndText) {
+  WebUIPermissionChip chip(location_bar_.get());
+  const std::u16string message = u"Direct Announcement";
+
+  EXPECT_CALL(mock_toolbar_delegate_, AnnounceAlert(message)).Times(2);
+
+  chip.AnnounceAlert(message);
+  chip.AnnounceText(message);
+}

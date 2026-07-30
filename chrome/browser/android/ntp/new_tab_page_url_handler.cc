@@ -8,7 +8,6 @@
 
 #include "base/command_line.h"
 #include "base/strings/string_util.h"
-#include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/common/chrome_switches.h"
@@ -32,13 +31,10 @@ namespace android {
 bool HandleAndroidNativePageURL(GURL* url,
                                 content::BrowserContext* browser_context) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (base::FeatureList::IsEnabled(
-          chrome::android::kChromeNativeUrlOverriding)) {
-    // If an extension is overriding this URL, do not redirect it.
-    if (ExtensionUrlOverrides::GetNumberOfExtensionsOverridingURL(
-            *url, browser_context) > 0) {
-      return false;
-    }
+  // If an extension is overriding this URL, do not redirect it.
+  if (ExtensionUrlOverrides::GetNumberOfExtensionsOverridingURL(
+          *url, browser_context) > 0) {
+    return false;
   }
 #endif
 

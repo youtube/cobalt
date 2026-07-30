@@ -399,7 +399,8 @@ GlicActorPolicyChecker::ComputeActOnWebCapability() {
               identity_manager
                   ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
                   .account_id)
-          .capabilities.can_use_model_execution_features();
+          .GetAccountCapabilities()
+          .can_use_model_execution_features();
   if (can_use_model_execution_features != signin::Tribool::kTrue) {
     return log_and_return(CanActOutcome::kNo,
                           CannotActReason::kAccountCapabilityIneligible);

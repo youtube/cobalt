@@ -8,6 +8,9 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -31,7 +34,19 @@
 #include "third_party/skia/include/gpu/graphite/dawn/DawnTypes.h"
 #include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VULKAN)
+#include "components/viz/common/gpu/vulkan_context_provider.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkTypes.h"
+#endif
+
 namespace {
+
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VULKAN)
+BASE_FEATURE(kValidateGaneshVulkanYcbcrInfo,
+             "ValidateGaneshVulkanYcbcrInfo",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -463,6 +478,47 @@ bool ImageContextImpl::BeginAccessIfNecessaryInternal(
     }
   } else {
     CHECK(context_state->gr_context());
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VULKAN)
+    if (base::FeatureList::IsEnabled(kValidateGaneshVulkanYcbcrInfo) &&
+        context_state->gr_context()->backend() == GrBackendApi::kVulkan) {
+      auto* promise_texture =
+          representation_scoped_read_access_->promise_image_texture(0);
+      if (promise_texture) {
+        GrVkImageInfo image_info;
+        if (GrBackendTextures::GetVkImageInfo(promise_texture->backendTexture(),
+                                              &image_info)) {
+          VkPhysicalDevice physical_device =
+              context_state->vk_context_provider()
+                  ->GetDeviceQueue()
+                  ->GetVulkanPhysicalDevice();
+          skgpu::VulkanYcbcrConversionInfo expected_ycbcr_info =
+              gpu::CreateVulkanYcbcrConversionInfo(
+                  physical_device, image_info.fImageTiling, image_info.fFormat,
+                  format(), color_space(), ycbcr_info());
+
+          const auto& retrieved_ycbcr_info = image_info.fYcbcrConversionInfo;
+
+          if (retrieved_ycbcr_info != expected_ycbcr_info) {
+            SCOPED_CRASH_KEY_STRING32("viz", "image_format",
+                                      format().ToString());
+            SCOPED_CRASH_KEY_STRING64("viz", "color_space",
+                                      color_space().ToString());
+            SCOPED_CRASH_KEY_STRING32("viz", "image_size", size().ToString());
+            SCOPED_CRASH_KEY_STRING256(
+                "viz", "expected_ycbcr_info",
+                gpu::VulkanYcbcrConversionInfoToString(expected_ycbcr_info));
+            SCOPED_CRASH_KEY_STRING256(
+                "viz", "retrieved_ycbcr_info",
+                gpu::VulkanYcbcrConversionInfoToString(retrieved_ycbcr_info));
+
+            base::debug::DumpWithoutCrashing();
+            representation_scoped_read_access_.reset();
+            return false;
+          }
+        }
+      }
+    }
+#endif
     for (int plane_index = 0; plane_index < num_planes; plane_index++) {
       promise_image_textures_.push_back(
           representation_scoped_read_access_->promise_image_texture(

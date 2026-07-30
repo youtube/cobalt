@@ -5,6 +5,9 @@
 #ifndef SERVICES_PASSAGE_EMBEDDINGS_PASSAGE_EMBEDDER_EXECUTION_TASK_H_
 #define SERVICES_PASSAGE_EMBEDDINGS_PASSAGE_EMBEDDER_EXECUTION_TASK_H_
 
+#include <optional>
+#include <vector>
+
 #include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/core/base_task_api.h"
 
 namespace passage_embeddings {

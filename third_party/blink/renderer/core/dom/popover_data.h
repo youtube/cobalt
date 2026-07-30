@@ -8,7 +8,7 @@
 #include "base/check_op.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/html/closewatcher/close_watcher.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
@@ -27,7 +27,7 @@ using PopoverHoverShowMap =
     HeapHashMap<WeakMember<const HTMLFormControlElement>, TaskHandle>;
 
 class PopoverData final : public GarbageCollected<PopoverData>,
-                          public ElementRareDataField {
+                          public NodeRareDataField {
  public:
   PopoverData() = default;
   PopoverData(const PopoverData&) = delete;
@@ -100,7 +100,7 @@ class PopoverData final : public GarbageCollected<PopoverData>,
     visitor->Trace(hover_show_tasks_);
     visitor->Trace(implicit_anchor_);
     visitor->Trace(close_watcher_);
-    ElementRareDataField::Trace(visitor);
+    NodeRareDataField::Trace(visitor);
   }
 
  private:

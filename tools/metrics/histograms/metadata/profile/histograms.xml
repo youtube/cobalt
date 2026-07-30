@@ -22,6 +22,18 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<!-- LINT.IfChange(BrowserProfileType) -->
+
+<variants name="BrowserProfileType">
+  <variant name="Guest"/>
+  <variant name="Incognito"/>
+  <variant name="OtherOffTheRecordProfile"/>
+  <variant name="Regular"/>
+  <variant name="System"/>
+</variants>
+
+<!-- LINT.ThenChange(//components/profile_metrics/browser_profile_type.h:BrowserProfileType) -->
+
 <!-- LINT.IfChange(ProfileActivityThreshold) -->
 
 <variants name="ProfileActivityThreshold">
@@ -704,6 +716,53 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Profile.Windows.ProfileLockStatus.{BrowserProfileType}"
+    enum="ProfileLockStatus" expires_after="2027-03-13">
+  <owner>spvm@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Records the status of the creation/acquiry of the Profile.lock file on
+    Windows in a {BrowserProfileType} profile. Specifically whether it was
+    locked by another process or if the previous session crashed. Recorded once
+    per profile load.
+  </summary>
+</histogram>
+
+<histogram
+    name="Profile.Windows.ProfilePreviousExitStatus.{BrowserProfileType}"
+    enum="ProfilePreviousExitStatus" expires_after="2027-03-13">
+  <owner>spvm@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Records the status of the previous exit of the profile load for a
+    {BrowserProfileType} profile on Windows. Specifically, whether there was a
+    crash, and whether there was an unacked crash bubble present. Recorded once
+    per profile load only if Profile.lock was successfully acquired and both
+    Profile.waiting_for_crash_ack and Profile.crashed were successfully created.
+  </summary>
+</histogram>
+
+<histogram name="Profile.Windows.{Operation}{File}Result.{BrowserProfileType}"
+    enum="WinGetLastError" expires_after="2027-03-13">
+  <owner>spvm@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Records the Windows error code following the {Operation} call on the
+    `Profile.{File}` file in a {BrowserProfileType} profile, which may otherwise
+    corrupt subsequent data reporting of Profile.Windows.LoadStatus given that
+    the marker files were left around.
+  </summary>
+  <token key="Operation">
+    <variant name="Create" summary="base::File::File()"/>
+    <variant name="Delete" summary="base::DeleteFile()"/>
+  </token>
+  <token key="File">
+    <variant name="CrashAck" summary="waiting_for_crash_ack"/>
+    <variant name="Dirty" summary="dirty"/>
+    <variant name="Lock" summary="lock"/>
+  </token>
+</histogram>
+
 <histogram name="Profile.ZombieProfileCount" units="profiles"
     expires_after="2026-11-01">
   <owner>nicolaso@chromium.org</owner>
@@ -1026,7 +1085,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.{ProfilePickerFlowType}.SignInError"
-    enum="SigninUIErrorType" expires_after="2026-10-04">
+    enum="SigninUIErrorType" expires_after="2026-12-06">
   <owner>anthie@google.com</owner>
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1054,6 +1113,7 @@ chromium-metrics-reviews@google.com.
     <variant name=".DefaultBrowser" summary="the default browser promo step"/>
     <variant name=".FeatureShowcase" summary="the feature showcase step"/>
     <variant name=".FinishFlow" summary="the Finish flow step"/>
+    <variant name=".FinishOrContinue" summary="the finish or continue step"/>
     <variant name=".FinishSamlFlow" summary="the Finish SAML flow step"/>
     <variant name=".FREIntro" summary="the FRE main page step"/>
     <variant name=".PickerMainApp" summary="the profile picker main page step"/>

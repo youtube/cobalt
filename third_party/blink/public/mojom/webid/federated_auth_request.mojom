@@ -289,3 +289,12 @@ interface FederatedAuthRequest {
   Disconnect(IdentityCredentialDisconnectOptions options)
       => (DisconnectStatus status);
 };
+
+// Represents an active federated sign-in request session. Lifetime is bound to
+// the lifecycle of a single token request session.
+interface FederatedRequest {
+};
+
+// Manages federated identity request sessions.
+interface FederatedRequestService {
+};

@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_view.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_password_manager_view.h"
 #include "chrome/browser/webauthn/credential_sorter.h"
 
 namespace webauthn::sorting {
@@ -16,8 +16,9 @@ namespace webauthn::sorting {
 // on desktop. The only difference is that on desktop there can be a
 // differentiation between GPM passkeys and platform-supplied passkeys, but on
 // Android all passkeys are treated the same.
-std::vector<TouchToFillView::Credential> SortTouchToFillCredentials(
-    std::vector<TouchToFillView::Credential> credentials,
+std::vector<TouchToFillPasswordManagerView::Credential>
+SortTouchToFillCredentials(
+    std::vector<TouchToFillPasswordManagerView::Credential> credentials,
     bool immediate_ui_mode);
 
 }  // namespace webauthn::sorting

@@ -35,7 +35,6 @@
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_containment_scope.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/first_letter_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/interest_button_pseudo_element.h"
@@ -430,27 +429,6 @@ const ComputedStyle* PseudoElement::AdjustedLayoutStyle(
     builder.SetBaseTextDecorationData(style.AppliedTextDecorationData());
     builder.SetDisplay(EDisplay::kInline);
     builder.SetStyleType(GetPseudoIdForStyling());
-    return builder.TakeStyle();
-  }
-
-  if (IsScrollMarkerPseudoElement()) {
-    ComputedStyleBuilder builder(style);
-    // The layout parent of a scroll marker is the scroll marker group, not
-    // the originating element of the scroll marker.
-    StyleAdjuster::AdjustStyleForDisplay(builder, layout_parent_style, this,
-                                         &GetDocument());
-    if (style.IsCSSInertIsInherited() &&
-        style.IsCSSInert() != layout_parent_style.IsCSSInert()) {
-      // A ::scroll-marker gets its inertness from its ::scroll-marker-group
-      // instead of its originating element unless the inertness is applied
-      // directly to the ::scroll-marker itself.
-      builder.SetIsCSSInert(layout_parent_style.IsCSSInert());
-      builder.SetIsCSSInertIsInherited(false);
-    }
-    if (style.IsHTMLInert() != layout_parent_style.IsHTMLInert()) {
-      builder.SetIsHTMLInert(layout_parent_style.IsHTMLInert());
-      builder.SetIsHTMLInertIsInherited(false);
-    }
     return builder.TakeStyle();
   }
 

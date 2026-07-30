@@ -89,7 +89,6 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{ປິດລາຍການ}other{ປິດລາຍການ}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">ຮູບຫຍໍ້ຕົວຢ່າງຊີດທີ່ແບ່ງປັນ.</translation>
-<translation id="3775705724665058594">ສົ່ງຫາອຸປະກອນຂອງທ່ານ</translation>
 <translation id="3776329373944672717">ຊື່ກຸ່ມແຖບ <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">ຈັດການ</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{ຖອນປັກໝຸດແຖບ}other{ຖອນປັກໝຸດແຖບ}}</translation>

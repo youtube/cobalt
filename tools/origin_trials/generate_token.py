@@ -28,8 +28,6 @@ import struct
 import sys
 import time
 from datetime import datetime
-
-from six import raise_from
 from urllib.parse import urlparse
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -114,8 +112,8 @@ def OriginFromArg(arg):
   try:
     port = origin.port
   except ValueError as e:
-    raise_from(
-        argparse.ArgumentTypeError("%s is not a hostname or a URL" % arg), e)
+    raise argparse.ArgumentTypeError("%s is not a hostname or a URL" %
+                                     arg) from e
   if not port:
     port = {"https": 443, "http": 80}[origin.scheme]
   # Strip any extra components and return the origin URL:

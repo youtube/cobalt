@@ -1001,6 +1001,10 @@ void HTMLInputElement::ParseAttribute(
     UseCounter::Count(GetDocument(), WebFeature::kPatternAttribute);
   } else if (name == html_names::kReadonlyAttr) {
     TextControlElement::ParseAttribute(params);
+    // A readonly input matches neither :in-range nor :out-of-range.
+    if (params.old_value.IsNull() != params.new_value.IsNull()) {
+      input_type_->InRangeChanged();
+    }
     input_type_view_->ReadonlyAttributeChanged();
   } else if (name == html_names::kListAttr) {
     has_non_empty_list_ = !value.empty();

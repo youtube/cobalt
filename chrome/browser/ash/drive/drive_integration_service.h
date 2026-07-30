@@ -206,6 +206,9 @@ class DriveIntegrationService : public KeyedService,
     // Triggered when the network connection to Drive could have changed.
     virtual void OnDriveConnectionStatusChanged(util::ConnectionStatus status) {
     }
+
+    // Triggered when the DriveIntegrationService is being disabled soon.
+    virtual void OnDriveWillBeDisabled() {}
   };
 
   void AddObserver(Observer* observer);
@@ -448,12 +451,6 @@ class DriveIntegrationService : public KeyedService,
   // the metadata initialization is successful.
   void InitializeAfterMetadataInitialized(FileError error);
 
-  // Change the download directory to the local "Downloads" if the download
-  // destination is set under Drive. This must be called when disabling Drive.
-  void AvoidDriveAsDownloadDirectoryPreference();
-
-  bool DownloadDirectoryPreferenceIsInDrive();
-
   // Migrate pinned files from the old Drive integration to DriveFS.
   void MigratePinnedFiles();
 
@@ -503,7 +500,7 @@ class DriveIntegrationService : public KeyedService,
       drive::FileError status,
       const std::vector<base::FilePath>& paths);
 
-  // Toggle syncing for |path| if the the directory exists.
+  // Toggle syncing for |path| if the directory exists.
   void ToggleSyncForPathIfDirectoryExists(
       const base::FilePath& path,
       drivefs::mojom::DriveFs::ToggleSyncForPathCallback callback,

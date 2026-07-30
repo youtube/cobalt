@@ -12,7 +12,7 @@ namespace extensions {
 namespace {
 
 TEST_F(ChromeManifestTest, PortsInPermissions) {
-  // Loading as a user would shoud not trigger an error.
+  // Loading as a user would should not trigger an error.
   LoadAndExpectSuccess("ports_in_permissions.json");
 }
 

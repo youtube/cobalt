@@ -31,18 +31,6 @@ enum class WebApkInstallStatus {
   kMaxValue = kGooglePlayError,
 };
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class WebApkUninstallSource {
-  // The WebAPK was uninstalled on the Ash side (e.g. uninstalling the web app
-  // through App Management).
-  kAsh = 0,
-  // The WebAPK was uninstalled on the ARC side (e.g. uninstalling the app
-  // through Android settings).
-  kArc = 1,
-  kMaxValue = kArc,
-};
-
 extern const char kWebApkInstallResultHistogram[];
 extern const char kWebApkUpdateResultHistogram[];
 

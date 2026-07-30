@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
+#include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_full_popup_webui_content.h"
@@ -31,9 +32,11 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
@@ -260,22 +263,103 @@ class OmniboxPopupViewWebUIFullV2Test : public OmniboxPopupViewWebUITest {
 };
 
 IN_PROC_BROWSER_TEST_F(OmniboxPopupViewWebUIFullV2Test, TabSwitchStateSync) {
-  // 1. Create a new tab.
+  // Create a new tab.
   int initial_tab_index = browser()->tab_strip_model()->active_index();
   chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   ASSERT_EQ(2, browser()->tab_strip_model()->count());
   int new_tab_index = browser()->tab_strip_model()->active_index();
   ASSERT_NE(initial_tab_index, new_tab_index);
-  // 2. Type text in the omnibox of the active tab (new tab).
+  // Type text in the omnibox of the active tab (new tab) and select it.
   omnibox_view()->SetUserText(u"test query");
-  // 3. Switch to another tab (initial tab).
+  omnibox_view()->SelectAll(false);
+  gfx::Range initial_selection = omnibox_view()->GetSelectionBounds();
+
+  // Directly notify the WebUI popup handler of the input state and selection
+  // bounds. This ensures the backend state is cached and ready to be restored
+  // or reset when switching tabs.
+  auto* popup_view = static_cast<OmniboxPopupViewWebUI*>(
+      location_bar()->GetOmniboxPopupView());
+  auto* webui_controller = popup_view->presenter()
+                               ->GetWebUIContent()
+                               ->contents_wrapper()
+                               ->GetWebUIController();
+  auto* popup_ui = static_cast<OmniboxPopupUI*>(webui_controller);
+  if (auto* popup_handler = popup_ui ? popup_ui->popup_handler() : nullptr) {
+    popup_handler->OnSelectionChanged(initial_selection, 10000);
+  }
+
+  // Switch to another tab (initial tab).
   browser()->tab_strip_model()->ActivateTabAt(initial_tab_index);
-  // 4. Verify the text is isolated (not the typed text) in the other tab.
+  // Verify the text is isolated (not the typed text) in the other tab.
   EXPECT_NE(u"test query", omnibox_view()->GetText());
-  // 5. Switch back to the original tab (new tab).
+  // Switch back to the original tab (new tab).
   browser()->tab_strip_model()->ActivateTabAt(new_tab_index);
-  // 6. Verify the text is restored.
+  // Verify the text and selection are restored.
   EXPECT_EQ(u"test query", omnibox_view()->GetText());
+  auto* popup_view_check = static_cast<OmniboxPopupViewWebUI*>(
+      location_bar()->GetOmniboxPopupView());
+  auto* webui_controller_check = popup_view_check->presenter()
+                                     ->GetWebUIContent()
+                                     ->contents_wrapper()
+                                     ->GetWebUIController();
+  auto* popup_ui_check = static_cast<OmniboxPopupUI*>(webui_controller_check);
+  if (auto* popup_handler_check =
+          popup_ui_check ? popup_ui_check->popup_handler() : nullptr) {
+    EXPECT_EQ(initial_selection, popup_handler_check->latest_selection());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxPopupViewWebUIFullV2Test, TabSwitchNoSavedState) {
+  // Create a new tab.
+  int initial_tab_index = browser()->tab_strip_model()->active_index();
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+  // Type text in the omnibox of the active tab (new tab) and select it.
+  omnibox_view()->SetUserText(u"test query");
+  omnibox_view()->SelectAll(false);
+  gfx::Range initial_selection = omnibox_view()->GetSelectionBounds();
+
+  // Directly notify the WebUI popup handler of the input state and selection
+  // bounds. This ensures the backend state is cached and ready to be restored
+  // or reset when switching tabs.
+  auto* popup_view = static_cast<OmniboxPopupViewWebUI*>(
+      location_bar()->GetOmniboxPopupView());
+  auto* webui_controller = popup_view->presenter()
+                               ->GetWebUIContent()
+                               ->contents_wrapper()
+                               ->GetWebUIController();
+  auto* popup_ui = static_cast<OmniboxPopupUI*>(webui_controller);
+  if (auto* popup_handler = popup_ui ? popup_ui->popup_handler() : nullptr) {
+    popup_handler->OnSelectionChanged(initial_selection, 10000);
+  }
+
+  // Clear any saved omnibox state from the initial tab.
+  content::WebContents* initial_contents =
+      browser()->tab_strip_model()->GetWebContentsAt(initial_tab_index);
+  initial_contents->RemoveUserData(OmniboxTabHelper::kOmniboxStateKey);
+
+  // Switch back to the initial tab.
+  browser()->tab_strip_model()->ActivateTabAt(initial_tab_index);
+
+  // Verify the selection is reset when activating a tab with no saved state.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    auto* popup_view_check = static_cast<OmniboxPopupViewWebUI*>(
+        location_bar()->GetOmniboxPopupView());
+    if (!popup_view_check || !popup_view_check->presenter() ||
+        !popup_view_check->presenter()->GetWebUIContent() ||
+        !popup_view_check->presenter()->GetWebUIContent()->contents_wrapper()) {
+      return false;
+    }
+    auto* webui_controller_check = popup_view_check->presenter()
+                                       ->GetWebUIContent()
+                                       ->contents_wrapper()
+                                       ->GetWebUIController();
+    auto* popup_ui_check = static_cast<OmniboxPopupUI*>(webui_controller_check);
+    auto* popup_handler_check =
+        popup_ui_check ? popup_ui_check->popup_handler() : nullptr;
+    return popup_handler_check &&
+           popup_handler_check->latest_selection() == gfx::Range(0, 0);
+  }));
 }
 
 class OmniboxPopupDimensionsTest : public OmniboxPopupViewWebUITest,
@@ -344,14 +428,14 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewWebUITest, MAYBE_PopupResizeWindow) {
   ASSERT_TRUE(widget);
 
   // Resize window smaller.
-  gfx::Rect current_browser_bounds = browser()->window()->GetBounds();
+  gfx::Rect current_browser_bounds = browser()->GetWindow()->GetBounds();
   gfx::Rect new_browser_bounds = current_browser_bounds;
   new_browser_bounds.set_width(current_browser_bounds.width() - 200);
-  browser()->window()->SetBounds(new_browser_bounds);
+  browser()->GetWindow()->SetBounds(new_browser_bounds);
 
   // Give it a moment to layout.
   EXPECT_TRUE(base::test::RunUntil([&]() {
-    return browser()->window()->GetBounds().width() ==
+    return browser()->GetWindow()->GetBounds().width() ==
            new_browser_bounds.width();
   }));
 
@@ -367,10 +451,10 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewWebUITest, MAYBE_PopupResizeWindow) {
 
   // Resize window larger.
   new_browser_bounds.set_width(current_browser_bounds.width() + 200);
-  browser()->window()->SetBounds(new_browser_bounds);
+  browser()->GetWindow()->SetBounds(new_browser_bounds);
 
   EXPECT_TRUE(base::test::RunUntil([&]() {
-    return browser()->window()->GetBounds().width() ==
+    return browser()->GetWindow()->GetBounds().width() ==
            current_browser_bounds.width() + 200;
   }));
 

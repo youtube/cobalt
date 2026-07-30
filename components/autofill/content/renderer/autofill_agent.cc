@@ -472,8 +472,11 @@ class AutofillAgent::DeferringAutofillDriver : public mojom::AutofillDriver {
     DeferMsg(&mojom::AutofillDriver::JavaScriptChangedAutofilledValue, form,
              field_id, old_value);
   }
-  void OnEmailVerificationTokenShared(FieldRendererId field_id) override {
-    DeferMsg(&mojom::AutofillDriver::OnEmailVerificationTokenShared, field_id);
+  void FormWithEmailVerificationTokenSubmitted(
+      const FormData& form,
+      FieldRendererId field_id) override {
+    DeferMsg(&mojom::AutofillDriver::FormWithEmailVerificationTokenSubmitted,
+             form, field_id);
   }
 
   const raw_ref<AutofillAgent> agent_;
@@ -536,6 +539,7 @@ AutofillAgent::AutofillAgent(
   form_tracker_->SetUserGestureRequired(config_.user_gesture_required);
   registry->AddInterface<mojom::AutofillAgent>(base::BindRepeating(
       &AutofillAgent::BindPendingReceiver, base::Unretained(this)));
+  ResetTokenBucket();
 }
 
 // The destructor is not guaranteed to be called. Destruction happens (only)
@@ -580,6 +584,7 @@ void AutofillAgent::Reset() {
   input_warnings_.has_warned = false;
   input_warnings_.remove_listeners.clear();
   email_verification_observer_.Reset();
+  ResetTokenBucket();
 }
 
 void AutofillAgent::DidDispatchDOMContentLoadedEvent() {
@@ -882,9 +887,14 @@ void AutofillAgent::EmailVerificationObserver::WillSendSubmitEvent(
       element.SetValue(WebString::FromUtf8(info.token));
 
       if (auto* driver = agent_->unsafe_autofill_driver()) {
-        driver->OnEmailVerificationTokenShared(field_id);
+        if (std::optional<FormData> form_data = form_util::ExtractFormData(
+                form.GetDocument(), form, agent_->field_data_manager(),
+                agent_->GetCallTimerState(
+                    kFormWithEmailVerificationTokenSubmitted),
+                agent_->button_titles_cache())) {
+          driver->FormWithEmailVerificationTokenSubmitted(*form_data, field_id);
+        }
       }
-
       return;
     }
   }
@@ -1565,7 +1575,18 @@ void AutofillAgent::PreviewPasswordGenerationSuggestion(
   password_generation_agent_->PreviewGenerationSuggestion(password);
 }
 
+void AutofillAgent::ResetTokenBucket() {
+  ask_for_values_to_fill_throttle_.tokens =
+      features::kAutofillThrottleBruteForceProbingMaxTokens.Get();
+  ask_for_values_to_fill_throttle_.last_replenish_time = base::TimeTicks::Now();
+}
+
 bool AutofillAgent::ShouldThrottleAskForValuesToFill(FieldRendererId field) {
+  // 1. Apply 100ms *per field* throttle to AskForValuesToFill.
+  // At least on Android, multiple AskForValuesToFill() events may be fired in
+  // short succession. Since getting the event handling right in AutofillAgent
+  // is difficult we ignore duplicate AskForValuesToFill() as a workaround.
+  // See crbug.com/40284788 for details.
   static constexpr base::TimeDelta kThrottle = base::Milliseconds(100);
   base::TimeTicks now = base::TimeTicks::Now();
   if (field == last_ask_for_values_to_fill_.field &&
@@ -1573,6 +1594,43 @@ bool AutofillAgent::ShouldThrottleAskForValuesToFill(FieldRendererId field) {
     return true;
   }
   last_ask_for_values_to_fill_ = {now, field};
+
+  // 2. Apply a *per frame* throttle to AskForValuesToFill.
+  // This exists because malicious web pages can attempt to steal saved
+  // autofill data via a side-channel brute-force attack by rapidly cycling
+  // input prefixes and monitoring :autofill state changes.
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillThrottleBruteForceProbing)) {
+    base::TimeDelta replenish_rate =
+        features::kAutofillThrottleBruteForceProbingReplenishRate.Get();
+    const int max_tokens =
+        features::kAutofillThrottleBruteForceProbingMaxTokens.Get();
+
+    if (replenish_rate.is_positive()) {
+      int64_t earned_tokens =
+          (now - ask_for_values_to_fill_throttle_.last_replenish_time)
+              .IntDiv(replenish_rate);
+      if (earned_tokens > 0) {
+        if (earned_tokens >= max_tokens ||
+            ask_for_values_to_fill_throttle_.tokens + earned_tokens >=
+                max_tokens) {
+          ask_for_values_to_fill_throttle_.tokens = max_tokens;
+          ask_for_values_to_fill_throttle_.last_replenish_time = now;
+        } else {
+          ask_for_values_to_fill_throttle_.tokens +=
+              static_cast<int>(earned_tokens);
+          ask_for_values_to_fill_throttle_.last_replenish_time +=
+              earned_tokens * replenish_rate;
+        }
+      }
+    }
+
+    if (ask_for_values_to_fill_throttle_.tokens <= 0) {
+      return true;  // Throttled due to burst budget exhaustion.
+    }
+    ask_for_values_to_fill_throttle_.tokens--;
+  }
+
   return false;
 }
 

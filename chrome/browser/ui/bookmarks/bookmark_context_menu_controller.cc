@@ -559,6 +559,8 @@ void BookmarkContextMenuController::ExecuteCommand(int id, int event_flags) {
     }
 
     case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW: {
+      base::RecordAction(
+          base::UserMetricsAction("BookmarkBar_ContextMenu_AlwaysShow"));
       prefs->SetInteger(
           bookmarks::prefs::kBookmarkBarVisibilityState,
           static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysShow));
@@ -566,6 +568,8 @@ void BookmarkContextMenuController::ExecuteCommand(int id, int event_flags) {
     }
 
     case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE: {
+      base::RecordAction(
+          base::UserMetricsAction("BookmarkBar_ContextMenu_AlwaysHide"));
       prefs->SetInteger(
           bookmarks::prefs::kBookmarkBarVisibilityState,
           static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysHide));
@@ -573,6 +577,8 @@ void BookmarkContextMenuController::ExecuteCommand(int id, int event_flags) {
     }
 
     case IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP: {
+      base::RecordAction(
+          base::UserMetricsAction("BookmarkBar_ContextMenu_OnlyShowOnNtp"));
       prefs->SetInteger(
           bookmarks::prefs::kBookmarkBarVisibilityState,
           static_cast<int>(
@@ -732,9 +738,20 @@ bool BookmarkContextMenuController::IsCommandIdEnabled(int command_id) const {
     case IDC_BOOKMARK_BAR_ALWAYS_SHOW:
       return !prefs->IsManagedPreference(bookmarks::prefs::kShowBookmarkBar);
 
+    case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_SHOW:
+    case IDC_BOOKMARK_BAR_SUBMENU_ALWAYS_HIDE:
+    case IDC_BOOKMARK_BAR_SUBMENU_ONLY_ON_NTP:
+      return !prefs->IsManagedPreference(
+                 bookmarks::prefs::kBookmarkBarVisibilityState) &&
+             !prefs->IsManagedPreference(bookmarks::prefs::kShowBookmarkBar);
+
     case IDC_BOOKMARK_BAR_SHOW_APPS_SHORTCUT:
       return !prefs->IsManagedPreference(
           bookmarks::prefs::kShowAppsShortcutInBookmarkBar);
+
+    case IDC_BOOKMARK_BAR_TOGGLE_SHOW_TAB_GROUPS:
+      return !prefs->IsManagedPreference(
+          bookmarks::prefs::kShowTabGroupsInBookmarkBar);
 
     case IDC_COPY:
     case IDC_CUT:

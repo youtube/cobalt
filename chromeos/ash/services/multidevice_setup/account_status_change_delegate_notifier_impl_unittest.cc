@@ -38,25 +38,6 @@ const char kFakePhoneKeyA[] = "fake-phone-key-A";
 const char kFakePhoneNameA[] = "Phony Phone A";
 const char kFakePhoneKeyB[] = "fake-phone-key-B";
 const char kFakePhoneNameB[] = "Phony Phone B";
-
-const multidevice::RemoteDeviceRef kFakePhone =
-    multidevice::RemoteDeviceRefBuilder()
-        .SetPublicKey(kFakePhoneKey)
-        .SetName(kFakePhoneName)
-        .Build();
-
-// Alternate hosts for multi host tests
-const multidevice::RemoteDeviceRef kFakePhoneA =
-    multidevice::RemoteDeviceRefBuilder()
-        .SetPublicKey("fake-phone-key-A")
-        .SetName("Phony Phone A")
-        .Build();
-const multidevice::RemoteDeviceRef kFakePhoneB =
-    multidevice::RemoteDeviceRefBuilder()
-        .SetPublicKey("fake-phone-key-B")
-        .SetName("Phony Phone B")
-        .Build();
-
 }  // namespace
 
 class MultiDeviceSetupAccountStatusChangeDelegateNotifierTest

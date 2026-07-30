@@ -230,6 +230,12 @@ class ServiceWorkerTaskQueue
   base::Version RetrieveRegisteredServiceWorkerVersion(
       const ExtensionId& extension_id);
 
+  // Clears any record of registered Service Worker for the given extension
+  // with `extension_id`, so that the next activation of the extension
+  // registers the worker anew instead of assuming a previously stored
+  // registration is current.
+  void RemoveRegisteredServiceWorkerInfo(const ExtensionId& extension_id);
+
   // ServiceWorkerState::Observer:
   void OnWorkerStart(const SequencedContextId& context_id,
                      const WorkerId& worker_id) override;
@@ -415,10 +421,6 @@ class ServiceWorkerTaskQueue
   // registered a Service Worker.
   void SetRegisteredServiceWorkerInfo(const ExtensionId& extension_id,
                                       const base::Version& version);
-
-  // Clears any record of registered Service Worker for the given extension with
-  // `extension_id`.
-  void RemoveRegisteredServiceWorkerInfo(const ExtensionId& extension_id);
 
   // Returns true if `activation_token` is the current activation for
   // `extension_id`.

@@ -456,7 +456,7 @@ public class TabbedNavigationBarColorControllerUnitTest {
 
         Mockito.clearInvocations(mEdgeToEdgeSystemBarColorHelper);
 
-        observer.onStartedShowing(LayoutType.TAB_SWITCHER);
+        observer.onStartedShowing(LayoutType.HUB);
 
         verify(mEdgeToEdgeSystemBarColorHelper).setNavigationBarColor(eq(Color.BLUE));
     }
@@ -478,7 +478,7 @@ public class TabbedNavigationBarColorControllerUnitTest {
 
         Mockito.clearInvocations(mEdgeToEdgeSystemBarColorHelper);
 
-        observer.onStartedHiding(LayoutType.TAB_SWITCHER);
+        observer.onStartedHiding(LayoutType.HUB);
 
         verify(mEdgeToEdgeSystemBarColorHelper).setNavigationBarColor(eq(Color.LTGRAY));
     }

@@ -28,8 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
-#             amd-0x7340 amd-0x7480 amd-0x7550
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x67ef amd-0x6821 amd-0x7340
+#             amd-0x7480 amd-0x7550
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -136,6 +136,11 @@ crbug.com/1305020 [ mac asan intel-0x3e9b ] GpuProcess_webgpu_iframe_removed [ S
 
 # Fails on Fuchsia cast receiver - not important to fix
 crbug.com/500083376 [ fuchsia ] GpuProcess_vulkan_vma_race [ Skip ]
+
+# Test requires SwiftShader which isn't available on some platforms
+crbug.com/513197846 [ android ] GpuProcess_webgl_y16_uploads [ Skip ]
+crbug.com/513197846 [ chromeos ] GpuProcess_webgl_y16_uploads [ Skip ]
+crbug.com/513197846 [ fuchsia ] GpuProcess_webgl_y16_uploads [ Skip ]
 
 ###############################
 # Temporary Skip Expectations #

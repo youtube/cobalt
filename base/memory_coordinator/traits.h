@@ -10,6 +10,7 @@
 #include <concepts>
 
 #include "base/base_export.h"
+#include "base/check_op.h"
 #include "base/traits_bag.h"
 
 namespace mojo {
@@ -27,12 +28,41 @@ constexpr Enum GetTraitOrDefault(Args... args) {
   return trait_helpers::GetEnum<Enum, Enum::kDefaultValue>(args...);
 }
 
+// Helper to get an enum trait with a custom default value.
+template <typename Enum, Enum Default, typename... Args>
+constexpr Enum GetTraitOrCustomDefault(Args... args) {
+  return trait_helpers::GetEnum<Enum, Default>(args...);
+}
+
 }  // namespace internal
 
 // Describes how a MemoryConsumer works using a set of enum values.
+//
+// For active consumers, these traits describe how they reclaim memory and the
+// cost of doing so. For passive consumers, a simplified set of traits is used
+// (see the kPassive constructor).
 struct BASE_EXPORT MemoryConsumerTraits {
-  // ---- Required Traits ------------------------------------------------------
-  // These traits must be set explicitly. There are no default values.
+  // Indicates whether the consumer is active or passive.
+  //
+  // Active consumers (kActive) react to memory pressure by actively releasing
+  // memory when notified. They require a full set of traits to describe their
+  // behavior. This trait is optional for active consumers and defaults to
+  // `kActive`.
+  //
+  // Passive consumers (kPassive) do not react to memory pressure. They only
+  // query the memory limit on-demand to gate their activities. They do not
+  // require active traits as they are mostly non-applicable.
+  enum class ConsumerType : uint8_t {
+    kActive,
+    kPassive,
+
+    kMaxValue = kPassive,
+    kDefaultValue = kActive,
+  };
+
+  // ---- Required Traits (Active Consumers Only) ------------------------------
+  // These traits must be set explicitly for active consumers. There are no
+  // default values. (Passive consumers use defaults and do not require these).
 
   // The approximate scale of how much memory the consumer can manage.
   enum class EstimatedMemoryUsage : uint8_t {
@@ -42,8 +72,10 @@ struct BASE_EXPORT MemoryConsumerTraits {
     kMedium,
     // Hundreds of MBs up to multiple GBs.
     kLarge,
+    // Not applicable (e.g. for passive consumers).
+    kNA,
 
-    kMaxValue = kLarge,
+    kMaxValue = kNA,
   };
 
   // Indicates if the memory this consumer manages is cheap to free. Traversing
@@ -57,8 +89,10 @@ struct BASE_EXPORT MemoryConsumerTraits {
     // Most of the savings are from allocations smaller than the page size, or
     // from larger allocations that are accessed prior to be freed.
     kRequiresTraversal,
+    // Not applicable (e.g. for passive consumers).
+    kNA,
 
-    kMaxValue = kRequiresTraversal,
+    kMaxValue = kNA,
   };
 
   enum class InformationRetention : uint8_t {
@@ -67,8 +101,10 @@ struct BASE_EXPORT MemoryConsumerTraits {
     // Freeing memory will not result in the loss of user state. I.e. It is a
     // cache, or it can be recalculated from a raw resource.
     kLossless,
+    // Not applicable (e.g. for passive consumers).
+    kNA,
 
-    kMaxValue = kLossless,
+    kMaxValue = kNA,
   };
 
   // Indicates if freeing memory is an asynchronous operation or a synchronous
@@ -101,8 +137,10 @@ struct BASE_EXPORT MemoryConsumerTraits {
   enum class InProcess : uint8_t {
     kYes,
     kNo,
+    // Not applicable (e.g. for passive consumers).
+    kNA,
 
-    kMaxValue = kNo,
+    kMaxValue = kNA,
     kDefaultValue = kYes,
   };
 
@@ -176,14 +214,64 @@ struct BASE_EXPORT MemoryConsumerTraits {
                                                  RecreateMemoryCost,
                                                  ReleaseGCReferences,
                                                  GarbageCollectsV8Heap,
-                                                 IsStateful>;
+                                                 IsStateful,
+                                                 ConsumerType>;
+
+  using PassiveOptionalTraitsList =
+      base::ParameterPack<SupportsMemoryLimit, InProcess, ReleaseGCReferences>;
 
   using AllTraitsList =
       base::ConcatParameterPacks<RequiredTraitsList, OptionalTraitsList>;
 
-  // Constructs a MemoryConsumerTraits with the specified required traits and
-  // zero or more optional traits. Uses the default value for optional traits
-  // that are not specified.
+  // Constructs a MemoryConsumerTraits for a passive memory consumer.
+  //
+  // Passive consumers only use the memory limit as a binary pressure gate and
+  // do not actively release memory. Therefore, all active-only traits (like
+  // EstimatedMemoryUsage, ReleaseMemoryCost, etc.) are automatically set to
+  // kNA or passive-safe defaults and cannot be customized.
+  //
+  // A limited subset of optional traits that are relevant for passive consumers
+  // (SupportsMemoryLimit, InProcess, and ReleaseGCReferences) can be optionally
+  // specified.
+  //
+  // Examples:
+  //   // Default passive traits (supports limit, in-process is kNA, no GC
+  //   refs): constexpr base::MemoryConsumerTraits traits(
+  //       base::MemoryConsumerTraits::ConsumerType::kPassive);
+  //
+  //   // Passive with custom optional traits:
+  //   constexpr base::MemoryConsumerTraits traits(
+  //       base::MemoryConsumerTraits::ConsumerType::kPassive,
+  //       base::MemoryConsumerTraits::InProcess::kYes,
+  //       base::MemoryConsumerTraits::ReleaseGCReferences::kYes);
+  template <typename... Args>
+    requires trait_helpers::AreValidTraits<PassiveOptionalTraitsList, Args...>
+  constexpr explicit MemoryConsumerTraits(ConsumerType consumer_type,
+                                          Args... args)
+      : consumer_type(ConsumerType::kPassive),
+        estimated_memory_usage(EstimatedMemoryUsage::kNA),
+        release_memory_cost(ReleaseMemoryCost::kNA),
+        information_retention(InformationRetention::kNA),
+        execution_type(ExecutionType::kSynchronous),
+        supports_memory_limit(
+            internal::GetTraitOrCustomDefault<SupportsMemoryLimit,
+                                              SupportsMemoryLimit::kYes>(
+                args...)),
+        in_process(internal::GetTraitOrCustomDefault<InProcess, InProcess::kNA>(
+            args...)),
+        recreate_memory_cost(RecreateMemoryCost::kNA),
+        release_gc_references(
+            internal::GetTraitOrCustomDefault<ReleaseGCReferences,
+                                              ReleaseGCReferences::kNo>(
+                args...)),
+        garbage_collects_v8_heap(GarbageCollectsV8Heap::kNo),
+        is_stateful(IsStateful::kYes) {
+    CHECK_EQ(consumer_type, ConsumerType::kPassive);
+  }
+
+  // Constructs a MemoryConsumerTraits for an active consumer with the specified
+  // required traits and zero or more optional traits. Uses the default value
+  // for optional traits that are not specified.
   //
   // Examples:
   //   // Only required traits:
@@ -209,7 +297,8 @@ struct BASE_EXPORT MemoryConsumerTraits {
                                  InformationRetention information_retention,
                                  ExecutionType execution_type,
                                  Args... args)
-      : estimated_memory_usage(estimated_memory_usage),
+      : consumer_type(internal::GetTraitOrDefault<ConsumerType>(args...)),
+        estimated_memory_usage(estimated_memory_usage),
         release_memory_cost(release_memory_cost),
         information_retention(information_retention),
         execution_type(execution_type),
@@ -222,7 +311,9 @@ struct BASE_EXPORT MemoryConsumerTraits {
             internal::GetTraitOrDefault<ReleaseGCReferences>(args...)),
         garbage_collects_v8_heap(
             internal::GetTraitOrDefault<GarbageCollectsV8Heap>(args...)),
-        is_stateful(internal::GetTraitOrDefault<IsStateful>(args...)) {}
+        is_stateful(internal::GetTraitOrDefault<IsStateful>(args...)) {
+    CHECK_EQ(consumer_type, ConsumerType::kActive);
+  }
 
   // Mojo-specific constructor used for deserialization.
   //
@@ -243,6 +334,7 @@ struct BASE_EXPORT MemoryConsumerTraits {
                          const MemoryConsumerTraits& rhs) = default;
 
   // LINT.IfChange
+  ConsumerType consumer_type;
   EstimatedMemoryUsage estimated_memory_usage;
   ReleaseMemoryCost release_memory_cost;
   InformationRetention information_retention;

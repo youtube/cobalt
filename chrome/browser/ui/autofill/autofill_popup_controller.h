@@ -12,7 +12,6 @@
 #include "base/types/strong_alias.h"
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
-#include "components/autofill/core/browser/ui/suggestion_button_action.h"
 #include "components/autofill/core/browser/ui/tabbed_pane_enums.h"
 
 namespace input {
@@ -78,12 +77,6 @@ class AutofillPopupController : public AutofillSuggestionController {
   // Returns whether the popup should ignore the check that the mouse was
   // observed out of bounds - see `PopupRowView` for more detail.
   virtual bool ShouldIgnoreMouseObservedOutsideItemBoundsCheck() const = 0;
-
-  // Executes the `button_action` associated with the button that is displayed
-  // in the suggestion at `index`.
-  virtual void PerformButtonActionForSuggestion(
-      int index,
-      const SuggestionButtonAction& button_action) = 0;
 
   // If the filter is set, returns the same number of items as returned by
   // `AutofillSuggestionController::GetSuggestions()`, indicating how each

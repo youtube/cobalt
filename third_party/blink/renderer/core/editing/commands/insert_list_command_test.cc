@@ -40,7 +40,7 @@ TEST_F(InsertListCommandTest, ShouldCleanlyRemoveSpuriousTextNode) {
                                      GetDocument().body()->firstChild());
   UpdateAllLifecyclePhasesForTest();
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(GetDocument().body(), 0))
           .Extend(Position(GetDocument().body(), 2))
           .Build(),
@@ -227,7 +227,7 @@ TEST_F(InsertListCommandTest, NonCanonicalVisiblePosition) {
   const Position& extent =
       Position::AfterNode(*document.QuerySelector(AtomicString("input")));
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(base).Extend(extent).Build(),
+      SelectionInDomTree::Builder().Collapse(base).Extend(extent).Build(),
       SetSelectionOptions());
 
   // |base| and |extent| are 'canonical' with regard to VisiblePosition.
@@ -260,7 +260,7 @@ TEST_F(InsertListCommandTest, TimeAndMeterInRoot) {
   time->appendChild(meter);
   root->insertBefore(time, root->firstChild());
 
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(time, 0))
                                .Extend(Position::LastPositionInNode(*time))
                                .Build(),
@@ -273,7 +273,7 @@ TEST_F(InsertListCommandTest, TimeAndMeterInRoot) {
   EXPECT_TRUE(command->Apply());
   EXPECT_EQ("<ul><li>|<time></time></li></ul><head></head><body></body>",
             SelectionSample::GetSelectionText(
-                *root, Selection().GetSelectionInDOMTree()));
+                *root, Selection().GetSelectionInDomTree()));
 }
 
 // Refer https://crbug.com/1312348

@@ -42,8 +42,8 @@ source_set("core") {
     "actor_switches.h",
     "actor_util.cc",
     "actor_util.h",
-    "origin_checker.cc",
-    "origin_checker.h",
+    "origin_gating_cache.cc",
+    "origin_gating_cache.h",
     "safety_list_manager.cc",
     "safety_list_manager.h",
     "shared_types.cc",
@@ -66,7 +66,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "aggregated_journal_unittest.cc",
-    "origin_checker_unittest.cc",
+    "origin_gating_cache_unittest.cc",
     "safety_list_manager_unittest.cc",
     "shared_types_unittest.cc",
   ]

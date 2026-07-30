@@ -442,7 +442,7 @@ public class InstantMessageDelegateImpl implements InstantMessageDelegate {
             Runnable onSuccess,
             AttachedWindowInfo attachedWindowInfo) {
         String buttonText = context.getString(R.string.data_sharing_invitation_failure_button);
-        Drawable icon = ContextCompat.getDrawable(context, R.drawable.ic_features_24dp);
+        Drawable icon = ContextCompat.getDrawable(context, R.drawable.ic_grid_view_24dp);
         showGenericMessage(
                 messageDispatcher,
                 MessageIdentifier.COLLABORATION_REMOVED,

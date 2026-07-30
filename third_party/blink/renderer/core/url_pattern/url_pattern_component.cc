@@ -379,7 +379,12 @@ bool Component::Match(StringView input,
         regexp_->Match(input, /*start_from=*/0, /*match_length=*/nullptr,
                        group_list ? &value_list : nullptr) == 0;
     if (result && group_list) {
-      DCHECK_EQ(name_list_.size(), value_list.size());
+      // When `pattern_` has named capture group(s), the match results for them
+      // are merged into `value_list`. In such cases, the correspondence between
+      // `name_list_` and `value_list` are broken.
+      // TODO(crbug.com/494341467): discuss this behavior in the spec issue
+      // https://github.com/whatwg/urlpattern/issues/284
+      CHECK_LE(name_list_.size(), value_list.size());
       group_list->ReserveInitialCapacity(name_list_.size());
       for (wtf_size_t i = 0; i < name_list_.size(); ++i) {
         group_list->emplace_back(name_list_[i], std::move(value_list[i]));

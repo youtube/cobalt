@@ -17,6 +17,10 @@ namespace {
 class MockAtMemoryBottomSheetDelegate : public AtMemoryBottomSheetDelegate {
  public:
   MOCK_METHOD(void, OnDismissed, (), (override));
+  MOCK_METHOD(void,
+              OnQuerySubmitted,
+              (const std::u16string& query),
+              (override));
 };
 
 class AtMemoryBottomSheetBridgeTest : public testing::Test {

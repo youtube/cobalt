@@ -13,7 +13,6 @@
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -43,28 +42,6 @@
 namespace ui {
 
 namespace {
-
-constexpr int kNumTimeBuckets = 13;
-constexpr std::array<float, kNumTimeBuckets> kClickDurationMetricBuckets = {
-    0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.25,
-    0.30, 0.35, 0.45, 0.55, 0.65, 0.75,
-};
-
-constexpr std::array<const char*, kNumTimeBuckets> kClickDurationMetricNames = {
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.150ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.160ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.170ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.180ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.190ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.200ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.250ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.300ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.350ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.450ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.550ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.650ms",
-    "Ozone.GestureInterpreterLibevdevCros.TouchpadClick.750ms",
-};
 
 // Convert libevdev device class to libgestures device class.
 GestureInterpreterDeviceClass GestureDeviceClass(Evdev* evdev) {
@@ -139,36 +116,6 @@ static constexpr auto kModifierEvdevCodes = std::to_array<unsigned int>(
      KEY_RIGHTCTRL, KEY_LEFTSHIFT, KEY_RIGHTSHIFT});
 }  // namespace
 
-void GestureInterpreterLibevdevCros::RecordClickMetric(stime_t duration,
-                                                       float movement) {
-  int time_bucket;
-  // Tap-to-click will have 0 duration, which we want to exclude.
-  if (duration <= 0.0) {
-    return;
-  }
-  for (time_bucket = 0; time_bucket < kNumTimeBuckets; time_bucket++) {
-    if (duration <= kClickDurationMetricBuckets[time_bucket]) {
-      break;
-    }
-  }
-  // Don't record clicks longer than the maximum duration we care about.
-  if (time_bucket == kNumTimeBuckets) {
-    return;
-  }
-
-  // Create buckets for movement distances under 10.0 mm in increments of
-  // 1.0 mm, with a separate bucket for exactly 0 movement.
-  int num_move_buckets = 11;
-  int move_bucket = (int)std::ceil(movement);
-  // Clicks with movement above 10.0 mm are assumed to be intentional drag
-  // gestures.
-  if (move_bucket >= num_move_buckets) {
-    return;
-  }
-  base::UmaHistogramExactLinear(kClickDurationMetricNames[time_bucket],
-                                move_bucket, num_move_buckets);
-}
-
 GestureInterpreterLibevdevCros::GestureInterpreterLibevdevCros(
     int id,
     CursorDelegateEvdev* cursor,
@@ -232,13 +179,6 @@ void GestureInterpreterLibevdevCros::OnLibEvdevCrosOpen(
       this);
   GestureInterpreterSetCallback(interpreter_, OnGestureReadyHelper, this);
 
-  if (base::FeatureList::IsEnabled(kEnableFastTouchpadClick)) {
-    GesturesProp* property =
-        property_provider_->GetProperty(id_, "Wiggle Button Down Timeout");
-    if (property) {
-      property->SetDoubleValue(std::vector<double>(1, 0.15));
-    }
-  }
 }
 
 void GestureInterpreterLibevdevCros::OnLibEvdevCrosEvent(Evdev* evdev,
@@ -389,7 +329,6 @@ void GestureInterpreterLibevdevCros::OnGestureMove(const Gesture* gesture,
 
   cursor_->MoveCursor(gfx::Vector2dF(move->dx, move->dy));
   gfx::Vector2dF ordinal_delta(move->ordinal_dx, move->ordinal_dy);
-  click_movement_ += ordinal_delta;
   dispatcher_->DispatchMouseMoveEvent(
       MouseMoveEventParams(id_, EF_NONE, cursor_->GetLocation(), &ordinal_delta,
                            PointerDetails(EventPointerType::kMouse),
@@ -619,16 +558,6 @@ void GestureInterpreterLibevdevCros::DispatchMouseButton(unsigned int button,
                                                          stime_t time) {
   if (!SetMouseButtonState(button, down))
     return;  // No change.
-
-  if (!is_mouse_ && !is_pointing_stick_ && button == BTN_LEFT) {
-    if (down) {
-      click_down_time_ = time;
-      click_movement_.set_x(0);
-      click_movement_.set_y(0);
-    } else {
-      RecordClickMetric(time - click_down_time_, click_movement_.Length());
-    }
-  }
 
   MouseButtonMapType map_type = MouseButtonMapType::kNone;
   if (is_mouse_)

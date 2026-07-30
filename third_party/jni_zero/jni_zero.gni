@@ -89,6 +89,7 @@ template("_invoke_jni_zero") {
                             "codegen/proxy_impl_java.py",
                             "codegen/register_natives.py",
                             "common.py",
+                            "gen_register_natives.py",
                             "java_lang_classes.py",
                             "java_types.py",
                             "jni_generator.py",
@@ -284,6 +285,89 @@ template("generate_jni_registration") {
   }
 }
 
+# Declare a target to generate JNI registration for precompiled jar files.
+#
+# This target scans the given jar files for native methods and generates a
+# header file that registers them.
+#
+# Variables:
+#   jar_files: List of paths to .jar files.
+#   namespace: Optional. C++ namespace for the registration function.
+#   register_natives_name: Optional. Name of the registration function.
+#       Defaults to "RegisterNatives".
+#   extra_includes: Optional. List of extra headers to include.
+#   generate_linker_version_script: Generates a config that adds a linker
+#       version script that will hide the found Java_ symbols.
+#
+template("generate_jar_jni_registration") {
+  if (defined(invoker.generate_linker_version_script) &&
+      invoker.generate_linker_version_script) {
+    _version_script_path = "$target_gen_dir/$target_name.ver"
+  }
+
+  _invoke_jni_zero(target_name) {
+    forward_variables_from(invoker,
+                           TESTONLY_AND_VISIBILITY + [
+                                 "deps",
+                                 "public_deps",
+                               ])
+
+    _header_path = "$target_gen_dir/$target_name.h"
+    inputs = invoker.jar_files + [ _JAVAP_PATH ]
+    outputs = [ _header_path ]
+
+    args = [
+      "gen-register-natives",
+      "--header-path",
+      rebase_path(_header_path, root_build_dir),
+      "--javap",
+      rebase_path(_JAVAP_PATH, root_build_dir),
+    ]
+
+    if (defined(_version_script_path)) {
+      outputs += [ _version_script_path ]
+      args += [
+        "--linker-script-path",
+        rebase_path(_version_script_path, root_build_dir),
+      ]
+    }
+
+    if (defined(invoker.class_blocklist)) {
+      _blocklist_string = string_join(",", invoker.class_blocklist)
+      args += [
+        "--class-blocklist",
+        _blocklist_string,
+      ]
+    }
+
+    if (defined(invoker.namespace)) {
+      args += [ "--namespace=${invoker.namespace}" ]
+    }
+
+    if (defined(invoker.register_natives_name)) {
+      args += [ "--register-natives-name=${invoker.register_natives_name}" ]
+    }
+
+    if (defined(invoker.extra_includes)) {
+      foreach(_include, invoker.extra_includes) {
+        args += [ "--extra-include=$_include" ]
+      }
+    }
+
+    foreach(_jar, invoker.jar_files) {
+      args += [ rebase_path(_jar, root_build_dir) ]
+    }
+  }
+
+  if (defined(_version_script_path)) {
+    config("${target_name}_version_script") {
+      inputs = [ _version_script_path ]
+      ldflags = [ "-Wl,--version-script=" +
+                  rebase_path(_version_script_path, root_build_dir) ]
+    }
+  }
+}
+
 # JNI target implementation. See generate_jni or generate_jar_jni for usage.
 template("generate_jni_impl") {
   public_configs = []
@@ -363,6 +447,16 @@ template("generate_jni_impl") {
         "--output-dir",
         rebase_path(_jni_output_dir, root_build_dir),
       ]
+      if (defined(invoker.enable_resolved_types_validation) &&
+          invoker.enable_resolved_types_validation) {
+        _resolved_types_path =
+            "$target_gen_dir/$_final_target_name.resolved_types.txt"
+        outputs += [ _resolved_types_path ]
+        args += [
+          "--resolved-types-path",
+          rebase_path(_resolved_types_path, root_build_dir),
+        ]
+      }
       if (_enable_definition_macros) {
         args += [ "--use-std-primitive-types" ]
       }

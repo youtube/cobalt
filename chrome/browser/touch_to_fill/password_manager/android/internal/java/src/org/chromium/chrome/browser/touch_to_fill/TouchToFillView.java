@@ -9,16 +9,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.RelativeLayout;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Px;
 import androidx.annotation.StringRes;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.ItemType;
-import org.chromium.chrome.browser.touch_to_fill.common.ItemDividerBase;
-import org.chromium.chrome.browser.touch_to_fill.common.TouchToFillViewBase;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetListViewBase;
+import org.chromium.components.browser_ui.bottomsheet.ItemDividerBase;
 
 import java.util.Set;
 
@@ -28,7 +27,7 @@ import java.util.Set;
  * Android Views.
  */
 @NullMarked
-class TouchToFillView extends TouchToFillViewBase {
+class TouchToFillView extends BottomSheetListViewBase {
     private static class HorizontalDividerItemDecoration extends ItemDividerBase {
         HorizontalDividerItemDecoration(Context context) {
             super(context);
@@ -74,7 +73,7 @@ class TouchToFillView extends TouchToFillViewBase {
     }
 
     @Override
-    public @NonNull String getSheetContentDescription(Context context) {
+    public String getSheetContentDescription(Context context) {
         return context.getString(R.string.touch_to_fill_content_description);
     }
 

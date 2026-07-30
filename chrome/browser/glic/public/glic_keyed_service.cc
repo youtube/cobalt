@@ -32,7 +32,6 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_controller.h"
 #endif
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
@@ -152,8 +151,6 @@ GlicKeyedService::GlicKeyedService(
           profile,
           &profile_manager->GetProfileAttributesStorage())),
       metrics_(std::make_unique<GlicMetrics>(profile, enabling_.get())),
-      fre_controller_(
-          std::make_unique<GlicFreController>(profile, identity_manager)),
 #if !BUILDFLAG(IS_ANDROID)
       opt_in_controller_(
           std::make_unique<GlicExperimentalOptInController>(profile)),
@@ -318,11 +315,6 @@ GlicInstanceCoordinator& GlicKeyedService::instance_coordinator() const {
   return *instance_coordinator_.get();
 }
 
-GlicFreController& GlicKeyedService::fre_controller() {
-  CHECK(fre_controller_);
-  return *fre_controller_.get();
-}
-
 #if !BUILDFLAG(IS_ANDROID)
 GlicExperimentalOptInController& GlicKeyedService::opt_in_controller() {
   CHECK(opt_in_controller_);
@@ -330,7 +322,8 @@ GlicExperimentalOptInController& GlicKeyedService::opt_in_controller() {
 }
 #endif
 
-GlicSharingManager& GlicKeyedService::active_instance_sharing_manager() {
+GlicSharingManagerInternal&
+GlicKeyedService::active_instance_sharing_manager() {
   return instance_coordinator().active_instance_sharing_manager();
 }
 

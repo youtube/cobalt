@@ -158,23 +158,24 @@ public class AwContentRestrictionTest extends AwParameterizedTest {
         mActivityTestRule.executeJavaScriptAndWaitForResult(mAwContents, mContentsClient, script);
     }
 
+    private boolean isElementVisible(String id) {
+        try {
+            String script =
+                    "var el = document.getElementById('"
+                            + id
+                            + "'); el != null && window.getComputedStyle(el).display !== 'none'";
+            String result =
+                    mActivityTestRule.executeJavaScriptAndWaitForResult(
+                            mAwContents, mContentsClient, script, false);
+            return result.equals("true");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void waitForInterstitialPageLoad() {
         CriteriaHelper.pollInstrumentationThread(
-                () -> {
-                    try {
-                        String result =
-                                mActivityTestRule.executeJavaScriptAndWaitForResult(
-                                        mAwContents,
-                                        mContentsClient,
-                                        "document.getElementById('"
-                                                + LEARN_MORE_LINK_ID
-                                                + "') != null",
-                                        false);
-                        return result.equals("true");
-                    } catch (Exception e) {
-                        return false;
-                    }
-                },
+                () -> isElementVisible(LEARN_MORE_LINK_ID),
                 "Interstitial element should appear to confirm page load",
                 AwActivityTestRule.WAIT_TIMEOUT_MS,
                 AwActivityTestRule.CHECK_INTERVAL);
@@ -250,6 +251,7 @@ public class AwContentRestrictionTest extends AwParameterizedTest {
 
         mActivityTestRule.loadUrlAsync(mAwContents, mWebServer.getResponseUrl(BLOCKED_SITE_PATH));
         waitForInterstitialPageLoad();
+        Assert.assertTrue("Go back link should be visible", isElementVisible(GO_BACK_LINK_ID));
         int afterBlockedHistoryCount = getNavigationHistoryEntryCount();
         Assert.assertEquals(
                 "Blocked navigation should add a history entry",
@@ -305,5 +307,15 @@ public class AwContentRestrictionTest extends AwParameterizedTest {
                 mWebServer.getResponseUrl(ALLOWED_SITE_1_PATH),
                 BLOCKED_PAYLOAD.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         waitForInterstitialPageLoad();
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"AndroidWebView"})
+    @EnableFeatures({AwFeatures.WEBVIEW_CONTENT_RESTRICTION_SUPPORT})
+    public void testGoBackLinkHiddenWhenCannotGoBack() throws Throwable {
+        mActivityTestRule.loadUrlAsync(mAwContents, mWebServer.getResponseUrl(BLOCKED_SITE_PATH));
+        waitForInterstitialPageLoad();
+        Assert.assertFalse("Go back link should be hidden", isElementVisible(GO_BACK_LINK_ID));
     }
 }

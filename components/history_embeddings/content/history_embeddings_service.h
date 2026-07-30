@@ -111,6 +111,7 @@ class HistoryEmbeddingsService
                       std::optional<base::Time> time_range_start,
                       size_t count,
                       bool skip_answering,
+                      std::vector<history::URLID> url_id_filter,
                       SearchResultCallback callback) override;
 
   // Weak `this` provider method.

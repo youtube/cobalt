@@ -212,7 +212,7 @@ def browser_builder(
             gs_bucket = clusterfuzz_gs_bucket,
         ),
         targets = targets.bundle(
-            additional_compile_targets = ["chromium_builder_asan"],
+            additional_compile_targets = ["blackbox_fuzzing_targets"],
             mixins = ["chromium-tester-service-account"],
         ),
         console_short_name = console_short_name or default_console_short_name,
@@ -497,7 +497,7 @@ ci.builder(
         ],
     ),
     targets = targets.bundle(
-        additional_compile_targets = ["chromium_builder_asan"],
+        additional_compile_targets = ["blackbox_fuzzing_targets"],
         mixins = ["chromium-tester-service-account"],
     ),
     # TODO(saelo): remove this once we've verified that the builder works.

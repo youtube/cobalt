@@ -49,6 +49,7 @@
 #include "components/bookmarks/test/test_matchers.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/favicon_base/favicon_util.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/base/unique_position.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
@@ -70,20 +71,16 @@ namespace bookmarks_helper {
 
 namespace {
 
-const char kBookmarkBarTag[] = "bookmark_bar";
-const char kSyncedBookmarksTag[] = "synced_bookmarks";
-const char kOtherBookmarksTag[] = "other_bookmarks";
-
 const BookmarkNode* GetPermanentNodeForServerTag(
     const sync_bookmarks::BookmarkModelView& model_view,
     const std::string& server_defined_unique_tag) {
-  if (server_defined_unique_tag == kBookmarkBarTag) {
+  if (server_defined_unique_tag == syncer::kBookmarkBarTag) {
     return model_view.bookmark_bar_node();
   }
-  if (server_defined_unique_tag == kSyncedBookmarksTag) {
+  if (server_defined_unique_tag == syncer::kSyncedBookmarksTag) {
     return model_view.mobile_node();
   }
-  if (server_defined_unique_tag == kOtherBookmarksTag) {
+  if (server_defined_unique_tag == syncer::kOtherBookmarksTag) {
     return model_view.other_node();
   }
 

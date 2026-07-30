@@ -24,6 +24,13 @@ test("gwp_asan_unittests") {
   if (is_ios) {
     deps -= [ "//components/gwp_asan/crash_handler:unit_tests" ]
   }
+  if (is_android) {
+    loadable_modules = [ "$root_out_dir/libcrashpad_handler_trampoline.so" ]
+    deps += [
+      "//components/crash/android:java",
+      "//third_party/crashpad/crashpad/handler:crashpad_handler_trampoline",
+    ]
+  }
   data_deps = [ "//testing/buildbot/filters:gwp_asan_unittests_filters" ]
 }
 

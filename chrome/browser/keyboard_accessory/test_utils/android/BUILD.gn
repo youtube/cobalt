@@ -3,8 +3,6 @@ source_set("android") {
   sources = [
     "mock_address_accessory_controller.cc",
     "mock_address_accessory_controller.h",
-    "mock_affiliated_plus_profiles_provider.cc",
-    "mock_affiliated_plus_profiles_provider.h",
     "mock_at_memory_accessory_controller.cc",
     "mock_at_memory_accessory_controller.h",
     "mock_manual_filling_controller.cc",
@@ -19,7 +17,6 @@ source_set("android") {
     "//base",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
-    "//components/plus_addresses/core/browser:types",
     "//testing/gmock",
   ]
 }

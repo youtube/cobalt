@@ -149,7 +149,8 @@ void AndroidTabModelURLVisitDataFetcher::FetchURLVisitData(
     for (int i = 0; i < count; ++i) {
       auto* tab_android = model->GetTabAt(i);
       GURL url = tab_android->GetURL();
-      if (!url.is_valid() || url.spec() == chrome::kChromeUINativeNewTabURL) {
+      if (!url.is_valid() || url.spec() == chrome::kChromeUINativeNewTabURL ||
+          !url.SchemeIsHTTPOrHTTPS()) {
         continue;
       }
 

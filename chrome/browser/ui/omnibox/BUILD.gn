@@ -10,7 +10,7 @@ assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 # The public interface has no circular dependencies.
 source_set("omnibox") {
   public = [
-    "ai_mode_button_config.h",
+    "ai_mode_button_service_factory.h",
     "omnibox_controller.h",
     "omnibox_edit_model.h",
     "omnibox_next_features.h",
@@ -76,7 +76,7 @@ source_set("omnibox") {
 # //chrome/browser/ui.
 source_set("impl") {
   sources = [
-    "ai_mode_button_config.cc",
+    "ai_mode_button_service_factory.cc",
     "omnibox_controller.cc",
     "omnibox_edit_model.cc",
     "omnibox_next_features.cc",
@@ -177,6 +177,7 @@ source_set("impl") {
       "//chrome/browser/ui/views/location_bar",
       "//chrome/browser/ui/webui:webui_util",
       "//chrome/browser/ui/webui/cr_components/composebox",
+      "//chrome/browser/ui/webui/omnibox_popup",
       "//chrome/browser/ui/webui/top_chrome",
       "//chrome/common",
       "//components/contextual_search:public",
@@ -269,6 +270,8 @@ if (!is_android) {
       "//chrome/browser/contextual_search",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/views:layout_provider",
+      "//chrome/browser/ui/webui/cr_components/searchbox",
       "//chrome/test:test_support",
       "//components/bookmarks/test",
       "//components/contextual_search:test_support",

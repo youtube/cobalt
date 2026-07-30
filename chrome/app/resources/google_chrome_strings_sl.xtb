@@ -244,7 +244,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="345171907106878721">Dodajte se v Chrome</translation>
 <translation id="3453763134178591239">Pogoji za Chrome OS</translation>
 <translation id="3503306920980160878">Chrome potrebuje dostop do vaše lokacije, da jo bo lahko delil s tem spletnim mestom</translation>
-<translation id="3539955434060988644">Odpri povezavo v Chromovem anoni&amp;mnem oknu</translation>
+<translation id="3539955434060988644">Odpri povezavo v Chromovem anonimnem oknu</translation>
 <translation id="3576528680708590453">Skrbnik sistema je Google Chrome nastavil tako, da za dostop do <ph name="TARGET_URL_HOSTNAME" /> odpre drug brskalnik.</translation>
 <translation id="3582972582564653026">V vseh svojih napravah sinhronizirajte in prilagodite Chrome</translation>
 <translation id="3583751698304738917">V drugem profilu za Chrome ste že prijavljeni kot <ph name="USER_EMAIL_ADDRESS" /></translation>
@@ -404,6 +404,7 @@ Nekatere funkcije morda ne bodo na voljo. Navedite drug imenik profila ali upora
 <translation id="5234764350956374838">Opusti</translation>
 <translation id="5239627039202700673">Uporaba Chroma ob vsakem kliku povezav v sporočilih, dokumentih in drugih aplikacijah</translation>
 <translation id="5251420635869119124">Gostje lahko uporabljajo Chrome, ne da bi za seboj pustili kar koli.</translation>
+<translation id="5271833978500241046">Uporabljajte jih skupaj z drugimi funkcijami Geminija v Chromu</translation>
 <translation id="5286907366254680517">Zaznano</translation>
 <translation id="5320351714793324716">Če omogočite piškotke, jih bo Chrome morda uporabil za vnaprejšnje nalaganje</translation>
 <translation id="5321325624576443340">Google Lens ni na voljo. Poskusite pozneje.</translation>
@@ -442,15 +443,6 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="569897634095159764">Internetne povezave ni mogoče vzpostaviti. Strežnik proxy zahteva preverjanje pristnosti.</translation>
 <translation id="5709557627224531708">Nastavite Chrome kot privzeti brskalnik</translation>
 <translation id="5719246646468301581">Dodatni pogoji storitve za Google Chrome in ChromeOS</translation>
-<translation id="5719324992913248873">S tem dejanjem se bo zgodilo to:
-          <ph name="LINE_BREAKS" />
-           • Ponastavljene bodo nekatere nastavitve v Chromu in bližnjice za Chrome.
-           <ph name="LINE_BREAK" />
-           • Onemogočene bodo razširitve.
-           <ph name="LINE_BREAK" />
-           • Izbrisani bodo piškotki in drugi začasni podatki spletnih mest.
-            <ph name="LINE_BREAKS" />
-           To ne bo vplivalo na zaznamke, zgodovino in shranjena gesla.</translation>
 <translation id="5736850870166430177">Če vam spletno mesto poskusi ukrasti geslo ali ko prenašate škodljivo datoteko, lahko Chrome prav tako pošlje URL-je, vključno z delčki vsebine strani, Varnemu brskanju.</translation>
 <translation id="5756509061973259733">Profil v Chromu s tem računom že obstaja v tej napravi.</translation>
 <translation id="5759947850379142561">Izberite besedilo ali sliko za iskanje z Googlom Lens ali pritisnite tipko Esc, če želite zapreti Google Lens</translation>
@@ -648,6 +640,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Zaradi zaščite podatkov dovolite Chromu, da odstrani dovoljenja za spletna mesta, ki jih nedavno niste obiskali.</translation>
 <translation id="7629695634924605473">Chrome vam sporoči, ali so gesla ogrožena</translation>
+<translation id="7629898584100520089">Inovacije umetne inteligence, kot so veščine, se shranijo v račun Google in se upravljajo ločeno od sinhronizacije za Chrome</translation>
 <translation id="7641148173327520642">Skrbnik sistema je Google Chrome nastavil tako, da za dostop do <ph name="TARGET_URL_HOSTNAME" /> odpre brskalnik <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Pomoč</translation>
 <translation id="7651907282515937834">Logotip za Chrome Enterprise</translation>

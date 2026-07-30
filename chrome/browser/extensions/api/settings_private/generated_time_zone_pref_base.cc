@@ -4,6 +4,7 @@
 
 #include "chrome/browser/extensions/api/settings_private/generated_time_zone_pref_base.h"
 
+#include "base/check_deref.h"
 #include "chrome/browser/ash/system/timezone_resolver_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
@@ -39,7 +40,8 @@ void GeneratedTimeZonePrefBase::OnTimeZoneResolverUpdated() {
 void GeneratedTimeZonePrefBase::UpdateTimeZonePrefControlledBy(
     settings_api::PrefObject* out_pref) const {
   if (ash::system::TimeZoneResolverManager::
-          IsTimeZoneResolutionPolicyControlled()) {
+          IsTimeZoneResolutionPolicyControlled(
+              CHECK_DEREF(g_browser_process->local_state()))) {
     out_pref->controlled_by = settings_api::ControlledBy::kDevicePolicy;
     out_pref->enforcement = settings_api::Enforcement::kEnforced;
   } else if (profile_->IsChild()) {

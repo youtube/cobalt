@@ -1557,7 +1557,7 @@ TEST_P(ScrollingTest, NonCompositedMainThreadRepaintWithLayerSelection) {
   document.GetPage()->GetFocusController().SetActive(true);
   document.GetPage()->GetFocusController().SetFocused(true);
   GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SelectAllChildren(*document.getElementById(AtomicString("text")))
           .Build(),
       SetSelectionOptions());

@@ -109,6 +109,8 @@ class WebUILocationBar : public LocationBar,
   void OnLhsChipDrag(toolbar_ui_api::mojom::LhsChipIdentifier identifier,
                      ui::mojom::DragEventSource source);
 
+  void AnnounceAlert(const std::u16string& announcement);
+
   WebUIContentSettingImageControl& content_setting_image_control() {
     return content_setting_image_control_;
   }
@@ -132,6 +134,7 @@ class WebUILocationBar : public LocationBar,
 
  private:
   friend class WebUILocationBarTest;
+  friend class WebUIPermissionChipTest;
 
   // Determines whether the location icon should be overridden while a chip is
   // being displayed.

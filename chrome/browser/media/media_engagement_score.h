@@ -28,7 +28,7 @@ class MediaEngagementScore final {
   static const char kLastMediaPlaybackTimeKey[];
   static const char kHasHighScoreKey[];
 
-  // Origins with a number of visits less than this number will recieve
+  // Origins with a number of visits less than this number will receive
   // a score of zero.
   static int GetScoreMinVisits();
 

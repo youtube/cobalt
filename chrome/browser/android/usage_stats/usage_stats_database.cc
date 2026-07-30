@@ -374,7 +374,7 @@ void UsageStatsDatabase::OnWebsiteEventInitDone(
     return;
   }
 
-  // Execute deferred operations on sucessfully initialized database.
+  // Execute deferred operations on successfully initialized database.
   while (!website_event_db_callbacks_.empty()) {
     std::move(website_event_db_callbacks_.front()).Run();
     website_event_db_callbacks_.pop();
@@ -396,7 +396,7 @@ void UsageStatsDatabase::OnSuspensionInitDone(
     return;
   }
 
-  // Execute deferred operations on sucessfully initialized database.
+  // Execute deferred operations on successfully initialized database.
   while (!suspension_db_callbacks_.empty()) {
     std::move(suspension_db_callbacks_.front()).Run();
     suspension_db_callbacks_.pop();
@@ -419,7 +419,7 @@ void UsageStatsDatabase::OnTokenMappingInitDone(
     return;
   }
 
-  // Execute deferred operations on sucessfully initialized database.
+  // Execute deferred operations on successfully initialized database.
   while (!token_mapping_db_callbacks_.empty()) {
     std::move(token_mapping_db_callbacks_.front()).Run();
     token_mapping_db_callbacks_.pop();

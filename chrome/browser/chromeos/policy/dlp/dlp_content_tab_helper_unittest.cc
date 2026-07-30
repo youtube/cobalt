@@ -5,6 +5,7 @@
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_tab_helper.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/chromeos/policy/dlp/test/mock_dlp_content_observer.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_activity_simulator.h"
@@ -21,10 +22,15 @@ using testing::_;
 using testing::Return;
 
 namespace {
-const DlpContentRestrictionSet kEmptyRestrictionSet;
-const DlpContentRestrictionSet kNonEmptyRestrictionSet(
-    DlpContentRestriction::kScreenshot,
-    DlpRulesManager::Level::kBlock);
+const DlpContentRestrictionSet& GetEmptyRestrictionSet() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val;
+  return *val;
+}
+const DlpContentRestrictionSet& GetNonEmptyRestrictionSet() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenshot, DlpRulesManager::Level::kBlock);
+  return *val;
+}
 }  // namespace
 
 class DlpContentTabHelperTest : public ChromeRenderViewHostTestHarness {
@@ -79,9 +85,9 @@ TEST_F(DlpContentTabHelperTest, NotCreatedForIncognito) {
 TEST_F(DlpContentTabHelperTest, NotConfidential) {
   GURL kUrl = GURL("https://example.com");
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      GURL(), kEmptyRestrictionSet);
+      GURL(), GetEmptyRestrictionSet());
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      kUrl, kEmptyRestrictionSet);
+      kUrl, GetEmptyRestrictionSet());
   EXPECT_CALL(mock_dlp_content_observer_, OnConfidentialityChanged(_, _))
       .Times(0);
   EXPECT_CALL(mock_dlp_content_observer_, OnVisibilityChanged(_)).Times(0);
@@ -96,11 +102,11 @@ TEST_F(DlpContentTabHelperTest, NotConfidential) {
 TEST_F(DlpContentTabHelperTest, Confidential) {
   GURL kUrl = GURL("https://example.com");
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      GURL(), kEmptyRestrictionSet);
+      GURL(), GetEmptyRestrictionSet());
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      kUrl, kNonEmptyRestrictionSet);
+      kUrl, GetNonEmptyRestrictionSet());
   EXPECT_CALL(mock_dlp_content_observer_,
-              OnConfidentialityChanged(_, kNonEmptyRestrictionSet))
+              OnConfidentialityChanged(_, GetNonEmptyRestrictionSet()))
       .Times(1);
   EXPECT_CALL(mock_dlp_content_observer_, OnVisibilityChanged(_)).Times(0);
 
@@ -109,7 +115,7 @@ TEST_F(DlpContentTabHelperTest, Confidential) {
   EXPECT_NE(nullptr, DlpContentTabHelper::FromWebContents(web_contents));
 
   EXPECT_CALL(mock_dlp_content_observer_,
-              OnConfidentialityChanged(_, kEmptyRestrictionSet))
+              OnConfidentialityChanged(_, GetEmptyRestrictionSet()))
       .Times(1);
   EXPECT_CALL(mock_dlp_content_observer_, OnWebContentsDestroyed(_)).Times(1);
 }
@@ -118,13 +124,13 @@ TEST_F(DlpContentTabHelperTest, VisibilityChanged) {
   GURL kUrl1 = GURL("https://example1.com");
   GURL kUrl2 = GURL("https://example2.com");
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      GURL(), kEmptyRestrictionSet);
+      GURL(), GetEmptyRestrictionSet());
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      kUrl1, kNonEmptyRestrictionSet);
+      kUrl1, GetNonEmptyRestrictionSet());
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      kUrl2, kEmptyRestrictionSet);
+      kUrl2, GetEmptyRestrictionSet());
   EXPECT_CALL(mock_dlp_content_observer_,
-              OnConfidentialityChanged(_, kNonEmptyRestrictionSet))
+              OnConfidentialityChanged(_, GetNonEmptyRestrictionSet()))
       .Times(1);
   EXPECT_CALL(mock_dlp_content_observer_, OnVisibilityChanged(_)).Times(0);
   content::WebContents* web_contents1 =
@@ -144,7 +150,7 @@ TEST_F(DlpContentTabHelperTest, VisibilityChanged) {
   tab_activity_simulator_.SwitchToTabAt(tab_strip_model_, 0);
 
   EXPECT_CALL(mock_dlp_content_observer_,
-              OnConfidentialityChanged(_, kEmptyRestrictionSet))
+              OnConfidentialityChanged(_, GetEmptyRestrictionSet()))
       .Times(1);
   EXPECT_CALL(mock_dlp_content_observer_, OnWebContentsDestroyed(_)).Times(2);
 }
@@ -153,11 +159,11 @@ TEST_F(DlpContentTabHelperTest, SubFrameNavigation) {
   GURL kNonConfidentialUrl = GURL("https://example.com");
   GURL kConfidentialUrl = GURL("https://google.com");
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      GURL(), kEmptyRestrictionSet);
+      GURL(), GetEmptyRestrictionSet());
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      kNonConfidentialUrl, kEmptyRestrictionSet);
+      kNonConfidentialUrl, GetEmptyRestrictionSet());
   DlpContentRestrictionSet::SetRestrictionsForURLForTesting(
-      kConfidentialUrl, kNonEmptyRestrictionSet);
+      kConfidentialUrl, GetNonEmptyRestrictionSet());
   EXPECT_CALL(mock_dlp_content_observer_, OnConfidentialityChanged(_, _))
       .Times(0);
   EXPECT_CALL(mock_dlp_content_observer_, OnVisibilityChanged(_)).Times(0);
@@ -170,7 +176,7 @@ TEST_F(DlpContentTabHelperTest, SubFrameNavigation) {
 
   // Add subframe and navigate to confidential URL.
   EXPECT_CALL(mock_dlp_content_observer_,
-              OnConfidentialityChanged(_, kNonEmptyRestrictionSet))
+              OnConfidentialityChanged(_, GetNonEmptyRestrictionSet()))
       .Times(1);
   content::RenderFrameHost* subframe =
       content::NavigationSimulator::NavigateAndCommitFromDocument(
@@ -180,7 +186,7 @@ TEST_F(DlpContentTabHelperTest, SubFrameNavigation) {
 
   // Navigate away from confidential URL.
   EXPECT_CALL(mock_dlp_content_observer_,
-              OnConfidentialityChanged(_, kEmptyRestrictionSet))
+              OnConfidentialityChanged(_, GetEmptyRestrictionSet()))
       .Times(1);
   content::NavigationSimulator::NavigateAndCommitFromDocument(
       kNonConfidentialUrl, subframe);

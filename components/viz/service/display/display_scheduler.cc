@@ -49,44 +49,43 @@ bool AdpfCanUseSetThreads() {
 
 }  // namespace
 
-class DisplayScheduler::BeginFrameObserver : public BeginFrameObserverBase {
- public:
-  explicit BeginFrameObserver(DisplayScheduler* scheduler)
-      : scheduler_(scheduler) {
-    // The DisplayScheduler handles animate_only BeginFrames as if they were
-    // normal BeginFrames: Clients won't commit a CompositorFrame but will still
-    // acknowledge when they have completed the BeginFrame via BeginFrameAcks
-    // and the DisplayScheduler will still indicate when all clients have
-    // finished via DisplayObserver::OnDisplayDidFinishFrame.
-    wants_animate_only_begin_frames_ = true;
-  }
-  // BeginFrameObserverBase implementation.
-  void OnBeginFrameSourcePausedChanged(bool paused) override {
-    // TODO(crbug.com/40663506): DisplayScheduler doesn't handle
-    // BeginFrameSource pause but it can happen on WebXR.
-    if (paused) {
-      NOTIMPLEMENTED();
-    }
-  }
+DisplayScheduler::BeginFrameObserver::BeginFrameObserver(
+    DisplayScheduler& scheduler)
+    : scheduler_(scheduler) {
+  // The DisplayScheduler handles animate_only BeginFrames as if they were
+  // normal BeginFrames: Clients won't commit a CompositorFrame but will still
+  // acknowledge when they have completed the BeginFrame via BeginFrameAcks
+  // and the DisplayScheduler will still indicate when all clients have
+  // finished via DisplayObserver::OnDisplayDidFinishFrame.
+  wants_animate_only_begin_frames_ = true;
+}
 
-  bool OnBeginFrameDerivedImpl(const BeginFrameArgs& args) override {
-    if (base::FeatureList::IsEnabled(features::kDisplaySchedulerAsClient)) {
-      return true;
-    } else {
-      return scheduler_->OnBeginFrame(args);
-    }
-  }
+DisplayScheduler::BeginFrameObserver::~BeginFrameObserver() = default;
 
- private:
-  const raw_ptr<DisplayScheduler> scheduler_;
-};
+void DisplayScheduler::BeginFrameObserver::OnBeginFrameSourcePausedChanged(
+    bool paused) {
+  // TODO(crbug.com/40663506): DisplayScheduler doesn't handle
+  // BeginFrameSource pause but it can happen on WebXR.
+  if (paused) {
+    NOTIMPLEMENTED();
+  }
+}
+
+bool DisplayScheduler::BeginFrameObserver::OnBeginFrameDerivedImpl(
+    const BeginFrameArgs& args) {
+  if (base::FeatureList::IsEnabled(features::kDisplaySchedulerAsClient)) {
+    return true;
+  } else {
+    return scheduler_->OnBeginFrame(args);
+  }
+}
 
 DisplayScheduler::DisplayScheduler(BeginFrameSource* begin_frame_source,
                                    base::SingleThreadTaskRunner* task_runner,
                                    PendingSwapParams pending_swap_params,
                                    HintSessionFactory* hint_session_factory,
                                    bool wait_for_all_surfaces_before_draw)
-    : begin_frame_observer_(std::make_unique<BeginFrameObserver>(this)),
+    : begin_frame_observer_(*this),
       begin_frame_source_(begin_frame_source),
       task_runner_(task_runner),
       inside_surface_damaged_(false),
@@ -526,9 +525,9 @@ void DisplayScheduler::SetNeedsOneBeginFrame(const BeginFrameArgs& args,
     needs_draw_ = true;
   if (base::FeatureList::IsEnabled(features::kNoLateBeginFrames) &&
       args.IsValid() &&
-      (!begin_frame_observer_->LastUsedBeginFrameArgs().IsValid() ||
+      (!begin_frame_observer_.LastUsedBeginFrameArgs().IsValid() ||
        args.frame_id.sequence_number >
-           begin_frame_observer_->LastUsedBeginFrameArgs()
+           begin_frame_observer_.LastUsedBeginFrameArgs()
                .frame_id.sequence_number)) {
     OnBeginFrame(args);
   }
@@ -541,14 +540,14 @@ void DisplayScheduler::MaybeStartObservingBeginFrames() {
 
 void DisplayScheduler::StartObservingBeginFrames() {
   if (!observing_begin_frame_source_) {
-    begin_frame_source_->AddObserver(begin_frame_observer_.get());
+    begin_frame_source_->AddObserver(&begin_frame_observer_);
     // TODO(crbug.com/40900977): Some tests still have reliance on Missed
     // begin frames. We should update the test helpers.
     if (base::FeatureList::IsEnabled(features::kDisplaySchedulerAsClient)) {
-      auto args = begin_frame_observer_->LastUsedBeginFrameArgs();
+      auto args = begin_frame_observer_.LastUsedBeginFrameArgs();
       if (args.IsValid() && args.type == BeginFrameArgs::MISSED &&
           args.frame_time > current_begin_frame_args_.frame_time) {
-        OnBeginFrame(begin_frame_observer_->LastUsedBeginFrameArgs());
+        OnBeginFrame(begin_frame_observer_.LastUsedBeginFrameArgs());
       }
     }
     observing_begin_frame_source_ = true;
@@ -558,7 +557,7 @@ void DisplayScheduler::StartObservingBeginFrames() {
 void DisplayScheduler::StopObservingBeginFrames() {
   decider_.OnGoIdle();
   if (observing_begin_frame_source_) {
-    begin_frame_source_->RemoveObserver(begin_frame_observer_.get());
+    begin_frame_source_->RemoveObserver(&begin_frame_observer_);
     observing_begin_frame_source_ = false;
 
     // A missed BeginFrame may be queued, so drop that too if we're going to
@@ -729,7 +728,7 @@ void DisplayScheduler::OnBeginFrameDeadline() {
 
 void DisplayScheduler::DidFinishFrame(bool did_draw) {
   DCHECK(begin_frame_source_);
-  begin_frame_source_->DidFinishFrame(begin_frame_observer_.get());
+  begin_frame_source_->DidFinishFrame(&begin_frame_observer_);
   BeginFrameAck ack(current_begin_frame_args_, did_draw);
   if (client_)
     client_->DidFinishFrame(ack);

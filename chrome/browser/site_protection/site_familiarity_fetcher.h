@@ -22,10 +22,6 @@ namespace site_protection {
 
 BASE_DECLARE_FEATURE(kSkipSiteFamiliarityDeferralForDefaultSearchEngine);
 
-// The minimum site engagement score that a site must have in order to be
-// considered familiar.
-inline constexpr int kMinSiteEngagementScoreForFamiliarity = 10;
-
 // Calculates the site familiarity based on information from the
 // SiteEngagementService, chrome://history and the
 // safe-browsing-high-confidence-allowlist.
@@ -100,7 +96,8 @@ class SiteFamiliarityFetcher {
   bool fetched_history_ = false;
 
   // Whether the history service has an entry for `fetch_url_`'s origin from
-  // more than `kMinAgeOfInitialVisitForFamiliarity`.
+  // more than
+  // `safe_browsing::kMigrateToBlockV8OptimizerOnUnfamiliarSitesMinAgeOfInitialVisit`.
   bool has_record_older_than_threshold_ = false;
 
   // Whether the safe-browsing-high-confidence-allowlist has been fetched.
@@ -110,7 +107,7 @@ class SiteFamiliarityFetcher {
   bool is_on_sb_list_ = false;
 
   // Whether the site engagement score for `fetch_url_` is higher than
-  // `kMinSiteEngagementScoreForFamiliarity`.
+  // `safe_browsing::kMigrateToBlockV8OptimizerOnUnfamiliarSitesMinSiteEngagementScore`.
   bool has_engagement_score_higher_than_threshold_ = false;
 
   // Callback passed to Start().

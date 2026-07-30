@@ -29,5 +29,6 @@ specific_include_rules = {
 
   ".*browsertest\\.cc": [
     "+chrome/browser/browser_process.h",
+    "+services/audio/test",
   ],
 }

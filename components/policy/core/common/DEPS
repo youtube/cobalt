@@ -5,6 +5,7 @@ include_rules = [
   "+chromeos/crosapi",
   "+chromeos/startup",
   "+components/account_id",
+  "+components/keyed_service/core",
   "+components/reporting",
   "-components/policy/core/browser",
   "+components/signin/public",

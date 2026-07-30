@@ -605,11 +605,8 @@ component("base") {
       "Foundation.framework",
       "IOKit.framework",
       "QuartzCore.framework",
+      "ScreenCaptureKit.framework",
       "UniformTypeIdentifiers.framework",
-    ]
-
-    weak_frameworks = [
-      "ScreenCaptureKit.framework",  # Available in macOS 12.3, stable in 13.2.
     ]
   }
 

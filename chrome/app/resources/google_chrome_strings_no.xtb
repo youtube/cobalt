@@ -398,6 +398,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="5234764350956374838">Lukk</translation>
 <translation id="5239627039202700673">Bruk Chrome hver gang du klikker på linker i meldinger, dokumenter og andre apper</translation>
 <translation id="5251420635869119124">Gjester kan bruke Chrome uten å etterlate seg spor.</translation>
+<translation id="5271833978500241046">Bruk dem sammen med andre Gemini-funksjoner i Chrome</translation>
 <translation id="5286907366254680517">Registrert</translation>
 <translation id="5320351714793324716">Hvis du tillater informasjonskapsler, kan Chrome bruke dem ved forhåndslasting</translation>
 <translation id="5321325624576443340">Google Lens er ikke tilgjengelig. Prøv igjen senere.</translation>
@@ -434,15 +435,6 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="569897634095159764">Kan ikke koble til internett. Proxy-tjeneren krever autentisering.</translation>
 <translation id="5709557627224531708">Angi Chrome som standardnettleser</translation>
 <translation id="5719246646468301581">Tilleggsvilkår for bruk av Google Chrome og ChromeOS</translation>
-<translation id="5719324992913248873">Denne handlingen
-          <ph name="LINE_BREAKS" />
-           • tilbakestiller noen Chrome-innstillinger og Chrome-snarveier
-           <ph name="LINE_BREAK" />
-           • slår av utvidelser
-           <ph name="LINE_BREAK" />
-           • sletter informasjonskapsler og andre midlertidige nettstedsdata
-            <ph name="LINE_BREAKS" />
-           Bokmerker, loggen og lagrede passord berøres ikke.</translation>
 <translation id="5736850870166430177">Hvis nettsteder prøver å stjele passordet ditt, eller når du laster ned skadelige filer, kan Chrome også sende nettadresser, inkludert deler av sideinnholdet, til Safe Browsing</translation>
 <translation id="5756509061973259733">Det finnes allerede en Chrome-profil med denne kontoen på denne enheten</translation>
 <translation id="5759947850379142561">Velg tekst eller bilder for å søke med Google Lens, eller trykk på Esc for å avslutte Google Lens</translation>
@@ -640,6 +632,7 @@ Hvis denne siden ikke fungerer som forventet, kan du prøve å tillate optimalis
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Du kan beskytte dataene dine ved å la Chrome fjerne tillatelser fra nettsteder du ikke har besøkt nylig.</translation>
 <translation id="7629695634924605473">Med Chrome får du beskjed hvis passordene dine noensinne utsettes for sikkerhetsbrudd</translation>
+<translation id="7629898584100520089">AI-innovasjoner som ferdigheter lagres i Google-kontoen og administreres separat fra Chrome-synkronisering</translation>
 <translation id="7641148173327520642">Systemadministratoren din har konfigurert Google Chrome til å åpne <ph name="ALTERNATIVE_BROWSER_NAME" /> for å få tilgang til <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Hjelp</translation>
 <translation id="7651907282515937834">Chrome Enterprise-logo</translation>

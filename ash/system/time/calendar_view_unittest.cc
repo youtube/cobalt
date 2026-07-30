@@ -76,8 +76,7 @@ bool kCalendarPrimary1 = true;
 class CalendarViewControllerTestObserver
     : public CalendarViewController::Observer {
  public:
-  explicit CalendarViewControllerTestObserver(
-      base::OnceCallback<void(void)> callback)
+  explicit CalendarViewControllerTestObserver(base::OnceClosure callback)
       : callback_(std::move(callback)) {}
 
   CalendarViewControllerTestObserver(
@@ -90,7 +89,7 @@ class CalendarViewControllerTestObserver
   void OnCalendarLoaded() override { std::move(callback_).Run(); }
 
  private:
-  base::OnceCallback<void(void)> callback_;
+  base::OnceClosure callback_;
 };
 
 class CalendarViewTest : public AshTestBase {

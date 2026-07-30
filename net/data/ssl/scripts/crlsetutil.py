@@ -44,7 +44,6 @@ import collections
 import hashlib
 import json
 import optparse
-import six
 import struct
 import sys
 
@@ -87,8 +86,8 @@ def _parse_asn1_element(der_bytes):
     read, the sequence of bytes for the value, and then any data from der_bytes
     that was not part of the tag/Length/Value.
   """
-  tag = six.indexbytes(der_bytes, 0)
-  length = six.indexbytes(der_bytes, 1)
+  tag = der_bytes[0]
+  length = der_bytes[1]
   header_length = 2
 
   if length & 0x80:
@@ -96,7 +95,7 @@ def _parse_asn1_element(der_bytes):
     length = 0
     for i in range(2, 2 + num_length_bytes):
       length <<= 8
-      length += six.indexbytes(der_bytes, i)
+      length += der_bytes[i]
     header_length = 2 + num_length_bytes
 
   contents = der_bytes[:header_length + length]
@@ -231,7 +230,7 @@ def der_cert_to_serial(der_bytes):
   iterator.step_into()  # enter TBSCertificate
   iterator.step_over()  # over version
   raw_serial = iterator.encoded_value()
-  if six.indexbytes(raw_serial, 0) == 0x00 and len(raw_serial) > 1:
+  if raw_serial[0] == 0x00 and len(raw_serial) > 1:
     raw_serial = raw_serial[1:]
   return raw_serial
 

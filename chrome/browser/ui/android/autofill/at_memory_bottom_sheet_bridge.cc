@@ -46,9 +46,7 @@ base::android::ScopedJavaLocalRef<jobject> CreateJavaSuggestion(
   }
 
   return Java_AtMemoryBottomSheetBridge_createAutofillSuggestion(
-      env,
-      base::android::ConvertUTF16ToJavaString(env, suggestion.main_text.value),
-      base::android::ConvertUTF16ToJavaString(env, sub_label), android_icon_id,
+      env, suggestion.main_text.value, sub_label, android_icon_id,
       std::to_underlying(suggestion.type));
 }
 
@@ -98,6 +96,13 @@ void AtMemoryBottomSheetBridge::OnDismissed(JNIEnv* env) {
     delegate_->OnDismissed();
   }
   ResetDelegate();
+}
+
+void AtMemoryBottomSheetBridge::OnQuerySubmitted(JNIEnv* env,
+                                                 const std::u16string& query) {
+  if (delegate_) {
+    delegate_->OnQuerySubmitted(query);
+  }
 }
 
 void AtMemoryBottomSheetBridge::ResetDelegate() {

@@ -342,6 +342,7 @@ void OAuthMultiloginHelper::StartFetchingMultiLogin() {
     case CookieBindingSupport::kDisabled:
       break;
   }
+  cookie_binding_params.youtube_mode = GetYoutubeCookieBindingMode();
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   gaia_auth_fetcher_->StartOAuthMultilogin(
       mode_, multilogin_credentials, external_cc_result_, std::move(decryptor),
@@ -499,6 +500,20 @@ OAuthMultiloginHelper::GetCookieBindingSupport() const {
     return CookieBindingSupport::kPrototype;
   }
   return CookieBindingSupport::kDisabled;
+}
+
+gaia::MultiloginCookieBindingParams::Mode
+OAuthMultiloginHelper::GetYoutubeCookieBindingMode() const {
+  if (GetCookieBindingSupport() != CookieBindingSupport::kStandard) {
+    return gaia::MultiloginCookieBindingParams::Mode::kDisabled;
+  }
+  if (!base::FeatureList::IsEnabled(
+          switches::kEnableOAuthMultiloginYoutubeCookiesBinding)) {
+    return gaia::MultiloginCookieBindingParams::Mode::kDisabled;
+  }
+  return switches::kOAuthMultiloginYoutubeCookieBindingEnforced.Get()
+             ? gaia::MultiloginCookieBindingParams::Mode::kEnabledEnforced
+             : gaia::MultiloginCookieBindingParams::Mode::kEnabledUnenforced;
 }
 
 bool OAuthMultiloginHelper::StartSettingCookiesViaDeviceBoundSessionManager(

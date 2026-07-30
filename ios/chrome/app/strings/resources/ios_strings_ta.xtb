@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">சமீபத்தில் மூடிய தாவல்களை இங்கே மீண்டும் திறக்கலாம்</translation>
 <translation id="1016495303386450659">புத்தகக்குறி புதுப்பிக்கப்பட்டது</translation>
+<translation id="1018804590490383958">ஸ்கேன் செய்து தானாக நிரப்பு</translation>
 <translation id="1019990162050689579">Gemini ஆப்ஸ் செயல்பாடுகள்</translation>
 <translation id="102916930470544692">கடவுச்சாவி</translation>
 <translation id="1030376737535466765">Password Managerரைத் திற</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Nano Banana மூலம் ரீமிக்ஸ் செய்ய படத்தைப் பதிவேற்றலாம்</translation>
 <translation id="1377508275003315939">கடவுச்சொற்கள்</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} முகவரியில் {position}வது}other{{count} முகவரிகளில் {position}வது}}</translation>
+<translation id="13813615483058219">ஏதோ தவறாகிவிட்டது. இணைய இணைப்பைச் சரிபார்க்கவும், ஒலியளவை அதிகரிக்கவும் அல்லது மீண்டும் முயற்சிக்கவும்.</translation>
 <translation id="1383876407941801731">தேடுக</translation>
 <translation id="138618066238211776"><ph name="USER_NAME" /> ஆகத் தொடர்க</translation>
 <translation id="138692594145659985">கார்டைச் சேமிப்பதற்கான விருப்பங்கள்</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">பிரவுசரைப் புதுப்பியுங்கள்</translation>
 <translation id="4021931095789478915">${url} ஐ வாசிப்புப் பட்டியலில் சேருங்கள்</translation>
 <translation id="4028871427853484857">கணக்கில் சேமி…</translation>
+<translation id="4036529942385659684">செயலற்ற நிலைக்குச் சென்றதும் தொடக்கப் பக்கத்தைக் காட்டு</translation>
 <translation id="4038354071007134711">ஃபைலைத் திறக்கக்கூடிய ஆப்ஸ் சாதனத்தில் இல்லை.</translation>
 <translation id="4042870976416480368">பக்கத்தில் கண்டறிக</translation>
 <translation id="4045441967987592849">மீண்டும் திற</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">குழுவை நிர்வகிக்கலாம்</translation>
 <translation id="4172051516777682613">எப்போதும் காட்டு</translation>
 <translation id="417273154673973994">{count,plural, =1{1 பக்கக் குழு மூடப்பட்டது மற்றும் சேமிக்கப்பட்டது}other{{count} பக்கக் குழுக்கள் மூடப்பட்டன மற்றும் சேமிக்கப்பட்டன}}</translation>
-<translation id="417612446554534067">என் சாதனங்களுக்கு அனுப்பு</translation>
 <translation id="4180726336228139707">இந்தச் சாதனத்தில் மட்டும்</translation>
 <translation id="4181841719683918333">மொழிகள்</translation>
 <translation id="4183350924949589798">கூடுதல் பாதுகாப்பு வேண்டுமா?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">பக்கங்கள் மூடப்பட்டன; நீங்கள் வெளியேற்றப்பட்டீர்கள்</translation>
 <translation id="4911042367886397055">வணக்கம் <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">குடும்பக் குழுவிலுள்ள ஒருவருக்கு உங்கள் கடவுச்சொல்லின் நகலைப் பாதுகாப்பாகப் பகிரலாம். <ph name="BEGIN_LINK" />மேலும் அறிக<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">லென்ஸ்</translation>
 <translation id="4917025507570489430"><ph name="USER_EMAIL" /> என்ற கணக்கின் மூலம் உள்நுழைந்திருக்கும்போது ஏற்கெனவே இருக்கும் பிரவுசிங் தரவைப் பயன்படுத்தலாம். இந்தத் தரவை உங்கள் நிறுவனத்தால் பார்க்க முடியலாம்.</translation>
 <translation id="4918086044614829423">ஏற்கிறேன்</translation>
 <translation id="4930714375720679147">இயக்கு</translation>
@@ -1549,6 +1552,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">முகவரிப் பட்டி நிலையைத் தேர்வுசெய்தல்</translation>
 <translation id="6307241780749477694">இந்தச் சாதனத்தில் உள்ள எல்லாக் கடவுச்சொற்களையும் அணுக இது நீங்கள்தான் என்பதை உறுதிப்படுத்துங்கள்</translation>
+<translation id="6307792728709337290">இந்தப் பர்ச்சேஸிற்கும் Chromeமில் எதிர்காலத்தில் மேற்கொள்ளும் பர்ச்சேஸ்களுக்கும் உங்கள் கார்டைத் தானாக நிரப்ப அதை உங்கள் Google கணக்கில் சேமிக்கலாம்.</translation>
 <translation id="6316141353357700666">காட்டப்படும் கடவுச்சொற்களின் பட்டியல்களில் இருந்து நீங்கள் விரும்பும் கடவுச்சொல்லைத் தேர்வுசெய்யுங்கள்.</translation>
 <translation id="6321526113093607004">புக்மார்க்குகளில் சேர்</translation>
 <translation id="6327249202318869726">உங்கள் கணக்கிற்கு Gemini ஆஃப் செய்யப்பட்டுள்ளது. கூடுதல் தகவல்களுக்கு உங்கள் நிர்வாகியைத் தொடர்புகொள்ளவும்.</translation>
@@ -2143,6 +2147,7 @@
 <translation id="8263809106706527890">உங்கள் இயல்பு உலாவி அமைப்புகள் மாறியிருக்கக்கூடும். அமைப்புகளில் இதை நீங்கள் சரிபார்க்கலாம்.</translation>
 <translation id="8264966119170358612">Google அல்லாத தரவு மீறலால் உங்களுடைய சேமிக்கப்பட்ட கடவுச்சொற்களில் சிலவற்றுக்குப் பாதுகாப்பு இழப்பு ஏற்பட்டது. <ph name="BEGIN_LINK" />மேலும் அறிக<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">iPadடை மீட்டமைப்பதன் ஒரு பகுதியாக <ph name="USER_NAME" /> கணக்கில் இருந்து வெளியேற்றப்பட்டீர்கள். மீண்டும் உள்நுழைய கீழே உள்ள “தொடர்க” என்பதைத் தட்டவும்.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219"><ph name="URL" /> என்ற தளத்தில் தகவலை நிரப்புவீர்கள்</translation>
 <translation id="8275068909952022340">மேலும்…</translation>
 <translation id="8281781826761538115">இயல்பு - <ph name="DEFAULT_LOCALE" /></translation>

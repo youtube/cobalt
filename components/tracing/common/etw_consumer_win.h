@@ -283,6 +283,9 @@ class TRACING_EXPORT EtwConsumer
       const ETW_BUFFER_CONTEXT& buffer_context)
       VALID_CONTEXT_REQUIRED(sequence_checker_);
 
+  // Finalizes the previous event bundle so that a new packet can be started.
+  void FinalizePreviousData() VALID_CONTEXT_REQUIRED(sequence_checker_);
+
   // Finalizes previous data and starts a new packet, i.e., event bundle.
   void StartNewPacket(uint64_t qpc_timestamp)
       VALID_CONTEXT_REQUIRED(sequence_checker_);

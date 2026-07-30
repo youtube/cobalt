@@ -15,8 +15,8 @@
 #import "ios/chrome/browser/presenters/ui_bundled/contained_presenter_delegate.h"
 #import "ios/chrome/browser/presenters/ui_bundled/non_modal_view_controller_presenter.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 
 using alert_overlays::AlertRequest;
 
@@ -29,7 +29,7 @@ using alert_overlays::AlertRequest;
 
 @implementation AlertOverlayCoordinator {
   // Handler for Gemini commands.
-  __weak id<BWGCommands> _geminiHandler;
+  __weak id<GeminiCommands> _geminiHandler;
 }
 
 #pragma mark - Accessors
@@ -103,8 +103,8 @@ using alert_overlays::AlertRequest;
   }
 
   if (IsGeminiCopresenceEnabled()) {
-    _geminiHandler =
-        HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
+    _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                                        GeminiCommands);
   }
   self.alertViewController = [[AlertViewController alloc] init];
   self.alertViewController.modalPresentationStyle =

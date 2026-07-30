@@ -112,13 +112,22 @@ void LogicalLineBuilder::CreateLine(LineInfo* line_info,
   // Needs MutableResults to move ShapeResult out of the LineInfo.
   InlineItemResults* line_items = line_info->MutableResults();
 
+  const bool has_line_clamp_ellipsis =
+      main_line_helper && main_line_helper->GetLineClampEllipsis();
+  const bool is_line_clamp_displaced_line =
+      has_line_clamp_ellipsis && line_items->empty();
+
   // Compute heights of all inline items by placing the dominant baseline at 0.
   // The baseline is adjusted after the height of the line box is computed.
+  // If the line contents were displaced because of the line-clamp ellipsis,
+  // inline items (other than the root) don't count, so we behave like we we're
+  // in quirks mode.
   const ComputedStyle& line_style = line_info->LineStyle();
   box_states_->SetIsEmptyLine(line_info->IsEmptyLine());
   InlineBoxState* box = box_states_->OnBeginPlaceItems(
-      node_, *line_info, baseline_type_, quirks_mode_,
-      should_scale_line_height_, line_box);
+      node_, *line_info, baseline_type_,
+      quirks_mode_ || is_line_clamp_displaced_line, should_scale_line_height_,
+      line_box);
 #if EXPENSIVE_DCHECKS_ARE_ON()
   if (main_line_helper) {
     main_line_helper->CheckBoxStates(*line_info, should_scale_line_height_);
@@ -129,7 +138,10 @@ void LogicalLineBuilder::CreateLine(LineInfo* line_info,
   // strut, for *every* line. This matches other browsers. The intention may
   // have been to make sure that there's always room for the list item marker,
   // but that doesn't explain why it's done for every line...
-  if (quirks_mode_ && line_style.IsDisplayListItem()) {
+  // If the line contents are displaced because of the line-clamp ellipsis, we
+  // also need to add the line box strut even if we're not in quirks mode.
+  if ((quirks_mode_ && line_style.IsDisplayListItem()) ||
+      is_line_clamp_displaced_line) {
     auto text_scale = FindTextScale(should_scale_line_height_, *line_items,
                                     /* start_index */ 0,
                                     /* initial_nesting_level */ 0);
@@ -148,41 +160,23 @@ void LogicalLineBuilder::CreateLine(LineInfo* line_info,
 
   box_states_->OnEndPlaceItems(constraint_space_, line_box, baseline_type_);
 
-  if (main_line_helper) {
-    if (auto& ellipsis_data = main_line_helper->GetLineClampEllipsis()) {
-      DCHECK(RuntimeEnabledFeatures::CSSLineClampLineBreakingEllipsisEnabled());
-      const ShapeResultView* shape_result_view =
-          ShapeResultView::Create(ellipsis_data->shape_result);
-      FontHeight text_metrics = ellipsis_data->text_metrics;
-      const LayoutObject& corresponding_layout_object =
-          LayoutObjectForLineClampEllipsis(node_, *line_items,
-                                           line_info->Start());
+  if (has_line_clamp_ellipsis) {
+    DCHECK(RuntimeEnabledFeatures::CSSLineClampLineBreakingEllipsisEnabled());
+    const auto& ellipsis_data = *main_line_helper->GetLineClampEllipsis();
+    const ShapeResultView* shape_result_view =
+        ShapeResultView::Create(ellipsis_data.shape_result);
+    FontHeight text_metrics = ellipsis_data.text_metrics;
+    const LayoutObject& corresponding_layout_object =
+        LayoutObjectForLineClampEllipsis(node_, *line_items,
+                                         line_info->Start());
 
-      // If the ellipsis completely displaced the line, in quirks mode the line
-      // didn't have strict line height, so our metrics are now empty. They
-      // shouldn't be, so we make it behave as if it had zero line height.
-      // TODO(abotella): It's not clear whether it should work like this, or if
-      // the ellipsis should trigger strict line height.
-      if (!box->HasMetrics()) {
-        DCHECK(quirks_mode_);
-        DCHECK(line_box->IsEmpty());
-        box->metrics = FontHeight();
-      }
-
-      line_box->AddChild(corresponding_layout_object,
-                         StyleVariant::kStandardEllipsis, shape_result_view,
-                         ellipsis_data->text,
-                         LogicalRect(LayoutUnit(), -text_metrics.ascent,
-                                     shape_result_view->SnappedWidth(),
-                                     text_metrics.LineHeight()),
-                         // TODO(abotella): The ellipsis' bidi level is pending
-                         // discussion at
-                         // https://github.com/w3c/csswg-drafts/issues/10844.
-                         // Meanwhile we use the paragraph's embedding level for
-                         // compatibility with the previous behavior of
-                         // -webkit-line-clamp.
-                         static_cast<UBiDiLevel>(line_info->BaseDirection()));
-    }
+    line_box->AddChild(corresponding_layout_object,
+                       StyleVariant::kStandardEllipsis, shape_result_view,
+                       ellipsis_data.text,
+                       LogicalRect(LayoutUnit(), -text_metrics.ascent,
+                                   shape_result_view->SnappedWidth(),
+                                   text_metrics.LineHeight()),
+                       static_cast<UBiDiLevel>(line_info->BaseDirection()));
   }
 
   if (node_.IsBidiEnabled()) [[unlikely]] {

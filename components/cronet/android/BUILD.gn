@@ -2237,12 +2237,21 @@ action("api_static_checks") {
 }
 
 GN2BP_SOURCES = [
+  "//components/cronet/gn2bp/action_sanitizers.py",
+  "//components/cronet/gn2bp/common.py",
+  "//components/cronet/gn2bp/context.py",
   "//components/cronet/gn2bp/gen_android_bp.py",
   "//components/cronet/gn2bp/generate_build_scripts_output.py",
   "//components/cronet/gn2bp/gn_utils.py",
+  "//components/cronet/gn2bp/__init__.py",
+  "//components/cronet/gn2bp/run_gn2bp.py",
+  "//components/cronet/gn2bp/soong_ast.py",
   "//components/cronet/gn2bp/targets.py",
   "//components/cronet/gn2bp/templates/boringssl_Android.bp.template",
   "//components/cronet/gn2bp/templates/Android.extras.bp.template",
+  "//components/cronet/gn2bp/templates/AndroidTest.xml.template",
+  "//components/cronet/gn2bp/translation_config.py",
+  "//components/cronet/gn2bp/translators.py",
   "//tools/mb/mb.py",
   "$_gn_path",
   "$_ninja_path",

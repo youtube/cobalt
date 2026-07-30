@@ -19,7 +19,6 @@
 namespace blink {
 class Document;
 class HTMLImageElement;
-class ShadowRoot;
 
 // Manages the replacement of primary content in an HTMLImageElement with
 // remote content hosted in an iframe.

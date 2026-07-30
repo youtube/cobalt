@@ -8,13 +8,13 @@ import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/c
 import {assertNotReachedCase} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import type {ContentSettingImageState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import {ContentSettingImageType} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
 import {getCss} from './content_setting_icon.css.js';
 import {getHtml} from './content_setting_icon.html.js';
-import type {ContentSettingImageState} from './toolbar_ui_api_data_model.mojom-webui.js';
-import {ContentSettingImageType} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 export interface ContentSettingIconElement {
   $: {

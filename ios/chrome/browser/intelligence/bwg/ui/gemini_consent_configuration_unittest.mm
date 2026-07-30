@@ -47,16 +47,16 @@ class GeminiConsentConfigurationTest : public PlatformTest {
     return [GeminiConsentConfiguration
         configurationForManaged:is_managed
                          strict:use_strict
-                           type:GeminiFREType::kNewUser
+                           type:GeminiFirstRunType::kNewUser
                         country:country];
   }
 
   GeminiConsentConfiguration* BuildLiveConfiguration() {
-    return
-        [GeminiConsentConfiguration configurationForManaged:NO
-                                                     strict:NO
-                                                       type:GeminiFREType::kLive
-                                                    country:kUSCountryCode];
+    return [GeminiConsentConfiguration
+        configurationForManaged:NO
+                         strict:NO
+                           type:GeminiFirstRunType::kLive
+                        country:kUSCountryCode];
   }
 };
 

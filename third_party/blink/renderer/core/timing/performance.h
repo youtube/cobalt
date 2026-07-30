@@ -74,6 +74,7 @@ class Node;
 class PerformanceContainerTiming;
 class PerformanceElementTiming;
 class PerformanceEventTiming;
+class PerformanceScrollTiming;
 class PerformanceMark;
 class PerformanceMarkOptions;
 class PerformanceMeasure;
@@ -216,6 +217,9 @@ class CORE_EXPORT Performance : public EventTarget {
 
   bool IsElementTimingBufferFull() const;
   void AddToElementTimingBuffer(PerformanceElementTiming&);
+
+  bool IsScrollTimingBufferFull() const;
+  void AddToScrollTimingBuffer(PerformanceScrollTiming&);
 
   bool IsEventTimingBufferFull() const;
   void AddToEventTimingBuffer(PerformanceEventTiming&);
@@ -413,6 +417,8 @@ class CORE_EXPORT Performance : public EventTarget {
   unsigned container_timing_buffer_max_size_;
   PerformanceEntryVector element_timing_buffer_;
   unsigned element_timing_buffer_max_size_;
+  PerformanceEntryVector scroll_timing_buffer_;
+  unsigned scroll_timing_buffer_max_size_;
   PerformanceEntryVector layout_shift_buffer_;
   PerformanceEntryVector largest_contentful_paint_buffer_;
   PerformanceEntryVector interaction_contentful_paint_buffer_;

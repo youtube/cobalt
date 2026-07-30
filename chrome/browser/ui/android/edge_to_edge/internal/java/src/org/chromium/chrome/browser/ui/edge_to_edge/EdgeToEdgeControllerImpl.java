@@ -695,7 +695,7 @@ public class EdgeToEdgeControllerImpl
         @LayoutType
         int currentLayoutType =
                 mLayoutManager != null ? mLayoutManager.getActiveLayoutType() : LayoutType.NONE;
-        if (mBottomControlsAreVisible && currentLayoutType != LayoutType.TAB_SWITCHER) return false;
+        if (mBottomControlsAreVisible && currentLayoutType != LayoutType.HUB) return false;
 
         // Pad the adjusters if drawing to edge.
         return isDrawingToEdge();

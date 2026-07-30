@@ -7,7 +7,7 @@ package org.chromium.chrome.browser.gesturenav;
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.ACTION;
-import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.ALLOW_NAV;
+import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.ACTIVATION_STATUS;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.BUBBLE_OFFSET;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.CLOSE_INDICATOR;
 import static org.chromium.chrome.browser.gesturenav.GestureNavigationProperties.DIRECTION;
@@ -40,6 +40,7 @@ import org.chromium.chrome.browser.tab.TabBrowserControlsConstraintsHelper;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.ui.OverscrollActivationStatus;
 import org.chromium.ui.base.BackGestureEventSwipeEdge;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -81,14 +82,6 @@ class NavigationHandler implements TouchEventObserver {
         int SHOW_ARROW = 1;
         int RELEASE_BUBBLE = 2;
         int RESET_BUBBLE = 3;
-    }
-
-    @IntDef({GestureEndState.INVOKE, GestureEndState.CANCEL, GestureEndState.RESET})
-    @Retention(RetentionPolicy.SOURCE)
-    @interface GestureEndState {
-        int INVOKE = 1;
-        int CANCEL = 2;
-        int RESET = 3;
     }
 
     @IntDef({
@@ -187,7 +180,7 @@ class NavigationHandler implements TouchEventObserver {
     void setTab(@Nullable Tab tab) {
         if (mTab != null) mTab.removeObserver(mTabObserver);
         if (GestureNavigationUtils.shouldAnimateBackForwardTransitions()) {
-            onGestureEnd(GestureEndState.RESET);
+            onGestureEnd(OverscrollActivationStatus.RESET);
         } else {
             mBackGestureForTabHistoryInProgress = false;
         }
@@ -402,7 +395,19 @@ class NavigationHandler implements TouchEventObserver {
      * @see {@link HistoryNavigationCoordinator#release(boolean)}
      */
     void release(boolean allowNav) {
-        onGestureEnd(allowNav ? GestureEndState.INVOKE : GestureEndState.CANCEL);
+        release(
+                allowNav
+                        ? OverscrollActivationStatus.ALLOW_ACTIVATION
+                        : OverscrollActivationStatus.DISALLOW_ACTIVATION);
+    }
+
+    /**
+     * Release gesture and possibly trigger navigation.
+     *
+     * @param status The activation status of the release gesture.
+     */
+    void release(@OverscrollActivationStatus int status) {
+        onGestureEnd(status);
     }
 
     /**
@@ -410,7 +415,7 @@ class NavigationHandler implements TouchEventObserver {
      */
     void reset() {
         if (GestureNavigationUtils.shouldAnimateBackForwardTransitions()) {
-            onGestureEnd(GestureEndState.RESET);
+            onGestureEnd(OverscrollActivationStatus.RESET);
         } else {
             if (mState == GestureState.DRAGGED) {
                 mModel.set(ACTION, GestureAction.RESET_BUBBLE);
@@ -421,8 +426,10 @@ class NavigationHandler implements TouchEventObserver {
         }
     }
 
-    private void onGestureEnd(@GestureEndState int endState) {
-        boolean allowNav = endState == GestureEndState.INVOKE;
+    private void onGestureEnd(@OverscrollActivationStatus int status) {
+        boolean allowNav =
+                status == OverscrollActivationStatus.ALLOW_ACTIVATION
+                        || status == OverscrollActivationStatus.FORCE_ACTIVATION;
         // If the back gesture will update history, record the metrics.
         if (mBackGestureForTabHistoryInProgress) {
             assumeNonNull(mTab);
@@ -431,9 +438,9 @@ class NavigationHandler implements TouchEventObserver {
         }
         mBackGestureForTabHistoryInProgress = false;
         mStartNavDuringOngoingGesture = false;
-        mModel.set(ALLOW_NAV, allowNav);
+        mModel.set(ACTIVATION_STATUS, status);
         if (mState == GestureState.DRAGGED) {
-            if (endState == GestureEndState.RESET) {
+            if (status == OverscrollActivationStatus.RESET) {
                 mModel.set(ACTION, GestureAction.RESET_BUBBLE);
             } else {
                 mModel.set(ACTION, GestureAction.RELEASE_BUBBLE);

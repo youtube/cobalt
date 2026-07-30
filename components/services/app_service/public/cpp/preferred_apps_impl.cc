@@ -74,6 +74,7 @@ PreferredAppsImpl::PreferredAppsImpl(
     base::OnceClosure read_completed_for_testing,
     base::OnceClosure write_completed_for_testing)
     : host_(host),
+      preferred_apps_list_(this),
       profile_dir_(profile_dir),
       task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
@@ -86,6 +87,14 @@ PreferredAppsImpl::PreferredAppsImpl(
 
 PreferredAppsImpl::~PreferredAppsImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+bool PreferredAppsImpl::QueryConflict(const std::string& first_app_id,
+                                      const IntentFilterPtr& first_filter,
+                                      const std::string& second_app_id,
+                                      const IntentFilterPtr& second_filter) {
+  return host_->QueryConflict(first_app_id, first_filter, second_app_id,
+                              second_filter);
 }
 
 void PreferredAppsImpl::RemovePreferredApp(const std::string& app_id) {

@@ -924,7 +924,7 @@ void CertProvisioningWorkerStatic::CancelScheduledTasks() {
 // worker is asked to cleanup and shutdown while a key is being generated for
 // it. In that case this cleanup will miss that key and it's important to make
 // sure that there is another mechanism that will eventually clean up the key.
-// VA and PKS keys both are covered and the mechanism is described in seperate
+// VA and PKS keys both are covered and the mechanism is described in separate
 // comments.
 void CertProvisioningWorkerStatic::CleanUpAndRunCallback() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1017,23 +1017,18 @@ void CertProvisioningWorkerStatic::HandleSerialization() {
 
   switch (state_) {
     case CertProvisioningWorkerState::kInitState:
-      break;
     case CertProvisioningWorkerState::kKeypairGenerated:
-      CertProvisioningSerializer::SerializeWorkerToPrefs(pref_service_, *this);
-      break;
     case CertProvisioningWorkerState::kStartCsrResponseReceived:
-      // StartCSR response contains VA challenge and data to sign. It is allowed
-      // to build only one VA challenge response and sign only one data with the
-      // same key. To make sure that the key is not used again after
-      // deserialization, the serialized state should be deleted here. Also
-      // lifetime of the VA challenge is very short and most likely it would not
-      // survive long enough anyway.
-      CertProvisioningSerializer::DeleteWorkerFromPrefs(pref_service_, *this);
-      break;
     case CertProvisioningWorkerState::kVaChallengeFinished:
     case CertProvisioningWorkerState::kKeyRegistered:
     case CertProvisioningWorkerState::kKeypairMarked:
     case CertProvisioningWorkerState::kSignCsrFinished:
+      // Do not serialize in the early states, it's easier to retry from the
+      // beginning. Notably, the worker registers for invalidations both after
+      // deserialization and after calling the StartCSR RPC, but it should only
+      // register once. Also StartCSR response contains VA challenge and data to
+      // sign. It is allowed to build only one VA challenge response and sign
+      // only one data with the same key.
       break;
     case CertProvisioningWorkerState::kFinishCsrResponseReceived:
       CertProvisioningSerializer::SerializeWorkerToPrefs(pref_service_, *this);

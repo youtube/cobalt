@@ -240,7 +240,9 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
 
   handleGestureStart() {
     this.isSelecting = true;
-    this.hasSelected = false;
+    if (!this.lineSelectionEnabled) {
+      this.hasSelected = false;
+    }
     this.currentPolylinePoints = [];
   }
 
@@ -396,7 +398,9 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
     this.clearCanvas();
 
     this.isSelecting = false;
-    this.hasSelected = false;
+    if (!this.lineSelectionEnabled) {
+      this.hasSelected = false;
+    }
   }
 
   setCanvasSizeTo(width: number, height: number) {
@@ -695,6 +699,10 @@ export class RegionSelectionElement extends RegionSelectionElementBase {
       width: normalizedWidth,
       height: normalizedHeight,
     };
+  }
+
+  setSelectionOverlayRectForTesting(rect: DOMRect) {
+    this.selectionOverlayRect = rect;
   }
 }
 

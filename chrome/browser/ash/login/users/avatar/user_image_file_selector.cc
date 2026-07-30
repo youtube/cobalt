@@ -55,7 +55,7 @@ UserImageFileSelector::~UserImageFileSelector() {
 
 void UserImageFileSelector::SelectFile(
     base::OnceCallback<void(const base::FilePath&)> selected_cb,
-    base::OnceCallback<void(void)> canceled_cb) {
+    base::OnceClosure canceled_cb) {
   // Early return if the select file dialog is already active.
   if (select_file_dialog_) {
     std::move(canceled_cb).Run();

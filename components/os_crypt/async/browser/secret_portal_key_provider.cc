@@ -80,10 +80,6 @@ bool SecretPortalKeyProvider::UseForEncryption() {
   return use_for_encryption_;
 }
 
-bool SecretPortalKeyProvider::IsCompatibleWithOsCryptSync() {
-  return false;
-}
-
 void SecretPortalKeyProvider::OnPortalServiceStarted(uint32_t version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (version == 0) {

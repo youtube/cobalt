@@ -125,7 +125,7 @@ class HistorySyncOptinHandlerTest : public testing::TestWithParam<bool> {
 TEST_P(HistorySyncOptinHandlerTest,
        RequestAccountInfoWithImmediatelyAvailableCapabilities) {
   AccountInfo account_info = SignInAndSetUpSyncService();
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       IsUnrestricted());
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
@@ -179,7 +179,7 @@ TEST_P(HistorySyncOptinHandlerTest, RequestAccountInfoWithCapabilitiesUpdate) {
 
   // Simulate an AccountInfo update with capabilities. The handler will send
   // a ScreenMode update, but not a second AccountInfo update.
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       IsUnrestricted());
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
@@ -212,7 +212,7 @@ TEST_P(HistorySyncOptinHandlerTest, OnScreenModeAccepted) {
   EXPECT_FALSE(test_sync_service()->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kHistory));
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       IsUnrestricted());
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
@@ -230,7 +230,7 @@ TEST_P(HistorySyncOptinHandlerTest, OnScreenModeRejected) {
   EXPECT_FALSE(test_sync_service()->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kHistory));
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       IsUnrestricted());
   identity_test_env()->UpdateAccountInfoForAccount(account_info);

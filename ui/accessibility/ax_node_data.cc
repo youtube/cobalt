@@ -1418,6 +1418,9 @@ std::string AXNodeData::ToString(bool verbose) const {
       case ax::mojom::StringAttribute::kAriaNotificationIdDeprecated:
         base::StrAppend(&result, {" aria_notification_id=", value});
         break;
+      case ax::mojom::StringAttribute::kCanvasAnnotation:
+        base::StrAppend(&result, {" canvas_annotation=", value});
+        break;
       case ax::mojom::StringAttribute::kCheckedStateDescription:
         base::StrAppend(&result, {" checked_state_description=", value});
         break;
@@ -1503,6 +1506,9 @@ std::string AXNodeData::ToString(bool verbose) const {
         break;
       case ax::mojom::StringAttribute::kValue:
         base::StrAppend(&result, {" value=", value});
+        break;
+      case ax::mojom::StringAttribute::kAriaValueText:
+        base::StrAppend(&result, {" aria_valuetext=", value});
         break;
       case ax::mojom::StringAttribute::kVirtualContent:
         base::StrAppend(&result, {" virtual_content=", value});

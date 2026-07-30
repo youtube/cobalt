@@ -64,7 +64,6 @@ include_rules = [
   "+google_apis/gaia/google_service_auth_error.h",
   "+mojo/public/cpp/bindings",
   "+net",
-  "+services/data_decoder/public",
   "+services/device/public/cpp/test",
   "+services/device/public/mojom",
   "+services/metrics/public/cpp",

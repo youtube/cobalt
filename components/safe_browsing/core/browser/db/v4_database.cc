@@ -161,8 +161,10 @@ void V4Database::CreateOnTaskRunner(
     }
 
     const base::FilePath store_path = base_path.AppendASCII(it.filename());
+    // TODO(crbug.com/362791941): Pass actual v5 prefix size.
     V4StorePtr store =
-        GetStoreFactory()->CreateV4Store(db_task_runner, store_path);
+        GetStoreFactory()->CreateV4Store(db_task_runner, store_path,
+                                         /*v5_prefix_size=*/0);
     base::UmaHistogramBoolean("SafeBrowsing.V4Store.ReadyOnStartup",
                               store->HasValidData());
     store_map->insert({it.list_id(), std::move(store)});

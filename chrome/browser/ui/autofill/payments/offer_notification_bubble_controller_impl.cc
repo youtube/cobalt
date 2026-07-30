@@ -232,14 +232,9 @@ void OfferNotificationBubbleControllerImpl::DoShowBubble() {
     return;
   }
 
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents());
-  SetBubbleView(*browser->GetBrowserForMigrationOnly()
-                     ->window()
-                     ->GetAutofillBubbleHandler()
-                     ->ShowOfferNotificationBubble(web_contents(), this,
-                                                   is_user_gesture_));
+  AutofillBubbleHandler* autofill_bubble_handler = GetAutofillBubbleHandler();
+  SetBubbleView(*autofill_bubble_handler->ShowOfferNotificationBubble(
+      web_contents(), this, is_user_gesture_));
   DCHECK(bubble_view());
 
   // Update |bubble_state_| after bubble is shown once. In OnVisibilityChanged()
@@ -299,6 +294,13 @@ void OfferNotificationBubbleControllerImpl::UpdatePageActionIcon() {
                      ->root_action_item());
   action->SetEnabled(ShouldShowPageAction());
 #endif  // BUILDFLAG(IS_ANDROID)
+}
+
+AutofillBubbleHandler*
+OfferNotificationBubbleControllerImpl::GetAutofillBubbleHandler() {
+  BrowserWindowInterface* browser = tab_interface_->GetBrowserWindowInterface();
+  CHECK(browser);
+  return AutofillBubbleHandler::Get(browser->GetUnownedUserDataHost());
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(OfferNotificationBubbleControllerImpl);

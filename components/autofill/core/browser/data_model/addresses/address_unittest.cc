@@ -439,7 +439,7 @@ TEST_F(AddressTest, SetStreetAddressRejectsAddressesWithTrailingBlankLines) {
 // Verifies that the merging-related methods for structured addresses are
 // implemented correctly. This is not a test of the merging logic itself.
 TEST_F(AddressTest, TestMergeStructuredAddresses) {
-  autofill::AutofillProfileComparator profile_comparator("en-US");
+  AutofillProfileComparator profile_comparator("en-US");
 
   // The two zip codes have a is-substring relation and are mergeable.
   AutofillProfile profile1("1", AutofillProfile::RecordType::kAccount,

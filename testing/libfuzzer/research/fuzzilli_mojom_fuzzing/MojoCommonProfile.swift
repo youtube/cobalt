@@ -16,6 +16,38 @@ public enum CommonMojoStrings {
     static let schemeHostPort = "url.mojom.SchemeHostPort"
 }
 
+public let commonMojoBuiltins: [String: ILType] = [
+    // mojoBase
+    CommonMojoStrings.string16: .jsString16Constructor,
+
+    //url
+    CommonMojoStrings.schemeHostPort: .jsSchemeHostPortConstructor,
+    CommonMojoStrings.url: .jsUrlConstructor,
+]
+
+public let commonMojoCodeGenerators: [(CodeGenerator, Int)] = [
+    // mojoBase
+    (MojoString16Generator, 1),
+
+    // url
+    (MojoSchemeHostPortGenerator, 1),
+    (MojoUrlGenerator, 1),
+]
+
+public let commonMojoObjectGroups: [ObjectGroup] = [
+    // mojoBase
+    .int16Element,
+    .string16,
+
+    //url
+    .schemeHostPort,
+    .url,
+]
+
+public let commonMojoEnumerations: [ILType] = []
+
+public let commonMojoOptionsBags: [OptionsBag] = []
+
 extension ILType {
     public static let jsString16: ILType = .object(
         ofGroup: CommonMojoStrings.string16, withProperties: ["data"])
@@ -61,7 +93,7 @@ extension ObjectGroup {
     )
 
     // url
-    public static let urlGroup = ObjectGroup(
+    public static let url = ObjectGroup(
         name: CommonMojoStrings.url,
         instanceType: .jsUrl,
         properties: [

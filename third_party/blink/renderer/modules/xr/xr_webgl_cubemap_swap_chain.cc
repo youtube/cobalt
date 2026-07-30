@@ -101,7 +101,7 @@ void AttachShader(gpu::gles2::GLES2Interface* gl,
                   GLenum shader_type) {
   const std::string_view source(shader_source);
   const GLchar* shader_data = source.data();
-  const GLint shader_length = source.length();
+  const GLint shader_length = base::checked_cast<GLint>(source.length());
 
   GLuint shader = gl->CreateShader(shader_type);
   gl->ShaderSource(shader, 1, &shader_data, &shader_length);

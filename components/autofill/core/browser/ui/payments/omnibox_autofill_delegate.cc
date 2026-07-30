@@ -80,8 +80,7 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
     return;
   }
   if (!form_structure->IsCompleteCreditCardForm(
-          autofill::FormStructure::CreditCardFormCompleteness::
-              kCompleteCreditCardForm)) {
+          FormStructure::CreditCardFormCompleteness::kCompleteCreditCardForm)) {
     LogOmniboxAutofillShowChipDecisionPart1(
         OmniboxAutofillShowChipDecisionPart1::kNotCompleteCreditCardForm);
     return;
@@ -149,11 +148,11 @@ void OmniboxAutofillDelegate::OnFieldTypesDetermined(
 }
 
 void OmniboxAutofillDelegate::OnAutofillManagerStateChanged(
-    autofill::AutofillManager& manager,
-    autofill::AutofillManager::LifecycleState previous,
-    autofill::AutofillManager::LifecycleState current) {
+    AutofillManager& manager,
+    AutofillManager::LifecycleState previous,
+    AutofillManager::LifecycleState current) {
   switch (previous) {
-    case autofill::AutofillManager::LifecycleState::kActive:
+    case AutofillManager::LifecycleState::kActive:
       client_->GetPaymentsAutofillClient()->HideOmniboxAutofillChip();
       break;
     default:

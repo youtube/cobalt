@@ -10,6 +10,7 @@ source_set("enterprise") {
   public = [
     "browser_management/browser_management_service.h",
     "browser_management/browser_management_status_provider.h",
+    "browser_management/enterprise_management_metrics_service_factory.h",
     "browser_management/management_service_factory.h",
     "chrome_browser_main_extra_parts_enterprise.h",
     "connectors/analysis/analysis_service_settings.h",
@@ -159,7 +160,6 @@ source_set("enterprise") {
       "connectors/device_trust/attestation/ash/flex_attester.h",
       "connectors/device_trust/signals/ash/ash_signals_filterer.h",
       "connectors/device_trust/signals/decorators/ash/ash_signals_decorator.h",
-      "data_protection/file_snapshot_creator.h",
       "reporting/android_app_info_generator.h",
     ]
   } else {
@@ -384,6 +384,7 @@ source_set("impl") {
   sources = [
     "browser_management/browser_management_service.cc",
     "browser_management/browser_management_status_provider.cc",
+    "browser_management/enterprise_management_metrics_service_factory.cc",
     "browser_management/management_service_factory.cc",
     "chrome_browser_main_extra_parts_enterprise.cc",
     "connectors/analysis/analysis_service_settings.cc",
@@ -555,7 +556,6 @@ source_set("impl") {
       "connectors/device_trust/attestation/ash/flex_attester.cc",
       "connectors/device_trust/signals/ash/ash_signals_filterer.cc",
       "connectors/device_trust/signals/decorators/ash/ash_signals_decorator.cc",
-      "data_protection/file_snapshot_creator.cc",
       "reporting/android_app_info_generator.cc",
     ]
     deps += [
@@ -696,6 +696,7 @@ source_set("impl") {
       "//chrome/browser/enterprise/connectors/device_trust/attestation/common",
       "//chrome/browser/enterprise/connectors/device_trust/attestation/common:types",
       "//chrome/browser/enterprise/connectors/device_trust/common",
+      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/persistence",
       "//chrome/browser/enterprise/connectors/device_trust/signals",
       "//chrome/browser/enterprise/connectors/device_trust/signals/decorators/common",
       "//components/device_signals/core/browser",
@@ -791,7 +792,6 @@ source_set("impl") {
     deps += [
       "//chrome/browser/enterprise/connectors/device_trust/key_management/browser",
       "//chrome/browser/enterprise/connectors/device_trust/key_management/core",
-      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/persistence",
       "//chrome/services/system_signals/public/cpp/browser",
     ]
   }

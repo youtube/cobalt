@@ -23,7 +23,7 @@ class GeminiConsentViewControllerTest : public PlatformTest {
     GeminiConsentConfiguration* config = [GeminiConsentConfiguration
         configurationForManaged:is_account_managed
                          strict:use_strict_consent
-                           type:GeminiFREType::kNewUser
+                           type:GeminiFirstRunType::kNewUser
                         country:country];
     GeminiConsentViewController* controller =
         [[GeminiConsentViewController alloc] initWithConfiguration:config];

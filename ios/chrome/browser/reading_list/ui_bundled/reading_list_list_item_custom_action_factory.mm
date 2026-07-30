@@ -105,19 +105,7 @@
               item:item];
   [customActions addObject:copyURLAction];
 
-  if (item.distillationState == ReadingListUIDistillationStatusSuccess) {
-    // Add the possibility to open offline version only if the entry is
-    // distilled.
-    ReadingListCustomAction* openOfflineAction =
-        [[ReadingListCustomAction alloc]
-            initWithName:l10n_util::GetNSString(
-                             IDS_IOS_READING_LIST_CONTENT_CONTEXT_OFFLINE)
-                  target:self
-                selector:@selector(openOffline:)
-                    item:item];
 
-    [customActions addObject:openOfflineAction];
-  }
 
   if (send_tab_to_self::AreIOSTabRemindersEnabled()) {
     ReadingListCustomAction* remindAction = [[ReadingListCustomAction alloc]
@@ -167,11 +155,6 @@
 
 - (BOOL)copyURL:(ReadingListCustomAction*)action {
   StoreURLInPasteboard(action.item.entryURL);
-  return YES;
-}
-
-- (BOOL)openOffline:(ReadingListCustomAction*)action {
-  [self.accessibilityDelegate openItemOffline:action.item];
   return YES;
 }
 

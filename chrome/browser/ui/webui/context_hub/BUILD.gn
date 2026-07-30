@@ -7,6 +7,7 @@ import("//mojo/public/tools/bindings/mojom.gni")
 mojom("mojo_bindings") {
   sources = [ "context_hub.mojom" ]
   webui_module_path = "/"
+  public_deps = [ "//url/mojom:url_mojom_gurl" ]
 }
 
 source_set("context_hub") {
@@ -26,8 +27,27 @@ source_set("context_hub") {
 
   deps = [
     ":mojo_bindings",
+    "//chrome/browser/context_hub",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/context_hub:resources",
     "//chrome/common",
+    "//components/personal_context/proto:personal_context_proto",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "context_hub_page_handler_unittest.cc" ]
+  deps = [
+    ":context_hub",
+    "//base/test:test_support",
+    "//chrome/browser/context_hub",
+    "//chrome/browser/personal_context",
+    "//chrome/test:test_support",
+    "//components/personal_context/core:test_support",
+    "//components/personal_context/proto:personal_context_proto",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

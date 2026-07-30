@@ -3,14 +3,13 @@
 // found in the LICENSE file.
 
 import type {ProductInfo} from 'chrome://resources/cr_components/commerce/shared.mojom-webui.js';
-import type {PriceInsightsInfo} from 'chrome://resources/cr_components/commerce/shopping_service.mojom-webui.js';
+import type {PriceInsightsInfo, ShoppingServiceHandlerInterface} from 'chrome://resources/cr_components/commerce/shopping_service.mojom-webui.js';
 import {PriceInsightsInfo_PriceBucket} from 'chrome://resources/cr_components/commerce/shopping_service.mojom-webui.js';
-import type {ShoppingServiceBrowserProxy} from 'chrome://resources/cr_components/commerce/shopping_service_browser_proxy.js';
 import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
-import {TestBrowserProxy as BaseTestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
+import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
-export class TestBrowserProxy extends BaseTestBrowserProxy implements
-    ShoppingServiceBrowserProxy {
+export class TestPageHandler extends TestBrowserProxy implements
+    ShoppingServiceHandlerInterface {
   private product_: ProductInfo = {
     title: '',
     clusterTitle: '',
@@ -54,12 +53,12 @@ export class TestBrowserProxy extends BaseTestBrowserProxy implements
 
   getPriceInsightsInfoForUrl(url: Url) {
     this.methodCalled('getPriceInsightsInfoForUrl', url);
-    return Promise.resolve({priceInsightsInfo: this.priceInsights_});
+    return Promise.resolve({url, priceInsightsInfo: this.priceInsights_});
   }
 
   getProductInfoForUrl(url: Url) {
     this.methodCalled('getProductInfoForUrl', url);
-    return Promise.resolve({productInfo: this.product_});
+    return Promise.resolve({url, productInfo: this.product_});
   }
 
   getProductInfoForUrls(urls: Url[]) {
@@ -83,16 +82,16 @@ export class TestBrowserProxy extends BaseTestBrowserProxy implements
   }
 
   getUrlInfosForRecentlyViewedTabs() {
-    this.methodCalled('getUrlInfosForRecentlyVisitedTabs');
+    this.methodCalled('getUrlInfosForRecentlyViewedTabs');
     return Promise.resolve({urlInfos: []});
   }
 
-  openUrlInNewTab() {
-    this.methodCalled('openUrlInNewTab');
+  openUrlInNewTab(url: Url) {
+    this.methodCalled('openUrlInNewTab', url);
   }
 
-  switchToOrOpenTab() {
-    this.methodCalled('switchToOrOpenTab');
+  switchToOrOpenTab(url: Url) {
+    this.methodCalled('switchToOrOpenTab', url);
   }
 
   isShoppingListEligible() {

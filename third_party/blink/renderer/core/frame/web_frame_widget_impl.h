@@ -58,6 +58,7 @@
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/widget.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom-blink.h"
 #include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/web_drag_data.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
@@ -523,6 +524,7 @@ class CORE_EXPORT WebFrameWidgetImpl
           client_receiver,
       mojo::PendingAssociatedRemote<mojom::blink::UnboundedSurfaceHost>
           host_remote);
+  void UpdateUnboundedElementBounds(const gfx::Rect& bounds);
 
   // mojom::blink::FrameWidgetInputHandler overrides:
   void HandleStylusWritingGestureAction(
@@ -598,7 +600,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   // Immediately stop deferring commits.
   void StopDeferringCommits();
 
-  void SetShouldThrottleFrameRate(bool flag);
 
   void RequestMainFrameOnCompositorAnimation(
       cc::PropertyChangeForcesCommitCriteria criteria,
@@ -951,6 +952,7 @@ class CORE_EXPORT WebFrameWidgetImpl
   void ClearImeTextSpansByType(uint32_t start,
                                uint32_t end,
                                ui::ImeTextSpan::Type type) override;
+  void CancelStylusGesturePreview() override;
   void SetCompositionFromExistingText(
       int32_t start,
       int32_t end,
@@ -1029,6 +1031,14 @@ class CORE_EXPORT WebFrameWidgetImpl
   void SendEndOfScrollEvents(const cc::CompositorCommitData& commit_data);
   void SendScrollSnapChangingEventIfNeeded(
       const cc::CompositorCommitData& commit_data);
+
+  // Performance Scroll Timing API: consumes the per-scroll timing
+  // records that the compositor thread populated on `commit_data` and
+  // forwards each one to the local frame's WindowPerformance for emission as
+  // a PerformanceScrollTiming entry. No-op when the runtime feature is
+  // disabled or when the frame is being torn down.
+  void ProcessScrollTimingData(const cc::CompositorCommitData& commit_data);
+
   void RecordManipulationTypeCounts(cc::ManipulationInfo info);
 
   enum DragAction { kDragEnter, kDragOver };
@@ -1241,7 +1251,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   Vector<mojom::blink::EditCommandPtr> edit_commands_;
 
   std::optional<gfx::Point> host_context_menu_location_;
-  uint32_t last_capture_sequence_number_ = 0u;
 
   // Indicates whether tab-initiated fullscreen was granted.
   bool is_fullscreen_granted_ = false;
@@ -1413,7 +1422,6 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   std::optional<float> browser_controls_top_height_override_;
 
-  bool throttling_frame_rate_ = false;
 };
 
 }  // namespace blink

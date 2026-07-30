@@ -76,7 +76,7 @@ SkBitmap LoadImageFromTestFile(
 }
 
 void WaitForStatus(scoped_refptr<screen_ai::OpticalCharacterRecognizer> ocr,
-                   base::OnceCallback<void(void)> callback,
+                   base::OnceClosure callback,
                    int remaining_tries) {
   if (ocr->StatusAvailableForTesting() || !remaining_tries) {
     std::move(callback).Run();
@@ -276,11 +276,50 @@ class OpticalCharacterRecognizerTest
 
   scoped_refptr<OpticalCharacterRecognizer> ocr() { return ocr_; }
 
+  // If OCR service crashes while performing OCR, `perform_future_`'s callback
+  // will not be called. A timer is used to check the connection state and stop
+  // the waiting if connection state changes. This is done to reduce test time
+  // when the test is bound to fail due to timeout.
+  void PerformOCRWithDisconnectTimerAndAndWait(SkBitmap* bitmap) {
+    screen_ai::ScreenAIServiceRouter* router =
+        ScreenAIServiceRouterFactory::GetForBrowserContext(
+            browser()->profile());
+    if (router->IsProcessRunningForTesting(
+            screen_ai::ScreenAIServiceRouter::Service::kOCR)) {
+      disconnect_timer_.Start(
+          FROM_HERE, base::Milliseconds(100),
+          base::BindRepeating(
+              [](screen_ai::ScreenAIServiceRouter* router,
+                 base::test::TestFuture<mojom::VisualAnnotationPtr>*
+                     perform_future,
+                 base::RepeatingTimer* timer) {
+                if (!router->IsProcessRunningForTesting(
+                        screen_ai::ScreenAIServiceRouter::Service::kOCR)) {
+                  perform_future->SetValue(mojom::VisualAnnotation::New());
+                  timer->Stop();
+                  ADD_FAILURE()
+                      << "OCR service disconnected while performing OCR.";
+                }
+              },
+              base::Unretained(router), base::Unretained(&perform_future_),
+              base::Unretained(&disconnect_timer_)));
+    }
+
+    ocr()->PerformOCR(*bitmap, perform_future_.GetCallback());
+    disconnect_timer_.Stop();
+  }
+
+  const mojom::VisualAnnotationPtr& perform_result() {
+    return perform_future_.Get();
+  }
+
  private:
   base::ScopedObservation<ScreenAIInstallState, ScreenAIInstallState::Observer>
       component_download_observer_{this};
   scoped_refptr<OpticalCharacterRecognizer> ocr_;
   base::test::ScopedFeatureList feature_list_;
+  base::RepeatingTimer disconnect_timer_;
+  base::test::TestFuture<mojom::VisualAnnotationPtr> perform_future_;
 };
 
 IN_PROC_BROWSER_TEST_P(OpticalCharacterRecognizerTest, Create) {
@@ -341,65 +380,22 @@ IN_PROC_BROWSER_TEST_P(OpticalCharacterRecognizerTest, PerformOCR_Empty) {
 
   SkBitmap bitmap =
       LoadImageFromTestFile(base::FilePath(FILE_PATH_LITERAL("ocr/empty.png")));
-  base::test::TestFuture<mojom::VisualAnnotationPtr> perform_future;
-
-  // If OCR service crashes while performing OCR, `perform_future` will not be
-  // set. A timer is used to check the connection state and stop the waiting if
-  // connection state changes.
-  // This is done as a temporary workaround to gather more information about the
-  // test timeouts.
-  // TODO(crbug.com/470431038): Remove this workaround once the bug is resolved.
-  base::RepeatingTimer timer;
-  screen_ai::ScreenAIServiceRouter* router =
-      ScreenAIServiceRouterFactory::GetForBrowserContext(browser()->profile());
-  if (router->IsProcessRunningForTesting(
-          screen_ai::ScreenAIServiceRouter::Service::kOCR)) {
-    timer.Start(
-        FROM_HERE, base::Milliseconds(100),
-        base::BindRepeating(
-            [](screen_ai::ScreenAIServiceRouter* router,
-               base::test::TestFuture<mojom::VisualAnnotationPtr>*
-                   perform_future,
-               base::RepeatingTimer* timer) {
-              if (!router->IsProcessRunningForTesting(
-                      screen_ai::ScreenAIServiceRouter::Service::kOCR)) {
-                perform_future->SetValue(mojom::VisualAnnotation::New());
-                timer->Stop();
-                ADD_FAILURE()
-                    << "OCR service disconnected while performing OCR.";
-              }
-            },
-            base::Unretained(router), base::Unretained(&perform_future),
-            base::Unretained(&timer)));
-  }
-
-  ocr()->PerformOCR(bitmap, perform_future.GetCallback());
-  ASSERT_TRUE(perform_future.Wait());
-  ASSERT_TRUE(perform_future.Get<mojom::VisualAnnotationPtr>()->lines.empty());
+  PerformOCRWithDisconnectTimerAndAndWait(&bitmap);
+  ASSERT_TRUE(perform_result()->lines.empty());
 }
 
 // The image used in this test is very simple to reduce the possibility of
 // failure due to library changes.
 // If this test fails after updating the library, there is a high probability
 // that the new library has some sort of incompatibility with Chromium.
-// TODO(crbug.com/470431038): Tests time out flakily on Linux debug and release
-// builders.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_PerformOCR_Simple DISABLED_PerformOCR_Simple
-#else
-#define MAYBE_PerformOCR_Simple PerformOCR_Simple
-#endif
-IN_PROC_BROWSER_TEST_P(OpticalCharacterRecognizerTest,
-                       MAYBE_PerformOCR_Simple) {
+IN_PROC_BROWSER_TEST_P(OpticalCharacterRecognizerTest, PerformOCR_Simple) {
   base::HistogramTester histograms;
 
   ASSERT_EQ(CreateAndInitOCR(mojom::OcrClientType::kTest), IsOcrAvailable());
 
   SkBitmap bitmap = LoadImageFromTestFile(
       base::FilePath(FILE_PATH_LITERAL("ocr/just_one_letter.png")));
-  base::test::TestFuture<mojom::VisualAnnotationPtr> perform_future;
-  ocr()->PerformOCR(bitmap, perform_future.GetCallback());
-  ASSERT_TRUE(perform_future.Wait());
+  PerformOCRWithDisconnectTimerAndAndWait(&bitmap);
 
 // Fake library always returns empty.
 #if BUILDFLAG(USE_FAKE_SCREEN_AI)
@@ -408,7 +404,7 @@ IN_PROC_BROWSER_TEST_P(OpticalCharacterRecognizerTest,
   bool expected_call_success = true;
 #endif
 
-  auto& results = perform_future.Get<mojom::VisualAnnotationPtr>();
+  auto& results = perform_result();
   unsigned expected_lines_count =
       (expected_call_success && IsOcrAvailable()) ? 1 : 0;
   ASSERT_EQ(expected_lines_count, results->lines.size());

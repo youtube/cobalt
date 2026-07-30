@@ -1059,7 +1059,7 @@ TEST_F(ExternallyAppManagerTest, RedirectInstallUrlPlaceholder) {
       ExternalInstallSource::kExternalPolicy, result.GetCallback());
   ASSERT_TRUE(result.Wait());
 
-  // The webapps::AppId should be created from teh install url.
+  // The webapps::AppId should be created from the install url.
   webapps::AppId app_id =
       GenerateAppId(/*manifest_id=*/std::nullopt, kInstallUrl);
 

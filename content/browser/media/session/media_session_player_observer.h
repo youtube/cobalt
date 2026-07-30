@@ -10,6 +10,7 @@
 #include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "media/base/picture_in_picture_events_info.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace media {
 enum class MediaContentType;
@@ -48,8 +49,12 @@ class MediaSessionPlayerObserver {
   virtual void OnSetVolumeMultiplier(int player_id,
                                      double volume_multiplier) = 0;
 
-  // The given |player_id| has been requested picture-in-picture.
-  virtual void OnEnterPictureInPicture(int player_id) = 0;
+  // The given `player_id` has been requested picture-in-picture, optionally
+  // enforcing a minimum layout size constraint in the viewport (in CSS pixels,
+  // accounting for transforms and zoom).
+  virtual void OnEnterPictureInPicture(
+      int player_id,
+      const std::optional<gfx::Size>& min_size) = 0;
 
   // The given |player_id| has been requested to route audio output to the
   // specified audio device.

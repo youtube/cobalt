@@ -21,15 +21,12 @@
 #include "chrome/browser/keyboard_accessory/android/accessory_sheet_data.h"
 #include "chrome/browser/keyboard_accessory/android/accessory_sheet_enums.h"
 #include "chrome/browser/keyboard_accessory/android/address_accessory_controller.h"
-#include "chrome/browser/keyboard_accessory/android/affiliated_plus_profiles_cache.h"
 #include "chrome/browser/keyboard_accessory/android/at_memory_accessory_controller.h"
 #include "chrome/browser/keyboard_accessory/android/password_accessory_controller.h"
 #include "chrome/browser/keyboard_accessory/android/payment_method_accessory_controller.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
-#include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
-#include "components/plus_addresses/core/common/features.h"
 #include "content/public/browser/web_contents.h"
 
 using autofill::AccessoryAction;
@@ -294,8 +291,6 @@ ManualFillingControllerImpl::ManualFillingControllerImpl(
   at_memory_controller_ =
       AtMemoryAccessoryController::GetOrCreate(web_contents)->AsWeakPtr();
   DCHECK(at_memory_controller_);
-
-  InitializePlusProfilesCache();
 }
 
 ManualFillingControllerImpl::ManualFillingControllerImpl(
@@ -310,26 +305,9 @@ ManualFillingControllerImpl::ManualFillingControllerImpl(
       address_controller_(std::move(address_controller)),
       payment_method_controller_(std::move(payment_method_controller)),
       at_memory_controller_(std::move(at_memory_controller)),
-      view_(std::move(view)) {
-  InitializePlusProfilesCache();
-}
+      view_(std::move(view)) {}
 
 ManualFillingControllerImpl::~ManualFillingControllerImpl() = default;
-
-void ManualFillingControllerImpl::InitializePlusProfilesCache() {
-  auto* client =
-      autofill::ContentAutofillClient::FromWebContents(&GetWebContents());
-  auto* service = PlusAddressServiceFactory::GetForBrowserContext(
-      GetWebContents().GetBrowserContext());
-  if (client && service) {
-    plus_profiles_cache_ =
-        std::make_unique<AffiliatedPlusProfilesCache>(client, service);
-    pwd_controller_->RegisterPlusProfilesProvider(
-        plus_profiles_cache_->GetWeakPtr());
-    address_controller_->RegisterPlusProfilesProvider(
-        plus_profiles_cache_->GetWeakPtr());
-  }
-}
 
 bool ManualFillingControllerImpl::ShouldShowAccessoryForLastFocusedFieldType()
     const {
@@ -374,9 +352,7 @@ void ManualFillingControllerImpl::UpdateVisibility() {
         view_->OnItemsAvailable(std::move(sheet.value()));
       }
     }
-    if (plus_profiles_cache_) {
-      plus_profiles_cache_->FetchAffiliatedPlusProfiles();
-    }
+
     view_->Show(
         ManualFillingViewInterface::WaitForKeyboard(
             last_focused_field_type_ != FocusedFieldType::kUnfillableElement &&
@@ -388,9 +364,6 @@ void ManualFillingControllerImpl::UpdateVisibility() {
                 FocusedFieldType::kFillablePasswordField ||
             available_sources_.contains(FillingSource::AUTOFILL)));
   } else {
-    if (plus_profiles_cache_) {
-      plus_profiles_cache_->ClearCachedPlusProfiles();
-    }
     view_->Hide();
   }
 }
@@ -451,13 +424,9 @@ AccessoryController* ManualFillingControllerImpl::GetControllerForAction(
     case AccessoryAction::TOGGLE_SAVE_PASSWORDS:
     case AccessoryAction::CREDMAN_CONDITIONAL_UI_REENTRY:
     case AccessoryAction::CROSS_DEVICE_PASSKEY:
-    case AccessoryAction::SELECT_PLUS_ADDRESS_FROM_PASSWORD_SHEET:
-    case AccessoryAction::MANAGE_PLUS_ADDRESS_FROM_PASSWORD_SHEET:
     case AccessoryAction::RETRIEVE_TRUSTED_VAULT_KEY:
       return pwd_controller_.get();
     case AccessoryAction::MANAGE_ADDRESSES:
-    case AccessoryAction::SELECT_PLUS_ADDRESS_FROM_ADDRESS_SHEET:
-    case AccessoryAction::MANAGE_PLUS_ADDRESS_FROM_ADDRESS_SHEET:
       return address_controller_.get();
     case AccessoryAction::MANAGE_CREDIT_CARDS:
     case AccessoryAction::MANAGE_LOYALTY_CARDS:

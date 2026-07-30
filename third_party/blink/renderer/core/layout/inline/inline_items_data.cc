@@ -34,6 +34,9 @@ void InlineItemsData::CheckConsistency() const {
 void InlineItemsData::Trace(Visitor* visitor) const {
   if (auto* node_data = DynamicTo<InlineNodeData>(this)) {
     node_data->TraceAfterDispatch(visitor);
+  } else if (auto* with_offset_map =
+                 DynamicTo<InlineItemsDataWithOffsetMap>(this)) [[unlikely]] {
+    with_offset_map->TraceAfterDispatch(visitor);
   } else {
     TraceAfterDispatch(visitor);
   }
@@ -43,6 +46,15 @@ void InlineItemsData::TraceAfterDispatch(Visitor* visitor) const {
   visitor->Trace(items);
   visitor->Trace(segments);
   visitor->Trace(offset_mapping);
+}
+
+const std::optional<TextOffsetMap>& InlineItemsData::OffsetMap() const {
+  if (const auto* with_offset = DynamicTo<InlineItemsDataWithOffsetMap>(this))
+      [[unlikely]] {
+    return with_offset->offset_map;
+  }
+  static const std::optional<TextOffsetMap> kEmpty;
+  return kEmpty;
 }
 
 }  // namespace blink

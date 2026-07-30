@@ -22,6 +22,7 @@
 #include "components/user_education/common/new_badge/new_badge_policy.h"
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/common/user_education_storage_service.h"
+#include "components/user_education/product_messaging/product_messaging_policy_impl.h"
 
 BASE_FEATURE(kAllowRecentSessionTracking, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -34,8 +35,9 @@ UserEducationService::UserEducationService(Profile* profile, bool allows_promos)
           std::make_unique<user_education::FeaturePromoSessionPolicyV2>()) {
   feature_promo_session_policy_->Init(&user_education_session_manager_,
                                       user_education_storage_service_.get());
-  product_messaging_controller_.Init(user_education_session_manager_,
-                                     *user_education_storage_service_);
+  product_messaging_controller_.Init(
+      user_education_session_manager_, *user_education_storage_service_,
+      user_education::ProductMessagingPolicyImpl::CreateDefault());
 
   if (allows_promos) {
     new_badge_registry_ = std::make_unique<user_education::NewBadgeRegistry>();

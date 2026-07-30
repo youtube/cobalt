@@ -54,7 +54,9 @@ class ZwpTextInputV3 {
 
   virtual void SetClient(ZwpTextInputV3Client* context) = 0;
   virtual void OnClientDestroyed(ZwpTextInputV3Client* context) = 0;
-  virtual void Enable() = 0;
+  virtual void Enable(TextInputType type,
+                      uint32_t flags,
+                      bool should_do_learning) = 0;
   virtual void Disable() = 0;
   virtual void Reset() = 0;
   virtual void SetCursorRect(const gfx::Rect& rect) = 0;
@@ -77,7 +79,9 @@ class ZwpTextInputV3Impl : public ZwpTextInputV3 {
 
   void SetClient(ZwpTextInputV3Client* context) override;
   void OnClientDestroyed(ZwpTextInputV3Client* context) override;
-  void Enable() override;
+  void Enable(TextInputType type,
+              uint32_t flags,
+              bool should_do_learning) override;
   void Disable() override;
   void Reset() override;
 
@@ -153,6 +157,10 @@ class ZwpTextInputV3Impl : public ZwpTextInputV3 {
   };
 
   bool DoneSerialEqualsCommitCount();
+
+  static ContentType GetContentType(TextInputType type,
+                                    uint32_t flags,
+                                    bool should_do_learning);
 
   bool SendCursorRect();
   bool SendContentType();

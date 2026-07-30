@@ -5,6 +5,7 @@
 #ifndef CHROME_UPDATER_ACTIVITY_IMPL_UTIL_POSIX_H_
 #define CHROME_UPDATER_ACTIVITY_IMPL_UTIL_POSIX_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,8 +18,8 @@ enum class UpdaterScope;
 
 std::vector<base::FilePath> GetHomeDirPaths(UpdaterScope scope);
 
-base::FilePath GetActiveFile(const base::FilePath& home_dir,
-                             const std::string& id);
+std::optional<base::FilePath> GetActiveFile(const base::FilePath& home_dir,
+                                            const std::string& id);
 
 }  // namespace updater
 

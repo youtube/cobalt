@@ -53,6 +53,7 @@ enum class LoadSeedResult {
 //
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// LINT.IfChange(StoreSeedResult)
 enum class StoreSeedResult {
   kSuccess = 0,
   // kFailedEmpty = 1,  // Deprecated.
@@ -74,8 +75,11 @@ enum class StoreSeedResult {
   kNonGzipDeltaCount = 13,
   kGzipFullCount = 14,
   kNonGzipFullCount = 15,
-  kMaxValue = kNonGzipFullCount,
+  // The uncompressed size of the seed exceeded the limit.
+  kUncompressedSizeLimitExceeded = 16,
+  kMaxValue = kUncompressedSizeLimitExceeded,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/variations/enums.xml:VariationsSeedStoreResult)
 
 // The result of updating the date associated with an existing stored variations
 // seed.

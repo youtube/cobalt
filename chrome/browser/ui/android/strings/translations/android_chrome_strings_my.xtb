@@ -244,6 +244,7 @@
 <translation id="2082238445998314030">အဖြေ <ph name="RESULT_NUMBER" /> / <ph name="TOTAL_RESULTS" /></translation>
 <translation id="2091863218454846791">ကျစ်လစ်သည့်ပြကွက်ကို ပြနေသည်</translation>
 <translation id="2093731487903423814">ပြီးခဲ့သော ၁၅ မိနစ်</translation>
+<translation id="2094298041331405438">‘ရုပ်ဖျက်ဝင်းဒိုး’ အားလုံးပိတ်ရန် ဤနေရာကို တို့ပါ</translation>
 <translation id="2096577711562668473">အော်တိုဖြည့် ဝန်ဆောင်မှုကို ပြောင်းမလား။</translation>
 <translation id="2109384632594340939">ပရိုဖိုင်ပုံ</translation>
 <translation id="2111511281910874386">စာမျက်နှာ သို့သွားရန်</translation>
@@ -505,6 +506,7 @@
 <translation id="3114507951000454849">ယနေ့သတင်းများကို ဖတ်ရန် <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">နောက်ထပ်အသေးစိတ်</translation>
 <translation id="3123734510202723619">ကြေညာချက်များ</translation>
+<translation id="3132267803114336523">‘ရုပ်ဖျက်ဝင်းဒိုး’ အားလုံးပိတ်ရန် ‘ရုပ်ဖျက်’ သင်္ကေတကို တို့ပါ</translation>
 <translation id="3134385238404760368">လတ်တလောတဘ် မရှိပါ</translation>
 <translation id="3135655388926735587">‘မကြာသေးမီက တဘ်များ’ ကို တို့ပါ</translation>
 <translation id="314939179385989105">Chrome ၏ ပင်မစာမျက်နှာ</translation>
@@ -613,6 +615,7 @@
 <translation id="3635073343384702370">သင်စကားဝှက်များကို သိမ်းသည့်အခါ Chrome က၎င်းတို့ကို စစ်ဆေးနိုင်သည်</translation>
 <translation id="3636940436873918441">ဦးစားပေး ဘာသာစကားများ</translation>
 <translation id="3637744895182738742">သင့်စကားဝှက်စာ မေ့သွားပါက (သို့) ဤဆက်တင်ကို ပြောင်းလိုပါက <ph name="BEGIN_LINK" />သင့်အကောင့်ရှိ Chrome ဒေတာကို ဖျက်ပါ<ph name="END_LINK" />။</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> - <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />− <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">‘Google အက်ပ်’ ပင်မစာမျက်နှာသို့ သွားရန်</translation>
 <translation id="368329460027487650">အကောင့်ထွက်ထားသည်။ လက်မှတ်ထိုးဝင်ရန် နည်းလမ်းများ ဖွင့်နိုင်သည်။</translation>
@@ -637,6 +640,7 @@
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> တွင် လိပ်စာအဖြစ် သိမ်းဆည်းပါ</translation>
 <translation id="3740290940447881599">ဤဝဘ်ဆိုက်ကို သင်ယုံကြည်ကြောင်း သေချာပါစေ</translation>
 <translation id="3740525748616366977">ဤစက်တွင် အသံဖြင့်ရှာဖွေမှု မရနိုင်ပါ</translation>
+<translation id="3756823472711156529">အုပ်စုကို ပြန်ယူရန်</translation>
 <translation id="3763110477555836428">သင့်အချက်အလက်အစစ်များကို ကာကွယ်ရန် ဤကတ်ဖြင့် ငွေရှင်းသောအခါ ပကတိအသွင်ကတ် နံပါတ်ကို ဖြည့်ပါမည်။ Google Wallet တွင် စီမံပါ။ <ph name="BEGIN_LINK1" />ပကတိအသွင်ကတ်များအကြောင်း ပိုလေ့လာရန်<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">ဒေတာအချို့ကို မသိမ်းရသေးပါ</translation>
 <translation id="3770620323585347665">ဝင်းဒိုးကို အမည်ပေးရန်</translation>

@@ -99,12 +99,12 @@ id<GREYMatcher> BandwidthSettingsButton() {
 
 // Closes a sub-settings menu, and then the general Settings menu.
 - (void)closeSubSettingsMenu {
+  [[EarlGrey selectElementWithMatcher:NavigationBarBackButton()]
+      performAction:grey_tap()];
   // Disable EarlGrey synchronization to avoid infinite spinner loop.
   // Tapping a settings done button triggers the layout update and the internal
   // timer used by UIKit possibly gets stuck.
   ScopedSynchronizationDisabler disabler;
-  [[EarlGrey selectElementWithMatcher:NavigationBarBackButton()]
-      performAction:grey_tap()];
   [[EarlGrey selectElementWithMatcher:SettingsDoneButton()]
       performAction:grey_tap()];
 }

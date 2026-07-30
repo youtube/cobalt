@@ -32,7 +32,7 @@ class PreferredAppListTest : public testing::Test {
     return intent_filter;
   }
 
-  apps::PreferredAppsList preferred_apps_;
+  apps::PreferredAppsList preferred_apps_{/*delegate=*/nullptr};
 };
 
 // Test that for a single preferred app with URL filter, we can add
@@ -692,7 +692,7 @@ TEST_F(PreferredAppListTest, FindNoPreferredApps) {
   intent_filters.push_back(std::move(test_intent_filter));
 
   auto preferred_apps =
-      preferred_apps_.FindPreferredAppsForFilters(intent_filters);
+      preferred_apps_.FindPreferredAppsForFilters(std::nullopt, intent_filters);
 
   EXPECT_TRUE(preferred_apps.empty());
 }
@@ -719,7 +719,7 @@ TEST_F(PreferredAppListTest, FindOnePreferredApps) {
   intent_filters.push_back(std::move(test_intent_filter));
 
   auto preferred_apps =
-      preferred_apps_.FindPreferredAppsForFilters(intent_filters);
+      preferred_apps_.FindPreferredAppsForFilters(std::nullopt, intent_filters);
 
   EXPECT_EQ(preferred_apps.size(), 1u);
   EXPECT_TRUE(preferred_apps.contains(kAppId2));
@@ -764,7 +764,7 @@ TEST_F(PreferredAppListTest, FindMultiplePreferredApps) {
   intent_filters.push_back(std::move(intent_filter_3));
 
   auto preferred_apps =
-      preferred_apps_.FindPreferredAppsForFilters(intent_filters);
+      preferred_apps_.FindPreferredAppsForFilters(std::nullopt, intent_filters);
 
   EXPECT_EQ(preferred_apps.size(), 2u);
   EXPECT_TRUE(preferred_apps.contains(kAppId1));

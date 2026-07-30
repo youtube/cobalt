@@ -26,31 +26,31 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
 
   void Bind(mojo::PendingReceiver<mojom::blink::ClipboardHost> receiver);
   // Clears all clipboard data.
-  void Reset();
+  void ResetForTesting();
 
   // These write methods exist only in the mock class because
   // mojom::ClipboardHost does not provide equivalent methods.  These are here
   // to simplify testing of the system clipboard.
-  void WriteRtf(const String& rtf_text);
-  void WriteFiles(mojom::blink::ClipboardFilesPtr files);
+  void WriteRtfForTesting(const String& rtf_text);
+  void WriteFilesForTesting(mojom::blink::ClipboardFilesPtr files);
 
   // Method to simulate clipboard data change only for testing.
-  void OnClipboardDataChanged();
+  void OnClipboardDataChangedForTesting();
 
   // Force a format to be advertised in ReadStandardFormatNames() even when
   // the corresponding data is empty. Used to test reader behavior when the
   // OS clipboard advertises a format but returns no data.
-  void AddFormatWithoutData(const String& mime_type) {
-    if (!std::ranges::contains(forced_formats_, mime_type)) {
-      forced_formats_.push_back(mime_type);
+  void AddFormatWithoutDataForTesting(const String& mime_type) {
+    if (!std::ranges::contains(forced_formats_for_testing_, mime_type)) {
+      forced_formats_for_testing_.push_back(mime_type);
     }
   }
 
 #if BUILDFLAG(IS_MAC)
   // Test helper to configure the permission state returned by the mock
-  void SetPlatformPermissionState(
+  void SetPlatformPermissionStateForTesting(
       mojom::blink::PlatformClipboardPermissionState state) {
-    platform_permission_state_ = state;
+    platform_permission_state_for_testing_ = state;
   }
 #endif
 
@@ -63,25 +63,30 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
   }
 
   // Method call tracking for testing
-  int ReadTextCallCount() const { return read_text_call_count_; }
-  int ReadHtmlCallCount() const { return read_html_call_count_; }
-  int ReadAvailableFormatsCallCount() const {
-    return read_available_formats_call_count_;
+  int ReadTextCallCountForTesting() const {
+    return read_text_call_count_for_testing_;
+  }
+  int ReadHtmlCallCountForTesting() const {
+    return read_html_call_count_for_testing_;
+  }
+  int ReadAvailableFormatsCallCountForTesting() const {
+    return read_available_formats_call_count_for_testing_;
   }
 
   // Test helpers used to simulate a slow OS clipboard read so callers can
   // verify that renderer-side Async Clipboard read paths are truly
   // non-blocking. When deferred mode is enabled, the next ReadText() call
   // stashes its reply callback instead of invoking it immediately. The
-  // stashed callback can be invoked later via RunDeferredReadTextCallback().
+  // stashed callback can be invoked later via
+  // RunDeferredReadTextCallbackForTesting().
   // See crbug.com/474131935.
-  void SetReadTextCallbackDeferred(bool deferred) {
-    defer_read_text_callback_ = deferred;
+  void SetReadTextCallbackDeferredForTesting(bool deferred) {
+    defer_read_text_callback_for_testing_ = deferred;
   }
-  bool HasDeferredReadTextCallback() const {
-    return !deferred_read_text_callback_.is_null();
+  bool HasDeferredReadTextCallbackForTesting() const {
+    return !deferred_read_text_callback_for_testing_.is_null();
   }
-  void RunDeferredReadTextCallback();
+  void RunDeferredReadTextCallbackForTesting();
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ClipboardTest,
@@ -151,17 +156,18 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
   HashMap<String, String> custom_data_;
   bool write_smart_paste_ = false;
   bool needs_reset_ = false;
-  Vector<String> forced_formats_;
+  Vector<String> forced_formats_for_testing_;
   HashMap<String, Vector<uint8_t>> unsanitized_custom_data_map_;
 #if BUILDFLAG(IS_MAC)
-  mojom::blink::PlatformClipboardPermissionState platform_permission_state_ =
-      mojom::blink::PlatformClipboardPermissionState::kAsk;
+  mojom::blink::PlatformClipboardPermissionState
+      platform_permission_state_for_testing_ =
+          mojom::blink::PlatformClipboardPermissionState::kAsk;
 #endif
 
   // Method call tracking
-  int read_text_call_count_ = 0;
-  int read_html_call_count_ = 0;
-  int read_available_formats_call_count_ = 0;
+  int read_text_call_count_for_testing_ = 0;
+  int read_html_call_count_for_testing_ = 0;
+  int read_available_formats_call_count_for_testing_ = 0;
 
   // Hook fired during ReadAvailableCustomAndStandardFormats() for TOCTOU
   // race regression tests.
@@ -169,8 +175,8 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
       read_available_formats_hook_for_testing_;
 
   // Deferred-callback machinery for the truly-async-read regression test.
-  bool defer_read_text_callback_ = false;
-  ReadTextCallback deferred_read_text_callback_;
+  bool defer_read_text_callback_for_testing_ = false;
+  ReadTextCallback deferred_read_text_callback_for_testing_;
 };
 
 }  // namespace blink

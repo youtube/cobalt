@@ -105,7 +105,6 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurfaceImpl : public SkiaOutputSurface {
   void SetUpdateVSyncParametersCallback(
       UpdateVSyncParametersCallback callback) override;
   void SetVSyncDisplayID(int64_t display_id, bool force_update) override;
-  void RefreshRateChangedOnSameDisplay() override;
   void SetDisplayTransformHint(gfx::OverlayTransform transform) override;
   gfx::OverlayTransform GetDisplayTransform() override;
   void SwapBuffers(OutputSurfaceFrame frame) override;

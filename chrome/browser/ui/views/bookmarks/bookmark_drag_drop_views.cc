@@ -25,6 +25,8 @@
 #include "components/bookmarks/browser/base_bookmark_model_observer.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node_data.h"
+#include "components/commerce/core/price_tracking_utils.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
@@ -153,8 +155,10 @@ class BookmarkDragImageSource : public gfx::CanvasImageSource {
 
     // Draw icon image.
     canvas->DrawImageInt(
-        icon_, kContainerRadius - kIconSize / 2,
-        kContainerRadius + kIconContainerRadius - kIconSize / 2);
+        icon_, /*src_x=*/0, /*src_y=*/0, icon_.width(), icon_.height(),
+        kContainerRadius - kIconSize / 2,
+        kContainerRadius + kIconContainerRadius - kIconSize / 2, kIconSize,
+        kIconSize, /*filter=*/true);
 
     // Draw bookmark title.
     gfx::FontList font_list = views::TypographyProvider::Get().GetFont(
@@ -252,8 +256,13 @@ class BookmarkDragHelper : public bookmarks::BaseBookmarkModelObserver {
 
       icon = ui::ImageModel::FromImage(image);
     } else {
-      icon = GetBookmarkFolderIcon(chrome::BookmarkFolderIconType::kNormal,
-                                   ui::kColorMenuIcon);
+      if (commerce::IsShoppingCollectionBookmarkFolder(drag_node)) {
+        icon = ui::ImageModel::FromVectorIcon(vector_icons::kShoppingBagIcon,
+                                              ui::kColorMenuIcon);
+      } else {
+        icon = GetBookmarkFolderIcon(chrome::BookmarkFolderIconType::kNormal,
+                                     ui::kColorMenuIcon);
+      }
     }
 
     OnBookmarkIconLoaded(drag_node, icon);

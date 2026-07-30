@@ -613,7 +613,7 @@ std::pair<std::string, std::string> SplitHTTP(std::string_view http_text) {
 // Streams in text format. For consistency, taken from anonymous namespace in
 // components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.cc
 std::ostream& operator<<(std::ostream& out,
-                         const autofill::AutofillPageQueryRequest& query) {
+                         const AutofillPageQueryRequest& query) {
   for (const auto& form : query.forms()) {
     out << "\nForm signature: " << form.signature();
     for (const auto& field : form.fields()) {
@@ -626,7 +626,7 @@ std::ostream& operator<<(std::ostream& out,
 // Streams in text format. For consistency, taken from anonymous namespace in
 // components/autofill/core/browser/form_structure.cc
 std::ostream& operator<<(std::ostream& out,
-                         const autofill::AutofillQueryResponse& response) {
+                         const AutofillQueryResponse& response) {
   for (const auto& form : response.form_suggestions()) {
     out << "\nForm";
     for (const auto& field : form.field_suggestions()) {

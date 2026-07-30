@@ -10,6 +10,7 @@
 #include <array>
 #include <concepts>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <span>
 #include <string>
@@ -3417,6 +3418,7 @@ TEST(SpanTest, Example_UnsafeBuffersPatterns) {
 #if PA_BUILDFLAG(CHECKED_SPAN)
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+
 TEST(SpanTest, CheckedSpanCrashes) {
   // Storage is wrapped in `std::unique_ptr` to force heap allocation,
   // as it would otherwise not be owned by PartitionAlloc.
@@ -3435,6 +3437,37 @@ TEST(SpanTest, CheckedSpanCrashes) {
   EXPECT_DEATH_IF_SUPPORTED(
       UNSAFE_BUFFERS(base::span<char>(thirtyone_chars, usable_bytes + 1)), "");
 }
+
+TEST(SpanTest, CheckedSpanDisallowsWraparound) {
+  // Storage is wrapped in `std::unique_ptr` to force heap allocation,
+  // as it would otherwise not be owned by PartitionAlloc.
+  auto storage = std::make_unique<std::array<char, 31u>>();
+
+  // If pointer wraparound occurs, a span minted with this size can read
+  // anything.
+  constexpr size_t kBadSize = std::numeric_limits<size_t>::max();
+
+  // To get the end of the bogus span in the same allocation, advance
+  // the start by one byte.
+  //
+  // This calculation assumes that:
+  // <any pointer> + [maximum `size_t`] + 1 == <the same pointer>
+  // which assumes
+  // 1. that pointers have the same size as `size_t` and
+  // 2. that pointer arithmetic is defined to overflow (for this test to
+  //    be meaningful).
+  //
+  // If such a span could be minted, its end would be one byte behind
+  // its start.
+  static_assert(uintptr_t{1u} + kBadSize == uintptr_t{0u});
+  const char* thirty_chars =
+      base::span<const char>(*storage).subspan<1u>().data();
+
+  // SAFETY: This is not safe. We want this to crash.
+  EXPECT_DEATH_IF_SUPPORTED(
+      UNSAFE_BUFFERS(base::span<const char>(thirty_chars, kBadSize)), "");
+}
+
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 TEST(SpanTest, CheckedSpanAllowsSlack) {

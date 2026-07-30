@@ -188,8 +188,22 @@ std::string_view SavePasswordProgressLogger::GetStringFromID(
       return "Decision: ASK the user";
     case SavePasswordProgressLogger::STRING_DECISION_DROP:
       return "Decision: DROP the password";
-    case SavePasswordProgressLogger::STRING_DECISION_SAVE:
-      return "Decision: SAVE the password";
+    case SavePasswordProgressLogger::
+        STRING_DECISION_ATTEMPT_TO_SAVE_WITHOUT_PROMPT:
+      return "Decision: Attempting to SAVE/UPDATE the password without "
+             "prompting the user";
+    case SavePasswordProgressLogger::STRING_DECISION_UPDATE:
+      return "Decision: UPDATE the saved credential with a new password";
+    case SavePasswordProgressLogger::STRING_DECISION_UPDATE_ONLY_METADATA:
+      return "Decision: UPDATE only the metadata of the saved credential "
+             "because the username and password are already stored";
+    case SavePasswordProgressLogger::STRING_DECISION_SAVE_NEW_CREDENTIAL:
+      return "Decision: SAVE the newly created credential";
+    case SavePasswordProgressLogger::STRING_DECISION_AUTO_SAVE:
+      return "Decision: SAVE the credential because the username and password "
+             "are already stored, but for a weakly affiliated domain";
+    case SavePasswordProgressLogger::STRING_NO_PASSWORD_STORE_AVAILABLE:
+      return "No password store available";
     case SavePasswordProgressLogger::STRING_OTHER:
       return "(other)";
     case SavePasswordProgressLogger::STRING_SCHEME_HTML:
@@ -225,8 +239,8 @@ std::string_view SavePasswordProgressLogger::GetStringFromID(
     case SavePasswordProgressLogger::
         STRING_CONFIRMATION_PASSWORD_ELEMENT_RENDERER_ID:
       return "Confirmation password element renderer id";
-    case SavePasswordProgressLogger::STRING_PASSWORD_GENERATED:
-      return "Password generated";
+    case SavePasswordProgressLogger::STRING_PASSWORD_IS_GENERATED:
+      return "Password is generated";
     case SavePasswordProgressLogger::STRING_TIMES_USED:
       return "Times used";
     case SavePasswordProgressLogger::STRING_NAME_OR_ID:
@@ -366,19 +380,22 @@ std::string_view SavePasswordProgressLogger::GetStringFromID(
       return "PasswordForm vote";
     case SavePasswordProgressLogger::STRING_REUSE_FOUND:
       return "Password reused from ";
-    case SavePasswordProgressLogger::STRING_GENERATION_DISABLED_SAVING_DISABLED:
-      return "Generation disabled: saving disabled";
     case SavePasswordProgressLogger::
-        STRING_GENERATION_DISABLED_NOT_ABLE_TO_SAVE_PASSWORDS:
-      return "Generation disabled: not able to save passwords";
+        STRING_GENERATION_DISABLED_BY_USER_OR_POLICY:
+      return "Generation disabled: Settings preference, session type, SSL "
+             "status, or policy block";
+    case SavePasswordProgressLogger::STRING_GENERATION_DISABLED_STORE_ERROR:
+      return "Generation disabled: Storage backend error, auth issue, or "
+             "locked keychain";
     case SavePasswordProgressLogger::STRING_GENERATION_DISABLED_NO_SYNC:
       return "Generation disabled: no sync";
     case SavePasswordProgressLogger::
         STRING_GENERATION_RENDERER_AUTOMATIC_GENERATION_AVAILABLE:
-      return "Generation: automatic generation is available";
+      return "Generation: Field is eligible for automatic generation";
     case SavePasswordProgressLogger::
         STRING_GENERATION_RENDERER_SHOW_GENERATION_POPUP:
-      return "Show generation popup triggered";
+      return "Generation: Renderer requested displaying password generation "
+             "popup";
     case SavePasswordProgressLogger::
         STRING_GENERATION_RENDERER_GENERATED_PASSWORD_ACCEPTED:
       return "Generated password accepted";
@@ -706,6 +723,15 @@ std::string_view SavePasswordProgressLogger::GetStringFromID(
         STRING_ACTOR_LOGIN_PRIMARY_MAIN_FRAME_ORIGIN_CHANGED:
       return "Actor login: origin is not equal to or affiliated with the "
              "credential's request origin";
+    case SavePasswordProgressLogger::STRING_GENERATION_STORE_PRE_SAVE:
+      return "Password Generation: Saving draft of accepted generated password "
+             "to password store (pre-save)";
+    case SavePasswordProgressLogger::STRING_GENERATION_STORE_COMMIT:
+      return "Password Generation: Finalizing and committing pre-saved draft "
+             "to password store upon form submission";
+    case SavePasswordProgressLogger::STRING_GENERATION_STORE_ROLLBACK:
+      return "Password Generation: User cancelled generation or cleared the "
+             "field, removing draft from password store";
     case SavePasswordProgressLogger::STRING_INVALID:
       return "INVALID";
       // Intentionally no default: clause here -- all IDs need to get covered.

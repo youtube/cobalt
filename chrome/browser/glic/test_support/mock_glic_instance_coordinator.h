@@ -84,7 +84,7 @@ class MockGlicInstanceCoordinator
               (ActiveInstanceChangedCallback callback),
               (override));
   MOCK_METHOD(GlicInstance*, GetActiveInstance, (), (override));
-  MOCK_METHOD(GlicSharingManager&,
+  MOCK_METHOD(GlicSharingManagerInternal&,
               active_instance_sharing_manager,
               (),
               (override));
@@ -99,7 +99,7 @@ class MockGlicInstanceCoordinator
               (override));
   MOCK_METHOD(std::vector<ConversationInfo>,
               GetRecentlyActiveInstances,
-              (size_t),
+              (size_t, base::TimeDelta),
               (override));
   MOCK_METHOD(bool,
               IsTabPinnedToAnyInstance,

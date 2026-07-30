@@ -100,6 +100,10 @@
 #include "ui/webui/buildflags.h"
 #include "ui/webui/webui_util.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/flags/android/chrome_feature_list.h"
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
@@ -120,6 +124,18 @@
 #endif
 
 namespace {
+
+bool IsUserFeedbackAllowed(Profile* profile) {
+  bool is_user_feedback_allowed = true;
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          chrome::android::kUserFeedbackAllowedPolicy)) {
+    is_user_feedback_allowed =
+        profile->GetPrefs()->GetBoolean(prefs::kUserFeedbackAllowed);
+  }
+#endif
+  return is_user_feedback_allowed;
+}
 
 // A method to add eligibility booleans for context menu items that are shown
 // based on AIM eligibility.
@@ -430,8 +446,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"oauthErrorDialogBody", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_BODY},
       {"oauthErrorDialogReloadButton",
        IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_RELOAD_BUTTON},
-      {"stsTryItLink", IDS_STS_IPH_TRY_IT_LINK},
-      {"stsTryItBodyEnd", IDS_STS_IPH_TRY_IT_BODY_END},
       {"stsTryItTurnOn", IDS_STS_IPH_TRY_IT_TURN_ON},
       {"stsTryItNotNow", IDS_STS_IPH_TRY_IT_NOT_NOW},
       {"stsDefaultOnLink", IDS_STS_IPH_DEFAULT_ON_LINK},
@@ -501,6 +515,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::kContextualTasksNextboxMaxFileSize.Get());
   // Enable typed suggest.
   source->AddBoolean("composeboxShowTypedSuggest", false);
+  source->AddBoolean("useContextualTasksComposeboxFork",
+                     base::FeatureList::IsEnabled(
+                         contextual_tasks::kContextualTasksComposeboxFork));
   // Disable ZPS.
   source->AddBoolean(
       "composeboxShowZps",
@@ -514,6 +531,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "composeboxShowContextMenu",
       contextual_tasks::GetIsContextualTasksNextboxContextMenuEnabled());
   source->AddBoolean("composeboxShowContextMenuDescription", false);
+  source->AddBoolean(
+      "contextMenuAnimationLimitingEnabled",
+      base::FeatureList::IsEnabled(omnibox::kContextMenuAnimationLimiting));
   source->AddBoolean(
       "enablePinButton",
       contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled());
@@ -581,6 +601,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::GetIsContextualTasksWindowTrackingEnabled());
   source->AddBoolean("supportsLensButtonInComposebox", !BUILDFLAG(IS_ANDROID));
   source->AddBoolean("isSystemVoiceSearchEnabled", BUILDFLAG(IS_ANDROID));
+  source->AddBoolean("isUserFeedbackAllowed", IsUserFeedbackAllowed(profile));
   source->AddBoolean("enableComposeboxJumpFix",
                      contextual_tasks::GetEnableComposeboxJumpFix());
   source->AddBoolean("roundedClipPathEnabled",
@@ -602,8 +623,13 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
               contextual_search::ContextualSearchSource::kContextualTasks));
 #if !BUILDFLAG(IS_ANDROID)
   GURL url = web_ui->GetWebContents()->GetVisibleURL();
+  // Incognito browsers always use dark mode. This is checked explicitly
+  // because the ThemeService only tracks the parent profile's theme.
+  // See BrowserWidget::GetColorProviderKey() in
+  // chrome/browser/ui/views/frame/browser_widget.cc.
   bool is_dark_mode =
-      ThemeServiceFactory::GetForProfile(profile)->BrowserUsesDarkColors();
+      ThemeServiceFactory::GetForProfile(profile)->BrowserUsesDarkColors() ||
+      profile->IsOffTheRecord();
   is_dark_mode =
       contextual_tasks::GetDarkModeFromUrl(url).value_or(is_dark_mode);
   source->AddBoolean("darkMode", is_dark_mode);
@@ -690,8 +716,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 
 #if !BUILDFLAG(IS_ANDROID)
   ui::TrackedElementHandlerDocumentSingleton::Register(
-      this,
-      std::vector<ui::ElementIdentifier>{kSmartTabSharingMenuItemElementId});
+      this, std::vector<ui::ElementIdentifier>{
+                kSmartTabSharingMenuItemElementId,
+                kContextualTasksWebUIPinButtonElementId,
+                kContextualTasksWebUIOverflowMenuElementId,
+                kContextualTasksWebUIOverflowMenuPinButtonElementId});
 #endif
 }
 
@@ -944,9 +973,13 @@ void ContextualTasksUI::CreateHelpBubbleHandler(
 
 bool ContextualTasksUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  // Disable for OTR profiles.
-  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
-         !browser_context->IsOffTheRecord();
+  // Keep Contextual Tasks disabled for incognito profiles unless
+  // Lens Side Panel Unification is enabled.
+  if (browser_context->IsOffTheRecord() &&
+      !lens::features::IsLensSidePanelUnificationEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
 }
 
 bool ContextualTasksUIConfig::ShouldCrashOnJavascriptErrorInDevelopmentBuild()

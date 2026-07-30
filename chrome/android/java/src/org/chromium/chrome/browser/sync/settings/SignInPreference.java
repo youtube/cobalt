@@ -314,7 +314,7 @@ public class SignInPreference extends Preference
 
     // AccountsChangeObserver implementation.
     @Override
-    public void onCoreAccountInfosChanged() {
+    public void onAccountsChanged() {
         update();
     }
 

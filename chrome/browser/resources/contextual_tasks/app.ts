@@ -136,11 +136,13 @@ function updateTaskDetailsInUrl(
   // Add all the params from the aim URL, except host.
   if (aimUrl) {
     try {
-      new URL(aimUrl).searchParams.forEach((value, key) => {
+      const aimUrlObj = new URL(aimUrl);
+      aimUrlObj.searchParams.forEach((value, key) => {
         if (key !== CHROME_HOST_PARAM_KEY) {
           url.searchParams.set(key, value);
         }
       });
+      url.hash = aimUrlObj.hash;
     } catch (e) {
       console.error('Failed to parse AI thread URL:', aimUrl, e);
     }
@@ -395,6 +397,14 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   private contextManagementInComposeboxEnabled_: boolean =
       loadTimeData.getBoolean('contextManagementInComposeboxEnabled');
 
+  private constructorStartTime_: number;
+  private isFirstLoadCommit_: boolean = true;
+
+  constructor() {
+    super();
+    this.constructorStartTime_ = performance.now();
+  }
+
   private updateThemeFromUrl(url: URL) {
     const csParam = url.searchParams.get('cs');
     if (csParam === '0') {
@@ -513,7 +523,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         // we are not in zero state anymore, or not in an AIM URL. In
         // both thread/AIM cases for zero state, we clear input.
         if (isZeroState) {
-          this.composebox_?.clearInputAndFocus();
+          this.forceComposeboxFocus();
           // Reset the forced composebox bounds since the zero state position
           if (!this.shouldSetForceComposeboxBounds_()) {
             this.forcedComposeboxBounds_ = null;
@@ -611,9 +621,11 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     this.eventTracker_.add(window, 'message', (event: MessageEvent) => {
       if (event.data === 'domContentLoaded') {
         this.isDomContentLoaded_ = true;
-        // Play the zero state animations, unhide the composebox and header.
+        // Play the zero state animations, unhide the composebox/header,
+        // and focus the composebox.
         if (this.isZeroState_) {
           this.playZeroStateAnimations_();
+          this.forceComposeboxFocus();
         }
       }
     });
@@ -643,7 +655,6 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     } else {
       const {url} = await this.browserProxy_.handler.getThreadUrl();
       threadUrl = url;
-      this.composebox_?.clearInputAndFocus();
     }
 
     const threadUrlAsUrl = new URL(threadUrl);
@@ -694,6 +705,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     // it now!
     if (this.isZeroState_ && this.isDomContentLoaded_) {
       this.playZeroStateAnimations_();
+      this.forceComposeboxFocus();
     }
 
     // The thread URL is considered pending (not loaded immediately in the
@@ -838,7 +850,7 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       // Since a separate IPH "Try It" promo may turn the STS feature on, make
       // sure it is not already on before promoting with the help bubble.
       if (menu && !menu.smartTabSharingActive) {
-        const menuItem = menu.shadowRoot?.querySelector('#smartTabSharingItem');
+        const menuItem = menu.shadowRoot?.querySelector('#shareTabsTrigger');
         if (menuItem) {
           const rect = menuItem.getBoundingClientRect();
           const floatingAnchor = this.shadowRoot.querySelector<HTMLElement>(
@@ -908,6 +920,13 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     // If is from inner iframe and not from main webview URL:
     if (!ev.isTopLevel) {
       return;
+    }
+    if (this.isFirstLoadCommit_) {
+      this.isFirstLoadCommit_ = false;
+      const latencyMs =
+          Math.round(performance.now() - this.constructorStartTime_);
+      chrome.metricsPrivate.recordMediumTime(
+          'ContextualTasks.OAuth.StartToCommitLatency', latencyMs);
     }
     this.updateBasicModeAfterNavigation();
     this.maybeOnThreadFrameTopLevelNavigation(ev.url);
@@ -1077,12 +1096,21 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       // Since the height is controlled client side and the composebox grows
       // updwards, set the top of the rect to match the current height to avoid
       // miscalculations in the clip path.
+      const wasHidden = this.isComposeboxHidden_();
       if (this.shouldSetForceComposeboxBounds_()) {
         this.forcedComposeboxBounds_ = {
           ...inputRect,
           height: currentHeight,
           top: inputRect.bottom - currentHeight,
         };
+        // Only focus the input if the composebox transitions from hidden to
+        // visible. This prevents focus-stealing on subsequent bounds updates
+        // (e.g., when the composebox changes height).
+        if (wasHidden && !this.isComposeboxHidden_()) {
+          this.updateComplete.then(() => {
+            this.composebox_?.tryFocus();
+          });
+        }
       } else {
         this.forcedComposeboxBounds_ = null;
       }
@@ -1147,6 +1175,14 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     // In all other cases, show the composebox.
     return false;
+  }
+
+  // Helper to focus the composebox, even if it is transitioning from hidden.
+  private forceComposeboxFocus() {
+    this.composebox_?.clearInputAndFocus();
+    this.updateComplete.then(() => {
+      this.composebox_?.tryFocus();
+    });
   }
 
   protected isComposeboxHeaderWrapperHidden_(): boolean {
@@ -1592,6 +1628,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
   setForcedComposeboxBoundsForTesting(bounds: Rect|null) {
     this.forcedComposeboxBounds_ = bounds;
+  }
+
+  onInputPlateBoundsUpdateForTesting(inputRect?: Rect, occluders?: Rect[]) {
+    this.onInputPlateBoundsUpdate_(inputRect, occluders);
   }
 
   getOccludersForTesting(): Rect[]|null {

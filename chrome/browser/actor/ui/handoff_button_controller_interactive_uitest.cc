@@ -23,7 +23,6 @@
 #include "chrome/browser/ui/views/test/split_view_browser_test_mixin.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interaction_test_util_browser.h"
 #include "components/tabs/public/tab_interface.h"

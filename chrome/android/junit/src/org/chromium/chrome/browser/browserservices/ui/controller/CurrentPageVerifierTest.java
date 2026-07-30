@@ -200,7 +200,8 @@ public class CurrentPageVerifierTest {
                 /* isPdf= */ false,
                 /* mimeType= */ "",
                 Page.createForTesting(),
-                /* isSameOrigin= */ true);
+                /* isSameOrigin= */ true,
+                /* ignoredDuplicateNavigationCount= */ 0);
         for (CustomTabTabObserver tabObserver : mTabObserverCaptor.getAllValues()) {
             tabObserver.onDidFinishNavigationInPrimaryMainFrame(mTab, navigation);
         }

@@ -99,28 +99,25 @@ const NSInteger kDynamicSettingsItemTypeOffset = 10000;
 }
 
 - (void)loadDynamicSettings {
-  if (IsGeminiDynamicSettingsEnabled()) {
-    NSArray<GeminiSettingsMetadata*>* eligibleSettingsMetadata =
-        ios::provider::GetEligibleSettings(_authService);
+  NSArray<GeminiSettingsMetadata*>* eligibleSettingsMetadata =
+      ios::provider::GetEligibleSettings(_authService);
 
-    NSMutableArray<GeminiDynamicSettingsItem*>* settingsItems =
-        [[NSMutableArray alloc]
-            initWithCapacity:eligibleSettingsMetadata.count];
+  NSMutableArray<GeminiDynamicSettingsItem*>* settingsItems =
+      [[NSMutableArray alloc] initWithCapacity:eligibleSettingsMetadata.count];
 
-    for (GeminiSettingsMetadata* setting in eligibleSettingsMetadata) {
-      NSInteger type = kDynamicSettingsItemTypeOffset + setting.context;
-      GeminiSettingsAction* action =
-          ios::provider::ActionForSettingsContext(setting.context);
+  for (GeminiSettingsMetadata* setting in eligibleSettingsMetadata) {
+    NSInteger type = kDynamicSettingsItemTypeOffset + setting.context;
+    GeminiSettingsAction* action =
+        ios::provider::ActionForSettingsContext(setting.context);
 
-      GeminiDynamicSettingsItem* item =
-          [[GeminiDynamicSettingsItem alloc] initWithType:type
-                                                 metadata:setting
-                                                   action:action];
-      [settingsItems addObject:item];
-    }
-
-    [self.consumer updateDynamicSettingsItems:settingsItems];
+    GeminiDynamicSettingsItem* item =
+        [[GeminiDynamicSettingsItem alloc] initWithType:type
+                                               metadata:setting
+                                                 action:action];
+    [settingsItems addObject:item];
   }
+
+  [self.consumer updateDynamicSettingsItems:settingsItems];
 }
 
 #pragma mark - GeminiSettingsMutator

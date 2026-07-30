@@ -87,11 +87,9 @@ void WaitForHistogram(const std::string& histogram_name) {
 }
 
 scoped_refptr<os_crypt_async::Encryptor> GetInstanceSync(
-    os_crypt_async::OSCryptAsync& factory,
-    os_crypt_async::Encryptor::Option option =
-        os_crypt_async::Encryptor::Option::kNone) {
+    os_crypt_async::OSCryptAsync& factory) {
   base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
-  factory.GetInstance(future.GetCallback(), option);
+  factory.GetInstance(future.GetCallback());
   return future.Take();
 }
 

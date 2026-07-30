@@ -287,6 +287,17 @@ void DedicatedWorkerGlobalScope::Initialize(
         String(response_document_policy.report_only_header));
   }
 
+  // Step 14.11. "If is shared is false and response's url's scheme is \"data\",
+  // then set worker global scope's cross-origin isolated capability to false."
+  if (response_url.ProtocolIsData()) {
+    cross_origin_isolated_capability_ = false;
+
+    // TODO(mkwst): This needs a spec.
+    is_isolated_context_ = false;
+
+    GetRuntimeFeatureStateOverrideContext()->SetDirectSocketsForceDisabled();
+  }
+
   // This should be called after OriginTrialContext::AddTokens() to install
   // origin trial features in JavaScript's global object.
   // DedicatedWorkerGlobalScope inherits the outside's OriginTrialTokens in the
@@ -297,17 +308,6 @@ void DedicatedWorkerGlobalScope::Initialize(
   // metadata is available by tracking the execution context's lifetime.
   if (RuntimeEnabledFeatures::ProfilerAPIForDedicatedWorkerEnabled()) {
     ProfilerGroup::InitializeIfEnabled(GetExecutionContext());
-  }
-
-  // Step 14.11. "If is shared is false and response's url's scheme is "data",
-  // then set worker global scope's cross-origin isolated capability to false."
-  if (response_url.ProtocolIsData()) {
-    cross_origin_isolated_capability_ = false;
-
-    // TODO(mkwst): This needs a spec.
-    is_isolated_context_ = false;
-
-    GetRuntimeFeatureStateOverrideContext()->SetDirectSocketsForceDisabled();
   }
 }
 

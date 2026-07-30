@@ -4,6 +4,14 @@
 
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/check.h"
+#include "base/functional/bind.h"
+#include "base/types/expected.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -18,10 +26,12 @@
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/optimization_guide/content/browser/page_content_image_extractor.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/common/url_constants.h"
 #include "glic_pinned_tab_manager.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
@@ -67,6 +77,15 @@ GlicGetContextResult TransformFetcherResult(
   }
   return base::unexpected(
       GlicGetContextError{glic_error_code, result.error().message});
+}
+
+GlicGetImageBytesResult TransformImageBytesResult(
+    blink::mojom::AIPageContentImageBytesResultPtr result) {
+  if (!result) {
+    return base::unexpected(GlicGetContextError{
+        GlicGetContextFromTabError::kUnknown, "failed to get image bytes"});
+  }
+  return result;
 }
 }  // namespace
 
@@ -301,6 +320,34 @@ void GlicSharingManagerImpl::GetContextForActorFromTab(
   GetContextFromTabImpl(tab, options, std::move(callback));
 }
 
+void GlicSharingManagerImpl::GetImageBytes(
+    tabs::TabHandle tab_handle,
+    const std::string& document_id,
+    int32_t dom_node_id,
+    base::OnceCallback<void(GlicGetImageBytesResult)> callback) {
+  if (std::optional<GlicGetContextError> error =
+          CheckPreliminaryContextSharingEligibility(tab_handle)) {
+    std::move(callback).Run(base::unexpected(std::move(*error)));
+    return;
+  }
+
+  // CheckPreliminaryContextSharingEligibility ensures that the tab exists.
+  tabs::TabInterface* tab = tab_handle.Get();
+  CHECK(tab);
+
+  content::WebContents* web_contents = tab->GetContents();
+  if (!web_contents) {
+    std::move(callback).Run(base::unexpected(
+        GlicGetContextError{GlicGetContextFromTabError::kTabNotFound,
+                            "tab web contents not found"}));
+    return;
+  }
+
+  optimization_guide::GetImageBytes(
+      web_contents, document_id, dom_node_id,
+      base::BindOnce(&TransformImageBytesResult).Then(std::move(callback)));
+}
+
 std::vector<tabs::TabInterface*> GlicSharingManagerImpl::GetPinnedTabs() const {
   return pinned_tab_manager()->GetPinnedTabs();
 }
@@ -317,7 +364,7 @@ void GlicSharingManagerImpl::OnConversationTurnSubmitted() {
       GlicPinnedTabContextEventType::kConversationTurnSubmitted));
 }
 
-base::WeakPtr<GlicSharingManager> GlicSharingManagerImpl::GetWeakPtr() {
+base::WeakPtr<GlicSharingManagerInternal> GlicSharingManagerImpl::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 

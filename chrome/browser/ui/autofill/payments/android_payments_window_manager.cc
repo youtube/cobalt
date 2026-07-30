@@ -50,7 +50,7 @@ void AndroidPaymentsWindowManager::OnWebContentsObservationStarted(
     content::WebContents& web_contents) {
   if (ContentAutofillClient* client =
           ContentAutofillClient::FromWebContents(&web_contents)) {
-    if (payments::PaymentsAutofillClient* payments_client =
+    if (PaymentsAutofillClient* payments_client =
             client->GetPaymentsAutofillClient()) {
       payments_client->DisablePaymentsAutofill();
     }

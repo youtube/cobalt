@@ -41,6 +41,7 @@
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -230,16 +231,16 @@ TEST_F(BrowserViewTest, MAYBE_UpdateActiveBrowser) {
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_EQ(browser(), GetLastActiveBrowserWindowInterfaceWithAnyProfile());
 
-  browser2->window()->Show();
+  browser2->GetWindow()->Show();
   EXPECT_EQ(browser2, GetLastActiveBrowserWindowInterfaceWithAnyProfile());
 
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
   EXPECT_EQ(browser(), GetLastActiveBrowserWindowInterfaceWithAnyProfile());
 
-  browser2->window()->Activate();
+  browser2->GetWindow()->Activate();
   EXPECT_EQ(browser2, GetLastActiveBrowserWindowInterfaceWithAnyProfile());
 
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
   EXPECT_EQ(browser(), GetLastActiveBrowserWindowInterfaceWithAnyProfile());
 
   browser2 = nullptr;
@@ -431,6 +432,24 @@ TEST_F(BrowserViewTest, FindBrowserWindowWithWebContentsTabSwitch) {
       BrowserWindow::FindBrowserWindowWithWebContents(new_active_contents));
 }
 
+// Tests that BrowserWindow::FromBrowser() resolves to the same BrowserWindow as
+// Browser::window(), and handles edge cases.
+TEST_F(BrowserViewTest, FromBrowser) {
+  // For a fully-constructed BrowserView-backed Browser the result must be
+  // identical to the legacy Browser::window() getter.
+  EXPECT_EQ(browser()->window(),  // nocheck
+            BrowserWindow::FromBrowser(browser()));
+  // The result must also match the BrowserView-specific lookup.
+  EXPECT_EQ(browser_view(), BrowserWindow::FromBrowser(browser()));
+
+  // Null input is tolerated and yields null output, mirroring the behavior
+  // callers previously got from a defensive `browser ? browser->window() :
+  // nullptr` pattern. Cast disambiguates between the const/non-const
+  // overloads.
+  EXPECT_EQ(nullptr, BrowserWindow::FromBrowser(
+                         static_cast<BrowserWindowInterface*>(nullptr)));
+}
+
 // On macOS, most accelerators are handled by CommandDispatcher.
 #if !BUILDFLAG(IS_MAC)
 // Test that repeated accelerators are processed or ignored depending on the
@@ -457,13 +476,13 @@ TEST_F(BrowserViewTest, UpdateWindowTitle) {
   AddTab(browser(), GURL("about:blank"));
   AddTab(browser(), GURL("about:blank"));
   std::string user_title1 = "Test Title";
-  browser()->SetWindowUserTitle(user_title1);
+  WindowMetadataController::From(browser())->SetWindowUserTitle(user_title1);
   auto window_title = browser_view()->GetAccessibleWindowTitle();
   EXPECT_EQ(base::UTF8ToUTF16(user_title1),
             window_title.substr(0, user_title1.size()));
 
   std::string user_title2 = "Test Title 2";
-  browser()->SetWindowUserTitle(user_title2);
+  WindowMetadataController::From(browser())->SetWindowUserTitle(user_title2);
   window_title = browser_view()->GetAccessibleWindowTitle();
   EXPECT_EQ(base::UTF8ToUTF16(user_title2),
             window_title.substr(0, user_title2.size()));

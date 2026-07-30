@@ -1,12 +1,15 @@
 include_rules = [
   # keep-sorted start
   "+components/account_settings",
+  "+components/personal_context",
+  "+components/subscription_eligibility",
   "+components/wallet/core/browser",
   "+ios/chrome/browser/account_settings/model",
   "+ios/chrome/browser/history/model",
   "+ios/chrome/browser/infobars/model",
   "+ios/chrome/browser/optimization_guide/model",
   "+ios/chrome/browser/signin/model",
+  "+ios/chrome/browser/subscription_eligibility/model",
   "+ios/chrome/browser/sync/model",
   "+ios/chrome/browser/webdata_services/model",
   # keep-sorted end

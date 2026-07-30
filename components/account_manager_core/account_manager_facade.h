@@ -12,8 +12,6 @@
 #include "base/functional/callback.h"
 #include "base/observer_list_types.h"
 #include "components/account_manager_core/account.h"
-#include "components/account_manager_core/account_manager_metrics.h"
-#include "components/account_manager_core/account_upsertion_result.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 
 class OAuth2AccessTokenFetcher;
@@ -29,8 +27,6 @@ namespace account_manager {
 // instance of this class.
 class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacade {
  public:
-  using AccountAdditionSource = account_manager::AccountAdditionSource;
-
   // Observer interface to get notifications about changes in the account list.
   class Observer : public base::CheckedObserver {
    public:
@@ -75,29 +71,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacade {
   virtual void GetPersistentErrorForAccount(
       const AccountKey& account,
       base::OnceCallback<void(const GoogleServiceAuthError&)> callback) = 0;
-
-  // Launches account addition dialog.
-  virtual void ShowAddAccountDialog(AccountAdditionSource source) = 0;
-
-  // Launches account addition dialog and calls the `callback` with the result.
-  // If `result` is `kSuccess`, the added account will be passed to the
-  // callback. Otherwise `account` will be set to `std::nullopt`.
-  virtual void ShowAddAccountDialog(
-      AccountAdditionSource source,
-      base::OnceCallback<void(const AccountUpsertionResult& result)>
-          callback) = 0;
-
-  // Launches account reauthentication dialog for provided `email`.
-  // Note: the added/reauthenticated account may not match the account provided
-  // in the `email` field if user decided to edit the email inside the dialog.
-  virtual void ShowReauthAccountDialog(
-      AccountAdditionSource source,
-      const std::string& email,
-      base::OnceCallback<void(const AccountUpsertionResult& result)>
-          callback) = 0;
-
-  // Launches OS Settings > Accounts.
-  virtual void ShowManageAccountsSettings() = 0;
 
   // Creates an access token fetcher for `account`.
   // Currently, `account` must be a Gaia account.

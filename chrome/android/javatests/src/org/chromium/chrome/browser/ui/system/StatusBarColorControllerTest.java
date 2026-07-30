@@ -126,8 +126,7 @@ public class StatusBarColorControllerTest {
                 });
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    activity.getLayoutManager()
-                            .showLayout(LayoutType.TAB_SWITCHER, /* animate= */ false);
+                    activity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ false);
                 });
 
         waitForStatusBarColor(activity, expectedOverviewIncognitoColor);
@@ -160,8 +159,7 @@ public class StatusBarColorControllerTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    activity.getLayoutManager()
-                            .showLayout(LayoutType.TAB_SWITCHER, /* animate= */ false);
+                    activity.getLayoutManager().showLayout(LayoutType.HUB, /* animate= */ false);
                 });
         waitForStatusBarColor(activity, expectedDefaultStandardColor);
     }

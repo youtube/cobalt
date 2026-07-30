@@ -9,6 +9,9 @@
 #include "base/memory/ref_counted.h"
 #include "chrome/browser/extensions/external_loader.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class PrefService;
 

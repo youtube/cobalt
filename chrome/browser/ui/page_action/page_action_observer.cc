@@ -82,6 +82,9 @@ PageActionObserverImpl::~PageActionObserverImpl() = default;
 
 void PageActionObserverImpl::RegisterAsPageActionObserver(
     PageActionController& controller) {
+  if (!controller.ActionExists(action_id_)) {
+    return;
+  }
   controller.AddObserver(action_id_, observation_);
   page_action_ = ModelToState(action_id_, *observation_.GetSource());
 }

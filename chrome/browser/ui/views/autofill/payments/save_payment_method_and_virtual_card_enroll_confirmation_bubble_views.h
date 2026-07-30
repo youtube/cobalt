@@ -37,7 +37,6 @@ class SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews
   void AddedToWidget() override;
   std::u16string GetWindowTitle() const override;
   void WindowClosing() override;
-  void OnWidgetInitialized() override;
 
  private:
   ~SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews() override;

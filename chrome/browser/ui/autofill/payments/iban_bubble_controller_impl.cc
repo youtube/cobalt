@@ -14,10 +14,7 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
 #include "chrome/browser/ui/autofill/payments/save_iban_ui.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/common/webui_url_constants.h"
@@ -30,6 +27,7 @@
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
@@ -151,13 +149,7 @@ void IbanBubbleControllerImpl::ShowConfirmationBubbleView(
                        CreateForSaveIbanFailure(hit_max_strikes);
 
   // Show upload confirmation bubble.
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents());
-  AutofillBubbleHandler* autofill_bubble_handler =
-      browser->GetBrowserForMigrationOnly()
-          ->window()
-          ->GetAutofillBubbleHandler();
+  AutofillBubbleHandler* autofill_bubble_handler = GetAutofillBubbleHandler();
   SetBubbleView(*autofill_bubble_handler->ShowSaveIbanConfirmationBubble(
       web_contents(), this));
   UpdatePageActionIcon();
@@ -318,10 +310,11 @@ void IbanBubbleControllerImpl::OnLegalMessageLinkClicked(const GURL& url) {
 
 void IbanBubbleControllerImpl::OnManageSavedIbanExtraButtonClicked() {
   CHECK(current_bubble_type_ == IbanBubbleType::kManageSavedIban);
-  chrome::ShowSettingsSubPage(
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents()),
-      chrome::kPaymentsSubPage);
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents());
+  CHECK(tab);
+  CHECK(tab->GetBrowserWindowInterface());
+  chrome::ShowSettingsSubPage(tab->GetBrowserWindowInterface(),
+                              chrome::kPaymentsSubPage);
   OnBubbleClosed(PaymentsUiClosedReason::kClosed);
 }
 
@@ -494,13 +487,7 @@ IbanBubbleControllerImpl::GetPageActionTooltipText() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 void IbanBubbleControllerImpl::DoShowBubble() {
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents());
-  AutofillBubbleHandler* autofill_bubble_handler =
-      browser->GetBrowserForMigrationOnly()
-          ->window()
-          ->GetAutofillBubbleHandler();
+  AutofillBubbleHandler* autofill_bubble_handler = GetAutofillBubbleHandler();
   SetBubbleView(*autofill_bubble_handler->ShowIbanBubble(
       web_contents(), this,
       /*is_user_gesture=*/is_reshow_, current_bubble_type_));
@@ -552,6 +539,14 @@ Profile* IbanBubbleControllerImpl::GetProfile() {
     return nullptr;
   }
   return Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+}
+
+AutofillBubbleHandler* IbanBubbleControllerImpl::GetAutofillBubbleHandler() {
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents());
+  CHECK(tab);
+  BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
+  CHECK(browser);
+  return AutofillBubbleHandler::Get(browser->GetUnownedUserDataHost());
 }
 
 void IbanBubbleControllerImpl::ShowIconOnly() {

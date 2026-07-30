@@ -12,6 +12,7 @@
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "chrome/browser/notifications/scheduler/public/notification_data.h"
+#include "chrome/browser/tips/core/tips_types.h"
 
 namespace notifications {
 namespace stats {
@@ -46,25 +47,25 @@ std::string ToHistogramSuffix(SchedulerClientType client_type) {
 // Returns the histogram tips suffix for a feature type. Should match suffix
 // NotificationTipsFeatureType in histograms.xml.
 std::string ToHistogramTipsFeatureSuffix(
-    TipsNotificationsFeatureType feature_type) {
+    tips::TipsNotificationsFeatureType feature_type) {
   switch (feature_type) {
-    case TipsNotificationsFeatureType::kEnhancedSafeBrowsing:
+    case tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing:
       return ".EnhancedSafeBrowsing";
-    case TipsNotificationsFeatureType::kQuickDelete:
+    case tips::TipsNotificationsFeatureType::kQuickDelete:
       return ".QuickDelete";
-    case TipsNotificationsFeatureType::kGoogleLens:
+    case tips::TipsNotificationsFeatureType::kGoogleLens:
       return ".GoogleLens";
-    case TipsNotificationsFeatureType::kBottomOmnibox:
+    case tips::TipsNotificationsFeatureType::kBottomOmnibox:
       return ".BottomOmnibox";
-    case TipsNotificationsFeatureType::kPasswordAutofill:
+    case tips::TipsNotificationsFeatureType::kPasswordAutofill:
       return ".PasswordAutofill";
-    case TipsNotificationsFeatureType::kSignin:
+    case tips::TipsNotificationsFeatureType::kSignin:
       return ".Signin";
-    case TipsNotificationsFeatureType::kCreateTabGroups:
+    case tips::TipsNotificationsFeatureType::kCreateTabGroups:
       return ".CreateTabGroups";
-    case TipsNotificationsFeatureType::kCustomizeMVT:
+    case tips::TipsNotificationsFeatureType::kCustomizeMVT:
       return ".CustomizeMVT";
-    case TipsNotificationsFeatureType::kRecentTabs:
+    case tips::TipsNotificationsFeatureType::kRecentTabs:
       return ".RecentTabs";
     default:
       NOTREACHED();
@@ -87,7 +88,7 @@ template <typename T>
 void LogHistogramEnumWithTipsFeatureSuffix(
     std::string_view name,
     T value,
-    TipsNotificationsFeatureType feature_type) {
+    tips::TipsNotificationsFeatureType feature_type) {
   base::UmaHistogramEnumeration(name, value);
   base::UmaHistogramEnumeration(
       base::StrCat({name, ToHistogramTipsFeatureSuffix(feature_type)}), value);
@@ -130,13 +131,13 @@ void LogNotificationLifeCycleEvent(NotificationLifeCycleEvent event,
 
 void LogTipsNotificationFeatureTypeAction(
     UserActionType action,
-    TipsNotificationsFeatureType feature_type) {
+    tips::TipsNotificationsFeatureType feature_type) {
   LogHistogramEnumWithTipsFeatureSuffix(
       "Notifications.Scheduler.Tips.FeatureTypeAction", action, feature_type);
 }
 
 void LogTipsNotificationFeatureTypeShown(
-    TipsNotificationsFeatureType feature_type) {
+    tips::TipsNotificationsFeatureType feature_type) {
   base::UmaHistogramEnumeration("Notifications.Scheduler.Tips.FeatureTypeShown",
                                 feature_type);
 }

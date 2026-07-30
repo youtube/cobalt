@@ -137,7 +137,6 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/test_browser_window_aura.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -777,7 +776,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
   void InitShelfControllerWithBrowser() {
     InitShelfController();
     chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
-    browser()->window()->Show();
+    browser()->GetWindow()->Show();
   }
 
   // Destroy the controller instance and clear the local pointer.
@@ -1605,7 +1604,7 @@ class MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest
         CreateBrowserWithTestWindowForProfile(profile));
     chrome::NewTab(browser.get(), NewTabTypes::kNoUserAction);
 
-    browser->window()->Show();
+    browser->GetWindow()->Show();
     NavigateAndCommitActiveTabWithTitle(browser.get(), GURL(url),
                                         ASCIIToUTF16(title));
     return browser;
@@ -3681,7 +3680,7 @@ TEST_F(ChromeShelfControllerTest, BrowserMenuGeneration) {
   CheckAppMenu(shelf_controller_.get(), item_browser, 0, nullptr);
 
   // Now make the created browser() visible by showing its browser window.
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
   std::u16string title1 = u"Test1";
   NavigateAndCommitActiveTabWithTitle(browser(), GURL("http://test1"), title1);
   std::u16string one_menu_item[] = {title1};
@@ -3692,7 +3691,7 @@ TEST_F(ChromeShelfControllerTest, BrowserMenuGeneration) {
   std::unique_ptr<Browser> browser2(
       CreateBrowserWithTestWindowForProfile(profile()));
   chrome::NewTab(browser2.get(), NewTabTypes::kNoUserAction);
-  browser2->window()->Show();
+  browser2->GetWindow()->Show();
   std::u16string title2 = u"Test2";
   NavigateAndCommitActiveTabWithTitle(browser2.get(), GURL("http://test2"),
                                       title2);
@@ -3721,7 +3720,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   CheckAppMenu(shelf_controller_.get(), item_browser, 0, nullptr);
 
   // Show the created |browser()| by showing its window.
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
   std::u16string title = u"Test";
   NavigateAndCommitActiveTabWithTitle(browser(), GURL("http://test"), title);
   std::u16string one_menu_item[] = {title};

@@ -6,10 +6,8 @@ source_set("coordinator") {
   sources = [
     "tab_picker_coordinator.h",
     "tab_picker_coordinator.mm",
-    "tab_picker_logger.h",
     "tab_picker_mediator.h",
     "tab_picker_mediator.mm",
-    "tab_picker_snackbar_presenter.h",
   ]
   deps = [
     "//base",
@@ -22,6 +20,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/snapshots/model",
+    "//ios/chrome/browser/tab_picker/public",
     "//ios/chrome/browser/tab_picker/ui",
     "//ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator:mediator",
     "//ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui",

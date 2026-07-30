@@ -105,7 +105,7 @@ TrustedVaultServiceFactory::TrustedVaultServiceFactory()
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
               // TODO(crbug.com/40257657): Check if this service is needed in
-              // Guest mode. Currently it is required due to dependant services
+              // Guest mode. Currently it is required due to dependent services
               // (e.g. SyncService) that have similar TODO, if they stop being
               // used in Guest mode, this service could stop to be used as well.
               .WithGuest(ProfileSelection::kOriginalOnly)

@@ -4,6 +4,8 @@
 
 #include "chromeos/ash/components/nearby/presence/credentials/nearby_presence_credential_manager_impl.h"
 
+#include <array>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/time/clock.h"
@@ -40,7 +42,7 @@ const base::TimeDelta kServerResponseTimeout = base::Seconds(5);
 constexpr int kServerCommunicationMaxAttempts = 5;
 const base::TimeDelta kSyncCredentialsDailyTimePeriod = base::Hours(24);
 constexpr int kMaxUpdateCredentialRequestCount = 6;
-std::vector<base::TimeDelta> kUpdateCredentialCoolDownPeriods = {
+constexpr std::array<base::TimeDelta, 7> kUpdateCredentialCoolDownPeriods = {
     base::Seconds(0), base::Seconds(15), base::Seconds(30), base::Minutes(1),
     base::Minutes(2), base::Minutes(5),  base::Minutes(10)};
 

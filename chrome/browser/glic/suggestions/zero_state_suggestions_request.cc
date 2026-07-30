@@ -180,8 +180,8 @@ void ZeroStateSuggestionsRequest::OnAllPageContextExtracted(
         identity_manager_->FindExtendedAccountInfoByAccountId(
             primary_account.account_id);
     account_can_use_private_ai =
-        extended_info.capabilities.can_use_model_execution_features() ==
-        signin::Tribool::kTrue;
+        extended_info.GetAccountCapabilities()
+            .can_use_model_execution_features() == signin::Tribool::kTrue;
   }
 
   optimization_guide::ModelExecutionServiceType service_type =

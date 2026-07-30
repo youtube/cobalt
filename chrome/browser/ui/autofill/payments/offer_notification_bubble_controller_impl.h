@@ -22,6 +22,7 @@ class TabInterface;
 
 namespace autofill {
 
+class AutofillBubbleHandler;
 struct OfferNotificationOptions;
 
 // Implementation of per-tab class to control the offer notification bubble and
@@ -97,6 +98,8 @@ class OfferNotificationBubbleControllerImpl
       OfferNotificationBubbleControllerImpl>;
   friend class OfferNotificationBubbleControllerImplTest;
   friend class OfferNotificationBubbleViewsTestBase;
+
+  AutofillBubbleHandler* GetAutofillBubbleHandler();
 
   // Configures the controller's state for displaying an offer notification.
   // This includes setting the offer data and the linked card, if any.

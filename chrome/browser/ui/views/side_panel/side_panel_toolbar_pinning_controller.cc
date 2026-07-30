@@ -118,6 +118,12 @@ void SidePanelToolbarPinningController::UpdatePinState(
                                               updated_pin_state);
 }
 
+bool SidePanelToolbarPinningController::ShouldShowActiveInToolbar(
+    const SidePanelEntry* entry) {
+  return entry && (entry->should_show_ephemerally_in_toolbar() ||
+                   GetPinnedStateFor(entry->key()));
+}
+
 void SidePanelToolbarPinningController::UpdateActiveState(
     SidePanelEntryKey key,
     bool show_active_in_toolbar) {

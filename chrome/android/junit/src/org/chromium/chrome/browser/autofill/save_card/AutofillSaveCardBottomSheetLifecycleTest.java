@@ -112,7 +112,7 @@ public class AutofillSaveCardBottomSheetLifecycleTest {
 
     @Test
     public void testStartedShowing_whenLayoutTypeIsNotBrowsing() {
-        mLifecycle.onStartedShowing(LayoutType.TAB_SWITCHER);
+        mLifecycle.onStartedShowing(LayoutType.HUB);
         verify(mDelegate).onIgnored();
     }
 
@@ -124,9 +124,9 @@ public class AutofillSaveCardBottomSheetLifecycleTest {
 
     @Test
     public void testStartedShowing_whenLayoutTypeIsNotBrowsing_whenCalledAgain() {
-        mLifecycle.onStartedShowing(LayoutType.TAB_SWITCHER);
+        mLifecycle.onStartedShowing(LayoutType.HUB);
         clearInvocations(mDelegate);
-        mLifecycle.onStartedShowing(LayoutType.TAB_SWITCHER);
+        mLifecycle.onStartedShowing(LayoutType.HUB);
 
         verifyNoInteractions(mDelegate);
     }

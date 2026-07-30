@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.touch_to_fill.payments;
 import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getCardIcon;
 import static org.chromium.chrome.browser.autofill.AutofillUiUtils.getValuableIcon;
 import static org.chromium.chrome.browser.autofill.AutofillUiUtils.openLink;
-import static org.chromium.chrome.browser.touch_to_fill.common.TouchToFillViewBase.MAX_FULLY_VISIBLE_SUGGESTION_COUNT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.APPLY_ISSUER_DEACTIVATED_STYLE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_LINKED;
@@ -95,6 +94,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TosFooterProperties.LINK_OPENER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.VISIBLE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodViewBinder.GRAYED_OUT_OPACITY_ALPHA;
+import static org.chromium.components.browser_ui.bottomsheet.BottomSheetListViewBase.MAX_FULLY_VISIBLE_LIST_ITEM_COUNT;
 
 import android.content.Context;
 import android.graphics.Typeface;
@@ -472,6 +472,7 @@ class TouchToFillPaymentMethodMediator implements AutofillImageFetcher.Observer 
     private PrefChangeRegistrar mPrefChangeRegistrar;
     private AutofillImageFetcher mImageFetcher;
     private boolean mDidShowBoldedAiTerms;
+    private boolean mWasDismissed;
 
     void initialize(
             Context context,
@@ -550,10 +551,10 @@ class TouchToFillPaymentMethodMediator implements AutofillImageFetcher.Observer 
 
                 // The 1-based index of the BNPL suggestion in mSuggestions.
                 int bnplSuggestionPosition = i + 1;
-                if (bnplSuggestionPosition <= MAX_FULLY_VISIBLE_SUGGESTION_COUNT) {
+                if (bnplSuggestionPosition <= MAX_FULLY_VISIBLE_LIST_ITEM_COUNT) {
                     mBnplSuggestionVisibility =
                             TouchToFillBnplSuggestionVisibility.STARTED_FULLY_VISIBLE;
-                } else if (bnplSuggestionPosition == MAX_FULLY_VISIBLE_SUGGESTION_COUNT + 1) {
+                } else if (bnplSuggestionPosition == MAX_FULLY_VISIBLE_LIST_ITEM_COUNT + 1) {
                     mBnplSuggestionVisibility =
                             TouchToFillBnplSuggestionVisibility.STARTED_PARTIALLY_VISIBLE;
                 } else {
@@ -1016,7 +1017,8 @@ class TouchToFillPaymentMethodMediator implements AutofillImageFetcher.Observer 
     // TODO(crbug.com/461545861): Split logic by screen (e.g. BNPL_ISSUER_SELECTION_SCREEN) instead
     // of the type of payment method set (e.g. mIbans).
     public void onDismissed(@StateChangeReason int reason) {
-        if (!mModel.get(VISIBLE)) return; // Dismiss only if not dismissed yet.
+        if (mWasDismissed) return;
+        mWasDismissed = true;
         mModel.set(VISIBLE, false);
         boolean dismissedByUser =
                 reason == StateChangeReason.SWIPE
@@ -1813,8 +1815,8 @@ class TouchToFillPaymentMethodMediator implements AutofillImageFetcher.Observer 
         // These metrics are only logged when touch exploration is disabled. With touch exploration,
         // the bottom sheet opens to its full height, so all suggestions are visible. Without it,
         // the sheet opens to half height, guaranteeing that at most
-        // MAX_FULLY_VISIBLE_SUGGESTION_COUNT suggestions are fully visible initially. For more
-        // information, see TouchToFillViewBase.java.
+        // MAX_FULLY_VISIBLE_LIST_ITEM_COUNT list items are fully visible initially. For more
+        // information, see BottomSheetListViewBase.java.
         if (AccessibilityState.isTouchExplorationEnabled()) return;
 
         boolean wasSuggestionSelected =

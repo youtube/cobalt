@@ -150,6 +150,7 @@ class OpenXrGraphicsBinding {
   // XrCompositionLayerImageLayoutFB. Otherwise, return null. The return value
   // should be set to the "next" field of the XrCompositionLayer* struct.
   const void* GetFlipLayerLayout() const;
+  const void* GetFlipLayerLayout(OpenXrCompositionLayer& layer) const;
 
   // We check if the base layer is using shared images.
   bool IsUsingSharedImages() const;

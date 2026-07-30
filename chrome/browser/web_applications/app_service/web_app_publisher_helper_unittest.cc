@@ -24,7 +24,9 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/fake_web_app_ui_manager.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -39,6 +41,7 @@
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/account_id/account_id.h"
 #include "components/prefs/pref_service.h"
@@ -47,6 +50,7 @@
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
+#include "components/services/app_service/public/cpp/intent_filter_util.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "content/public/common/content_features.h"
@@ -438,5 +442,161 @@ TEST_F(WebAppPublisherHelperTest_WebLockScreenApi, CreateWebApp_LockScreen) {
 
   EXPECT_TRUE(HandlesIntent(app, apps_util::CreateStartOnLockScreenIntent()));
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+class WebAppPublisherHelperNavigationCapturingTest
+    : public WebAppPublisherHelperTest {
+ public:
+  WebAppPublisherHelperNavigationCapturingTest() = default;
+
+  void SetUpFeature(apps::test::LinkCapturingFeatureVersion version) {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        apps::test::GetFeaturesToEnableLinkCapturingUX(version), {});
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(WebAppPublisherHelperNavigationCapturingTest,
+       LinkCapturingDefaultOn_WebAppIsPreferred) {
+  SetUpFeature(apps::test::LinkCapturingFeatureVersion::kV2DefaultOn);
+
+  const GURL start_url("https://example.com/start");
+  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
+  info->title = u"PWA Test App";
+  info->scope = start_url.GetWithoutFilename();
+
+  webapps::AppId app_id = test::InstallWebApp(profile(), std::move(info));
+
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id));
+}
+
+TEST_F(WebAppPublisherHelperNavigationCapturingTest,
+       LinkCapturingDefaultOff_WebAppIsNotPreferred) {
+  SetUpFeature(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff);
+
+  const GURL start_url("https://example.com/start");
+  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
+  info->title = u"PWA Test App";
+  info->scope = start_url.GetWithoutFilename();
+
+  webapps::AppId app_id = test::InstallWebApp(profile(), std::move(info));
+
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
+  EXPECT_FALSE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id));
+}
+
+TEST_F(WebAppPublisherHelperNavigationCapturingTest, LinkCapturingClientMode) {
+  SetUpFeature(
+      apps::test::LinkCapturingFeatureVersion::kV2DefaultOnViaClientMode);
+
+  // App 1: Client mode NOT specified in launch handler.
+  const GURL start_url1("https://example1.com/start");
+  auto info1 = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url1);
+  info1->title = u"PWA Test App 1";
+  info1->scope = start_url1.GetWithoutFilename();
+
+  webapps::AppId app_id1 = test::InstallWebApp(profile(), std::move(info1));
+
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
+  EXPECT_FALSE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id1));
+
+  // App 2: Client mode specified in launch handler.
+  const GURL start_url2("https://example2.com/start");
+  auto info2 = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url2);
+  info2->title = u"PWA Test App 2";
+  info2->scope = start_url2.GetWithoutFilename();
+  info2->launch_handler = LaunchHandler{LaunchHandler::ClientMode::kAuto};
+
+  webapps::AppId app_id2 = test::InstallWebApp(profile(), std::move(info2));
+
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id2));
+}
+
+TEST_F(WebAppPublisherHelperNavigationCapturingTest,
+       LinkCapturingDefaultOn_ArcPrecedence) {
+  SetUpFeature(apps::test::LinkCapturingFeatureVersion::kV2DefaultOn);
+
+  const GURL start_url("https://example.com/start");
+
+  // Set non-web ARC/Android app as preferred first.
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
+  const std::string arc_app_id = "arc_app_id";
+
+  // Set up ARC app in registry.
+  auto arc_app = std::make_unique<apps::App>(apps::AppType::kArc, arc_app_id);
+  arc_app->readiness = apps::Readiness::kReady;
+  std::vector<apps::AppPtr> apps;
+  apps.push_back(std::move(arc_app));
+  proxy->OnApps(std::move(apps), apps::AppType::kArc,
+                /*should_notify_initialized=*/true);
+
+  // Set the ARC app as preferred for the intent filter.
+  apps::IntentFilters filters;
+  filters.push_back(
+      apps_util::MakeIntentFilterForUrlScope(start_url.GetWithoutFilename()));
+  proxy->SetSupportedLinksPreference(arc_app_id, std::move(filters));
+  ASSERT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(arc_app_id));
+
+  // Install a web app with the same scope.
+  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
+  info->title = u"PWA Test App";
+  info->scope = start_url.GetWithoutFilename();
+
+  webapps::AppId web_app_id = test::InstallWebApp(profile(), std::move(info));
+
+  // The ARC app should stay as the preferred app.
+  EXPECT_FALSE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(web_app_id));
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(arc_app_id));
+}
+
+TEST_F(WebAppPublisherHelperNavigationCapturingTest,
+       EffectiveScopeChanged_UpdateScopeExtensions) {
+  SetUpFeature(apps::test::LinkCapturingFeatureVersion::kV2DefaultOn);
+
+  const GURL start_url_a("https://example.com/start");
+  auto info_a = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url_a);
+  info_a->title = u"App A";
+  info_a->scope = start_url_a.GetWithoutFilename();
+  webapps::AppId app_id_a = test::InstallWebApp(profile(), std::move(info_a));
+
+  const GURL start_url_b("https://example.com/inner/start");
+  auto info_b = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url_b);
+  info_b->title = u"App B";
+  info_b->scope = start_url_b.GetWithoutFilename();
+  webapps::AppId app_id_b = test::InstallWebApp(profile(), std::move(info_b));
+
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id_a));
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id_b));
+
+  const GURL extended_url("https://example.org/");
+  {
+    ScopedRegistryUpdate update = provider().sync_bridge_unsafe().BeginUpdate();
+    WebApp* web_app_a = update->UpdateApp(app_id_a);
+    ASSERT_TRUE(web_app_a);
+    web_app_a->SetValidatedScopeExtensions({ScopeExtensionInfo::CreateForOrigin(
+        url::Origin::Create(extended_url))});
+  }
+
+  provider().registrar_unsafe().NotifyWebAppEffectiveScopeChanged(app_id_a);
+
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id_a));
+  EXPECT_EQ(proxy->PreferredAppsList().FindPreferredAppForUrl(extended_url),
+            app_id_a);
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace web_app

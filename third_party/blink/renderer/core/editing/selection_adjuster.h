@@ -27,23 +27,23 @@ class CORE_EXPORT SelectionAdjuster final {
   STATIC_ONLY(SelectionAdjuster);
 
  public:
-  static SelectionInDOMTree AdjustSelectionRespectingGranularity(
-      const SelectionInDOMTree&,
+  static SelectionInDomTree AdjustSelectionRespectingGranularity(
+      const SelectionInDomTree&,
       TextGranularity,
       const WordInclusion);
   static SelectionInFlatTree AdjustSelectionRespectingGranularity(
       const SelectionInFlatTree&,
       TextGranularity,
       const WordInclusion);
-  static SelectionInDOMTree AdjustSelectionToAvoidCrossingShadowBoundaries(
-      const SelectionInDOMTree&);
+  static SelectionInDomTree AdjustSelectionToAvoidCrossingShadowBoundaries(
+      const SelectionInDomTree&);
   static SelectionInFlatTree AdjustSelectionToAvoidCrossingShadowBoundaries(
       const SelectionInFlatTree&);
-  static SelectionInDOMTree AdjustSelectionToAvoidCrossingEditingBoundaries(
-      const SelectionInDOMTree&);
+  static SelectionInDomTree AdjustSelectionToAvoidCrossingEditingBoundaries(
+      const SelectionInDomTree&);
   static SelectionInFlatTree AdjustSelectionToAvoidCrossingEditingBoundaries(
       const SelectionInFlatTree&);
-  static SelectionInDOMTree AdjustSelectionType(const SelectionInDOMTree&);
+  static SelectionInDomTree AdjustSelectionType(const SelectionInDomTree&);
   static SelectionInFlatTree AdjustSelectionType(const SelectionInFlatTree&);
 };
 

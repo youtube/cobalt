@@ -57,6 +57,7 @@ import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.CloseWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
@@ -64,6 +65,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabmodel.TabPersistenceUtils;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tabwindow.WindowId;
@@ -829,6 +831,67 @@ public class MultiWindowUtils implements ActivityStateListener {
     }
 
     /**
+     * Removes the instance info for the given index.
+     *
+     * @param index The instance index.
+     * @param source The source of the window closure.
+     */
+    /* package */ static void removeInstanceInfo(int index, @CloseWindowAppSource int source) {
+        assert isMultiInstanceApi31Enabled();
+        ChromeMultiInstancePersistentStore.deleteInstanceState(index);
+        RecordHistogram.recordEnumeratedHistogram(
+                MultiInstanceManager.CLOSE_WINDOW_APP_SOURCE_HISTOGRAM,
+                source,
+                CloseWindowAppSource.NUM_ENTRIES);
+    }
+
+    /**
+     * Writes the tab count for the given index.
+     *
+     * @param index The instance index.
+     * @param selector The TabModelSelector to get the tab counts from.
+     */
+    /* package */ static void writeTabCount(int index, TabModelSelector selector) {
+        if (!selector.isTabStateInitialized()) return;
+        int tabCount = selector.getModel(false).getCount();
+        int incognitoTabCount = selector.getModel(true).getCount();
+        ChromeMultiInstancePersistentStore.writeTabCount(index, tabCount, incognitoTabCount);
+        if (tabCount == 0) {
+            ChromeMultiInstancePersistentStore.writeActiveTabUrl(index, "");
+            ChromeMultiInstancePersistentStore.writeActiveTabTitle(index, "");
+        }
+    }
+
+    /**
+     * Writes the active tab info for the given index.
+     *
+     * @param index The instance index.
+     * @param selector The TabModelSelector to get the tab models.
+     * @param activeTab The active tab, if any.
+     */
+    /* package */ static void writeActiveTabInfo(
+            int index, TabModelSelector selector, @Nullable Tab activeTab) {
+        Tab urlTab = null;
+        if (activeTab != null) {
+            ChromeMultiInstancePersistentStore.writeIncognitoSelected(
+                    index, activeTab.isIncognito());
+            urlTab =
+                    activeTab.isIncognito()
+                            ? TabModelUtils.getCurrentTab(selector.getModel(false))
+                            : activeTab;
+        }
+
+        if (urlTab != null) {
+            ChromeMultiInstancePersistentStore.writeActiveTabUrl(
+                    index, urlTab.getOriginalUrl().getSpec());
+            ChromeMultiInstancePersistentStore.writeActiveTabTitle(index, urlTab.getTitle());
+        } else {
+            ChromeMultiInstancePersistentStore.writeActiveTabUrl(index, "");
+            ChromeMultiInstancePersistentStore.writeActiveTabTitle(index, "");
+        }
+    }
+
+    /**
      * Determines if multiple instances of Chrome are running.
      *
      * @param context The current Context, used to retrieve the ActivityManager system service.
@@ -1291,6 +1354,32 @@ public class MultiWindowUtils implements ActivityStateListener {
                 true);
     }
 
+    /**
+     * Determines whether a new window should be opened adjacently (split-screen) or in full screen.
+     *
+     * <p>Different-mode window launches (regular-to-incognito or incognito-to-regular) are forced
+     * to open in full screen if the {@link ChromeFeatureList#INCOGNITO_AS_WINDOW_FULL_SCREEN}
+     * feature is enabled. Default behavior is to always open adjacently.
+     *
+     * @param activity The current activity initiating the launch.
+     * @param isTargetIncognito Whether the target window to be opened is incognito.
+     * @return {@code false} when the new window should be opened in full screen, {@code true} when
+     *     it should be opened adjacently (split-screen).
+     */
+    // TODO(crbug.com/520131322): Rename this method (and remove old one) once flag is removed.
+    /* package */ static boolean shouldOpenInAdjacentWindowUpdated(
+            Activity activity, boolean isTargetIncognito) {
+        boolean isSourceIncognito = false;
+        if (activity instanceof ChromeTabbedActivity) {
+            isSourceIncognito = ((ChromeTabbedActivity) activity).isIncognitoWindow();
+        }
+        if (isSourceIncognito != isTargetIncognito
+                && IncognitoUtils.isIncognitoAsWindowFullScreenEnabled()) {
+            return false;
+        }
+        return true;
+    }
+
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
     // LINT.IfChange(LaunchInInstanceEarlyFailureReason)
@@ -1635,6 +1724,18 @@ public class MultiWindowUtils implements ActivityStateListener {
         for (AppTask task : appTasks) {
             ActivityManager.RecentTaskInfo info = AndroidTaskUtils.getTaskInfoFromTask(task);
             if (info != null) results.add(info.taskId);
+        }
+        return results;
+    }
+
+    /* package */ static Map<Integer, AppTask> getAppTasksById(Context context) {
+        ActivityManager activityManager =
+                (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        List<AppTask> appTasks = activityManager.getAppTasks();
+        Map<Integer, AppTask> results = new HashMap<>();
+        for (AppTask task : appTasks) {
+            ActivityManager.RecentTaskInfo info = AndroidTaskUtils.getTaskInfoFromTask(task);
+            if (info != null) results.put(info.taskId, task);
         }
         return results;
     }

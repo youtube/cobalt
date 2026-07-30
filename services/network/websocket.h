@@ -229,6 +229,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) WebSocket : public mojom::WebSocket {
   // The channel we use to send events to the network.
   std::unique_ptr<net::WebSocketChannel> channel_;
 
+  const GURL url_;
+
   // Delay used for per-renderer WebSocket throttling.
   const base::TimeDelta delay_;
 

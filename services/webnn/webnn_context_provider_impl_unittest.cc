@@ -17,10 +17,6 @@
 #include "services/webnn/webnn_test_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif  // BUILDFLAG(IS_MAC)
-
 namespace webnn {
 
 // `WebNNContextProviderImplTest` only focuses on the non-supported platforms.
@@ -29,8 +25,8 @@ namespace webnn {
 //
 // For platforms using TFLite, `tflite::ContextImplTflite` is always available.
 
-#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(WEBNN_USE_TFLITE) && \
-    !BUILDFLAG(WEBNN_USE_LITERT)
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC) && \
+    !BUILDFLAG(WEBNN_USE_TFLITE) && !BUILDFLAG(WEBNN_USE_LITERT)
 
 class WebNNContextProviderImplTest : public testing::Test {
  public:
@@ -54,13 +50,6 @@ class WebNNContextProviderImplTest : public testing::Test {
 };
 
 TEST_F(WebNNContextProviderImplTest, NotSupported) {
-#if BUILDFLAG(IS_MAC)
-  if (base::mac::MacOSVersion() >= 13'00'00) {
-    GTEST_SKIP() << "Skipping test because WebNN is supported on Mac OS "
-                 << base::mac::MacOSVersion();
-  }
-#endif  // BUILDFLAG(IS_MAC)
-
   mojo::Remote<mojom::WebNNContextProvider> provider_remote;
 
   test_environment().BindWebNNContextProvider(

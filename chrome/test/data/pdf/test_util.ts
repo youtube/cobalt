@@ -7,11 +7,11 @@
 // clang-format off
 import './test_bookmarks.js';
 
-import type {DocumentDimensions, LayoutOptions, PdfViewerElement, SaveMessage, ViewerToolbarElement} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
+import type {DocumentDimensions, LayoutOptions, PdfViewerElement, SaveMessage, ViewerToolbarElement, TextAnnotation} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 import {PostMessageDataType, resetForTesting as resetMetricsForTesting, UserAction, Viewport} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 // <if expr="enable_pdf_ink2">
 import type {AnnotationBrush, AnnotationBrushMessage, InkBrushSelectorElement, InkColorSelectorElement, InkSizeSelectorElement, SelectableIconButtonElement, ViewerBottomToolbarDropdownElement} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
-import {AnnotationBrushType, DEFAULT_TEXTBOX_WIDTH, MIN_TEXTBOX_SIZE_PX, hexToColor, Ink2Manager, TEXT_COLORS, TextAlignment, TextStyle, PluginController, PluginControllerEventType} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
+import {AnnotationBrushType, DEFAULT_TEXTBOX_WIDTH, MIN_TEXTBOX_SIZE_PX, hexToColor, Ink2Manager, TEXT_COLORS, TextAlignment, PluginController, PluginControllerEventType, TextTypeface} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 // </if>
 // <if expr="enable_pdf_save_to_drive">
 import {SaveToDriveBubbleAction, SaveToDriveBubbleState, SaveToDriveSaveType } from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
@@ -780,36 +780,49 @@ export function assertDeepEquals(
 // a textbox may not actually be created if a click event is simulated in a part
 // of the viewport that doesn't contain a page.
 export function createTextBox() {
+  const annotation = getTestAnnotation(0);
+  annotation.text = '';
+  annotation.textAttributes.color = hexToColor(TEXT_COLORS[0]!.color);
+  annotation.textBoxRect = {
+    height: MIN_TEXTBOX_SIZE_PX,
+    locationX: 50,
+    locationY: 50,
+    width: DEFAULT_TEXTBOX_WIDTH,
+  };
   Ink2Manager.getInstance().dispatchEvent(
       new CustomEvent('initialize-text-box', {
         detail: {
-          annotation: {
-            id: 0,
-            mojoTextInfo: new ArrayBuffer(0),
-            newTypefaces: [],
-            pageIndex: 0,
-            pdfZoom: 1.0,
-            text: '',
-            textAttributes: {
-              alignment: TextAlignment.LEFT,
-              color: hexToColor(TEXT_COLORS[0]!.color),
-              size: 12,
-              styles: {
-                [TextStyle.BOLD]: false,
-                [TextStyle.ITALIC]: false,
-              },
-              typeface: 'sans-serif',
-            },
-            textBoxRect: {
-              height: MIN_TEXTBOX_SIZE_PX,
-              locationX: 50,
-              locationY: 50,
-              width: DEFAULT_TEXTBOX_WIDTH,
-            },
-            textOrientation: 0,
-          },
+          annotation,
           pageDimensions: {x: 10, y: 3, width: 390, height: 490},
         },
       }));
+}
+
+export function getTestAnnotation(id: number): TextAnnotation {
+  return {
+    id: id,
+    mojoTextInfo: new ArrayBuffer(0),
+    pageIndex: 0,
+    pdfZoom: 1.0,
+    text: 'Hello World',
+    textAttributes: {
+      typeface: TextTypeface.SANS_SERIF,
+      size: 12,
+      color: {r: 0, g: 100, b: 0},
+      alignment: TextAlignment.LEFT,
+      styles: {
+        bold: false,
+        italic: false,
+      },
+    },
+    textBoxRect: {
+      height: 35,
+      locationX: 60,
+      locationY: 25,
+      width: 50,
+    },
+    textOrientation: 0,
+    viewportOrientation: 0,
+  };
 }
 // </if>

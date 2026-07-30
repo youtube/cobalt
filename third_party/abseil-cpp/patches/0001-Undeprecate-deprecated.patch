@@ -167,3 +167,17 @@ index 3cb6940f182e7..dd699d4900ad6 100644
  
  template <class It, class OutIt>
  [[deprecated("Use std::move instead.")]]
+diff --git a/third_party/abseil-cpp/absl/meta/type_traits.h b/third_party/abseil-cpp/absl/meta/type_traits.h
+index 60b40c3bd4f3f..9d582702ebd5f 100644
+--- a/third_party/abseil-cpp/absl/meta/type_traits.h
++++ b/third_party/abseil-cpp/absl/meta/type_traits.h
+@@ -109,8 +109,7 @@ struct is_detected : is_detected_impl<void, Op, Args...>::type {};
+ // appear duplicated (and thus invalid) to the compiler prior to substitution
+ // taking place. Whenever possible, use `std::void_t` instead.
+ template <typename... Ts>
+-using void_t [[deprecated("Use std::void_t instead.")]] =
+-    typename type_traits_internal::VoidTImpl<Ts...>::type;
++using void_t = typename type_traits_internal::VoidTImpl<Ts...>::type;
+ 
+ // Historical note: Abseil once provided implementations of these type traits
+ // for platforms that lacked full support. New code should prefer to use the

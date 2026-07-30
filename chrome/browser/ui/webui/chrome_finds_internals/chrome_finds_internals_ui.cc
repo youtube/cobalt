@@ -65,23 +65,6 @@ class PageHandlerImpl : public mojom::PageHandler {
                        weak_ptr_factory_.GetWeakPtr()));
   }
 
-  void TriggerFindsTestNotification() override {
-    page_->LogMessageAdded("Triggering test notification via FindsService...");
-
-    if (!finds_service_) {
-      page_->LogMessageAdded("Error: FindsService not available.");
-      return;
-    }
-
-    bool success = finds_service_->ScheduleNotificationForInternalsPage();
-    page_->LogMessageAdded(
-        success ? "Test notification scheduled successfully. If the "
-                  "notification is not showing up, ensure you have the "
-                  "finds notification channel enabled and the bypass "
-                  "cooldowns feature param on."
-                : "Failed to schedule test notification.");
-  }
-
   void GetHistoryJson(int32_t history_count,
                       GetHistoryJsonCallback callback) override {
     if (history_count <= 0) {

@@ -11,6 +11,9 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeature;
 @NullMarked
 public interface SidePanelCoordinatorAndroid extends ChromeAndroidTaskFeature {
 
+    /** Initializes the coordinator and restores the active entry if one exists. */
+    void init();
+
     /**
      * Called when a window size change affects the side panel's visibility.
      *

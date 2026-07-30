@@ -11,6 +11,7 @@
 
 #include "ash/public/cpp/style/color_mode_observer.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/bitmap_fetcher/bitmap_fetcher_delegate.h"
@@ -19,6 +20,7 @@ class AppListControllerDelegate;
 class BitmapFetcher;
 class Profile;
 class FaviconCache;
+class TemplateURLService;
 
 namespace app_list {
 
@@ -28,8 +30,10 @@ class OmniboxResult : public ChromeSearchResult,
                       public BitmapFetcherDelegate,
                       public ash::ColorModeObserver {
  public:
+  // `template_url_service` must not be nullptr and must outlive this object.
   OmniboxResult(Profile* profile,
                 AppListControllerDelegate* list_controller,
+                TemplateURLService* template_url_service,
                 std::unique_ptr<OmniboxResultData> search_result,
                 const std::u16string& query,
                 FaviconCache* favicon_cache);
@@ -85,6 +89,7 @@ class OmniboxResult : public ChromeSearchResult,
 
   const raw_ptr<Profile> profile_;
   const raw_ptr<AppListControllerDelegate> list_controller_;
+  const raw_ref<TemplateURLService> template_url_service_;
   std::unique_ptr<OmniboxResultData> search_result_;
   const std::u16string query_;
   std::unique_ptr<BitmapFetcher> bitmap_fetcher_;

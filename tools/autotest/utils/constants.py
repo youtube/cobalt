@@ -162,6 +162,11 @@ JUNIT_TEST_ANNOTATION_REGEX = re.compile(r'^\s*@Test', flags=re.MULTILINE)
 ## ENUMS ##
 
 
+class TestType(Enum):
+  GTEST = 1
+  WEB = 2
+
+
 class TestValidity(Enum):
   NOT_A_TEST = 0  # Does not match test file regex.
   MAYBE_A_TEST = 1  # Matches test file regex, but doesn't include gtest files.

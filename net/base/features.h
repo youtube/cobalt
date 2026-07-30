@@ -35,12 +35,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kAsyncRetryOnTooManyConnectionErrors);
 // Disable H2 reprioritization, in order to measure its impact.
 NET_EXPORT BASE_DECLARE_FEATURE(kAvoidH2Reprioritization);
 
-// When kCapReferrerToOriginOnCrossOrigin is enabled, HTTP referrers on cross-
-// origin requests are restricted to contain at most the source origin.
-NET_EXPORT BASE_DECLARE_FEATURE(kCapReferrerToOriginOnCrossOrigin);
 
 // Enables the built-in DNS resolver.
 NET_EXPORT BASE_DECLARE_FEATURE(kAsyncDns);
+
+// Enables optimistic DNS for TCP.
+NET_EXPORT BASE_DECLARE_FEATURE(kOptimisticDnsForTcp);
 
 // Caches UDP connect() results in AddressSorterPosix.
 NET_EXPORT BASE_DECLARE_FEATURE(kAddressSorterConnectCache);

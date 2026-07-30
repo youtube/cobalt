@@ -31,10 +31,12 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.actor.ui.ActorUiTabController;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.new_tab_url.DseNewTabUrlManager;
 import org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
@@ -50,7 +52,6 @@ import java.util.Locale;
 /** Unit tests for {@link HomepageManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
 @DisableFeatures(ChromeFeatureList.GLIC)
 public class HomepageManagerTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -361,149 +362,6 @@ public class HomepageManagerTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testGetHomepageGurl_RegularNtpOverridden_OverridingDisabled() {
-        HomepageManager homepageManager = HomepageManager.getInstance();
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_ENABLED, true);
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_USE_CHROME_NTP, true);
-
-        ExtensionsUrlOverrideRegistry.setNtpOverrideEnabled(true);
-        UrlConstantResolverFactory.resetResolvers();
-
-        GURL originalNtp = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
-        GURL incognitoNtp = UrlConstantResolverFactory.getIncognitoResolver().getNtpGurl();
-
-        Assert.assertEquals(
-                "Regular homepage should be the native NTP URL.",
-                originalNtp,
-                homepageManager.getHomepageGurl(false));
-        Assert.assertEquals(
-                "Incognito homepage should be the native NTP URL for incognito.",
-                incognitoNtp,
-                homepageManager.getHomepageGurl(true));
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testGetHomepageGurl_IncognitoNtpOverridden_OverridingDisabled() {
-        HomepageManager homepageManager = HomepageManager.getInstance();
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_ENABLED, true);
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_USE_CHROME_NTP, true);
-
-        ExtensionsUrlOverrideRegistry.setIncognitoNtpOverrideEnabled(true);
-        UrlConstantResolverFactory.resetResolvers();
-
-        GURL originalNtp = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
-        GURL incognitoNtp = UrlConstantResolverFactory.getIncognitoResolver().getNtpGurl();
-
-        Assert.assertEquals(
-                "Regular homepage should be the native NTP URL.",
-                originalNtp,
-                homepageManager.getHomepageGurl(false));
-        Assert.assertEquals(
-                "Incognito homepage should be the native NTP URL for incognito.",
-                incognitoNtp,
-                homepageManager.getHomepageGurl(true));
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testGetHomepageGurl_BothNtpOverridden_OverridingDisabled() {
-        HomepageManager homepageManager = HomepageManager.getInstance();
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_ENABLED, true);
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_USE_CHROME_NTP, true);
-
-        ExtensionsUrlOverrideRegistry.setNtpOverrideEnabled(true);
-        ExtensionsUrlOverrideRegistry.setIncognitoNtpOverrideEnabled(true);
-        UrlConstantResolverFactory.resetResolvers();
-
-        GURL originalNtp = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
-        GURL incognitoNtp = UrlConstantResolverFactory.getIncognitoResolver().getNtpGurl();
-
-        Assert.assertEquals(
-                "Regular homepage should be the native NTP URL.",
-                originalNtp,
-                homepageManager.getHomepageGurl(false));
-        Assert.assertEquals(
-                "Incognito homepage should be the native NTP URL for incognito.",
-                incognitoNtp,
-                homepageManager.getHomepageGurl(true));
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testGetNtpUrl_ExtensionOverride_OverridingDisabled() {
-        ExtensionsUrlOverrideRegistry.setNtpOverrideEnabled(true);
-        UrlConstantResolverFactory.resetResolvers();
-
-        GURL nonNativeNtp = new GURL(getOriginalNtpUrl());
-        GURL nativeNtp = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
-        Assert.assertNotEquals(
-                "getNtpUrl should return native NTP when override is disabled by feature.",
-                nonNativeNtp,
-                nativeNtp);
-
-        ExtensionsUrlOverrideRegistry.setNtpOverrideEnabled(false);
-        UrlConstantResolverFactory.resetResolvers();
-
-        GURL nativeNtpAfterReset = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
-        Assert.assertEquals(
-                "getNtpUrl should still return native NTP when not overridden.",
-                nativeNtp,
-                nativeNtpAfterReset);
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testShouldCloseAppWithZeroTabs_NtpOverridden_OverridingDisabled() {
-        HomepageManager homepageManager = HomepageManager.getInstance();
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_ENABLED, true);
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_USE_CHROME_NTP, true);
-
-        Assert.assertFalse(
-                "Should not close with zero tabs if homepage is NTP.",
-                homepageManager.shouldCloseAppWithZeroTabs());
-
-        // Override NTP and check that the behavior is unchanged.
-        ExtensionsUrlOverrideRegistry.setNtpOverrideEnabled(true);
-        UrlConstantResolverFactory.resetResolvers();
-
-        Assert.assertFalse(
-                "Should not close with zero tabs if homepage is NTP, even with override"
-                        + " attempt.",
-                homepageManager.shouldCloseAppWithZeroTabs());
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testIsHomepageNonNtp_NtpOverridden_OverridingDisabled() {
-        HomepageManager homepageManager = HomepageManager.getInstance();
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_ENABLED, true);
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.HOMEPAGE_USE_CHROME_NTP, true);
-
-        Assert.assertFalse(
-                "Homepage should be considered NTP.", homepageManager.isHomepageNonNtp());
-
-        // Override NTP and check that the behavior is unchanged.
-        ExtensionsUrlOverrideRegistry.setNtpOverrideEnabled(true);
-        UrlConstantResolverFactory.resetResolvers();
-
-        Assert.assertFalse(
-                "Homepage should still be considered NTP when override is disabled.",
-                homepageManager.isHomepageNonNtp());
-    }
-
-    @Test
     @EnableFeatures(ChromeFeatureList.DISABLE_PARTNER_HOMEPAGE_ANDROID)
     public void testGetDefaultHomepageGurl_DisablePartnerHomepageAndroid() {
         HomepageManager homepageManager = HomepageManager.getInstance();
@@ -742,10 +600,13 @@ public class HomepageManagerTest {
     @Test
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testOpenHomepage_WithActiveTab_GlicEnabled_ActorActive_ConfirmDialogShown() {
+        GlicEnabling.setEnabledForTesting(true);
         HomepageManager homepageManager = HomepageManager.getInstance();
         HomepagePolicyManager.setHomepageForTesting(true, JUnitTestGURLs.EXAMPLE_URL, false);
 
         Tab tab = Mockito.mock(Tab.class);
+        Profile profile = Mockito.mock(Profile.class);
+        Mockito.doReturn(profile).when(tab).getProfile();
         UserDataHost userDataHost = new UserDataHost();
         Mockito.doReturn(userDataHost).when(tab).getUserDataHost();
         userDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);
@@ -783,10 +644,13 @@ public class HomepageManagerTest {
     @Test
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testOpenHomepage_WithActiveTab_GlicEnabled_ActorActive_ConfirmDialogNotShown() {
+        GlicEnabling.setEnabledForTesting(true);
         HomepageManager homepageManager = HomepageManager.getInstance();
         HomepagePolicyManager.setHomepageForTesting(true, JUnitTestGURLs.EXAMPLE_URL, false);
 
         Tab tab = Mockito.mock(Tab.class);
+        Profile profile = Mockito.mock(Profile.class);
+        Mockito.doReturn(profile).when(tab).getProfile();
         UserDataHost userDataHost = new UserDataHost();
         Mockito.doReturn(userDataHost).when(tab).getUserDataHost();
         userDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);
@@ -814,10 +678,13 @@ public class HomepageManagerTest {
     @Test
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testOpenHomepage_WithActiveTab_GlicEnabled_ActorNotActive() {
+        GlicEnabling.setEnabledForTesting(true);
         HomepageManager homepageManager = HomepageManager.getInstance();
         HomepagePolicyManager.setHomepageForTesting(true, JUnitTestGURLs.EXAMPLE_URL, false);
 
         Tab tab = Mockito.mock(Tab.class);
+        Profile profile = Mockito.mock(Profile.class);
+        Mockito.doReturn(profile).when(tab).getProfile();
         UserDataHost userDataHost = new UserDataHost();
         Mockito.doReturn(userDataHost).when(tab).getUserDataHost();
         userDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);

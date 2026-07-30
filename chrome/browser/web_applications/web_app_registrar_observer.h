@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_REGISTRAR_OBSERVER_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_REGISTRAR_OBSERVER_H_
 
+#include "base/containers/span.h"
 #include "base/observer_list_types.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -24,7 +25,7 @@ class WebAppRegistrarObserver : public base::CheckedObserver {
   // A call site may compare existing WebApp state from the registry against
   // this new WebApp state with sync changes applied.
   virtual void OnWebAppsWillBeUpdatedFromSync(
-      const std::vector<const WebApp*>& new_apps_state) {}
+      base::span<const WebApp* const> new_apps_state) {}
 
   virtual void OnAppRegistrarDestroyed() = 0;
 

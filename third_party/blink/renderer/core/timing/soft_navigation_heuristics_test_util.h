@@ -8,11 +8,9 @@
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 
 namespace blink {
-class Event;
 class EventTarget;
 class Node;
 class PerformanceEventTiming;
-class ScriptState;
 class TextRecord;
 
 PerformanceEventTiming* CreatePerformanceEventTimingForTest(

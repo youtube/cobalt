@@ -4,26 +4,55 @@
 
 #import "ios/chrome/browser/level_up/coordinator/level_up_task.h"
 
-@implementation LevelUpTask
+#import "base/memory/raw_ptr.h"
+#import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/level_up/model/task_info.h"
 
-- (instancetype)initWithTaskID:(NSString*)taskID
-                         title:(NSString*)title
-               taskDescription:(NSString*)taskDescription
-                iconSymbolName:(NSString*)iconSymbolName
-                     completed:(BOOL)completed
-                      category:(LevelUpTaskCategory)category
-              navigationAction:(void (^)(void))navigationAction {
+@implementation LevelUpTask {
+  raw_ptr<const TaskInfo> _taskInfo;
+}
+
+- (instancetype)initWithTaskInfo:(const TaskInfo*)taskInfo
+                       completed:(BOOL)completed {
   self = [super init];
   if (self) {
-    _taskID = [taskID copy];
-    _title = title;
-    _taskDescription = [taskDescription copy];
-    _iconSymbolName = [iconSymbolName copy];
+    _taskInfo = taskInfo;
     _completed = completed;
-    _category = category;
-    _navigationAction = [navigationAction copy];
   }
   return self;
+}
+
+#pragma mark - Computed Getters
+
+- (NSString*)taskID {
+  return base::SysUTF8ToNSString(TaskTypeToString(_taskInfo->GetTaskType()));
+}
+
+- (NSString*)title {
+  return base::SysUTF8ToNSString(_taskInfo->GetTitle());
+}
+
+- (NSString*)taskDescription {
+  return base::SysUTF8ToNSString(_taskInfo->GetTaskDescription());
+}
+
+- (NSString*)iconSymbolName {
+  return base::SysUTF8ToNSString(_taskInfo->GetIconSymbolName());
+}
+
+- (BOOL)isCustomSymbol {
+  return _taskInfo->IsCustomSymbol();
+}
+
+- (LevelUpTaskCategory)category {
+  return _taskInfo->GetCategory();
+}
+
+- (void (^)(void))navigationAction {
+  base::RepeatingClosure navClosure = _taskInfo->GetNavigationAction();
+  return [^{
+    navClosure.Run();
+  } copy];
 }
 
 @end

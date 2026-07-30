@@ -167,31 +167,23 @@ TEST_F(NativeViewHostMacTest, CheckNativeViewReferenceOnAttach) {
   NSWindow* native_window = [view window];
   host()->Attach(second_widget->GetNativeView());
 
-  // On Ventura, the attach rips Widget A's contentView from its window.
+  // The attach rips Widget A's contentView from its window.
   // NativeViewHostMac::AttachNativeView() should have stored a reference.
-  if (base::mac::MacOSMajorVersion() >= 13) {
-    EXPECT_EQ([native_window contentView], nullptr);
-    EXPECT_EQ(GetMovedContentViewForWidget(second_widget), view);
-  } else {
-    EXPECT_EQ([native_window contentView], view);
-  }
+  EXPECT_EQ(native_window.contentView, nullptr);
+  EXPECT_EQ(GetMovedContentViewForWidget(second_widget), view);
 
   // After detaching, there should be no reference, and the native view should
   // be restored to its widget's window.
   host()->Detach();
   EXPECT_EQ(GetMovedContentViewForWidget(second_widget), nullptr);
-  EXPECT_EQ([native_window contentView], view);
+  EXPECT_EQ(native_window.contentView, view);
 
   DestroyHost();
 }
 
-// On macOS13, if Widget A has been attached to Widget B, ensure Widget A's
-// reference to its native view disappears when the native view is freed.
+// If Widget A has been attached to Widget B, ensure Widget A's reference to its
+// native view disappears when the native view is freed.
 TEST_F(NativeViewHostMacTest, CheckNoNativeViewReferenceOnDestruct) {
-  if (base::mac::MacOSMajorVersion() < 13) {
-    return;
-  }
-
   CreateTopLevel();
   CreateTestingHost();
   toplevel()->GetRootView()->AddChildViewRaw(host());

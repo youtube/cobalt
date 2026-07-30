@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
@@ -44,7 +45,8 @@ enum class GpuErrorReason {
   kDeviceRemoved = 2,
   kDeviceCreationFailed = 3,
   kOutOfMemory = 4,
-  kMaxValue = kOutOfMemory,
+  kDawnProcTableInitFailed = 5,
+  kMaxValue = kDawnProcTableInitFailed,
 };
 
 void FatalGpuErrorFn(const char* msg) {
@@ -85,11 +87,16 @@ void FatalGpuErrorFn(const char* msg) {
              msg_str.find("VirtualAlloc 1455") != std::string::npos ||
              msg_str.find("Out of memory") != std::string::npos) {
     error_reason = GpuErrorReason::kOutOfMemory;
+  } else if (msg_str.find("Dawn's proc tables") != std::string::npos) {
+    error_reason = GpuErrorReason::kDawnProcTableInitFailed;
   }
   base::UmaHistogramEnumeration("OnDeviceModel.GpuErrorReason", error_reason);
   if (error_reason == GpuErrorReason::kOther) {
     // Collect crash reports on unknown errors.
     NOTREACHED() << "ChromeML(GPU) Error: " << msg;
+  } else if (error_reason == GpuErrorReason::kDawnProcTableInitFailed) {
+    LOG(ERROR) << "Failed to initialize Dawn's proc tables.";
+    base::debug::DumpWithoutCrashing();
   } else {
     LOG(ERROR) << "Terminating On-Device Model Service: " << msg_str;
     base::Process::TerminateCurrentProcessImmediately(0);
@@ -201,7 +208,10 @@ std::unique_ptr<ChromeML> ChromeML::Create(
       base::WrapUnique(new ChromeML(std::move(holder)));
 
   dawnProcSetProcs(&dawn::native::GetProcs());
-  chrome_ml->InitDawnProcs(dawn::native::GetProcs());
+  if (!chrome_ml->TryInitDawnProcs(dawn::native::GetProcs())) {
+    FatalGpuErrorFn("Failed to initialize Dawn's proc tables.");
+    return nullptr;
+  }
   chrome_ml->SetFatalErrorFn(&FatalGpuErrorFn);
 
   const ChromeMLMetricsFns metrics_fns{

@@ -57,6 +57,8 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_observer.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state_observer_bridge.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
@@ -65,12 +67,13 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/commands/tab_picker_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -90,10 +93,13 @@
 
 namespace {
 
-// The floaty has innate padding which causes the floaty to be farther away from
-// the bottom toolbar. To properly position the floaty closer to the toolbar,
-// this constant is used to remove some of that innate padding.
-const CGFloat kFloatyIntrinsicPaddingCorrection = 8.0;
+// This is the inate padding of the Floaty default implementation. Remove it so
+// we can have our own padding defined.
+const CGFloat kFloatyIntrinsicPaddingCorrection = 34.0;
+
+// Bottom margin for floaty.
+const CGFloat kLegacyFloatingBottomMargin = 26;
+const CGFloat kFloatingBottomMargin = 10;
 
 // The vertical offset clearance required to position the dormant Live session
 // snackbar cleanly above the floaty pill. Note this includes the full floaty
@@ -125,7 +131,7 @@ const double kFullscreenDisablerTimeoutSeconds = 3.0;
 // presentation.
 const double kViewTransitionTime = 0.8;
 
-// Block accepted by -startGeminiFREWithCompletion:
+// Block accepted by -startGeminiFirstRunWithCompletion:
 using BlockWithSuccess = void (^)(BOOL success);
 
 // Returns a BlockWithSuccess that call `closure` if called with YES.
@@ -228,7 +234,9 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
     bwg_gateway_.pageStateChangeHandler = gemini_page_state_change_handler_;
 
     bwg_session_handler_ = [[GeminiSessionHandler alloc]
-        initWithWebStateList:browser_->GetWebStateList()];
+        initWithWebStateList:browser_->GetWebStateList()
+                     tracker:feature_engagement::TrackerFactory::GetForProfile(
+                                 browser_->GetProfile())];
     if (IsGeminiCopresenceEnabled()) {
       gemini_view_state_handler_ =
           [[GeminiViewStateChangeHandler alloc] initWithTarget:this];
@@ -256,6 +264,23 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
 
     if (IsGeminiMultiTabContextEnabled()) {
       gemini_tab_picker_handler_ = [[GeminiTabPickerHandler alloc] init];
+
+      CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
+      gemini_tab_picker_handler_.tabPickerHandler =
+          static_cast<id<TabPickerCommands>>(dispatcher);
+      gemini_tab_picker_handler_.snackbarHandler =
+          static_cast<id<SnackbarCommands>>(dispatcher);
+
+      base::WeakPtr<GeminiBrowserAgent> weak_this = weak_factory_.GetWeakPtr();
+      gemini_tab_picker_handler_.selectionCallback =
+          ^(std::set<web::WebStateID> selectedIDs,
+            std::set<web::WebStateID> cachedIDs) {
+            if (weak_this) {
+              // TODO(crbug.com/503002699): Use selected IDs to pass shared tabs
+              // to Gemini SDK.
+            }
+          };
+
       bwg_gateway_.tabPickerHandler = gemini_tab_picker_handler_;
     }
 
@@ -307,6 +332,11 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
       scene_state_observer_ =
           [[GeminiSceneStateObserver alloc] initWithBrowserAgent:this
                                                       sceneState:scene_state];
+      if (IsChromeNextIaEnabled()) {
+        tab_grid_state_observer_bridge_ =
+            [[TabGridStateObserverBridge alloc] initWithObserver:this];
+        [scene_state.tabGridState addObserver:tab_grid_state_observer_bridge_];
+      }
     }
 
     scroll_observer_ = [[GeminiScrollObserver alloc]
@@ -355,6 +385,12 @@ GeminiBrowserAgent::~GeminiBrowserAgent() {
   [scene_state_observer_ disconnect];
   scene_state_observer_ = nil;
 
+  if (tab_grid_state_observer_bridge_ && browser_) {
+    SceneState* scene_state = browser_->GetSceneState();
+    [scene_state.tabGridState removeObserver:tab_grid_state_observer_bridge_];
+  }
+  tab_grid_state_observer_bridge_ = nil;
+
   web::WebState* active_web_state =
       browser_->GetWebStateList()->GetActiveWebState();
   if (active_web_state) {
@@ -380,6 +416,7 @@ void GeminiBrowserAgent::BrowserDestroyed(Browser* browser) {
   gemini_link_opening_handler_ = nil;
 
   gemini_actuation_handler_ = nil;
+  gemini_tab_picker_handler_ = nil;
 
   if (identity_manager_) {
     identity_manager_->RemoveObserver(this);
@@ -439,10 +476,6 @@ void GeminiBrowserAgent::OnPrimaryAccountChanged(
 }
 
 void GeminiBrowserAgent::ConfigureGemini() {
-  if (!IsGeminiDynamicSettingsEnabled()) {
-    return;
-  }
-
   AuthenticationService* auth_service =
       AuthenticationServiceFactory::GetForProfile(browser_->GetProfile());
   if (!auth_service || !auth_service->HasPrimaryIdentity()) {
@@ -505,6 +538,15 @@ void GeminiBrowserAgent::OnKeyboardStateChanged(bool is_visible) {
     ShowFloatyIfInvoked(/*animated=*/false,
                         gemini::FloatyUpdateSource::Keyboard);
     is_hidden_by_keyboard_ = false;
+  } else {
+    bool is_visible_and_expanded =
+        is_floaty_invoked_ && !is_floaty_temporarily_hidden_ &&
+        last_shown_view_state_ == ios::provider::GeminiViewState::kExpanded;
+
+    if (IsFullscreenRefactoringEnabled() && is_visible_and_expanded) {
+      ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                    GetFloatyProgress());
+    }
   }
 }
 
@@ -603,17 +645,36 @@ void GeminiBrowserAgent::StartGeminiFlow(UIViewController* base_view_controller,
     return;
   }
 
-  id<BWGCommands> gemini_commands_handler =
-      HandlerForProtocol(browser_->GetCommandDispatcher(), BWGCommands);
+  id<GeminiCommands> gemini_handler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(), GeminiCommands);
 
   auto present_floaty_closure = base::BindRepeating(
       &GeminiBrowserAgent::PresentFloaty, weak_factory_.GetWeakPtr(),
       base_view_controller, startup_state, /*first_run_shown=*/true);
 
-  [gemini_commands_handler
-      startGeminiFREWithCompletion:BlockRunningClosureIfSuccess(
-                                       std::move(present_floaty_closure))
-                    fromEntryPoint:entry_point];
+  [gemini_handler
+      startGeminiFirstRunWithCompletion:BlockRunningClosureIfSuccess(
+                                            std::move(present_floaty_closure))
+                         fromEntryPoint:entry_point];
+}
+
+GeminiConfiguration*
+GeminiBrowserAgent::CreateGeminiConfigurationForActiveWebState(
+    UIViewController* base_view_controller,
+    GeminiStartupState* startup_state) {
+  web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
+  if (!web_state) {
+    return nil;
+  }
+  GeminiTabHelper* gemini_tab_helper = GetActiveTabHelper(web_state);
+  if (!gemini_tab_helper) {
+    return nil;
+  }
+  GeminiPageContext* initial_page_context =
+      gemini_tab_helper->GetPartialPageContext();
+  ApplyUserPrefsToPageContext(initial_page_context);
+  return CreateGeminiConfiguration(base_view_controller, startup_state,
+                                   web_state, initial_page_context);
 }
 
 bool GeminiBrowserAgent::HasCompletedFirstRun() {
@@ -649,12 +710,23 @@ void GeminiBrowserAgent::UpdateGeminiLiveIconVisibility() {
 
 CGFloat GeminiBrowserAgent::GetFloatyOffset() {
   CHECK(IsFullscreenInitialized());
-  CGFloat max_bottom_inset =
-      IsFullscreenRefactoringEnabled()
-          ? FullscreenBrowserAgent::FromBrowser(browser_)->max_insets().bottom
-          : fullscreen_controller_->GetMaxViewportInsets().bottom;
+
+  CGFloat max_bottom_inset = 0;
 
   SceneState* scene_state = browser_->GetSceneState();
+  if (IsChromeNextIaEnabled() && scene_state &&
+      scene_state.tabGridState.tabGridVisible) {
+    if (scene_state.layoutState.appBarPosition == AppBarPosition::kBottom) {
+      max_bottom_inset = kAppBarHeight;
+    } else {
+      max_bottom_inset = 0;
+    }
+  } else {
+    max_bottom_inset =
+        IsFullscreenRefactoringEnabled()
+            ? FullscreenBrowserAgent::FromBrowser(browser_)->max_insets().bottom
+            : fullscreen_controller_->GetMaxViewportInsets().bottom;
+  }
 
   if (!IsFullscreenRefactoringEnabled() && IsChromeNextIaEnabled()) {
     // The legacy FullscreenController is unaware of the App Bar's height.
@@ -674,8 +746,11 @@ CGFloat GeminiBrowserAgent::GetFloatyOffset() {
     max_bottom_inset += scene_state.window.safeAreaInsets.bottom;
   }
 
+  CGFloat bottomMargin = IsChromeNextIaEnabled() ? kFloatingBottomMargin
+                                                 : kLegacyFloatingBottomMargin;
+
   CGFloat offset = (max_bottom_inset * GetFloatyProgress()) -
-                   kFloatyIntrinsicPaddingCorrection;
+                   kFloatyIntrinsicPaddingCorrection + bottomMargin;
 
   return offset;
 }
@@ -735,6 +810,10 @@ void GeminiBrowserAgent::InvokeFloaty(GeminiConfiguration* config) {
   ios::provider::StartBwgOverlay(config);
   last_shown_view_state_ = ios::provider::GetCurrentGeminiViewState();
   is_floaty_invoked_ = true;
+  if (IsChromeNextIaEnabled()) {
+    ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                  GetFloatyProgress());
+  }
   for (auto& observer : observers_) {
     observer.OnFloatyInvokedChanged(is_floaty_invoked_);
   }
@@ -821,6 +900,12 @@ void GeminiBrowserAgent::PresentFloaty(UIViewController* base_view_controller,
     if (prepopulated_prompt) {
       ios::provider::UpdatePromptAction(entry_point, prepopulated_prompt);
     }
+    if (IsChromeNextIaEnabled() && IsFullscreenRefactoringEnabled()) {
+      [HandlerForProtocol(browser_->GetCommandDispatcher(), FullscreenCommands)
+          exitFullscreenWithTrigger:FullscreenModeTransitionTrigger::
+                                        kUserInitiatedFinishedByCode
+                           animated:YES];
+    }
     ForceShowFloatyIfInvoked();
     ios::provider::UpdateGeminiViewState(
         ios::provider::GeminiViewState::kExpanded, /*animated=*/true);
@@ -837,8 +922,9 @@ void GeminiBrowserAgent::PresentFloaty(UIViewController* base_view_controller,
         &GeminiBrowserAgent::InvokeFloaty, weak_factory_.GetWeakPtr(), config));
   }
 
-  base::UmaHistogramLongTimes(first_run_shown ? kStartupTimeWithFREHistogram
-                                              : kStartupTimeNoFREHistogram,
+  base::UmaHistogramLongTimes(first_run_shown
+                                  ? kStartupTimeWithFirstRunHistogram
+                                  : kStartupTimeNoFirstRunHistogram,
                               base::TimeTicks::Now() - start_time);
 
   // Request full page context generation, which will update the floaty once
@@ -954,9 +1040,9 @@ void GeminiBrowserAgent::DismissGeminiFromOtherWindows(
       barrier.Run();
       continue;
     }
-    id<BWGCommands> gemini_commands_handler =
-        HandlerForProtocol(browser->GetCommandDispatcher(), BWGCommands);
-    [gemini_commands_handler
+    id<GeminiCommands> gemini_handler =
+        HandlerForProtocol(browser->GetCommandDispatcher(), GeminiCommands);
+    [gemini_handler
         dismissGeminiFlowWithCompletion:base::CallbackToBlock(barrier)];
   }
 }
@@ -1226,8 +1312,8 @@ void GeminiBrowserAgent::OnScrollEvent() {
   // handler to do eligibility checks outside of this browser agent before
   // showing the floaty.
   if (is_floaty_temporarily_hidden_) {
-    id<BWGCommands> gemini_handler =
-        HandlerForProtocol(browser_->GetCommandDispatcher(), BWGCommands);
+    id<GeminiCommands> gemini_handler =
+        HandlerForProtocol(browser_->GetCommandDispatcher(), GeminiCommands);
     [gemini_handler
         updateFloatyVisibilityIfEligibleAnimated:NO
                                       fromSource:gemini::FloatyUpdateSource::
@@ -1407,6 +1493,21 @@ void GeminiBrowserAgent::DidUpdateObscuredInsetRange(
 
 void GeminiBrowserAgent::WillShutDown(FullscreenBrowserAgent* agent) {
   fullscreen_observation_.Reset();
+}
+
+#pragma mark - TabGridStateObserver
+
+void GeminiBrowserAgent::WillEnterTabGrid() {
+  if (IsFullscreenInitialized()) {
+    ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(), 1.0);
+  }
+}
+
+void GeminiBrowserAgent::WillExitTabGrid() {
+  if (IsFullscreenInitialized()) {
+    ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                  GetFloatyProgress());
+  }
 }
 
 #pragma mark - Private
@@ -1612,8 +1713,8 @@ void GeminiBrowserAgent::ApplyUserPrefsToPageContext(
 void GeminiBrowserAgent::SetSessionCommandHandlers() {
   id<SettingsCommands> settings_handler =
       HandlerForProtocol(browser_->GetCommandDispatcher(), SettingsCommands);
-  id<BWGCommands> gemini_handler =
-      HandlerForProtocol(browser_->GetCommandDispatcher(), BWGCommands);
+  id<GeminiCommands> gemini_handler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(), GeminiCommands);
 
   bwg_session_handler_.settingsHandler = settings_handler;
   bwg_session_handler_.geminiHandler = gemini_handler;

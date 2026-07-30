@@ -15,6 +15,7 @@
 #import "base/time/time.h"
 #import "ios/chrome/browser/download/model/download_filter_util.h"
 #import "ios/chrome/browser/download/model/download_record.h"
+#import "ios/chrome/browser/download/model/download_record_query.h"
 #import "sql/database.h"
 #import "sql/init_status.h"
 
@@ -27,31 +28,6 @@ class Statement;
 // This class is NOT thread-safe and must be used from a single sequence.
 class DownloadRecordDatabase {
  public:
-  // Query parameters for keyset-based pagination of download records.
-  // Records are returned ordered by (created_time DESC, download_id DESC).
-  // When `cursor_created_time` and `cursor_download_id` are both set, only
-  // records strictly less than that tuple (in the same ordering) are returned,
-  // enabling stable continuation across pages even when new rows are inserted
-  // between calls.
-  struct DownloadRecordQuery {
-    DownloadRecordQuery();
-    DownloadRecordQuery(const DownloadRecordQuery& other);
-    DownloadRecordQuery& operator=(const DownloadRecordQuery& other);
-    ~DownloadRecordQuery();
-
-    // Optional filter by file category (PDF/Image/Video/...). When unset or
-    // kAll, all categories are returned.
-    std::optional<DownloadFilterType> filter_type;
-    // Pagination cursor: created_time of the last row from the previous page.
-    std::optional<base::Time> cursor_created_time;
-    // Pagination cursor: download_id of the last row from the previous page.
-    std::optional<std::string> cursor_download_id;
-    // Optional case-insensitive substring filter on the file name. Matched
-    // against the normalized (case-folded) file_name column using SQL LIKE,
-    // so e.g. "Port" matches "report.pdf".
-    std::optional<std::string> name_query;
-  };
-
   explicit DownloadRecordDatabase(const base::FilePath& db_path);
 
   DownloadRecordDatabase(const DownloadRecordDatabase&) = delete;
@@ -84,8 +60,10 @@ class DownloadRecordDatabase {
 
   // Retrieves one page of download records using keyset pagination.
   // Results are ordered by (created_time DESC, download_id DESC) and contain
-  // at most `query.limit` rows. Pass the (created_time, download_id) of the
-  // last row from the previous page in `cursor_*` to continue.
+  // at most `kPageSize` rows (currently hardcoded in
+  // download_record_database.mm; callers cannot override it via `query`).
+  // Pass the (created_time, download_id) of the last row from the previous
+  // page in `cursor_*` to continue.
   std::vector<DownloadRecord> GetDownloadRecordsPage(
       const DownloadRecordQuery& query);
 

@@ -49,6 +49,10 @@
     margin-inline-start: 10px;
   }
 
+    #auto-change-password-link-icon {
+    --iron-icon-width: 16px;
+  }
+
   #separator {
     margin-inline-start: 56px;
   }
@@ -60,7 +64,8 @@
     text-align: end;
   }
 
-  #changePasswordButton {
+  #changePasswordButton,
+  #autoChangePasswordButton {
     height: auto;
     padding: 3px 16px;
   }
@@ -92,14 +97,32 @@
   </div>
   <template is="dom-if" if="[[item.changePasswordUrl]]">
     <div class="button-container" id="changeButton">
-      <cr-button id="changePasswordButton" on-click="onChangePasswordClick_"
+      <template is="dom-if" if="[[!item.isAutomaticPasswordChangeSupported]]">
+        <cr-button id="changePasswordButton" on-click="onChangePasswordClick_"
           aria-label$="[[getChangeButtonAriaLabel_(group, item)]]">
-        $i18n{changePassword}
-        <cr-icon icon="cr:open-in-new" id="change-password-link-icon">
-        </cr-icon>
-      </cr-button>
-      <a id="alreadyChanged" hidden="[[!showAlreadyChanged]]" href="/"
-          on-click="onAlreadyChangedClick_">
+          $i18n{changePassword}
+          <cr-icon icon="cr:open-in-new" id="change-password-link-icon">
+          </cr-icon>
+        </cr-button>
+      </template>
+      <template is="dom-if" if="[[item.isAutomaticPasswordChangeSupported]]">
+        <cr-button
+          class="tonal-button"
+          id="autoChangePasswordButton"
+          on-click="onAutoChangePasswordClick_"
+          aria-label$="[[getAutoChangeButtonAriaLabel_(group, item)]]">
+          <cr-icon
+            icon="passwords-icon:arrow-selector-spark"
+            id="auto-change-password-link-icon">
+          </cr-icon>
+          $i18n{automatedPasswordChangeCheckupButton}
+        </cr-button>
+      </template>
+      <a
+        id="alreadyChanged"
+        hidden="[[!showAlreadyChanged]]"
+        href="/"
+        on-click="onAlreadyChangedClick_">
         $i18n{alreadyChangedPasswordLink}
       </a>
     </div>

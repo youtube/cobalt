@@ -53,6 +53,7 @@ class CORE_EXPORT InlineBreakToken final : public BreakToken {
     kHasClonedBoxDecorations = 1 << 3,
     kIsInParallelBlockFlow = 1 << 4,
     kIsPastFirstFormattedLine = 1 << 5,
+    kIsLineClampDisplacedLine = 1 << 6,
     // When adding values, ensure |flags_| has enough storage.
   };
 
@@ -89,6 +90,12 @@ class CORE_EXPORT InlineBreakToken final : public BreakToken {
 
   bool UseFirstLineStyle() const {
     return flags_ & kUseFirstLineStyle;
+  }
+
+  // Were the contents of this line completely displaced by the line-clamp
+  // ellipsis?
+  bool IsLineClampDisplacedLine() const {
+    return flags_ & kIsLineClampDisplacedLine;
   }
 
   bool IsForcedBreak() const {

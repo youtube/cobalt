@@ -61,7 +61,7 @@ class PrivacySandboxSettingsDelegateTest : public testing::Test {
     auto account_info = identity_test_env()
                             ->identity_manager()
                             ->FindExtendedAccountInfoByEmailAddress(kTestEmail);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_run_chrome_privacy_sandbox_trials(enabled);
     signin::UpdateAccountInfoForAccount(identity_test_env()->identity_manager(),
                                         account_info);
@@ -71,7 +71,7 @@ class PrivacySandboxSettingsDelegateTest : public testing::Test {
     auto account_info = identity_test_env()
                             ->identity_manager()
                             ->FindExtendedAccountInfoByEmailAddress(kTestEmail);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator
         .set_is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice(
             enabled);

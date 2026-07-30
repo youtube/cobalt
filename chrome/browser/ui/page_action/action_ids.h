@@ -14,6 +14,11 @@ namespace page_actions {
 // All ActionIds associated with a page action.
 // For now, the order of the page actions will be based on their position in
 // the array.
+//
+// Not all the ActionId in this list will be taken into consideration by the
+// page action framework since it should have an action item associated with it
+// prior. Use the method page_actions::GetPageActionIds to retrieve the list
+// consumed by the framework.
 inline constexpr auto kActionIds = std::to_array<actions::ActionId>({
     kActionAiMode,
     kActionSidePanelShowLensOverlayResults,

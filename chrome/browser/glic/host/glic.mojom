@@ -93,9 +93,6 @@ struct ConfigInfo {
   // The URL from which the guest web client is loaded from.
   url.mojom.Url guest_url;
 
-  // The URL from which the FRE page is loaded from.
-  url.mojom.Url fre_guest_url;
-
   // User configured preset URLs for different environments of the guest web
   // client.
   url.mojom.Url autopush_guest_url;
@@ -574,8 +571,6 @@ struct WebClientInitialState {
   array<HostCapability> host_capabilities;
   // Whether get page metadata is enabled.
   bool enable_get_page_metadata;
-  // Whether kGlicApiActivationGating is enabled.
-  bool enable_api_activation_gating;
   // Whether capture region is enabled.
   bool enable_capture_region;
   // Whether kGlicWebActuationSetting is enabled.
@@ -1265,6 +1260,11 @@ interface WebClientHandler {
   GetContextFromTab(int32 tab_id, GetTabContextOptions options)
       => (GetContextResult result);
 
+  // Returns raw image bytes and MIME type for an image node from the tab
+  // associated with `tab_id`.
+  GetImageBytesFromTab(int32 tab_id, string document_id, int32 dom_node_id)
+      => (GetImageBytesResult result);
+
   // Sets the maximum number of supported pinned tabs. Negative means that the
   // client has no limit. Since the browser may only support so many, the
   // effective limit is returned. The returned number may also differ from the
@@ -1733,6 +1733,11 @@ enum ActuationTarget {
   kCurrentTab = 2,
   // Forces actuation in a new tab.
   kNewTab = 3,
+  // Forces actuation on the target surface, if the surface is a valid tab.
+  // Note: kTargetSurface can be different than kCurrentTab if the target
+  // surface is not the foregrounded tab. This option has no effect if the
+  // surface does not resolve to a valid tab.
+  [MinVersion=1] kTargetSurface = 4,
 };
 
 struct UniversalCartPayload {
@@ -1779,6 +1784,10 @@ struct InvokeOptions {
 
   // Source-specific payload for the invocation.
   InvocationPayload? payload;
+
+  // The ID of the tab to actuate on, if actuation_target is kTargetSurface.
+  [MinVersion=1]
+  int32? actuation_tab_id;
 };
 
 // @generate glic_api
@@ -2000,9 +2009,6 @@ interface WebClient {
   // not the active window.
   NotifyPanelActiveChange(bool panel_active);
 
-  // Informs the client whether the browser is currently invoking Glic.
-  NotifyIsInvoking(bool is_invoking);
-
   // Informs the client that whether the panel can be attached right now.
   NotifyPanelCanAttachChange(bool can_attach);
 
@@ -2113,6 +2119,11 @@ struct TabContext {
   // A screenshot of the user-visible portion of the tab. Provided only if
   // requested.
   Screenshot? viewport_screenshot;
+  // Proto for ScreenshotInfo.
+  // See components/optimization_guide/proto/features/common_quality_data.proto.
+  // Provided if include_viewport_screenshot was requested in
+  // GetTabContextOptions and layout metadata is available.
+  mojo_base.mojom.ProtoWrapper? screenshot_info;
   // Information about a PDF document. Provided if the document is a PDF or
   // contains a PDF, and PDF data was requested. Note that it is possible for
   // a document to contain multiple PDFs using iframes. Only the first PDF
@@ -2294,6 +2305,32 @@ struct Screenshot {
   string mime_type;
   // Image annotations for this screenshot.
   ImageOriginAnnotations origin_annotations;
+};
+
+// Information about an image on the page.
+struct ImageInfo {
+  // Caption of the image if available.
+  string? caption;
+  // Security origin of the image resource.
+  url.mojom.Origin? source_origin;
+  // Source URL of the image.
+  url.mojom.Url url;
+  // The image encoding format represented as a MIME type (e.g., image/jpeg).
+  string? mime_type;
+};
+
+// Result of retrieving image bytes.
+struct ImageBytesResult {
+  // Raw encoded image bytes.
+  mojo_base.mojom.BigBuffer bytes;
+  // Metadata about the image.
+  ImageInfo image_info;
+};
+
+// Result of retrieving image bytes or failure reason.
+union GetImageBytesResult {
+  ImageBytesResult image_bytes;
+  string error_reason;
 };
 
 // @generate glic_api

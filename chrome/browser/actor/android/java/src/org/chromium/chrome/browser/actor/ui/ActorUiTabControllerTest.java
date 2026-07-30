@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,6 +39,7 @@ import org.chromium.chrome.browser.actor.ui.ActorUiTabController.ActorOverlaySta
 import org.chromium.chrome.browser.actor.ui.ActorUiTabController.HandoffButtonState;
 import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.base.WindowAndroid;
@@ -76,8 +78,14 @@ public class ActorUiTabControllerTest {
         doReturn(mActivity).when(mTab).getContext();
         doReturn(mProfile).when(mTab).getProfile();
         ActorKeyedServiceFactory.setForTesting(mActorKeyedService);
+        GlicEnabling.setEnabledForTesting(true);
 
         mController = ActorUiTabController.from(mTab);
+    }
+
+    @After
+    public void tearDown() {
+        GlicEnabling.setEnabledForTesting(false);
     }
 
     @Test

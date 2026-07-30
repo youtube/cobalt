@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/devtools/protocol/devtools_network_resource_loader.h"
+
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
-#include "content/browser/devtools/protocol/devtools_network_resource_loader.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/url_loader_factory_params_helper.h"
@@ -31,6 +32,7 @@
 #include "net/cookies/site_for_cookies.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -79,8 +81,7 @@ class DevtoolsNetworkResourceLoaderTest : public ContentBrowserTest {
         /*dip_reporter=*/mojo::NullRemote(), frame->GetProcess(),
         network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
         network::mojom::TrustTokenOperationPolicyVerdict::kForbid,
-        net::CookieSettingOverrides(),
-        /*network_restrictions_id=*/std::nullopt,
+        net::CookieSettingOverrides(), network::GetTestNetworkRestrictionsId(),
         "DevtoolsNetworkResourceLoaderTest");
     // Let DevTools fetch resources without CORS and ORB. Source maps are valid
     // JSON and would otherwise require a CORS fetch + correct response headers.

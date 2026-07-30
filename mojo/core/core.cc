@@ -112,11 +112,7 @@ void RunMojoProcessErrorHandler(ProcessDisconnectHandler* disconnect_handler,
 }
 
 uint64_t MakePipeId() {
-#if BUILDFLAG(MOJO_TRACE_ENABLED)
   return base::trace_event::GetNextGlobalTraceId();
-#else
-  return 0;
-#endif
 }
 
 }  // namespace

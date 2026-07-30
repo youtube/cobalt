@@ -221,10 +221,37 @@ void ToolbarUIService::OnToolbarDropFile(const gfx::PointF& drop_position) {
 void ToolbarUIService::ShowAvatarMenu(ShowAvatarMenuCallback callback) {
   if (delegate_) {
     delegate_->ShowAvatarMenu();
+    std::move(callback).Run({});
   } else {
     std::move(callback).Run(base::unexpected(Error::New(
         Code::kFailedPrecondition,
         "ToolbarUIService: cannot show avatar menu without delegate_")));
+  }
+}
+
+void ToolbarUIService::SetAvatarButtonHovered(
+    bool hovered,
+    SetAvatarButtonHoveredCallback callback) {
+  if (delegate_) {
+    delegate_->SetAvatarButtonHovered(hovered);
+    std::move(callback).Run({});
+  } else {
+    std::move(callback).Run(base::unexpected(Error::New(
+        Code::kFailedPrecondition,
+        "ToolbarUIService: cannot hover on avatar without delegate_")));
+  }
+}
+
+void ToolbarUIService::SetAvatarButtonFocused(
+    bool focused,
+    SetAvatarButtonFocusedCallback callback) {
+  if (delegate_) {
+    delegate_->SetAvatarButtonFocused(focused);
+    std::move(callback).Run({});
+  } else {
+    std::move(callback).Run(base::unexpected(Error::New(
+        Code::kFailedPrecondition,
+        "ToolbarUIService: cannot focus on avatar without delegate_")));
   }
 }
 

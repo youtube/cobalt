@@ -78,8 +78,9 @@ IN_PROC_BROWSER_TEST_P(TabStripDumpAccessibilityEventsTest,
   ASSERT_EQ(root->GetClassName(), "BrowserRootView");
 }
 
+// TODO(crbug.com/468203351): disabled due to consistent failures.
 IN_PROC_BROWSER_TEST_P(TabStripDumpAccessibilityEventsTest,
-                       WindowActivationFiresSelectionForJaws) {
+                       DISABLED_WindowActivationFiresSelectionForJaws) {
   ui::AXPlatform::GetInstance().NotifyAssistiveTechChanged(
       ui::AssistiveTech::kJaws);
 
@@ -101,8 +102,9 @@ IN_PROC_BROWSER_TEST_P(TabStripDumpAccessibilityEventsTest,
   WaitForBrowserSerialization();
 }
 
+// TODO(crbug.com/468203351): disabled due to consistent failures.
 IN_PROC_BROWSER_TEST_P(TabStripDumpAccessibilityEventsTest,
-                       WindowActivationNoSelectionWithoutJaws) {
+                       DISABLED_WindowActivationNoSelectionWithoutJaws) {
   SKIP_IF_VIEWS_AX_DISABLED();
 
   ui::AXPlatform::GetInstance().NotifyAssistiveTechChanged(

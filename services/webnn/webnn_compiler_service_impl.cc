@@ -73,7 +73,7 @@ void WebNNCompilerServiceImpl::OnIdleTimeout() {
   }
   receiver_.ResetWithReason(
       static_cast<uint32_t>(CompilerDisconnectReason::kIdleShutdown),
-      "Idle shutdown: no active compiler contexts");
+      "No active compiler contexts");
 }
 
 }  // namespace webnn

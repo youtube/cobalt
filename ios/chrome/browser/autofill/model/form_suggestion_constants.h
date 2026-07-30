@@ -11,6 +11,12 @@
 // suggestion label in automation.
 extern NSString* const kFormSuggestionLabelAccessibilityIdentifier;
 
+// Accessibility identifier for Open Settings action in context menu.
+extern NSString* const kFormSuggestionLabelOpenSettingsAccessibilityIdentifier;
+
+// Accessibility identifier for Edit action in context menu.
+extern NSString* const kFormSuggestionLabelEditAccessibilityIdentifier;
+
 // Accessibility identifier for FormSuggestionView.
 extern NSString* const kFormSuggestionsViewAccessibilityIdentifier;
 

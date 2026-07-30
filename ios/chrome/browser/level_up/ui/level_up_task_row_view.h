@@ -15,6 +15,20 @@
 // Configures the row view with the given task model and separator state.
 - (void)configureWithTask:(LevelUpTask*)task showSeparator:(BOOL)showSeparator;
 
+// Configures the row with generic styling and content parameters.
+- (void)configureWithTitle:(NSString*)title
+               description:(NSString*)description
+                      icon:(UIImage*)icon
+           backgroundColor:(UIColor*)backgroundColor
+           chevronExpanded:(BOOL)chevronExpanded
+           separatorHidden:(BOOL)separatorHidden;
+
+// Updates the expansion state of the row's chevron.
+- (void)setChevronExpanded:(BOOL)expanded animated:(BOOL)animated;
+
+// Sets whether the row's separator is hidden.
+- (void)setSeparatorHidden:(BOOL)hidden;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_LEVEL_UP_UI_LEVEL_UP_TASK_ROW_VIEW_H_

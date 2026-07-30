@@ -26,12 +26,10 @@ import type {RectF} from '//resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-
 
 import type {HelpBubbleDismissedEvent, HelpBubbleElement} from './help_bubble.js';
 import {HELP_BUBBLE_DISMISSED_EVENT, HELP_BUBBLE_TIMED_OUT_EVENT} from './help_bubble.js';
-import type {HelpBubbleClientCallbackRouter, HelpBubbleHandlerInterface, HelpBubbleParams} from './help_bubble.mojom-webui.js';
-import {HelpBubbleClosedReason} from './help_bubble.mojom-webui.js';
+import type {BrowserProxy, HelpBubbleParams} from './help_bubble.mojom-webui.js';
+import {browserProxyFactory, HelpBubbleClosedReason} from './help_bubble.mojom-webui.js';
 import {HelpBubbleController} from './help_bubble_controller.js';
 import type {HelpBubbleOptions, Trackable} from './help_bubble_controller.js';
-import {HelpBubbleProxyImpl} from './help_bubble_proxy.js';
-import type {HelpBubbleProxy} from './help_bubble_proxy.js';
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -39,8 +37,7 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
     superClass: T): T&Constructor<HelpBubbleMixinLitInterface> => {
   class HelpBubbleMixinLit extends superClass implements
       HelpBubbleMixinLitInterface {
-    private helpBubbleHandler_: HelpBubbleHandlerInterface;
-    private helpBubbleCallbackRouter_: HelpBubbleClientCallbackRouter;
+    private helpBubbleProxy_: BrowserProxy;
     /**
      * A map from the name of the native identifier used in the tutorial or
      * IPH definition to the target element's HTML ID.
@@ -56,19 +53,17 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
     constructor(...args: any[]) {
       super(...args);
 
-      const proxy = this.createHelpBubbleProxy();
-      this.helpBubbleHandler_ = proxy.getHandler();
-      this.helpBubbleCallbackRouter_ = proxy.getCallbackRouter();
+      this.helpBubbleProxy_ = this.createHelpBubbleProxy();
     }
 
-    createHelpBubbleProxy() {
-      return HelpBubbleProxyImpl.getInstance();
+    createHelpBubbleProxy(): BrowserProxy {
+      return browserProxyFactory.getInstance();
     }
 
     override connectedCallback() {
       super.connectedCallback();
 
-      const router = this.helpBubbleCallbackRouter_;
+      const router = this.helpBubbleProxy_.callbackRouter;
       this.helpBubbleListenerIds_.push(
           router.showHelpBubble.addListener(this.onShowHelpBubble_.bind(this)),
           router.toggleFocusForAccessibility.addListener(
@@ -92,7 +87,7 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
       super.disconnectedCallback();
 
       for (const listenerId of this.helpBubbleListenerIds_) {
-        this.helpBubbleCallbackRouter_.removeListener(listenerId);
+        this.helpBubbleProxy_.callbackRouter.removeListener(listenerId);
       }
       this.helpBubbleListenerIds_ = [];
       this.helpBubbleDismissedEventTracker_.removeAll();
@@ -366,7 +361,7 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
       if (!isVisible) {
         const hidden = this.hideHelpBubble(nativeId);
         if (hidden) {
-          this.helpBubbleHandler_.helpBubbleClosed(
+          this.helpBubbleProxy_.handler.helpBubbleClosed(
               nativeId, HelpBubbleClosedReason.kPageChanged);
         }
       }
@@ -438,10 +433,10 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
       assert(hidden);
       if (nativeId) {
         if (e.detail.fromActionButton) {
-          this.helpBubbleHandler_.helpBubbleButtonPressed(
+          this.helpBubbleProxy_.handler.helpBubbleButtonPressed(
               nativeId, e.detail.buttonIndex!);
         } else {
-          this.helpBubbleHandler_.helpBubbleClosed(
+          this.helpBubbleProxy_.handler.helpBubbleClosed(
               nativeId, HelpBubbleClosedReason.kDismissedByUser);
         }
       }
@@ -457,7 +452,7 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
       const hidden = this.hideHelpBubble(nativeId);
       assert(hidden);
       if (nativeId) {
-        this.helpBubbleHandler_.helpBubbleClosed(
+        this.helpBubbleProxy_.handler.helpBubbleClosed(
             nativeId, HelpBubbleClosedReason.kTimedOut);
       }
     }
@@ -467,7 +462,7 @@ export const HelpBubbleMixinLit = <T extends Constructor<CrLitElement>>(
 };
 
 export interface HelpBubbleMixinLitInterface {
-  createHelpBubbleProxy(): HelpBubbleProxy;
+  createHelpBubbleProxy(): BrowserProxy;
   registerHelpBubble(
       nativeId: string, trackable: Trackable,
       options?: HelpBubbleOptions): HelpBubbleController|null;

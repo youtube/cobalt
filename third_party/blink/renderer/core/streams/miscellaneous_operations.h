@@ -17,12 +17,10 @@ namespace blink {
 // https://streams.spec.whatwg.org/#misc-abstract-ops
 
 class ExceptionState;
-class ReadableStream;
 class ScriptState;
 class StrategySizeAlgorithm;
 class StreamAlgorithm;
 class StreamStartAlgorithm;
-class WritableStream;
 
 // This is slightly different than the version in the standard
 // https://streams.spec.whatwg.org/#create-algorithm-from-underlying-method as

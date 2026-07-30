@@ -66,7 +66,6 @@ export class PasswordsExporterElement extends PasswordsExporterElementBase {
   declare private showPasswordsExportErrorDialog_: boolean;
   declare private showExportInProgress_: boolean;
   declare private exportErrorMessage_: string|null;
-  private exportedFilePath_: string|null;
 
 
   override connectedCallback() {
@@ -139,8 +138,6 @@ export class PasswordsExporterElement extends PasswordsExporterElementBase {
 
     switch (progress.status) {
       case ProgressStatus.SUCCEEDED:
-        assert(progress.filePath);
-        this.exportedFilePath_ = progress.filePath;
         this.$.exportSuccessToast.show();
         break;
       case ProgressStatus.FAILED_WRITE_FAILED:
@@ -155,9 +152,7 @@ export class PasswordsExporterElement extends PasswordsExporterElementBase {
   }
 
   private onOpenInShellButtonClick_() {
-    assert(this.exportedFilePath_);
-    PasswordManagerImpl.getInstance().showExportedFileInShell(
-        this.exportedFilePath_);
+    PasswordManagerImpl.getInstance().showLastExportedFileInShell();
     this.$.exportSuccessToast.hide();
   }
 

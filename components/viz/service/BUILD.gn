@@ -879,6 +879,11 @@ mojolpm_fuzzer_test("layer_context_impl_mojolpm_fuzzer") {
 
   proto_source = "layers/layer_context_impl_mojolpm_fuzzer.proto"
 
+  seed_corpus_sources = [
+    "layers/layer_context_impl_mojolpm_fuzzer_seed_corpus/simple.textproto",
+  ]
+  testcase_proto_kind = "viz.fuzzing.layer_context.proto.Testcase"
+
   deps = [
     ":service",
     "//base",

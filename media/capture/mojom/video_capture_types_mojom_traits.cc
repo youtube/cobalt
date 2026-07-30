@@ -801,7 +801,12 @@ EnumTraits<media::mojom::VideoCaptureError, media::VideoCaptureError>::ToMojom(
       return media::mojom::VideoCaptureError::kWinMediaFoundationCameraBusy;
     case media::VideoCaptureError::kWebRtcStartCaptureFailed:
       return media::mojom::VideoCaptureError::kWebRtcStartCaptureFailed;
+    case media::VideoCaptureError::kDesktopCaptureDeviceGpuAdapterChanged:
+      return media::mojom::VideoCaptureError::
+          kDesktopCaptureDeviceGpuAdapterChanged;
   }
+  // TODO(crbug.com/40929600): Remove media::VideoCaptureError in favor of the
+  // mojo one, or define it as an alias.
   NOTREACHED();
 }
 
@@ -1295,6 +1300,9 @@ EnumTraits<media::mojom::VideoCaptureError, media::VideoCaptureError>::
       return media::VideoCaptureError::kWinMediaFoundationCameraBusy;
     case media::mojom::VideoCaptureError::kWebRtcStartCaptureFailed:
       return media::VideoCaptureError::kWebRtcStartCaptureFailed;
+    case media::mojom::VideoCaptureError::
+        kDesktopCaptureDeviceGpuAdapterChanged:
+      return media::VideoCaptureError::kDesktopCaptureDeviceGpuAdapterChanged;
   }
   NOTREACHED();
 }

@@ -4,6 +4,27 @@
 
 module browser.context_hub.mojom;
 
+import "url/mojom/url.mojom";
+
+struct GmailReference {
+  url.mojom.Url message_url;
+};
+
+struct PhotosReference {
+  url.mojom.Url photos_url;
+};
+
+union SourceReference {
+  GmailReference gmail;
+  PhotosReference photos;
+};
+
+struct AutoTodoItem {
+  string title;
+  string description;
+  array<SourceReference> source_references;
+};
+
 // Factory used by the WebUI page (caller) to create a PageHandler in the
 // browser process (callee) for the Context Hub page.
 interface PageHandlerFactory {
@@ -15,4 +36,6 @@ interface PageHandlerFactory {
 // The WebUI page (caller) uses this to interact with the browser
 // process (callee).
 interface PageHandler {
+  // Generates and returns a list of Auto Todos.
+  GenerateAutoTodos() => (array<AutoTodoItem>? todos);
 };

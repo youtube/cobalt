@@ -104,7 +104,7 @@ one kept in `PageLoadTracker`, the metrics would be recorded into UKM in
 `RecordSoftNavigationMetrics`.
 
 Note that CLS and INP also are recorded for the time
-interval from the page lifecycle begining to the time when the first soft
+interval from the page lifecycle beginning to the time when the first soft
 navigation happens. The recording happens in
 `RecordResponsivenessMetricsBeforeSoftNavigationForMainFrame`
 and `RecordLayoutShiftBeforeSoftNavigationForMainFrame` respectively. They

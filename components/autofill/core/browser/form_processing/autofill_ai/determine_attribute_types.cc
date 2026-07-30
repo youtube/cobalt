@@ -52,7 +52,8 @@ static constexpr FieldTypeSet kDynamicFieldTypes = [] {
 
 // Some plausibility checks.
 static_assert(kDynamicFieldTypes.contains_all({NAME_FULL, NAME_FIRST, NAME_LAST,
-                                               NAME_MIDDLE, ADDRESS_HOME_ZIP}));
+                                               NAME_MIDDLE, ADDRESS_HOME_ZIP,
+                                               EMAIL_ADDRESS}));
 static_assert(!kDynamicFieldTypes.contains_any({ADDRESS_HOME_STATE,
                                                 CREDIT_CARD_NUMBER}));
 static_assert(!kDynamicFieldTypes.contains_any(

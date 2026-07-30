@@ -579,7 +579,7 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
     // the PCM encoder, so we can verify the output data later. Do not save it
     // if the recorder is paused.
     if (codec_ == media::AudioCodec::kPCM && !paused_) {
-      size_t current_size = first_source_cache_.size();
+      wtf_size_t current_size = first_source_cache_.size();
       first_source_cache_.resize(current_size +
                                  bus->frames() * bus->channels());
       bus->ToInterleaved<media::Float32SampleTypeTraits>(

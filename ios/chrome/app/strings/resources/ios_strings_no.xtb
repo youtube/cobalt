@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ÅÅÅÅ</translation>
 <translation id="1013952917065545813">Du kan komme tilbake hit for å gjenåpne faner du nylig har lukket</translation>
 <translation id="1016495303386450659">Elementet er oppdatert</translation>
+<translation id="1018804590490383958">Skann og fyll ut automatisk</translation>
 <translation id="1019990162050689579">Aktivitet i Gemini-apper</translation>
 <translation id="102916930470544692">Passnøkkel</translation>
 <translation id="1030376737535466765">Åpne Passordlagring</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Last opp et bilde for å remikse det med Nano Banana</translation>
 <translation id="1377508275003315939">Passord</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} av {count} adresse}other{{position} av {count} adresser}}</translation>
+<translation id="13813615483058219">Noe gikk galt. Sjekk internettilkoblingen, skru opp volumet, eller prøv på nytt.</translation>
 <translation id="1383876407941801731">Søk</translation>
 <translation id="138618066238211776">Fortsett som <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Alternativer for lagring av kort</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Oppdater nettleseren</translation>
 <translation id="4021931095789478915">Legg til ${url} på leselisten</translation>
 <translation id="4028871427853484857">Lagre i kontoen…</translation>
+<translation id="4036529942385659684">Vis startsiden etter en periode med inaktivitet</translation>
 <translation id="4038354071007134711">Ingen apper på denne enheten kan åpne filen.</translation>
 <translation id="4042870976416480368">Finn på siden</translation>
 <translation id="4045441967987592849">Gjenåpne</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Administrer gruppen</translation>
 <translation id="4172051516777682613">Vis alltid</translation>
 <translation id="417273154673973994">{count,plural, =1{1 fanegruppe ble lukket og lagret}other{{count} fanegrupper ble lukket og lagret}}</translation>
-<translation id="417612446554534067">Send til enhetene dine</translation>
 <translation id="4180726336228139707">Bare på denne enheten</translation>
 <translation id="4181841719683918333">Språk</translation>
 <translation id="4183350924949589798">Vil du ha mer sikkerhet?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Faner ble lukket, og du ble logget av</translation>
 <translation id="4911042367886397055">Velkommen tilbake, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Du kan dele en kopi av passordet ditt med andre i familiegruppen din på en sikker måte. <ph name="BEGIN_LINK" />Finn ut mer<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Forstørrelsesglass</translation>
 <translation id="4917025507570489430">Du kan bruke eksisterende nettlesingsdata når du er logget på som <ph name="USER_EMAIL" />. Organisasjonen din kan se disse dataene.</translation>
 <translation id="4918086044614829423">Godta</translation>
 <translation id="4930714375720679147">Slå på</translation>
@@ -1549,6 +1552,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Velg plassering for adressefelt</translation>
 <translation id="6307241780749477694">Bekreft at det er deg, for å få alle passordene dine på denne enheten</translation>
+<translation id="6307792728709337290">Lagre kortet i Google-kontoen din for å autofylle det for dette kjøpet og fremtidige kjøp i Chrome.</translation>
 <translation id="6316141353357700666">Velg passordet du vil bruke, på listen som vises.</translation>
 <translation id="6321526113093607004">Legg til i bokmerker</translation>
 <translation id="6327249202318869726">Gemini er deaktivert for kontoen. Kontakt administratoren for å få mer informasjon.</translation>
@@ -2143,6 +2147,7 @@ Bytt til <ph name="OTHER_EMAIL" /> for å fortsette fra datamaskinen. Du får pa
 <translation id="8263809106706527890">Det kan ha blitt gjort en endring i standardinnstillingene for nettleseren. Du kan sjekke dette i innstillingene.</translation>
 <translation id="8264966119170358612">Noen av de lagrede passordene dine ble avdekket i et databrudd utenfor Google. <ph name="BEGIN_LINK" />Finn ut mer<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Du ble logget av kontoen din, <ph name="USER_NAME" />, som en del av tilbakestillingen av iPad. For å logge på igjen, trykk på «Fortsett» nedenfor.</translation>
+<translation id="8270320981823560179">Disk</translation>
 <translation id="8273982424131314219">Du fyller ut informasjon på <ph name="URL" /></translation>
 <translation id="8275068909952022340">Mer…</translation>
 <translation id="8281781826761538115">Standard – <ph name="DEFAULT_LOCALE" /></translation>

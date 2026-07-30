@@ -66,10 +66,13 @@ class TestOmniboxEditModel : public OmniboxEditModel {
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle);
 
-  bool HasTemporaryText() { return has_temporary_text_; }
-
   const std::u16string& text() const { return text_; }
   bool is_temporary_text() const { return is_temporary_text_; }
+
+  using OmniboxEditModel::NavigateToThirdPartyAiMode;
+
+  using OmniboxEditModel::has_temporary_text_;
+  using OmniboxEditModel::user_input_in_progress_;
 
  protected:
   PrefService* GetPrefService() override;

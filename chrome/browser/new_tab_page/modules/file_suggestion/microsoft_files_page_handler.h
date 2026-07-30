@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/file_suggestion.mojom.h"
@@ -21,7 +22,6 @@
 #include "components/search/ntp_features.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 
@@ -90,8 +90,8 @@ class MicrosoftFilesPageHandler
   void ParseFakeData(GetFilesCallback callback);
   void OnJsonReceived(GetFilesCallback callback,
                       std::optional<std::string> response_body);
-  void OnJsonParsed(GetFilesCallback callback,
-                    data_decoder::DataDecoder::ValueOrError result);
+  std::vector<file_suggestion::mojom::FilePtr> ProcessParsedJson(
+      std::optional<base::DictValue> dict);
   void RecordRequestMetrics();
   std::string CreateJustificationTextForRecentFile(base::Time opened_time);
   std::string CreateJustificationTextForSharedFile(std::string shared_by);

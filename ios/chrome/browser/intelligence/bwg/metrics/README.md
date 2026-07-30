@@ -6,9 +6,9 @@ This directory contains the metrics, histograms, and user actions tracking for t
 ## Monitored Telemetry Areas
 
 ### 1. First Run Experience (Consent & Promos)
-*   **FRE Promotion Action**: Records user choices (Accept/Dismiss/Link Click) when presented with the Gemini FRE introductory promo (`RecordFREPromoAction`).
-*   **FRE Consent Action**: Tracks similar user actions on the main Gemini Consent sheet (`RecordFREConsentAction`), recording link clicks for South Korea and standard flows.
-*   **FRE State Tracker**: Records preference states related to whether a user has completed, bypassed, or dismissed the onboarding flow.
+*   **Promotion Action**: Records user choices (Accept/Dismiss/Link Click) when presented with the Gemini First Run introductory promo (`RecordFirstRunPromoAction`).
+*   **Consent Action**: Tracks similar user actions on the main Gemini Consent sheet (`RecordFirstRunConsentAction`), recording link clicks for South Korea and standard flows.
+*   **State Tracker**: Records preference states related to whether a user has completed, bypassed, or dismissed the onboarding flow.
 
 ### 2. Prompt & Context Statistics
 *   **Prompt Submission Method**: Records methods used to send queries (e.g. direct text inputs, edit menu text selections, smart suggestion chips, or omnibox prompts).

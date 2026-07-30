@@ -1,0 +1,41 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+static_library("private_verification_tokens") {
+  visibility = [
+    ":*",
+    "//chrome/browser:*",
+    "//chrome/browser/profiles:profiles_extra_parts_impl",
+  ]
+
+  sources = [
+    "private_verification_tokens_service.cc",
+    "private_verification_tokens_service.h",
+    "private_verification_tokens_service_factory.cc",
+    "private_verification_tokens_service_factory.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/core",
+    "//components/private_verification_tokens/common:private_verification_tokens_store",
+    "//components/private_verification_tokens/mojom",
+    "//content/public/browser",
+    "//net",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  sources = [ "private_verification_tokens_service_browsertest.cc" ]
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  deps = [
+    ":private_verification_tokens",
+    "//base/test:test_support",
+    "//chrome/test:test_support",
+    "//components/private_verification_tokens/common:private_verification_tokens_database",
+    "//components/private_verification_tokens/mojom",
+  ]
+}

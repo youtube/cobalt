@@ -94,10 +94,9 @@ void MandatoryReauthManager::StartDeviceAuthentication(
   // device will prevent them from using payments autofill. In the settings
   // page, we signal to the user through various means that they need to turn
   // the device's authentication on in order to use re-auth.
-  if (authentication_method ==
-          payments::MandatoryReauthAuthenticationMethod::kUnknown ||
+  if (authentication_method == MandatoryReauthAuthenticationMethod::kUnknown ||
       authentication_method ==
-          payments::MandatoryReauthAuthenticationMethod::kUnsupportedMethod) {
+          MandatoryReauthAuthenticationMethod::kUnsupportedMethod) {
     LogMandatoryReauthCheckoutFlowUsageEvent(
         non_interactive_payment_method_type, authentication_method,
         autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowSkipped);

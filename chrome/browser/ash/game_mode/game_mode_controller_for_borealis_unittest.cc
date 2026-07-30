@@ -165,7 +165,9 @@ TEST_F(GameModeControllerForBorealisTest, GameModeMetricsRecorded) {
   test_widget->SetFullscreen(false);
   EXPECT_FALSE(ash::WindowState::Get(window)->IsFullscreen());
   EXPECT_EQ(1, fake_resourced_client_->get_exit_game_mode_count());
-  base::RunLoop().RunUntilIdle();
+  // Exiting game mode posts the fake resourced reply as a zero-delay task.
+  // Run that reply without advancing mock time before checking histograms.
+  task_environment()->FastForwardBy(base::TimeDelta());
   histogram_tester_->ExpectBucketCount(kGameModeResultHistogramName,
                                        GameModeResult::kAttempted, 1);
   histogram_tester_->ExpectBucketCount(kGameModeResultHistogramName,

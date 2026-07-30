@@ -54,6 +54,7 @@ import org.chromium.chrome.browser.pdf.PdfInfo;
 import org.chromium.chrome.browser.pdf.PdfPage;
 import org.chromium.chrome.browser.printing.PrintHelper;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.SettingsPage;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -425,6 +426,18 @@ public class NativePageFactory {
                             mEdgeToEdgeControllerSupplier));
         }
 
+        protected NativePage buildSettingsPage(Tab tab) {
+            assert ChromeFeatureList.isEnabled(ChromeFeatureList.SETTINGS_IN_TAB);
+            return new SettingsPage(
+                    mActivity,
+                    tab.getProfile(),
+                    new TabShim(
+                            tab,
+                            mBrowserControlsManager,
+                            mTabModelSelector,
+                            mEdgeToEdgeControllerSupplier));
+        }
+
         private @Nullable IncognitoNtpMetrics createIncognitoNtpMetrics() {
             if (ChromeFeatureList.sRecordIncognitoNtpTimeToFirstNavigationMetric.isEnabled()) {
                 return new IncognitoNtpMetrics();
@@ -501,6 +514,9 @@ public class NativePageFactory {
                 break;
             case NativePageType.BRICKS:
                 page = getBuilder().buildBricksPage(tab, url);
+                break;
+            case NativePageType.SETTINGS:
+                page = getBuilder().buildSettingsPage(tab);
                 break;
             default:
                 assert false;

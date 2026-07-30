@@ -11,6 +11,7 @@
 
 #include "base/cancelable_callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -84,7 +85,18 @@ class VIZ_SERVICE_EXPORT DisplayScheduler
   void SetTickClockForTesting(const base::TickClock* tick_clock);
 
  protected:
-  class BeginFrameObserver;
+  class BeginFrameObserver : public BeginFrameObserverBase {
+   public:
+    explicit BeginFrameObserver(DisplayScheduler& scheduler);
+    ~BeginFrameObserver() override;
+
+    // BeginFrameObserverBase implementation.
+    void OnBeginFrameSourcePausedChanged(bool paused) override;
+    bool OnBeginFrameDerivedImpl(const BeginFrameArgs& args) override;
+
+   private:
+    const raw_ref<DisplayScheduler> scheduler_;
+  };
   class BeginFrameRequestObserverImpl;
 
   bool OnBeginFrame(const BeginFrameArgs& args);
@@ -146,7 +158,7 @@ class VIZ_SERVICE_EXPORT DisplayScheduler
       base::flat_set<base::PlatformThreadId> animation_thread_ids,
       base::flat_set<base::PlatformThreadId> renderer_main_thread_ids);
 
-  std::unique_ptr<BeginFrameObserver> begin_frame_observer_;
+  BeginFrameObserver begin_frame_observer_;
   raw_ptr<BeginFrameSource> begin_frame_source_;
   raw_ptr<base::SingleThreadTaskRunner> task_runner_;
 

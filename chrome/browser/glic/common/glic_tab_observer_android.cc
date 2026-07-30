@@ -22,6 +22,10 @@ TabCreationType ToTypeCreationType(TabModel::TabLaunchType type) {
     // Similar to ctrl + T on desktop
     case TabModel::TabLaunchType::FROM_RECENT_TABS_FOREGROUND:
     case TabModel::TabLaunchType::FROM_RECENT_TABS:
+    // Programmatic tab creations via TabListInterface map to kUserInitiated
+    // to align behavior with Desktop.
+    case TabModel::TabLaunchType::FROM_TAB_LIST_INTERFACE:
+    case TabModel::TabLaunchType::FROM_TAB_LIST_INTERFACE_BACKGROUND:
       return TabCreationType::kUserInitiated;
     case TabModel::TabLaunchType::FROM_LINK:
     case TabModel::TabLaunchType::FROM_LINK_CREATING_NEW_WINDOW:

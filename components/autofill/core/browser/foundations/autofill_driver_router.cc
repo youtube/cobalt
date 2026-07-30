@@ -69,7 +69,8 @@ AutofillDriverRouter::~AutofillDriverRouter() {
                                max_frame_datas_);
 }
 
-AutofillDriver* AutofillDriverRouter::DriverOfFrame(LocalFrameToken frame) {
+AutofillDriver* AutofillDriverRouter::DriverOfFrame(
+    LocalFrameToken frame) const {
   const auto& frames = form_forest_.frame_datas();
   max_frame_datas_ = std::max(max_frame_datas_, frames.size());
   auto it = frames.find(frame);
@@ -81,6 +82,45 @@ void AutofillDriverRouter::UnregisterDriver(AutofillDriver& driver,
                                             bool driver_is_dying) {
   form_forest_.EraseFormsOfFrame(driver.GetFrameToken(),
                                  /*keep_frame=*/!driver_is_dying);
+}
+
+bool AutofillDriverRouter::IsSafeToFill(
+    const FormFieldData& field,
+    FieldType filled_type,
+    const url::Origin& main_origin,
+    const url::Origin& trigger_origin) const {
+  // Non-sensitive values may be filled into fields that belong to the
+  // main frame's origin. This is independent of the origin of the
+  // field that triggered the autofill.
+  const bool is_sensitive_field_type = [filled_type] {
+    switch (filled_type) {
+      case CREDIT_CARD_TYPE:
+      case CREDIT_CARD_NAME_FULL:
+      case CREDIT_CARD_NAME_FIRST:
+      case CREDIT_CARD_NAME_LAST:
+      case CREDIT_CARD_EXP_MONTH:
+      case CREDIT_CARD_EXP_2_DIGIT_YEAR:
+      case CREDIT_CARD_EXP_4_DIGIT_YEAR:
+      case CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR:
+      case CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR:
+        return false;
+      default:
+        return true;
+    }
+  }();
+
+  // Fields whose document enables the policy-controlled feature "autofill"
+  // may be safe to fill.
+  const bool is_policy_controlled_autofill_enabled = [&] {
+    const AutofillDriver* target = DriverOfFrame(field.host_frame());
+    return target && target->IsPolicyControlledFeatureAutofillEnabled();
+  }();
+
+  return field.origin() == trigger_origin ||
+         (field.origin() == main_origin && !is_sensitive_field_type &&
+          is_policy_controlled_autofill_enabled) ||
+         (trigger_origin == main_origin &&
+          is_policy_controlled_autofill_enabled);
 }
 
 // Routing of events called by the renderer:
@@ -102,7 +142,7 @@ void AutofillDriverRouter::TriggerFormExtractionExcept(
     AutofillDriver& exception) {
 #if BUILDFLAG(IS_IOS)
   if (!base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAcrossIframesIosTriggerFormExtraction)) {
+          features::kAutofillAcrossIframesIosTriggerFormExtraction)) {
     return;
   }
 #endif
@@ -440,6 +480,27 @@ void AutofillDriverRouter::DidEndTextFieldEditing(RoutedCallback<> callback,
   ForEachFrame(form_forest_, callback);
 }
 
+void AutofillDriverRouter::FormWithEmailVerificationTokenSubmitted(
+    RoutedCallback<const FormData&, const FieldGlobalId&> callback,
+    AutofillDriver& source,
+    FormData form,
+    const FieldGlobalId& field_id) {
+  FormGlobalId form_id = form.global_id();
+  form_forest_.UpdateTreeOfRendererForm(std::move(form), source);
+
+  const FormData& browser_form = form_forest_.GetBrowserForm(form_id);
+  if (!std::ranges::contains(browser_form.fields(), field_id,
+                             &FormFieldData::global_id)) {
+    // To avoid very large flattened forms, UpdateTreeOfRendererForm() may have
+    // cut the tree into two and, as a result, may have lost some fields. We
+    // drop such events.
+    // See `kMaxVisits` in FormForest::UpdateTreeOfRendererForm() for details.
+    return;
+  }
+  auto* target = DriverOfFrame(browser_form.host_frame());
+  callback(CHECK_DEREF(target), browser_form, field_id);
+}
+
 void AutofillDriverRouter::SelectFieldOptionsDidChange(
     RoutedCallback<const FormData&, const FieldGlobalId&> callback,
     AutofillDriver& source,
@@ -451,6 +512,14 @@ void AutofillDriverRouter::SelectFieldOptionsDidChange(
   TriggerFormExtractionExcept(source);
 
   const FormData& browser_form = form_forest_.GetBrowserForm(form_id);
+  if (!std::ranges::contains(browser_form.fields(), field_id,
+                             &FormFieldData::global_id)) {
+    // To avoid very large flattened forms, UpdateTreeOfRendererForm() may have
+    // cut the tree into two and, as a result, may have lost some fields. We
+    // drop such events.
+    // See `kMaxVisits` in FormForest::UpdateTreeOfRendererForm() for details.
+    return;
+  }
   auto* target = DriverOfFrame(browser_form.host_frame());
   callback(CHECK_DEREF(target), browser_form, field_id);
 }
@@ -505,23 +574,25 @@ base::flat_set<FieldGlobalId> AutofillDriverRouter::ApplyFormAction(
   // values of fields to something that already existed in it prior to the
   // filling, it is okay to bypass the filling security checks and hence passing
   // `TrustAllOrigins()`.
-  internal::FormForest::RendererForms renderer_forms =
-      form_forest_.GetRendererFormsOfBrowserFields(
-          data, action_type == mojom::FormActionType::kUndo
-                    ? internal::FormForest::SecurityOptions::TrustAllOrigins()
-                    : internal::FormForest::SecurityOptions(
-                          &main_origin, &triggered_origin, &field_type_map));
+  std::vector<FormData> renderer_forms =
+      form_forest_.GetRendererFormsOfBrowserFields(data);
   // Collect the fields per frame and emit a single fill operation per frame,
   // even if multiple renderer forms belong to the same iframe due to
   // flattening.
   absl::flat_hash_map<AutofillDriver*, std::vector<FormFieldData::FillData>>
       fields_of_driver;
-  for (FormData& renderer_form : renderer_forms.renderer_forms) {
+
+  std::vector<FieldGlobalId> safe_fields;
+  safe_fields.reserve(data.size());
+  for (FormData& renderer_form : renderer_forms) {
     if (auto* target = DriverOfFrame(renderer_form.host_frame())) {
       for (const FormFieldData& field : renderer_form.fields()) {
         // Skip unsafe fields so that they do not get filled in the renderer.
-        if (renderer_forms.safe_fields.contains(field.global_id())) {
+        if (action_type == mojom::FormActionType::kUndo ||
+            IsSafeToFill(field, field_type_map.at(field.global_id()),
+                         main_origin, triggered_origin)) {
           fields_of_driver[target].emplace_back(field);
+          safe_fields.push_back(field.global_id());
         }
       }
     }
@@ -531,7 +602,7 @@ base::flat_set<FieldGlobalId> AutofillDriverRouter::ApplyFormAction(
     callback(CHECK_DEREF(target), action_type, action_persistence, fields,
              fill_id, supports_refill);
   }
-  return renderer_forms.safe_fields;
+  return safe_fields;
 }
 
 void AutofillDriverRouter::ApplyFieldAction(
@@ -600,12 +671,9 @@ void AutofillDriverRouter::SendTypePredictionsToRenderer(
 
   // Builds the FormDataPredictions of each renderer form and groups them by
   // the renderer form's frame in |renderer_fdps|.
-  internal::FormForest::RendererForms renderer_forms =
-      form_forest_.GetRendererFormsOfBrowserFields(
-          browser_fdp.data.fields(), {&browser_fdp.data.main_frame_origin(),
-                                      &browser_fdp.data.main_frame_origin(),
-                                      /*field_type_map=*/nullptr});
-  for (FormData& renderer_form : renderer_forms.renderer_forms) {
+  std::vector<FormData> renderer_forms =
+      form_forest_.GetRendererFormsOfBrowserFields(browser_fdp.data.fields());
+  for (FormData& renderer_form : renderer_forms) {
     LocalFrameToken frame = renderer_form.host_frame();
     FormDataPredictions renderer_fdp;
     renderer_fdp.data = std::move(renderer_form);
@@ -693,11 +761,7 @@ void AutofillDriverRouter::RendererShouldSetSuggestionAvailability(
 
 std::vector<FormData> AutofillDriverRouter::GetRendererForms(
     const FormData& browser_form) const {
-  return form_forest_
-      .GetRendererFormsOfBrowserFields(
-          browser_form.fields(),
-          internal::FormForest::SecurityOptions::TrustAllOrigins())
-      .renderer_forms;
+  return form_forest_.GetRendererFormsOfBrowserFields(browser_form.fields());
 }
 
 }  // namespace autofill

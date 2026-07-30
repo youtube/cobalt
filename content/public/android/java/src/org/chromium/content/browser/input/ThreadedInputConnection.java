@@ -896,6 +896,17 @@ class ThreadedInputConnection extends BaseInputConnection implements ChromiumBas
         if (gestureData == null) {
             return false;
         }
+        if (signal != null) {
+            signal.setOnCancelListener(
+                    () -> {
+                        // Post to the UI thread to interact with mImeAdapter
+                        PostTask.postTask(
+                                TaskTraits.UI_USER_BLOCKING,
+                                () -> {
+                                    mImeAdapter.cancelPreviewGesture();
+                                });
+                    });
+        }
         // Callback should be run on the UI thread.
         PostTask.postTask(
                 TaskTraits.UI_USER_BLOCKING,

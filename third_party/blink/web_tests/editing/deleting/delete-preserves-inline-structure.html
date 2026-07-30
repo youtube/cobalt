@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Delete selection preserves inline structure</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<body>
+<script>
+const kStyle = [
+  '<style>',
+    '.editable p { color: blue }',
+    '.red span { color: red !important; }',
+  '</style>',
+];
+
+function runTest(input, expected, description) {
+  selection_test(
+    [...kStyle, ...input],
+    'delete',
+    [...kStyle, ...expected],
+    description);
+}
+
+runTest([
+  '<div class="editable" contenteditable>',
+    '<p>foo</p>',
+    '<p>|bar</p>',
+  '</div>',
+], [
+  '<div class="editable" contenteditable>',
+    '<p>foo|bar</p>',
+  '</div>',
+], 'Merging two plain paragraphs with a CSS rule on the container');
+
+runTest([
+  '<div class="editable red" contenteditable>',
+    '<p>foo</p>',
+    '<p>|bar</p>',
+  '</div>',
+], [
+  '<div class="editable red" contenteditable>',
+    '<p>foo|bar</p>',
+  '</div>',
+], 'Merging two plain paragraphs when a CSS rule targets spans in the container');
+
+runTest([
+  '<div class="editable red" contenteditable>',
+    '<p>foo</p>',
+    '<p><span>|bar</span></p>',
+  '</div>',
+], [
+  '<div class="editable red" contenteditable>',
+    '<p>foo|<span>bar</span></p>',
+  '</div>',
+], 'Merging paragraphs preserves a leading <span> in the second paragraph');
+
+runTest([
+  '<div class="editable red" contenteditable>',
+    '<p>foo</p>',
+    '<p>|<span>ba</span>r</p>',
+  '</div>',
+], [
+  '<div class="editable red" contenteditable>',
+    '<p>foo|<span>ba</span>r</p>',
+  '</div>',
+], 'Merging paragraphs preserves a <span> at the start of the second paragraph');
+
+runTest([
+  '<div class="editable red" contenteditable>',
+    '<p>foo</p>',
+    '<p>|b<span>a</span>r</p>',
+  '</div>',
+], [
+  '<div class="editable red" contenteditable>',
+    '<p>foo|b<span>a</span>r</p>',
+  '</div>',
+], 'Merging paragraphs preserves a <span> in the middle of the second paragraph');
+
+runTest([
+  '<div class="editable red" contenteditable>',
+    '<p>foo</p>',
+    '<p>|ba<span>r</span></p>',
+  '</div>',
+], [
+  '<div class="editable red" contenteditable>',
+    '<p>foo|ba<span>r</span></p>',
+  '</div>',
+], 'Merging paragraphs preserves a trailing <span> in the second paragraph');
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@ source_set("ui") {
   ]
   public_deps = [
     ":ui_constants",
-    "//ios/chrome/browser/tab_picker/coordinator",
+    "//ios/chrome/browser/tab_picker/public",
     "//ios/web/public",
   ]
   deps = [

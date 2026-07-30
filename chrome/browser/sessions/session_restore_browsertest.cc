@@ -32,6 +32,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
@@ -85,6 +86,7 @@
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
@@ -114,6 +116,10 @@
 #include "components/saved_tab_groups/public/types.h"
 #include "components/sessions/content/content_live_tab.h"
 #include "components/sessions/content/content_test_helper.h"
+#include "components/sessions/core/command_storage_backend.h"
+#include "components/sessions/core/command_storage_features.h"
+#include "components/sessions/core/command_storage_manager.h"
+#include "components/sessions/core/command_storage_manager_test_helper.h"
 #include "components/sessions/core/serialized_navigation_entry_test_helper.h"
 #include "components/sessions/core/session_constants.h"
 #include "components/sessions/core/session_types.h"
@@ -642,7 +648,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, NoSessionRestoreNewWindowChromeOS) {
 
   Browser* incognito_browser = CreateIncognitoBrowser();
   chrome::AddTabAt(incognito_browser, GURL(), -1, true);
-  incognito_browser->window()->Show();
+  incognito_browser->GetWindow()->Show();
 
   // Close the normal browser. After this we only have the incognito window
   // open.
@@ -665,9 +671,9 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, NoSessionRestoreNewWindowChromeOS) {
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest, MaximizedApps) {
   const char* app_name = "TestApp";
   Browser* app_browser = CreateBrowserForApp(app_name, browser()->profile());
-  app_browser->window()->Maximize();
-  app_browser->window()->Show();
-  EXPECT_TRUE(app_browser->window()->IsMaximized());
+  app_browser->GetWindow()->Maximize();
+  app_browser->GetWindow()->Show();
+  EXPECT_TRUE(app_browser->GetWindow()->IsMaximized());
   EXPECT_TRUE(app_browser->is_type_app());
 
   // Close the normal browser. After this we only have the app_browser window.
@@ -678,7 +684,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, MaximizedApps) {
   Browser* new_browser = ui_test_utils::WaitForBrowserToOpen();
 
   ASSERT_TRUE(new_browser);
-  EXPECT_TRUE(app_browser->window()->IsMaximized());
+  EXPECT_TRUE(app_browser->GetWindow()->IsMaximized());
   EXPECT_TRUE(app_browser->is_type_app());
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -742,7 +748,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
       TabRestoreServiceFactory::GetForProfile(browser()->profile());
   service->ClearEntries();
 
-  browser()->window()->Close();
+  browser()->GetWindow()->Close();
 
   // Expect a window with three tabs.
   ASSERT_EQ(1U, service->entries().size());
@@ -814,7 +820,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, IncognitotoNonIncognito) {
   // Create a new incognito window.
   Browser* incognito_browser = CreateIncognitoBrowser();
   chrome::AddTabAt(incognito_browser, GURL(), -1, true);
-  incognito_browser->window()->Show();
+  incognito_browser->GetWindow()->Show();
 
   // Close the normal browser. After this we only have the incognito window
   // open.
@@ -1971,8 +1977,10 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreWindowUserTitle) {
 
   // Set a custom user title to this second browser window.
   const std::string custom_user_title = "Window 2";
-  browser2->SetWindowUserTitle(custom_user_title);
-  ASSERT_EQ(custom_user_title, browser2->user_title());
+  WindowMetadataController::From(browser2)->SetWindowUserTitle(
+      custom_user_title);
+  ASSERT_EQ(custom_user_title,
+            WindowMetadataController::From(browser2)->user_title());
 
   // Simulate an exit by shutting down the session service. If we don't do this
   // the window close is treated as though the user closed the window and won't
@@ -1993,11 +2001,12 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreWindowUserTitle) {
 
   // The user title should be empty for first window as it did not have a
   // custom title.
-  EXPECT_TRUE(new_browser1->GetBrowserForMigrationOnly()->user_title().empty());
+  EXPECT_TRUE(
+      WindowMetadataController::From(new_browser1)->user_title().empty());
 
   // The user title for second window should be restored.
   EXPECT_EQ(custom_user_title,
-            new_browser2->GetBrowserForMigrationOnly()->user_title());
+            WindowMetadataController::From(new_browser2)->user_title());
 }
 
 // Make sure after a restore the number of processes matches that of the number
@@ -5026,3 +5035,98 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, PinnedAndSplitTabsRestored) {
   EXPECT_EQ(new_browser->GetTabStripModel()->GetSplitForTab(0),
             new_browser->GetTabStripModel()->GetSplitForTab(1));
 }
+
+struct EncryptionTestParams {
+  const char* stage_name;
+};
+
+class SessionRestoreEncryptionTest
+    : public SessionRestoreTest,
+      public testing::WithParamInterface<EncryptionTestParams> {
+ public:
+  SessionRestoreEncryptionTest() {
+    if (std::string_view(GetParam().stage_name) == "clear_only") {
+      scoped_feature_list_.InitAndDisableFeature(
+          sessions::kEncryptSessionStorage);
+    } else {
+      scoped_feature_list_.InitAndEnableFeatureWithParameters(
+          sessions::kEncryptSessionStorage, {{"stage", GetParam().stage_name}});
+    }
+  }
+
+  void AssertCommandStorageBackendFilesExist() {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    sessions::CommandStorageManager* command_storage_manager =
+        SessionServiceTestHelper(
+            SessionServiceFactory::GetForProfile(browser()->profile()))
+            .command_storage_manager();
+    sessions::CommandStorageManagerTestHelper test_helper(
+        command_storage_manager);
+    command_storage_manager->Save();
+    test_helper.RunMessageLoopUntilBackendDone();
+    sessions::CommandStorageBackend* cleartext_backend =
+        test_helper.GetCleartextBackend();
+    sessions::CommandStorageBackend* encrypted_backend =
+        test_helper.GetEncryptedBackend();
+    if (test_helper.ShouldWriteEncryptedFiles()) {
+      ASSERT_TRUE(encrypted_backend);
+      const base::FilePath path = encrypted_backend->current_path_for_testing();
+      ASSERT_TRUE(base::PathExists(path));
+    } else {
+      ASSERT_FALSE(encrypted_backend);
+    }
+    if (test_helper.ShouldWriteCleartextFiles()) {
+      ASSERT_TRUE(cleartext_backend);
+      const base::FilePath path = cleartext_backend->current_path_for_testing();
+      ASSERT_TRUE(base::PathExists(path));
+    } else {
+      ASSERT_FALSE(cleartext_backend);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(SessionRestoreEncryptionTest, BasicRestore) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl1()));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl2(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+  AssertCommandStorageBackendFilesExist();
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+  TabStripModel* tab_strip_model = restored->GetTabStripModel();
+  ASSERT_EQ(2, tab_strip_model->count());
+  EXPECT_EQ(GetUrl1(), tab_strip_model->GetWebContentsAt(0)->GetURL());
+  EXPECT_EQ(GetUrl2(), tab_strip_model->GetWebContentsAt(1)->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_P(SessionRestoreEncryptionTest, LargeSessionRestore) {
+  constexpr int kNumTabs = 20;
+  for (int i = 0; i < kNumTabs; ++i) {
+    ui_test_utils::NavigateToURLWithDisposition(
+        browser(), GetUrl1(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  }
+  int starting_tab_count = browser()->tab_strip_model()->count();
+  EXPECT_EQ(kNumTabs + 1, starting_tab_count);
+  AssertCommandStorageBackendFilesExist();
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+  TabStripModel* tab_strip_model = restored->GetTabStripModel();
+  EXPECT_EQ(starting_tab_count, tab_strip_model->count());
+  for (int i = 1; i < starting_tab_count; ++i) {
+    EXPECT_EQ(GetUrl1(), tab_strip_model->GetWebContentsAt(i)->GetURL());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    SessionRestoreEncryptionTest,
+    testing::Values(EncryptionTestParams{"clear_only"},
+                    EncryptionTestParams{"write_both_read_only_clear"}),
+    [](const testing::TestParamInfo<EncryptionTestParams>& info) {
+      return info.param.stage_name;
+    });

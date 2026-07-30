@@ -41,25 +41,24 @@ bool IwaEntitlementsSet::operator==(const IwaEntitlementsSet& other) const {
 
 std::optional<IwaEntitlement> GetEntitlementForFeature(
     const std::string& feature_name) {
-  static constexpr auto kEntitlementMap = base::MakeFixedFlatMap<
-      std::string_view, IwaEntitlement>({
-      {"controlled-frame",
-       IwaAccessControl::UserInstallAllowlistItemData::CONTROLLED_FRAME},
-      {"direct-sockets",
-       IwaAccessControl::UserInstallAllowlistItemData::DIRECT_SOCKETS},
-      {"direct-sockets-multicast",
-       IwaAccessControl::UserInstallAllowlistItemData::
-           DIRECT_SOCKETS_MULTICAST},
-      {"direct-sockets-private",
-       IwaAccessControl::UserInstallAllowlistItemData::DIRECT_SOCKETS_PRIVATE},
-      {"smart-card",
-       IwaAccessControl::UserInstallAllowlistItemData::SMART_CARD},
-      {"sub-apps", IwaAccessControl::UserInstallAllowlistItemData::SUB_APPS},
-      {"usb-unrestricted",
-       IwaAccessControl::UserInstallAllowlistItemData::UNRESTRICTED_WEBUSB},
-      {"web-printing",
-       IwaAccessControl::UserInstallAllowlistItemData::WEB_PRINTING},
-  });
+  static constexpr auto kEntitlementMap =
+      base::MakeFixedFlatMap<std::string_view, IwaEntitlement>({
+          {"controlled-frame",
+           IwaAccessControl::UserInstallAllowlistItemData::CONTROLLED_FRAME},
+          {"direct-sockets",
+           IwaAccessControl::UserInstallAllowlistItemData::DIRECT_SOCKETS},
+          {"direct-sockets-multicast",
+           IwaAccessControl::UserInstallAllowlistItemData::
+               DIRECT_SOCKETS_MULTICAST},
+          {"smart-card",
+           IwaAccessControl::UserInstallAllowlistItemData::SMART_CARD},
+          {"sub-apps",
+           IwaAccessControl::UserInstallAllowlistItemData::SUB_APPS},
+          {"usb-unrestricted",
+           IwaAccessControl::UserInstallAllowlistItemData::UNRESTRICTED_WEBUSB},
+          {"web-printing",
+           IwaAccessControl::UserInstallAllowlistItemData::WEB_PRINTING},
+      });
 
   return base::OptionalFromPtr(base::FindOrNull(kEntitlementMap, feature_name));
 }

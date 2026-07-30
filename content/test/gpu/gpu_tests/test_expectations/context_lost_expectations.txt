@@ -28,8 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
-#             amd-0x7340 amd-0x7480 amd-0x7550
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x67ef amd-0x6821 amd-0x7340
+#             amd-0x7480 amd-0x7550
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -123,6 +123,10 @@ crbug.com/1078566 [ android ] GpuNormalTermination_NewWebGLNotBlocked [ Skip ]
 [ fuchsia ] ContextLost_WebGLContextLostInHiddenTab [ Skip ]
 [ fuchsia ] ContextLost_WebGLContextRestoredInHiddenTab [ Skip ]
 
+# web-engine-shell does not enter element fullscreen, so fullscreenchange
+# never fires and the test cannot complete.
+crbug.com/41101884 [ fuchsia ] ContextLost_WebGLContextNotLostFromFullscreenChange [ Skip ]
+
 # Webgpu not fully supported on Linux, Android, ChromeOS, and Fuchsia
 [ linux ] ContextLost_WebGPUContextLostFromGPUProcessExit [ Skip ]
 [ linux ] ContextLost_WebGPUBlockedAfterJSNavigation [ Skip ]
@@ -173,12 +177,6 @@ crbug.com/1327754 [ mac amd debug ] GpuCrash_InfoForDualHardwareGpus [ Skip ]
 # Vulkan enabled on linux, the crash fallback logic is different.
 crbug.com/1334650 [ linux ] GpuCrash_InfoForHardwareGpu [ Skip ]
 crbug.com/1334650 [ linux ] GpuCrash_SoftwareFallbackDisabled [ Skip ]
-
-# WebGpu is not enable on mac pro
-[ mac amd-0x679e ] ContextLost_WebGPUBlockedAfterJSNavigation [ Skip ]
-[ mac amd-0x679e ] ContextLost_WebGPUContextLostFromGPUProcessExit [ Skip ]
-[ mac amd-0x679e ] ContextLost_WebGPUUnblockedAfterUserInitiatedReload [ Skip ]
-[ mac amd-0x679e ] GpuNormalTermination_WebGPUNotBlocked [ Skip ]
 
 # WebGpu is not supported on x86 nvidia
 crbug.com/42240193 [ win10 nvidia target-cpu-32 ] ContextLost_WebGPUBlockedAfterJSNavigation [ Skip ]
@@ -239,7 +237,6 @@ crbug.com/365565140 [ angle-opengl debug graphite-disabled intel-0x3e9b arch-x86
 
 # Renderer Hung Possibly just Slow
 crbug.com/338574390 [ mac intel-0x3e9b angle-metal asan graphite-disabled ] ContextLost_WebGPUUnblockedAfterUserInitiatedReload [ Failure ]
-crbug.com/338574390 [ amd-0x7340 angle-metal clang-coverage graphite-enabled mac release ] ContextLost_WebGPUBlockedAfterJSNavigation [ Failure ]
 crbug.com/338574390 [ amd-0x7340 angle-metal debug graphite-enabled mac no-clang-coverage ] ContextLost_WebGPUBlockedAfterJSNavigation [ Failure ]
 crbug.com/380088337 [ mac intel-0x3e9b angle-metal asan ] ContextLost_WebGLUnblockedAfterUserInitiatedReload [ Failure ]
 

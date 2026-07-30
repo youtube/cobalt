@@ -41,6 +41,10 @@ BASE_FEATURE(kAdSamplerTriggerFeature,
 BASE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAllowSafeBrowsingV4StoreDiskMigrationChanges,
+             "SafeBrowsingAllowV4StoreDiskMigrationChanges",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAutoRevokeSuspiciousNotification,
              base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int>
@@ -176,7 +180,7 @@ BASE_FEATURE(kClientSideDetectionSamplePing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kClientSideDetectionServerModelForScamDetectionAndroid,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int> kClientSideDetectionServerModelMaxScansPerDay{
     &kClientSideDetectionServerModelForScamDetectionAndroid,
     "MaxIntelligentScansPerDay",
@@ -250,6 +254,9 @@ BASE_FEATURE(kEsbAsASyncedSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtendedReportingRemovePrefDependency,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kExtensionBlocklistSkipNetworkQuery,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionTelemetryConfiguration,
              "SafeBrowsingExtensionTelemetryConfiguration",
@@ -354,6 +361,22 @@ BASE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle,
 
 BASE_FEATURE(kMigrateToBlockV8OptimizerOnUnfamiliarSites,
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(
+    int,
+    kMigrateToBlockV8OptimizerOnUnfamiliarSitesMinSiteEngagementScore,
+    &kMigrateToBlockV8OptimizerOnUnfamiliarSites,
+    "min_site_engagement_score",
+    10);
+BASE_FEATURE_PARAM(
+    base::TimeDelta,
+    kMigrateToBlockV8OptimizerOnUnfamiliarSitesMinAgeOfInitialVisit,
+    &kMigrateToBlockV8OptimizerOnUnfamiliarSites,
+    "min_age_of_initial_visit",
+    base::Hours(24));
+constexpr base::FeatureParam<bool>
+    kMigrateToBlockV8OptimizerOnUnfamiliarSitesDryRun{
+        &kMigrateToBlockV8OptimizerOnUnfamiliarSites, "dry_run",
+        /*default_value=*/false};
 
 BASE_FEATURE(kMovePasswordLeakDetectionToggleIos,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -400,6 +423,9 @@ constexpr base::FeatureParam<int> kSafeBrowsingDailyPhishingReportsLimitESB{
 BASE_FEATURE(kSafeBrowsingSyncCheckerCheckAllowlist,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+BASE_FEATURE(kSafeBrowsingWaitForDnsForRealTimeLookup,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSavePasswordHashFromProfilePicker,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -451,6 +477,7 @@ base::ListValue GetFeatureStatusList() {
   // chrome://safe-browsing. Features should be listed in alphabetical order.
   const base::Feature* kExperimentalFeatures[] = {
       // keep-sorted start
+      &kAllowSafeBrowsingV4StoreDiskMigrationChanges,
       &kAutoRevokeSuspiciousNotification,
       &kBundledSecuritySettings,
       &kBundledSecuritySettingsAskBeforeHttp,
@@ -467,6 +494,7 @@ base::ListValue GetFeatureStatusList() {
       &kEnhancedSafeBrowsingPromo,
       &kEnterprisePasswordReuseUiRefresh,
       &kEsbAsASyncedSetting,
+      &kExtensionBlocklistSkipNetworkQuery,
       &kExternalAppRedirectTelemetry,
       &kHashPrefixRealTimeLookups,
       &kLocalListsUseSBv5,
@@ -474,6 +502,7 @@ base::ListValue GetFeatureStatusList() {
       &kNotificationTelemetrySwb,
       &kProactivePasswordProtection,
       &kReportNotificationContentDetectionData,
+      &kSafeBrowsingWaitForDnsForRealTimeLookup,
       &kShowManualNotificationRevocationsSafetyHub,
       &kShowWarningsForSuspiciousNotifications,
       &kSuspiciousSiteTriggerQuotaFeature,

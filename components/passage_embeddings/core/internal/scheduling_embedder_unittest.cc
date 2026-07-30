@@ -7,7 +7,9 @@
 #include <initializer_list>
 #include <memory>
 #include <optional>
+#include <string>
 #include <tuple>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -343,6 +345,52 @@ TEST_F(SchedulingEmbedderTest, RecordsHistograms) {
   // previous two jobs.
   histogram_tester.ExpectBucketCount("History.Embeddings.ScheduledPassageCount",
                                      3, 1);
+}
+
+TEST_F(SchedulingEmbedderTest, SkipsHistogramsForGemma) {
+  base::HistogramTester histogram_tester;
+  auto embedder = std::make_unique<SchedulingEmbedder>(
+      embedder_metadata_provider_.get(),
+      base::BindRepeating(&GetEmbeddingsStub::GetEmbeddings,
+                          base::Unretained(&get_embeddings_stub_)),
+      /*max_jobs=*/4u,
+      /*max_batch_size=*/1u,
+      /*use_performance_scenario=*/false,
+      /*execute_for_gemma=*/true);
+
+  std::vector<SchedulingEmbedder::GetEmbeddingsResultCallback> callbacks;
+  const auto record_callback =
+      [&callbacks](std::vector<std::string> passages, PassagePriority priority,
+                   SchedulingEmbedder::GetEmbeddingsResultCallback callback) {
+        callbacks.push_back(std::move(callback));
+      };
+  EXPECT_CALL(get_embeddings_stub_, GetEmbeddings).WillOnce(record_callback);
+
+  ComputePassagesEmbeddingsFuture future1;
+  Embedder::Job job1 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"test passage 1"}, future1.GetCallback());
+
+  ASSERT_EQ(callbacks.size(), 1u);
+  ASSERT_FALSE(callbacks.back().is_null());
+  std::move(callbacks.back())
+      .Run(GenerateExpectedServiceOutput({"test passage 1"}),
+           ComputeEmbeddingsStatus::kSuccess);
+
+  ASSERT_TRUE(future1.Wait());
+
+  histogram_tester.ExpectTotalCount("History.Embeddings.ScheduledJobDuration",
+                                    0);
+  histogram_tester.ExpectTotalCount(
+      "History.Embeddings.ScheduledJobDuration.Passive", 0);
+
+  histogram_tester.ExpectTotalCount("History.Embeddings.ScheduledJobStatus", 0);
+  histogram_tester.ExpectTotalCount(
+      "History.Embeddings.ScheduledJobStatus.Passive", 0);
+
+  histogram_tester.ExpectTotalCount("History.Embeddings.ScheduledJobCount", 0);
+
+  histogram_tester.ExpectTotalCount("History.Embeddings.ScheduledPassageCount",
+                                    0);
 }
 
 TEST_F(SchedulingEmbedderTest, JobCanceledDuringQueueLimitCallback) {

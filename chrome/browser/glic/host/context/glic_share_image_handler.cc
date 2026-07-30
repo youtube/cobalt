@@ -161,12 +161,7 @@ void GlicShareImageHandler::ShareContextImage(
 
 void GlicShareImageHandler::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (!GlicEnabling::HasConsentedForProfile(service_->profile())) {
-    ShareComplete(
-        ShareImageResult::kFailedSawNavigationDidNotCompleteOnboarding);
-  } else {
-    ShareComplete(ShareImageResult::kFailedSawNavigation);
-  }
+  ShareComplete(ShareImageResult::kFailedSawNavigation);
 }
 
 void GlicShareImageHandler::OnInstanceWillBeDestroyed(GlicInstance* instance) {
@@ -298,6 +293,7 @@ void GlicShareImageHandler::OnReceivedTabContext(
     invoke_options.additional_context = AdditionalTabContext(
         std::move(additional_context_), render_frame_host_id_, policy_check);
     invoke_options.fre_override = mojom::FreOverride::kTrustFirstClick;
+    invoke_options.fre_completion_wait_mode = FreCompletionWaitMode::kNever;
     invoke_options.on_error = base::BindOnce(
         &GlicShareImageHandler::OnInvokeError, weak_ptr_factory_.GetWeakPtr());
     invoke_options.on_success = base::BindOnce(
@@ -311,9 +307,9 @@ void GlicShareImageHandler::OnReceivedTabContext(
   if (!do_policy_checks) {
     StopObservingNavigation();
     if (OpenUI(tab)) {
-      PerformTaskWhenReady(
-          base::BindOnce(&GlicShareImageHandler::WaitForOnboardingCompletion,
-                         weak_ptr_factory_.GetWeakPtr()));
+      PerformTaskWhenReady(base::BindOnce(
+          &GlicShareImageHandler::ShareComplete, weak_ptr_factory_.GetWeakPtr(),
+          ShareImageResult::kSentImageToClient));
     }
     return;
   }
@@ -484,36 +480,7 @@ void GlicShareImageHandler::OnPastePolicyCheckComplete(
   // WebContents destruction.
   StopObservingNavigation();
 
-  WaitForOnboardingCompletion();
-}
-
-void GlicShareImageHandler::WaitForOnboardingCompletion() {
-  if (GlicEnabling::HasConsentedForProfile(service_->profile())) {
-    ShareComplete(ShareImageResult::kSentImageToClient);
-    return;
-  }
-
-  onboarding_timeout_timer_.Start(
-      FROM_HERE, base::Minutes(1),
-      base::BindOnce(&GlicShareImageHandler::OnOnboardingTimeout,
-                     weak_ptr_factory_.GetWeakPtr()));
-
-  onboarding_subscription_ = service_->enabling().RegisterOnConsentChanged(
-      base::BindRepeating(&GlicShareImageHandler::OnOnboardingStatusChanged,
-                          weak_ptr_factory_.GetWeakPtr()));
-}
-
-void GlicShareImageHandler::OnOnboardingStatusChanged() {
-  if (GlicEnabling::HasConsentedForProfile(service_->profile())) {
-    onboarding_timeout_timer_.Stop();
-    onboarding_subscription_ = base::CallbackListSubscription();
-    ShareComplete(ShareImageResult::kSentImageToClient);
-  }
-}
-
-void GlicShareImageHandler::OnOnboardingTimeout() {
-  onboarding_subscription_ = base::CallbackListSubscription();
-  ShareComplete(ShareImageResult::kFailedTimedOutDidNotCompleteOnboarding);
+  ShareComplete(ShareImageResult::kSentImageToClient);
 }
 
 std::optional<bool> GlicShareImageHandler::IsClientReady(
@@ -557,12 +524,7 @@ void GlicShareImageHandler::OnInvokeError(GlicInvokeError error) {
       ShareComplete(ShareImageResult::kFailedUnknown);
       break;
     case GlicInvokeError::kTimeout:
-      if (!GlicEnabling::HasConsentedForProfile(service_->profile())) {
-        ShareComplete(
-            ShareImageResult::kFailedTimedOutDidNotCompleteOnboarding);
-      } else {
-        ShareComplete(ShareImageResult::kFailedTimedOut);
-      }
+      ShareComplete(ShareImageResult::kFailedTimedOut);
       break;
     case GlicInvokeError::kInvalidConversationId:
       ShareComplete(ShareImageResult::kFailedInvalidConversationId);
@@ -599,6 +561,9 @@ void GlicShareImageHandler::OnInvokeError(GlicInvokeError error) {
       break;
     case GlicInvokeError::kAdditionalContextNoClipboardMetadata:
       ShareComplete(ShareImageResult::kFailedNoClipboardMetadata);
+      break;
+    case GlicInvokeError::kInstanceNotFound:
+      ShareComplete(ShareImageResult::kFailedLostInstance);
       break;
     default:
       ShareComplete(ShareImageResult::kFailedUnknown);
@@ -703,8 +668,6 @@ void GlicShareImageHandler::Reset() {
   instance_destruction_subscription_ = {};
   instance_id_ = InstanceId::CreateNullId();
   instance_change_permitted_ = true;
-  onboarding_timeout_timer_.Stop();
-  onboarding_subscription_ = base::CallbackListSubscription();
 
   on_client_ready_callback_.Reset();
 

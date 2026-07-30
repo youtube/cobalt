@@ -14,6 +14,7 @@
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extensions_client.h"
 #include "extensions/common/features/feature.h"
+#include "extensions/common/mime_handler_availability.h"
 #include "extensions/common/user_scripts_availability.h"
 #include "extensions/common/webstore_override.h"
 
@@ -39,6 +40,7 @@ extensions::Feature::FeatureDelegatedAvailabilityCheckMap
 CombineAllAvailabilityCheckMaps() {
   extensions::Feature::FeatureDelegatedAvailabilityCheckMap map_list[] = {
       controlled_frame::CreateAvailabilityCheckMap(),
+      extensions::mime_handler_availability::CreateAvailabilityCheckMap(),
       extensions::user_scripts_availability::CreateAvailabilityCheckMap(),
       extensions::webstore_override::CreateAvailabilityCheckMap(),
 

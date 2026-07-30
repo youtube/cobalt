@@ -400,8 +400,7 @@ std::optional<Value> Reader::ReadMapContent(
       return std::nullopt;
     }
 
-    if (!config.allow_and_canonicalize_out_of_order_keys &&
-        std::next(it) != cbor_map.end()) {
+    if (std::next(it) != cbor_map.end()) {
       error_code_ = DecoderError::OUT_OF_ORDER_KEY;
       return std::nullopt;
     }

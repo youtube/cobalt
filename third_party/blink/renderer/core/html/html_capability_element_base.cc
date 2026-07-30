@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
+#include "third_party/blink/renderer/core/css/style_color.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -933,6 +934,13 @@ void HTMLCapabilityElementBase::AdjustStyle(ComputedStyleBuilder& builder) {
   builder.ResetTextStrokeWidth();
   builder.ResetTextFillColor();
   builder.ResetTextStrokeColor();
+
+  // To prevent CSS :visited history leaks and ensure the button remains
+  // fully legible and active in all states, we force the element to pretend
+  // it is not inside a visited link. This automatically makes all
+  // VisitedDependentColor() lookups fall back to the unvisited colors,
+  // future-proofing against new CSS visited colors being added.
+  builder.SetInsideLink(EInsideLink::kNotInsideLink);
 }
 
 void HTMLCapabilityElementBase::DidRecalcStyle(const StyleRecalcChange change) {

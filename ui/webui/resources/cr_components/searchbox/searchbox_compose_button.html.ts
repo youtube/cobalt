@@ -37,7 +37,9 @@ export function getHtml(this: SearchboxComposeButtonElement) {
       class="compose-container"
       title="${this.i18n('searchboxComposeButtonTitle')}">
     <img slot="prefix-icon" src="${this.composeIcon_}" class="compose-icon">
-    ${this.i18n('searchboxComposeButtonText')}
+    <span id="label">${this.i18n('searchboxComposeButtonText')}</span>
+    <img id="arrowIcon" slot="suffix-icon" class="arrow-icon"
+        src="${this.arrowIcon_}">
   </cr-button>
 </div>
 <!--_html_template_end_-->`;

@@ -806,7 +806,19 @@ HTMLOptionElement* HTMLSelectElement::SelectedOption() const {
 }
 
 bool HTMLSelectElement::IsInDialogMode() const {
-  return IsAppearanceBase() && content_model_violations_count_ > 0U;
+  if (!IsAppearanceBase()) {
+    return false;
+  }
+
+  if (RuntimeEnabledFeatures::FilterableSelectEnabled() &&
+      num_descendant_inputs_) {
+    // When there is an <input> inside of this select, the picker should be
+    // mapped as a dialog and there will be a separate element in the
+    // ShadowRoot which is mapped as a listbox which holds the options.
+    return true;
+  }
+
+  return content_model_violations_count_;
 }
 
 void HTMLSelectElement::IncreaseContentModelViolationCount() {
@@ -2144,15 +2156,19 @@ HTMLSelectElement::WalkAncestorsForRelatedParts(const Element& element) {
 void HTMLSelectElement::InputInserted(HTMLInputElement* input,
                                       Node* nearest_ancestor_select_child) {
   CountedElementInserted(input, nearest_ancestor_select_child);
-  // TODO(crbug.com/402429384): Update the UA ShadowRoot to account for the
-  // added input.
+  // We only need to change the shadow root when going from no input elements to
+  // some input elements, hence the == 1 check here.
+  if (num_descendant_inputs_ == 1) {
+    UpdateUserAgentShadowTree(*UserAgentShadowRoot());
+  }
 }
 
 void HTMLSelectElement::InputRemoved(HTMLInputElement* input,
                                      Node* nearest_ancestor_select_child) {
   CountedElementRemoved(input, nearest_ancestor_select_child);
-  // TODO(crbug.com/402429384): Update the UA ShadowRoot to account for the
-  // removed input.
+  if (!num_descendant_inputs_) {
+    UpdateUserAgentShadowTree(*UserAgentShadowRoot());
+  }
 }
 
 void HTMLSelectElement::CountedElementInserted(
@@ -2173,6 +2189,13 @@ void HTMLSelectElement::CountedElementInserted(
   if (insert_result.stored_value->value.num_options &&
       insert_result.stored_value->value.num_inputs) {
     LogOptionAndInputWarning(*element);
+  }
+
+  // Since slotting may change based on whether each child node contains a
+  // descendant input elements and option elements, we need to recalc slot
+  // assignment when such descendants are changed.
+  if (num_descendant_inputs_) {
+    UserAgentShadowRoot()->SetNeedsAssignmentRecalc();
   }
 }
 
@@ -2197,18 +2220,18 @@ void HTMLSelectElement::CountedElementRemoved(
   if (it->value.num_inputs == 0 && it->value.num_options == 0) {
     children_descendant_counts_map_.erase(it);
   }
+
+  // See comment on SetNeedsAssignmentRecalc in CountedElementInserted.
+  if (num_descendant_inputs_) {
+    UserAgentShadowRoot()->SetNeedsAssignmentRecalc();
+  }
 }
 
 unsigned HTMLSelectElement::NumDescendantInputs() const {
-#if DCHECK_IS_ON()
-  {
-    unsigned num_inputs_in_map = 0;
-    for (auto& pair : children_descendant_counts_map_) {
-      num_inputs_in_map += pair.value.num_inputs;
-    }
-    DCHECK_EQ(num_inputs_in_map, num_descendant_inputs_);
-  }
-#endif
+  // Ideally we would add some DCHECK-only code here which makes sure that the
+  // sum of num_inputs of each value in children_descendant_counts_map_ matches
+  // num_descendant_inputs_, but unfortunately it runs so slowly that it causes
+  // some tests to time out on DCHECK builds.
   return num_descendant_inputs_;
 }
 

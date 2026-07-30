@@ -738,8 +738,9 @@ gfx::Rect WebFrameWidgetImpl::GetAbsoluteCaretBounds() {
   LocalFrame* local_frame = GetPage()->GetFocusController().FocusedFrame();
   if (local_frame) {
     auto& selection = local_frame->Selection();
-    if (selection.GetSelectionInDOMTree().IsCaret())
+    if (selection.GetSelectionInDomTree().IsCaret()) {
       return selection.AbsoluteCaretBounds();
+    }
   }
   return gfx::Rect();
 }
@@ -1548,6 +1549,31 @@ void WebFrameWidgetImpl::UpdateCompositorScrollState(
   if (commit_data.scroll_end_data.done_containers.size()) {
     SendEndOfScrollEvents(commit_data);
   }
+
+  if (!commit_data.scroll_timing_infos.empty()) {
+    ProcessScrollTimingData(commit_data);
+  }
+}
+
+void WebFrameWidgetImpl::ProcessScrollTimingData(
+    const cc::CompositorCommitData& commit_data) {
+  LocalDOMWindow* dom_window = LocalRootImpl()->GetFrame()->DomWindow();
+  // Compositor only populates `scroll_timing_infos` when the feature is on.
+  CHECK(RuntimeEnabledFeatures::ScrollPerformanceTimingEnabled(dom_window));
+
+  WindowPerformance* performance =
+      DOMWindowPerformance::performance(*dom_window);
+
+  for (const auto& timing : commit_data.scroll_timing_infos) {
+    // `ScrollTimingController` only enqueues records after assigning both
+    // `end_time` and `input_type`, so dereferencing here is safe.
+    // `target` may be null if the scrollable container was disposed before the
+    // commit reaches us; `AddScrollTiming` tolerates a null target.
+    Node* target =
+        View()->FindNodeFromScrollableCompositorElementId(timing.element_id);
+    performance->AddScrollTiming(timing.start_time, *timing.end_time,
+                                 *timing.input_type, target);
+  }
 }
 
 void WebFrameWidgetImpl::UpdateAnimatedImageState(
@@ -1556,6 +1582,11 @@ void WebFrameWidgetImpl::UpdateAnimatedImageState(
     if (Element* client = DynamicTo<Element>(
             DOMNodeIds::NodeForId(DOMNodeIdFromCompositorElementId(id)))) {
       if (auto* canvas = DynamicTo<HTMLCanvasElement>(client->parentNode())) {
+        if (auto* layout_object = client->GetLayoutObject()) {
+          // The canvas child element needs to update
+          // animated_image_frame_index_map in paint_property_tree_builder.cc
+          layout_object->SetNeedsPaintPropertyUpdate();
+        }
         if (auto* view = canvas->GetDocument().View()) {
           view->RequestCanvasOnpaint(*canvas, client);
         }
@@ -1904,21 +1935,6 @@ void WebFrameWidgetImpl::UpdateVisualProperties(
         visual_properties.screen_infos.current().device_scale_factor);
   }
 
-  bool capture_sequence_number_changed =
-      visual_properties.capture_sequence_number !=
-      last_capture_sequence_number_;
-  if (capture_sequence_number_changed) {
-    last_capture_sequence_number_ = visual_properties.capture_sequence_number;
-
-    // Send the capture sequence number to RemoteFrames that are below the
-    // local root for this widget.
-    ForEachRemoteFrameControlledByWidget(
-        [capture_sequence_number = visual_properties.capture_sequence_number](
-            RemoteFrame* remote_frame) {
-          remote_frame->UpdateCaptureSequenceNumber(capture_sequence_number);
-        });
-  }
-
   if (!View()->AutoResizeMode()) {
     // This needs to run before ApplyVisualPropertiesSizing below,
     // which updates the current set of screen_infos from visual properties.
@@ -2212,13 +2228,6 @@ std::unique_ptr<cc::ScopedPauseRendering> WebFrameWidgetImpl::PauseRendering() {
   return widget_base_->LayerTreeHost()->PauseRendering();
 }
 
-void WebFrameWidgetImpl::SetShouldThrottleFrameRate(bool flag) {
-  if (!View()->does_composite() || flag == throttling_frame_rate_) {
-    return;
-  }
-  throttling_frame_rate_ = flag;
-  return widget_base_->LayerTreeHost()->SetShouldThrottleFrameRate(flag);
-}
 
 void WebFrameWidgetImpl::RequestMainFrameOnCompositorAnimation(
     cc::PropertyChangeForcesCommitCriteria criteria,
@@ -2773,6 +2782,9 @@ void WebFrameWidgetImpl::RegisterActiveUnboundedElement(
     mojo::PendingAssociatedRemote<mojom::blink::UnboundedSurfaceHost>
         host_remote) {
   CHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
+  // TODO(crbug.com/508672616): Add support for unbounded element when
+  // TreesInViz is enabled.
+  CHECK(!base::FeatureList::IsEnabled(::features::kTreesInViz));
   if (auto* state = GetOrCreateUnboundedSurfaceState()) {
     state->active_element_ = element;
 
@@ -2844,6 +2856,14 @@ void WebFrameWidgetImpl::OnDismissed() {
   if (auto* host = LayerTreeHost()) {
     host->DismissUnboundedFrameSink();
   }
+}
+
+void WebFrameWidgetImpl::UpdateUnboundedElementBounds(const gfx::Rect& bounds) {
+  if (!unbounded_surface_state_ ||
+      !unbounded_surface_state_->host_.is_bound()) {
+    return;
+  }
+  unbounded_surface_state_->host_->UpdateBounds(bounds);
 }
 
 void WebFrameWidgetImpl::BeginMainFrame(const viz::BeginFrameArgs& args) {
@@ -3304,11 +3324,6 @@ WebInputEventResult WebFrameWidgetImpl::HandleInputEvent(
     return WebInputEventResult::kNotHandled;
   }
 
-  // Only unthrottle once to avoid repeatedly posting tasks to the cc impl
-  // thread.
-  if (throttling_frame_rate_) {
-    SetShouldThrottleFrameRate(false);
-  }
 
   base::AutoReset<const WebInputEvent*> current_event_change(
       &CurrentInputEvent::current_input_event_, &input_event);
@@ -4545,6 +4560,15 @@ void WebFrameWidgetImpl::ClearImeTextSpansByType(uint32_t start,
   focused_frame->ClearImeTextSpansByType(type, start, end);
 }
 
+void WebFrameWidgetImpl::CancelStylusGesturePreview() {
+  LocalFrame* local_frame = FocusedLocalFrameInWidget();
+  if (local_frame) {
+    local_frame->GetInputMethodController().ClearImeTextSpansByType(
+        blink::ImeTextSpan::Type::kPreviewStylusGesture, 0,
+        std::numeric_limits<unsigned>::max());
+  }
+}
+
 void WebFrameWidgetImpl::SetCompositionFromExistingText(
     int32_t start,
     int32_t end,
@@ -4985,7 +5009,7 @@ void WebFrameWidgetImpl::CalculateSelectionBounds(
   // Calculate the bounding box of the selection area.
   if (bounding_box_in_root_frame) {
     Range* range =
-        CreateRange(selection.GetSelectionInDOMTree().ComputeRange());
+        CreateRange(selection.GetSelectionInDomTree().ComputeRange());
     // This bounding box is in CSS pixels.
     // TODO(https://issues.chromium.org/515746975) : BoundingRect should be in
     // DIPs.

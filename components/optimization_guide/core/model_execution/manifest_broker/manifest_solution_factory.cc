@@ -340,17 +340,42 @@ void ManifestSolutionFactory::UpdateSolutions() {
   }
 }
 
-std::vector<mojom::BrokerModelInfoPtr>
+std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
 ManifestSolutionFactory::GetBrokerModels() const {
-  std::vector<mojom::BrokerModelInfoPtr> result;
+  std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>> result;
   for (const auto& [model_id, state] : base_models_) {
     const auto& recipe = manifest_.GetRecipes().base_models().at(model_id);
     auto info = mojom::BrokerModelInfo::New();
     info->name = model_id;
+    auto it = assets_.find(recipe.weights_file().asset_id());
+    base::FilePath path_to_measure;
+    if (it != assets_.end() && it->second.has_value()) {
+      path_to_measure = it->second->path;
+    }
     if (auto path = ResolveFile(recipe.weights_file())) {
       info->weights_path = path->AsUTF8Unsafe();
     }
-    result.push_back(std::move(info));
+
+    switch (recipe.backend_type()) {
+      case proto::BaseModelRecipe::BACKEND_TYPE_CPU:
+        info->backend_type = "CPU";
+        break;
+      case proto::BaseModelRecipe::BACKEND_TYPE_GPU:
+      default:
+        switch (recipe.performance_hint()) {
+          case proto::BaseModelRecipe::PERFORMANCE_HINT_HIGHEST_QUALITY:
+            info->backend_type = "GPU (highest quality)";
+            break;
+          case proto::BaseModelRecipe::PERFORMANCE_HINT_FASTEST_INFERENCE:
+          default:
+            // Default to fastest inference per `ConvertPerformanceHint`.
+            info->backend_type = "GPU (fastest inference)";
+            break;
+        }
+        break;
+    }
+
+    result.emplace_back(std::move(info), std::move(path_to_measure));
   }
   return result;
 }

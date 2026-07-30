@@ -13,6 +13,8 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import 'chrome://resources/cr_components/composebox/composebox.js';
 import 'chrome://resources/cr_components/composebox/threads_rail.js';
+import 'chrome://resources/cr_components/composebox/composebox_voice_search.js';
+import 'chrome://resources/cr_components/search/animated_glow.js';
 
 import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
@@ -20,6 +22,7 @@ import {GlifAnimationState} from 'chrome://resources/cr_components/composebox/co
 import type {ComposeboxState} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {VoiceSearchAction as ComposeVoiceSearchAction} from 'chrome://resources/cr_components/composebox/composebox.js';
+import type {ComposeboxVoiceSearchElement} from 'chrome://resources/cr_components/composebox/composebox_voice_search.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
@@ -169,6 +172,7 @@ export interface AppElement {
     composebox: ComposeboxElement,
     undoToast: CrToastElement,
     undoToastMessage: HTMLElement,
+    voiceSearchDialog: HTMLDialogElement,
   };
 }
 
@@ -228,6 +232,8 @@ export class AppElement extends AppElementBase {
       showCustomizeChromeText_: {type: Boolean},
       showWallpaperSearch_: {type: Boolean},
       showVoiceSearchOverlay_: {type: Boolean},
+      voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled_:
+          {type: Boolean},
 
       showBackgroundImage_: {
         reflect: true,
@@ -312,7 +318,6 @@ export class AppElement extends AppElementBase {
       },
 
       ntpNextFeaturesEnabled_: {type: Boolean},
-      ntpNextDisablementEnabled_: {type: Boolean},
       maxTilesInCollapsedState_: {type: Number},
       maxShortcutsInExpandedState_: {type: Number},
       maxMostVisitedTilesInExpandedState_: {type: Number},
@@ -374,6 +379,9 @@ export class AppElement extends AppElementBase {
   protected accessor showCustomizeChromeText_: boolean = false;
   protected accessor showWallpaperSearch_: boolean = false;
   protected accessor showVoiceSearchOverlay_: boolean = false;
+  protected accessor voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled_:
+      boolean = loadTimeData.getBoolean(
+          'voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled');
   protected accessor showBackgroundImage_: boolean = false;
   protected accessor backgroundImageAttribution1_: string = '';
   protected accessor backgroundImageAttribution2_: string = '';
@@ -432,8 +440,6 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('searchboxCyclingPlaceholders');
   protected accessor ntpNextFeaturesEnabled_: boolean =
       loadTimeData.getBoolean('ntpNextFeaturesEnabled');
-  protected accessor ntpNextDisablementEnabled_: boolean =
-      loadTimeData.getBoolean('ntpNextDisablementEnabled');
   protected accessor maxTilesInCollapsedState_: number =
       loadTimeData.getInteger('maxTilesInCollapsedState');
   protected accessor maxShortcutsInExpandedState_: number =
@@ -461,8 +467,8 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('energyEffectAnimationEnabled');
   protected accessor isAndroid_: boolean =
       loadTimeData.getBoolean('isAndroid');
-  protected realboxContextMenuAnimationCappingEnabled_: boolean =
-      loadTimeData.getBoolean('realboxContextMenuAnimationCappingEnabled');
+  protected contextMenuAnimationLimitingEnabled_: boolean =
+      loadTimeData.getBoolean('contextMenuAnimationLimitingEnabled');
   private accessor selectedCustomizeDialogPage_: string|null = null;
   private accessor middleSlotPromoLoaded_: boolean = false;
   private accessor modulesLoadedStatus_: ModuleLoadStatus =
@@ -816,10 +822,29 @@ export class AppElement extends AppElementBase {
         this.showComposebox_ && this.enableThreadsRail_) {
       recordBoolean('NewTabPage.ThreadsRail.Shown', true);
     }
+
+    if (changedPrivateProperties.has('showVoiceSearchOverlay_') &&
+        this.showVoiceSearchOverlay_ &&
+        this.voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled_) {
+      const dialog = this.shadowRoot.querySelector<HTMLDialogElement>(
+          '#voiceSearchDialog');
+      if (dialog) {
+        dialog.showModal();
+      }
+
+      const voiceSearch =
+          this.shadowRoot.querySelector<ComposeboxVoiceSearchElement>(
+              '#voiceSearch');
+      assert(voiceSearch);
+      voiceSearch.start();
+    }
   }
 
   // For voice coherence: when error event is fired, this will run.
   onVoiceSearchError() {
+    if (!this.showVoiceSearchOverlay_) {
+      return;
+    }
     this.hasVoiceSearchError = true;
   }
 
@@ -1042,6 +1067,40 @@ export class AppElement extends AppElementBase {
   onVoiceSearchOverlayClose() {
     this.showVoiceSearchOverlay_ = false;
     this.hasVoiceSearchError = false;
+  }
+
+  protected onVoiceSearchCancel_() {
+    const dialog =
+        this.shadowRoot.querySelector<HTMLDialogElement>('#voiceSearchDialog');
+    if (dialog) {
+      dialog.close();
+    }
+    this.onVoiceSearchOverlayClose();
+  }
+
+  protected onVoiceSearchDialogClick_(e: MouseEvent) {
+    const dialog = e.currentTarget as HTMLDialogElement;
+    if (e.target === dialog) {
+      dialog.close();
+    }
+  }
+
+  protected onVoiceSearchFinalResult_(e: CustomEvent<string>) {
+    const dialog =
+        this.shadowRoot.querySelector<HTMLDialogElement>('#voiceSearchDialog');
+    if (dialog) {
+      dialog.close();
+    }
+    this.onVoiceSearchOverlayClose();
+    this.$.searchbox.pageHandler().submitQuery(
+        e.detail,
+        /* button= */ 0,
+        /* altKey= */ false,
+        /* ctrlKey= */ false,
+        /* metaKey= */ false,
+        /* shiftKey= */ false,
+        /* isVoiceSearch= */ true,
+    );
   }
 
   /**
@@ -1473,7 +1532,7 @@ export class AppElement extends AppElementBase {
   private async initializeContextMenuAnimationState_() {
     if (this.ntpRealboxNextEnabled_) {
       let canShow = true;
-      if (this.realboxContextMenuAnimationCappingEnabled_) {
+      if (this.contextMenuAnimationLimitingEnabled_) {
         const {canShow: allowed} =
             await this.pageHandler_.canShowRealboxContextMenuAnimation();
         canShow = allowed;
@@ -1482,12 +1541,12 @@ export class AppElement extends AppElementBase {
       if (canShow) {
         if (this.energyEffectAnimationEnabled_) {
           this.contextMenuGlifAnimationState_ = GlifAnimationState.STARTED;
-          if (this.realboxContextMenuAnimationCappingEnabled_) {
+          if (this.contextMenuAnimationLimitingEnabled_) {
             this.pageHandler_.recordRealboxContextMenuAnimationImpression();
           }
         } else {
-          const isSpinnerEligible = this.ntpNextFeaturesEnabled_ &&
-              (!this.ntpNextDisablementEnabled_ || this.isActionChipsVisible_);
+          const isSpinnerEligible =
+              this.ntpNextFeaturesEnabled_ && this.isActionChipsVisible_;
           this.contextMenuGlifAnimationState_ = isSpinnerEligible ?
               GlifAnimationState.SPINNER_ONLY :
               GlifAnimationState.INELIGIBLE;
@@ -1531,7 +1590,7 @@ export class AppElement extends AppElementBase {
         this.contextMenuGlifAnimationState_ = GlifAnimationState.SPINNER_ONLY;
       } else if (state === ActionChipsRetrievalState.UPDATED) {
         this.contextMenuGlifAnimationState_ = GlifAnimationState.STARTED;
-        if (this.realboxContextMenuAnimationCappingEnabled_) {
+        if (this.contextMenuAnimationLimitingEnabled_) {
           this.pageHandler_.recordRealboxContextMenuAnimationImpression();
         }
       }

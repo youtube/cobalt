@@ -76,9 +76,16 @@ _DEFAULT_VALUE_BY_PRIMITIVE_TYPE = {
 PRIMITIVES = frozenset(_DEFAULT_VALUE_BY_PRIMITIVE_TYPE)
 
 
+def SetUseJniPrimitiveTypes():
+  """Use jint rather than int32_t."""
+  global CPP_UNDERLYING_TYPE_BY_JAVA_TYPE
+  CPP_UNDERLYING_TYPE_BY_JAVA_TYPE = CPP_TYPE_BY_JAVA_TYPE
+
+
 @dataclasses.dataclass(frozen=True, order=True)
 class JavaClass:
   """Represents a reference type."""
+  # E.g.: 'foo/bar/Baz$Nested'
   _fqn: str
   # Package prefix (via make_prefix()).
   _prefix: str = None
@@ -555,6 +562,7 @@ class TypeResolver:
 
     return java_class.full_name_with_dots
 
+  # Test coverage for this is in parse_test.py.
   def resolve(self, name):
     """Resolves the given string to a JavaClass.
 
@@ -578,6 +586,14 @@ class TypeResolver:
     if '.' in name and name[0].islower():
       return JavaClass(name.replace('.', '/'))
 
+    # Enforce normalized form for optimal caching.
+    assert '$' not in name, 'Name: ' + name
+
+    # javap output for nested classes looks like: android.os.Debug$MemoryInfo,
+    # but .java source needs the transformation.
+    name_with_dots = name
+    name = name.replace('.', '$')
+
     for p in self.type_params:
       if name == p.name:
         return p.java_class
@@ -596,21 +612,19 @@ class TypeResolver:
 
     # Is it an inner class from an outer class import? (e.g. referencing
     # Class.Inner from import pkg.Class).
-    if '.' in name:
-      # Assume lowercase means it's a fully qualifited name.
-      if name[0].islower():
-        return JavaClass(name.replace('.', '/'))
-      # Otherwise, try and find the outer class in imports.
-      components = name.split('.')
+    if '$' in name:
+      # Try and find the outer class in imports.
+      components = name.split('$')
       outer = '/'.join(components[:-1])
       inner = components[-1]
       for clazz in self.imports:
         if clazz.name == outer:
           return clazz.make_nested(inner)
-      name = name.replace('.', '$')
+      if outer == self.java_class.name:
+        return self.java_class.make_nested(inner)
 
     if self.parent_resolver:
-      return self.parent_resolver.resolve(name)
+      return self.parent_resolver.resolve(name_with_dots)
 
     # java.lang classes always take priority over types from the same package.
     # To use a type from the same package that has the same name as a java.lang
@@ -623,6 +637,12 @@ class TypeResolver:
     ret = JavaClass(
         f'{self.java_class.class_without_prefix.package_with_slashes}/{name}')
     return ret.make_prefixed(self.java_class.prefix_with_dots)
+
+  def get_resolved_classes(self):
+    return [
+        val.class_without_prefix.full_name_with_dots
+        for val in self._cache.values() if not val.is_generic_type()
+    ]
 
 
 CLASS_CLASS = JavaClass('java/lang/Class')

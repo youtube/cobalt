@@ -99,6 +99,7 @@ const NSInteger kDefaultNumberOfLines = 1;
   if (self.textLayoutConstraintAxis == UILayoutConstraintAxisVertical) {
     contentConfiguration.subtitle = self.detailText;
     contentConfiguration.subtitleNumberOfLines = self.detailTextNumberOfLines;
+    contentConfiguration.trailingText = self.trailingDetailText;
   } else {
     contentConfiguration.trailingText = self.detailText;
   }

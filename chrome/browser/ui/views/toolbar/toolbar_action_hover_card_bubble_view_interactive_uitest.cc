@@ -476,15 +476,82 @@ IN_PROC_BROWSER_TEST_F(ToolbarActionHoverCardBubbleViewUITest,
   EXPECT_FALSE(widget->IsVisible());
 }
 
-// Verify hover card is not visible on focus, similar to tooltip behavior.
+// Verify hover card is visible on focus.
 IN_PROC_BROWSER_TEST_F(ToolbarActionHoverCardBubbleViewUITest,
-                       WidgetNotVisibleOnFocus) {
+                       WidgetVisibleOnFocus) {
   LoadExtensionAndPinIt("extensions/simple_with_popup");
   auto action_views = GetVisibleToolbarActionViews();
   ASSERT_EQ(action_views.size(), 1u);
 
   GetExtensionsToolbarDesktop()->GetFocusManager()->SetFocusedView(
       action_views[0]);
+  views::Widget* const widget =
+      hover_card() ? hover_card()->GetWidget() : nullptr;
+  ASSERT_TRUE(widget);
+  views::test::WidgetVisibleWaiter(widget).Wait();
+  EXPECT_TRUE(widget->IsVisible());
+}
+
+// Verify hover card updates its anchor when focus transitions between action
+// views.
+IN_PROC_BROWSER_TEST_F(ToolbarActionHoverCardBubbleViewUITest,
+                       WidgetTransitionsOnFocusBetweenActionViews) {
+  auto extension1 = InstallExtension("Extension 1");
+  auto extension2 = InstallExtension("Extension 2");
+  PinExtension(extension1->id());
+  PinExtension(extension2->id());
+  auto action_views = GetVisibleToolbarActionViews();
+  ASSERT_EQ(action_views.size(), 2u);
+
+  // Focus the first action view.
+  GetExtensionsToolbarDesktop()->GetFocusManager()->SetFocusedView(
+      action_views[0]);
+  views::Widget* const widget =
+      hover_card() ? hover_card()->GetWidget() : nullptr;
+  ASSERT_TRUE(widget);
+  views::test::WidgetVisibleWaiter(widget).Wait();
+  EXPECT_TRUE(widget->IsVisible());
+  EXPECT_EQ(hover_card()->GetAnchorView(), action_views[0]);
+
+  // Focus the second action view.
+  GetExtensionsToolbarDesktop()->GetFocusManager()->SetFocusedView(
+      action_views[1]);
+  // Hover card should update anchor view to the second action view.
+  EXPECT_TRUE(widget->IsVisible());
+  EXPECT_EQ(hover_card()->GetAnchorView(), action_views[1]);
+
+  // Focus out of the extensions container.
+  GetExtensionsToolbarDesktop()->GetFocusManager()->ClearFocus();
+  SafeWidgetDestroyedWaiter widget_destroyed_waiter(widget);
+  widget_destroyed_waiter.Wait();
+  EXPECT_EQ(hover_card(), nullptr);
+}
+
+// Verify hover card is dismissed when focus moves to a non-action view inside
+// the container (like the puzzle piece icon).
+IN_PROC_BROWSER_TEST_F(
+    ToolbarActionHoverCardBubbleViewUITest,
+    WidgetDismissedWhenFocusLeavesActionViewToContainerControl) {
+  LoadExtensionAndPinIt("extensions/simple_with_popup");
+  auto action_views = GetVisibleToolbarActionViews();
+  ASSERT_EQ(action_views.size(), 1u);
+
+  // Focus the action view.
+  GetExtensionsToolbarDesktop()->GetFocusManager()->SetFocusedView(
+      action_views[0]);
+  views::Widget* const widget =
+      hover_card() ? hover_card()->GetWidget() : nullptr;
+  ASSERT_TRUE(widget);
+  views::test::WidgetVisibleWaiter(widget).Wait();
+  EXPECT_TRUE(widget->IsVisible());
+
+  // Focus the extensions puzzle piece button.
+  GetExtensionsToolbarDesktop()->GetFocusManager()->SetFocusedView(
+      GetExtensionsToolbarDesktop()->GetExtensionsButton());
+
+  // Hover card should be dismissed.
+  SafeWidgetDestroyedWaiter widget_destroyed_waiter(widget);
+  widget_destroyed_waiter.Wait();
   EXPECT_EQ(hover_card(), nullptr);
 }
 

@@ -7,8 +7,6 @@ import json
 import os
 import sys
 
-import six
-
 import merge_api
 import results_merger
 
@@ -47,8 +45,7 @@ def StandardIsolatedScriptMerge(output_json, summary_json, jsons_to_merge):
       try:
         json_contents = json.load(f)
       except ValueError as e:
-        six.raise_from(ValueError('Failed to parse JSON from %s' % output_path),
-                       e)
+        raise ValueError('Failed to parse JSON from %s' % output_path) from e
       shard_results_list.append(json_contents)
 
   merged_results = results_merger.merge_test_results(shard_results_list)

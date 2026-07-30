@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">എല്ലാം തുറക്കുക</translation>
 <translation id="1408696301184924537">അടുത്ത തവണ സ്വയമേവ പൂരിപ്പിക്കാൻ, ഈ IBAN നിങ്ങളുടെ Google Account-ൽ സംരക്ഷിക്കുക</translation>
 <translation id="1408787208417187241">മുകളിൽ മൂന്ന് തവണ സ്‌റ്റേപ്പിൾ ചെയ്യുക</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> എന്ന ഗ്രൂപ്പിലെ <ph name="MATCH_POSITION" /> -ൽ <ph name="NUM_MATCHES_IN_GROUP" />-ാമത്തേത്.</translation>
 <translation id="1410365862999780287">ഈ ഉപകരണം ഉപയോഗിക്കുന്ന മറ്റ് ആളുകൾക്ക് നിങ്ങളുടെ ആക്‌റ്റിവിറ്റി ദൃശ്യമാകില്ല, അതിനാൽ നിങ്ങൾക്ക് കൂടുതൽ സ്വകാര്യതയോടെ ബ്രൗസ് ചെയ്യാം. ഇത് നിങ്ങൾ സന്ദർശിക്കുന്ന വെബ്സൈറ്റുകൾ ഡാറ്റ ശേഖരിക്കുന്ന രീതിയിലോ അവ ഉപയോഗിക്കുന്ന Google ഉൾപ്പെടെയുള്ള സേവനങ്ങളിലോ മാറ്റം വരുത്തില്ല. ഡൗൺലോഡുകളും ബുക്ക്‌മാർക്കുകളും വായിക്കാനുള്ളവയുടെ ലിസ്‌റ്റിലെ ഇനങ്ങളും സംരക്ഷിക്കും.</translation>
 <translation id="1410941016594047814">Envelope Invite</translation>
 <translation id="1413235258620101697">വേഗത്തിലുള്ള ചെക്ക്‌ഔട്ടിനായി ഈ കാർഡിന്റെ CVC എൻക്രിപ്റ്റ് ചെയ്ത് Google Wallet-ൽ സംരക്ഷിക്കും</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">Envelope Personal</translation>
 <translation id="2046951263634619614">പുസ്തകങ്ങളുടെ ചില്ലറവ്യാപാരികൾ</translation>
 <translation id="2048261947532620704">പേജ് വിവർത്തനം ചെയ്യുന്നു</translation>
+<translation id="2055016614992422886">സംഭാഷണം</translation>
 <translation id="2059166748188874810">മുൻസിപ്പാലിറ്റി</translation>
 <translation id="2059202684901022309">22 x 34 ഇഞ്ച്</translation>
 <translation id="2064568741209980952">വായ്‌പയും കടം നൽകലും</translation>
@@ -3556,6 +3558,7 @@
 <translation id="6550245281449521513">മൗസ് ലോക്ക് അനുവദനീയമല്ല</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, പുതിയത്</translation>
 <translation id="6552566579578780089">പേയ്മെന്റുകൾ</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> എന്ന ഗ്രൂപ്പിലെ <ph name="MATCH_POSITION" /> -ൽ <ph name="NUM_MATCHES_IN_GROUP" />-ാമത്തേത്.</translation>
 <translation id="6554732001434021288">അവസാനം സന്ദർശിച്ചത് <ph name="NUM_DAYS" /> ദിവസം മുമ്പായിരുന്നു</translation>
 <translation id="6556866813142980365">വീണ്ടും ചെയ്യുക</translation>
 <translation id="6557715786897013164">14 x 17 ഇഞ്ച്</translation>

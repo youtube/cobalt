@@ -9,9 +9,10 @@
 #include <optional>
 
 #include "base/command_line.h"
-#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/process/memory.h"
 #include "base/test/test_discardable_memory_allocator.h"
 #include "cc/paint/paint_cache.h"
@@ -21,6 +22,7 @@
 #include "cc/test/transfer_cache_test_helper.h"
 #include "gpu/command_buffer/common/buffer.h"
 #include "gpu/command_buffer/service/service_font_manager.h"
+#include "testing/libfuzzer/libfuzzer_base_wrappers.h"
 #include "testing/libfuzzer/libfuzzer_exports.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkStream.h"
@@ -160,30 +162,43 @@ bool DumpSKP(SkStrikeClient* strike_client,
   return true;
 }
 
+struct FontsAndRasterData {
+  // These spans have the same lifetime as the input from libFuzzer.
+  // There's no need to make them `base::raw_span`.
+  RAW_PTR_EXCLUSION base::span<const uint8_t> fonts;
+  RAW_PTR_EXCLUSION base::span<const uint8_t> raster_data;
+};
+
+std::optional<FontsAndRasterData> PartitionInputData(
+    base::span<const uint8_t> data) {
+  if (data.size() <= sizeof(size_t)) {
+    return std::nullopt;
+  }
+
+  size_t bytes_for_fonts = data[0];
+  if (bytes_for_fonts > data.size()) {
+    bytes_for_fonts = data.size() / 2;
+  }
+
+  // This can result in 0 bytes being partitioned for fonts.
+  const size_t raster_data_offset =
+      base::bits::AlignDown(bytes_for_fonts, cc::PaintOpWriter::kMaxAlignment);
+  const auto [fonts, raster_data] = data.split_at(raster_data_offset);
+  return FontsAndRasterData{
+      .fonts = fonts,
+      .raster_data = raster_data,
+  };
+}
+
 // Deserialize an arbitrary number of cc::PaintOps and raster them
 // using gpu raster into an SkCanvas.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  if (size <= sizeof(size_t)) {
+DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(base::span<const uint8_t> data) {
+  std::optional<FontsAndRasterData> partitioned = PartitionInputData(data);
+  if (!partitioned.has_value()) {
     return 0;
   }
 
   static Environment env;
-
-  // SAFETY: required from fuzzer.
-  base::span<const uint8_t> data_span = UNSAFE_BUFFERS(base::span(data, size));
-
-  // Partition the data to use some bytes for populating the font cache.
-  uint32_t bytes_for_fonts = data[0];
-  if (bytes_for_fonts > size) {
-    bytes_for_fonts = size / 2;
-  }
-  const uint8_t* raster_data =
-      base::bits::AlignDown(data_span.subspan(bytes_for_fonts).data(),
-                            cc::PaintOpWriter::kMaxAlignment);
-  if (raster_data < data_span.data()) {
-    return 0;
-  }
-  bytes_for_fonts = static_cast<uint32_t>(raster_data - data_span.data());
 
   FontSupport font_support;
   scoped_refptr<gpu::ServiceFontManager> font_manager(
@@ -191,13 +206,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                                   false /* disable_oopr_debug_crash_dump */));
   cc::ServicePaintCache paint_cache;
   std::vector<SkDiscardableHandleId> locked_handles;
-  if (bytes_for_fonts > 0u) {
-    font_manager->Deserialize(data_span.first(bytes_for_fonts),
-                              &locked_handles);
+  if (partitioned->fonts.size() > 0u) {
+    font_manager->Deserialize(partitioned->fonts, &locked_handles);
   }
 
   if (DumpSKP(font_manager->strike_client(), &paint_cache,
-              data_span.subspan(bytes_for_fonts), env)) {
+              partitioned->raster_data, env)) {
     return 0;
   }
 
@@ -208,7 +222,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK(!!gr_context_no_support);
   CHECK(!gr_context_no_support->supportsDistanceFieldText());
   Raster(gr_context_no_support.get(), font_manager->strike_client(),
-         &paint_cache, data_span.subspan(bytes_for_fonts));
+         &paint_cache, partitioned->raster_data);
 
   GrMockOptions options_with_support;
   options_with_support.fShaderDerivativeSupport = true;
@@ -218,7 +232,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK(!!gr_context_with_support);
   CHECK(gr_context_with_support->supportsDistanceFieldText());
   Raster(gr_context_with_support.get(), font_manager->strike_client(),
-         &paint_cache, data_span.subspan(bytes_for_fonts));
+         &paint_cache, partitioned->raster_data);
 
   font_manager->Unlock(locked_handles);
   font_manager->Destroy();

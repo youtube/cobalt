@@ -95,26 +95,25 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Compositing.BeginMainFrame.BMFReason6" units="reasons"
-    expires_after="2026-10-30">
-  <owner>thiabaud@google.com</owner>
-  <owner>jonross@chromium.org</owner>
-  <summary>
-    Records the reason(s) for which we triggered a BeginMainFrame. Recorded when
-    the BeginMainFrame is run. The value recorded is a bitset of the enum
-    |BeginMainFrameReason|, with all the reasons the current BeginMainFrame was
-    triggered.
-  </summary>
-</histogram>
-
-<histogram name="Compositing.BeginMainFrame.BMFReason6.NoUpdate"
+<histogram name="Compositing.BeginMainFrame.BMFReason9{FrameType}{Suffix}"
     units="reasons" expires_after="2026-10-30">
   <owner>thiabaud@google.com</owner>
   <owner>jonross@chromium.org</owner>
   <summary>
-    Same as &quot;Compositing.BeginMainFrame.BMFReason6&quot;, but only recorded
-    if the BeginMainFrame finishes with no updates.
+    Records the reason(s) for which we triggered a BeginMainFrame{FrameType}.
+    Recorded when the BeginMainFrame is run{Suffix}. The value recorded is a
+    bitset of the enum |BeginMainFrameReason|, with all the reasons the current
+    BeginMainFrame was triggered.
   </summary>
+  <token key="FrameType">
+    <variant name="" summary=""/>
+    <variant name=".Embedded" summary="for an embedded frame"/>
+    <variant name=".NonEmbedded" summary="for a non-embedded frame"/>
+  </token>
+  <token key="Suffix">
+    <variant name="" summary=""/>
+    <variant name=".NoUpdate" summary=", and finished with no updates"/>
+  </token>
 </histogram>
 
 <histogram name="Compositing.BeginMainFrame.MainResult"
@@ -183,7 +182,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.BufferQueue.TimeUntilBuffersRecreatedMs"
-    units="ms" expires_after="2026-07-12">
+    units="ms" expires_after="2027-07-12">
   <owner>jonross@chromium.org</owner>
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -572,7 +571,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Scheduler.DeadlineMode"
-    enum="BeginImplFrameDeadlineMode" expires_after="2026-10-04">
+    enum="BeginImplFrameDeadlineMode" expires_after="2026-12-06">
   <owner>lizeb@chromium.org</owner>
   <owner>jonross@chromium.org</owner>
   <summary>
@@ -621,7 +620,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.SurfaceAggregator.AggregateUs"
-    units="microseconds" expires_after="2026-10-05">
+    units="microseconds" expires_after="2026-12-06">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>

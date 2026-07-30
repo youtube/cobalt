@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/stringprintf.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
@@ -191,46 +192,46 @@ TEST_P(TimelineTriggerTest, ComputeBoundariesTest) {
   ExpectRelativeErrorWithinEpsilon(boundaries.active_end, cover_90_px);
 }
 
-TEST_P(TimelineTriggerTest, BackwardsInterruptsForwards) {
-  SetBodyInnerHTML(R"HTML(
-    <style>
-     @keyframes expand {
-        from { transform: scaleX(1); }
-        to { transform: scaleX(5); }
-      }
-      .subject, .target {
-        height: 50px;
-        width: 50px;
-        background-color: red;
-      }
-      #target {
-        animation: expand linear 5s both;
-        animation-trigger: --trigger play-forwards play-backwards;
-      }
-
-      #subject {
-        timeline-trigger: --trigger view() contain;
-      }
-
-      .scroller {
-        overflow-y: scroll;
-        height: 500px;
-        width: 500px;
-        border: solid 1px;
-        position: relative;
-      }
-      #space {
-        width: 50px;
-        height: 600px;
-      }
-    </style>
+class TimelineTriggerPlayBackwardsForwardsTest : public TimelineTriggerTest {
+ public:
+  void Initialize(const char* behavior) {
+    std::string html = base::StringPrintf(R"HTML(
+      <style>
+       @keyframes expand {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(5); }
+        }
+        .subject, .target {
+          height: 50px; width: 50px; background-color: red;
+        }
+        #target {
+          animation: expand linear 5s both;
+          animation-trigger: --trigger %s;
+        }
+        #subject {
+          timeline-trigger: --trigger view() contain;
+        }
+        .scroller {
+          overflow-y: scroll; height: 500px; width: 500px;
+        }
+        #space { width: 50px; height: 600px; }
+      </style>
       <div id="scroller" class="scroller">
         <div id="space"></div>
-        <div id="subject" class="subject" tabindex="0"></div>
+        <div id="subject" class="subject"></div>
         <div id="space"></div>
       </div>
-      <div id="target" class="target" tabindex="0"></div>
-  )HTML");
+      <div id="target" class="target"></div>
+    )HTML",
+                                          behavior);
+    SetBodyInnerHTML(String(html.c_str()));
+  }
+};
+
+INSTANTIATE_PAINT_TEST_SUITE_P(TimelineTriggerPlayBackwardsForwardsTest);
+
+TEST_P(TimelineTriggerPlayBackwardsForwardsTest, BackwardsInterruptsForwards) {
+  Initialize("play-forwards play-backwards");
 
   Element* target = GetDocument().getElementById(AtomicString("target"));
   ElementAnimations* animations = target->GetElementAnimations();
@@ -283,6 +284,128 @@ TEST_P(TimelineTriggerTest, BackwardsInterruptsForwards) {
   EXPECT_EQ(animation->CalculateAnimationPlayState(),
             V8AnimationPlayState::Enum::kFinished);
   EXPECT_EQ(animation->CurrentTimeInternal().value(), AnimationTimeDelta());
+}
+
+TEST_P(TimelineTriggerPlayBackwardsForwardsTest,
+       PlayForwardsFinishedAtEndNoOp) {
+  Initialize("play-forwards");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  CSSAnimation* animation = DynamicTo<CSSAnimation>(
+      (*target->GetElementAnimations()->Animations().begin()).key.Get());
+  Element* subject = GetDocument().getElementById(AtomicString("subject"));
+
+  UpdateAllLifecyclePhasesForTest();
+
+  animation->finish(ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(5));
+  EXPECT_EQ(animation->EffectivePlaybackRate(), 1);
+
+  subject->scrollIntoView(nullptr);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(5));
+}
+
+TEST_P(TimelineTriggerPlayBackwardsForwardsTest,
+       PlayForwardsReversesFinishedAtStart) {
+  Initialize("play-forwards");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  CSSAnimation* animation = DynamicTo<CSSAnimation>(
+      (*target->GetElementAnimations()->Animations().begin()).key.Get());
+  Element* subject = GetDocument().getElementById(AtomicString("subject"));
+
+  UpdateAllLifecyclePhasesForTest();
+
+  animation->updatePlaybackRate(-1, ASSERT_NO_EXCEPTION);
+  animation->finish(ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(0));
+  EXPECT_EQ(animation->EffectivePlaybackRate(), -1);
+
+  subject->scrollIntoView(nullptr);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kRunning);
+  EXPECT_EQ(animation->EffectivePlaybackRate(), 1);
+
+  AdvanceClockSeconds(1.0);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(1));
+}
+
+TEST_P(TimelineTriggerPlayBackwardsForwardsTest,
+       PlayBackwardsFinishedAtStartNoOp) {
+  Initialize("play-backwards");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  CSSAnimation* animation = DynamicTo<CSSAnimation>(
+      (*target->GetElementAnimations()->Animations().begin()).key.Get());
+  Element* subject = GetDocument().getElementById(AtomicString("subject"));
+
+  UpdateAllLifecyclePhasesForTest();
+
+  animation->updatePlaybackRate(-1, ASSERT_NO_EXCEPTION);
+  animation->finish(ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(0));
+  EXPECT_EQ(animation->EffectivePlaybackRate(), -1);
+
+  subject->scrollIntoView(nullptr);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(0));
+}
+
+TEST_P(TimelineTriggerPlayBackwardsForwardsTest,
+       PlayBackwardsReversesFinishedAtEnd) {
+  Initialize("play-backwards");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  CSSAnimation* animation = DynamicTo<CSSAnimation>(
+      (*target->GetElementAnimations()->Animations().begin()).key.Get());
+  Element* subject = GetDocument().getElementById(AtomicString("subject"));
+
+  UpdateAllLifecyclePhasesForTest();
+
+  animation->finish(ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kFinished);
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(5));
+  EXPECT_EQ(animation->EffectivePlaybackRate(), 1);
+
+  subject->scrollIntoView(nullptr);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ(animation->CalculateAnimationPlayState(),
+            V8AnimationPlayState::Enum::kRunning);
+  EXPECT_EQ(animation->EffectivePlaybackRate(), -1);
+
+  AdvanceClockSeconds(1.0);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(animation->CurrentTimeInternal().value(),
+            ANIMATION_TIME_DELTA_FROM_SECONDS(4));
 }
 
 }  // namespace blink

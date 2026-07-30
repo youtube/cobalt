@@ -100,6 +100,24 @@ chrome.test.runTests([
     chrome.test.succeed();
   },
 
+  // Tests that an error is returned if the user script source specifies
+  // duplicate files.
+  async function invalidScriptSource_DuplicateFile() {
+    await chrome.userScripts.unregister();
+
+    const tab = await navigateToRequestedUrl();
+
+    const script = {
+      js: [{file: 'empty.js'}, {file: 'empty.js'}],
+      target: {tabId: tab.id},
+    };
+    await chrome.test.assertPromiseRejects(
+        chrome.userScripts.execute(script),
+        `Error: Duplicate file specified: 'empty.js'.`);
+
+    chrome.test.succeed();
+  },
+
   // Tests that an error is returned if the user scrip specifies injection to
   // all frames and also a specific set of frame ids.
   async function invalidAllFrames() {

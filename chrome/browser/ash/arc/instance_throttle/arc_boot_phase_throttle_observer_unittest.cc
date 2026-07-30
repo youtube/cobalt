@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/command_line.h"
-#include "base/run_loop.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
@@ -114,9 +113,10 @@ class ArcBootPhaseThrottleObserverTest : public testing::Test {
   }
 
   void DisconnectAppMojo() {
-    arc_service_manager_.arc_bridge_service()->app()->CloseInstance(
-        app_instance_.get());
-    base::RunLoop().RunUntilIdle();
+    auto* app = arc_service_manager_.arc_bridge_service()->app();
+    InstanceClosedWaiter app_closed_waiter(app);
+    app->CloseInstance(app_instance_.get());
+    app_closed_waiter.Wait();
   }
 
   void ConnectIntentHelperMojo() {

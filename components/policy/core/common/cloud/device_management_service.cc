@@ -828,6 +828,11 @@ DeviceManagementService::JobImpl::HandleResponseData(
     if (config_->ShouldRecordUma()) {
       base::UmaHistogramEnumeration(config_->GetUmaName(),
                                     DMServerRequestSuccess::kRequestError);
+      base::UmaHistogramSparse(
+          base::StrCat(
+              {"Enterprise.DMServerResponseCode.",
+               JobConfiguration::GetJobTypeAsString(config_->GetType())}),
+          response_code);
     }
   } else {
     // Success with retries_count_ retries.

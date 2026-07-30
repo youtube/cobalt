@@ -32,7 +32,7 @@ class MockFilterUiController : public FilterUiController {
               OnSuggestionGenerated,
               (std::optional<UrlFilterSuggestion> suggestion),
               (override));
-  MOCK_METHOD(void, ClearSuggestion, (), (override));
+  MOCK_METHOD(void, ClearSuggestion, (SuggestionUserDecision), (override));
 };
 
 class MultistepFilterUiDelegateImplTest
@@ -66,7 +66,9 @@ TEST_F(MultistepFilterUiDelegateImplTest, ClearSuggestion_WithController) {
   auto mock_controller =
       std::make_unique<testing::NiceMock<MockFilterUiController>>(*mock_tab_);
 
-  EXPECT_CALL(*mock_controller, ClearSuggestion());
+  EXPECT_CALL(
+      *mock_controller,
+      ClearSuggestion(FilterUiController::SuggestionUserDecision::kIgnored));
   delegate_->ClearSuggestion();
 }
 
@@ -81,14 +83,16 @@ TEST_F(MultistepFilterUiDelegateImplTest,
       std::make_unique<testing::NiceMock<MockFilterUiController>>(*mock_tab_);
 
   const GURL suggestion_url("https://suggestion.com");
-  UrlFilterSuggestion suggestion(
-      UrlFilterSuggestion::Params{.navigation_url = suggestion_url,
-                                  .source_domain = u"suggestion.com",
-                                  .extraction_timestamp = base::Time::Now(),
-                                  .attribute_ui_labels = {},
-                                  .triggering_navigation_id = kTestNavigationId,
-                                  .triggering_domain = "suggestion.com",
-                                  .task_type = "task1"});
+  UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
+      .navigation_url = suggestion_url,
+      .source_domain = u"suggestion.com",
+      .source_host = u"suggestion.com",
+      .extraction_timestamp = base::Time::Now(),
+      .attribute_ui_labels = {},
+      .triggering_navigation_id = kTestNavigationId,
+      .triggering_domain = "suggestion.com",
+      .triggering_host = "suggestion.com",
+      .task_type = "task1"});
 
   EXPECT_CALL(*mock_controller,
               OnSuggestionGenerated(testing::Optional(suggestion)));
@@ -98,14 +102,16 @@ TEST_F(MultistepFilterUiDelegateImplTest,
 TEST_F(MultistepFilterUiDelegateImplTest,
        OnSuggestionGenerated_WithoutController) {
   const GURL suggestion_url("https://suggestion.com");
-  UrlFilterSuggestion suggestion(
-      UrlFilterSuggestion::Params{.navigation_url = suggestion_url,
-                                  .source_domain = u"suggestion.com",
-                                  .extraction_timestamp = base::Time::Now(),
-                                  .attribute_ui_labels = {},
-                                  .triggering_navigation_id = kTestNavigationId,
-                                  .triggering_domain = "suggestion.com",
-                                  .task_type = "task1"});
+  UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
+      .navigation_url = suggestion_url,
+      .source_domain = u"suggestion.com",
+      .source_host = u"suggestion.com",
+      .extraction_timestamp = base::Time::Now(),
+      .attribute_ui_labels = {},
+      .triggering_navigation_id = kTestNavigationId,
+      .triggering_domain = "suggestion.com",
+      .triggering_host = "suggestion.com",
+      .task_type = "task1"});
   // Should not crash when there is no controller.
   delegate_->OnSuggestionGenerated(suggestion);
 }

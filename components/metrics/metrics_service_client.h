@@ -248,7 +248,7 @@ class MetricsServiceClient {
   // Updates the current user's metrics consent. This allows embedders to update
   // the user consent. If there is no current user, then this function will
   // no-op.
-  virtual void UpdateCurrentUserMetricsConsent(bool user_metrics_consent) {}
+  virtual void UpdateCurrentUserMetricsChoice(bool user_choice) {}
 
   // Returns the current user metrics consent if it should be applied to decide
   // the current metrics reporting state. This allows embedders to determine
@@ -257,7 +257,7 @@ class MetricsServiceClient {
   //
   // Will return std::nullopt if there is no current user or current user
   // metrics consent should not be applied to determine metrics reporting state.
-  virtual std::optional<bool> GetCurrentUserMetricsConsent() const;
+  virtual std::optional<bool> GetCurrentUserMetricsChoice() const;
 
   // Returns the current user id.
   //

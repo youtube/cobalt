@@ -21,6 +21,7 @@
 #include "media/formats/hls/security_metadata.h"
 #include "media/formats/hls/types.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace media {
 
@@ -119,6 +120,10 @@ class MEDIA_EXPORT HlsDataSourceStream {
     security_info_ = inf;
   }
 
+  // Merge another security metadata into the current one. This combines the
+  // origin sets and merges the security flags.
+  void MergeSecurityMetadata(const hls::SecurityMetadata& other);
+
   // A stream's origin is considered tainted if any backing data source involved
   // in this playback is tainted.
   void set_would_taint_origin() { security_info_.would_taint_origin = true; }
@@ -130,6 +135,10 @@ class MEDIA_EXPORT HlsDataSourceStream {
   // A stream in which any constituent request had a redirect is considered to
   // have a redirect. This state must never unset for security reasons.
   void set_did_redirect() { security_info_.did_redirect = true; }
+
+  // Track all included security origins that are part of this request in order
+  // to make sure that we aren't merging cross origin data.
+  void TrackOrigin(const url::Origin& origin);
 
   // Allows the stream creator to update memory usage after the first or after
   // subsequent reads.

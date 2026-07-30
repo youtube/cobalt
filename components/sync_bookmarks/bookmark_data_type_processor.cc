@@ -21,9 +21,11 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/bookmarks/browser/bookmark_node.h"
+#include "components/sync/base/client_tag_hash.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/data_type_histogram.h"
 #include "components/sync/base/features.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/base/time.h"
 #include "components/sync/engine/commit_queue.h"
 #include "components/sync/engine/data_type_activation_response.h"
@@ -103,13 +105,13 @@ std::string_view ComputeServerDefinedUniqueTagForDebugging(
     const bookmarks::BookmarkNode* node,
     const BookmarkModelView* model) {
   if (node == model->bookmark_bar_node()) {
-    return "bookmark_bar";
+    return syncer::kBookmarkBarTag;
   }
   if (node == model->other_node()) {
-    return "other_bookmarks";
+    return syncer::kOtherBookmarksTag;
   }
   if (node == model->mobile_node()) {
-    return "synced_bookmarks";
+    return syncer::kSyncedBookmarksTag;
   }
   return "";
 }
@@ -209,9 +211,9 @@ void BookmarkDataTypeProcessor::OnCommitCompleted(
       continue;
     }
 
-    bookmark_tracker_->UpdateUponCommitResponse(entity, response.id,
-                                                response.response_version,
-                                                response.sequence_number);
+    bookmark_tracker_->UpdateUponCommitResponse(
+        entity, response.id, response.response_version,
+        response.sequence_number, response.specifics_hash);
   }
 
   bookmark_tracker_->set_data_type_state(type_state);
@@ -236,6 +238,9 @@ void BookmarkDataTypeProcessor::OnUpdateReceived(
 
   if (!bookmark_tracker_) {
     OnInitialUpdateReceived(data_type_state, std::move(updates));
+  } else if (gc_directive && gc_directive->clear_metadata()) {
+    OverrideAllServerMetadataToForceApplyUpdates(updates);
+    ApplyFullUpdateAsIncrementalUpdate(data_type_state, std::move(updates));
   } else if (HasClearAllDirective(gc_directive)) {
     ApplyFullUpdateAsIncrementalUpdate(data_type_state, std::move(updates));
   } else {
@@ -954,6 +959,46 @@ void BookmarkDataTypeProcessor::ApplyFullUpdateAsIncrementalUpdate(
   }
 
   OnIncrementalUpdateReceived(type_state, std::move(updates));
+}
+
+void BookmarkDataTypeProcessor::OverrideAllServerMetadataToForceApplyUpdates(
+    const syncer::UpdateResponseDataList& updates) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(bookmark_tracker_);
+
+  for (const auto& update : updates) {
+    syncer::ClientTagHash client_tag_hash =
+        GetOrInferClientTagHashInUpdate(update.entity);
+    if (client_tag_hash.value().empty()) {
+      // It must be a permanent node.
+      std::string server_tag = update.entity.server_defined_unique_tag;
+      if (!server_tag.empty()) {
+        base::Uuid uuid =
+            GetPermanentFolderUuidForServerDefinedUniqueTag(server_tag);
+        if (uuid.is_valid()) {
+          client_tag_hash = syncer::ClientTagHash::FromUnhashed(
+              syncer::BOOKMARKS, uuid.AsLowercaseString());
+        }
+      }
+    }
+
+    if (client_tag_hash.value().empty()) {
+      continue;
+    }
+
+    const SyncedBookmarkTrackerEntity* entity =
+        bookmark_tracker_->GetEntityForClientTagHash(client_tag_hash);
+    if (entity) {
+      // For both synced and unsynced entities, the server version is overridden
+      // to `response_version - 1`.
+      // For synced entities, this ensures the update is applied.
+      // For unsynced entities, this forces a conflict resolution, which will
+      // resolve in favor of the local change (preserving it) while correctly
+      // updating and persisting the server ID.
+      bookmark_tracker_->OverrideServerMetadata(
+          client_tag_hash, update.entity.id, update.response_version - 1);
+    }
+  }
 }
 
 bool BookmarkDataTypeProcessor::ExceedsRemoteUpdatesLimit(size_t count) const {

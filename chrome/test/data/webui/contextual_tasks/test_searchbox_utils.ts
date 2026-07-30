@@ -1,0 +1,106 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import {createAutocompleteMatch, createAutocompleteResultForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
+import type {PageHandlerRemote as SearchboxPageHandlerRemote, PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {MockTimer} from 'chrome://webui-test/mock_timer.js';
+import type {TestMock} from 'chrome://webui-test/test_mock.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
+
+import {fixtureUrl} from './test_utils.js';
+
+export const ADD_FILE_CONTEXT_FN = 'addFileContext';
+export const ADD_TAB_CONTEXT_FN = 'addTabContext';
+
+export async function setupAutocompleteResults(
+    searchboxCallbackRouterRemote: SearchboxPageRemote, testQuery: string,
+    mockTimer: MockTimer) {
+  const matches = [
+    createAutocompleteMatch({
+      allowedToBeDefaultMatch: true,
+      contents: testQuery,
+      destinationUrl: `${fixtureUrl}/search?q=${testQuery}`,
+      type: 'search-what-you-typed',
+      fillIntoEdit: testQuery,
+    }),
+    createAutocompleteMatch(),
+  ];
+  searchboxCallbackRouterRemote.autocompleteResultChanged(
+      createAutocompleteResultForTesting({
+        input: testQuery,
+        matches: matches,
+      }));
+  await searchboxCallbackRouterRemote.$.flushForTesting();
+  mockTimer.tick(0);
+}
+
+export async function uploadFileAndVerify(
+    token: Object, file: File, composebox: any,
+    mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>,
+    expectedInitialFilesCount: number = 0) {
+  // Assert initial file count if 0 -> carousel should not render.
+  if (expectedInitialFilesCount === 0) {
+    assertFalse(
+        !!composebox.shadowRoot.querySelector('#carousel'),
+        'Files should be empty and carousel should not render.');
+  }
+
+  mockSearchboxPageHandler.resetResolver(ADD_FILE_CONTEXT_FN);
+  mockSearchboxPageHandler.setResultFor(
+      ADD_FILE_CONTEXT_FN, Promise.resolve(token));
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+
+  composebox.$.fileInputs.dispatchEvent(new CustomEvent('file-change', {
+    detail: {files: dataTransfer.files},
+    bubbles: true,
+    composed: true,
+  }));
+
+  // Must call to upload. Await -> wait for it to be called once.
+  await mockSearchboxPageHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+
+  // Must await for file carousel to re-render since are adding files.
+  await composebox.updateComplete;
+  await microtasksFinished();
+  await verifyFileCarouselMatchesUploaded(
+      file, composebox, mockSearchboxPageHandler, expectedInitialFilesCount);
+}
+
+export async function verifyFileCarouselMatchesUploaded(
+    file: File, composebox: any,
+    mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>,
+    expectedInitialFilesCount: number) {
+  // Assert one file.
+
+  // Avoid using $.carousel since may be cached.
+  const carousel = composebox.shadowRoot.querySelector('#carousel');
+
+  assertTrue(!!carousel, 'Carousel should be in the DOM');
+  const files = carousel.files;
+
+  assertEquals(
+      expectedInitialFilesCount + 1,
+      files.length,
+      `Number of carousel files should be ${expectedInitialFilesCount + 1}`,
+  );
+  const currentFile = files[files.length - 1];
+
+  assertEquals(currentFile!.type, file.type);
+  assertEquals(currentFile!.name, file.name);
+
+  // Assert file is uploaded.
+  assertEquals(
+      1, mockSearchboxPageHandler.getCallCount(ADD_FILE_CONTEXT_FN),
+      `Add file context should be called for this file once.`);
+  const fileBuffer = await file.arrayBuffer();
+  const fileArray = Array.from(new Uint8Array(fileBuffer));
+
+  // Verify identity of latest file with that of uploaded version.
+  const allCalls = mockSearchboxPageHandler.getArgs(ADD_FILE_CONTEXT_FN);
+  const [fileInfo, fileData] = allCalls[allCalls.length - 1];
+  assertEquals(fileInfo.fileName, file.name);
+  assertDeepEquals(fileData.bytes, fileArray);
+}

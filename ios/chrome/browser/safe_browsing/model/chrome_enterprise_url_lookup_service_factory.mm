@@ -6,6 +6,7 @@
 
 #import <memory>
 
+#import "base/functional/callback_helpers.h"
 #import "components/enterprise/connectors/core/common.h"
 #import "components/enterprise/connectors/core/content_area_user_provider.h"
 #import "components/policy/core/common/cloud/affiliation.h"
@@ -120,7 +121,9 @@ ChromeEnterpriseRealTimeUrlLookupServiceFactory::BuildServiceInstanceFor(
           IdentityManagerFactory::GetForProfile(profile)),
       base::BindRepeating(&IsProfileAffiliated, profile),
       IsCommandLineSwitchEnabled(),
-      /*intelligent_scan_delegate=*/nullptr);
+      /*intelligent_scan_delegate=*/nullptr,
+      // iOS doesn't support referrer chains yet.
+      /*network_context_getter=*/base::NullCallback());
 }
 
 }  // namespace safe_browsing

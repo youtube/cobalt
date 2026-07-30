@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/platform/testing/main_thread_isolate.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
 
 namespace blink {

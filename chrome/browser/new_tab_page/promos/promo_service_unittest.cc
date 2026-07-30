@@ -14,14 +14,12 @@
 #include "base/test/task_environment.h"
 #include "chrome/browser/new_tab_page/promos/promo_data.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/search/ntp_features.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_task_environment.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -74,7 +72,6 @@ class PromoServiceTest : public testing::Test {
       base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED};
 
  private:
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
 
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;

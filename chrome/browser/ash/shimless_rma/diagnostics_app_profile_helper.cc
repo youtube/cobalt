@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/chrome_pref_names.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/webui/shimless_rma/backend/shimless_rma_delegate.h"
 #include "base/check_deref.h"
@@ -35,7 +36,6 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/common/chromeos/extensions/chromeos_system_extension_info.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
@@ -462,7 +462,8 @@ void OnProfileLoaded(std::unique_ptr<PrepareDiagnosticsAppProfileState> state,
   if (profile->IsOffTheRecord()) {
     profile = profile->GetOriginalProfile();
   }
-  profile->GetPrefs()->SetBoolean(prefs::kForceEphemeralProfiles, true);
+  profile->GetPrefs()->SetBoolean(ash::chrome_prefs::kForceEphemeralProfiles,
+                                  true);
 
   state->context = profile;
   auto* system = extensions::ExtensionSystem::Get(state->context);

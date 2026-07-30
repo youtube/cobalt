@@ -147,21 +147,42 @@ DictionaryInfoType* GetMatchingDictionaryFromDictionaryInfoMap(
       continue;
     }
 
-    if (matched_info &&
-        ((matched_info->match().size() > info.match().size()) ||
-         (matched_info->match().size() == info.match().size() &&
-          matched_info->last_fetch_time() > info.last_fetch_time()))) {
-      continue;
-    }
     // When `match_dest` is empty, we don't check the `destination`.
     if (!info.match_dest().empty() &&
         !info.match_dest().contains(destination)) {
       continue;
     }
     CHECK(info.matcher());
-    if (info.matcher()->Match(url)) {
-      matched_info = &info;
+    if (!info.matcher()->Match(url)) {
+      continue;
     }
+
+    if (matched_info) {
+      // Prioritize matching dictionaries according to the rules in
+      // Section 2.2.3 of RFC 9842:
+      // https://www.rfc-editor.org/rfc/rfc9842.html#section-2.2.3
+      bool matched_has_dest = !matched_info->match_dest().empty();
+      bool info_has_dest = !info.match_dest().empty();
+      bool info_is_better = false;
+      if (matched_has_dest != info_has_dest) {
+        // 1. A dictionary that specifies and matches a "match-dest" takes
+        //    precedence over a match that does not use a destination.
+        info_is_better = info_has_dest;
+      } else if (matched_info->match().size() != info.match().size()) {
+        // 2. Given equivalent destination precedence, a dictionary with a
+        //    longer (more specific) "match" path takes precedence.
+        info_is_better = info.match().size() > matched_info->match().size();
+      } else {
+        // 3. Given equivalent destination and match length precedence, the
+        //    dictionary with the most recent last-fetch time takes precedence.
+        info_is_better =
+            info.last_fetch_time() >= matched_info->last_fetch_time();
+      }
+      if (!info_is_better) {
+        continue;
+      }
+    }
+    matched_info = &info;
   }
   return matched_info;
 }

@@ -332,7 +332,7 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   void HandleTextFormControlChanged(Node*) override;
   void HandleEditableTextContentChanged(Node*) override;
   void HandleDeletionOrInsertionInTextField(
-      const SelectionInDOMTree& changed_selection,
+      const SelectionInDomTree& changed_selection,
       bool is_deletion) override;
   void HandleTextMarkerDataAdded(Node* start, Node* end) override;
   void HandleValueChanged(Node*) override;

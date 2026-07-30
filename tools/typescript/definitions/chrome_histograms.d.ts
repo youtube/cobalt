@@ -20,6 +20,9 @@
 //       /*enable_chrome_send=*/false,
 //       /*enable_chrome_histograms=*/true) {}
 // }
+//
+// Use this to capture metrics which are strictly within WebUI. Use
+// MetricsReporter for latency between the browser and WebUI.
 declare namespace chrome {
   export namespace histograms {
 

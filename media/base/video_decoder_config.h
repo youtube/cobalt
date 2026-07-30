@@ -11,11 +11,15 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/no_destructor.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_export.h"
 #include "media/base/video_aspect_ratio.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_color_space.h"
+#include "media/base/video_spatial_format.h"
 #include "media/base/video_transformation.h"
 #include "media/base/video_types.h"
 #include "ui/gfx/geometry/rect.h"
@@ -162,6 +166,11 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // useful for decryptors that decrypts an encrypted stream to a clear stream.
   void SetIsEncrypted(bool is_encrypted);
 
+  void set_spatial_format(const VideoSpatialFormat& spatial_format) {
+    spatial_format_ = spatial_format;
+  }
+  const VideoSpatialFormat& spatial_format() const { return spatial_format_; }
+
  private:
   VideoCodec codec_ = VideoCodec::kUnknown;
   VideoCodecProfile profile_ = VIDEO_CODEC_PROFILE_UNKNOWN;
@@ -187,6 +196,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   VideoColorSpace color_space_info_;
   gfx::HDRMetadata hdr_metadata_;
+
+  VideoSpatialFormat spatial_format_;
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is

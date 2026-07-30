@@ -18,6 +18,7 @@ if (enable_compose) {
       "//chrome/browser/compose",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/resources/compose:resources",
+      "//chrome/browser/ui/webui:theme_source",
       "//chrome/browser/ui/webui/top_chrome",
       "//chrome/common",
       "//chrome/common/compose:mojo_bindings",

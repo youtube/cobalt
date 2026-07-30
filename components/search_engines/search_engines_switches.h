@@ -106,6 +106,12 @@ COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 BASE_DECLARE_FEATURE(kSearchSettingsUpdate);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+// Refactoring of search engine sorting and filtering in the settings page.
+COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
+BASE_DECLARE_FEATURE(kSearchSettingsUpdateV2);
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
 #if BUILDFLAG(IS_WIN)
 // When enabled, will reject encrypted keyword table hashes that are weakly
 // encrypted.

@@ -100,7 +100,19 @@ class ReceivedTabFormsFillerTest
   autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
 };
 
-TEST_F(ReceivedTabFormsFillerTest, ShouldFillMatchingFields) {
+struct FillTriggerTestCase {
+  std::string test_name;
+  std::u16string receiver_field_value;
+  autofill::FieldPropertiesMask receiver_field_properties_mask;
+  bool expect_fill;
+};
+
+class ReceivedTabFormsFillerFillTriggerTest
+    : public ReceivedTabFormsFillerTest,
+      public ::testing::WithParamInterface<FillTriggerTestCase> {};
+
+TEST_P(ReceivedTabFormsFillerFillTriggerTest, ShouldConditionallyFill) {
+  const FillTriggerTestCase& test_case = GetParam();
   const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
   PageContext::FormFieldInfo form_field_info;
   form_field_info.fields.push_back(
@@ -111,14 +123,103 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldFillMatchingFields) {
                    .label = u"label1",
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
-                   .origin = kOrigin}},
+                   .value = test_case.receiver_field_value,
+                   .origin = kOrigin,
+                   .properties_mask =
+                       test_case.receiver_field_properties_mask}},
        .url = "https://example.com"});
   const autofill::FieldGlobalId field_id = form.fields()[0].global_id();
 
-  EXPECT_CALL(autofill_driver(),
-              ApplyFieldAction(autofill::mojom::FieldActionType::kReplaceAll,
-                               autofill::mojom::ActionPersistence::kFill,
-                               Eq(field_id), Eq(u"shared_value")));
+  if (test_case.expect_fill) {
+    EXPECT_CALL(autofill_driver(),
+                ApplyFieldAction(autofill::mojom::FieldActionType::kReplaceAll,
+                                 autofill::mojom::ActionPersistence::kFill,
+                                 Eq(field_id), Eq(u"shared_value")));
+  } else {
+    EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
+  }
+
+  base::HistogramTester histogram_tester;
+  base::RunLoop run_loop;
+  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
+                                run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form}, {});
+
+  run_loop.Run();
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
+      FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ReceivedTabFormsFillerFillTriggerTests,
+    ReceivedTabFormsFillerFillTriggerTest,
+    ::testing::Values(
+        FillTriggerTestCase{
+            .test_name = "NormalFieldShouldFill",
+            .receiver_field_value = u"",
+            .receiver_field_properties_mask = 0,
+            .expect_fill = true,
+        },
+        FillTriggerTestCase{
+            .test_name = "UserEditedNotEmptyFieldShouldNotFill",
+            .receiver_field_value = u"user_value",
+            .receiver_field_properties_mask = autofill::kUserTyped,
+            .expect_fill = false,
+        },
+        FillTriggerTestCase{
+            .test_name = "UserEditedButEmptyFieldShouldFill",
+            .receiver_field_value = u"",
+            .receiver_field_properties_mask = autofill::kUserTyped,
+            .expect_fill = true,
+        }),
+    [](const ::testing::TestParamInfo<
+        ReceivedTabFormsFillerFillTriggerTest::ParamType>& info) {
+      return info.param.test_name;
+    });
+
+TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillUserClearedPrefilledField) {
+  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
+  PageContext::FormFieldInfo form_field_info;
+  form_field_info.fields.push_back(
+      MakeFormField(u"id1", u"name1", "text", u"shared_value"));
+
+  const autofill::LocalFrameToken frame_token =
+      autofill_driver().GetFrameToken();
+  const autofill::FormRendererId form_renderer_id = autofill::FormRendererId(1);
+
+  // 1. Simulate a form that was previously seen with a pre-filled value.
+  const FormData initial_form = autofill::test::GetFormData(
+      {.fields = {{.renderer_id = autofill::FieldRendererId(1),
+                   .label = u"label1",
+                   .name_attribute = u"name1",
+                   .id_attribute = u"id1",
+                   .value = u"prefilled_value",
+                   .origin = kOrigin}},
+       .host_frame = frame_token,
+       .renderer_id = form_renderer_id,
+       .url = "https://example.com"});
+  autofill_manager().OnFormsSeen({initial_form}, {});
+
+  // 2. Simulate user clearing the field (value is empty, properties_mask has
+  // kUserTyped).
+  const FormData form = autofill::test::GetFormData(
+      {.fields = {{.renderer_id = autofill::FieldRendererId(1),
+                   .label = u"label1",
+                   .name_attribute = u"name1",
+                   .id_attribute = u"id1",
+                   .value = u"",
+                   .origin = kOrigin,
+                   .properties_mask = autofill::kUserTyped}},
+       .host_frame = frame_token,
+       .renderer_id = form_renderer_id,
+       .url = "https://example.com"});
+
+  // We expect ApplyFieldAction to NOT be called because the field is
+  // user-cleared.
+  EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
   base::HistogramTester histogram_tester;
   base::RunLoop run_loop;

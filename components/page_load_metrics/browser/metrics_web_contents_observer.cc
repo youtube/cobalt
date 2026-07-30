@@ -1193,14 +1193,12 @@ void MetricsWebContentsObserver::OnTimingUpdated(
 void MetricsWebContentsObserver::OnCustomUserTimingUpdated(
     content::RenderFrameHost* rfh,
     mojom::CustomUserTimingMarkPtr custom_timing) {
-  // Buffer timing data before seinding to the tracker as the tracker may not
-  // exist in some cases, in that case the buffered timings are sent next time.
-  page_load_custom_timings_.push_back(std::move(custom_timing));
   TRACE_EVENT("loading",
-              "MetricsWebContentsObserver::OnCustomUserTimingUpdated",
-              "buffered_timings_count", page_load_custom_timings_.size());
+              "MetricsWebContentsObserver::OnCustomUserTimingUpdated");
   if (PageLoadTracker* tracker = GetPageLoadTrackerIfValid(rfh)) {
-    tracker->AddCustomUserTimings(std::move(page_load_custom_timings_));
+    std::vector<mojom::CustomUserTimingMarkPtr> custom_timings;
+    custom_timings.push_back(std::move(custom_timing));
+    tracker->AddCustomUserTimings(std::move(custom_timings));
   }
 }
 

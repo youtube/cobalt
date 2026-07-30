@@ -11,6 +11,10 @@ import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/token.mojom";
 import "url/mojom/url.mojom";
 
+struct TokenRange {
+  uint32 start;
+  uint32 length;
+};
 
 // Orientation of a split view. Needs to be kept in sync with
 // split_tabs::SplitTabLayout in components/split_tabs/split_tab_visual_data.h.
@@ -260,6 +264,14 @@ interface PageHandler {
 
   // Notify the backend that the UI is ready to be shown.
   MaybeShowUI();
+
+  // Match a search text against a list of strings, returning a list of
+  // matched ranges for each string. The returned array of arrays must map
+  // 1-to-1 with the `targets` array.
+  // Empty array of TokenRanges means no match.
+  GetRangesIgnoringCaseAndAccents(
+      string search_text,
+      array<string> targets) => (array<array<TokenRange>> ranges);
 };
 
 // WebUI-side handler for requests from the browser.

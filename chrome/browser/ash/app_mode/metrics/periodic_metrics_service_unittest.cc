@@ -38,8 +38,6 @@ class BasePeriodicMetricsServiceTest {
 
   void StartRecordingPeriodicMetrics() {
     periodic_metrics_service_.StartRecordingPeriodicMetrics();
-    // Some periodic metrics are calculated asynchronously.
-    task_environment_.RunUntilIdle();
   }
 
  protected:

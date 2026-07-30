@@ -1414,9 +1414,6 @@ proto_library("sharing_log_proto") {
     ":sharing_enums_proto",
     "//third_party/protobuf:duration_proto",
   ]
-
-  # For built-in protos, specifically duration.proto.
-  import_dirs = [ "//third_party/protobuf/src" ]
 }
 
 # src/presence/proto

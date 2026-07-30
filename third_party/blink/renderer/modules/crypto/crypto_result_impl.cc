@@ -44,6 +44,8 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_crypto_key_pair.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_encapsulated_bits.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_encapsulated_key.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_json_web_key.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_union_arraybuffer_jsonwebkey.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_cryptokey_cryptokeypair.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -133,12 +135,13 @@ void CryptoResultImpl::CompleteWithBuffer(base::span<const uint8_t> bytes) {
     return;
 
   auto* buffer = DOMArrayBuffer::Create(bytes);
-  if (type_ == ResolverType::kTyped) {
+  if (detailed_type_ == DetailedResolverType::kArrayBuffer) {
     resolver_->DowncastTo<DOMArrayBuffer>()->Resolve(buffer);
+  } else if (detailed_type_ ==
+             DetailedResolverType::kUnionArrayBufferJsonWebKey) {
+    resolver_->DowncastTo<V8UnionArrayBufferOrJsonWebKey>()->Resolve(buffer);
   } else {
-    ScriptState* script_state = resolver_->GetScriptState();
-    ScriptState::Scope scope(script_state);
-    resolver_->DowncastTo<IDLAny>()->Resolve(buffer->ToV8(script_state));
+    NOTREACHED();
   }
   ClearResolver();
 }
@@ -158,11 +161,24 @@ void CryptoResultImpl::CompleteWithJson(std::string_view utf8_data) {
   v8::TryCatch try_catch(script_state->GetIsolate());
   v8::Local<v8::Value> json_dictionary =
       FromJSONString(script_state, String::FromUtf8(utf8_data));
-  CHECK_EQ(type_, ResolverType::kAny);
+
+  CHECK_EQ(detailed_type_, DetailedResolverType::kUnionArrayBufferJsonWebKey);
+
+  if (try_catch.HasCaught()) {
+    resolver_->Reject(try_catch.Exception());
+    ClearResolver();
+    return;
+  }
+
+  ExceptionState exception_state(script_state->GetIsolate());
+  JsonWebKey* json_web_key = NativeValueTraits<JsonWebKey>::NativeValue(
+      script_state->GetIsolate(), json_dictionary, exception_state);
+
   if (try_catch.HasCaught()) {
     resolver_->Reject(try_catch.Exception());
   } else {
-    resolver_->DowncastTo<IDLAny>()->Resolve(json_dictionary);
+    resolver_->DowncastTo<V8UnionArrayBufferOrJsonWebKey>()->Resolve(
+        json_web_key);
   }
   ClearResolver();
 }
@@ -171,7 +187,6 @@ void CryptoResultImpl::CompleteWithBoolean(bool b) {
   if (!resolver_)
     return;
 
-  CHECK_EQ(type_, ResolverType::kTyped);
   resolver_->DowncastTo<IDLBoolean>()->Resolve(b);
   ClearResolver();
 }
@@ -181,7 +196,6 @@ void CryptoResultImpl::CompleteWithKey(const WebCryptoKey& key) {
     return;
 
   auto* result = MakeGarbageCollected<CryptoKey>(key);
-  CHECK_EQ(type_, ResolverType::kTyped);
   resolver_->DowncastTo<CryptoKey>()->Resolve(result);
   ClearResolver();
 }
@@ -192,7 +206,6 @@ void CryptoResultImpl::CompleteWithKeyForGenerateKey(const WebCryptoKey& key) {
   }
 
   auto* result = MakeGarbageCollected<CryptoKey>(key);
-  CHECK_EQ(type_, ResolverType::kTyped);
   resolver_->DowncastTo<V8UnionCryptoKeyOrCryptoKeyPair>()->Resolve(result);
   ClearResolver();
 }
@@ -208,7 +221,6 @@ void CryptoResultImpl::CompleteWithKeyPairForGenerateKey(
   result->setPublicKey(MakeGarbageCollected<CryptoKey>(public_key));
   result->setPrivateKey(MakeGarbageCollected<CryptoKey>(private_key));
 
-  CHECK_EQ(type_, ResolverType::kTyped);
   resolver_->DowncastTo<V8UnionCryptoKeyOrCryptoKeyPair>()->Resolve(result);
   ClearResolver();
 }
@@ -227,12 +239,7 @@ void CryptoResultImpl::CompleteWithEncapsulatedKey(
   result->setSharedKey(MakeGarbageCollected<CryptoKey>(shared_key));
   result->setCiphertext(DOMArrayBuffer::Create(ciphertext));
 
-  if (type_ == ResolverType::kTyped) {
     resolver_->DowncastTo<EncapsulatedKey>()->Resolve(result);
-  } else {
-    resolver_->DowncastTo<IDLAny>()->Resolve(
-        ToV8Traits<EncapsulatedKey>::ToV8(script_state, result));
-  }
   ClearResolver();
 }
 
@@ -250,12 +257,7 @@ void CryptoResultImpl::CompleteWithEncapsulatedBits(
   result->setSharedKey(DOMArrayBuffer::Create(shared_key));
   result->setCiphertext(DOMArrayBuffer::Create(ciphertext));
 
-  if (type_ == ResolverType::kTyped) {
     resolver_->DowncastTo<EncapsulatedBits>()->Resolve(result);
-  } else {
-    resolver_->DowncastTo<IDLAny>()->Resolve(
-        ToV8Traits<EncapsulatedBits>::ToV8(script_state, result));
-  }
   ClearResolver();
 }
 

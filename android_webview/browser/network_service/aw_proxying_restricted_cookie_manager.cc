@@ -106,7 +106,7 @@ void AwProxyingRestrictedCookieManager::GetAllForUrl(
     const GURL& url,
     const net::SiteForCookies& /*site_for_cookies*/,
     const url::Origin& top_frame_origin,
-    net::StorageAccessApiStatus storage_access_api_status,
+    net::StorageAccessApiStatus /*storage_access_api_status*/,
     network::mojom::CookieManagerGetOptionsPtr options,
     bool is_ad_tagged,
     bool apply_devtools_overrides,
@@ -125,10 +125,12 @@ void AwProxyingRestrictedCookieManager::GetAllForUrl(
       force_disable_third_party_cookies ||
       cookieState == PrivacySetting::kPartitionedStateAllowedOnly;
 
+  // WebView does not currently have a way to grant storage access requests with
+  // user consent so we default this to be none.
   underlying_restricted_cookie_manager_->GetAllForUrl(
-      url, site_for_cookies_, top_frame_origin, storage_access_api_status,
-      std::move(options), is_ad_tagged, apply_devtools_overrides, disable_3pcs,
-      std::move(callback));
+      url, site_for_cookies_, top_frame_origin,
+      net::StorageAccessApiStatus::kNone, std::move(options), is_ad_tagged,
+      apply_devtools_overrides, disable_3pcs, std::move(callback));
 }
 
 void AwProxyingRestrictedCookieManager::SetCanonicalCookie(
@@ -136,7 +138,7 @@ void AwProxyingRestrictedCookieManager::SetCanonicalCookie(
     const GURL& url,
     const net::SiteForCookies& /*site_for_cookies*/,
     const url::Origin& top_frame_origin,
-    net::StorageAccessApiStatus storage_access_api_status,
+    net::StorageAccessApiStatus /*storage_access_api_status*/,
     bool is_ad_tagged,
     bool apply_devtools_overrides,
     SetCanonicalCookieCallback callback) {
@@ -151,10 +153,12 @@ void AwProxyingRestrictedCookieManager::SetCanonicalCookie(
   if (cookie_params->partitioned ==
           network::mojom::RestrictedCookiePartition::PARTITIONED ||
       cookieState == PrivacySetting::kStateAllowed) {
+    // WebView does not currently have a way to grant storage access requests
+    // with user consent so we default this to be none.
     underlying_restricted_cookie_manager_->SetCanonicalCookie(
         std::move(cookie_params), url, site_for_cookies_, top_frame_origin,
-        storage_access_api_status, is_ad_tagged, apply_devtools_overrides,
-        std::move(callback));
+        net::StorageAccessApiStatus::kNone, is_ad_tagged,
+        apply_devtools_overrides, std::move(callback));
   } else {
     std::move(callback).Run(false);
   }
@@ -164,7 +168,7 @@ void AwProxyingRestrictedCookieManager::AddChangeListener(
     const GURL& url,
     const net::SiteForCookies& /*site_for_cookies*/,
     const url::Origin& top_frame_origin,
-    net::StorageAccessApiStatus storage_access_api_status,
+    net::StorageAccessApiStatus /*storage_access_api_status*/,
     mojo::PendingRemote<network::mojom::CookieChangeListener> listener,
     AddChangeListenerCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
@@ -180,16 +184,19 @@ void AwProxyingRestrictedCookieManager::AddChangeListener(
       std::move(proxy_listener),
       proxy_listener_remote.InitWithNewPipeAndPassReceiver());
 
+  // WebView does not currently have a way to grant storage access requests with
+  // user consent so we default this to be none.
   underlying_restricted_cookie_manager_->AddChangeListener(
-      url, site_for_cookies_, top_frame_origin, storage_access_api_status,
-      std::move(proxy_listener_remote), std::move(callback));
+      url, site_for_cookies_, top_frame_origin,
+      net::StorageAccessApiStatus::kNone, std::move(proxy_listener_remote),
+      std::move(callback));
 }
 
 void AwProxyingRestrictedCookieManager::SetCookieFromString(
     const GURL& url,
     const net::SiteForCookies& /*site_for_cookies*/,
     const url::Origin& top_frame_origin,
-    net::StorageAccessApiStatus storage_access_api_status,
+    net::StorageAccessApiStatus /*storage_access_api_status*/,
     bool is_ad_tagged,
     bool apply_devtools_overrides,
     const std::string& cookie) {
@@ -209,9 +216,12 @@ void AwProxyingRestrictedCookieManager::SetCookieFromString(
   if (cookieState == PrivacySetting::kStateAllowed ||
       (parsed_cookie.IsValid() && parsed_cookie.IsPartitioned() &&
        parsed_cookie.IsSecure())) {
+    // WebView does not currently have a way to grant storage access requests
+    // with user consent so we default this to be none.
     underlying_restricted_cookie_manager_->SetCookieFromString(
-        url, site_for_cookies_, top_frame_origin, storage_access_api_status,
-        is_ad_tagged, apply_devtools_overrides, cookie);
+        url, site_for_cookies_, top_frame_origin,
+        net::StorageAccessApiStatus::kNone, is_ad_tagged,
+        apply_devtools_overrides, cookie);
   }
 }
 
@@ -219,7 +229,7 @@ void AwProxyingRestrictedCookieManager::GetCookiesString(
     const GURL& url,
     const net::SiteForCookies& /*site_for_cookies*/,
     const url::Origin& top_frame_origin,
-    net::StorageAccessApiStatus storage_access_api_status,
+    net::StorageAccessApiStatus /*storage_access_api_status*/,
     bool get_version_shared_memory,
     bool is_ad_tagged,
     bool apply_devtools_overrides,
@@ -248,17 +258,19 @@ void AwProxyingRestrictedCookieManager::GetCookiesString(
       base::FeatureList::IsEnabled(features::kWebViewLatchedCookiePolicy) &&
       get_version_shared_memory;
 
+  // WebView does not currently have a way to grant storage access requests with
+  // user consent so we default this to be none.
   underlying_restricted_cookie_manager_->GetCookiesString(
-      url, site_for_cookies_, top_frame_origin, storage_access_api_status,
-      use_shared_memory, is_ad_tagged, apply_devtools_overrides, disable_3pcs,
-      std::move(callback));
+      url, site_for_cookies_, top_frame_origin,
+      net::StorageAccessApiStatus::kNone, use_shared_memory, is_ad_tagged,
+      apply_devtools_overrides, disable_3pcs, std::move(callback));
 }
 
 void AwProxyingRestrictedCookieManager::CookiesEnabledFor(
     const GURL& url,
     const net::SiteForCookies& /*site_for_cookies*/,
     const url::Origin& top_frame_origin,
-    net::StorageAccessApiStatus storage_access_api_status,
+    net::StorageAccessApiStatus /*storage_access_api_status*/,
     bool apply_devtools_overrides,
     CookiesEnabledForCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);

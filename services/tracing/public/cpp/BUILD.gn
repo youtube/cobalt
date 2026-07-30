@@ -128,6 +128,7 @@ target("component", "cpp") {
         "perfetto/java_heap_profiler/java_heap_profiler_android.cc",
         "perfetto/java_heap_profiler/java_heap_profiler_android.h",
       ]
+      public_deps += [ "//third_party/perfetto/protos/third_party/android/art:art_heap_graph_zero" ]
     }
 
     if (is_win && enable_loader_lock_sampling) {

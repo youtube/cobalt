@@ -39,7 +39,7 @@ void StoredPage::SetDelegate(Delegate* delegate) {
 }
 
 void StoredPage::ClearAllObservers() {
-  DCHECK(!cleared_observers_);
+  CHECK(!cleared_observers_, base::NotFatalUntil::M152);
   cleared_observers_ = true;
   for (const auto& rvh : render_view_hosts_) {
     rvh->site_instance_group()->RemoveObserver(this);
@@ -83,18 +83,18 @@ std::unique_ptr<RenderFrameHostImpl> StoredPage::TakeRenderFrameHost() {
 }
 
 StoredPage::RenderFrameProxyHostMap StoredPage::TakeProxyHosts() {
-  DCHECK(cleared_observers_);
+  CHECK(cleared_observers_, base::NotFatalUntil::M152);
   return std::move(proxy_hosts_);
 }
 
 StoredPage::RenderViewHostImplSafeRefSet StoredPage::TakeRenderViewHosts() {
-  DCHECK(cleared_observers_);
+  CHECK(cleared_observers_, base::NotFatalUntil::M152);
   return std::move(render_view_hosts_);
 }
 
 void StoredPage::SetViewTransitionState(
     std::optional<blink::ViewTransitionState> view_transition_state) {
-  DCHECK(!view_transition_state_);
+  CHECK(!view_transition_state_, base::NotFatalUntil::M152);
   view_transition_state_ = std::move(view_transition_state);
 }
 

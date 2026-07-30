@@ -29,7 +29,6 @@ build_webui("build") {
     "browser_proxy.ts",
     "constants.ts",
     "externs.ts",
-    "foreign_session_browser_proxy.ts",
     "history_filter_chips.html.ts",
     "history_filter_chips.ts",
     "history.ts",

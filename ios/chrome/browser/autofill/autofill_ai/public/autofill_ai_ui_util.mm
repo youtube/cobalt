@@ -207,10 +207,10 @@ GURL GetGoogleWalletPassesURL() {
 
 UIImage* GetWalletLogo(CGFloat point_size, UIColor* tint_color) {
 #if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
-  NSString* symbol = base::FeatureList::IsEnabled(
-                         autofill::features::kAutofillEnableGradientGoogleLogos)
-                         ? kGoogleWalletIconV2Symbol
-                         : kGoogleWalletIconSymbol;
+  NSString* symbol =
+      base::FeatureList::IsEnabled(features::kAutofillEnableGradientGoogleLogos)
+          ? kGoogleWalletIconV2Symbol
+          : kGoogleWalletIconSymbol;
   return MakeSymbolMulticolor(CustomSymbolWithPointSize(symbol, point_size));
 #else
   return SymbolWithPalette(

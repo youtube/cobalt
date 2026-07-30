@@ -153,8 +153,8 @@ class GraphImplTflite::ComputeResources {
             mojom::Error::Code::kUnknownError, "Failed to map weights file."));
       }
       self->allocation_ = std::make_unique<::tflite::MemoryAllocation>(
-          self->weights_mapped_file_.data(),
-          self->weights_mapped_file_.length(),
+          self->weights_mapped_file_.bytes().data(),
+          self->weights_mapped_file_.bytes().size(),
           ::tflite::DefaultErrorReporter());
     }
 

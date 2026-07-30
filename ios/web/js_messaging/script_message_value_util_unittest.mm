@@ -22,12 +22,10 @@ using ScriptMessageValueUtilTest = PlatformTest;
 TEST_F(ScriptMessageValueUtilTest, ConvertNSStringToScriptMessageValue) {
   NSString* string_element = @"test_string";
 
-  std::unique_ptr<ScriptMessageValue> value =
-      CreateScriptMessageValue(string_element);
+  ScriptMessageValue value = CreateScriptMessageValue(string_element);
 
-  ASSERT_TRUE(value);
-  EXPECT_EQ(base::Value::Type::STRING, value->type());
-  EXPECT_EQ("test_string", value->GetValue().GetString());
+  ASSERT_EQ(base::Value::Type::STRING, value.type());
+  EXPECT_EQ("test_string", value.GetValue().GetString());
 }
 
 // Tests whether the CreateScriptMessageValue function can create a
@@ -35,12 +33,10 @@ TEST_F(ScriptMessageValueUtilTest, ConvertNSStringToScriptMessageValue) {
 TEST_F(ScriptMessageValueUtilTest, ConvertIntegerToScriptMessageValue) {
   NSNumber* integer_element = @(3);
 
-  std::unique_ptr<ScriptMessageValue> value =
-      CreateScriptMessageValue(integer_element);
+  ScriptMessageValue value = CreateScriptMessageValue(integer_element);
 
-  ASSERT_TRUE(value);
-  EXPECT_EQ(base::Value::Type::INTEGER, value->type());
-  EXPECT_EQ(3, value->GetValue().GetInt());
+  ASSERT_EQ(base::Value::Type::INTEGER, value.type());
+  EXPECT_EQ(3, value.GetValue().GetInt());
 }
 
 // Tests whether the CreateScriptMessageValue function can create a
@@ -48,12 +44,10 @@ TEST_F(ScriptMessageValueUtilTest, ConvertIntegerToScriptMessageValue) {
 TEST_F(ScriptMessageValueUtilTest, ConvertDoubleToScriptMessageValue) {
   NSNumber* double_element = @3.14;
 
-  std::unique_ptr<ScriptMessageValue> value =
-      CreateScriptMessageValue(double_element);
+  ScriptMessageValue value = CreateScriptMessageValue(double_element);
 
-  ASSERT_TRUE(value);
-  EXPECT_EQ(base::Value::Type::DOUBLE, value->type());
-  EXPECT_EQ(3.14, value->GetValue().GetDouble());
+  ASSERT_EQ(base::Value::Type::DOUBLE, value.type());
+  EXPECT_EQ(3.14, value.GetValue().GetDouble());
 }
 
 // Tests whether the CreateScriptMessageValue function can create a
@@ -61,12 +55,10 @@ TEST_F(ScriptMessageValueUtilTest, ConvertDoubleToScriptMessageValue) {
 TEST_F(ScriptMessageValueUtilTest, ConvertBooleanToScriptMessageValue) {
   NSNumber* bool_element = @YES;
 
-  std::unique_ptr<ScriptMessageValue> value =
-      CreateScriptMessageValue(bool_element);
+  ScriptMessageValue value = CreateScriptMessageValue(bool_element);
 
-  ASSERT_TRUE(value);
-  EXPECT_EQ(base::Value::Type::BOOLEAN, value->type());
-  EXPECT_TRUE(value->GetValue().GetBool());
+  ASSERT_EQ(base::Value::Type::BOOLEAN, value.type());
+  EXPECT_TRUE(value.GetValue().GetBool());
 }
 
 // Tests whether the CreateScriptMessageValue function can create a
@@ -74,11 +66,21 @@ TEST_F(ScriptMessageValueUtilTest, ConvertBooleanToScriptMessageValue) {
 TEST_F(ScriptMessageValueUtilTest, ConvertNSDictionaryToScriptMessageValue) {
   NSDictionary* dict_element = @{@"key" : @"value"};
 
-  std::unique_ptr<ScriptMessageValue> value =
-      CreateScriptMessageValue(dict_element);
+  ScriptMessageValue value = CreateScriptMessageValue(dict_element);
 
-  ASSERT_TRUE(value);
-  EXPECT_EQ(base::Value::Type::DICT, value->type());
+  ASSERT_EQ(base::Value::Type::DICT, value.type());
+  EXPECT_EQ(value.GetDict().size(), 1u);
+}
+
+// Tests whether the CreateScriptMessageValue function can create a
+// ScriptMessageValue object from a NSArray.
+TEST_F(ScriptMessageValueUtilTest, ConvertNSArrayToScriptMessageValue) {
+  NSArray* array_element = @[ @"item1", @"item2" ];
+
+  ScriptMessageValue value = CreateScriptMessageValue(array_element);
+
+  ASSERT_EQ(base::Value::Type::LIST, value.type());
+  EXPECT_EQ(value.GetList().size(), 2u);
 }
 
 }  // namespace web

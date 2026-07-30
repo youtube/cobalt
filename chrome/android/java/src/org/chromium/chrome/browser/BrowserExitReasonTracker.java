@@ -28,8 +28,7 @@ public class BrowserExitReasonTracker {
             int reason = prefs.readInt(ChromePreferenceKeys.LAST_SESSION_BROWSER_EXIT_REASON);
             ProcessExitReasonFromSystem.recordAsEnumHistogram(
                     "Stability.Android.SystemExitReason.Browser2", reason);
-            MultiInstanceOrchestratorFactory.getInstance()
-                    .onForegroundBrowserProcessInitialized(reason);
+            MultiInstanceOrchestratorFactory.getInstance().onForegroundBrowserProcessInitialized();
         }
         SharedPreferences.Editor ed = prefs.getEditor();
         ed.remove(ChromePreferenceKeys.LAST_SESSION_BROWSER_EXIT_REASON);

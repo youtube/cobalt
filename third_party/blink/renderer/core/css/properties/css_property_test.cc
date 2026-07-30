@@ -43,15 +43,14 @@ class ModeCheckingAnchorEvaluator : public AnchorEvaluator {
 
   std::optional<LayoutUnit> Evaluate(
       const AnchorQuery&,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&) override {
     return (required_mode_ == GetMode()) ? std::optional<LayoutUnit>(1)
                                          : std::optional<LayoutUnit>();
   }
 
   std::optional<PositionAreaOffsets> ComputePositionAreaOffsetsForLayout(
-      const StylePositionAnchor&,
-      PositionArea) override {
+      const DefaultAnchorData&) override {
     return std::nullopt;
   }
   std::optional<PhysicalOffset> ComputeAnchorCenterOffsets(

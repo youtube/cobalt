@@ -31,7 +31,7 @@ class SubscriptionEligibilityService : public KeyedService {
 
   // Returns the AI subscription tier for the user. If a positive tier is
   // returned, it means the account must have Chrome benefits.
-  int32_t GetAiSubscriptionTier();
+  int32_t GetAiSubscriptionTier() const;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);

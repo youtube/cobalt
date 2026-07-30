@@ -162,6 +162,11 @@ class ProfilePicker {
     static Params ForGlicManager(
         base::OnceCallback<void(Profile*)> picked_profile_callback);
 
+    // Builds parameters for testing purposes, allowing any entry point and
+    // profile path to be specified.
+    static Params ForTesting(EntryPoint entry_point,
+                             const base::FilePath& profile_path);
+
     // Calls `first_run_exited_callback_`, forwarding `exit_status`.See
     // `ForFirstRun()` for more details.
     //

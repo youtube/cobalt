@@ -26,6 +26,7 @@ source_set("ui") {
     "//ios/chrome/browser/autofill/model:constants",
     "//ios/chrome/browser/autofill/model:features",
     "//ios/chrome/browser/autofill/model:model_shared",
+    "//ios/chrome/browser/autofill/public",
     "//ios/chrome/browser/autofill/ui_bundled/branding:branding_ui",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/symbols",

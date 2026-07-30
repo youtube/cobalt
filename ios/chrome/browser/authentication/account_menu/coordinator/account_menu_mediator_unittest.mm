@@ -38,6 +38,7 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gmock/include/gmock/gmock.h"
@@ -69,12 +70,8 @@ class AccountMenuMediatorTest : public PlatformTest {
 
     // Set the profile.
     TestProfileIOS::Builder builder;
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindRepeating(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.AddTestingFactory(
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
@@ -306,10 +303,8 @@ TEST_F(AccountMenuMediatorTest, emailForGaiaID) {
 TEST_F(AccountMenuMediatorTest, imageForGaiaID) {
   EXPECT_NSEQ(
       [mediator_ imageForGaiaID:kSecondaryIdentity.gaiaId],
-      GetApplicationContext() -> GetIdentityAvatarProvider()
-                                  -> GetIdentityAvatar(
-                                      kSecondaryIdentity,
-                                      IdentityAvatarSize::TableViewIcon));
+      GetApplicationContext()->GetIdentityAvatarProvider()->GetIdentityAvatar(
+          kSecondaryIdentity, IdentityAvatarSize::TableViewIcon));
 }
 
 // Tests the result of primaryAccountEmail.
@@ -325,11 +320,10 @@ TEST_F(AccountMenuMediatorTest, TestPrimaryAccountUserFullName) {
 
 // Tests the result of primaryAccountAvatar.
 TEST_F(AccountMenuMediatorTest, TestPrimaryAccountAvatar) {
-  EXPECT_NSEQ([mediator_ primaryAccountAvatar],
-              GetApplicationContext() -> GetIdentityAvatarProvider()
-                                          -> GetIdentityAvatar(
-                                              kPrimaryIdentity,
-                                              IdentityAvatarSize::Large));
+  EXPECT_NSEQ(
+      [mediator_ primaryAccountAvatar],
+      GetApplicationContext()->GetIdentityAvatarProvider()->GetIdentityAvatar(
+          kPrimaryIdentity, IdentityAvatarSize::Large));
 }
 
 // Tests the result of TestError when there is no error.

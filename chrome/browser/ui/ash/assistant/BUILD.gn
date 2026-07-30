@@ -21,7 +21,6 @@ static_library("assistant") {
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/web_applications",
-    "//chrome/common",
     "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/services/assistant/public/cpp",
     "//components/session_manager/core",

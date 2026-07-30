@@ -15,7 +15,7 @@ namespace autofill::autofill_metrics {
 namespace {
 
 using PaymentsRpcResult =
-    autofill::payments::PaymentsAutofillClient::PaymentsRpcResult;
+    ::autofill::payments::PaymentsAutofillClient::PaymentsRpcResult;
 
 const std::tuple<PaymentsRpcResult, SaveAndFillPaymentsRequestResult>
     kPaymentsRequestResultTestCases[] = {

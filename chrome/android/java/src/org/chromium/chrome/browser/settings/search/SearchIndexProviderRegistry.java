@@ -9,6 +9,7 @@ import org.chromium.chrome.browser.about_settings.AboutChromeSettings;
 import org.chromium.chrome.browser.about_settings.LegalInformationSettings;
 import org.chromium.chrome.browser.appearance.settings.AppearanceSettingsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.autofill.settings.AndroidPaymentAppsFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillBuyNowPayLaterFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillCardBenefitsFragment;
@@ -134,6 +135,7 @@ public final class SearchIndexProviderRegistry {
                     AutofillBuyNowPayLaterFragment.SEARCH_INDEX_DATA_PROVIDER,
                     AutofillCardBenefitsFragment.SEARCH_INDEX_DATA_PROVIDER,
                     AutofillIdentityDocsFragment.SEARCH_INDEX_DATA_PROVIDER,
+                    AutofillPersonalContextFragment.SEARCH_INDEX_DATA_PROVIDER,
                     AutofillPaymentMethodsFragment.SEARCH_INDEX_DATA_PROVIDER,
                     AutofillProfilesFragment.SEARCH_INDEX_DATA_PROVIDER,
                     AutofillShoppingFragment.SEARCH_INDEX_DATA_PROVIDER,

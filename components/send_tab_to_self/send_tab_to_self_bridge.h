@@ -161,8 +161,11 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
 
   bool IsTargetedToLocalDevice(const SendTabToSelfEntry& entry) const;
 
-  // Returns the name of the local device.
-  std::string GetLocalFullName() const;
+  // Returns the DeviceInfo for the local device, or nullptr if not available.
+  const syncer::DeviceInfo* GetLocalDeviceInfo() const;
+
+  // Returns the fallback full name of the local device.
+  std::string GetLocalFallbackFullName() const;
 
   // Returns true if the device should be included in the target list.
   bool ShouldIncludeDevice(const syncer::DeviceInfo& device) const;

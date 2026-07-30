@@ -39,10 +39,6 @@ class Image {
   // Return true if image metadata is already loaded.
   bool IsMetadataLoaded() const;
 
-  // Get the image data.
-  uint8_t* Data() const;
-  // Get the image data size.
-  size_t DataSize() const;
 
   // Get the image data as a span.
   base::span<const uint8_t> DataSpan() const;

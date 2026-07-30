@@ -398,6 +398,7 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="5234764350956374838">Elvetés</translation>
 <translation id="5239627039202700673">Bármikor használhatja a Chrome-ot, amikor üzenetekben, dokumentumokban és más alkalmazásokban linkekre koppint.</translation>
 <translation id="5251420635869119124">A vendégek úgy használhatják a Chrome-ot, hogy nem hagynak hátra semmit.</translation>
+<translation id="5271833978500241046">Használhatja őket a Chrome-ban a Gemini egyéb funkcióival együtt</translation>
 <translation id="5286907366254680517">Észlelve</translation>
 <translation id="5320351714793324716">Ha engedélyezi a cookie-kat, előfordulhat, hogy a Chrome előtöltéskor felhasználja őket.</translation>
 <translation id="5321325624576443340">A Google Lens nem áll rendelkezésre. Próbálkozzon újra később.</translation>
@@ -434,15 +435,6 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="569897634095159764">Nem lehet csatlakozni az internethez. A proxyszerver hitelesítést igényel.</translation>
 <translation id="5709557627224531708">A Chrome beállítása alapértelmezett böngészőként</translation>
 <translation id="5719246646468301581">A Google Chrome és a ChromeOS kiegészítő szerződési feltételei</translation>
-<translation id="5719324992913248873">Ez a művelet:
-        <ph name="LINE_BREAKS" />
-          • visszaállít néhány Chrome-beállítást és Chrome-billentyűparancsot;
-          <ph name="LINE_BREAK" />
-          • letiltja a bővítményeket;
-          <ph name="LINE_BREAK" />
-          • törli a cookie-kat és az egyéb ideiglenes webhelyadatokat.
-          <ph name="LINE_BREAKS" />
-          Ez nem lesz hatással a könyvjelzőkre, az előzményekre és a mentett jelszavakra.</translation>
 <translation id="5736850870166430177">Ha valamelyik webhely megpróbálja ellopni az Ön jelszavát, illetve ha Ön kártékony fájlt tölt le, akkor a Chrome elküldheti az URL-eket is (az oldal tartalmának részeivel együtt) a Biztonságos Böngészésnek.</translation>
 <translation id="5756509061973259733">Már létezik Chrome-profil ezzel a fiókkal ezen az eszközön.</translation>
 <translation id="5759947850379142561">Válasszon ki bármilyen szöveget vagy képet a Google Lens segítségével való kereséshez, vagy nyomja meg az Esc billentyűt a Google Lensből való kilépéshez</translation>
@@ -640,6 +632,7 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Adatainak védelme érdekében engedélyezze, hogy a Chrome eltávolítsa azoknak a webhelyeknek az engedélyeit, amelyeket Ön nem keresett fel mostanában.</translation>
 <translation id="7629695634924605473">A Chrome tájékoztatja arról, ha jelszavai illetéktelen kezekbe kerülnek</translation>
+<translation id="7629898584100520089">Az olyan AI-innovációk, mint a készségek, a Google-fiókjába kerülnek mentésre, és a Chrome-szinkronizálástól elkülönítve kezelhetők</translation>
 <translation id="7641148173327520642">Rendszergazdája úgy állította be a Google Chrome-ot, hogy a(z) <ph name="ALTERNATIVE_BROWSER_NAME" /> böngészőt nyissa meg a(z) <ph name="TARGET_URL_HOSTNAME" /> eléréséhez.</translation>
 <translation id="7649070708921625228">Súgó</translation>
 <translation id="7651907282515937834">Chrome Enterprise-embléma</translation>

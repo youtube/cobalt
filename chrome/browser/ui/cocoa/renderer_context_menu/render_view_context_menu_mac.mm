@@ -8,7 +8,11 @@
 
 #include "base/mac/mac_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/spellchecker/spellcheck_factory.h"
+#include "chrome/browser/spellchecker/spellcheck_service.h"
+#include "chrome/grit/generated_resources.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -18,6 +22,36 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/resources/grit/ui_resources.h"
 #include "ui/strings/grit/ui_strings.h"
+
+namespace {
+
+std::u16string GetUserAddedWord(content::BrowserContext* browser_context,
+                                const std::u16string& selection_text) {
+  std::u16string trimmed_text = std::u16string(
+      base::TrimWhitespace(selection_text, base::TrimPositions::TRIM_ALL));
+  if (trimmed_text.empty()) {
+    return std::u16string();
+  }
+
+  SpellcheckService* spellcheck_service =
+      SpellcheckServiceFactory::GetForContext(browser_context);
+  if (!spellcheck_service) {
+    return std::u16string();
+  }
+
+  bool is_user_added_word =
+      spellcheck_platform::IsUserAddedWord(
+          spellcheck_service->platform_spell_checker(), trimmed_text) ||
+      spellcheck_service->GetCustomDictionary()->HasWord(
+          base::UTF16ToUTF8(trimmed_text));
+  if (is_user_added_word) {
+    return trimmed_text;
+  }
+
+  return std::u16string();
+}
+
+}  // namespace
 
 // macOS implementation of the ToolkitDelegate.
 // This simply (re)delegates calls to RVContextMenuMac.
@@ -59,6 +93,7 @@ RenderViewContextMenuMac::RenderViewContextMenuMac(
                             is_paste_enabled,
                             is_paste_and_match_style_enabled),
       text_services_context_menu_(this) {
+  user_added_word_ = GetUserAddedWord(browser_context_, params_.selection_text);
   auto delegate = std::make_unique<ToolkitDelegateMacCocoa>(this);
   set_toolkit_delegate(std::move(delegate));
 }
@@ -66,10 +101,15 @@ RenderViewContextMenuMac::RenderViewContextMenuMac(
 RenderViewContextMenuMac::~RenderViewContextMenuMac() = default;
 
 void RenderViewContextMenuMac::ExecuteCommand(int command_id, int event_flags) {
-  if (command_id == IDC_CONTENT_CONTEXT_LOOK_UP) {
-    LookUpInDictionary();
-  } else {
-    RenderViewContextMenu::ExecuteCommand(command_id, event_flags);
+  switch (command_id) {
+    case IDC_CONTENT_CONTEXT_LOOK_UP:
+      LookUpInDictionary();
+      break;
+    case IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY:
+      RemoveFromDictionary();
+      break;
+    default:
+      RenderViewContextMenu::ExecuteCommand(command_id, event_flags);
   }
 }
 
@@ -78,7 +118,8 @@ bool RenderViewContextMenuMac::IsCommandIdChecked(int command_id) const {
     return text_services_context_menu_.IsCommandIdChecked(command_id);
   }
 
-  if (command_id == IDC_CONTENT_CONTEXT_LOOK_UP) {
+  if (command_id == IDC_CONTENT_CONTEXT_LOOK_UP ||
+      command_id == IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY) {
     return false;
   }
 
@@ -90,11 +131,14 @@ bool RenderViewContextMenuMac::IsCommandIdEnabled(int command_id) const {
     return text_services_context_menu_.IsCommandIdEnabled(command_id);
   }
 
-  if (command_id == IDC_CONTENT_CONTEXT_LOOK_UP) {
-    return true;
+  switch (command_id) {
+    case IDC_CONTENT_CONTEXT_LOOK_UP:
+      return true;
+    case IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY:
+      return !user_added_word_.empty();
+    default:
+      return RenderViewContextMenu::IsCommandIdEnabled(command_id);
   }
-
-  return RenderViewContextMenu::IsCommandIdEnabled(command_id);
 }
 
 std::u16string_view RenderViewContextMenuMac::GetSelectedText() const {
@@ -150,7 +194,7 @@ void RenderViewContextMenuMac::InitToolkitMenu() {
   if (!params_.selection_text.empty() && params_.link_url.is_empty()) {
     // In case the user has selected a word that triggers spelling suggestions,
     // show the dictionary lookup under the group that contains the command to
-    // “Add to Dictionary.”
+    // “Add to Dictionary” or “Remove from Dictionary”.
     const std::optional<size_t> index_opt =
         menu_model_.GetIndexOfCommandId(IDC_SPELLCHECK_ADD_TO_DICTIONARY);
     size_t index = index_opt.value_or(0);
@@ -159,6 +203,12 @@ void RenderViewContextMenuMac::InitToolkitMenu() {
         index++;
       }
       ++index;  // Place it below the separator.
+    }
+
+    if (!user_added_word_.empty() && params_.misspelled_word.empty()) {
+      menu_model_.InsertItemAt(index++, IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY,
+                               l10n_util::GetStringUTF16(
+                                   IDS_CONTENT_CONTEXT_REMOVE_FROM_DICTIONARY));
     }
 
     std::u16string printable_selection_text = PrintableSelectionText();
@@ -181,6 +231,19 @@ void RenderViewContextMenuMac::LookUpInDictionary() {
   if (view) {
     view->ShowDefinitionForSelection();
   }
+}
+
+void RenderViewContextMenuMac::RemoveFromDictionary() {
+  SpellcheckService* spellcheck =
+      SpellcheckServiceFactory::GetForContext(browser_context_);
+  if (!spellcheck) {
+    return;
+  }
+
+  spellcheck->GetCustomDictionary()->RemoveWord(
+      base::UTF16ToUTF8(user_added_word_));
+  spellcheck_platform::RemoveWord(spellcheck->platform_spell_checker(),
+                                  user_added_word_);
 }
 
 int RenderViewContextMenuMac::ParamsForTextDirection(

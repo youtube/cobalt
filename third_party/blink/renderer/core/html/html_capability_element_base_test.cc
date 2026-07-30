@@ -20,6 +20,8 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_permission_state.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
+#include "third_party/blink/renderer/core/css/properties/longhand.h"
+#include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_init.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -201,6 +203,7 @@ class HTMLCapabilityElementBaseTestBase : public PageTestBase {
 
  private:
   ScopedUserMediaElementForTest scoped_feature_{true};
+  ScopedUserMediaElementLegacyForTest legacy_enabled_{true};
 };
 
 TEST_F(HTMLCapabilityElementBaseTestBase, GetTypeAttribute) {
@@ -755,6 +758,7 @@ class HTMLCapabilityElementBaseSimTest : public SimTest {
   PermissionElementTestPermissionService permission_service_;
   ScopedTestingPlatformSupport<LocalePlatformSupport> support;
   ScopedUserMediaElementForTest scoped_feature_{true};
+  ScopedUserMediaElementLegacyForTest legacy_enabled_{true};
 };
 
 TEST_F(HTMLCapabilityElementBaseSimTest, InitializeGrantedText) {
@@ -951,6 +955,28 @@ TEST_F(HTMLCapabilityElementBaseSimTest, BadContrastDisablesElement) {
           "color: rgba(255, 255, 0, 0.99); background-color: purple;"));
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   checker.CheckClickingEnabled(/*enabled=*/false);
+}
+
+TEST_F(HTMLCapabilityElementBaseSimTest, VisitedLinkIgnoresVisitedStyles) {
+  auto* permission_element = CreatePermissionElement(GetDocument(), "camera");
+  DeferredChecker checker(permission_element);
+
+  // Since the element forces internal visited colors to replicate unvisited
+  // colors, VisitedDependentColor will return the unvisited color, avoiding
+  // history leaks.
+  permission_element->setAttribute(
+      html_names::kStyleAttr,
+      AtomicString("color: red; background-color: white;"));
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  checker.CheckClickingEnabledAfterDelay(kDefaultTimeout,
+                                         /*expected_enabled=*/true);
+
+  const ComputedStyle* style = permission_element->GetComputedStyle();
+  ASSERT_TRUE(style);
+  EXPECT_EQ(Color::FromRGB(255, 0, 0),
+            style->VisitedDependentColor(GetCSSPropertyColor()));
+  EXPECT_EQ(Color::kWhite,
+            style->VisitedDependentColor(GetCSSPropertyBackgroundColor()));
 }
 
 TEST_F(HTMLCapabilityElementBaseSimTest, FontSizeCanDisableElement) {

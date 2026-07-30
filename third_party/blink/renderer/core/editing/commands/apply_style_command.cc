@@ -188,7 +188,7 @@ void ApplyStyleCommand::UpdateStartEnd(const EphemeralRange& range) {
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   const bool was_base_first =
       StartingSelection().IsAnchorFirst() || !SelectionIsDirectional();
-  SelectionInDOMTree::Builder builder;
+  SelectionInDomTree::Builder builder;
   if (was_base_first)
     builder.SetAsForwardSelection(range);
   else

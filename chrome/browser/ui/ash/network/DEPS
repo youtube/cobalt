@@ -10,7 +10,6 @@ include_rules = [
   # Existing dependencies within //chrome. There is an active effort to
   # refactor ash codes in //chrome to break these dependencies; see b/332804822.
   # Whenever possible, avoid adding new //chrome dependencies to this list.
-  "+chrome/app/vector_icons",
   "+chrome/browser/ash/login/lock",
   "+chrome/browser/ash/login/users",
   "+chrome/browser/ash/profiles",
@@ -27,7 +26,10 @@ include_rules = [
   "+chrome/browser/ui/scoped_tabbed_browser_displayer.h",
   "+chrome/browser/ui/webui/ash/cellular_setup",
   "+chrome/browser/ui/webui/ash/floating_workspace",
-  "+chrome/common",
   "+chrome/grit",
   "+chrome/test",
 ]
+
+specific_include_rules = {
+  "tether_notification_presenter_unittest\\.cc": ["+chrome/common"],
+}

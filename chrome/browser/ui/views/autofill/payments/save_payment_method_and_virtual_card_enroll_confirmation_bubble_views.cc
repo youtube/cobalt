@@ -102,14 +102,6 @@ void SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews::
   }
 }
 
-void SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews::
-    OnWidgetInitialized() {
-  if (auto* ok_button = GetOkButton()) {
-    ok_button->GetViewAccessibility().SetName(
-        ui_params_.failure_ok_button_accessible_name);
-  }
-}
-
 void SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews::Init() {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));

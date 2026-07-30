@@ -5,14 +5,16 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_PERFORMANCE_CONTROLS_BATTERY_SAVER_BUBBLE_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_PERFORMANCE_CONTROLS_BATTERY_SAVER_BUBBLE_VIEW_H_
 
+#include <optional>
+
+#include "ui/gfx/geometry/rect.h"
+#include "ui/views/bubble/bubble_anchor.h"
 #include "ui/views/bubble/bubble_border.h"
 
-class Browser;
 class BatterySaverBubbleObserver;
 
 namespace views {
 class BubbleDialogModelHost;
-class View;
 }  // namespace views
 
 // This class provides the view for the bubble dialog that is shown to the user
@@ -21,10 +23,10 @@ class BatterySaverBubbleView {
  public:
   // Creates the battery saver bubble dialog anchored to the specified view.
   static views::BubbleDialogModelHost* CreateBubble(
-      Browser* browser,
-      views::View* anchor_view,
+      views::BubbleAnchor anchor,
       views::BubbleBorder::Arrow anchor_position,
-      BatterySaverBubbleObserver* observer);
+      BatterySaverBubbleObserver* observer,
+      std::optional<gfx::Rect> anchor_rect = std::nullopt);
 
   // Hides the battery saver bubble dialog.
   static void CloseBubble(views::BubbleDialogModelHost*);

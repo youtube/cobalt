@@ -6,9 +6,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
+#include "base/no_destructor.h"
 #include "base/test/task_environment.h"
 #include "chromeos/components/mahi/public/mojom/content_extraction.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -100,22 +102,23 @@ class ContentExtractionServiceTest
 // A dividing line is included between test cases for better readability.
 // Note: `ui::TestAXTreeUpdate` does not allow whitespace within property
 //        values, so "-" is used instead.
-const TestCase kTreeExtractionTestCases[] = {
-    {
-        "simple_page",
-        R"HTML(
+const std::vector<TestCase>& GetTreeExtractionTestCases() {
+  static const base::NoDestructor<std::vector<TestCase>> val({
+      {
+          "simple_page",
+          R"HTML(
     ++1 kRootWebArea name="document"
     ++++2 kMain
     ++++++3 kParagraph
     ++++++++4 kStaticText name="some-text"
   )HTML",
-        u"some-text",
-        2,
-    },
-    /* ----------------------- */
-    {
-        "simple_page_with_heading",
-        R"HTML(
+          u"some-text",
+          2,
+      },
+      /* ----------------------- */
+      {
+          "simple_page_with_heading",
+          R"HTML(
     ++1 kRootWebArea name="document"
     ++++2 kMain
     ++++++3 kHeading name="header"
@@ -128,13 +131,13 @@ const TestCase kTreeExtractionTestCases[] = {
     ++++++++10 kHeading name="header"
     ++++++++++11 kStaticText name="heading-2"
   )HTML",
-        u"heading-1\n\nsome-text\n\nsome-other-text\n\nheading-2",
-        9,
-    },
-    /* ----------------------- */
-    {
-        "simple_page_with_article",
-        R"HTML(
+          u"heading-1\n\nsome-text\n\nsome-other-text\n\nheading-2",
+          9,
+      },
+      /* ----------------------- */
+      {
+          "simple_page_with_article",
+          R"HTML(
     ++1 kRootWebArea name="document"
     ++++2 kMain
     ++++++3 kParagraph
@@ -146,13 +149,13 @@ const TestCase kTreeExtractionTestCases[] = {
     ++++++++8 kParagraph
     ++++++++++10 kStaticText name="some-other-text"
   )HTML",
-        u"some-text\n\narticle-text\n\nsome-other-text",
-        7,
-    },
-    /* ----------------------- */
-    {
-        "simple_page_with_article_hierarchy",
-        R"HTML(
+          u"some-text\n\narticle-text\n\nsome-other-text",
+          7,
+      },
+      /* ----------------------- */
+      {
+          "simple_page_with_article_hierarchy",
+          R"HTML(
     ++1 kRootWebArea name="document"
     ++++2 kMain
     ++++++3 kArticle
@@ -164,13 +167,13 @@ const TestCase kTreeExtractionTestCases[] = {
     ++++++++8 kParagraph
     ++++++++++10 kStaticText name="some-other-text"
   )HTML",
-        u"article-text\n\nsome-text\n\nsome-other-text",
-        7,
-    },
-    /* ----------------------- */
-    {
-        "simple_page_unsupported_roles",
-        R"HTML(
+          u"article-text\n\nsome-text\n\nsome-other-text",
+          7,
+      },
+      /* ----------------------- */
+      {
+          "simple_page_unsupported_roles",
+          R"HTML(
     ++1 kRootWebArea name="document"
     ++++2 kGenericContainer
     ++++++3 kMain
@@ -186,11 +189,13 @@ const TestCase kTreeExtractionTestCases[] = {
     ++++++++9 kFooter
     ++++++++++14 kStaticText name="footer"
   )HTML",
-        u"",
-        0,
-    },
-    /* ----------------------- */
-};
+          u"",
+          0,
+      },
+      /* ----------------------- */
+  });
+  return *val;
+}
 
 TEST_P(ContentExtractionServiceTest, ContentExtraction) {
   TestCase param = GetParam();
@@ -200,7 +205,7 @@ TEST_P(ContentExtractionServiceTest, ContentExtraction) {
 
 INSTANTIATE_TEST_SUITE_P(/* prefix */,
                          ContentExtractionServiceTest,
-                         ::testing::ValuesIn(kTreeExtractionTestCases),
+                         ::testing::ValuesIn(GetTreeExtractionTestCases()),
                          ContentExtractionServiceTest::ParamInfoToString);
 
 }  // namespace mahi

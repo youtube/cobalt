@@ -28,7 +28,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
-import six
 _GOODBYE_MESSAGE = u'Goodbye'
 
 
@@ -41,7 +40,7 @@ def web_socket_transfer_data(request):
         line = request.ws_stream.receive_message()
         if line is None:
             return
-        if isinstance(line, six.text_type):
+        if isinstance(line, str):
             request.ws_stream.send_message(line, binary=False)
             if line == _GOODBYE_MESSAGE:
                 return

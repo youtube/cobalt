@@ -53,9 +53,7 @@ static_assert(CompositorElementIdNamespace::kMax <
               CompositorElementIdNamespace::kMaxRepresentable);
 
 using CompositorElementId = cc::ElementId;
-using ScrollbarId = uint64_t;
 using UniqueObjectId = uint64_t;
-using SyntheticEffectId = uint64_t;
 
 // Call this to get a globally unique object id for a newly allocated object.
 UniqueObjectId PLATFORM_EXPORT NewUniqueObjectId();

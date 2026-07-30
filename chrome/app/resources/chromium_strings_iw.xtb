@@ -116,19 +116,11 @@
 <translation id="2236949375853147973">הפעילות שלי</translation>
 <translation id="2238130810669087193">‏כדי לקבל גישה לכתובות ולנתונים נוספים בכל המכשירים שלך, כדאי להיכנס ל-Chromium. לאחר הכניסה, הכתובת הזו תישמר בחשבון שלך ב-Google.</translation>
 <translation id="2241627712206172106">‏אם משתפים מחשב, חברים ובני משפחה יכולים לגלוש בנפרד ולהגדיר את Chromium בדיוק כפי שהם רוצים.</translation>
+<translation id="22571759390241347">‏מיומנויות ב-Chromium</translation>
 <translation id="2283803047247799269">חיפוש הכרטיסייה הזו באמצעות התכונה "חיפוש תמונות"</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{‏ההמלצה של Chromium היא להשהות את הכרטיסייה שמאטה את הדפדפן}one{‏ההמלצה של Chromium היא להשהות את הכרטיסיות שמאטות את הדפדפן}two{‏ההמלצה של Chromium היא להשהות את הכרטיסיות שמאטות את הדפדפן}other{‏ההמלצה של Chromium היא להשהות את הכרטיסיות שמאטות את הדפדפן}}</translation>
 <translation id="2307973900865360088">‏אני רוצה להשאיר את Chromium ב-Dock</translation>
 <translation id="2313870531055795960">‏המערכת בודקת כתובות URL בעזרת רשימה של אתרים לא בטוחים ששמורה ב-Chromium. אם באתר כלשהו מתבצע ניסיון לגנוב את הסיסמה שלך, או אם המערכת מזהה הורדה של קובץ מזיק, Chromium עשוי גם לשלוח כתובות URL לבדיקה באמצעות 'גלישה בטוחה'. הנתונים שנשלחים לבדיקה כוללים ביטים מתוכן של דפים.</translation>
-<translation id="2332076562712130931">‏בעקבות האיפוס:
-          <ph name="LINE_BREAKS" />
-           • יתאפסו חלק מההגדרות ומקיצורי הדרך של Chromium
-           <ph name="LINE_BREAK" />
-           • התוספים יושבתו
-           <ph name="LINE_BREAK" />
-           • יימחקו קובצי Cookie ונתונים זמניים אחרים מאתרים
-            <ph name="LINE_BREAKS" />
-           לא תהיה השפעה על הסימניות, ההיסטוריה והסיסמאות שמורות.</translation>
 <translation id="2343156876103232566">‏כדי לשלוח מספר מכאן לטלפון Android, יש להיכנס ל-Chromium בשני המכשירים.</translation>
 <translation id="2356070529366658676">לשאול</translation>
 <translation id="2359808026110333948">המשך</translation>
@@ -190,6 +182,7 @@
 <translation id="3003694935412297923">כל המשימות</translation>
 <translation id="3012615494352020668">{count,plural, =1{‏‫Chromium צריך לאמת את הזהות שלך לפני שאפשר יהיה לשמור חלק מהנתונים בחשבון Google ולהשתמש בהם בכל המכשירים שלך. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו (פריט אחד).}one{‏‫Chromium צריך לאמת את הזהות שלך לפני שאפשר יהיה לשמור חלק מהנתונים בחשבון Google ולהשתמש בהם בכל המכשירים שלך. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו ({count} פריטים).}two{‏‫Chromium צריך לאמת את הזהות שלך לפני שאפשר יהיה לשמור חלק מהנתונים בחשבון Google ולהשתמש בהם בכל המכשירים שלך. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו ({count} פריטים).}other{‏‫Chromium צריך לאמת את הזהות שלך לפני שאפשר יהיה לשמור חלק מהנתונים בחשבון Google ולהשתמש בהם בכל המכשירים שלך. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו ({count} פריטים).}}</translation>
 <translation id="3013473503895162900">‏פתיחה של <ph name="URL" /> בכרטיסייה חדשה ב-Chromium.</translation>
+<translation id="302551344979399011">‏חידושים בתחום ה-AI, כמו מיומנויות, נשמרים בחשבון שלך ב-Google ומנוהלים בנפרד מסנכרון Chromium</translation>
 <translation id="3032787606318309379">‏מתבצעת הוספה ל-Chromium...</translation>
 <translation id="3038232873781883849">בהמתנה להתקנה…</translation>
 <translation id="3045032126857188731">שפת התרגום: <ph name="LANGUAGE" /></translation>
@@ -379,6 +372,7 @@
 <translation id="5289287148052354622">‏הורדת אפליקציית Chromium</translation>
 <translation id="5294316920224716406">‏בגלישה במצב פרטי, Chromium יציג אזהרה לפני טעינת אתר באמצעות חיבור לא מאובטח</translation>
 <translation id="5313228254328109263">‏שירות פנימי לעדכון של Chromium</translation>
+<translation id="5324450571874973775">‏משתמשים בהן עם פיצ'רים אחרים של Gemini ב-Chromium</translation>
 <translation id="5346389065299425353">כדי להעמיק את החיפוש, אפשר להוסיף כמה כרטיסיות, קבצים וכלים</translation>
 <translation id="5348677704241861105">‏אפשר לקבל סקירה כללית של המסמך הזה ולשאול את Gemini ב-Chromium שאלות.</translation>
 <translation id="5352264705793813212">‏יש ל-Chromium כמה המלצות לגבי בטיחות שכדאי לבדוק</translation>
@@ -670,6 +664,7 @@ Chromium לא יכול לשחזר את ההגדרות שלך.</translation>
 <translation id="8318772038038596122">‏לפי הגדרת הארגון, Chromium נסגר אוטומטית כשלא משתמשים בו במשך <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">שמירה כתמונה</translation>
 <translation id="8340674089072921962">‏בכתובת <ph name="USER_EMAIL_ADDRESS" /> השתמשו בעבר ב-Chromium</translation>
+<translation id="8351551329754447960">‏הפעלה של מיומנויות ב-Chromium</translation>
 <translation id="8359544530202147897">‏כדי להמשיך להשתמש בנתונים של Chromium בחשבון שלך ב-Google (<ph name="ACCOUNT_EMAIL" />), צריך לעדכן את Chromium</translation>
 <translation id="8360718212975266891">‏כדי לקבל עדכונים של Chromium בעתיד, צריך להשתמש ב-Windows מגרסה 10 ואילך. במחשב הזה פועלת מערכת Windows 8.</translation>
 <translation id="8362914115861174987">תרגום ל</translation>

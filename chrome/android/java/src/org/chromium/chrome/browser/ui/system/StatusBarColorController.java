@@ -157,7 +157,7 @@ public class StatusBarColorController
             new LayoutStateObserver() {
                 @Override
                 public void onFinishedHiding(@LayoutType int layoutType) {
-                    if (layoutType != LayoutType.TAB_SWITCHER) {
+                    if (layoutType != LayoutType.HUB) {
                         return;
                     }
                     updateStatusBarColor();

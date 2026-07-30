@@ -274,8 +274,7 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   // Set up guest URL via cli flag or default to finch param value.
   const GURL guest_url = GetGuestURL();
   source->AddString("glicGuestURL", guest_url.spec());
-  net_log::LogDummyNetworkRequestForTrafficAnnotation(guest_url,
-                                                      net_log::GlicPage::kGlic);
+  net_log::LogDummyNetworkRequestForTrafficAnnotation(guest_url);
   source->AddBoolean("simulateNoConnection", simulate_no_connection_);
 
   source->AddResourcePath("glic_logo.svg", GetResourceID(IDR_GLIC_LOGO));
@@ -346,7 +345,6 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   source->AddString("adminBlockedRedirectPatterns",
                     admin_blocked_redirect_patterns);
 
-  source->AddBoolean("shouldShowFre", false);
   source->AddInteger("reloadMaxLoadingTimeMs",
                      features::kGlicReloadMaxLoadingTimeMs.Get());
   source->AddBoolean("caaGuestError", base::FeatureList::IsEnabled(

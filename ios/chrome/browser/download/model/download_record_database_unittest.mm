@@ -503,7 +503,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageFirstPage) {
   // Insert more than one page worth (internal page size is 50).
   InsertSequentialRecords(database(), 60, kTestCreatedTime);
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   auto page = database()->GetDownloadRecordsPage(query);
 
   ASSERT_EQ(50u, page.size());
@@ -524,7 +524,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageCursorContinuation) {
   ASSERT_EQ(130u, all.size());
 
   std::vector<DownloadRecord> concatenated;
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   while (true) {
     auto page = database()->GetDownloadRecordsPage(query);
     if (page.empty()) {
@@ -561,7 +561,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageTieBreakByDownloadId) {
     EXPECT_TRUE(database()->InsertDownloadRecord(record));
   }
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   auto page = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(5u, page.size());
   // download_id DESC: tie_04 .. tie_00.
@@ -586,7 +586,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageStableAcrossInsert) {
   // 60 rows so page 1 fills (50) and page 2 has 10.
   InsertSequentialRecords(database(), 60, kTestCreatedTime);
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   auto page1 = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(50u, page1.size());
   EXPECT_EQ("id_0059", page1.front().download_id);
@@ -635,7 +635,7 @@ TEST_F(DownloadRecordDatabaseTest,
     EXPECT_TRUE(database()->InsertDownloadRecord(record));
   }
 
-  DownloadRecordDatabase::DownloadRecordQuery pdf_query;
+  DownloadRecordQuery pdf_query;
   pdf_query.filter_type = DownloadFilterType::kPDF;
   auto pdfs = database()->GetDownloadRecordsPage(pdf_query);
   ASSERT_EQ(5u, pdfs.size());
@@ -655,7 +655,7 @@ TEST_F(DownloadRecordDatabaseTest,
   EXPECT_EQ("mix_00", pdfs_next[1].download_id);
 
   // Image filter independently.
-  DownloadRecordDatabase::DownloadRecordQuery image_query;
+  DownloadRecordQuery image_query;
   image_query.filter_type = DownloadFilterType::kImage;
   auto images = database()->GetDownloadRecordsPage(image_query);
   EXPECT_EQ(5u, images.size());
@@ -679,18 +679,18 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsCountWithFilters) {
     EXPECT_TRUE(database()->InsertDownloadRecord(record));
   }
 
-  DownloadRecordDatabase::DownloadRecordQuery all_query;
+  DownloadRecordQuery all_query;
   EXPECT_EQ(10, database()->GetDownloadRecordsCount(all_query));
 
-  DownloadRecordDatabase::DownloadRecordQuery pdf_query;
+  DownloadRecordQuery pdf_query;
   pdf_query.filter_type = DownloadFilterType::kPDF;
   EXPECT_EQ(3, database()->GetDownloadRecordsCount(pdf_query));
 
-  DownloadRecordDatabase::DownloadRecordQuery image_query;
+  DownloadRecordQuery image_query;
   image_query.filter_type = DownloadFilterType::kImage;
   EXPECT_EQ(4, database()->GetDownloadRecordsCount(image_query));
 
-  DownloadRecordDatabase::DownloadRecordQuery video_query;
+  DownloadRecordQuery video_query;
   video_query.filter_type = DownloadFilterType::kVideo;
   EXPECT_EQ(3, database()->GetDownloadRecordsCount(video_query));
 
@@ -779,7 +779,7 @@ TEST_F(DownloadRecordDatabaseTest,
                       "REPO.pdf", "other.pdf"},
                      kTestCreatedTime);
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   query.name_query = "report";
   auto hits = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(2u, hits.size());
@@ -796,7 +796,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageSearchIgnoresAccents) {
                      {"café.pdf", "résumé.pdf", "naïve.pdf", "plain.pdf"},
                      kTestCreatedTime);
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   query.name_query = "cafe";
   auto hits = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(1u, hits.size());
@@ -816,7 +816,7 @@ TEST_F(DownloadRecordDatabaseTest,
       {"100%_done.pdf", "summary.pdf", "snake_case.pdf", "100x_done.pdf"},
       kTestCreatedTime);
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   query.name_query = "100%";
   auto hits = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(1u, hits.size());
@@ -853,7 +853,7 @@ TEST_F(DownloadRecordDatabaseTest,
   }
 
   // Search "doc" within PDFs only -> 3 hits.
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   query.filter_type = DownloadFilterType::kPDF;
   query.name_query = "doc";
   auto hits = database()->GetDownloadRecordsPage(query);
@@ -880,7 +880,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageSearchAfterUpdate) {
   got->file_name = "RENAMED-Résumé.pdf";
   EXPECT_TRUE(database()->UpdateDownloadRecord(*got));
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   query.name_query = "resume";
   auto hits = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(1u, hits.size());
@@ -910,7 +910,7 @@ TEST_F(DownloadRecordDatabaseTest, GetDownloadRecordsPageUsesIndexedOrdering) {
     EXPECT_TRUE(database()->InsertDownloadRecord(record));
   }
 
-  DownloadRecordDatabase::DownloadRecordQuery query;
+  DownloadRecordQuery query;
   auto page = database()->GetDownloadRecordsPage(query);
   ASSERT_EQ(10u, page.size());
   for (size_t i = 1; i < page.size(); ++i) {
@@ -1029,13 +1029,13 @@ TEST_F(DownloadRecordDatabaseMigrationTest, V1ToV2BackfillsIndexAndBumpsVersion)
     // diacritic-stripped form returns the matching row. If the backfill
     // hadn't run, `file_name_normalized` would be NULL for these rows and the
     // LIKE pre-filter in GetDownloadRecordsPage would skip them.
-    DownloadRecordDatabase::DownloadRecordQuery resume_query;
+    DownloadRecordQuery resume_query;
     resume_query.name_query = "resume";
     auto resume_hits = database.GetDownloadRecordsPage(resume_query);
     ASSERT_EQ(1u, resume_hits.size());
     EXPECT_EQ("mig_01", resume_hits[0].download_id);
 
-    DownloadRecordDatabase::DownloadRecordQuery report_query;
+    DownloadRecordQuery report_query;
     report_query.name_query = "report";
     auto report_hits = database.GetDownloadRecordsPage(report_query);
     ASSERT_EQ(1u, report_hits.size());

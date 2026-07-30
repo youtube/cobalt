@@ -43,7 +43,7 @@ std::unique_ptr<KeyedService>
 AutocompleteHistoryManagerFactory::BuildServiceInstanceFor(
     ProfileIOS* profile) const {
   auto service = std::make_unique<AutocompleteHistoryManager>();
-  scoped_refptr<autofill::AutofillWebDataService> autofill_db =
+  scoped_refptr<AutofillWebDataService> autofill_db =
       ios::WebDataServiceFactory::GetAutofillWebDataForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS);
   service->Init(autofill_db, profile->GetPrefs(), profile->IsOffTheRecord());

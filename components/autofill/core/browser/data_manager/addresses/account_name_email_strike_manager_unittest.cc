@@ -68,7 +68,7 @@ class AccountNameEmailStrikeManagerTest
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
+  test::AutofillUnitTestEnvironment autofill_test_environment_;
 };
 
 TEST_F(AccountNameEmailStrikeManagerTest,

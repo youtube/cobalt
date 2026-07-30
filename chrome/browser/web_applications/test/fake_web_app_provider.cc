@@ -372,6 +372,14 @@ void FakeWebAppProvider::CheckNotStartedAndDisconnect(
 }
 
 void FakeWebAppProvider::StartImpl() {
+  if (ui_manager_) {
+    FakeWebAppUiManager* fake_ui_manager =
+        ui_manager_->AsFakeWebAppUiManagerForTesting();
+    if (fake_ui_manager) {
+      fake_ui_manager->SetProvider(this);
+    }
+  }
+
   preinstalled_web_app_manager_->SetSkipStartupSynchronizeForTesting(
       !synchronize_preinstalled_app_on_startup_);
 

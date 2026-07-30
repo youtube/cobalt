@@ -164,20 +164,8 @@ WritableStream* HTMLStream::Create(ScriptState* script_state,
     return nullptr;
   }
 
-  std::optional<FragmentParserOptions> trusted_options =
-      sanitizer_mode == Sanitizer::Mode::kSafe
-          ? std::make_optional(options)
-          : TrustedTypesCheckForParserOptions(
-                options, MarkupInsertionMode::kStream,
-                target->GetExecutionContext(), interface_name, property_name,
-                exception_state);
-
-  if (!trusted_options) {
-    return nullptr;
-  }
-
   HTMLSink* sink = MakeGarbageCollected<HTMLSink>(
-      *target, ref_node, sanitizer_mode, *trusted_options, exception_state);
+      *target, ref_node, sanitizer_mode, options, exception_state);
   if (exception_state.HadException()) {
     return nullptr;
   }

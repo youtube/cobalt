@@ -1,0 +1,37 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "fake_audio_service.cc",
+    "fake_audio_service.h",
+    "fake_consumer.cc",
+    "fake_consumer.h",
+    "fake_loopback_group_member.cc",
+    "fake_loopback_group_member.h",
+    "fake_output_stream.cc",
+    "fake_output_stream.h",
+    "mock_log.cc",
+    "mock_log.h",
+    "mock_loopback_source.cc",
+    "mock_loopback_source.h",
+    "mock_stream_factory.cc",
+    "mock_stream_factory.h",
+  ]
+
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//media",
+    "//media/mojo/mojom",
+    "//services/audio",
+    "//services/audio/public/cpp",
+    "//services/audio/public/cpp:test_support",
+    "//services/audio/public/mojom",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

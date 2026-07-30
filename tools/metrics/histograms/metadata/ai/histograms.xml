@@ -51,6 +51,15 @@ chromium-metrics-reviews@google.com.
   <variant name="create" summary="Create a session."/>
 </variants>
 
+<variants name="SemanticEmbedderSignature">
+  <variant name=".64" summary="Signature length 64"/>
+  <variant name=".128" summary="Signature length 128"/>
+  <variant name=".256" summary="Signature length 256"/>
+  <variant name=".512" summary="Signature length 512"/>
+  <variant name=".1024" summary="Signature length 1024"/>
+  <variant name=".2048" summary="Signature length 2048"/>
+</variants>
+
 <!-- LINT.IfChange(SessionType) -->
 
 <variants name="SessionType">
@@ -221,6 +230,129 @@ chromium-metrics-reviews@google.com.
     the AI overlay dialog.
   </summary>
   <token key="ToolName" variants="AiOverlayToolName"/>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.EmbeddingsGenerationSucceeded"
+    enum="BooleanSuccess" expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    Whether embeddings generation succeeded for the Gemma semantic embedder.
+    Recorded each time an embedding is generated.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.EmbeddingsModelLoadDuration" units="ms"
+    expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The duration of loading the embeddings model for the Gemma semantic
+    embedder. Recorded when the model is loaded.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.EmbeddingsModelLoadSucceeded"
+    enum="BooleanSuccess" expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    Whether loading the embeddings model succeeded for the Gemma semantic
+    embedder. Recorded when the model is loaded.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.LaunchDuration" units="ms"
+    expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The duration of launching the passage embeddings service and loading the
+    models for the Gemma semantic embedder. Recorded when the models are loaded.
+  </summary>
+</histogram>
+
+<histogram
+    name="AI.SemanticEmbedder.PassageEmbeddingsGenerationDuration{SignatureStr}"
+    units="ms" expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The duration of embeddings generation for the Gemma semantic embedder.
+    Recorded when an embedding generation completes.
+  </summary>
+  <token key="SignatureStr" variants="SemanticEmbedderSignature"/>
+</histogram>
+
+<histogram
+    name="AI.SemanticEmbedder.PassageEmbeddingsGenerationThreadDuration{SignatureStr}"
+    units="ms" expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The thread duration of embeddings generation for the Gemma semantic
+    embedder. Recorded when an embedding generation completes.
+  </summary>
+  <token key="SignatureStr" variants="SemanticEmbedderSignature"/>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.PassageTokenCount" units="tokens"
+    expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The token count of a passage for the Gemma semantic embedder. Recorded after
+    tokenization.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.SentencePieceModelLoadDuration" units="ms"
+    expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The duration of loading the sentence piece model for the Gemma semantic
+    embedder. Recorded when the model is loaded.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.SentencePieceModelLoadSucceeded"
+    enum="BooleanSuccess" expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    Whether loading the sentence piece model succeeded for the Gemma semantic
+    embedder. Recorded when the model is loaded.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.TaskDuration" units="ms"
+    expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The duration of a semantic embedding task from creation to completion.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.TokenizationDuration" units="ms"
+    expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    The duration of tokenization for the Gemma semantic embedder. Recorded when
+    tokenization completes.
+  </summary>
+</histogram>
+
+<histogram name="AI.SemanticEmbedder.TokenizationSucceeded"
+    enum="BooleanSuccess" expires_after="2027-03-16">
+  <owner>yinguang@chromium.org</owner>
+  <owner>chrome-chia-dev@google.com</owner>
+  <summary>
+    Whether tokenization succeeded for the Gemma semantic embedder. Recorded
+    when tokenization completes.
+  </summary>
 </histogram>
 
 <histogram name="AI.Session.{SessionType}.ContextTime" units="ms"

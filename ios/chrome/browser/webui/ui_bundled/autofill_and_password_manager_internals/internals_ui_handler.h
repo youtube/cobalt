@@ -29,7 +29,7 @@ web::WebUIIOSDataSource* CreateInternalsHTMLSource(
 // chrome://autofill-internals. Use the GetLogRouterFunction parameter of the
 // constructor to inject the corresponding LogRouter.
 class InternalsUIHandler : public web::WebUIIOSMessageHandler,
-                           public autofill::LogReceiver {
+                           public LogReceiver {
  public:
   using GetLogRouterFunction = base::RepeatingCallback<LogRouter*(ProfileIOS*)>;
 

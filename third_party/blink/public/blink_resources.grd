@@ -15,9 +15,6 @@
       <include name="IDR_UASTYLE_THEME_CHROMIUM_ANDROID_CSS" file="../renderer/core/html/resources/android.css" type="BINDATA" compress="brotli"/>
       <include name="IDR_UASTYLE_FULLSCREEN_ANDROID_CSS" file="../renderer/core/css/fullscreenAndroid.css" type="BINDATA" compress="brotli"/>
       <include name="IDR_UASTYLE_THEME_CHROMIUM_LINUX_CSS" file="../renderer/core/html/resources/linux.css" type="BINDATA" compress="brotli"/>
-      <if expr="is_macosx">
-        <include name="IDR_UASTYLE_THEME_MAC_CSS" file="../renderer/core/html/resources/mac.css" type="BINDATA" compress="brotli"/>
-      </if>
       <include name="IDR_UASTYLE_SCROLL_BUTTON_CSS" file="../renderer/core/css/scroll_button.css" type="BINDATA" compress="brotli"/>
       <include name="IDR_UASTYLE_SCROLL_MARKER_CSS" file="../renderer/core/css/scroll_marker.css" type="BINDATA" compress="brotli"/>
       <include name="IDR_UASTYLE_CAPABILITY_ELEMENT_CSS" file="../renderer/core/html/resources/capability_element.css" flattenhtml="true" type="BINDATA" compress="brotli"/>

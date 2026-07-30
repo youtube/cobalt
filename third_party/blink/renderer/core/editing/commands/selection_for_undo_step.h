@@ -19,10 +19,10 @@ class SelectionForUndoStep final {
  public:
   class Builder;
 
-  // Returns newly constructed |SelectionForUndoStep| from |SelectionInDOMTree|
+  // Returns newly constructed |SelectionForUndoStep| from |SelectionInDomTree|
   // with computing direction of selection by anchor_ <= focus_. Thus,
   // computation time depends O(depth of tree).
-  static SelectionForUndoStep From(const SelectionInDOMTree&);
+  static SelectionForUndoStep From(const SelectionInDomTree&);
 
   SelectionForUndoStep(const SelectionForUndoStep&);
   SelectionForUndoStep();
@@ -37,7 +37,7 @@ class SelectionForUndoStep final {
   bool IsAnchorFirst() const { return is_anchor_first_; }
   Element* RootEditableElement() const { return root_editable_element_.Get(); }
 
-  SelectionInDOMTree AsSelection() const;
+  SelectionInDomTree AsSelection() const;
 
   // Selection type predicates
   bool IsCaret() const;

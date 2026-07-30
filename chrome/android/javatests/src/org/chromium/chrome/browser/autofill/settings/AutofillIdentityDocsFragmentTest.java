@@ -67,11 +67,13 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
@@ -79,6 +81,7 @@ import org.chromium.chrome.browser.autofill.GoogleWalletLauncher;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager.EntityDataManagerObserver;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
@@ -88,6 +91,7 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
@@ -97,6 +101,7 @@ import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 import org.chromium.components.autofill.autofill_ai.RecordType;
 import org.chromium.components.autofill.autofill_ai.utils.TestUtils;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
+import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.test.util.TestAccounts;
@@ -110,6 +115,7 @@ import java.util.List;
 
 /** Tests for {@link AutofillIdentityDocsFragment}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
+@Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @EnableFeatures({
     ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID,
@@ -127,6 +133,7 @@ public class AutofillIdentityDocsFragmentTest {
     @Mock private SettingsIndexData mSearchIndexDataMock;
     @Mock private IdentityManager mIdentityManagerMock;
     @Mock private ReauthenticatorBridge mMockReauthenticatorBridge;
+    @Mock private SettingsNavigation mSettingsNavigation;
 
     @Mock private EntityDataManager mEntityDataManager;
 
@@ -1088,6 +1095,29 @@ public class AutofillIdentityDocsFragmentTest {
                             fragment.findPreference(AutofillAiDelegate.DISABLED_SETTINGS_INFO);
                     assertThat(disabledSettingsCard.isVisible()).isTrue();
                 });
+    }
+
+    @Test
+    @MediumTest
+    public void testClickPersonalContextLaunchesPersonalContext() {
+        when(mEntityDataManager.isPersonalContextPreferenceVisible()).thenReturn(true);
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        var userActionTester = new UserActionTester();
+        try {
+            SettingsNavigationFactory.setInstanceForTesting(mSettingsNavigation);
+            onView(withText(R.string.personal_context_autofill_settings_title_android))
+                    .perform(scrollTo(), click());
+
+            verify(mSettingsNavigation)
+                    .startSettings(
+                            any(), eq(AutofillPersonalContextFragment.class), any(), eq(true));
+
+            assertThat(userActionTester.getActions())
+                    .contains(AutofillPersonalContextFragment.ACTION_ENTRY_FROM_IDENTITY_DOCS);
+        } finally {
+            userActionTester.tearDown();
+        }
     }
 
     private void setIdentityTogglePreference(boolean value) {

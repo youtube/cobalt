@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.app.Activity;
 import android.view.View;
 import android.view.View.OnLayoutChangeListener;
 
@@ -59,8 +58,6 @@ public class MerchantTrustBottomSheetCoordinatorTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     @Rule public final ChromeBrowserTestRule mBrowserTestRule = new ChromeBrowserTestRule();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -88,23 +85,24 @@ public class MerchantTrustBottomSheetCoordinatorTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    BlankUiTestActivity activity = sActivityTestRule.getActivity();
                     mWindowAndroid =
-                            new WindowAndroid(sActivity, /* occlusionTrackingAllowed= */ true);
+                            new WindowAndroid(activity, /* occlusionTrackingAllowed= */ true);
                     mDetailsTabCoordinator =
                             new MerchantTrustBottomSheetCoordinator(
-                                    sActivity,
+                                    activity,
                                     mWindowAndroid,
                                     mMockBottomSheetController,
                                     mMockDecorView,
                                     mMockMetrics,
-                                    IntentRequestTracker.createFromActivity(sActivity),
+                                    IntentRequestTracker.createFromActivity(activity),
                                     ObservableSuppliers.createNonNull(mMockProfile));
                 });
         mDetailsTabCoordinator.setMediatorForTesting(mMockMediator);

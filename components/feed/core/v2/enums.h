@@ -86,7 +86,7 @@ enum class LoadStreamStatus {
   kDataInStoreIsForAnotherUser = 23,
   kAbortWithPendingClearAll = 24,
   kAlreadyHaveUnreadContent = 25,
-  kNotAWebFeedSubscriber = 26,
+  kNotAWebFeedSubscriber_DEPRECATED = 26,
   kAccountTokenFetchFailedWrongAccount = 27,
   kAccountTokenFetchTimedOut = 28,
   kNetworkFetchTimedOut = 29,
@@ -133,20 +133,6 @@ enum class UploadActionsBatchStatus {
 
 std::ostream& operator<<(std::ostream& out, UploadActionsStatus value);
 std::ostream& operator<<(std::ostream& out, UploadActionsBatchStatus value);
-
-// This must be kept in sync with WebFeedRefreshStatus in enums.xml.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// Status of updating recommended or subscribed web feeds.
-enum class WebFeedRefreshStatus {
-  kNoStatus = 0,
-  kSuccess = 1,
-  kNetworkFailure = 2,
-  kNetworkRequestThrottled = 3,
-  kAbortFetchWebFeedPendingClearAll = 4,
-  kMaxValue = kAbortFetchWebFeedPendingClearAll,
-};
-std::ostream& operator<<(std::ostream& out, WebFeedRefreshStatus value);
 
 // This must be kept in sync with FeedUserSettingsOnStart in enums.xml.
 // These values are persisted to logs. Entries should not be renumbered and

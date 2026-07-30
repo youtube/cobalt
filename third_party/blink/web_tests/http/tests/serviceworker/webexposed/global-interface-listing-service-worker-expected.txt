@@ -1869,6 +1869,13 @@ interface SecurityPolicyViolationEvent : Event
     getter urlHash
     getter violatedDirective
     method constructor
+interface SemanticEmbedder
+    static method availability
+    static method create
+    attribute @@toStringTag
+    method constructor
+    method destroy
+    method embed
 interface ServiceWorker : EventTarget
     attribute @@toStringTag
     getter onerror

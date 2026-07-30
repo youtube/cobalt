@@ -12,6 +12,7 @@ import android.util.AttributeSet;
 import android.widget.TextView;
 
 import androidx.appcompat.widget.AppCompatTextView;
+import androidx.core.text.BidiFormatter;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -33,11 +34,14 @@ public class TemplatePreservingTextView extends AppCompatTextView {
     private @Nullable String mTemplate;
     private CharSequence mContent = "";
     private @Nullable CharSequence mVisibleText;
+    private int mLastAvailWidth = -1;
+    private boolean mLastUnspecifiedWidth;
 
     /**
      * Builds an instance of an {@link TemplatePreservingTextView}.
+     *
      * @param context A {@link Context} instance to build this {@link TextView} in.
-     * @param attrs   An {@link AttributeSet} instance.
+     * @param attrs An {@link AttributeSet} instance.
      */
     public TemplatePreservingTextView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -52,17 +56,26 @@ public class TemplatePreservingTextView extends AppCompatTextView {
      */
     public void setTemplate(@Nullable String template) {
         mTemplate = TextUtils.isEmpty(template) ? null : template;
+        mLastAvailWidth = -1;
     }
 
     /**
-     * This will take {@code text} and apply it to the internal template, building a new
-     * {@link String} to set.  This {@code text} will be automatically truncated to fit within
-     * the template as best as possible, making sure the template does not get clipped.
+     * This will take {@code text} and apply it to the internal template, building a new {@link
+     * String} to set. This {@code text} will be automatically truncated to fit within the template
+     * as best as possible, making sure the template does not get clipped.
      */
     @Override
     public void setText(CharSequence text, BufferType type) {
         mContent = text != null ? text : "";
-        setContentDescription(mTemplate == null ? mContent : String.format(mTemplate, mContent));
+        mLastAvailWidth = -1;
+        if (mTemplate == null) {
+            setContentDescription(mContent);
+        } else {
+            // Wrap the content with LTR formatting to ensure that RTL characters in the content
+            // cannot flip the rest of the template text.
+            String formattedContent = BidiFormatter.getInstance().unicodeWrap(mContent.toString());
+            setContentDescription(String.format(mTemplate, formattedContent));
+        }
         updateVisibleText(0, true);
     }
 
@@ -88,22 +101,35 @@ public class TemplatePreservingTextView extends AppCompatTextView {
         // Ellipsize the content to the available width.
         CharSequence clipped = TextUtils.ellipsize(mContent, paint, contentWidth, TruncateAt.END);
 
+        // Wrap the clipped content with LTR formatting.
+        String formattedClipped = BidiFormatter.getInstance().unicodeWrap(clipped.toString());
+
         // Build the full string, and if it does not fit within availWidth, truncate it further.
-        CharSequence fullString = String.format(mTemplate, clipped);
-        boolean shouldClipFullString = (int) paint.measureText((String) fullString) > availWidth;
+        CharSequence fullString = String.format(mTemplate, formattedClipped);
+        boolean shouldClipFullString = (int) paint.measureText(fullString.toString()) > availWidth;
         return shouldClipFullString
                 ? TextUtils.ellipsize(fullString, paint, availWidth, TruncateAt.END)
                 : fullString;
     }
 
     private void updateVisibleText(int availWidth, boolean unspecifiedWidth) {
+        if (mLastAvailWidth == availWidth && mLastUnspecifiedWidth == unspecifiedWidth) {
+            return;
+        }
+        mLastAvailWidth = availWidth;
+        mLastUnspecifiedWidth = unspecifiedWidth;
+
         CharSequence visibleText;
         if (mTemplate == null) {
             visibleText = mContent;
-        } else if (getMaxLines() != 1 || unspecifiedWidth) {
-            visibleText = String.format(mTemplate, mContent);
         } else {
-            visibleText = getTruncatedText(availWidth);
+            // Wrap the content with LTR formatting for the visible text as well.
+            String formattedContent = BidiFormatter.getInstance().unicodeWrap(mContent.toString());
+            if (getMaxLines() != 1 || unspecifiedWidth) {
+                visibleText = String.format(mTemplate, formattedContent);
+            } else {
+                visibleText = getTruncatedText(availWidth);
+            }
         }
 
         if (!visibleText.equals(mVisibleText)) {

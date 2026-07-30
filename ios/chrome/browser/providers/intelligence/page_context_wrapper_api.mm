@@ -13,6 +13,10 @@ constexpr const char16_t* kShouldDetachPageContextScript = u"return false;";
 
 namespace ios::provider {
 
+bool IsProtectedUrlV2(std::string url) {
+  return false;
+}
+
 const std::u16string GetPageContextShouldDetachScriptV2() {
   return kShouldDetachPageContextScript;
 }

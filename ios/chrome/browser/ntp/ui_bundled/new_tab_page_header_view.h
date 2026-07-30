@@ -19,7 +19,6 @@
 @class NewTabPageColorPalette;
 @protocol NewTabPageShortcutsHandler;
 @protocol NewTabPageHeaderCommands;
-@protocol NewTabPageControllerDelegate;
 @protocol NewTabPageMutator;
 @protocol HelpCommands;
 @protocol FakeboxFocuser;
@@ -67,8 +66,11 @@ enum class SearchEngineLogoState;
 // Handler for dispatched commands.
 @property(nonatomic, weak) id<NewTabPageHeaderCommands> commandHandler;
 
-// Delegate for toolbar actions.
-@property(nonatomic, weak) id<NewTabPageControllerDelegate> toolbarDelegate;
+// The target for scribble events as forwarded by the NTP fakebox.
+@property(nonatomic, weak) UIResponder<UITextInput>* scribbleForwardingTarget;
+
+// The scroll progress of the fakebox animation (0.0 to 1.0).
+@property(nonatomic, assign, readonly) CGFloat scrollProgress;
 
 // Delegate for header view actions.
 @property(nonatomic, weak) id<NewTabPageHeaderViewDelegate> delegate;

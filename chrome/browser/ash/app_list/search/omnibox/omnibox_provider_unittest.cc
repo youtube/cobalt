@@ -126,7 +126,9 @@ class OmniboxProviderTest : public testing::Test {
     list_controller_ =
         std::make_unique<::test::TestAppListControllerDelegate>();
     auto provider = std::make_unique<OmniboxProvider>(
-        profile_, list_controller_.get(), /*provider_types=*/0);
+        profile_, list_controller_.get(),
+        TemplateURLServiceFactory::GetForProfile(profile_),
+        /*provider_types=*/0);
     provider_ = provider.get();
     search_controller_->AddProvider(std::move(provider));
 

@@ -215,6 +215,22 @@ std::string GetFormDataFieldsAndModelPredictionsLogString(
   return result;
 }
 
+std::string StoreToString(PasswordForm::Store store) {
+  std::vector<std::string_view> stores;
+  if (static_cast<int>(store) &
+      static_cast<int>(PasswordForm::Store::kProfileStore)) {
+    stores.push_back("Profile Store");
+  }
+  if (static_cast<int>(store) &
+      static_cast<int>(PasswordForm::Store::kAccountStore)) {
+    stores.push_back("Account Store");
+  }
+  if (stores.empty()) {
+    return "Not Set";
+  }
+  return base::JoinString(stores, ", ");
+}
+
 }  // namespace
 
 BrowserSavePasswordProgressLogger::BrowserSavePasswordProgressLogger(
@@ -406,6 +422,13 @@ void BrowserSavePasswordProgressLogger::LogString(StringID label,
   LogValue(label, base::Value(s));
 }
 
+void BrowserSavePasswordProgressLogger::LogPasswordSaveAndUpdate(
+    StringID label,
+    PasswordForm::Store store) {
+  LogString(STRING_MESSAGE, base::StrCat({GetStringFromID(label), " on ",
+                                          StoreToString(store)}));
+}
+
 void BrowserSavePasswordProgressLogger::LogSuccessfulSubmissionIndicatorEvent(
     autofill::mojom::SubmissionIndicatorEvent event) {
   std::ostringstream submission_event_string_stream;
@@ -447,7 +470,7 @@ void BrowserSavePasswordProgressLogger::LogPasswordForm(
         GetStringFromID(STRING_CONFIRMATION_PASSWORD_ELEMENT_RENDERER_ID),
         NumberToString(form.confirmation_password_element_renderer_id.value()));
   }
-  log.Set(GetStringFromID(STRING_PASSWORD_GENERATED),
+  log.Set(GetStringFromID(STRING_PASSWORD_IS_GENERATED),
           form.type == PasswordForm::Type::kGenerated);
   log.Set(GetStringFromID(STRING_TIMES_USED), form.times_used_in_html_form);
   LogValue(label, base::Value(std::move(log)));

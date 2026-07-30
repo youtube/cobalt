@@ -38,7 +38,7 @@ export function getHtml(this: HelpBubbleElement) {
     </cr-icon-button>
   </div>
   <div id="main" ?hidden="${!this.shouldShowBodyInMain_()}">
-    <div id="middleRowSpacer" ?hidden="!${this.shouldShowBodyIcon_()}">
+    <div id="middleRowSpacer" ?hidden="${!this.shouldShowBodyIcon_()}">
     </div>
     <p id="mainBody">${this.bodyText}</p>
   </div>

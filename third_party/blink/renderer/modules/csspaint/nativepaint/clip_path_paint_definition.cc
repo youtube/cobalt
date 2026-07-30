@@ -781,15 +781,11 @@ std::optional<gfx::RectF> ClipPathPaintDefinition::GetAnimationBoundingRect(
 
   // The interaction between clip-path animations with clip-path: none and
   // descendant transform animations requires a fallback, because right now
-  // there is no way to estimate the maximum visible area
-  // TODO(clchambers): Once compositor and main-thread clip-path implementations
-  // are merged, it may be possible to remove this case by either inverting the
-  // blend mode (kXor?) or using edge mode for this case on cc/viz side.
-  // Alternatively, since cc knows the definite state of any cc-animated
-  // transforms, it's possible that the required mask size could be computed
-  // directly at impl-side paint time, making the size of the painted mask image
-  // variable (which would potentially involve (re)allocating new tiles).
-  if (obj.PaintingLayer()->HasDescendantWithTransformAnim() ||
+  // there is no way to estimate the maximum visible area. We also exclude
+  // objects with no PaintLayer (SVG Objects) as they won't have a cull rect
+  // that we can use.
+  if (!obj.HasLayer() ||
+      obj.PaintingLayer()->HasDescendantWithTransformAnim() ||
       obj.StyleRef().HasCurrentTransformRelatedAnimation()) {
     return std::nullopt;
   }

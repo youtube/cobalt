@@ -56,7 +56,6 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.DisableLeakChecks;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -76,9 +75,9 @@ import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.gsa.GSAUtils;
 import org.chromium.chrome.browser.media.PictureInPicture;
 import org.chromium.chrome.browser.share.ChromeShareExtras;
-import org.chromium.chrome.browser.share.LensUtils;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.tab.Tab;
@@ -132,7 +131,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @DisableFeatures({ContentFeatures.ANDROID_DESKTOP_ZOOM_SCALING})
 @Batch(Batch.PER_CLASS)
 @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511288174
-@DisableLeakChecks("crbug.com/512492353 (OfflineContentAggregatorBridge)")
 public class ContextMenuTest {
 
     @Mock private TabContextMenuItemDelegate mItemDelegate;
@@ -739,7 +737,7 @@ public class ContextMenuTest {
     @Feature({"Browser", "ContextMenu"})
     @RequiresRestart
     public void testContextMenuRetrievesImageOptions() throws TimeoutException {
-        LensUtils.setFakePassableLensEnvironmentForTesting(true);
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
 
         Tab tab = mActivityTestRule.getActivityTab();
         mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "testImage");
@@ -786,7 +784,7 @@ public class ContextMenuTest {
     @Policies.Add({@Policies.Item(key = "DefaultSearchProviderEnabled", string = "false")})
     public void testContextMenuRetrievesImageOptions_NoDefaultSearchEngineLensEnabled()
             throws TimeoutException {
-        LensUtils.setFakePassableLensEnvironmentForTesting(true);
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
 
         Tab tab = mActivityTestRule.getActivityTab();
         mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "testImage");
@@ -809,7 +807,7 @@ public class ContextMenuTest {
     @SmallTest
     @Feature({"Browser", "ContextMenu"})
     public void testContextMenuRetrievesImageLinkOptions() throws TimeoutException {
-        LensUtils.setFakePassableLensEnvironmentForTesting(true);
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
 
         Tab tab = mActivityTestRule.getActivityTab();
         mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "testImageLink");
@@ -871,7 +869,7 @@ public class ContextMenuTest {
     public void testSearchImageWithGoogleLensMenuItemName() throws Throwable {
         Tab tab = mActivityTestRule.getActivityTab();
 
-        LensUtils.setFakePassableLensEnvironmentForTesting(true);
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
         hardcodeTestImageForSharing(TEST_JPG_IMAGE_FILE_EXTENSION);
 
         mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "testImage");
@@ -980,7 +978,7 @@ public class ContextMenuTest {
     @SmallTest
     @Feature({"Browser", "ContextMenu"})
     @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/481444053
-    public void testContextMenuOpenedFromHighlight() {
+    public void testContextMenuOpenedFromHighlight() throws Exception {
         DeviceInput.setSupportsPrecisionPointerForTesting(false);
         Tab tab = mActivityTestRule.getActivityTab();
 
@@ -1027,17 +1025,27 @@ public class ContextMenuTest {
                 HistogramWatcher.newSingleRecordWatcher(
                         "ContextMenu.Shown.SharedHighlightingInteraction", 1);
 
+        final CallbackHelper menuShownHelper = new CallbackHelper();
+        final AtomicReference<ContextMenuCoordinator> coordinatorRef = new AtomicReference<>();
+        ContextMenuHelper.setMenuShownCallbackForTests(
+                (coordinator) -> {
+                    coordinatorRef.set(coordinator);
+                    menuShownHelper.notifyCalled();
+                });
+
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    ContextMenuHelper.setMenuShownCallbackForTests(
-                            (coordinator) -> {
-                                assertMenuItemsAreEqual(coordinator, expectedItems);
-                                shownHistogramWatcher.assertExpected();
-                                sharedHistogramWatcher.assertExpected();
-                            });
                     contextMenuHelper.showContextMenuForTesting(
                             populatorFactory, params, null, tab.getView(), 0);
                 });
+
+        menuShownHelper.waitForCallback(0);
+
+        ContextMenuCoordinator coordinator = coordinatorRef.get();
+        Assert.assertNotNull("Context menu coordinator is null", coordinator);
+        assertMenuItemsAreEqual(coordinator, expectedItems);
+        shownHistogramWatcher.assertExpected();
+        sharedHistogramWatcher.assertExpected();
     }
 
     @Test

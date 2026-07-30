@@ -90,7 +90,7 @@ typedef (object or DOMString) AlgorithmIdentifier;
         sequence<KeyUsage> keyUsages);
 
     [CallWith=ScriptState, MeasureAs=SubtleCryptoExportKey, RaisesException]
-    Promise<any> exportKey(KeyFormat format, CryptoKey key);
+    Promise<(ArrayBuffer or JsonWebKey)> exportKey(KeyFormat format, CryptoKey key);
 
     [CallWith=ScriptState, MeasureAs=SubtleCryptoWrapKey, RaisesException]
     Promise<ArrayBuffer> wrapKey(

@@ -38,11 +38,11 @@ INSTANTIATE_TEST_SUITE_P(,
 // Tests the co-domain of AttributeType::field_type().
 TEST_P(AutofillAttributeTypeTest_FieldTypeRelations, FieldType) {
   AttributeType at = GetParam();
-  EXPECT_THAT(
-      at.field_type(),
-      AnyOf(Optional(
-                ResultOf(&GroupTypeOfFieldType, FieldTypeGroup::kAutofillAi)),
-            Optional(NAME_FULL), Optional(ADDRESS_HOME_ZIP), std::nullopt));
+  EXPECT_THAT(at.field_type(),
+              AnyOf(Optional(ResultOf(&GroupTypeOfFieldType,
+                                      FieldTypeGroup::kAutofillAi)),
+                    Optional(NAME_FULL), Optional(ADDRESS_HOME_ZIP),
+                    Optional(EMAIL_ADDRESS), std::nullopt));
 }
 
 // Tests the co-domain of AttributeType::field_subtypes().
@@ -52,7 +52,7 @@ TEST_P(AutofillAttributeTypeTest_FieldTypeRelations, FieldSubtypes) {
       at.field_subtypes(),
       AnyOf(Each(ResultOf(&GroupTypeOfFieldType, FieldTypeGroup::kAutofillAi)),
             Each(ResultOf(&GroupTypeOfFieldType, FieldTypeGroup::kName)),
-            Each(ADDRESS_HOME_ZIP)));
+            Each(ADDRESS_HOME_ZIP), Each(EMAIL_ADDRESS)));
   if (at.field_type()) {
     EXPECT_THAT(at.field_subtypes(), Contains(at.field_type()));
   } else {

@@ -13,11 +13,13 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/skills/skills_dialog_handler.h"
 #include "chrome/browser/ui/webui/skills/skills_page_handler.h"
+#include "chrome/browser/ui/webui/skills/skills_page_handler_v2.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/skills_resources.h"
 #include "chrome/grit/skills_resources_map.h"
@@ -94,11 +96,6 @@ void AddSkillsV1Resources(content::WebUIDataSource* source, Profile* profile) {
       {"userSkillsDescription", IDS_SKILL_PAGE_USER_SKILLS_DESCRIPTION},
       {"searchBarPlaceholderText", IDS_SKILL_PAGE_SEARCH_BAR_PLACEHOLDER_TEXT},
       {"mainMenu", IDS_SKILL_PAGE_MAIN_MENU},
-      {"errorPageTitle", IDS_SKILLS_ERROR_PAGE_TITLE},
-      {"errorPageDescription", IDS_SKILLS_ERROR_PAGE_DESCRIPTION},
-      {"disabledErrorPageDescription",
-       IDS_SKILLS_DISABLED_ERROR_PAGE_DESCRIPTION},
-      {"goToSettings", IDS_SKILLS_GO_TO_SETTINGS},
       {"footerText", IDS_SKILLS_SIDEBAR_FOOTER_TEXT},
       {"footerBranding", IDS_SKILLS_SIDEBAR_FOOTER_BRANDING},
       {"addSkillHeader", IDS_SKILLS_DIALOG_ADD_SKILL_HEADER},
@@ -117,8 +114,6 @@ void AddSkillsV1Resources(content::WebUIDataSource* source, Profile* profile) {
       {"copyInstructions", IDS_SKILL_PAGE_USER_SKILLS_COPY_INSTRUCTIONS},
       {"skillCardActionMenuLabel", IDS_SKILL_CARD_ACTION_MENU_LABEL},
       {"skillAddNewSkillLabel", IDS_ADD_NEW_SKILL_LABEL},
-      {"noSearchResultsTitle", IDS_SKILLS_NO_SEARCH_RESULT_TITLE},
-      {"noSearchResultsDescription", IDS_SKILLS_NO_SEARCH_RESULT_DESCRIPTION},
       {"saveError", IDS_SKILLS_DIALOG_SAVE_ERROR},
       {"emojiSearchPlaceholder", IDS_SKILLS_EMOJI_PICKER_SEARCH_PLACEHOLDER},
       {"emojiPickerAriaLabel", IDS_SKILLS_EMOJI_PICKER_ARIA_LABEL},
@@ -153,7 +148,25 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   source->AddString("webuiRefresh2026", features::IsWebuiRefresh2026Enabled()
                                             ? "webui-refresh-2026"
                                             : "");
-  source->AddLocalizedString("skillsTitle", IDS_SKILL_PAGE_TITLE);
+  source->AddBoolean(
+      "isSkillsWebViewV2Enabled",
+      base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled));
+
+  // Shared strings for Skills V1/V2.
+  // TODO(b/521780336): Remove search results strings once we migrate to v2.
+  static constexpr webui::LocalizedString kStrings[] = {
+      {"goToSettings", IDS_SKILLS_GO_TO_SETTINGS},
+      {"skillsTitle", IDS_SKILL_PAGE_TITLE},
+      {"errorPageTitle", IDS_SKILLS_ERROR_PAGE_TITLE},
+      {"noSearchResultsTitle", IDS_SKILLS_NO_SEARCH_RESULT_TITLE},
+      {"errorPageDescription", IDS_SKILLS_ERROR_PAGE_DESCRIPTION},
+      {"noSearchResultsDescription", IDS_SKILLS_NO_SEARCH_RESULT_DESCRIPTION},
+      {"disabledErrorPageDescription",
+       IDS_SKILLS_DISABLED_ERROR_PAGE_DESCRIPTION},
+
+  };
+
+  source->AddLocalizedStrings(kStrings);
 }
 
 void SkillsUI::InitializeDialog(base::WeakPtr<SkillsDialogDelegate> delegate,
@@ -168,19 +181,32 @@ void SkillsUI::InitializeDialog(base::WeakPtr<SkillsDialogDelegate> delegate,
 
 void SkillsUI::BindInterface(
     mojo::PendingReceiver<skills::mojom::PageHandlerFactory> receiver) {
+  CHECK(!base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled));
   page_factory_receiver_.reset();
   page_factory_receiver_.Bind(std::move(receiver));
+}
+
+void SkillsUI::BindInterface(
+    mojo::PendingReceiver<::skills::mojom::SkillsPageHandler> receiver) {
+  CHECK(base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled));
+  Profile* profile = Profile::FromWebUI(web_ui());
+  page_handler_v2_ = std::make_unique<skills::SkillsPageHandlerV2>(
+      std::move(receiver), profile,
+      IdentityManagerFactory::GetForProfile(profile),
+      web_ui()->GetWebContents());
 }
 
 void SkillsUI::CreatePageHandler(
     mojo::PendingRemote<skills::mojom::SkillsPage> page,
     mojo::PendingReceiver<skills::mojom::PageHandler> receiver) {
+  CHECK(!base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled));
   page_handler_ = std::make_unique<SkillsPageHandler>(
       std::move(receiver), std::move(page), web_ui()->GetWebContents());
 }
 
 void SkillsUI::CreateDialogHandler(
     mojo::PendingReceiver<skills::mojom::DialogHandler> receiver) {
+  CHECK(!base::FeatureList::IsEnabled(features::kSkillsWebViewV2Enabled));
   dialog_handler_ = std::make_unique<SkillsDialogHandler>(
       std::move(receiver), web_ui()->GetWebContents(),
       OptimizationGuideKeyedServiceFactory::GetForProfile(

@@ -19,3 +19,18 @@ Local Modifications:
 
   These files wire up //components/cbor (which Chromium uses) instead of
   libcppbor.
+
+- fcp/client/cache/file_backed_resource_cache.h
+  fcp/client/secagg_runner.cc
+
+  Not used by Chromium, stubbed out.
+
+- fcp/protos/*
+  fcp/secagg/shared/secagg_messages.proto
+
+  Removed unused parts, which are incompatible with Chromium.
+
+- fcp/client/opstats/pds_backed_opstats_db.cc
+
+  Temporary fix for a Windows-related issue with paths. Waiting to be
+  merged upstream.

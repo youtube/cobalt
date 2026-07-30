@@ -500,6 +500,22 @@ struct MinMaxData {
     {"A B<span>C D</span>", {20, 60}},
     // A close tag after a forced break.
     {"<span>12<br></span>", {80, 80}, "", "span { border: 30px solid blue; }"},
+    // crbug.com/41462717: Symmetric `border` keeps this stable in LTR/RTL.
+    {"<span>a</span><span> a</span>",
+     {13, 34},
+     "",
+     "span { border: 1px solid }"},
+    // Same, with a nested open tag wrapping the inner span.
+    {"<span>a</span><b><span> a</span></b>",
+     {13, 34},
+     "",
+     "span { border: 1px solid }"},
+    // `dir` attribute introduces a `kBidiControl` item between the close tag
+    // and the open tag; it must not bypass the suppression.
+    {"<span>a</span><span dir=\"rtl\"> a</span>",
+     {13, 34},
+     "",
+     "span { border: 1px solid }"},
     // `pre-wrap` with trailing spaces.
     {"12345 6789 ", {50, 110}, "white-space: pre-wrap;"},
     // `word-break: break-word` can break a space run.
@@ -1692,26 +1708,6 @@ TEST_F(InlineNodeTest, FindSvgTextChunksCrash3) {
   tspan->appendChild(GetDocument().createTextNode(text));
   UpdateAllLifecyclePhasesForTest();
   // Pass if no CHECK() failures in FindSvgTextChunks().
-}
-
-TEST_F(InlineNodeTest, FontFeaturesInitial) {
-  SetBodyInnerHTML(R"HTML(
-    <div id="initial"></div>
-    <div id="no-kern" style="font-kerning: none"></div>
-  )HTML");
-  const auto is_initial = [this](const char* id) {
-    const auto* layout_object = GetLayoutObjectByElementId(id);
-    Vector<FontFeatureRange, FontFeatureRange::kInitialSize> features;
-    FontFeatureRange::FromFontDescription(
-        layout_object->StyleRef().GetFont()->GetFontDescription(), features);
-    if (FontFeatureRange::IsInitial(features)) {
-      EXPECT_EQ(features.size(), FontFeatureRange::kInitialSize);
-      return true;
-    }
-    return false;
-  };
-  EXPECT_TRUE(is_initial("initial"));
-  EXPECT_FALSE(is_initial("no-kern"));
 }
 
 // crbug.com/437612643

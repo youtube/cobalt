@@ -16,6 +16,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,8 +51,12 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.PayloadCallbackHelper;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.autofill.settings.HomeOfTransactionsFragment.AutofillSettingsReferrer;
 import org.chromium.chrome.browser.autofill.settings.HomeOfTransactionsFragment.YourSavedInfoDataCategory;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
@@ -101,6 +106,7 @@ public class HomeOfTransactionsFragmentTest {
     @Mock private SettingsIndexData mSearchIndexDataMock;
     @Mock private Profile mProfileMock;
     @Mock private PasswordManagerUtilBridge.Natives mPasswordManagerUtilBridgeJniMock;
+    @Mock private EntityDataManager mEntityDataManagerMock;
     @Mock private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
     @Mock private SigninAndHistorySyncActivityLauncher mSigninLauncher;
     @Mock private SettingsNavigation mSettingsNavigation;
@@ -117,6 +123,8 @@ public class HomeOfTransactionsFragmentTest {
         PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeJniMock);
         when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(anyBoolean()))
                 .thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(mEntityDataManagerMock);
+        when(mEntityDataManagerMock.isPersonalContextPreferenceVisible()).thenReturn(true);
 
         CredentialManagerLauncherFactory.setFactoryForTesting(mFakeLauncherFactory);
         mFakeLauncherFactory.setSuccessCallback(mSuccessCallbackHelper::notifyCalled);
@@ -207,6 +215,26 @@ public class HomeOfTransactionsFragmentTest {
                                                 .signin_promo_description_autofill_and_passwords_seamless)));
         onView(withId(R.id.signin_promo_primary_button)).check(matches(isDisplayed()));
         onView(withId(R.id.signin_promo_secondary_button)).check(doesNotExist());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({
+        SigninFeatures.ENABLE_SEAMLESS_SIGNIN
+                + ":seamless-signin-promo-type/compact"
+                + "/seamless-signin-string-type/continueButton",
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
+    })
+    public void testSignInPromoNotSelectable() {
+        signInPromoDeclined(false);
+
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        HomeOfTransactionsFragment fragment = mSettingsActivityTestRule.getFragment();
+        SigninPromoPreference preference =
+                (SigninPromoPreference)
+                        fragment.findPreference(HomeOfTransactionsFragment.PREF_SIGNIN_PROMO);
+        assertFalse(preference.isSelectable());
     }
 
     @Test
@@ -568,6 +596,92 @@ public class HomeOfTransactionsFragmentTest {
 
         testItemClick(R.string.autofill_shopping_title, AutofillShoppingFragment.class);
         histogramWatcher.assertExpected();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID,
+        ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
+    })
+    public void testClickPersonalContextLaunchesPersonalContext() {
+        var userActionTester = new UserActionTester();
+        try {
+            mSettingsActivityTestRule.startSettingsActivity();
+
+            testItemClick(
+                    R.string.personal_context_autofill_settings_title_android,
+                    AutofillPersonalContextFragment.class);
+
+            assertTrue(
+                    userActionTester
+                            .getActions()
+                            .contains(
+                                    AutofillPersonalContextFragment
+                                            .ACTION_ENTRY_FROM_AUTOFILL_AND_PASSWORDS));
+        } finally {
+            userActionTester.tearDown();
+        }
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testPersonalContextNotVisibleWhenAutofillAiDisabled() {
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        onView(withText(R.string.personal_context_autofill_settings_title_android))
+                .check(doesNotExist());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID,
+        ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
+    })
+    public void testPersonalContextNotVisibleWhenCategoryNotVisible() {
+        when(mEntityDataManagerMock.isPersonalContextPreferenceVisible()).thenReturn(false);
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        onView(withText(R.string.personal_context_autofill_settings_title_android))
+                .check(doesNotExist());
+    }
+
+    @Test
+    @SmallTest
+    @DisableFeatures({
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID,
+        ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
+    })
+    public void testPersonalContextNotVisibleWhenFeaturesDisabled() {
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        onView(withText(R.string.personal_context_autofill_settings_title_android))
+                .check(doesNotExist());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID,
+        ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
+    })
+    public void testSearchIndexPersonalContextRemovedWhenCategoryNotVisible() {
+        when(mEntityDataManagerMock.isPersonalContextPreferenceVisible()).thenReturn(false);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    HomeOfTransactionsFragment.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                            mSettingsActivityTestRule.getActivity(),
+                            mSearchIndexDataMock,
+                            mProfileMock);
+                });
+
+        verify(mSearchIndexDataMock)
+                .removeEntry(
+                        HomeOfTransactionsFragment.SEARCH_INDEX_DATA_PROVIDER.getUniqueId(
+                                HomeOfTransactionsFragment.PREF_AUTOFILL_PERSONAL_CONTEXT));
     }
 
     private static void signInPromoDeclined(boolean value) {

@@ -86,9 +86,9 @@ struct PLATFORM_EXPORT TrackedElementSubRect {
   gfx::Rect GetEffectiveBounds(const gfx::Rect& element_paint_rect) const;
 };
 
-// Used by Element and ElementRareDataVector to store tracked element data.
-// Multiple features can track the same element, so this is a map of feature to
-// the tracked element data for that feature.
+// Used by Element and NodeRareData to store tracked element data. Multiple
+// features can track the same element, so this is a map of feature to the
+// tracked element data for that feature.
 using TrackedElementSubRects =
     base::flat_map<viz::TrackedElementFeature, TrackedElementSubRect>;
 

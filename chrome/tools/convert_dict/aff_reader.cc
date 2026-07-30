@@ -161,8 +161,7 @@ int AffReader::GetAFIndexForAFString(const std::string& af_string) {
 std::vector<std::string> AffReader::GetAffixGroups() const {
   int max_id = 0;
   for (auto i = affix_groups_.begin(); i != affix_groups_.end(); ++i) {
-    if (i->second > max_id)
-      max_id = i->second;
+    max_id = std::max(max_id, i->second);
   }
 
   std::vector<std::string> ret;

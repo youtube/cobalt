@@ -52,8 +52,6 @@ constexpr char kTestExtractUrl[] = "https://example.com/path?q=1";
 constexpr char kTestSuggestionUrl[] = "https://travel.com/flights?min=100";
 constexpr char kTestCandidateId[] = "12345678-1234-5678-1234-567812345678";
 constexpr char kTestDomain[] = "example.com";
-constexpr char kTestDomain1[] = "example1.com";
-constexpr char kTestDomain2[] = "example2.com";
 constexpr char kTask1[] = "TASK1";
 constexpr char kTask2[] = "TASK2";
 constexpr char kTestTaskType[] = "SEARCH_FLIGHTS";
@@ -274,13 +272,13 @@ TEST_F(AnnotationIndexClientImplTest,
 }
 
 TEST_F(AnnotationIndexClientImplTest,
-       GetSupportedTaskTypesForDomain_Success_ReturnsTaskTypes) {
+       GetSupportedTasks_Success_ReturnsTaskTypes) {
   GetSupportedTasksResponse proto_response =
       CreateSupportedTasksResponse({kTask1, kTask2});
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   network::TestURLLoaderFactory::PendingRequest* pending_request =
@@ -293,82 +291,92 @@ TEST_F(AnnotationIndexClientImplTest,
   EXPECT_EQ(request_proto.domain(), kTestDomain);
   test_url_loader_factory_.SimulateResponseWithoutRemovingFromPendingList(
       pending_request, proto_response.SerializeAsString());
-  std::optional<std::vector<std::string>> result = future.Take();
-  ASSERT_TRUE(result);
-  ASSERT_EQ(result->size(), 2u);
-  EXPECT_EQ((*result)[0], kTask1);
-  EXPECT_EQ((*result)[1], kTask2);
+  std::vector<std::string> result = future.Take();
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], kTask1);
+  EXPECT_EQ(result[1], kTask2);
 }
 
 TEST_F(AnnotationIndexClientImplTest,
-       GetSupportedTaskTypesForDomain_HttpError_ReturnsNullopt) {
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+       GetSupportedTasks_HttpError_ReturnsEmptyVector) {
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateHttpError(test_url_loader_factory_.GetPendingRequest(0),
                     net::HTTP_NOT_FOUND);
-  EXPECT_FALSE(future.Take().has_value());
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest,
-       GetSupportedTaskTypesForDomain_NetworkError_ReturnsNullopt) {
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+       GetSupportedTasks_NetworkError_ReturnsEmptyVector) {
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateNetworkError(test_url_loader_factory_.GetPendingRequest(0));
-  EXPECT_FALSE(future.Take().has_value());
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest,
-       GetSupportedTaskTypesForDomain_InvalidResponse_ReturnsNullopt) {
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+       GetSupportedTasks_InvalidResponse_ReturnsEmptyVector) {
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateInvalidResponse(test_url_loader_factory_.GetPendingRequest(0));
-  EXPECT_FALSE(future.Take().has_value());
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest,
-       GetSupportedTaskTypesForDomain_EmptyResponse_ReturnsEmptyVector) {
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+       GetSupportedTasks_EmptyResponse_ReturnsEmptyVector) {
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateEmptyResponse(test_url_loader_factory_.GetPendingRequest(0));
-  auto result = future.Take();
-  ASSERT_TRUE(result.has_value());
-  EXPECT_TRUE(result->empty());
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest,
-       GetSupportedTaskTypesForDomain_Timeout_ReturnsNullopt) {
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+       GetSupportedTasks_Timeout_ReturnsEmptyVector) {
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateTimeout(test_url_loader_factory_.GetPendingRequest(0));
-  EXPECT_FALSE(future.Take().has_value());
+  EXPECT_TRUE(future.Take().empty());
+}
+
+TEST_F(AnnotationIndexClientImplTest,
+       GetSupportedTasks_NotAllowedDomain_ReturnsEmptyVector) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndEnableFeatureWithParameters(
+      kMultistepFilter, {{"allowed_domains", "allowed.com"}});
+
+  base::test::TestFuture<std::vector<std::string>> future;
+
+  client_->GetSupportedTasks(GURL("https://disallowed.com/test"),
+                             future.GetCallback(), kTestNavigationId);
+
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest,
        ExtractFilterAnnotation_Success_ReturnsAnnotation) {
   ExtractTaskAttributesResponse proto_response =
       CreateExtractTaskAttributesResponse(
-          kTestDomain, kTestTaskType,
-          {{kTestAttributeKey, kTestAttributeValue}});
+          kTestTaskType, {{kTestAttributeKey, kTestAttributeValue}});
   base::test::TestFuture<std::optional<FilterAnnotation>> future;
 
   client_->ExtractFilterAnnotation(GURL(kTestExtractUrl), future.GetCallback(),
@@ -457,10 +465,10 @@ TEST_F(AnnotationIndexClientImplTest,
 
 TEST_F(AnnotationIndexClientImplTest, BaseUrlOverriddenBySwitch) {
   OverrideBaseUrlWithSwitch(kTestSwitchApiUrl);
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   network::TestURLLoaderFactory::PendingRequest* pending_request =
@@ -471,13 +479,13 @@ TEST_F(AnnotationIndexClientImplTest, BaseUrlOverriddenBySwitch) {
 
 TEST_F(AnnotationIndexClientImplTest, InvalidBaseUrlFailsQuickly) {
   OverrideBaseUrlWithSwitch(kTestInvalidUrl);
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   EXPECT_EQ(test_url_loader_factory_.NumPending(), 0);
-  EXPECT_FALSE(future.Take().has_value());
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest, HandlesConcurrentRequests) {
@@ -485,13 +493,13 @@ TEST_F(AnnotationIndexClientImplTest, HandlesConcurrentRequests) {
       CreateSupportedTasksResponse({kTask1});
   GetSupportedTasksResponse proto_response2 =
       CreateSupportedTasksResponse({kTask2});
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future1;
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future2;
+  base::test::TestFuture<std::vector<std::string>> future1;
+  base::test::TestFuture<std::vector<std::string>> future2;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain1, future1.GetCallback(),
-                                          kTestNavigationId);
-  client_->GetSupportedTaskTypesForDomain(kTestDomain2, future2.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL("https://example1.com/test"),
+                             future1.GetCallback(), kTestNavigationId);
+  client_->GetSupportedTasks(GURL("https://example2.com/test"),
+                             future2.GetCallback(), kTestNavigationId);
 
   EXPECT_EQ(test_url_loader_factory_.NumPending(), 2);
   test_url_loader_factory_.SimulateResponseWithoutRemovingFromPendingList(
@@ -501,24 +509,22 @@ TEST_F(AnnotationIndexClientImplTest, HandlesConcurrentRequests) {
       test_url_loader_factory_.GetPendingRequest(1),
       proto_response2.SerializeAsString());
   auto result1 = future1.Take();
-  ASSERT_TRUE(result1);
-  ASSERT_EQ(result1->size(), 1u);
-  EXPECT_EQ((*result1)[0], kTask1);
+  ASSERT_EQ(result1.size(), 1u);
+  EXPECT_EQ(result1[0], kTask1);
   auto result2 = future2.Take();
-  ASSERT_TRUE(result2);
-  ASSERT_EQ(result2->size(), 1u);
-  EXPECT_EQ((*result2)[0], kTask2);
+  ASSERT_EQ(result2.size(), 1u);
+  EXPECT_EQ(result2[0], kTask2);
 }
 
 TEST_F(AnnotationIndexClientImplTest, LoaderCleanedUpAfterCompletion) {
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
 
-  client_->GetSupportedTaskTypesForDomain(kTestDomain, future.GetCallback(),
-                                          kTestNavigationId);
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
 
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateEmptyResponse(test_url_loader_factory_.GetPendingRequest(0));
-  EXPECT_TRUE(future.Take().has_value());
+  EXPECT_TRUE(future.Take().empty());
 }
 
 TEST_F(AnnotationIndexClientImplTest, ExecuteRequest_OAuthSuccess) {

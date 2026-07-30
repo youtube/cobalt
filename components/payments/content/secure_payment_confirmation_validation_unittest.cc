@@ -10,6 +10,7 @@
 #include "components/payments/core/native_error_strings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/payments/payment_request.mojom.h"
+#include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -35,7 +36,8 @@ mojom::SecurePaymentConfirmationRequestPtr CreateValidRequest() {
 
 TEST(SecurePaymentConfirmationValidationTest, IsValidRequest) {
   auto request = CreateValidRequest();
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::kOk);
 }
 
@@ -43,7 +45,8 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyCredentialIds) {
   auto request = CreateValidRequest();
   request->credential_ids.clear();
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kCredentialIdsRequired);
 }
 
@@ -51,7 +54,8 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyCredentialId) {
   auto request = CreateValidRequest();
   request->credential_ids.emplace_back();
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kCredentialIdsRequired);
 }
 
@@ -59,14 +63,16 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyChallenge) {
   auto request = CreateValidRequest();
   request->challenge.clear();
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kChallengeRequired);
 }
 
 TEST(SecurePaymentConfirmationValidationTest, EmptyDisplayName) {
   auto request = CreateValidRequest();
   request->instrument->display_name.clear();
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kInstrumentDisplayNameRequired);
 }
@@ -74,7 +80,8 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyDisplayName) {
 TEST(SecurePaymentConfirmationValidationTest, EmptyInstrumentIcon) {
   auto request = CreateValidRequest();
   request->instrument->icon = GURL();
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kValidInstrumentIconRequired);
 }
@@ -82,7 +89,8 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyInstrumentIcon) {
 TEST(SecurePaymentConfirmationValidationTest, InvalidInstrumentIcon) {
   auto request = CreateValidRequest();
   request->instrument->icon = GURL("not-a-url");
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kValidInstrumentIconRequired);
 }
@@ -90,7 +98,8 @@ TEST(SecurePaymentConfirmationValidationTest, InvalidInstrumentIcon) {
 TEST(SecurePaymentConfirmationValidationTest, NonUtf8InstrumentDetails) {
   auto request = CreateValidRequest();
   request->instrument->details = {'\xEF', '\xB7', '\xAF'};
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kNonUtf8InstrumentDetailsString);
 }
@@ -98,7 +107,8 @@ TEST(SecurePaymentConfirmationValidationTest, NonUtf8InstrumentDetails) {
 TEST(SecurePaymentConfirmationValidationTest, EmptyInstrumentDetails) {
   auto request = CreateValidRequest();
   request->instrument->details = "";
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kEmptyInstrumentDetailsString);
 }
@@ -106,7 +116,8 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyInstrumentDetails) {
 TEST(SecurePaymentConfirmationValidationTest, TooLongInstrumentDetails) {
   auto request = CreateValidRequest();
   request->instrument->details = std::string(4097, '.');
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kTooLongInstrumentDetailsString);
 }
@@ -124,7 +135,8 @@ TEST(SecurePaymentConfirmationValidationTest, InvalidRpId) {
   for (const std::string& rp_id : invalid_cases) {
     auto request = CreateValidRequest();
     request->rp_id = rp_id;
-    EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+    EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                  request, url::Origin::Create(GURL("https://rp.example"))),
               SecurePaymentConfirmationRequestValidationError::kRpIdRequired)
         << "rp_id: " << rp_id;
   }
@@ -134,7 +146,8 @@ TEST(SecurePaymentConfirmationValidationTest, MissingPayeeNameAndPayeeOrigin) {
   auto request = CreateValidRequest();
   request->payee_name.reset();
   request->payee_origin.reset();
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kPayeeOriginOrPayeeNameRequired);
 }
@@ -142,7 +155,8 @@ TEST(SecurePaymentConfirmationValidationTest, MissingPayeeNameAndPayeeOrigin) {
 TEST(SecurePaymentConfirmationValidationTest, EmptyPayeeName) {
   auto request = CreateValidRequest();
   request->payee_name = "";
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kPayeeOriginOrPayeeNameRequired);
 }
@@ -151,14 +165,16 @@ TEST(SecurePaymentConfirmationValidationTest, NonHttpsPayeeOrigin) {
   auto request = CreateValidRequest();
   request->payee_origin = url::Origin::Create(GURL("http://site.example"));
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kPayeeOriginMustBeHttps);
 }
 
 TEST(SecurePaymentConfirmationValidationTest, NullPaymentEntityLogo) {
   auto request = CreateValidRequest();
   request->payment_entities_logos.push_back(nullptr);
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kNonNullPaymentEntityLogoRequired);
 }
@@ -168,7 +184,8 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyPaymentEntityLogoUrl) {
   request->payment_entities_logos.push_back(
       mojom::PaymentEntityLogo::New(GURL(), "Label"));
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kValidLogoUrlRequired);
 }
 
@@ -177,7 +194,8 @@ TEST(SecurePaymentConfirmationValidationTest, InvalidPaymentEntityLogoUrl) {
   request->payment_entities_logos.push_back(
       mojom::PaymentEntityLogo::New(GURL("thisisnotaurl"), "Label"));
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kValidLogoUrlRequired);
 }
 
@@ -186,7 +204,8 @@ TEST(SecurePaymentConfirmationValidationTest,
   auto request = CreateValidRequest();
   request->payment_entities_logos.push_back(mojom::PaymentEntityLogo::New(
       GURL("blob://blob.foo.com/logo.png"), "Label"));
-  EXPECT_EQ(IsValidSecurePaymentConfirmationRequest(request),
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
             SecurePaymentConfirmationRequestValidationError::
                 kValidLogoUrlSchemeRequired);
 }
@@ -196,8 +215,52 @@ TEST(SecurePaymentConfirmationValidationTest, EmptyPaymentEntityLogoLabel) {
   request->payment_entities_logos.push_back(mojom::PaymentEntityLogo::New(
       GURL("https://entity.example/icon.png"), ""));
   EXPECT_EQ(
-      IsValidSecurePaymentConfirmationRequest(request),
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://rp.example"))),
       SecurePaymentConfirmationRequestValidationError::kLogoLabelRequired);
+}
+
+TEST(SecurePaymentConfirmationValidationTest,
+     WebAuthnExtensionsAllowedForFirstParty) {
+  auto request = CreateValidRequest();
+  request->extensions =
+      blink::mojom::AuthenticationExtensionsClientInputs::New();
+  request->extensions->get_cred_blob = true;
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
+            SecurePaymentConfirmationRequestValidationError::kOk);
+}
+
+TEST(SecurePaymentConfirmationValidationTest, EmptyWebAuthnExtensionsAllowed) {
+  auto request = CreateValidRequest();
+  request->extensions =
+      blink::mojom::AuthenticationExtensionsClientInputs::New();
+
+  // An empty WebAuthn extensions dictionary is allowed for both first and third
+  // party requests.
+  EXPECT_EQ(payments::IsValidSecurePaymentConfirmationRequest(
+                request, url::Origin::Create(GURL("https://rp.example"))),
+            SecurePaymentConfirmationRequestValidationError::kOk);
+  EXPECT_EQ(
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://third-party.example"))),
+      SecurePaymentConfirmationRequestValidationError::kOk);
+}
+
+TEST(SecurePaymentConfirmationValidationTest,
+     WebAuthnExtensionsDisallowedForThirdParties) {
+  // It is not feasible to test every WebAuthn extension field (as more may be
+  // added in the future), so we test one representative field (get_cred_blob).
+  auto request = CreateValidRequest();
+  request->extensions =
+      blink::mojom::AuthenticationExtensionsClientInputs::New();
+  request->extensions->get_cred_blob = true;
+
+  EXPECT_EQ(
+      payments::IsValidSecurePaymentConfirmationRequest(
+          request, url::Origin::Create(GURL("https://third-party.example"))),
+      SecurePaymentConfirmationRequestValidationError::
+          kWebAuthnExtensionsNotSupported);
 }
 
 }  // namespace

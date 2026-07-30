@@ -79,6 +79,7 @@ class HTMLUserMediaElementTest : public PageTestBase {
 
  protected:
   ScopedTestingPlatformSupport<LocalePlatformSupport> platform_support_;
+  ScopedUserMediaElementLegacyForTest legacy_enabled_{true};
 };
 
 TEST_F(HTMLUserMediaElementTest, BranchingLogicBasedOnTypeAttribute) {

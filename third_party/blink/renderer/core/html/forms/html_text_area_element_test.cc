@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
 
 #include <ostream>
+#include <utility>
 #include <vector>
 
 #include "base/strings/string_util.h"
@@ -21,6 +22,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/skia/include/core/SkFontTypes.h"
 
+using testing::AllOf;
 using testing::Each;
 using testing::ElementsAre;
 using testing::Field;
@@ -49,7 +51,10 @@ void PrintTo(const WebFormControlElement::TypefaceRunInfo& info,
   }
   *os << "],\n"
       << "  typeface: " << name.c_str()
-      << ",\n  is_horizontal: " << base::ToString(info.is_horizontal) << "\n}";
+      << ",\n  is_horizontal: " << base::ToString(info.is_horizontal)
+      << ",\n  is_synthetic_bold: " << base::ToString(info.is_synthetic_bold)
+      << ",\n  is_synthetic_italic: "
+      << base::ToString(info.is_synthetic_italic) << "\n}";
 }
 
 void PrintTo(const WebFormControlElement::TextRunInfo& info, std::ostream* os) {
@@ -71,8 +76,20 @@ class TextRunIsMatcher {
  public:
   using is_gtest_matcher = void;
 
-  TextRunIsMatcher(std::vector<std::string> strs, gfx::RectF location)
-      : strs_(strs), location_(location) {}
+  TextRunIsMatcher(std::vector<std::string> strs, const gfx::RectF& location)
+      : TextRunIsMatcher(std::move(strs),
+                         location,
+                         /*is_synthetic_bold=*/false,
+                         /*is_synthetic_italic=*/false) {}
+
+  TextRunIsMatcher(std::vector<std::string> strs,
+                   const gfx::RectF& location,
+                   bool is_synthetic_bold,
+                   bool is_synthetic_italic)
+      : strs_(std::move(strs)),
+        location_(location),
+        is_synthetic_bold_(is_synthetic_bold),
+        is_synthetic_italic_(is_synthetic_italic) {}
 
   bool MatchAndExplain(const WebFormControlElement::TextRunInfo& arg,
                        std::ostream* os) const {
@@ -103,6 +120,23 @@ class TextRunIsMatcher {
       if (!run.typeface) {
         if (os) {
           *os << "expected a non-null typeface for run #"
+              << typeface_runs_index;
+        }
+        return false;
+      }
+
+      if (run.is_synthetic_bold != is_synthetic_bold_) {
+        if (os) {
+          *os << "expected synthetic bold to be "
+              << base::ToString(is_synthetic_bold_) << " for run #"
+              << typeface_runs_index;
+        }
+        return false;
+      }
+      if (run.is_synthetic_italic != is_synthetic_italic_) {
+        if (os) {
+          *os << "expected synthetic italic to be "
+              << base::ToString(is_synthetic_italic_) << " for run #"
               << typeface_runs_index;
         }
         return false;
@@ -177,14 +211,26 @@ class TextRunIsMatcher {
     *os << "}";
   }
 
-  std::vector<std::string> strs_;
-  gfx::RectF location_;
+  const std::vector<std::string> strs_;
+  const gfx::RectF location_;
+  const bool is_synthetic_bold_;
+  const bool is_synthetic_italic_;
 };
 
 testing::Matcher<const WebFormControlElement::TextRunInfo&> TextRunIs(
     std::vector<std::string> strs,
-    gfx::RectF location) {
-  return TextRunIsMatcher(strs, location);
+    const gfx::RectF& location) {
+  return TextRunIsMatcher(std::move(strs), location);
+}
+
+testing::Matcher<const WebFormControlElement::TextRunInfo&> TextRunIs(
+    std::vector<std::string> strs,
+    const gfx::RectF& location,
+    bool is_synthetic_bold,
+    bool is_synthetic_italic) {
+  return TextRunIsMatcher(std::move(strs), location,
+                          /*is_synthetic_bold=*/is_synthetic_bold,
+                          /*is_synthetic_italic=*/is_synthetic_italic);
 }
 
 }  // namespace
@@ -391,6 +437,8 @@ TEST_F(HTMLTextAreaElementTest, RemoveLastLineWithInsertText) {
 }
 
 TEST_F(HTMLTextAreaElementTest, GetTextInfoFonts) {
+  using TypefaceRunInfo = WebFormControlElement::TypefaceRunInfo;
+
   LoadAhem();
   LoadNoto();
 
@@ -407,12 +455,9 @@ TEST_F(HTMLTextAreaElementTest, GetTextInfoFonts) {
     ASSERT_EQ(1u, text_info.text_runs[0].typeface_runs.size());
     ASSERT_EQ(1u, text_info.text_runs[1].typeface_runs.size());
     ASSERT_EQ(1u, text_info.text_runs[2].typeface_runs.size());
-    WebFormControlElement::TypefaceRunInfo& run1 =
-        text_info.text_runs[0].typeface_runs[0];
-    WebFormControlElement::TypefaceRunInfo& run2 =
-        text_info.text_runs[1].typeface_runs[0];
-    WebFormControlElement::TypefaceRunInfo& run3 =
-        text_info.text_runs[2].typeface_runs[0];
+    TypefaceRunInfo& run1 = text_info.text_runs[0].typeface_runs[0];
+    TypefaceRunInfo& run2 = text_info.text_runs[1].typeface_runs[0];
+    TypefaceRunInfo& run3 = text_info.text_runs[2].typeface_runs[0];
 
     ASSERT_TRUE(run1.typeface);
     ASSERT_TRUE(run2.typeface);
@@ -426,6 +471,12 @@ TEST_F(HTMLTextAreaElementTest, GetTextInfoFonts) {
     EXPECT_EQ(first_glyph, run1.glyphs[1].glyph);
     EXPECT_NE(first_glyph, run2.glyphs[0].glyph);
     EXPECT_NE(first_glyph, run3.glyphs[0].glyph);
+    EXPECT_FALSE(run1.is_synthetic_bold);
+    EXPECT_FALSE(run1.is_synthetic_italic);
+    EXPECT_FALSE(run2.is_synthetic_bold);
+    EXPECT_FALSE(run2.is_synthetic_italic);
+    EXPECT_FALSE(run3.is_synthetic_bold);
+    EXPECT_FALSE(run3.is_synthetic_italic);
   }
 
   {
@@ -434,15 +485,16 @@ TEST_F(HTMLTextAreaElementTest, GetTextInfoFonts) {
 
     WebFormControlElement::TextInfo text_info = textarea.GetTextInfo();
     ASSERT_EQ(3u, text_info.text_runs.size());
-    ASSERT_THAT(text_info.text_runs,
-                Each(Field(&WebFormControlElement::TextRunInfo::typeface_runs,
-                           SizeIs(1))));
+
     ASSERT_THAT(
         text_info.text_runs,
         Each(Field(
             &WebFormControlElement::TextRunInfo::typeface_runs,
-            ElementsAre(Field(&WebFormControlElement::TypefaceRunInfo::typeface,
-                              NotNull())))));
+            AllOf(SizeIs(1),
+                  ElementsAre(AllOf(
+                      Field(&TypefaceRunInfo::typeface, NotNull()),
+                      Field(&TypefaceRunInfo::is_synthetic_bold, false),
+                      Field(&TypefaceRunInfo::is_synthetic_italic, false)))))));
     EXPECT_EQ(text_info.text_runs[0].typeface_runs[0].typeface,
               text_info.text_runs[2].typeface_runs[0].typeface);
     EXPECT_NE(text_info.text_runs[0].typeface_runs[0].typeface,
@@ -676,6 +728,22 @@ TEST_F(HTMLTextAreaElementTest, AutofillPreviewScrollStateLeak) {
       textarea.EnsureComputedStyle(kPseudoIdBefore);
   EXPECT_EQ(non_autofill_style->VisitedDependentColor(GetCSSPropertyColor()),
             Color::FromRGB(0, 255, 0));
+}
+
+TEST_F(HTMLTextAreaElementTest, GetTextInfoSyntheticBoldItalic) {
+  LoadAhem();
+
+  SetBodyContent(
+      "<textarea id=test style='font:10px Ahem; width:100px; height:100px; "
+      "font-weight: bold; font-style: italic;'>"
+      "XX"
+      "</textarea>");
+  HTMLTextAreaElement& textarea = TestElement();
+
+  EXPECT_THAT(textarea.GetTextInfo().text_runs,
+              ElementsAre(TextRunIs({"XX"}, gfx::RectF(0, 0, 20, 10),
+                                    /*is_synthetic_bold=*/true,
+                                    /*is_synthetic_italic=*/true)));
 }
 
 }  // namespace blink

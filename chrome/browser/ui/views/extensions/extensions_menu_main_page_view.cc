@@ -48,6 +48,7 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/separator.h"
+#include "ui/views/input_event_activation_protector.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/layout/layout_types.h"
@@ -93,6 +94,47 @@ struct ExtensionIdWrapper {
 };
 DEFINE_UI_CLASS_PROPERTY_TYPE(ExtensionIdWrapper*)
 DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(ExtensionIdWrapper, kExtensionIdKey)
+
+// A button in the extensions menu requesting access section that grants one
+// time site access to the extension. It uses an input event activation
+// protector to prevent unintended clicks.
+class ExtensionsMenuAllowButton : public views::MdTextButton {
+ public:
+  ExtensionsMenuAllowButton() = default;
+  ExtensionsMenuAllowButton(const ExtensionsMenuAllowButton&) = delete;
+  ExtensionsMenuAllowButton& operator=(const ExtensionsMenuAllowButton&) =
+      delete;
+  ~ExtensionsMenuAllowButton() override = default;
+
+  // views::View:
+  void VisibilityChanged(views::View* starting_from, bool is_visible) override {
+    views::MdTextButton::VisibilityChanged(starting_from, is_visible);
+    input_protector_.VisibilityChanged(is_visible);
+  }
+
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override {
+    views::MdTextButton::OnBoundsChanged(previous_bounds);
+    input_protector_.MaybeUpdateViewProtectedTimeStamp();
+  }
+
+  void NotifyClick(const ui::Event& event) override {
+    if (input_protector_.IsPossiblyUnintendedInteraction(
+            event, /*allow_key_events=*/false)) {
+      return;
+    }
+    views::MdTextButton::NotifyClick(event);
+  }
+
+ private:
+  views::InputEventActivationProtector input_protector_;
+};
+
+BEGIN_VIEW_BUILDER(/* No Export */,
+                   ExtensionsMenuAllowButton,
+                   views::MdTextButton)
+END_VIEW_BUILDER
+
+DEFINE_VIEW_BUILDER(/* No Export */, ExtensionsMenuAllowButton)
 
 // Base class for a container inside the extensions menu.
 class SectionContainer : public views::BoxLayoutView {
@@ -288,7 +330,7 @@ void ExtensionsMenuMainPageView::AddExtensionRequestingAccess(
                   .SetAccessibleName(l10n_util::GetStringFUTF16(
                       IDS_EXTENSIONS_MENU_REQUESTS_ACCESS_SECTION_DISMISS_BUTTON_ACCESSIBLE_NAME,
                       request.extension_name)),
-              views::Builder<views::MdTextButton>()
+              views::Builder<ExtensionsMenuAllowButton>()
                   .SetCallback(base::BindRepeating(
                       &ExtensionsMenuHandler::OnAllowExtensionClicked,
                       base::Unretained(menu_handler_), request.extension_id))

@@ -231,7 +231,7 @@ public class AppMenuPropertiesDelegateUnitTest {
     @Test
     @Config(qualifiers = "sw600dp")
     public void testShouldShowPageMenu_Tablet() {
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(false);
         when(mTabModel.getCount()).thenReturn(1);
         assertTrue(mAppMenuPropertiesDelegate.shouldShowPageMenu());
         Assert.assertEquals(MenuGroup.PAGE_MENU, mAppMenuPropertiesDelegate.getMenuGroup());
@@ -240,7 +240,7 @@ public class AppMenuPropertiesDelegateUnitTest {
     @Test
     @Config(qualifiers = "sw600dp")
     public void testShouldShowOverviewMenu_Tablet() {
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(true);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(true);
         when(mTabModel.getCount()).thenReturn(1);
         Assert.assertFalse(mAppMenuPropertiesDelegate.shouldShowPageMenu());
         Assert.assertEquals(
@@ -451,10 +451,9 @@ public class AppMenuPropertiesDelegateUnitTest {
     }
 
     private void setUpMocksForPageMenu() {
-        when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
+        when(mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)).thenReturn(false);
         doReturn(false).when(mAppMenuPropertiesDelegate).shouldCheckBookmarkStar(any(Tab.class));
         doReturn(false).when(mAppMenuPropertiesDelegate).shouldEnableDownloadPage(any(Tab.class));
-        doReturn(false).when(mAppMenuPropertiesDelegate).shouldShowReaderModePrefs(any(Tab.class));
         doReturn(true)
                 .when(mAppMenuPropertiesDelegate)
                 .shouldShowAutoDarkItem(any(Tab.class), eq(false));

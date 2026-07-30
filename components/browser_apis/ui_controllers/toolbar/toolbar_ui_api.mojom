@@ -5,6 +5,7 @@
 module toolbar_ui_api.mojom;
 
 import "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom";
+import "components/browser_apis/ui_controllers/toolbar/icon_handle.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
 import "ui/base/dragdrop/mojom/drag_drop_types.mojom";
 import "ui/base/mojom/menu_source_type.mojom";
@@ -108,4 +109,10 @@ interface ToolbarUIService {
 
   // Shows the avatar menu bubble.
   ShowAvatarMenu() => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+
+  // Notifies the browser of the hover state of the avatar button.
+  SetAvatarButtonHovered(bool hovered) => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+
+  // Notifies the browser of the focus state of the avatar button.
+  SetAvatarButtonFocused(bool focused) => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 };

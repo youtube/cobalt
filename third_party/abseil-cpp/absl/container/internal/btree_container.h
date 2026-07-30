@@ -88,14 +88,14 @@ class btree_container {
   btree_container(const btree_container &other, const allocator_type &alloc)
       : tree_(other.tree_, alloc) {}
 
-  btree_container(btree_container &&other) noexcept(
-      std::is_nothrow_move_constructible<Tree>::value) = default;
+  btree_container(btree_container&& other) noexcept(
+      std::is_nothrow_move_constructible_v<Tree>) = default;
   btree_container(btree_container &&other, const allocator_type &alloc)
       : tree_(std::move(other.tree_), alloc) {}
 
   btree_container &operator=(const btree_container &other) = default;
-  btree_container &operator=(btree_container &&other) noexcept(
-      std::is_nothrow_move_assignable<Tree>::value) = default;
+  btree_container& operator=(btree_container&& other) noexcept(
+      std::is_nothrow_move_assignable_v<Tree>) = default;
 
   // Iterator routines.
   iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND { return tree_.begin(); }
@@ -411,16 +411,15 @@ class btree_set_container : public btree_container<Tree> {
   // Merge routines.
   // Moves elements from `src` into `this`. If the element already exists in
   // `this`, it is left unmodified in `src`.
-  template <
-      typename T,
-      typename std::enable_if_t<
-          std::conjunction<
-              std::is_same<value_type, typename T::value_type>,
-              std::is_same<allocator_type, typename T::allocator_type>,
-              std::is_same<typename params_type::is_map_container,
-                           typename T::params_type::is_map_container>>::value,
-          int> = 0>
-  void merge(btree_container<T> &src) {  // NOLINT
+  template <typename T,
+            typename std::enable_if_t<
+                std::conjunction_v<
+                    std::is_same<value_type, typename T::value_type>,
+                    std::is_same<allocator_type, typename T::allocator_type>,
+                    std::is_same<typename params_type::is_map_container,
+                                 typename T::params_type::is_map_container>>,
+                int> = 0>
+  void merge(btree_container<T>& src) {  // NOLINT
     for (auto src_it = src.begin(); src_it != src.end();) {
       if (insert(std::move(params_type::element(src_it.slot()))).second) {
         src_it = src.erase(src_it);
@@ -430,16 +429,15 @@ class btree_set_container : public btree_container<Tree> {
     }
   }
 
-  template <
-      typename T,
-      typename std::enable_if_t<
-          std::conjunction<
-              std::is_same<value_type, typename T::value_type>,
-              std::is_same<allocator_type, typename T::allocator_type>,
-              std::is_same<typename params_type::is_map_container,
-                           typename T::params_type::is_map_container>>::value,
-          int> = 0>
-  void merge(btree_container<T> &&src) {
+  template <typename T,
+            typename std::enable_if_t<
+                std::conjunction_v<
+                    std::is_same<value_type, typename T::value_type>,
+                    std::is_same<allocator_type, typename T::allocator_type>,
+                    std::is_same<typename params_type::is_map_container,
+                                 typename T::params_type::is_map_container>>,
+                int> = 0>
+  void merge(btree_container<T>&& src) {
     merge(src);
   }
 };
@@ -501,7 +499,7 @@ class btree_map_container : public btree_set_container<Tree> {
                                           IfRRef<int KQual>::AddPtr<K>,      \
                                           IfRRef<int MQual>::AddPtr<M>>>()), \
           ABSL_INTERNAL_SINGLE_ARG(                                          \
-              int &...,                                                      \
+              int&...,                                                       \
               decltype(EnableIf<LifetimeBoundKV<K, KValue, M, MValue>>()) =  \
                   0))>                                                       \
   decltype(auto) Func(                                                       \
@@ -515,7 +513,7 @@ class btree_map_container : public btree_set_container<Tree> {
         __VA_ARGS__ std::forward<decltype(k)>(k),                            \
         std::forward<decltype(obj)>(obj));                                   \
   }                                                                          \
-  friend struct std::enable_if<false> /* just to force a semicolon */
+  static_assert(true, "this assertion forces a semicolon")
   // Insertion routines.
   // Note: the nullptr template arguments and extra `const M&` overloads allow
   // for supporting bitfield arguments.
@@ -604,17 +602,16 @@ class btree_map_container : public btree_set_container<Tree> {
           decltype(EnableIf<LifetimeBoundK<                                    \
                        K, KValue, IfRRef<int KQual>::AddPtr<K>>>()) = 0,       \
           class... Args),                                                      \
-      std::enable_if_t<!std::is_convertible<K, const_iterator>::value, int> =  \
-          0>                                                                   \
+      std::enable_if_t<!std::is_convertible_v<K, const_iterator>, int> = 0>    \
   decltype(auto) Func(                                                         \
       __VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF_##KValue(                \
           ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),                          \
-      Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {                          \
+      Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {                          \
     return ABSL_INTERNAL_IF_##KValue((this->template Func<K, 0>), Callee)(     \
         __VA_ARGS__ std::forward<decltype(k)>(k),                              \
         std::forward<decltype(args)>(args)...);                                \
   }                                                                            \
-  friend struct std::enable_if<false> /* just to force a semicolon */
+  static_assert(true, "this assertion forces a semicolon")
   ABSL_INTERNAL_X(try_emplace, try_emplace_impl, const &, false);
   ABSL_INTERNAL_X(try_emplace, try_emplace_impl, const &, true);
   ABSL_INTERNAL_X(try_emplace, try_emplace_impl, &&, false);
@@ -823,32 +820,30 @@ class btree_multiset_container : public btree_container<Tree> {
 
   // Merge routines.
   // Moves all elements from `src` into `this`.
-  template <
-      typename T,
-      typename std::enable_if_t<
-          std::conjunction<
-              std::is_same<value_type, typename T::value_type>,
-              std::is_same<allocator_type, typename T::allocator_type>,
-              std::is_same<typename params_type::is_map_container,
-                           typename T::params_type::is_map_container>>::value,
-          int> = 0>
-  void merge(btree_container<T> &src) {  // NOLINT
+  template <typename T,
+            typename std::enable_if_t<
+                std::conjunction_v<
+                    std::is_same<value_type, typename T::value_type>,
+                    std::is_same<allocator_type, typename T::allocator_type>,
+                    std::is_same<typename params_type::is_map_container,
+                                 typename T::params_type::is_map_container>>,
+                int> = 0>
+  void merge(btree_container<T>& src) {  // NOLINT
     for (auto src_it = src.begin(), end = src.end(); src_it != end; ++src_it) {
       insert(std::move(params_type::element(src_it.slot())));
     }
     src.clear();
   }
 
-  template <
-      typename T,
-      typename std::enable_if_t<
-          std::conjunction<
-              std::is_same<value_type, typename T::value_type>,
-              std::is_same<allocator_type, typename T::allocator_type>,
-              std::is_same<typename params_type::is_map_container,
-                           typename T::params_type::is_map_container>>::value,
-          int> = 0>
-  void merge(btree_container<T> &&src) {
+  template <typename T,
+            typename std::enable_if_t<
+                std::conjunction_v<
+                    std::is_same<value_type, typename T::value_type>,
+                    std::is_same<allocator_type, typename T::allocator_type>,
+                    std::is_same<typename params_type::is_map_container,
+                                 typename T::params_type::is_map_container>>,
+                int> = 0>
+  void merge(btree_container<T>&& src) {
     merge(src);
   }
 };

@@ -8,6 +8,8 @@
 #include "base/allocator/buildflags.h"
 #include "base/base_export.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
@@ -67,6 +69,10 @@ class BASE_EXPORT MallocDumpProvider : public MemoryDumpProvider {
   bool OnMemoryDump(const MemoryDumpArgs& args,
                     ProcessMemoryDump* pmd) override;
 
+  static std::unique_ptr<MallocDumpProvider> CreateForTesting() {
+    return base::WrapUnique(new MallocDumpProvider());
+  }
+
  private:
   struct CumulativeEludStats {
     size_t quarantined_bytes = 0;
@@ -75,6 +81,7 @@ class BASE_EXPORT MallocDumpProvider : public MemoryDumpProvider {
   };
 
   friend struct DefaultSingletonTraits<MallocDumpProvider>;
+  friend class std::default_delete<MallocDumpProvider>;
 
   MallocDumpProvider();
   ~MallocDumpProvider() override;

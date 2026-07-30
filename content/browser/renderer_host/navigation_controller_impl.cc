@@ -4918,6 +4918,15 @@ NavigationControllerImpl::CreateNavigationRequestFromEntry(
           ? common_params->url.DeprecatedGetOriginAsURL()
           : common_params->url;
 
+  // When reloading before the initial entry has been replaced by the first
+  // navigation (e.g., user canceled the first navigation and hit reload), set
+  // should_replace_current_entry so that the reload replaces the initial entry
+  // rather than being classified as an existing entry navigation. This ensures
+  // browser and renderer agree on replacement behavior.
+  if (ShouldReplaceInitialEntryForReload(reload_type)) {
+    common_params->should_replace_current_entry = true;
+  }
+
   // TODO(clamy): |intended_as_new_entry| below should always be false once
   // Reload no longer leads to this being called for a pending NavigationEntry
   // of index -1.
@@ -5642,7 +5651,8 @@ NavigationControllerImpl::GetNavigationApiHistoryEntryVectors(
     }
   } else if (GetLastCommittedEntryIndex() != -1 &&
              GetLastCommittedEntryIndex() >= backmost_index &&
-             GetLastCommittedEntryIndex() <= forwardmost_index) {
+             GetLastCommittedEntryIndex() <= forwardmost_index &&
+             !node->is_on_initial_empty_document()) {
     previous_entry = GetLastCommittedEntry()->GetFrameEntry(node);
   }
   if (previous_entry) {
@@ -5861,6 +5871,17 @@ bool NavigationControllerImpl::ShouldOverrideUserAgentInNextNavigation(
       return false;
   }
   NOTREACHED();
+}
+
+bool NavigationControllerImpl::ShouldReplaceInitialEntryForReload(
+    ReloadType reload_type) {
+  // This applies to both normal reload and shift-reload (bypass cache): in
+  // either case the original navigation never committed, so we want to replace
+  // the initial entry rather than reuse it.
+  return base::FeatureList::IsEnabled(
+             features::kReplaceInitialEntryForReload) &&
+         reload_type != ReloadType::NONE &&
+         GetLastCommittedEntry()->IsInitialEntryNotForSynchronousAboutBlank();
 }
 
 }  // namespace content

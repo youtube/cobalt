@@ -51,7 +51,7 @@ chromium-metrics-reviews@google.com.
   <variant name="PlusAddressFallbackFromContextMenu"
       summary="Plus address manual fallback entry point in the context menu."/>
   <variant name="SendTabToSelfEnhancedDesktopUI"
-      summary="Promotion for Send to Your Devices in the tab and webpage
+      summary="Promotion for Send to Your Device in the tab and webpage
                context menus."/>
   <variant name="SideBySide"
       summary="Promotion for Split View in the tab context menu"/>
@@ -91,6 +91,8 @@ chromium-metrics-reviews@google.com.
 
 <variants name="TutorialID">
   <variant name="" summary="any tutorial"/>
+  <variant name="ContextualTasks"
+      summary="the tutorial for the contextual tasks feature"/>
   <variant name="CustomizeChromeSidePanel"
       summary="the tutorial for the customize chrome side panel"/>
   <variant name="LensOverlay" summary="the tutorial for the Lens Overlay"/>
@@ -306,7 +308,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.MessageNotShown.TimeInQueue" units="ms"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -423,8 +425,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.ActivePeriodDuration.Min.Under1Hour"
-    units="minutes" expires_after="2026-11-29">
+    units="minutes" expires_after="never">
   <owner>mickeyburks@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -435,8 +441,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.ActivePeriodDuration.Min.Under24Hours"
-    units="minutes" expires_after="2026-10-25">
+    units="minutes" expires_after="never">
   <owner>mickeyburks@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -447,8 +457,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.IdlePeriodDuration.Hr.Under28Days"
-    units="hours" expires_after="2026-07-26">
+    units="hours" expires_after="never">
   <owner>mickeyburks@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -459,8 +473,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.IdlePeriodDuration.Min.Under24Hours"
-    units="minutes" expires_after="2026-11-29">
+    units="minutes" expires_after="never">
   <owner>mickeyburks@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -471,8 +489,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.LongTermCount" units="count"
-    expires_after="2026-07-26">
+    expires_after="never">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -482,8 +504,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.MonthlyActiveDays" units="count"
-    expires_after="2026-09-27">
+    expires_after="never">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -494,8 +520,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.RecentActiveDays" units="count"
-    expires_after="2026-09-27">
+    expires_after="never">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -506,8 +536,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.RecentActiveWeeks" units="count"
-    expires_after="2026-09-27">
+    expires_after="never">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -518,8 +552,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.RecentSuperActiveWeeks" units="count"
-    expires_after="2026-07-26">
+    expires_after="never">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>
@@ -530,8 +568,12 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<!-- expires-never: this is a histogram that provides user activity metrics and
+     is useful when correlated with many other histograms, including non-user
+     education histograms. -->
+
 <histogram name="UserEducation.Session.ShortTermCount" units="count"
-    expires_after="2026-07-26">
+    expires_after="never">
   <owner>dfried@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
   <summary>

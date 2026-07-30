@@ -47,7 +47,7 @@ class SelectionControllerTest : public EditingTestBase {
     return hit_test_result.GetPosition();
   }
 
-  VisibleSelection VisibleSelectionInDOMTree() const {
+  VisibleSelection VisibleSelectionInDomTree() const {
     return Selection().ComputeVisibleSelectionInDomTree();
   }
 
@@ -106,12 +106,11 @@ TEST_F(SelectionControllerTest, setNonDirectionalSelectionIfNeeded) {
                                          .Extend(PositionInFlatTree(bottom, 3))
                                          .Build(),
                                      TextGranularity::kCharacter);
-  EXPECT_EQ(VisibleSelectionInDOMTree().Start(),
-            VisibleSelectionInDOMTree().Anchor());
-  EXPECT_EQ(VisibleSelectionInDOMTree().End(),
-            VisibleSelectionInDOMTree().Focus());
-  EXPECT_EQ(Position(top, 1), VisibleSelectionInDOMTree().Start());
-  EXPECT_EQ(Position(top, 3), VisibleSelectionInDOMTree().End());
+  auto selection = VisibleSelectionInDomTree();
+  EXPECT_EQ(selection.Start(), selection.Anchor());
+  EXPECT_EQ(selection.End(), selection.Focus());
+  EXPECT_EQ(Position(top, 1), selection.Start());
+  EXPECT_EQ(Position(top, 3), selection.End());
 
   EXPECT_EQ(PositionInFlatTree(top, 1),
             GetVisibleSelectionInFlatTree().Anchor());
@@ -129,12 +128,11 @@ TEST_F(SelectionControllerTest, setNonDirectionalSelectionIfNeeded) {
           .Extend(PositionInFlatTree(top, 1))
           .Build(),
       TextGranularity::kCharacter);
-  EXPECT_EQ(VisibleSelectionInDOMTree().End(),
-            VisibleSelectionInDOMTree().Anchor());
-  EXPECT_EQ(VisibleSelectionInDOMTree().Start(),
-            VisibleSelectionInDOMTree().Focus());
-  EXPECT_EQ(Position(bottom, 0), VisibleSelectionInDOMTree().Start());
-  EXPECT_EQ(Position(bottom, 3), VisibleSelectionInDOMTree().End());
+  selection = VisibleSelectionInDomTree();
+  EXPECT_EQ(selection.End(), selection.Anchor());
+  EXPECT_EQ(selection.Start(), selection.Focus());
+  EXPECT_EQ(Position(bottom, 0), selection.Start());
+  EXPECT_EQ(Position(bottom, 3), selection.End());
 
   EXPECT_EQ(PositionInFlatTree(bottom, 3),
             GetVisibleSelectionInFlatTree().Anchor());
@@ -177,7 +175,7 @@ TEST_F(SelectionControllerTest, setCaretAtHitTestResultWithNullPosition) {
   SetCaretAtHitTestResult(
       GetFrame().GetEventHandler().HitTestResultAtLocation(location));
 
-  EXPECT_TRUE(Selection().GetSelectionInDOMTree().IsNone());
+  EXPECT_TRUE(Selection().GetSelectionInDomTree().IsNone());
 }
 
 // For http://crbug.com/759971
@@ -220,7 +218,7 @@ TEST_F(SelectionControllerTest,
   // crashing.
 
   // Verify no selection was set.
-  EXPECT_TRUE(Selection().GetSelectionInDOMTree().IsNone());
+  EXPECT_TRUE(Selection().GetSelectionInDomTree().IsNone());
 }
 
 // For http://crbug.com/700368
@@ -256,7 +254,7 @@ TEST_F(SelectionControllerTest,
       GetFrame().GetEventHandler().HitTestResultAtLocation(location);
   ASSERT_EQ("<pre>(1)|\n(2)</pre>",
             GetSelectionTextFromBody(
-                SelectionInDOMTree::Builder()
+                SelectionInDomTree::Builder()
                     .Collapse(GetPositionFromHitTestResult(result))
                     .Build()));
 
@@ -285,7 +283,7 @@ TEST_F(SelectionControllerTest,
       GetFrame().GetEventHandler().HitTestResultAtLocation(location);
   ASSERT_EQ("<pre>ab:|\ncd</pre>",
             GetSelectionTextFromBody(
-                SelectionInDOMTree::Builder()
+                SelectionInDomTree::Builder()
                     .Collapse(GetPositionFromHitTestResult(result))
                     .Build()));
 
@@ -324,7 +322,7 @@ TEST_F(SelectionControllerTest, SelectWordToEndOfLine) {
       MouseEventWithHitTestResults(double_click, location, result));
   ASSERT_EQ("<div>ab|c def<br>ghi</div>",
             GetSelectionTextFromBody(
-                SelectionInDOMTree::Builder()
+                SelectionInDomTree::Builder()
                     .Collapse(GetPositionFromHitTestResult(result))
                     .Build()));
 
@@ -376,7 +374,7 @@ TEST_F(SelectionControllerTest, SelectWordToEndOfTableCell) {
       MouseEventWithHitTestResults(double_click, location, result));
   ASSERT_EQ("<table><tbody><tr><td>fo|o</td><td>bar</td></tr></tbody></table>",
             GetSelectionTextFromBody(
-                SelectionInDOMTree::Builder()
+                SelectionInDomTree::Builder()
                     .Collapse(GetPositionFromHitTestResult(result))
                     .Build()));
   // Select word by mouse

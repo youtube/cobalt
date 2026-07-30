@@ -597,7 +597,6 @@
 <translation id="1433478348197382180">閱讀模式</translation>
 <translation id="1433980411933182122">啟動</translation>
 <translation id="1434659328474177625"><ph name="ISSUER" /> 已驗證你的電郵地址</translation>
-<translation id="1434696352799406980">此功能會重設您的起始網頁、新分頁、搜尋引擎和固定標籤，同時停用所有擴充程式並清除 Cookie 等暫存資料，但不會清除您的書籤、記錄及已儲存的密碼。</translation>
 <translation id="1434886155212424586">首頁是新分頁</translation>
 <translation id="1435940442311036198">在其他裝置上使用密鑰</translation>
 <translation id="1436390408194692385">有效期限：<ph name="TICKET_TIME_LEFT" /></translation>
@@ -1458,6 +1457,7 @@
 <translation id="2039464276165755892">偵測到有人窺探螢幕時隱藏通知內容</translation>
 <translation id="2040460856718599782">糟糕！嘗試驗證您的身分時發生錯誤。請重新檢查您的登入憑證，然後再試一次。</translation>
 <translation id="2040822390690632244">更新、說明、開發人員選項</translation>
+<translation id="2040827008689966558">重新開啟已關閉的分割檢視模式</translation>
 <translation id="2040894699575719559">位置已封鎖</translation>
 <translation id="2042279886444479655">使用中的設定檔</translation>
 <translation id="2044014337866019681">請確保您驗證的是 <ph name="ACCOUNT" />，才能解鎖工作階段。</translation>
@@ -2573,6 +2573,7 @@
 <translation id="2822551631199737692">相機正在使用中</translation>
 <translation id="2822634587701817431">縮小/展開</translation>
 <translation id="2824942875887026017"><ph name="IDS_SHORT_PRODUCT_NAME" /> 正在使用管理員的 Proxy 設定</translation>
+<translation id="2825200993288778739">自行建立技能或從技能庫新增</translation>
 <translation id="282525059261716597">指令列：</translation>
 <translation id="2825758591930162672">主體的公開金鑰</translation>
 <translation id="2826576843404243001">如果網站不支援安全連線，系統會在瀏覽前發出警告。由於已啟用「進階保護」功能，因此你無法變更此設定。</translation>
@@ -3711,7 +3712,6 @@
 <translation id="366484203224589850"><ph name="TASK_TITLE" />：Gemini 處理此工作已有一段時間，即將停止處理以節省電量</translation>
 <translation id="3664911592976620204">{NUM_OTHER_MEMBERS,plural, =0{加入<ph name="OWNER_FIRST_NAME" />所在的分頁群組}=1{加入<ph name="OWNER_FIRST_NAME" />和另外 # 人所在的分頁群組}other{加入<ph name="OWNER_FIRST_NAME" />和另外 # 人所在的分頁群組}}</translation>
 <translation id="3665301845536101715">在側面板中開啟</translation>
-<translation id="3665589677786828986">Chrome 偵測到另一個程式破壞了部分設定，並且將這些設定重設為原始預設值。</translation>
 <translation id="3665918214153961651">正在上載檔案</translation>
 <translation id="3666196264870170605">Intel Wi-Fi NIC 偵錯傾印</translation>
 <translation id="3666971425390608309">暫停咗下載 <ph name="FILE_NAME" />。</translation>
@@ -4574,6 +4574,7 @@
 <translation id="4275397969489577657">啟用活動串流記錄</translation>
 <translation id="4275788652681621337">關閉側面板</translation>
 <translation id="4275830172053184480">重新啟動裝置</translation>
+<translation id="4276390967705106170">在新的瀏覽器分頁中開啟</translation>
 <translation id="4276598757692536305">打印機 PPD</translation>
 <translation id="4277434192562187284">XML 設定來源</translation>
 <translation id="4278390842282768270">已允許</translation>
@@ -4647,6 +4648,7 @@
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="432160826079505197">喺 Finder 入面顯示 <ph name="FILE_NAME" /></translation>
 <translation id="4322394346347055525">關閉其他分頁</translation>
+<translation id="4322400254469690320">在「<ph name="FEATURE_NAME" />」資料夾中找出 <ph name="FILENAME" /></translation>
 <translation id="4324577459193912240">檔案未完成下載</translation>
 <translation id="4325433082696797523">儲存空間和電源</translation>
 <translation id="4325515113816851466">你登出後，系統就不會套用家長的選擇</translation>
@@ -4997,7 +4999,6 @@
 <translation id="4580596421317071374">密碼會儲存至此裝置的「<ph name="GOOGLE_PASSWORD_MANAGER" />」中。</translation>
 <translation id="4580939929828762295">「Google 密碼管理工具」為你的安全護航</translation>
 <translation id="4582297591746054421">網站通常會讀取剪貼簿，以提供保留複製文字格式等功能</translation>
-<translation id="4582563038311694664">重設所有設定</translation>
 <translation id="4584094413232466841">要從 Chrome 自動填入功能中移除這項資料嗎？</translation>
 <translation id="4584770411839426377">視窗</translation>
 <translation id="4584836561445313300">你的機構將可以查看和管理任何現有瀏覽資料 (例如密碼)</translation>
@@ -5498,6 +5499,7 @@
 <translation id="4946998421534856407">啟動器鍵 + 向上箭咀鍵</translation>
 <translation id="4947376546135294974">來自你正在瀏覽網站的資料</translation>
 <translation id="4949898053053527676">似乎沒有任何符合搜尋條件的結果</translation>
+<translation id="4949954144207118092">在現有「<ph name="APP_NAME" />」分頁中開啟</translation>
 <translation id="4950100687509657457">建立設定檔</translation>
 <translation id="495164417696120157">{COUNT,plural, =1{1 個檔案}other{# 個檔案}}</translation>
 <translation id="495170559598752135">動作</translation>
@@ -6637,6 +6639,7 @@
 <translation id="5826993284769733527">半透明</translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5827591412833386477">顯示屬於同一群組的網站</translation>
+<translation id="5827835011646404677">技能會儲存至 Google 帳戶</translation>
 <translation id="5828181959764767444">日落</translation>
 <translation id="5828545842856466741">新增設定檔…</translation>
 <translation id="5828633471261496623">列印中…</translation>
@@ -7623,6 +7626,7 @@
 <translation id="6563055593659435495">無法與手機保持連線。請確認你的手機在附近並已解鎖，且已開啟藍牙和 Wi-Fi。</translation>
 <translation id="6564343790052433242">如要為 <ph name="APP_NAME" /> 建立密鑰，必須開啟「Google 密碼管理工具」</translation>
 <translation id="6565899972286925956">創作任何內容</translation>
+<translation id="6566648465417201421">重新開啟已關閉的分割檢視模式</translation>
 <translation id="656679903990115526">使用手機掃瞄即可儲存和自動填入密碼，輕鬆登入網站和應用程式</translation>
 <translation id="6568283005472142698">分頁搜尋</translation>
 <translation id="6569931898053264308">節省中量記憶體</translation>
@@ -7958,6 +7962,7 @@
 <translation id="6805478749741295868">這是實驗版 AI 功能，提供的建議不一定符合需求。</translation>
 <translation id="6805817411033102703">共用分頁群組意見反映</translation>
 <translation id="6806089545527108739">不允許但稍後再詢問</translation>
+<translation id="6806123901116522137">前往「AI 創新技術」</translation>
 <translation id="6806781719264274042">只限你的聯絡人 (必須擁有 Google 帳戶)。<ph name="LINK_BEGIN" />查看聯絡人<ph name="LINK_END" /></translation>
 <translation id="6808039367995747522">如要繼續，請插入並輕觸安全密鑰</translation>
 <translation id="6808166974213191158">ChromeOS Flex 系統映像寫入工具</translation>
@@ -8611,6 +8616,7 @@
 <translation id="7282992757463864530">資料列</translation>
 <translation id="7283555985781738399">訪客模式</translation>
 <translation id="7284307451964417957">{DAYS,plural, =1{系統會記住此裝置，在 1 天內無需輸入驗證碼即可再次連接。此設定由管理員設定。}other{系統會記住此裝置，在 {DAYS} 天內無需輸入驗證碼即可再次連接。此設定由管理員設定。}}</translation>
+<translation id="7284386549235597598">這會結束 Gemini 目前正在處理的工作。</translation>
 <translation id="7284411326658527427">每位使用者都可將帳戶個人化，以確保資料私隱。</translation>
 <translation id="7285008278689343502">大提頓國家公園</translation>
 <translation id="7286867818472074330">選取密鑰</translation>
@@ -8681,6 +8687,7 @@
 <translation id="7336799713063880535">已封鎖通知。</translation>
 <translation id="7337258336304389677">使用手機或平板電腦</translation>
 <translation id="7339052793671338107">側面板調整大小控點 (可拖曳)</translation>
+<translation id="733918220174231019">結束工作以繼續</translation>
 <translation id="7339763383339757376">PKCS #7，單一憑證</translation>
 <translation id="7339785458027436441">輸入時檢查拼字</translation>
 <translation id="7339898014177206373">新視窗</translation>
@@ -8830,6 +8837,7 @@
 <translation id="7432200167665670017">管理員已封鎖「<ph name="EXTENSION_NAME" />」(應用程式 ID：<ph name="EXTENSION_ID" />)</translation>
 <translation id="7433103263856598557">封存</translation>
 <translation id="7433333862363162673">清除選擇快速鍵</translation>
+<translation id="7433495118028038748">是，結束工作</translation>
 <translation id="7433957986129316853">保留</translation>
 <translation id="7434100547946193426">其他應用程式</translation>
 <translation id="7434509671034404296">開發人員</translation>
@@ -10070,7 +10078,6 @@
 <translation id="8327386430364625757">數學字型</translation>
 <translation id="8327490658947427005">所選內容不是<ph name="LANGUAGE" /></translation>
 <translation id="8327544198829180337">關閉此檢視畫面</translation>
-<translation id="8327676037044516220">權限和內容設定</translation>
 <translation id="8328228852664998535">如果繼續操作，你的密碼、密鑰和其他資料會從「<ph name="BRAND" />」中永久刪除。你為網站或應用程式建立的帳戶不會被刪除。</translation>
 <translation id="8328777765163860529">全部關閉</translation>
 <translation id="8330617762701840933">重新導向至替代瀏覽器的網站清單。</translation>
@@ -10887,7 +10894,6 @@
 <translation id="8925458182817574960">設定(&amp;S)</translation>
 <translation id="8926389886865778422">不要再問我</translation>
 <translation id="8926555406617248399">已隱藏分頁</translation>
-<translation id="892706138619340876">已重設部分設定</translation>
 <translation id="8927438609932588163">允許網站在裝置上儲存資料</translation>
 <translation id="8929696694736010839">只套用至目前的無痕工作階段</translation>
 <translation id="8929738682246584251">開啟/關閉放大鏡</translation>
@@ -11196,6 +11202,7 @@
 <translation id="9130015405878219958">輸入的模式無效。</translation>
 <translation id="9130135798965366513">如要繼續，<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> 將會與此網站分享你的<ph name="FIELDS_STRING" />，詳情請參閱此網站的《<ph name="BEGIN_LINK1" />私隱權政策<ph name="END_LINK1" />》和《<ph name="BEGIN_LINK2" />服務條款<ph name="END_LINK2" />》。</translation>
 <translation id="9130364135697530260">此網站上的已嵌入內容可使用與你相關的既有資料</translation>
+<translation id="9130857050314385402">使用技能時，分頁標題和網址會傳送至 Google</translation>
 <translation id="9131209053278896908">已封鎖的網站會在此顯示</translation>
 <translation id="9131487537093447019">透過藍牙裝置傳送及接收訊息。</translation>
 <translation id="9133568201369135151">診斷資料收集完成。這些資料包含你部分的個人資料。</translation>

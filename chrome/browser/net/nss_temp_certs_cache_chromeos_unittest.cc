@@ -39,7 +39,7 @@ class NSSTempCertsCacheChromeOSTest : public testing::Test {
   // Checks if the certificate stored in |pem_cert_file| can be found in the
   // default NSS certificate database using CERT_FindCertByName.
   // Stores the result in *|out_available|.
-  // Note: This funcion uses ASSERT_ macros, so the caller must verify for
+  // Note: This function uses ASSERT_ macros, so the caller must verify for
   // failures after it returns.
   void CheckIsCertificateAvailable(const base::FilePath& pem_cert_file,
                                    bool* out_available) {

@@ -491,6 +491,36 @@ base::Value* PrefService::GetMutableUserPref(std::string_view path,
   user_pref_store_->SetValueSilently(path, default_value->Clone(),
                                      GetWriteFlags(pref));
   user_pref_store_->GetMutableValue(path, &value);
+
+  if (!value) {
+    // TODO(crbug.com/40895218): This DumpWithoutCrashing is introduced to
+    // track occurrences of these cases where value is not found.
+    base::debug::DumpWithoutCrashing();
+
+    // Recovery: Check if any intermediate node is not a dict. If so, it's a
+    // type conflict. Clear the conflicting node and retry.
+    // For a path like "a.b.c", we check "a", then "a.b".
+    size_t prefix_length = path.find('.');
+    while (prefix_length != std::string_view::npos) {
+      std::string_view prefix = path.substr(0, prefix_length);
+      base::Value* prefix_value = nullptr;
+
+      // If the prefix exists but is not a dictionary, we have found the
+      // structural type conflict.
+      if (user_pref_store_->GetMutableValue(prefix, &prefix_value) &&
+          prefix_value && !prefix_value->is_dict()) {
+        user_pref_store_->RemoveValue(
+            prefix, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+        user_pref_store_->SetValueSilently(path, default_value->Clone(),
+                                           GetWriteFlags(pref));
+        user_pref_store_->GetMutableValue(path, &value);
+        break;
+      }
+
+      prefix_length = path.find('.', prefix_length + 1);
+    }
+  }
+
   return value;
 }
 

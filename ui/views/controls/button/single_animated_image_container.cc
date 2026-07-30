@@ -58,16 +58,11 @@ class LottieIconSource : public gfx::CanvasImageSource {
 
 namespace views {
 
-SingleAnimatedImageContainer::SingleAnimatedImageContainer(
-    LabelButton* button,
-    base::TimeDelta animation_duration)
+SingleAnimatedImageContainer::SingleAnimatedImageContainer(LabelButton* button)
     : button_(button), slide_animation_(this) {
   // Lottie animations have easing function embedded into them,
   // so we use a linear tween for the slide animation.
   slide_animation_.SetTweenType(gfx::Tween::LINEAR);
-  if (animation_duration.is_positive()) {
-    slide_animation_.SetSlideDuration(animation_duration);
-  }
 }
 
 SingleAnimatedImageContainer::~SingleAnimatedImageContainer() {
@@ -122,9 +117,15 @@ bool SingleAnimatedImageContainer::IsShowingAnimation() const {
 
 void SingleAnimatedImageContainer::PlayAnimation(AnimationDefinition definition,
                                                  AnimationConfig config) {
+  if (!gfx::Animation::ShouldRenderRichAnimation()) {
+    return;
+  }
+
   if (config.direction == AnimationDirection::kForward) {
     slide_animation_.Reset(0.0f);
     AddAnimatedImage(definition.resource_id);
+    slide_animation_.SetSlideDuration(
+        animated_images_[definition.resource_id]->GetAnimationDuration());
     playing_animation_ =
         std::make_optional<AnimationState>({definition, config.end_behavior});
     slide_animation_.Show();
@@ -133,6 +134,8 @@ void SingleAnimatedImageContainer::PlayAnimation(AnimationDefinition definition,
     CHECK(config.end_behavior == AnimationEndBehavior::kReset);
     slide_animation_.Reset(1.0f);
     AddAnimatedImage(definition.resource_id);
+    slide_animation_.SetSlideDuration(
+        animated_images_[definition.resource_id]->GetAnimationDuration());
     playing_animation_ =
         std::make_optional<AnimationState>({definition, config.end_behavior});
     slide_animation_.Hide();

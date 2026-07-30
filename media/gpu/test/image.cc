@@ -232,14 +232,6 @@ base::span<const uint8_t> Image::DataSpan() const {
   return mapped_file_.bytes();
 }
 
-uint8_t* Image::Data() const {
-  return mapped_file_.data();
-}
-
-size_t Image::DataSize() const {
-  return mapped_file_.length();
-}
-
 VideoPixelFormat Image::PixelFormat() const {
   return pixel_format_;
 }

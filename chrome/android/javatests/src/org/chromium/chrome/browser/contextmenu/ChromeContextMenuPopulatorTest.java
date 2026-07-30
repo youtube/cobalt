@@ -81,12 +81,14 @@ import org.chromium.chrome.browser.enterprise.util.DataProtectionBridge;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.gsa.GSAUtils;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileJni;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.link_to_text.LinkToTextHelper;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
@@ -199,6 +201,7 @@ public class ChromeContextMenuPopulatorTest {
         when(mItemDelegate.getTab()).thenReturn(mTab);
         when(mTab.getUrl()).thenReturn(pageUrl);
         when(mTab.getWebContents()).thenReturn(mWebContents);
+        when(mTab.getProfile()).thenReturn(mProfile);
         when(mTab.isIncognito()).thenReturn(false);
         when(mTab.getUserDataHost())
                 .thenAnswer(
@@ -212,6 +215,8 @@ public class ChromeContextMenuPopulatorTest {
         when(mItemDelegate.canCurrentTabGoBack()).thenReturn(true);
         when(mItemDelegate.canCurrentTabGoForward()).thenReturn(true);
 
+        TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
+        when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
         ProfileJni.setInstanceForTesting(mProfileNatives);
         when(mProfileNatives.fromWebContents(eq(mWebContents))).thenReturn(mProfile);
 
@@ -309,6 +314,7 @@ public class ChromeContextMenuPopulatorTest {
                                 ContextUtils.getApplicationContext(),
                                 params,
                                 mNativeDelegate));
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
         doReturn(mTemplateUrlService).when(mPopulator).getTemplateUrlService();
         doReturn(false).when(mPopulator).shouldTriggerEphemeralTabHelpUi();
         doReturn(false).when(mPopulator).shouldTriggerReadLaterHelpUi();
@@ -2537,6 +2543,26 @@ public class ChromeContextMenuPopulatorTest {
         };
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        checkMenuOptions(expected);
+    }
+
+    @Test
+    @SmallTest
+    @UiThreadTest
+    @EnableFeatures(ChromeFeatureList.LENS_OVERLAY_ANDROID)
+    public void testPage_LensOverlay_GsaNotSupported() {
+        setAllMandatoryFlowsComplete();
+        ContextMenuParams params = getPageParams();
+
+        int[][] expected = {
+            {R.id.contextmenu_save_page, R.id.contextmenu_share_page, R.id.contextmenu_print_page},
+        };
+
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        // Override the default test environment to simulate AGSA not being installed/supported.
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(false);
+        GSAUtils.setAgsaPackageInfoForTesting(null);
+        when(mExternalAuthUtils.isGoogleSigned(anyString())).thenReturn(false);
         checkMenuOptions(expected);
     }
 

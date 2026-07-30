@@ -778,7 +778,7 @@ TEST_F(TetherServiceTest, TestRegression_TetherDisabledWhileBluetoothDisabled) {
 
   CreateTetherService();
 
-  // Even though Bluetooth can be initalized, Tether should be UNAVAILABLE as
+  // Even though Bluetooth can be initialized, Tether should be UNAVAILABLE as
   // it is disabled by user preference.
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_UNAVAILABLE,
             network_state_handler()->GetTechnologyState(
@@ -803,7 +803,7 @@ TEST_F(TetherServiceTest,
 
   CreateTetherService();
 
-  // Even though Bluetooth can be initalized, Better Together being disabled
+  // Even though Bluetooth can be initialized, Better Together being disabled
   // should make the Tether state UNAVAILABLE, rather than UNINITIALIZED.
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_UNAVAILABLE,
             network_state_handler()->GetTechnologyState(

@@ -622,6 +622,16 @@ void AwSettings::PopulateWebPreferencesLocked(JNIEnv* env,
   WebPreferences* web_prefs = reinterpret_cast<WebPreferences*>(web_prefs_ptr);
   PopulateFixedWebPreferences(web_prefs);
 
+  if (base::FeatureList::IsEnabled(
+          android_webview::features::
+              kWebViewGateTextSizeAdjustOnTextAutosizing)) {
+    web_prefs->text_size_adjust_enabled =
+        Java_AwSettings_getTextAutosizingEnabledLocked(env, obj);
+  } else {
+    // Keep the regressed behavior (always enabled) if flag is disabled.
+    web_prefs->text_size_adjust_enabled = true;
+  }
+
   const float font_scale_factor =
       Java_AwSettings_getTextSizePercentLocked(env, obj) / 100.0f;
   web_prefs->font_scale_factor = font_scale_factor;

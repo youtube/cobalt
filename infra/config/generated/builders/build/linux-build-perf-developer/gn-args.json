@@ -2,7 +2,6 @@
   "phases": {
     "ninja": {
       "gn_args": {
-        "is_component_build": true,
         "is_debug": true,
         "symbol_level": 2,
         "target_cpu": "x64",
@@ -14,7 +13,6 @@
     },
     "siso_native": {
       "gn_args": {
-        "is_component_build": true,
         "is_debug": true,
         "symbol_level": 2,
         "target_cpu": "x64",
@@ -26,7 +24,6 @@
     },
     "siso_no_clang_modules": {
       "gn_args": {
-        "is_component_build": true,
         "is_debug": true,
         "symbol_level": 2,
         "target_cpu": "x64",

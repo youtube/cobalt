@@ -201,8 +201,7 @@ base::span<CSSSelector> CSSSelectorParser::ParseScopeBoundary(
 
 // static
 ActiveNavigationCondition* CSSSelectorParser::ParseActiveNavigationCondition(
-    CSSParserTokenStream& stream,
-    const Document& document) {
+    CSSParserTokenStream& stream) {
   // https://drafts.csswg.org/css-navigation-1/#typedef-active-navigation-condition
   //
   // <active-navigation-condition> =
@@ -221,9 +220,11 @@ ActiveNavigationCondition* CSSSelectorParser::ParseActiveNavigationCondition(
   // [ <route-location> | link-href ]?
   if (!stream.AtEnd()) {
     // Leave route_location as nullptr if "link-href".
-    if (stream.Peek().GetType() != kIdentToken ||
-        stream.Peek().Value().ToString() != "link-href") {
-      route_location = NavigationParser::ParseLocation(stream, document);
+    if (stream.Peek().GetType() == kIdentToken &&
+        EqualIgnoringAsciiCase(stream.Peek().Value(), "link-href")) {
+      stream.ConsumeIncludingWhitespace();
+    } else {
+      route_location = NavigationParser::ParseLocation(stream);
       if (!route_location) {
         return nullptr;
       }
@@ -2046,8 +2047,7 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
       if (!RuntimeEnabledFeatures::RouteMatchingEnabled()) {
         return false;
       }
-      if (RouteLocation* location = NavigationParser::ParseLocation(
-              stream, *context_->GetDocument())) {
+      if (RouteLocation* location = NavigationParser::ParseLocation(stream)) {
         selector.SetRouteLocation(location);
         output_.push_back(std::move(selector));
         return true;
@@ -2058,8 +2058,7 @@ bool CSSSelectorParser::ConsumePseudo(CSSParserTokenStream& stream,
         return false;
       }
       if (ActiveNavigationCondition* active_navigation_condition =
-              ParseActiveNavigationCondition(stream,
-                                             *context_->GetDocument())) {
+              ParseActiveNavigationCondition(stream)) {
         selector.SetActiveNavigationCondition(active_navigation_condition);
         output_.push_back(std::move(selector));
         return true;

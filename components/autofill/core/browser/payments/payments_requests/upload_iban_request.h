@@ -20,8 +20,8 @@ class UploadIbanRequest : public PaymentsRequest {
   UploadIbanRequest(
       const UploadIbanRequestDetails& details,
       bool full_sync_enabled,
-      base::OnceCallback<
-          void(payments::PaymentsAutofillClient::PaymentsRpcResult)> callback);
+      base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult)>
+          callback);
   UploadIbanRequest(const UploadIbanRequest&) = delete;
   UploadIbanRequest& operator=(const UploadIbanRequest&) = delete;
   ~UploadIbanRequest() override;
@@ -33,14 +33,13 @@ class UploadIbanRequest : public PaymentsRequest {
   void ParseResponse(const base::DictValue& response) override;
   bool IsResponseComplete() override;
   void RespondToDelegate(
-      payments::PaymentsAutofillClient::PaymentsRpcResult result) override;
+      PaymentsAutofillClient::PaymentsRpcResult result) override;
 
  private:
   const UploadIbanRequestDetails request_details_;
   // True when the user is both signed-in and has enabled sync.
   const bool full_sync_enabled_;
-  base::OnceCallback<void(payments::PaymentsAutofillClient::PaymentsRpcResult)>
-      callback_;
+  base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult)> callback_;
 };
 
 }  // namespace autofill::payments

@@ -19,6 +19,7 @@
 #include "net/base/schemeful_site.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request_job.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/content_security_policy/csp_source_list.h"
 #include "services/network/public/cpp/record_ontransfersizeupdate_utils.h"
@@ -494,7 +495,7 @@ void NavigationEarlyHintsManager::MaybePreconnect(
       allow_credentials ? network::mojom::CredentialsMode::kInclude
                         : network::mojom::CredentialsMode::kOmit,
       isolation_info_.network_anonymization_key(),
-      /*network_restrictions_id=*/std::nullopt,
+      /*network_restrictions_id=*/network::GetTODONetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(
           kEarlyHintsPreloadTrafficAnnotation),
       /*keepalive_config=*/std::nullopt, mojo::NullRemote());

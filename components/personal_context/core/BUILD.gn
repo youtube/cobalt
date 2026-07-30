@@ -6,6 +6,8 @@ source_set("core") {
   sources = [
     "context_memory_error.cc",
     "context_memory_error.h",
+    "context_memory_features.cc",
+    "context_memory_features.h",
     "country_type.h",
     "network/personal_context_fetcher.cc",
     "network/personal_context_fetcher.h",
@@ -59,10 +61,17 @@ source_set("prefs") {
 
 source_set("test_support") {
   testonly = true
-  sources = [ "personal_context_enablement_service_impl_test_api.h" ]
+  sources = [
+    "mock_personal_context_enablement_service.cc",
+    "mock_personal_context_enablement_service.h",
+    "mock_personal_context_service.cc",
+    "mock_personal_context_service.h",
+    "personal_context_enablement_service_impl_test_api.h",
+  ]
   deps = [
     ":core",
     "//base",
+    "//testing/gmock",
   ]
 }
 

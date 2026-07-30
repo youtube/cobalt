@@ -202,7 +202,7 @@ bool CheckPrivateAggregationConfig(
       base::UmaHistogramCounts10000(
           "Storage.SharedStorage.PrivateAggregationConfig."
           "RequestedMaxContributions",
-          requested_max_contributions);
+          base::saturated_cast<int>(requested_max_contributions));
       if (requested_max_contributions == 0) {
         resolver.Reject(V8ThrowDOMException::CreateOrEmpty(
             script_state.GetIsolate(), DOMExceptionCode::kDataError,

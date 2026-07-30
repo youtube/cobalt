@@ -7,5 +7,11 @@
 NSString* const kFormSuggestionLabelAccessibilityIdentifier =
     @"formSuggestionLabelAXID";
 
+NSString* const kFormSuggestionLabelOpenSettingsAccessibilityIdentifier =
+    @"formSuggestionLabelOpenSettingsAXID";
+
+NSString* const kFormSuggestionLabelEditAccessibilityIdentifier =
+    @"formSuggestionLabelEditAXID";
+
 NSString* const kFormSuggestionsViewAccessibilityIdentifier =
     @"kFormSuggestionsViewAccessibilityIdentifier";

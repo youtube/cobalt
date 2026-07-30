@@ -14,6 +14,7 @@
 #include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/strings/utf_string_conversions.h"
+#include "pdf/page_orientation.h"
 #include "pdf/pdf_ink_constants.h"
 #include "pdf/pdf_ink_conversions.h"
 #include "pdf/pdf_ink_transform.h"
@@ -265,7 +266,8 @@ std::optional<InkTextBoxAttributes> ExtractAttributesFromMark(
   return InkTextBoxAttributes(bounds, SkColorSetRGB(r, g, b), css_font_size,
                               static_cast<TextTypeface>(typeface.value()),
                               static_cast<TextAlignment>(alignment.value()),
-                              orientation.value(), is_bold, is_italic,
+                              orientation.value(), PageOrientation::kOriginal,
+                              is_bold, is_italic,
                               base::UTF16ToUTF8(text.value()));
 }
 

@@ -37,6 +37,9 @@
 /// Sets the omnibox edit view.
 - (void)setEditView:(UIView<TextFieldViewContaining>*)editView;
 
+/// Sets the search bar hidden status.
+- (void)setSearchBarHidden:(BOOL)hidden animated:(BOOL)animated;
+
 @end
 
 // Delegate for lens result page.

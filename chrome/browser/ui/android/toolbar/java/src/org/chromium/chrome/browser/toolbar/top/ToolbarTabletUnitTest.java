@@ -52,7 +52,9 @@ import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewGroup.MarginLayoutParams;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import androidx.appcompat.content.res.AppCompatResources;
@@ -184,6 +186,7 @@ public final class ToolbarTabletUnitTest {
                 observer.onIncognitoStateChanged(/* isIncognito= */ true);
                 return null;
             };
+    private ImageView mToolbarHairline;
 
     @Before
     public void setUp() {
@@ -209,10 +212,19 @@ public final class ToolbarTabletUnitTest {
                 .when(mIncognitoStateProvider)
                 .addIncognitoStateObserverAndTrigger(any());
 
+        FrameLayout rootView = new FrameLayout(mActivity);
+        mToolbarHairline = new ImageView(mActivity);
+        mToolbarHairline.setId(R.id.toolbar_hairline);
+        mToolbarHairline.setVisibility(View.VISIBLE);
+        rootView.addView(mToolbarHairline);
+
         ToolbarTablet realView =
                 (ToolbarTablet)
                         mActivity.getLayoutInflater().inflate(R.layout.toolbar_tablet, null);
         realView.setLayoutParams(mLayoutParams);
+        rootView.addView(realView);
+        realView.onAttachedToWindow();
+        realView.setIsBottomMostTopControlsLayer(false);
         mToolbarTablet = spy(realView);
         when(mLocationBar.getTabletCoordinator()).thenReturn(mLocationBarTablet);
         when(mLocationBar.getBookmarkButtonToolbarWidthConsumer())
@@ -1291,6 +1303,8 @@ public final class ToolbarTabletUnitTest {
     @Test
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testFuseboxState() {
+        mToolbarTablet.onAttachedToWindow();
+        mToolbarTablet.setIsBottomMostTopControlsLayer(true);
         View fixedHeightBg = mToolbarTablet.findViewById(R.id.toolbar_tablet_fixed_height_bg);
         ColorDrawable backgroundDrawable = (ColorDrawable) mToolbarTablet.getBackground();
         assertEquals(100, mToolbarTablet.getLayoutParams().height);
@@ -1298,12 +1312,24 @@ public final class ToolbarTabletUnitTest {
         assertEquals(
                 SemanticColorUtils.getDefaultBgColor(mToolbarTablet.getContext()),
                 backgroundDrawable.getColor());
+        assertEquals(View.VISIBLE, mToolbarHairline.getVisibility());
 
         mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         assertEquals(LayoutParams.WRAP_CONTENT, mToolbarTablet.getLayoutParams().height);
         assertEquals(View.VISIBLE, fixedHeightBg.getVisibility());
         assertEquals(Color.TRANSPARENT, backgroundDrawable.getColor());
+        assertEquals(View.INVISIBLE, mToolbarHairline.getVisibility());
+
+        mToolbarTablet.setIsBottomMostTopControlsLayer(false);
+        assertEquals(View.INVISIBLE, mToolbarHairline.getVisibility());
+
+        mFuseboxStateSupplier.set(FuseboxState.DISABLED);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        assertEquals(View.INVISIBLE, mToolbarHairline.getVisibility());
+
+        mToolbarTablet.setIsBottomMostTopControlsLayer(true);
+        assertEquals(View.VISIBLE, mToolbarHairline.getVisibility());
     }
 
     @SuppressWarnings("DirectInvocationOnMock")

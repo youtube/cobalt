@@ -12,8 +12,12 @@ import androidx.annotation.Px;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Coordinator for "side UI," with "side UI" referring to views that will anchor to either the left
@@ -33,12 +37,19 @@ public interface SideUiCoordinator extends SideUiStateProvider {
      * priorities by which they consume available space. The smaller number indicates higher
      * priority.
      */
-    @IntDef({SideUiId.SIDE_PANEL, SideUiId.VERTICAL_TABS, SideUiId.SIDE_UI_FOR_TESTING})
+    @IntDef({
+        SideUiId.VERTICAL_TABS,
+        SideUiId.SIDE_PANEL,
+        SideUiId.SIDE_UI_FOR_TESTING_HIGH_PRIORITY,
+        SideUiId.SIDE_UI_FOR_TESTING_LOW_PRIORITY
+    })
+    @Target(ElementType.TYPE_USE)
     @interface SideUiId {
         int VERTICAL_TABS = 0;
         int SIDE_PANEL = 1;
-        int SIDE_UI_FOR_TESTING = 2;
-        int NUM_ENTRIES = 3;
+        int SIDE_UI_FOR_TESTING_HIGH_PRIORITY = 2;
+        int SIDE_UI_FOR_TESTING_LOW_PRIORITY = 3;
+        int NUM_ENTRIES = 4;
     }
 
     /**
@@ -46,10 +57,41 @@ public interface SideUiCoordinator extends SideUiStateProvider {
      * a corresponding container view in main_forked_with_secondary_ui_container.xml.
      */
     @IntDef({AnchorSide.LEFT, AnchorSide.RIGHT})
+    @Target(ElementType.TYPE_USE)
     @interface AnchorSide {
         int LEFT = 0;
         int RIGHT = 1;
         int NUM_ENTRIES = 2;
+    }
+
+    /**
+     * POD-type that holds the showability for {@link SideUiContainer}s.
+     *
+     * <p>What "showability" means:
+     *
+     * <ul>
+     *   <li>Showable: There is enough space to show a {@link SideUiContainer}, but it may not be
+     *       actually shown.
+     *   <li>Unshowable: There is not enough space to show a {@link SideUiContainer}, and that
+     *       container is guaranteed to be hidden.
+     * </ul>
+     *
+     * <p>One use case of showability is using it to control the entry point visibility of a feature
+     * that needs a {@link SideUiContainer}.
+     */
+    final class SideUiShowability {
+        /** IDs of showable {@link SideUiContainer}s. */
+        public final List<@SideUiId Integer> mShowableSideUiIds;
+
+        /** IDs of unshowable {@link SideUiContainer}s. */
+        public final List<@SideUiId Integer> mUnshowableSideUiIds;
+
+        public SideUiShowability(
+                List<@SideUiId Integer> showableSideUiIds,
+                List<@SideUiId Integer> unshowableSideUiIds) {
+            mShowableSideUiIds = List.copyOf(showableSideUiIds);
+            mUnshowableSideUiIds = List.copyOf(unshowableSideUiIds);
+        }
     }
 
     /**
@@ -69,23 +111,19 @@ public interface SideUiCoordinator extends SideUiStateProvider {
 
     /**
      * POD-type that holds the info about the Side UI specs to be used by a {@link SideUiObserver}.
-     * Specifically, this holds the widths (in px) for the two parent ViewGroups (one for
-     * start-anchored UI and one for end-anchored UI) that hold a {@link SideUiContainer}'s View,
-     * based on the SideUiContainer's specified {@link AnchorSide}.
+     * Specifically, this holds the widths (in px) for the parent ViewGroups (one for left-anchored
+     * UI and one for right-anchored UI for now ) that hold a {@link SideUiContainer}'s View, based
+     * on the SideUiContainer's specified {@link AnchorSide}.
      *
      * <p><strong>Note:</strong> This is a passive data spec and does not guarantee that these specs
      * are currently applied to the active UI. To query the actual active UI state, use {@link
      * SideUiStateProvider} instead.
      */
     final class SideUiSpecs {
-        /** A {@link SideUiSpecs} with a leftContainerWidth and rightContainerWidth of 0. */
-        public static final SideUiSpecs EMPTY_SIDE_UI_SPECS =
-                new SideUiSpecs(/* leftContainerWidth= */ 0, /* rightContainerWidth= */ 0);
-
         /** Maps @AnchorSide to ContainerWidth. */
-        private final Map<Integer, Integer> mSideUiWidths = new ArrayMap<>();
+        private final Map<@AnchorSide Integer, Integer> mSideUiWidths = new ArrayMap<>();
 
-        public SideUiSpecs(Map<Integer, Integer> sideUiWidths) {
+        public SideUiSpecs(Map<@AnchorSide Integer, Integer> sideUiWidths) {
             mSideUiWidths.putAll(sideUiWidths);
         }
 
@@ -98,6 +136,14 @@ public interface SideUiCoordinator extends SideUiStateProvider {
 
         public int getWidth(@AnchorSide int side) {
             return mSideUiWidths.getOrDefault(side, 0);
+        }
+
+        /**
+         * Returns all the entries in the SideUiSpecs. Each entry has a mapping from
+         * {@link @AnchorSide} to width.
+         */
+        public Set<Map.Entry<@AnchorSide Integer, Integer>> entrySet() {
+            return mSideUiWidths.entrySet();
         }
 
         @Override

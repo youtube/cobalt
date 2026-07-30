@@ -254,7 +254,7 @@ GpuServiceImpl::GpuServiceImpl(
     if (dawn_context_provider_) {
       // GpuServiceImpl holds the instance of DawnContextProvider, so it
       // outlives the DawnContextProvider.
-      if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+      if (features::SkiaGraphiteUsesPersistentCache()) {
         auto persistent_cache =
             persistent_caches_.GetCache(gpu::kGraphiteDawnGpuDiskCacheHandle);
         dawn_context_provider_->SetCachingInterface(

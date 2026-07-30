@@ -119,13 +119,11 @@ source_set("common_headers") {
     "basic_desktop_environment.h",
     "config_watcher.h",
     "create_desktop_interaction_strategy_factory.h",
-    "daemon_process.h",
     "delegating_desktop_display_info_monitor.h",
     "desktop_and_cursor_conditional_composer.h",
     "desktop_display_info_monitor.h",
     "desktop_environment.h",
     "desktop_resizer_proxy.h",
-    "desktop_session.h",
     "evaluate_capability.h",
     "host_status_monitor.h",
     "host_status_observer.h",
@@ -135,9 +133,17 @@ source_set("common_headers") {
     "polling_desktop_display_info_monitor.h",
     "sas_injector.h",
     "usage_stats_consent.h",
-    "worker_process_ipc_delegate.h",
-    "worker_process_launcher.h",
   ]
+
+  if (remoting_multi_process) {
+    sources += [
+      "daemon_process.h",
+      "desktop_session.h",
+      "worker_process_ipc_delegate.h",
+      "worker_process_launcher.h",
+    ]
+  }
+
   if (!is_chromeos) {
     sources += [ "me2me_desktop_environment.h" ]
   }
@@ -205,6 +211,7 @@ source_set("chromoting_host_services_client") {
     "//base",
     "//components/named_mojo_ipc_server",
     "//mojo/public/cpp/platform",
+    "//remoting/base",
     "//remoting/host/mojom",
   ]
   if (is_win) {
@@ -434,18 +441,9 @@ static_library("common") {
     "create_desktop_interaction_strategy_factory.cc",
     "cursor_visibility_notifier.cc",
     "cursor_visibility_notifier.h",
-    "daemon_process.cc",
     "delegating_desktop_display_info_monitor.cc",
     "desktop_and_cursor_conditional_composer.cc",
-    "desktop_process.cc",
-    "desktop_process.h",
     "desktop_resizer_proxy.cc",
-    "desktop_session.cc",
-    "desktop_session_agent.cc",
-    "desktop_session_agent.h",
-    "desktop_session_connector.h",
-    "desktop_session_proxy.cc",
-    "desktop_session_proxy.h",
     "evaluate_capability.cc",
     "ftl_echo_message_listener.cc",
     "ftl_echo_message_listener.h",
@@ -476,37 +474,11 @@ static_library("common") {
     "host_window.h",
     "host_window_proxy.cc",
     "host_window_proxy.h",
-    "ipc_action_executor.cc",
-    "ipc_action_executor.h",
-    "ipc_audio_capturer.cc",
-    "ipc_audio_capturer.h",
-    "ipc_audio_injector.cc",
-    "ipc_audio_injector.h",
-    "ipc_desktop_environment.cc",
-    "ipc_desktop_environment.h",
-    "ipc_host_event_logger.cc",
-    "ipc_host_event_logger.h",
-    "ipc_input_injector.cc",
-    "ipc_input_injector.h",
-    "ipc_keyboard_layout_monitor.cc",
-    "ipc_keyboard_layout_monitor.h",
-    "ipc_mouse_cursor_monitor.cc",
-    "ipc_mouse_cursor_monitor.h",
-    "ipc_screen_controls.cc",
-    "ipc_screen_controls.h",
-    "ipc_url_forwarder_configurator.cc",
-    "ipc_url_forwarder_configurator.h",
-    "ipc_video_frame_capturer.cc",
-    "ipc_video_frame_capturer.h",
     "it2me_desktop_environment.cc",
     "it2me_desktop_environment.h",
     "legacy_interaction_strategy.cc",
     "me2me_heartbeat_service_client.cc",
     "me2me_heartbeat_service_client.h",
-    "mojo_video_capturer.cc",
-    "mojo_video_capturer.h",
-    "mojo_video_capturer_list.cc",
-    "mojo_video_capturer_list.h",
     "mouse_cursor_monitor_proxy.cc",
     "mouse_cursor_monitor_proxy.h",
     "mouse_shape_pump.cc",
@@ -542,11 +514,51 @@ static_library("common") {
     "video_memory_utils.h",
     "webrtc_mouse_cursor_monitor_adaptor.cc",
     "webrtc_mouse_cursor_monitor_adaptor.h",
-    "worker_process_launcher.cc",
     "xsession_chooser_ui.inc",
     "zombie_host_detector.cc",
     "zombie_host_detector.h",
   ]
+
+  if (remoting_multi_process) {
+    sources += [
+      "daemon_process.cc",
+      "desktop_process.cc",
+      "desktop_process.h",
+      "desktop_session.cc",
+      "desktop_session_agent.cc",
+      "desktop_session_agent.h",
+      "desktop_session_connector.h",
+      "desktop_session_proxy.cc",
+      "desktop_session_proxy.h",
+      "ipc_action_executor.cc",
+      "ipc_action_executor.h",
+      "ipc_audio_capturer.cc",
+      "ipc_audio_capturer.h",
+      "ipc_audio_injector.cc",
+      "ipc_audio_injector.h",
+      "ipc_desktop_environment.cc",
+      "ipc_desktop_environment.h",
+      "ipc_host_event_logger.cc",
+      "ipc_host_event_logger.h",
+      "ipc_input_injector.cc",
+      "ipc_input_injector.h",
+      "ipc_keyboard_layout_monitor.cc",
+      "ipc_keyboard_layout_monitor.h",
+      "ipc_mouse_cursor_monitor.cc",
+      "ipc_mouse_cursor_monitor.h",
+      "ipc_screen_controls.cc",
+      "ipc_screen_controls.h",
+      "ipc_url_forwarder_configurator.cc",
+      "ipc_url_forwarder_configurator.h",
+      "ipc_video_frame_capturer.cc",
+      "ipc_video_frame_capturer.h",
+      "mojo_video_capturer.cc",
+      "mojo_video_capturer.h",
+      "mojo_video_capturer_list.cc",
+      "mojo_video_capturer_list.h",
+      "worker_process_launcher.cc",
+    ]
+  }
 
   libs = []
 
@@ -618,7 +630,7 @@ static_library("common") {
     "//remoting/proto/remoting/v1:directory_proto",
   ]
 
-  if (enable_me2me_host) {
+  if (remoting_multi_process) {
     sources += [ "desktop_process_main.cc" ]
   }
 
@@ -867,11 +879,8 @@ source_set("unit_tests") {
     "config_file_watcher_unittest.cc",
     "corp_host_status_logger_unittest.cc",
     "corp_signaling_connector_unittest.cc",
-    "daemon_process_unittest.cc",
     "delegating_desktop_display_info_monitor_unittest.cc",
     "desktop_display_info_unittest.cc",
-    "desktop_process_unittest.cc",
-    "desktop_session_agent_unittest.cc",
     "ftl_echo_message_listener_unittest.cc",
     "ftl_host_change_notification_listener_unittest.cc",
     "ftl_signaling_connector_unittest.cc",
@@ -882,12 +891,9 @@ source_set("unit_tests") {
     "host_extension_session_manager_unittest.cc",
     "host_power_save_blocker_unittest.cc",
     "input_monitor/local_input_monitor_unittest.cc",
-    "ipc_desktop_environment_unittest.cc",
     "it2me/it2me_confirmation_dialog_proxy_unittest.cc",
     "it2me/it2me_host_unittest.cc",
     "it2me/it2me_native_messaging_host_unittest.cc",
-    "mojo_video_capturer_list_unittest.cc",
-    "mojom/remoting_mojom_traits_unittest.cc",
     "mouse_cursor_monitor_proxy_unittest.cc",
     "mouse_shape_pump_unittest.cc",
     "native_messaging/native_messaging_reader_unittest.cc",
@@ -904,9 +910,20 @@ source_set("unit_tests") {
     "setup/me2me_native_messaging_host_unittest.cc",
     "setup/pin_validator_unittest.cc",
     "webrtc_mouse_cursor_monitor_adaptor_unittest.cc",
-    "worker_process_launcher_unittest.cc",
     "zombie_host_detector_unittest.cc",
   ]
+
+  if (remoting_multi_process) {
+    sources += [
+      "daemon_process_unittest.cc",
+      "desktop_process_unittest.cc",
+      "desktop_session_agent_unittest.cc",
+      "ipc_desktop_environment_unittest.cc",
+      "mojo_video_capturer_list_unittest.cc",
+      "mojom/remoting_mojom_traits_unittest.cc",
+      "worker_process_launcher_unittest.cc",
+    ]
+  }
 
   if (use_ozone || is_chromeos) {
     sources -= [ "input_monitor/local_input_monitor_unittest.cc" ]

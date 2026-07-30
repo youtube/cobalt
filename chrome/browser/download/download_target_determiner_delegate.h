@@ -87,9 +87,9 @@ class DownloadTargetDeterminerDelegate {
 
   // Reserve |virtual_path|. This is expected to check the following:
   // - Whether |virtual_path| can be written to by the user. If not, the
-  //   |virtual_path| can be changed to writeable path if necessary.
+  //   |virtual_path| can be changed to writable path if necessary.
   // - If |conflict_action| is UNIQUIFY then |virtual_path| should be
-  //   modified so that the new path is writeable and unique. If
+  //   modified so that the new path is writable and unique. If
   //   |conflict_action| is PROMPT, then in the event of a conflict,
   //   |callback| should be invoked with |success| set to |false| in
   //   order to force a prompt. |virtual_path| may or may not be

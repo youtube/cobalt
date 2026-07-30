@@ -61,8 +61,9 @@ net::RequestPriority GetRequestPriority(
       return net::HIGHEST;
 
     case network::mojom::RequestDestination::kFont:
-    case network::mojom::RequestDestination::kScript:
     case network::mojom::RequestDestination::kJson:
+    case network::mojom::RequestDestination::kScript:
+    case network::mojom::RequestDestination::kText:
       return net::MEDIUM;
 
     case network::mojom::RequestDestination::kEmpty:

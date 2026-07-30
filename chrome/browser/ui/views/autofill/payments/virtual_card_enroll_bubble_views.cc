@@ -314,7 +314,7 @@ void VirtualCardEnrollBubbleViews::LearnMoreLinkClicked() {
   if (controller()) {
     controller()->OnLinkClicked(
         VirtualCardEnrollmentLinkType::VIRTUAL_CARD_ENROLLMENT_LEARN_MORE_LINK,
-        autofill::payments::GetVirtualCardEnrollmentSupportUrl());
+        payments::GetVirtualCardEnrollmentSupportUrl());
   }
 }
 

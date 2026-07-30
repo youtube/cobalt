@@ -33,7 +33,7 @@ class COMPONENT_EXPORT(UI_BASE_IME) VirtualKeyboardControllerStub final
   bool IsKeyboardVisible() override;
 
  private:
-  base::ObserverList<VirtualKeyboardControllerObserver>::Unchecked observers_;
+  base::ObserverList<VirtualKeyboardControllerObserver> observers_;
   bool visible_ = false;
 };
 

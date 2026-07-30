@@ -20,6 +20,8 @@ import org.chromium.chrome.browser.signin.services.UnifiedConsentServiceBridge;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.ui.accessibility.AccessibilityFeatures;
+import org.chromium.ui.accessibility.AccessibilityFeaturesMap;
 
 import java.util.List;
 
@@ -100,6 +102,11 @@ public final class ReadAloudFeatures {
 
     public static @IneligibilityReason int getIneligibilityReason() {
         return sIneligibilityReason;
+    }
+
+    /** Returns true if the native C++ Read Aloud implementation is enabled. */
+    public static boolean isNativeEnabled() {
+        return AccessibilityFeaturesMap.isEnabled(AccessibilityFeatures.READ_ALOUD_NATIVE);
     }
 
     /** Returns true if playback is enabled. */

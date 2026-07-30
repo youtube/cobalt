@@ -60,12 +60,7 @@ export function getHtml(this: ContextualTasksAppElement) {
           @dismiss="${this.onStsTryItDismiss_}"
           @accept="${this.onStsTryItAccept_}">
         <span slot="header">$i18n{stsTryItHeader}</span>
-        <span slot="body">
-          $i18n{stsTryItBody}
-          <a href="chrome://settings/ai"
-              target="_blank">$i18n{stsTryItLink}</a>
-          $i18n{stsTryItBodyEnd}
-        </span>
+        <span slot="body">$i18n{stsTryItBody}</span>
       </contextual-tasks-banner-promo>
     ` : ''}
     ${this.showSmartTabSharingDefaultOnIph_ ? html`

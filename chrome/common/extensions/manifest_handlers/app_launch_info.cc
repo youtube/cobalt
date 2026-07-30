@@ -267,4 +267,17 @@ base::span<const char* const> AppLaunchManifestHandler::Keys() const {
   return kKeys;
 }
 
+// AppLaunchManifestHandler::Parse() calls extension->web_extent().is_empty()
+// and we need it to reflect information from "app.urls" (to be parsed in
+// advance). Note that URLOverrides::Parse() also modifies
+// extension->web_extent() by calling Extension::AddWebExtentPattern(), but this
+// call does not affect AppLaunchManifestHandler::Parse().
+// AppLaunchManifestHandler::Parse() calls extension->web_extent().is_empty()
+// only for Hosted Apps while URLOverrides::Parse() calls
+// Extension::AddWebExtentPattern() only for Legacy Packaged Apps.
+const std::vector<std::string> AppLaunchManifestHandler::PrerequisiteKeys()
+    const {
+  return SingleKey(keys::kWebURLs);
+}
+
 }  // namespace extensions

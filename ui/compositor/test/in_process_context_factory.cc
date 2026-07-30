@@ -153,7 +153,6 @@ class InProcessContextFactory::PerCompositorData
   void SetOutputIsSecure(bool secure) override {}
 #if BUILDFLAG(IS_MAC)
   void SetVSyncDisplayID(int64_t display_id) override {}
-  void RefreshRateChangedOnSameDisplay() override {}
 #endif
   void ForceImmediateDrawAndSwapIfPossible() override {}
   void AddVSyncParameterObserver(

@@ -1303,6 +1303,14 @@ std::optional<int> TabContainerImpl::GetMidAnimationTrailingX() const {
     return std::nullopt;
   }
 
+  if (base::FeatureList::IsEnabled(features::kTabStripNewTabButtonFlickerFix)) {
+    // During animations not related to a drag session, we want to tightly hug
+    // our tabs. The `overall_bounds_view_` is animated smoothly to the ideal
+    // trailing X and is free from the rounding jitter of individual child
+    // views.
+    return overall_bounds_view_->bounds().right();
+  }
+
   // During animations not related to a drag session, we want to tightly hug
   // our tabs. This allows the NTB to slide smoothly as tabs are opened and
   // closed.

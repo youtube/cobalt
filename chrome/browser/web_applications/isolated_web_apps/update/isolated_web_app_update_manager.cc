@@ -43,7 +43,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_apply_task.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_apply_waiter.h"
-#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_discovery_task.h"
+#include "chrome/browser/web_applications/isolated_web_apps/update/isolated_web_app_update_check_and_prepare_task.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
@@ -94,9 +94,9 @@ IsolatedWebAppUpdateOptions& IsolatedWebAppUpdateOptions::operator=(
     IsolatedWebAppUpdateOptions&& other) = default;
 IsolatedWebAppUpdateOptions::~IsolatedWebAppUpdateOptions() = default;
 
-// This helper class acts similarly to `IsolatedWebAppUpdateDiscoveryTask`, the
-// difference being that this class is for discovering local updates for
-// dev-mode installed IWAs.
+// This helper class acts similarly to
+// `IsolatedWebAppUpdateCheckAndPrepareTask`, the difference being that this
+// class is for discovering local updates for dev-mode installed IWAs.
 class IsolatedWebAppUpdateManager::LocalDevModeUpdateDiscoverer {
  public:
   using Callback =
@@ -165,6 +165,11 @@ constexpr net::BackoffEntry::Policy kUpdateRetryBackoffPolicy = {
 
 using IwaBundleIdToUpdateOptionsMap =
     base::flat_map<web_package::SignedWebBundleId, IsolatedWebAppUpdateOptions>;
+
+struct UpdateInfo {
+  IsolatedWebAppUrlInfo url_info;
+  IsolatedWebAppUpdateOptions update_options;
+};
 
 IwaBundleIdToUpdateOptionsMap GetForceInstalledPolicyIsolatedWebApps(
     Profile* profile) {
@@ -285,6 +290,65 @@ std::vector<webapps::AppId> GetIwasAffectedByRecentKeyRotation(
   return iwa_ids;
 }
 
+std::optional<UpdateInfo> GetUpdateOptionsIfAllowed(
+    Profile& profile,
+    const WebApp* web_app,
+    const base::flat_map<web_package::SignedWebBundleId,
+                         IsolatedWebAppUpdateOptions>&
+        id_to_update_options_map) {
+  if (!web_app) {
+    return std::nullopt;
+  }
+  const std::optional<IsolationData>& isolation_data =
+      web_app->isolation_data();
+  if (!isolation_data) {
+    return std::nullopt;
+  }
+  if (isolation_data->location().dev_mode()) {
+    // Never automatically update IWAs installed in dev mode. Updates for dev
+    // mode apps can be triggered manually from the browser's dev mode UI.
+    return std::nullopt;
+  }
+
+  auto url_info_expected =
+      IsolatedWebAppUrlInfo::Create(web_app->manifest_id().value());
+  if (!url_info_expected.has_value()) {
+    return std::nullopt;
+  }
+  auto url_info = url_info_expected.value();
+
+  const IsolatedWebAppUpdateOptions* update_options =
+      base::FindOrNull(id_to_update_options_map, url_info.web_bundle_id());
+  if (!update_options) {
+    // The app is no longer part of the policy (and thus should soon be
+    // uninstalled), so no need to check for updates.
+    return std::nullopt;
+  }
+
+  if (!IsolatedWebAppTrustChecker::IsOperationAllowed(
+           profile, url_info.web_bundle_id(), /*dev_mode=*/false,
+           IwaUpdateOperation{})
+           .has_value()) {
+    return std::nullopt;
+  }
+
+  if (update_options->pinned_version.has_value() &&
+      !ShouldProceedWithAppUpdate(
+          *update_options->pinned_version, update_options->allow_downgrades,
+          url_info.web_bundle_id(), isolation_data.value())) {
+    // By default, pinning an app to a lower version than the current one is
+    // impossible.
+    // The same version updates can only be performed when allowed by key
+    // rotation.
+    // Setting the pinned_version field in policy prevents any further updates
+    // to the IWA as long as it is set.
+    return std::nullopt;
+  }
+
+  return UpdateInfo{.url_info = std::move(url_info),
+                    .update_options = *update_options};
+}
+
 }  // namespace
 
 IsolatedWebAppUpdateManager::IsolatedWebAppUpdateManager(
@@ -371,7 +435,7 @@ void IsolatedWebAppUpdateManager::DelayedStart() {
   // browser session and were created in `IsolatedWebAppUpdateManager::Start`.
   task_queue_.MaybeStartNextTask();
 
-  QueueUpdateDiscoveryTasks();
+  QueueUpdateDiscoverAndPrepareTasks();
 }
 
 void IsolatedWebAppUpdateManager::Shutdown() {
@@ -453,19 +517,35 @@ void IsolatedWebAppUpdateManager::OnWebAppUninstalled(
   MaybeResetScheduledUpdateDiscoveryCheck();
 }
 
-bool IsolatedWebAppUpdateManager::MaybeDiscoverUpdatesForApp(
+bool IsolatedWebAppUpdateManager::DiscoverUpdate(const webapps::AppId& app_id) {
+  ASSIGN_OR_RETURN(
+      auto url_info_and_options,
+      GetUpdateOptionsIfAllowed(
+          *profile_,
+          provider_->registrar_unsafe().GetAppById(
+              app_id, WebAppFilter::IsIsolatedApp()),
+          GetBundleIdToIsolatedWebAppsUpdateOptionsMap(&*profile_)),
+      [] { return false; });
+  auto& [url_info, update_options] = url_info_and_options;
+
+  task_queue_.Push(std::make_unique<IsolatedWebAppUpdateCheckAndPrepareTask>(
+      IwaUpdateCheckAndPrepareTaskParams(
+          update_options.update_manifest_url, update_options.update_channel,
+          update_options.allow_downgrades, update_options.pinned_version,
+          url_info, /*dev_mode=*/false, /*update_manifest_check_only=*/true),
+      provider_->scheduler(), provider_->registrar_unsafe(),
+      profile_->GetURLLoaderFactory(), *profile_));
+
+  task_queue_.MaybeStartNextTask();
+  return true;
+}
+
+bool IsolatedWebAppUpdateManager::MaybeDiscoverAndPrepareUpdate(
     const webapps::AppId& app_id) {
-  const WebApp* iwa = provider_->registrar_unsafe().GetAppById(
-      app_id, WebAppFilter::IsIsolatedApp());
-  if (!iwa) {
-    return false;
-  }
-
-  IwaBundleIdToUpdateOptionsMap id_to_update_options_map =
-      GetBundleIdToIsolatedWebAppsUpdateOptionsMap(&*profile_);
-
-  bool queued_update_discovery_task =
-      MaybeQueueUpdateDiscoveryTask(*iwa, id_to_update_options_map);
+  bool queued_update_discovery_task = MaybeQueueUpdateDiscoverAndPrepareTask(
+      provider_->registrar_unsafe().GetAppById(app_id,
+                                               WebAppFilter::IsIsolatedApp()),
+      GetBundleIdToIsolatedWebAppsUpdateOptionsMap(&*profile_));
   if (queued_update_discovery_task) {
     task_queue_.MaybeStartNextTask();
   }
@@ -473,29 +553,29 @@ bool IsolatedWebAppUpdateManager::MaybeDiscoverUpdatesForApp(
   return queued_update_discovery_task;
 }
 
-void IsolatedWebAppUpdateManager::DiscoverUpdatesForApp(
+void IsolatedWebAppUpdateManager::DiscoverAndPrepareUpdate(
     const IsolatedWebAppUrlInfo& url_info,
     const GURL& update_manifest_url,
     const UpdateChannel& update_channel,
     bool allow_downgrades,
     const std::optional<IwaVersion>& pinned_version,
     bool dev_mode) {
-  task_queue_.Push(std::make_unique<IsolatedWebAppUpdateDiscoveryTask>(
-      IwaUpdateDiscoveryTaskParams(update_manifest_url, update_channel,
-                                   allow_downgrades, pinned_version, url_info,
-                                   dev_mode),
+  task_queue_.Push(std::make_unique<IsolatedWebAppUpdateCheckAndPrepareTask>(
+      IwaUpdateCheckAndPrepareTaskParams(update_manifest_url, update_channel,
+                                         allow_downgrades, pinned_version,
+                                         url_info, dev_mode),
       provider_->scheduler(), provider_->registrar_unsafe(),
       profile_->GetURLLoaderFactory(), *profile_));
 
   task_queue_.MaybeStartNextTask();
 }
 
-size_t IsolatedWebAppUpdateManager::DiscoverUpdatesNow() {
+size_t IsolatedWebAppUpdateManager::DiscoverAndPrepareUpdatesNow() {
   // If an update discovery check is already scheduled, reset it, so that the
   // next update discovery happens based on `update_discovery_frequency_` time
-  // after `QueueUpdateDiscoveryTasks` is called.
+  // after `QueueUpdateDiscoverAndPrepareTasks` is called.
   next_update_discovery_check_.Reset();
-  return QueueUpdateDiscoveryTasks();
+  return QueueUpdateDiscoverAndPrepareTasks();
 }
 
 void IsolatedWebAppUpdateManager::DiscoverApplyAndPrioritizeLocalDevModeUpdate(
@@ -532,7 +612,7 @@ void IsolatedWebAppUpdateManager::QueueUpdatesForIwasAffectedByKeyRotation() {
   key_rotation_backoff_retry_entry_.InformOfRequest(/*succeeded=*/false);
 
   for (const auto& iwa_id : iwa_ids) {
-    MaybeDiscoverUpdatesForApp(iwa_id);
+    MaybeDiscoverAndPrepareUpdate(iwa_id);
   }
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -549,7 +629,7 @@ bool IsolatedWebAppUpdateManager::IsAnyIwaInstalled() {
   return apps.begin() != apps.end();
 }
 
-size_t IsolatedWebAppUpdateManager::QueueUpdateDiscoveryTasks() {
+size_t IsolatedWebAppUpdateManager::QueueUpdateDiscoverAndPrepareTasks() {
   // Clear the log of previously finished update discovery tasks when queueing
   // new tasks so that it doesn't grow forever.
   task_queue_.ClearUpdateDiscoveryLog();
@@ -560,7 +640,8 @@ size_t IsolatedWebAppUpdateManager::QueueUpdateDiscoveryTasks() {
   size_t num_new_tasks = 0;
   for (const WebApp& web_app :
        provider_->registrar_unsafe().GetApps(WebAppFilter::IsIsolatedApp())) {
-    if (MaybeQueueUpdateDiscoveryTask(web_app, id_to_update_manifest_map)) {
+    if (MaybeQueueUpdateDiscoverAndPrepareTask(&web_app,
+                                               id_to_update_manifest_map)) {
       ++num_new_tasks;
     }
   }
@@ -570,59 +651,24 @@ size_t IsolatedWebAppUpdateManager::QueueUpdateDiscoveryTasks() {
   return num_new_tasks;
 }
 
-bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoveryTask(
-    const WebApp& web_app,
+bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoverAndPrepareTask(
+    const WebApp* web_app,
     const base::flat_map<web_package::SignedWebBundleId,
                          IsolatedWebAppUpdateOptions>&
         id_to_update_options_map) {
-  const std::optional<IsolationData>& isolation_data = web_app.isolation_data();
-  if (!isolation_data) {
-    return false;
-  }
-  if (isolation_data->location().dev_mode()) {
-    // Never automatically update IWAs installed in dev mode. Updates for dev
-    // mode apps can be triggered manually from the browser's dev mode UI.
-    return false;
-  }
+  ASSIGN_OR_RETURN(
+      auto url_info_and_options,
+      GetUpdateOptionsIfAllowed(*profile_, web_app, id_to_update_options_map),
+      [] { return false; });
+  auto& [url_info, update_options] = url_info_and_options;
 
-  ASSIGN_OR_RETURN(auto url_info,
-                   IsolatedWebAppUrlInfo::Create(web_app.manifest_id().value()),
-                   [](auto error) { return false; });
-
-  const IsolatedWebAppUpdateOptions* update_options =
-      base::FindOrNull(id_to_update_options_map, url_info.web_bundle_id());
-  if (!update_options) {
-    // The app is no longer part of the policy (and thus should soon be
-    // uninstalled), so no need to check for updates.
-    return false;
-  }
-
-  RETURN_IF_ERROR(IsolatedWebAppTrustChecker::IsOperationAllowed(
-                      *profile_, url_info.web_bundle_id(), /*dev_mode=*/false,
-                      IwaUpdateOperation{}),
-                  [&](const std::string& error) {
-                    LOG(WARNING) << "The app " << url_info.web_bundle_id()
-                                 << " cannot be updated: " << error;
-                    return false;
-                  });
-
-  if (update_options->pinned_version.has_value() &&
-      !ShouldProceedWithAppUpdate(
-          *update_options->pinned_version, update_options->allow_downgrades,
-          url_info.web_bundle_id(), isolation_data.value())) {
-    // By default, pinning an app to a lower version than the current one is
-    // impossible.
-    // The same version updates can only be performed when allowed by key
-    // rotation.
-    // Setting the pinned_version field in policy prevents any further updates
-    // to the IWA as long as it is set.
-    return false;
-  }
-
-  DiscoverUpdatesForApp(url_info, update_options->update_manifest_url,
-                        update_options->update_channel,
-                        update_options->allow_downgrades,
-                        update_options->pinned_version, /*dev_mode=*/false);
+  task_queue_.Push(std::make_unique<IsolatedWebAppUpdateCheckAndPrepareTask>(
+      IwaUpdateCheckAndPrepareTaskParams(
+          update_options.update_manifest_url, update_options.update_channel,
+          update_options.allow_downgrades, update_options.pinned_version,
+          url_info, /*dev_mode=*/false, /*update_manifest_check_only=*/false),
+      provider_->scheduler(), provider_->registrar_unsafe(),
+      profile_->GetURLLoaderFactory(), *profile_));
 
   return true;
 }
@@ -633,8 +679,8 @@ void IsolatedWebAppUpdateManager::MaybeScheduleUpdateDiscoveryCheck() {
     next_update_discovery_check_.ScheduleWithJitter(
         update_discovery_frequency_,
         base::BindOnce(
-            base::IgnoreResult(
-                &IsolatedWebAppUpdateManager::QueueUpdateDiscoveryTasks),
+            base::IgnoreResult(&IsolatedWebAppUpdateManager::
+                                   QueueUpdateDiscoverAndPrepareTasks),
             // Ok to use `base::Unretained` here because `this` owns
             // `next_update_check_`.
             base::Unretained(this)));
@@ -665,27 +711,34 @@ void IsolatedWebAppUpdateManager::CreateUpdateApplyWaiter(
                      std::move(on_update_apply_task_created)));
 }
 
-void IsolatedWebAppUpdateManager::OnUpdateDiscoveryTaskCompleted(
-    std::unique_ptr<IsolatedWebAppUpdateDiscoveryTask> task,
-    IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status) {
+void IsolatedWebAppUpdateManager::OnUpdateDiscoverAndPrepareTaskCompleted(
+    std::unique_ptr<IsolatedWebAppUpdateCheckAndPrepareTask> task,
+    IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus status) {
   TrackResultOfUpdateDiscoveryTask(status);
 
   for (auto& observer : task_observers_) {
-    observer.OnUpdateDiscoveryTaskCompleted(task->url_info().app_id(), status);
+    observer.OnUpdateDiscoveryCompleted(task->url_info().app_id(), status,
+                                        task->discovered_version());
+    if (!task->update_manifest_check_only()) {
+      observer.OnUpdateDiscoverAndPrepareTaskCompleted(
+          task->url_info().app_id(), status);
+    }
   }
 
   if (status.has_value()) {
     switch (*status) {
-      case IsolatedWebAppUpdateDiscoveryTask::Success::
+      case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
           kUpdateFoundAndSavedInDatabase:
-      case IsolatedWebAppUpdateDiscoveryTask::Success::
+      case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
           kPinnedVersionUpdateFoundAndSavedInDatabase:
-      case IsolatedWebAppUpdateDiscoveryTask::Success::
+      case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
           kDowngradeVersionFoundAndSavedInDatabase:
         CreateUpdateApplyWaiter(task->url_info());
         break;
-      case IsolatedWebAppUpdateDiscoveryTask::Success::kNoUpdateFound:
-      case IsolatedWebAppUpdateDiscoveryTask::Success::kUpdateAlreadyPending:
+      case IsolatedWebAppUpdateCheckAndPrepareTask::Success::kNoUpdateFound:
+      case IsolatedWebAppUpdateCheckAndPrepareTask::Success::
+          kUpdateAlreadyPending:
+      case IsolatedWebAppUpdateCheckAndPrepareTask::Success::kUpdateFound:
         break;
     }
   }
@@ -694,7 +747,7 @@ void IsolatedWebAppUpdateManager::OnUpdateDiscoveryTaskCompleted(
 }
 
 void IsolatedWebAppUpdateManager::TrackResultOfUpdateDiscoveryTask(
-    IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status) const {
+    IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus status) const {
   if (!status.has_value()) {
     web_app::UmaLogExpectedStatus<IsolatedWebAppUpdateError>(
         "WebApp.Isolated.Update",
@@ -886,7 +939,7 @@ void IsolatedWebAppUpdateManager::TaskQueue::ClearUpdateDiscoveryLog() {
 }
 
 void IsolatedWebAppUpdateManager::TaskQueue::Push(
-    std::unique_ptr<IsolatedWebAppUpdateDiscoveryTask> task) {
+    std::unique_ptr<IsolatedWebAppUpdateCheckAndPrepareTask> task) {
   update_discovery_tasks_.push_back(std::move(task));
 }
 
@@ -952,9 +1005,9 @@ bool IsolatedWebAppUpdateManager::TaskQueue::IsUpdateApplyTaskQueued(
 }
 
 void IsolatedWebAppUpdateManager::TaskQueue::StartUpdateDiscoveryTask(
-    IsolatedWebAppUpdateDiscoveryTask* task_ptr) {
+    IsolatedWebAppUpdateCheckAndPrepareTask* task_ptr) {
   task_ptr->Start(base::BindOnce(
-      &TaskQueue::OnUpdateDiscoveryTaskCompleted,
+      &TaskQueue::OnUpdateDiscoverAndPrepareTaskCompleted,
       // We can use `base::Unretained` here, because `this` owns the task.
       base::Unretained(this), task_ptr));
 }
@@ -976,13 +1029,15 @@ bool IsolatedWebAppUpdateManager::TaskQueue::IsAnyTaskRunning() const {
          });
 }
 
-void IsolatedWebAppUpdateManager::TaskQueue::OnUpdateDiscoveryTaskCompleted(
-    IsolatedWebAppUpdateDiscoveryTask* task_ptr,
-    IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status) {
+void IsolatedWebAppUpdateManager::TaskQueue::
+    OnUpdateDiscoverAndPrepareTaskCompleted(
+        IsolatedWebAppUpdateCheckAndPrepareTask* task_ptr,
+        IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus status) {
   auto task_it = std::ranges::find_if(update_discovery_tasks_,
                                       base::MatchesUniquePtr(task_ptr));
   CHECK(task_it != update_discovery_tasks_.end());
-  std::unique_ptr<IsolatedWebAppUpdateDiscoveryTask> task = std::move(*task_it);
+  std::unique_ptr<IsolatedWebAppUpdateCheckAndPrepareTask> task =
+      std::move(*task_it);
   update_discovery_tasks_.erase(task_it);
 
   update_discovery_results_log_.Append(task->AsDebugValue());
@@ -997,7 +1052,8 @@ void IsolatedWebAppUpdateManager::TaskQueue::OnUpdateDiscoveryTaskCompleted(
             << " succeeded: " << status.value();
   }
 
-  update_manager_->OnUpdateDiscoveryTaskCompleted(std::move(task), status);
+  update_manager_->OnUpdateDiscoverAndPrepareTaskCompleted(std::move(task),
+                                                           status);
 }
 
 void IsolatedWebAppUpdateManager::TaskQueue::OnUpdateApplyTaskCompleted(
@@ -1024,33 +1080,35 @@ void IsolatedWebAppUpdateManager::TaskQueue::OnUpdateApplyTaskCompleted(
 }
 
 IsolatedWebAppUpdateError IsolatedWebAppUpdateManager::FromDiscoveryTaskError(
-    const IsolatedWebAppUpdateDiscoveryTask::Error& error) const {
+    const IsolatedWebAppUpdateCheckAndPrepareTask::Error& error) const {
   switch (error) {
-    case IsolatedWebAppUpdateDiscoveryTask::Error::
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::
         kUpdateManifestDownloadFailed:
       return IsolatedWebAppUpdateError::kUpdateManifestDownloadFailed;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kUpdateManifestInvalidJson:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::
+        kUpdateManifestInvalidJson:
       return IsolatedWebAppUpdateError::kUpdateManifestInvalidJson;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::
         kUpdateManifestInvalidManifest:
       return IsolatedWebAppUpdateError::kUpdateManifestInvalidManifest;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::
         kUpdateManifestNoApplicableVersion:
       return IsolatedWebAppUpdateError::kUpdateManifestNoApplicableVersion;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kIwaNotInstalled:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::kIwaNotInstalled:
       return IsolatedWebAppUpdateError::kIwaNotInstalled;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::
         kPinnedVersionNotFoundInUpdateManifest:
       return IsolatedWebAppUpdateError::kPinnedVersionNotFoundInUpdateManifest;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kDowngradetNotAllowed:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::kDowngradetNotAllowed:
       return IsolatedWebAppUpdateError::kDowngradeNotAllowed;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kDownloadPathCreationFailed:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::
+        kDownloadPathCreationFailed:
       return IsolatedWebAppUpdateError::kDownloadPathCreationFailed;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kBundleDownloadError:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::kBundleDownloadError:
       return IsolatedWebAppUpdateError::kBundleDownloadError;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kUpdateDryRunFailed:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::kUpdateDryRunFailed:
       return IsolatedWebAppUpdateError::kUpdateDryRunFailed;
-    case IsolatedWebAppUpdateDiscoveryTask::Error::kSystemShutdown:
+    case IsolatedWebAppUpdateCheckAndPrepareTask::Error::kSystemShutdown:
       return IsolatedWebAppUpdateError::kSystemShutdown;
   }
 }

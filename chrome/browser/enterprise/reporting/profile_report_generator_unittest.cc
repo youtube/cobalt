@@ -152,7 +152,7 @@ class ProfileReportGeneratorTest : public ::testing::Test {
       const SecuritySignalsMode signals_mode) {
     base::test::TestFuture<std::unique_ptr<em::ChromeUserProfileInfo>>
         test_future;
-    generator_.MaybeGenerate(path, ReportType::kFull, signals_mode,
+    generator_.MaybeGenerate(path, ReportType::kBrowser, signals_mode,
                              test_future.GetCallback());
     return test_future.Take();
   }
@@ -231,7 +231,7 @@ TEST_F(ProfileReportGeneratorTest, ProfileNotActivated) {
       std::move(params));
   base::test::TestFuture<std::unique_ptr<em::ChromeUserProfileInfo>>
       test_future;
-  generator_.MaybeGenerate(profile_path, ReportType::kFull,
+  generator_.MaybeGenerate(profile_path, ReportType::kBrowser,
                            SecuritySignalsMode::kSignalsAttached,
                            test_future.GetCallback());
   ASSERT_FALSE(test_future.Get().get());

@@ -96,7 +96,7 @@ class FakeDeviceInformationCustomPairingWinrt
  private:
   Microsoft::WRL::ComPtr<FakeDeviceInformationPairingWinrt> pairing_;
   const std::optional<std::string> pin_;
-  std::string accepted_pin_;
+  std::optional<std::string> accepted_pin_;
   bool confirmed_ = false;
 
   ABI::Windows::Devices::Enumeration::DevicePairingKinds pairing_kind_ =

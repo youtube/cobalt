@@ -466,8 +466,6 @@ struct SearchAggregatorProvider : Config<SearchAggregatorProvider> {
   // Minimum length input must be to run the
   // `EnterpriseSearchAggregatorProvider`.
   int min_query_length;
-  // If true, the response will be parsed in a utility process.
-  bool parse_response_in_utility_process;
   // If true, the newer Discovery Engine OAuth scope will be used in suggestions
   // requests.
   bool use_discovery_engine_oauth_scope;

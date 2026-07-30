@@ -25,6 +25,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_launcher_utils.h"
 #include "content/public/browser/sandboxed_process_launcher_delegate.h"
+#include "content/public/browser/tracing_support.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
@@ -125,8 +126,8 @@ ChildProcessLauncher::ChildProcessLauncher(
 {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT_BEGIN("startup", "ChildProcessLauncher",
-                    perfetto::Track::FromPointer(this));
-
+                    CreateTracingTrackUnderChildProcess(
+                        child_process_id, "ChildProcessLauncher"));
 #if BUILDFLAG(IS_WIN)
   should_launch_elevated_ = delegate->ShouldLaunchElevated();
 #endif
@@ -184,7 +185,9 @@ void ChildProcessLauncher::Notify(ChildProcessLauncherHelper::Process process,
                                   int error_code) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // Corresponds to the TRACE_EVENT_BEGIN in ChildProcessLauncher.
-  TRACE_EVENT_END("startup", perfetto::Track::FromPointer(this));
+  TRACE_EVENT_END("startup",
+                  CreateTracingTrackUnderChildProcess(
+                      helper_->child_process_id(), "ChildProcessLauncher"));
 
   starting_ = false;
   process_ = std::move(process);

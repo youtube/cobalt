@@ -62,9 +62,6 @@ class EnterpriseActivityStorage;
 class DeviceStatusCollectorState;
 class ReportingUserTracker;
 
-// TODO(b/216131674): Remove this.
-enum class CrosHealthdCollectionMode { kFull, kBattery };
-
 // Sampled hardware measurement data for single time point.
 class SampledData {
  public:

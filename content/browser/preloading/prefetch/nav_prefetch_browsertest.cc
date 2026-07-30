@@ -19,6 +19,7 @@
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
+#include "content/browser/preloading/preload_activation_report_manager.h"
 #include "content/browser/preloading/preloading.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -33,6 +34,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
+#include "content/public/test/content_browser_test_content_browser_client.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/prefetch_test_util.h"
 #include "content/public/test/preloading_test_util.h"
@@ -189,6 +191,11 @@ class NavPrefetchBrowserTest : public ContentBrowserTest,
  protected:
   GURL GetUrl(const std::string& host, const std::string& path) const {
     return ssl_server_.GetURL(host, path);
+  }
+
+  std::unique_ptr<ControllableHttpResponse> RegisterControllableHttpResponse(
+      const std::string& path) {
+    return std::make_unique<ControllableHttpResponse>(&ssl_server_, path);
   }
 
  private:
@@ -811,17 +818,34 @@ IN_PROC_BROWSER_TEST_F(PrePrefetchBrowserTest, PrePrefetchConsumption) {
   EXPECT_EQ(GetRequestCount(prefetch_url), 1);
 }
 
-class PrefetchActivationBeaconBrowserTest : public NavPrefetchBrowserTest {
+class PrefetchActivationBeaconBrowserTest
+    : public NavPrefetchBrowserTest,
+      public ::testing::WithParamInterface<bool> {
  public:
   PrefetchActivationBeaconBrowserTest() {
-    feature_list_.InitAndEnableFeature(features::kPrefetchActivationBeacon);
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kPrefetchActivationBeacon};
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (GetParam()) {
+      enabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    } else {
+      disabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    }
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
  private:
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(PrefetchActivationBeaconBrowserTest,
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrefetchActivationBeaconBrowserTest,
+                         ::testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(PrefetchActivationBeaconBrowserTest,
                        ActivationBeaconSent) {
   GURL referrer_url = GetUrl("a.test", "/empty.html");
   GURL prefetch_url = GetUrl("a.test", "/prefetch");
@@ -835,7 +859,8 @@ IN_PROC_BROWSER_TEST_F(PrefetchActivationBeaconBrowserTest,
 
   URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url == prefetch_url) {
+        if (params->url_request.url == prefetch_url &&
+            params->url_request.headers.HasHeader("Sec-Purpose")) {
           // Serve prefetch response with header.
           std::string headers =
               "HTTP/1.1 200 OK\r\n"
@@ -875,7 +900,7 @@ IN_PROC_BROWSER_TEST_F(PrefetchActivationBeaconBrowserTest,
   EXPECT_TRUE(beacon_seen);
 }
 
-IN_PROC_BROWSER_TEST_F(PrefetchActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrefetchActivationBeaconBrowserTest,
                        ActivationBeaconCrossOriginNotSent) {
   GURL referrer_url = GetUrl("a.test", "/empty.html");
   GURL prefetch_url = GetUrl("a.test", "/prefetch");
@@ -888,7 +913,8 @@ IN_PROC_BROWSER_TEST_F(PrefetchActivationBeaconBrowserTest,
 
   URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url == prefetch_url) {
+        if (params->url_request.url == prefetch_url &&
+            params->url_request.headers.HasHeader("Sec-Purpose")) {
           // Serve prefetch response with cross-origin header.
           std::string headers =
               "HTTP/1.1 200 OK\r\n"
@@ -1267,6 +1293,292 @@ IN_PROC_BROWSER_TEST_F(NavPrefetchBrowserTest_CancelUnrelatedPrefetchEnabled,
   ASSERT_TRUE(prefetch_container);
   ASSERT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
             PrefetchServableState::kServable);
+}
+
+class NavPrefetchBrowserTest_CancelUnrelatedPrefetchSameInitiatorDocument
+    : public NavPrefetchBrowserTest {
+ public:
+  NavPrefetchBrowserTest_CancelUnrelatedPrefetchSameInitiatorDocument() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kPrefetchCancelUnrelatedPrefetch,
+        {{"prefetch_cancel_unrelated_prefetch_cancel_policy",
+          "NotServableSameInitiatorDocument"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Tests that a renderer-initiated navigation cancels unrelated not servable
+// prefetch because they share the same initiator.
+IN_PROC_BROWSER_TEST_F(
+    NavPrefetchBrowserTest_CancelUnrelatedPrefetchSameInitiatorDocument,
+    NavigationCancelsUnrelatedNotServablePrefetchSameInitiator) {
+  ControllableHttpResponse response_cancelled(embedded_test_server(),
+                                              "/title1.html?cancelled=1");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL url_navigated =
+      embedded_test_server()->GetURL("/title1.html?navigated=1");
+  GURL url_cancelled =
+      embedded_test_server()->GetURL("/title1.html?cancelled=1");
+
+  auto& rfhi = render_frame_host_impl();
+
+  ASSERT_TRUE(
+      NavigateToURL(shell(), embedded_test_server()->GetURL("/empty.html")));
+
+  StartPrefetch(url_cancelled);
+
+  TestFrameNavigationObserver nav_observer(&rfhi);
+  ASSERT_TRUE(BeginNavigateToURLFromRenderer(&rfhi, url_navigated));
+  nav_observer.Wait();
+  ASSERT_EQ(nav_observer.last_committed_url(), url_navigated);
+  ASSERT_TRUE(nav_observer.last_navigation_succeeded());
+
+  // The navigation cancelled the prefetch because they share the same
+  // initiator.
+  PrefetchKey key(rfhi.GetDocumentToken(), url_cancelled);
+  const auto* prefetch_container =
+      prefetch_service().GetPrefetchContainerForTesting(key);
+  ASSERT_FALSE(prefetch_container);
+}
+
+// Tests that a browser-initiated navigation does not cancel unrelated not
+// servable prefetch because they have different initiators.
+IN_PROC_BROWSER_TEST_F(
+    NavPrefetchBrowserTest_CancelUnrelatedPrefetchSameInitiatorDocument,
+    NavigationDoesntCancelUnrelatedNotServablePrefetchDifferentInitiator) {
+  if (!base::FeatureList::IsEnabled(features::kBackForwardCache)) {
+    // We assume BFCache so that we can check `PrefetchContainer` after
+    // `DidFinishNavigation()`.
+    GTEST_SKIP();
+  }
+
+  ControllableHttpResponse response_cancelled(embedded_test_server(),
+                                              "/title1.html?cancelled=1");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL url_navigated =
+      embedded_test_server()->GetURL("/title1.html?navigated=1");
+  GURL url_cancelled =
+      embedded_test_server()->GetURL("/title1.html?cancelled=1");
+
+  auto& rfhi = render_frame_host_impl();
+
+  ASSERT_TRUE(
+      NavigateToURL(shell(), embedded_test_server()->GetURL("/empty.html")));
+
+  StartPrefetch(url_cancelled);
+
+  // Browser-initiated navigation.
+  ASSERT_TRUE(NavigateToURL(shell(), url_navigated));
+
+  // The navigation did NOT cancel the prefetch because the initiator of
+  // navigation is browser, while the initiator of prefetch is the renderer
+  // (rfhi).
+  PrefetchKey key(rfhi.GetDocumentToken(), url_cancelled);
+  const auto* prefetch_container =
+      prefetch_service().GetPrefetchContainerForTesting(key);
+  ASSERT_TRUE(prefetch_container);
+}
+
+class PreloadActivationReportProxyFactory
+    : public network::mojom::URLLoaderFactory {
+ public:
+  PreloadActivationReportProxyFactory(
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver,
+      mojo::PendingRemote<network::mojom::URLLoaderFactory> target_factory,
+      base::RepeatingCallback<void(const GURL&)> request_callback)
+      : receiver_(this, std::move(receiver)),
+        target_factory_(std::move(target_factory)),
+        request_callback_(std::move(request_callback)) {}
+
+  // network::mojom::URLLoaderFactory:
+  void CreateLoaderAndStart(
+      mojo::PendingReceiver<network::mojom::URLLoader> loader,
+      int32_t request_id,
+      uint32_t options,
+      const network::ResourceRequest& request,
+      mojo::PendingRemote<network::mojom::URLLoaderClient> client,
+      const net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
+      override {
+    request_callback_.Run(request.url);
+    target_factory_->CreateLoaderAndStart(std::move(loader), request_id,
+                                          options, request, std::move(client),
+                                          traffic_annotation);
+  }
+
+  // Not used in test, intentionally empty.
+  void Clone(mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver)
+      override {}
+
+ private:
+  mojo::Receiver<network::mojom::URLLoaderFactory> receiver_;
+  mojo::Remote<network::mojom::URLLoaderFactory> target_factory_;
+  base::RepeatingCallback<void(const GURL&)> request_callback_;
+};
+
+class PreloadActivationReportInterceptionBrowserClient
+    : public ContentBrowserTestContentBrowserClient {
+ public:
+  PreloadActivationReportInterceptionBrowserClient() = default;
+  ~PreloadActivationReportInterceptionBrowserClient() override = default;
+
+  void WillCreateURLLoaderFactory(
+      BrowserContext* browser_context,
+      RenderFrameHost* frame,
+      int render_process_id,
+      URLLoaderFactoryType type,
+      const url::Origin& request_initiator,
+      const net::IsolationInfo& isolation_info,
+      std::optional<int64_t> navigation_id,
+      ukm::SourceIdObj ukm_source_id,
+      network::URLLoaderFactoryBuilder& factory_builder,
+      mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+          header_client,
+      bool* bypass_redirect_checks,
+      bool* disable_secure_dns,
+      network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+      scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
+      override {
+    if (type == URLLoaderFactoryType::kDocumentSubResource &&
+        factory_override) {
+      auto factory_override_ptr =
+          network::mojom::URLLoaderFactoryOverride::New();
+      mojo::PendingRemote<network::mojom::URLLoaderFactory> overridden_factory;
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory>
+          overriding_receiver = factory_override_ptr->overriding_factory
+                                    .InitWithNewPipeAndPassReceiver();
+      factory_override_ptr->overridden_factory_receiver =
+          overridden_factory.InitWithNewPipeAndPassReceiver();
+      factory_override_ptr->skip_cors_enabled_scheme_check = true;
+      *factory_override = std::move(factory_override_ptr);
+
+      proxy_factories_.push_back(
+          std::make_unique<PreloadActivationReportProxyFactory>(
+              std::move(overriding_receiver), std::move(overridden_factory),
+              base::BindRepeating(
+                  &PreloadActivationReportInterceptionBrowserClient::OnRequest,
+                  base::Unretained(this))));
+    }
+    ContentBrowserTestContentBrowserClient::WillCreateURLLoaderFactory(
+        browser_context, frame, render_process_id, type, request_initiator,
+        isolation_info, std::move(navigation_id), ukm_source_id,
+        factory_builder, header_client, bypass_redirect_checks,
+        disable_secure_dns, factory_override,
+        std::move(navigation_response_task_runner));
+  }
+
+  void OnRequest(const GURL& url) { intercepted_urls_.push_back(url); }
+
+  const std::vector<GURL>& intercepted_urls() const {
+    return intercepted_urls_;
+  }
+
+  void reset() {
+    intercepted_urls_.clear();
+    proxy_factories_.clear();
+  }
+
+ private:
+  std::vector<GURL> intercepted_urls_;
+  std::vector<std::unique_ptr<PreloadActivationReportProxyFactory>>
+      proxy_factories_;
+};
+
+class PrefetchActivationBeaconInterceptionBrowserTest
+    : public NavPrefetchBrowserTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  PrefetchActivationBeaconInterceptionBrowserTest() {
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kPrefetchActivationBeacon};
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (GetParam()) {
+      enabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    } else {
+      disabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    }
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+
+  void SetUpOnMainThread() override {
+    prefetch_response_ = RegisterControllableHttpResponse("/prefetch");
+    beacon_response_ = RegisterControllableHttpResponse("/beacon");
+
+    NavPrefetchBrowserTest::SetUpOnMainThread();
+    browser_client_ =
+        std::make_unique<PreloadActivationReportInterceptionBrowserClient>();
+  }
+
+  void TearDownOnMainThread() override {
+    browser_client_.reset();
+    NavPrefetchBrowserTest::TearDownOnMainThread();
+  }
+
+ protected:
+  std::unique_ptr<PreloadActivationReportInterceptionBrowserClient>
+      browser_client_;
+  std::unique_ptr<net::test_server::ControllableHttpResponse>
+      prefetch_response_;
+  std::unique_ptr<net::test_server::ControllableHttpResponse> beacon_response_;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrefetchActivationBeaconInterceptionBrowserTest,
+                         ::testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(PrefetchActivationBeaconInterceptionBrowserTest,
+                       InterceptionVariation) {
+  GURL prefetch_url = GetUrl("a.test", "/prefetch");
+  GURL beacon_url = GetUrl("a.test", "/beacon");
+
+  GURL referrer_url = GetUrl("a.test", "/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), referrer_url));
+
+  StartPrefetch(prefetch_url);
+
+  prefetch_response_->WaitForRequest();
+  std::string headers =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/html\r\n"
+      "on-prefetch-activation: " +
+      beacon_url.spec() + "\r\n\r\n";
+  prefetch_response_->Send(headers);
+  prefetch_response_->Send("content");
+  prefetch_response_->Done();
+
+  RenderFrameHostImpl& rfhi = render_frame_host_impl();
+  test::TestPrefetchWatcher watcher;
+  watcher.WaitUntilPrefetchResponseCompleted(rfhi.GetDocumentToken(),
+                                             prefetch_url);
+
+  browser_client_->reset();
+
+  TestFrameNavigationObserver nav_observer(&rfhi);
+  ASSERT_TRUE(BeginNavigateToURLFromRenderer(&rfhi, prefetch_url));
+
+  beacon_response_->WaitForRequest();
+  EXPECT_EQ(beacon_response_->http_request()->method,
+            net::test_server::METHOD_HEAD);
+  beacon_response_->Send("HTTP/1.1 200 OK\r\n\r\n");
+  beacon_response_->Done();
+
+  nav_observer.Wait();
+
+  bool intercepted_beacon = false;
+  for (const auto& url : browser_client_->intercepted_urls()) {
+    if (url == beacon_url) {
+      intercepted_beacon = true;
+      break;
+    }
+  }
+  EXPECT_EQ(intercepted_beacon, GetParam());
 }
 
 }  // namespace

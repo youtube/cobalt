@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/views/performance_controls/battery_saver_bubble_view.h"
 
 #include "base/functional/bind.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/performance_controls/battery_saver_bubble_delegate.h"
 #include "chrome/browser/ui/performance_controls/battery_saver_bubble_observer.h"
@@ -14,6 +13,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/models/dialog_model_field.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/view_class_properties.h"
 
@@ -22,12 +22,12 @@ const char BatterySaverBubbleView::kViewClassName[] = "BatterySaverBubbleView";
 
 // static
 views::BubbleDialogModelHost* BatterySaverBubbleView::CreateBubble(
-    Browser* browser,
-    views::View* anchor_view,
+    views::BubbleAnchor anchor,
     views::BubbleBorder::Arrow anchor_position,
-    BatterySaverBubbleObserver* observer) {
+    BatterySaverBubbleObserver* observer,
+    std::optional<gfx::Rect> anchor_rect) {
   auto bubble_delegate_unique =
-      std::make_unique<BatterySaverBubbleDelegate>(browser, observer);
+      std::make_unique<BatterySaverBubbleDelegate>(observer);
   auto* bubble_delegate = bubble_delegate_unique.get();
 
   auto dialog_model =
@@ -54,8 +54,12 @@ views::BubbleDialogModelHost* BatterySaverBubbleView::CreateBubble(
           .Build();
 
   auto bubble_unique = std::make_unique<views::BubbleDialogModelHost>(
-      std::move(dialog_model), anchor_view, anchor_position);
+      std::move(dialog_model), anchor, anchor_position);
   auto* bubble = bubble_unique.get();
+
+  if (anchor_rect.has_value()) {
+    bubble->SetAnchorRect(*anchor_rect);
+  }
 
   views::Widget* const widget =
       views::BubbleDialogDelegate::CreateBubbleDeprecated(

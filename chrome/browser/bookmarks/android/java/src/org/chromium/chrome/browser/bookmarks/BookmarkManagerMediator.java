@@ -1107,6 +1107,15 @@ class BookmarkManagerMediator
 
         updateAllLocations();
         syncAdapterAndSelectionDelegate();
+
+        String query = getCurrentSearchText();
+        if (getCurrentUiMode() == BookmarkUiMode.SEARCHING && !TextUtils.isEmpty(query)) {
+            int count = bookmarkListEntryList.size();
+            String announcement =
+                    mContext.getResources()
+                            .getQuantityString(R.plurals.bookmark_search_num_results, count, count);
+            mSelectableListLayout.announceAccessibilityText(announcement);
+        }
     }
 
     private void updateOrAdd(int index, ListItem listItem) {

@@ -558,27 +558,27 @@ TEST_F(StyleRuleTest, NavigationRule) {
   };
 
   const NavigationLocationTestExpression* navigation_test =
-      GetNavigationTest("@navigation (at: pun_ruined) {}");
+      GetNavigationTest("@navigation (at: --rte) {}");
   ASSERT_TRUE(navigation_test);
-  EXPECT_EQ(navigation_test->GetLocation().GetRouteName(), "pun_ruined");
+  EXPECT_EQ(navigation_test->GetLocation().GetValue(), "--rte");
   EXPECT_EQ(navigation_test->GetPreposition(), NavigationPreposition::kAt);
 
-  navigation_test = GetNavigationTest("@navigation (from: pun_ruined) {}");
+  navigation_test = GetNavigationTest("@navigation (from: --rte) {}");
   ASSERT_TRUE(navigation_test);
-  EXPECT_EQ(navigation_test->GetLocation().GetRouteName(), "pun_ruined");
+  EXPECT_EQ(navigation_test->GetLocation().GetValue(), "--rte");
   EXPECT_EQ(navigation_test->GetPreposition(), NavigationPreposition::kFrom);
 
-  navigation_test = GetNavigationTest("@navigation (to: pun_ruined) {}");
+  navigation_test = GetNavigationTest("@navigation (to: --rte) {}");
   ASSERT_TRUE(navigation_test);
-  EXPECT_EQ(navigation_test->GetLocation().GetRouteName(), "pun_ruined");
+  EXPECT_EQ(navigation_test->GetLocation().GetValue(), "--rte");
   EXPECT_EQ(navigation_test->GetPreposition(), NavigationPreposition::kTo);
 
-  navigation_test = GetNavigationTest("@navigation (at: pun_ruined) {}");
+  navigation_test = GetNavigationTest("@navigation (at: --rte) {}");
   ASSERT_TRUE(navigation_test);
-  EXPECT_EQ(navigation_test->GetLocation().GetRouteName(), "pun_ruined");
+  EXPECT_EQ(navigation_test->GetLocation().GetValue(), "--rte");
   EXPECT_EQ(navigation_test->GetPreposition(), NavigationPreposition::kAt);
 
-  navigation_test = GetNavigationTest("@navigation (below: pun_ruined) {}");
+  navigation_test = GetNavigationTest("@navigation (below: --rte) {}");
   EXPECT_FALSE(navigation_test);
 
   navigation_test = GetNavigationTest("@navigation (at: ) {}");

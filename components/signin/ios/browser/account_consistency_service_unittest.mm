@@ -103,11 +103,12 @@ class FakeManageAccountsDelegate : public ManageAccountsDelegate {
   ~FakeManageAccountsDelegate() override = default;
 
   void OnRestoreGaiaCookies() override { restore_cookies_call_count_++; }
-  void OnManageAccounts(const GURL& url) override {
+  void OnManageAccounts(const GURL& url, web::WebState* web_state) override {
     manage_accounts_call_count_++;
   }
   void OnAddAccount(const GURL& url,
-                    const std::string& prefilled_email) override {
+                    const std::string& prefilled_email,
+                    web::WebState* web_state) override {
     add_account_call_count_++;
     add_account_email_ = prefilled_email;
   }
@@ -115,7 +116,9 @@ class FakeManageAccountsDelegate : public ManageAccountsDelegate {
                               web::WebState* webState) override {
     show_promo_call_count_++;
   }
-  void OnGoIncognito(const GURL& url) override { go_incognito_call_count_++; }
+  void OnGoIncognito(const GURL& url, web::WebState* web_state) override {
+    go_incognito_call_count_++;
+  }
   bool SigninEnabled() const override { return true; }
 
   int total_call_count() {

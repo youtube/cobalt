@@ -50,7 +50,7 @@ class SiteDataSizeCollector {
   // Path of the default storage partition of this profile.
   base::FilePath default_storage_partition_path_;
 
-  // Pointers to the helper objects, needed to retreive all the types of locally
+  // Pointers to the helper objects, needed to retrieve all the types of locally
   // stored data.
   scoped_refptr<browsing_data::CookieHelper> cookie_helper_;
   scoped_refptr<browsing_data::LocalStorageHelper> local_storage_helper_;

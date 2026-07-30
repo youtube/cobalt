@@ -61,8 +61,12 @@ class BeginFrameSourceWayland : public BeginFrameSourceExtension,
   // Default vsync interval, matches viz::BeginFrameArgs::DefaultInterval().
   static constexpr base::TimeDelta kDefaultInterval = base::Microseconds(16666);
 
-  // Current vsync interval, updated from presentation feedback.
+  // The display's vsync interval, updated from Wayland presentation feedback.
   base::TimeDelta vsync_interval_ = kDefaultInterval;
+
+  // The preferred interval used by viz to issue frames, which may be different
+  // from the display's true vsync interval.
+  base::TimeDelta preferred_interval_ = kDefaultInterval;
 
   // Last known frame presentation time if provided by the compositor,
   // used to align frame_time and deadline to the display's timing.
@@ -78,7 +82,15 @@ class BeginFrameSourceWayland : public BeginFrameSourceExtension,
   // want to issue one manually.
   bool ready_to_issue_begin_frame_ = false;
 
+  // The deadline for the last frame that was issued to viz.
+  base::TimeTicks last_frame_deadline_time_;
+
+  // Timers for handling edge cases with frame callbacks
+
+  // Recovers from stalls if expected frame callbacks do not arrive.
   base::OneShotTimer frame_callback_timeout_timer_;
+  // Throttles if multiple frame callbacks arrive within the same vsync cycle.
+  base::OneShotTimer deferred_issue_begin_frame_timer_;
 
   base::WeakPtrFactory<BeginFrameSourceWayland> weak_factory_{this};
 };

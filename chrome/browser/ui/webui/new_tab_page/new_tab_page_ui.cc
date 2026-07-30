@@ -261,9 +261,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean(
       "energyEffectAnimationEnabled",
       base::FeatureList::IsEnabled(ntp_features::kEnergyEffectAnimation));
-  source->AddBoolean("realboxContextMenuAnimationCappingEnabled",
-                     base::FeatureList::IsEnabled(
-                         ntp_features::kRealboxContextMenuAnimationCapping));
+  source->AddBoolean(
+      "contextMenuAnimationLimitingEnabled",
+      base::FeatureList::IsEnabled(omnibox::kContextMenuAnimationLimiting));
   source->AddBoolean(
       "ntpNextFeaturesEnabled",
       ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
@@ -272,8 +272,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                      ntp_features::kNtpNextShowDismissalUIParam.Get());
   source->AddBoolean("ntpNextDisablementContextMenuEnabled",
                      ntp_features::kNtpNextDisablementContextMenuParam.Get());
-  source->AddBoolean("ntpNextDisablementEnabled",
-                     ntp_features::kNtpNextDisablementParam.Get());
   source->AddBoolean(
 
       "oneGoogleBarEnabled",
@@ -332,6 +330,13 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean(
       "caretAnimationEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpAnimatedCaret));
+  source->AddBoolean(
+      "voiceSearchCoherenceSearchboxEnabled",
+      base::FeatureList::IsEnabled(omnibox::kVoiceSearchCoherenceSearchbox));
+
+  source->AddBoolean(
+      "voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled",
+      omnibox::kVoiceSearchCoherenceSearchboxWithLiveTranscription.Get());
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"doneButton", IDS_DONE},
@@ -662,6 +667,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       "searchboxShowComposeEntrypoint",
       (aim_eligible || ntp_composebox::IsNtpComposeboxEnabled(profile)));
 
+  source->AddBoolean(
+      "ntpRealboxDynamicAiModeButton",
+      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
+          base::FeatureList::IsEnabled(
+              ntp_realbox::kNtpRealboxDynamicAiModeButton));
+
   if (ntp_realbox::IsNtpRealboxNextEnabled(profile)) {
     if (base::FeatureList::IsEnabled(
             ntp_realbox::kNtpRealboxCyclingPlaceholders)) {
@@ -690,6 +701,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                                IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD);
   }
 
+  source->AddBoolean("keepMenuOpenOnTabSelectForRealbox",
+                     base::FeatureList::IsEnabled(
+                         omnibox::kKeepMenuOpenOnTabSelectForRealbox));
   source->AddBoolean("composeboxShowContextMenu",
                      ntp_composebox::kShowContextMenu.Get());
   source->AddBoolean("composeboxShowContextMenuTabPreviews",
@@ -749,7 +763,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                                num_tools_eligible >= 2;
   bool show_action_chips =
       action_chips_eligible &&
-      profile->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible);
+      (!ntp_features::kNtpNextDisablementParam.Get() ||
+       profile->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible));
   if (!show_action_chips) {
     action_chips::RecordActionChipsAnyShown(false);
   }
@@ -1044,7 +1059,7 @@ void NewTabPageUI::ResetProfilePrefs(PrefService* prefs) {
   prefs->SetBoolean(ntp_prefs::kNtpDoodleMuralsEnabled, true);
   prefs->SetInt64(ntp_prefs::kNtpMostVisitedTileHoverCount, 0);
   prefs->SetInt64(ntp_prefs::kNtpMostVisitedTileNavigationCount, 0);
-  prefs->SetDict(prefs::kRealboxContextMenuAnimationState, base::DictValue());
+  prefs->SetDict(prefs::kContextMenuAnimationState, base::DictValue());
 }
 
 // static

@@ -51,7 +51,7 @@ Range* EphemeralRangeTest::GetBodyRange() const {
 // Tests that |EphemeralRange::nodes()| will traverse the whole range exactly as
 // |for (Node* n = firstNode(); n != pastLastNode(); n = Traversal::next(*n))|
 // does.
-TEST_F(EphemeralRangeTest, rangeTraversalDOM) {
+TEST_F(EphemeralRangeTest, RangeTraversalDom) {
   const char* body_content =
       "<p id='host'>"
       "<b id='zero'>0</b>"
@@ -108,7 +108,7 @@ TEST_F(EphemeralRangeTest, rangeShadowTraversal) {
 }
 
 // Limit a range and check that it will be traversed correctly.
-TEST_F(EphemeralRangeTest, rangeTraversalLimitedDOM) {
+TEST_F(EphemeralRangeTest, RangeTraversalLimitedDom) {
   const char* body_content =
       "<p id='host'>"
       "<b id='zero'>0</b>"
@@ -187,7 +187,7 @@ TEST_F(EphemeralRangeTest, traversalEmptyRanges) {
             single_position_range.EndPosition().NodeAsRangePastLastNode());
 }
 
-TEST_F(EphemeralRangeTest, commonAncesstorDOM) {
+TEST_F(EphemeralRangeTest, CommonAncesstorDom) {
   const char* body_content =
       "<p id='host'>00"
       "<b id='one'>11</b>"

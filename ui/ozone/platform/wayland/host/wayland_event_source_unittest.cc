@@ -445,6 +445,88 @@ TEST_P(WaylandEventSourceTest, ReleasePressedPointerButtonsUAF) {
                                                   base::TimeTicks::Now());
 }
 
+TEST_P(WaylandEventSourceTest, TabletToolButtonEvents) {
+  auto* event_source = connection_->event_source();
+
+  MockWaylandPlatformWindowDelegate delegate(connection_.get());
+  auto window = CreateWaylandWindowWithParams(PlatformWindowType::kWindow,
+                                              kDefaultBounds, &delegate);
+
+  // Set `window` as focused under tablet proximity.
+  event_source->OnTabletToolProximityIn(window.get(), gfx::PointF(100, 100), {},
+                                        base::TimeTicks::Now());
+
+  // Test BTN_STYLUS press (which maps to EF_MIDDLE_MOUSE_BUTTON).
+  {
+    EXPECT_CALL(delegate, DispatchEvent(::testing::_))
+        .WillOnce([](Event* event) {
+          ASSERT_TRUE(event->IsMouseEvent());
+          auto* mouse_event = event->AsMouseEvent();
+          EXPECT_EQ(mouse_event->type(), EventType::kMousePressed);
+          EXPECT_EQ(mouse_event->changed_button_flags(),
+                    EF_MIDDLE_MOUSE_BUTTON);
+          EXPECT_EQ(mouse_event->button_flags(), EF_MIDDLE_MOUSE_BUTTON);
+        });
+
+    event_source->OnTabletToolButton(EF_MIDDLE_MOUSE_BUTTON, /*pressed=*/true,
+                                     {}, base::TimeTicks::Now());
+    ::testing::Mock::VerifyAndClearExpectations(&delegate);
+  }
+
+  // Test BTN_STYLUS2 press (which maps to EF_RIGHT_MOUSE_BUTTON).
+  {
+    EXPECT_CALL(delegate, DispatchEvent(::testing::_))
+        .WillOnce([](Event* event) {
+          ASSERT_TRUE(event->IsMouseEvent());
+          auto* mouse_event = event->AsMouseEvent();
+          EXPECT_EQ(mouse_event->type(), EventType::kMousePressed);
+          EXPECT_EQ(mouse_event->changed_button_flags(), EF_RIGHT_MOUSE_BUTTON);
+          EXPECT_EQ(mouse_event->button_flags(),
+                    EF_MIDDLE_MOUSE_BUTTON | EF_RIGHT_MOUSE_BUTTON);
+        });
+
+    event_source->OnTabletToolButton(EF_RIGHT_MOUSE_BUTTON, /*pressed=*/true,
+                                     {}, base::TimeTicks::Now());
+    ::testing::Mock::VerifyAndClearExpectations(&delegate);
+  }
+
+  // Test BTN_STYLUS release (EF_MIDDLE_MOUSE_BUTTON).
+  {
+    EXPECT_CALL(delegate, DispatchEvent(::testing::_))
+        .WillOnce([](Event* event) {
+          ASSERT_TRUE(event->IsMouseEvent());
+          auto* mouse_event = event->AsMouseEvent();
+          EXPECT_EQ(mouse_event->type(), EventType::kMouseReleased);
+          EXPECT_EQ(mouse_event->changed_button_flags(),
+                    EF_MIDDLE_MOUSE_BUTTON);
+          // Button release flags include the released button per
+          // OnTabletToolButton.
+          EXPECT_EQ(mouse_event->button_flags(),
+                    EF_RIGHT_MOUSE_BUTTON | EF_MIDDLE_MOUSE_BUTTON);
+        });
+
+    event_source->OnTabletToolButton(EF_MIDDLE_MOUSE_BUTTON, /*pressed=*/false,
+                                     {}, base::TimeTicks::Now());
+    ::testing::Mock::VerifyAndClearExpectations(&delegate);
+  }
+
+  // Test BTN_STYLUS2 release (EF_RIGHT_MOUSE_BUTTON).
+  {
+    EXPECT_CALL(delegate, DispatchEvent(::testing::_))
+        .WillOnce([](Event* event) {
+          ASSERT_TRUE(event->IsMouseEvent());
+          auto* mouse_event = event->AsMouseEvent();
+          EXPECT_EQ(mouse_event->type(), EventType::kMouseReleased);
+          EXPECT_EQ(mouse_event->changed_button_flags(), EF_RIGHT_MOUSE_BUTTON);
+          EXPECT_EQ(mouse_event->button_flags(), EF_RIGHT_MOUSE_BUTTON);
+        });
+
+    event_source->OnTabletToolButton(EF_RIGHT_MOUSE_BUTTON, /*pressed=*/false,
+                                     {}, base::TimeTicks::Now());
+    ::testing::Mock::VerifyAndClearExpectations(&delegate);
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(
     EventsDispatchPolicyTest,
     WaylandEventSourceTest,

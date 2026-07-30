@@ -218,7 +218,7 @@ class AlternativeNameFieldValueCharacterSetTest
 // recorded correctly.
 TEST_P(AlternativeNameFieldValueCharacterSetTest, LoggedCorrectly) {
   base::test::ScopedFeatureList features{
-      autofill::features::kAutofillSupportPhoneticNameForJP};
+      features::kAutofillSupportPhoneticNameForJP};
 
   test::FormDescription form_description = {
       .fields = {{.role = ALTERNATIVE_FULL_NAME,

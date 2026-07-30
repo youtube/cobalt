@@ -105,7 +105,7 @@ class SystemMonitor {
 
   // Removes |observer| from the observer list. After this call, the observer
   // will not receive notifications for any metric. This is a no-op if this
-  // observer isn't registred.
+  // observer isn't registered.
   void RemoveObserver(SystemObserver* observer);
 
   const base::OneShotTimer& refresh_timer_for_testing() {

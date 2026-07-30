@@ -25,7 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 public @interface StreamType {
     int UNSPECIFIED = 0;
     int FOR_YOU = 1;
-    int WEB_FEED = 2;
-    int SINGLE_WEB_FEED = 3;
+    @Deprecated int WEB_FEED = 2;
+    @Deprecated int SINGLE_WEB_FEED = 3;
     int SUPERVISED_USER_FEED = 4;
 }

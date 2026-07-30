@@ -14,7 +14,7 @@ import {ShimlessRma} from 'chrome://shimless-rma/shimless_rma.js';
 import type {StateResult} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {FinalizationError, FinalizationStatus, RmadErrorCode} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {FINALIZATION_ERROR_CODE_PREFIX, WrapupFinalizePage} from 'chrome://shimless-rma/wrapup_finalize_page.js';
-import {assertEquals, assertFalse} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 

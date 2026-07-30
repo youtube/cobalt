@@ -35,6 +35,7 @@ namespace {
 // Default values used to construct internal::DisplayInfo.
 constexpr float kSdrWhiteLevel = 200.0;
 constexpr float kDisplayFrequency = 60.0;
+constexpr float kTextScaleMultiplier = 1.0f;
 
 // Headless display device names are fakes that look similar to the real display
 // device names.
@@ -413,8 +414,8 @@ int64_t ScreenWinHeadless::AddDisplay(const Display& display) {
 
   internal::DisplayInfo display_info(
       display_id, monitor_info, display.device_scale_factor(),
-      display.color_depth(), kSdrWhiteLevel, display.rotation(),
-      kDisplayFrequency,
+      display.text_scale_multiplier(), display.color_depth(), kSdrWhiteLevel,
+      display.rotation(), kDisplayFrequency,
       GetDisplayPhysicalPixelsPerInch(display.device_scale_factor()),
       GetOutputTechnology(display.IsInternal()), display.label());
 
@@ -514,9 +515,9 @@ ScreenWinHeadless::DisplayInfosFromScreenInfo(
     }
 
     internal::DisplayInfo display_info(
-        display_id, monitor_info, device_scale_factor, screen_info.color_depth,
-        kSdrWhiteLevel, Display::DegreesToRotation(screen_info.rotation),
-        kDisplayFrequency,
+        display_id, monitor_info, device_scale_factor, kTextScaleMultiplier,
+        screen_info.color_depth, kSdrWhiteLevel,
+        Display::DegreesToRotation(screen_info.rotation), kDisplayFrequency,
         GetDisplayPhysicalPixelsPerInch(screen_info.device_pixel_ratio),
         GetOutputTechnology(screen_info.is_internal), screen_info.label);
 
@@ -542,8 +543,8 @@ std::vector<internal::DisplayInfo> ScreenWinHeadless::GetExistingDisplayInfos(
 
     internal::DisplayInfo display_info(
         display.id(), *monitor_info, display.device_scale_factor(),
-        display.color_depth(), kSdrWhiteLevel, display.rotation(),
-        kDisplayFrequency,
+        display.text_scale_multiplier(), display.color_depth(), kSdrWhiteLevel,
+        display.rotation(), kDisplayFrequency,
         GetDisplayPhysicalPixelsPerInch(display.device_scale_factor()),
         GetOutputTechnology(display.IsInternal()), display.label());
 
@@ -609,8 +610,8 @@ void ScreenWinHeadless::UpdateFromDisplays(
 
     internal::DisplayInfo display_info(
         display.id(), monitor_info, display.device_scale_factor(),
-        display.color_depth(), kSdrWhiteLevel, display.rotation(),
-        kDisplayFrequency,
+        display.text_scale_multiplier(), display.color_depth(), kSdrWhiteLevel,
+        display.rotation(), kDisplayFrequency,
         GetDisplayPhysicalPixelsPerInch(display.device_scale_factor()),
         GetOutputTechnology(display.IsInternal()), display.label());
 

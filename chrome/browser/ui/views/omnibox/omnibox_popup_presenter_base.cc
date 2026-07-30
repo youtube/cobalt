@@ -153,10 +153,18 @@ void OmniboxPopupPresenterBase::ShowWidget(base::TimeTicks show_request_time) {
 
   if (auto* content = GetWebUIContent()) {
     content->GetWebContents()->WasShown();
-    if (ShouldReceiveFocus()) {
-      widget_->Activate();
+  }
+  RequestFocus();
+}
+
+void OmniboxPopupPresenterBase::RequestFocus() {
+  if (widget_ && ShouldReceiveFocus()) {
+    widget_->Activate();
+    if (auto* content = GetWebUIContent()) {
       content->RequestFocus();
-      content->GetWebContents()->Focus();
+      if (content->GetWebContents()) {
+        content->GetWebContents()->Focus();
+      }
     }
   }
 }
@@ -251,33 +259,13 @@ void OmniboxPopupPresenterBase::SynchronizePopupBounds() {
     // so width is specified exactly; then only height adjusts dynamically.
     gfx::Rect widget_bounds = location_bar_->BoundsInScreen();
 
-    // For the Full popup, we trust the content height directly to avoid extra
-    // space. For other popups, we ensure it is at least the location bar
-    // height.
-    if (ShouldUseWebContentHeight()) {
-      bool has_results =
-          !controller_->autocomplete_controller()->result().empty();
-      if (!has_results) {
-        // The WebUI content should be the same height as the location bar when
-        // there are no results, so we don't need to update `widget_bounds`. We
-        // also don't apply alignment insets to avoid shifting.
-        GetResultsFrame()->SetElevation(0);
-      } else {
-        widget_bounds.Inset(
-            -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
-        widget_bounds.set_height(content_height_);
-        GetResultsFrame()->SetElevation(
-            RoundedOmniboxResultsFrame::kDefaultElevation);
-      }
+    widget_bounds.Inset(
+        -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
+    if (ShouldShowLocationBarCutout()) {
+      widget_bounds.set_height(widget_bounds.height() + content_height_);
     } else {
-      widget_bounds.Inset(
-          -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
-      if (ShouldShowLocationBarCutout()) {
-        widget_bounds.set_height(widget_bounds.height() + content_height_);
-      } else {
-        widget_bounds.set_height(
-            std::max(content_height_, widget_bounds.height()));
-      }
+      widget_bounds.set_height(
+          std::max(content_height_, widget_bounds.height()));
     }
 
     // Set width and height to at least their minimums, or if larger,
@@ -288,14 +276,8 @@ void OmniboxPopupPresenterBase::SynchronizePopupBounds() {
         std::max(minimum_size_.height(), widget_bounds.height()));
 
     // Expand the widget bounds to accommodate the shadow borders around the
-    // content. We can't use `GetShadowInsets()` here because it assumes a
-    // static default elevation, but the Full popup uses dynamic elevation
-    // (e.g. 0 when empty, so insets should be 0).
-    if (ShouldUseWebContentHeight()) {
-      widget_bounds.Inset(-GetResultsFrame()->GetInsets());
-    } else {
-      widget_bounds.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());
-    }
+    // content.
+    widget_bounds.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());
     widget_->SetBounds(widget_bounds);
   }
 }
@@ -354,8 +336,8 @@ void OmniboxPopupPresenterBase::EnsureWidgetCreated() {
   widget_->SetNativeWindowProperty(
       views::kWidgetIdentifierKey,
       const_cast<void*>(omnibox::kOmniboxWebUIPopupWidgetId));
-  auto rounded_frame = std::make_unique<RoundedOmniboxResultsFrame>(
-      owned_omnibox_popup_webui_container_.release(), location_bar_,
+  auto rounded_frame = CreateResultsFrame(
+      std::move(owned_omnibox_popup_webui_container_), location_bar_,
       /*forward_mouse_events=*/ShouldShowLocationBarCutout());
   rounded_frame->SetProperty(views::kElementIdentifierKey,
                              kRoundedResultsFrame);
@@ -365,11 +347,16 @@ void OmniboxPopupPresenterBase::EnsureWidgetCreated() {
   GetResultsFrame()->SetCutoutVisibility(ShouldShowLocationBarCutout());
 }
 
-bool OmniboxPopupPresenterBase::ShouldShowLocationBarCutout() const {
-  return false;
+std::unique_ptr<RoundedOmniboxResultsFrame>
+OmniboxPopupPresenterBase::CreateResultsFrame(
+    std::unique_ptr<views::View> contents,
+    LocationBar* location_bar,
+    bool forward_mouse_events) {
+  return std::make_unique<RoundedOmniboxResultsFrame>(
+      contents.release(), location_bar, forward_mouse_events);
 }
 
-bool OmniboxPopupPresenterBase::ShouldUseWebContentHeight() const {
+bool OmniboxPopupPresenterBase::ShouldShowLocationBarCutout() const {
   return false;
 }
 
@@ -445,4 +432,8 @@ void OmniboxPopupPresenterBase::OnEmbeddedPermissionDialogChanged(
             }
           },
           weak_factory_.GetWeakPtr()));
+}
+
+OmniboxController* OmniboxPopupPresenterBase::GetOmniboxController() {
+  return controller();
 }

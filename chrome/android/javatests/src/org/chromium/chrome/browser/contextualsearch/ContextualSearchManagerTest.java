@@ -1111,6 +1111,7 @@ public class ContextualSearchManagerTest extends ContextualSearchInstrumentation
     @Test
     @SmallTest
     @Feature({"ContextualSearch"})
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/522362839
     public void testPeekStateHeight() throws Exception {
         final float defaultHeight = 70;
         longPressNode("states");

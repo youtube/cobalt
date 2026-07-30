@@ -186,7 +186,7 @@ public class EnterpriseInfoImpl extends EnterpriseInfo {
             // There will only ever be a single item in the queue as we only try()/catch() on the
             // first item.
             Callback<@Nullable OwnedState> failedRunCallback = mCallbackList.remove();
-            mHandler.post(() -> failedRunCallback.onResult(null));
+            mHandler.post(failedRunCallback.bind(null));
         }
     }
 

@@ -77,7 +77,7 @@ found in the LICENSE file.
     <dimen name="location_bar_status_separator_width">1dp</dimen>
     <dimen name="location_bar_status_separator_spacer">8dp</dimen>
     <dimen name="location_bar_min_url_width">68dp</dimen>
-    <dimen name="location_bar_url_centering_safety_margin">20dp</dimen>
+    <dimen name="location_bar_url_centering_safety_margin">10dp</dimen>
     <dimen name="location_bar_url_centering_edge_space">48dp</dimen>
     <dimen name="location_bar_min_verbose_status_text_width">48dp</dimen>
     <dimen name="location_bar_start_padding">0dp</dimen>
@@ -100,6 +100,7 @@ found in the LICENSE file.
     <dimen name="incognito_indicator_lateral_end_padding">12dp</dimen>
     <dimen name="incognito_indicator_text_lateral_start_margin">4dp</dimen>
     <dimen name="location_bar_icon_starting_padding">8dp</dimen>
+    <dimen name="location_bar_standby_focus_ring_width">2dp</dimen>
 
     <!-- Omnibox suggestions -->
     <dimen name="omnibox_suggestion_header_padding_start">24dp</dimen>

@@ -541,7 +541,7 @@ public class AppMenuTest {
         int currentCallCount = mMenuObserver.menuShownCallback.getCallCount();
         View testView = mTestMenuButtonDelegate.getMenuButtonView();
 
-        ThreadUtils.runOnUiThreadBlocking(() -> onPressCallback.onResult(testView));
+        ThreadUtils.runOnUiThreadBlocking(onPressCallback.bind(testView));
 
         waitForMenuToShow(currentCallCount, mAppMenuHandler);
     }

@@ -1328,9 +1328,9 @@ bool AXObjectCacheImpl::IsRelevantSlotElement(const HTMLSlotElement& slot) {
   DCHECK(AXObject::CanSafelyUseFlatTreeTraversalNow(slot.GetDocument()));
   DCHECK(slot.SupportsAssignment());
 
-  if (slot.IsInUserAgentShadowRoot() &&
-      IsA<HTMLSelectElement>(slot.OwnerShadowHost()) &&
-      slot.GetIdAttribute() == shadow_element_names::kSelectPopoverOptions) {
+  if (auto* select = DynamicTo<HTMLSelectElement>(slot.OwnerShadowHost());
+      select && select->UsesMenuList() && slot.IsInUserAgentShadowRoot() &&
+      slot.GetIdAttribute() == shadow_element_names::kSelectOptions) {
     return true;
   }
 
@@ -1635,7 +1635,7 @@ AXObject* AXObjectCacheImpl::CreateAndInit(Node* node,
   new_obj->UpdateChildrenIfNecessary();
 
   if (auto* canvas = DynamicTo<HTMLCanvasElement>(node)) {
-    canvas->OnAxObjectCreated(new_obj->IsIgnored());
+    canvas->OnAxObjectIgnoredStateChanged(new_obj->IsIgnored());
   }
 
   return new_obj;
@@ -6356,11 +6356,14 @@ void AXObjectCacheImpl::GetUpdatesAndEventsForSerialization(
 
     // Provide the expected node count in the last update, so that
     // AXTree::Unserialize() can check for tree consistency on the browser side.
+    // Use the serializers' client tree counts, which match the size of the
+    // id_map_ the browser builds by unserializing these updates.
     if (!updates.back().tree_checks) {
       updates.back().tree_checks.emplace();
     }
     updates.back().tree_checks->node_count =
-        GetIncludedNodeCount() + GetPluginIncludedNodeCount();
+        ax_tree_serializer_->ClientTreeNodeCount() +
+        (plugin_serializer_ ? plugin_serializer_->ClientTreeNodeCount() : 0);
   }
 #endif  // AX_FAIL_FAST_BUILD()
 }
@@ -6459,7 +6462,7 @@ void AXObjectCacheImpl::HandleEditableTextContentChanged(Node* node) {
 }
 
 void AXObjectCacheImpl::HandleDeletionOrInsertionInTextField(
-    const SelectionInDOMTree& changed_selection,
+    const SelectionInDomTree& changed_selection,
     bool is_deletion) {
   Position start_pos = changed_selection.ComputeStartPosition();
   Position end_pos = changed_selection.ComputeEndPosition();

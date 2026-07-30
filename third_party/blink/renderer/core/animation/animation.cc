@@ -1039,7 +1039,8 @@ bool Animation::HasLowerCompositeOrdering(
   return animation1->SequenceNumber() < animation2->SequenceNumber();
 }
 
-void Animation::NotifyAnimationStartedAsync(base::TimeDelta monotonic_time) {
+void Animation::NotifyAnimationStartedAsync(base::TimeDelta monotonic_time,
+                                            Animation::AutoRewind auto_rewind) {
   DCHECK(compositor_state_);
   DCHECK(pending_play_);
 
@@ -1049,29 +1050,19 @@ void Animation::NotifyAnimationStartedAsync(base::TimeDelta monotonic_time) {
   compositor_state_->pending_action = CompositorAction::kStart;
   compositor_state_->start_time.reset();
 
-  // We need to store the hold time prior to its being cleared in NotifyReady.
-  // TODO(crbug.com/451238244): For now, we only get here if the animation was
-  // not already running. If it was already running, what we want to compute
-  // here is the current_time_to_match similar to CommitPendingPlay.
-  DCHECK(hold_time_);
-  base::TimeDelta cc_hold_time = ComputeCompositorHoldTime().value();
-
   AnimationTimeDelta ready_time =
       ANIMATION_TIME_DELTA_FROM_SECONDS(monotonic_animation_start_time) -
       TimelineInternal()->ZeroTime();
   NotifyReady(ready_time);
 
-  compositor_state_->hold_time = hold_time_;
-
   double playback_rate = EffectivePlaybackRate();
+
+  compositor_state_->hold_time = hold_time_;
+  compositor_state_->playback_rate = playback_rate;
+
   cc::Animation* cc_animation = GetCompositorAnimation()->CcAnimation();
-  // TODO(crbug.com/508229282): Add a static KeyframeModel function that
-  // computes start time given monotonic time, hold_time and playback rate and
-  // use it everywhere this calculation is done.
-  cc_animation->SetStartTime(base::TimeTicks() + monotonic_time -
-                             cc_hold_time / playback_rate);
-  cc_animation->SetHoldTime(std::nullopt);
-  cc_animation->SetRunState(cc::KeyframeModel::RunState::RUNNING);
+  cc_animation->PlayInternal(base::TimeTicks() + monotonic_time, auto_rewind,
+                             playback_rate);
 }
 
 void Animation::NotifyAnimationPausedAsync(base::TimeDelta monotonic_time) {
@@ -1956,11 +1947,12 @@ void Animation::PlayInternal(AutoRewind auto_rewind,
 }
 
 void Animation::reverse(ExceptionState& exception_state) {
-  ReverseInternal(exception_state);
+  ReverseInternal(AutoRewind::kEnabled, exception_state);
 }
 
 // https://www.w3.org/TR/web-animations-1/#reversing-an-animation-section
-void Animation::ReverseInternal(ExceptionState& exception_state) {
+void Animation::ReverseInternal(AutoRewind auto_rewind,
+                                ExceptionState& exception_state) {
   // 1. If there is no timeline associated with animation, or the associated
   //    timeline is inactive throw an "InvalidStateError" DOMException and abort
   //    these steps.
@@ -1988,7 +1980,7 @@ void Animation::ReverseInternal(ExceptionState& exception_state) {
   //    If the steps to play an animation throw an exception, set animation’s
   //    pending playback rate to original pending playback rate and propagate
   //    the exception.
-  PlayInternal(AutoRewind::kEnabled, exception_state);
+  PlayInternal(auto_rewind, exception_state);
   if (exception_state.HadException())
     pending_playback_rate_ = original_pending_playback_rate;
 }
@@ -2229,6 +2221,7 @@ void Animation::updatePlaybackRate(double playback_rate,
     case V8AnimationPlayState::Enum::kIdle:
     case V8AnimationPlayState::Enum::kPaused:
       ApplyPendingPlaybackRate();
+      SetCompositorPending(CompositorPendingReason::kPendingUpdate);
       break;
 
     // 3c If previous play state is finished,

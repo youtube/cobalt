@@ -117,6 +117,7 @@
 <translation id="1373120905936431262">Nano Banana की मदद से रीमिक्स करने के लिए, कोई इमेज अपलोड करें</translation>
 <translation id="1377508275003315939">पासवर्ड</translation>
 <translation id="1381022135873211423">{count,plural, =1{{count} पते में से {position}}one{{count} पते में से {position}}other{{count} पतों में से {position}}}</translation>
+<translation id="13813615483058219">कोई गड़बड़ी हुई. अपने इंटरनेट कनेक्शन की जांच करें, आवाज़ बढ़ाएं या फिर से कोशिश करें.</translation>
 <translation id="1383876407941801731">खोजें</translation>
 <translation id="138618066238211776"><ph name="USER_NAME" /> के तौर पर जारी रखें</translation>
 <translation id="138692594145659985">कार्ड सेव करने के विकल्प</translation>
@@ -874,6 +875,7 @@
 <translation id="4021447724486050609">अपना ब्राउज़र अपडेट करें</translation>
 <translation id="4021931095789478915">रीडिंग लिस्ट में ${url} जोड़ें</translation>
 <translation id="4028871427853484857">खाते में सेव करें…</translation>
+<translation id="4036529942385659684">कुछ समय तक कोई गतिविधि न होने पर, शुरुआती पेज को दिखाएं</translation>
 <translation id="4038354071007134711">इस डिवाइस पर कोई भी ऐप्लिकेशन, फ़ाइल नहीं खोल सकता.</translation>
 <translation id="4042870976416480368">'पेज में ढूंढें'</translation>
 <translation id="4045441967987592849">फिर से खोलें</translation>
@@ -911,7 +913,6 @@
 <translation id="417138788035229076">ग्रुप मैनेज करें</translation>
 <translation id="4172051516777682613">हमेशा दिखाएं</translation>
 <translation id="417273154673973994">{count,plural, =1{1 टैब ग्रुप बंद और सेव किया गया}one{{count} टैब ग्रुप बंद और सेव किया गया}other{{count} टैब ग्रुप बंद और सेव किए गए}}</translation>
-<translation id="417612446554534067">अपने डिवाइस पर भेजें</translation>
 <translation id="4180726336228139707">सिर्फ़ इस डिवाइस पर</translation>
 <translation id="4181841719683918333">भाषाएं</translation>
 <translation id="4183350924949589798">क्या आपको बेहतर सुरक्षा चाहिए?</translation>
@@ -1135,6 +1136,7 @@
 <translation id="4896467949657706481">टैब बंद कर दिए गए थे. साथ ही, आपको साइन आउट कर दिया गया था</translation>
 <translation id="4911042367886397055">आपका फिर से स्वागत है, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">अपने फ़ैमिली ग्रुप के किसी सदस्य के साथ, पासवर्ड की कॉपी सुरक्षित तरीके से शेयर की जा सकती है. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">लैंस</translation>
 <translation id="4917025507570489430"><ph name="USER_EMAIL" /> से साइन इन करने पर, मौजूदा ब्राउज़िंग डेटा का इस्तेमाल किया जा सकता है. ऐसा हो सकता है कि आपका संगठन इस डेटा को देख पाए.</translation>
 <translation id="4918086044614829423">स्वीकार करें</translation>
 <translation id="4930714375720679147">चालू करें</translation>
@@ -2145,6 +2147,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="8263809106706527890">ऐसा हो सकता है कि आपके डिफ़ॉल्ट ब्राउज़र की सेटिंग में कुछ बदलाव किया गया हो. सेटिंग में जाकर इसे देखा जा सकता है.</translation>
 <translation id="8264966119170358612">पासवर्ड मैनेजर में सेव किए गए आपके कुछ पासवर्ड, बिना अनुमति के सार्वजनिक किए गए हैं. ऐसा करने के लिए, Google के बजाय किसी तीसरे पक्ष ने डेटा का गलत इस्तेमाल किया है. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">iPad रीसेट होने की वजह से, आपको <ph name="USER_NAME" /> खाते से साइन आउट कर दिया गया था. फिर से साइन इन करने के लिए, नीचे "जारी रखें" पर टैप करें.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">आपको <ph name="URL" /> में जानकारी भरनी होगी</translation>
 <translation id="8275068909952022340">ज़्यादा…</translation>
 <translation id="8281781826761538115">डिफ़ॉल्ट - <ph name="DEFAULT_LOCALE" /></translation>

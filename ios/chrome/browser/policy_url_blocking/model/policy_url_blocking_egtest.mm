@@ -11,6 +11,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/policy/core/browser/url_list/url_list_policy_pref_names.h"
+#import "components/policy/core/common/features.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/policy/policy_constants.h"
 #import "components/strings/grit/components_strings.h"
@@ -103,6 +104,17 @@ void WaitForURLBlockedStatus(const GURL& URL,
   // "com.apple.configuration.managed" key.
   AppLaunchConfiguration config;
   config.relaunch_policy = NoForceRelaunchAndResetState;
+
+  if ([self isRunningTest:@selector
+            (testUrlBlocklistAndIncognitoAllowlistFeatureEnabled)]) {
+    config.features_enabled.push_back(
+        policy::features::kURLBlocklistOverridesIncognitoAllowlist);
+  } else if ([self isRunningTest:@selector
+                   (testUrlBlocklistAndIncognitoAllowlistFeatureDisabled)]) {
+    config.features_disabled.push_back(
+        policy::features::kURLBlocklistOverridesIncognitoAllowlist);
+  }
+
   return config;
 }
 
@@ -280,8 +292,8 @@ void WaitForURLBlockedStatus(const GURL& URL,
 }
 
 // Tests that the Incognito allowlist works as an exception to the URL
-// blocklist, but only in Incognito mode.
-- (void)testUrlBlocklistAndIncognitoAllowlist {
+// blocklist, but only in Incognito mode when the feature is disabled.
+- (void)testUrlBlocklistAndIncognitoAllowlistFeatureDisabled {
   GURL URL = self.testServer->GetURL("/echo");
 
   // Set a general blocklist that blocks the URL.
@@ -300,6 +312,40 @@ void WaitForURLBlockedStatus(const GURL& URL,
 
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGrey waitForWebStateContainingText:"Echo"];
+
+  // In regular mode, it should be blocked.
+  [ChromeEarlGrey openNewTab];
+  WaitForURLBlockedStatus(URL, /*blocked=*/true, /*incognito=*/false);
+
+  [ChromeEarlGrey loadURL:URL];
+  [ChromeEarlGrey waitForWebStateContainingText:
+                      l10n_util::GetStringUTF8(
+                          IDS_ERRORPAGES_SUMMARY_BLOCKED_BY_ADMINISTRATOR)];
+}
+
+// Tests that the Incognito allowlist is ignored when matching against the
+// general blocklist.
+- (void)testUrlBlocklistAndIncognitoAllowlistFeatureEnabled {
+  GURL URL = self.testServer->GetURL("/echo");
+
+  // Set a general blocklist that blocks the URL.
+  GREYAssertTrue(
+      SetURLBlocklist(base::Value(base::ListValue().Append("*/echo"))),
+      @"policy value couldn't be set");
+
+  // Set an Incognito allowlist that allows the URL.
+  GREYAssertTrue(
+      SetIncognitoURLAllowlist(base::Value(base::ListValue().Append("*/echo"))),
+      @"policy value couldn't be set");
+
+  [ChromeEarlGrey openNewIncognitoTab];
+  // In Incognito, it should still be blocked.
+  WaitForURLBlockedStatus(URL, /*blocked=*/true, /*incognito=*/true);
+
+  [ChromeEarlGrey loadURL:URL];
+  [ChromeEarlGrey waitForWebStateContainingText:
+                      l10n_util::GetStringUTF8(
+                          IDS_ERRORPAGES_SUMMARY_BLOCKED_BY_ADMINISTRATOR)];
 
   // In regular mode, it should be blocked.
   [ChromeEarlGrey openNewTab];

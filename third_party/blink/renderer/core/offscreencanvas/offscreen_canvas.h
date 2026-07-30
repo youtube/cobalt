@@ -143,7 +143,10 @@ class CORE_EXPORT OffscreenCanvas final
   using CanvasRenderingContextHost::DidDraw;
   bool ShouldAccelerate2dContext() const override;
   CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
-  void DiscardResourceDispatcher() override { frame_dispatcher_ = nullptr; }
+  void DiscardResourceDispatcher() override {
+    placeholder_client_ = nullptr;
+    frame_dispatcher_ = nullptr;
+  }
   UkmParameters GetUkmParameters() override;
   bool IsWebGL1Enabled() const override { return true; }
   bool IsWebGL2Enabled() const override { return true; }
@@ -270,6 +273,7 @@ class CORE_EXPORT OffscreenCanvas final
   bool disable_reading_from_canvas_ = false;
 
   std::unique_ptr<CanvasResourceDispatcher> frame_dispatcher_;
+  std::unique_ptr<OffscreenCanvasPlaceholder::Client> placeholder_client_;
 
   // Rect is in a canvas's space (i.e Size() is a full rect and not in a
   // CanvasResource space).
@@ -290,7 +294,6 @@ class CORE_EXPORT OffscreenCanvas final
   // then the following members would remain as initialized zero values.
   uint32_t client_id_ = 0;
   uint32_t sink_id_ = 0;
-
 };
 
 }  // namespace blink

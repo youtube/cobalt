@@ -741,7 +741,12 @@ test("headless_browsertests") {
   }
 
   if (!is_fuchsia) {
-    deps += [ "//third_party/crashpad/crashpad/client" ]
+    deps += [
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/handler:common",
+      "//third_party/crashpad/crashpad/snapshot",
+      "//third_party/crashpad/crashpad/util",
+    ]
   }
 
   if (enable_printing) {

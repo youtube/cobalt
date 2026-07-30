@@ -29,6 +29,7 @@ blink::mojom::NavigationDownloadTypesPtr CreateDownloadTypes(
       types.test(static_cast<size_t>(DownloadType::kSandbox));
   data->no_gesture =
       types.test(static_cast<size_t>(DownloadType::kNoGesture));
+  data->ad_script = types.test(static_cast<size_t>(DownloadType::kAdScript));
   return data;
 }
 
@@ -77,6 +78,12 @@ bool StructTraits<DownloadTypesDataView, DownloadTypes>::no_gesture(
 }
 
 // static
+bool StructTraits<DownloadTypesDataView, DownloadTypes>::ad_script(
+    const DownloadTypes& types) {
+  return types.test(static_cast<size_t>(DownloadType::kAdScript));
+}
+
+// static
 bool StructTraits<DownloadTypesDataView, DownloadTypes>::Read(
     DownloadTypesDataView in,
     DownloadTypes* out) {
@@ -94,6 +101,9 @@ bool StructTraits<DownloadTypesDataView, DownloadTypes>::Read(
     out->set(static_cast<size_t>(DownloadType::kSandbox));
   if (in.no_gesture())
     out->set(static_cast<size_t>(DownloadType::kNoGesture));
+  if (in.ad_script()) {
+    out->set(static_cast<size_t>(DownloadType::kAdScript));
+  }
   return true;
 }
 

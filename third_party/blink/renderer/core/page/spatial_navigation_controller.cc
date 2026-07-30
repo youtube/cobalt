@@ -246,14 +246,14 @@ bool SpatialNavigationController::Advance(
   interest_node->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
       DocumentUpdateReason::kSpatialNavigation);
 
-  Node* container = ScrollableAreaOrDocumentOf(interest_node);
+  Node* container = ScrollableAreaOrDocumentOf(interest_node, direction);
 
   const PhysicalRect visible_rect =
       PhysicalRect::EnclosingRect(page_->GetVisualViewport().VisibleRect());
   const PhysicalRect start_box =
       SearchOrigin(visible_rect, interest_node, direction);
 
-  if (IsScrollableAreaOrDocument(interest_node) &&
+  if (IsScrollableAreaOrDocument(interest_node, direction) &&
       !IsOffscreen(interest_node)) {
     // A visible scroller has interest. Search inside of it from one of its
     // edges.
@@ -275,7 +275,7 @@ bool SpatialNavigationController::Advance(
     // When the scroll container <c> is focused, we move focus back to <a>...
     skipped_tree = container;
     // Nothing found in |container| so search the parent container.
-    container = ScrollableAreaOrDocumentOf(container);
+    container = ScrollableAreaOrDocumentOf(container, direction);
 
     // TODO(bokan): This needs to update the parent document when the _current_
     // container is a document since we're crossing the document boundary.
@@ -305,7 +305,7 @@ FocusCandidate SpatialNavigationController::FindNextCandidateInContainer(
   double best_distance = kMaxDistance;
   for (; element;
        element =
-           IsScrollableAreaOrDocument(element)
+           IsScrollableAreaOrDocument(element, direction)
                ? ElementTraversal::NextSkippingChildren(*element, &container)
                : ElementTraversal::Next(*element, &container)) {
     if (element == interest_child_in_container)
@@ -334,7 +334,8 @@ bool SpatialNavigationController::AdvanceWithinContainer(
     const PhysicalRect& starting_rect_in_root_frame,
     SpatialNavigationDirection direction,
     Node* interest_child_in_container) {
-  DCHECK(IsScrollableAreaOrDocument(&container));
+  DCHECK(IsScrollableAreaOrDocument(&container,
+                                    SpatialNavigationDirection::kNone));
 
   FocusCandidate candidate =
       FindNextCandidateInContainer(container, starting_rect_in_root_frame,

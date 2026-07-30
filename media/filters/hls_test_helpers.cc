@@ -89,13 +89,23 @@ FileHlsDataSourceStreamFactory::CreateStream(
 MockDataSourceFactory::~MockDataSourceFactory() = default;
 MockDataSourceFactory::MockDataSourceFactory() = default;
 
-void MockDataSourceFactory::Create(const GURL& uri,
-                                   DataSource::CacheMode cache_mode,
-                                   DataSource::EncodingMode encoding_mode,
-                                   DataSource::DataSourceCb cb) {
-  MockCreate(uri, cache_mode, encoding_mode);
+void MockDataSourceFactory::Create(
+    const GURL& uri,
+    DataSource::CacheMode cache_mode,
+    DataSource::EncodingMode encoding_mode,
+    base::OnceCallback<void(std::unique_ptr<CrossOriginDataSource>)> cb) {
+  // A test can return a string when expecting a call to MockCreate - this will
+  // become the new URL after redirects.
+  GURL uri_after_redirects = uri;
+  std::optional<std::string> redirect_override =
+      MockCreate(uri, cache_mode, encoding_mode);
+  if (redirect_override) {
+    uri_after_redirects = GURL(*redirect_override);
+  }
+
   if (!next_mock_) {
-    PregenerateNextMock();
+    next_mock_has_redirection_ = false;
+    next_mock_ = std::make_unique<testing::NiceMock<MockDataSource>>();
     EXPECT_CALL(*next_mock_, Initialize)
         .WillOnce(base::test::RunOnceCallback<0>(true));
     for (const auto& e : read_expectations_) {
@@ -106,6 +116,12 @@ void MockDataSourceFactory::Create(const GURL& uri,
     read_expectations_.clear();
     EXPECT_CALL(*next_mock_, Stop());
   }
+
+  if (!next_mock_has_redirection_) {
+    EXPECT_CALL(*next_mock_, GetUrlAfterRedirects())
+        .WillRepeatedly(testing::Return(uri_after_redirects));
+  }
+
   std::move(cb).Run(std::move(next_mock_));
 }
 
@@ -115,9 +131,16 @@ void MockDataSourceFactory::AddReadExpectation(size_t from,
   read_expectations_.emplace_back(from, to, response);
 }
 
-testing::NiceMock<MockDataSource>*
-MockDataSourceFactory::PregenerateNextMock() {
+testing::NiceMock<MockDataSource>* MockDataSourceFactory::PregenerateNextMock(
+    std::optional<std::string> redirect_uri) {
   next_mock_ = std::make_unique<testing::NiceMock<MockDataSource>>();
+  next_mock_has_redirection_ = redirect_uri.has_value();
+  if (redirect_uri.has_value()) {
+    EXPECT_CALL(*next_mock_, GetUrlAfterRedirects())
+        .WillRepeatedly(testing::Return(GURL(*redirect_uri)));
+    EXPECT_CALL(*next_mock_, DidRedirect())
+        .WillRepeatedly(testing::Return(true));
+  }
   return next_mock_.get();
 }
 

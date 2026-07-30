@@ -61,8 +61,8 @@
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
@@ -379,6 +379,11 @@ bool IsFullscreenNextIAEnabled() {
 @property(nonatomic, readonly, getter=isContentAreaObstructed)
     BOOL contentAreaObstructed;
 
+// When YES, the Fullscreen progress may be dirty and should be applied at
+// next opportunity even if it appears to have not changed. This is only
+// used for the legacy fullscreen implementation.
+@property(nonatomic, assign) BOOL fullscreenProgressDirty;
+
 @end
 
 @implementation BrowserViewController
@@ -693,6 +698,9 @@ bool IsFullscreenNextIAEnabled() {
 - (void)openNewTabFromOriginPoint:(CGPoint)originPoint
                      focusOmnibox:(BOOL)focusOmnibox
                     inheritOpener:(BOOL)inheritOpener {
+  if (self.inNewTabAnimation) {
+    return;
+  }
   const BOOL offTheRecord = _isOffTheRecord;
   ProceduralBlock oldForegroundTabWasAddedCompletionBlock =
       self.foregroundTabWasAddedCompletionBlock;
@@ -875,6 +883,7 @@ bool IsFullscreenNextIAEnabled() {
   _layoutState = nil;
   [[NSNotificationCenter defaultCenter] removeObserver:self];
   _bookmarksCoordinator = nil;
+  self.popupMenuCoordinator = nil;
 
   // Clears the pointer to C++ objects.
   _urlLoadingBrowserAgent = nullptr;
@@ -1156,6 +1165,17 @@ bool IsFullscreenNextIAEnabled() {
 
   crash_keys::SetCurrentOrientation(GetInterfaceOrientation(),
                                     [[UIDevice currentDevice] orientation]);
+
+  if (!IsFullscreenNextIAEnabled()) {
+    __weak BrowserViewController* weakSelf = self;
+    [coordinator
+        animateAlongsideTransition:^(
+            id<UIViewControllerTransitionCoordinatorContext>) {
+          [weakSelf animateTransition];
+          [weakSelf invalidateFullscreenInsets];
+        }
+                        completion:nil];
+  }
 }
 
 - (void)invalidateFullscreenInsets {
@@ -1751,6 +1771,7 @@ bool IsFullscreenNextIAEnabled() {
 
 // Returns the appropriate frame for the NTP.
 - (CGRect)ntpFrameForCurrentWebState {
+  CHECK(!IsFullscreenRefactoringEnabled(), base::NotFatalUntil::M160);
   DCHECK(self.ntpCoordinator.isNTPActiveForCurrentWebState);
   // NTP is laid out only in the visible part of the screen.
   UIEdgeInsets viewportInsets = UIEdgeInsetsZero;
@@ -2115,6 +2136,10 @@ bool IsFullscreenNextIAEnabled() {
   [animator addAnimations:^{
     [weakSelf updateHeadersForFullscreenProgress:finalProgress];
     [weakSelf updateFootersForFullscreenProgress:finalProgress];
+    // This animation can be canceled in the middle, and there is no way to
+    // know when this happens. Setting `fullscreenProgressDirty` will force
+    // a layout to happen on the next fullscreen update.
+    weakSelf.fullscreenProgressDirty = YES;
   }];
 
   // Animating layout changes of the rendered content in the WKWebView is not
@@ -2342,6 +2367,12 @@ bool IsFullscreenNextIAEnabled() {
         [view setNeedsLayout];
         [view layoutIfNeeded];
       }
+    } else if (self.fullscreenProgressDirty) {
+      CHECK(!IsFullscreenRefactoringEnabled());
+      UIView* view = self.view;
+      [view setNeedsLayout];
+      [view layoutIfNeeded];
+      self.fullscreenProgressDirty = NO;
     }
   }
 }
@@ -2607,6 +2638,7 @@ bool IsFullscreenNextIAEnabled() {
 
 // Returns the frame for the new tab page view for the given web state.
 - (CGRect)newPageFrameForWebState:(web::WebState*)webState {
+  CHECK(!IsFullscreenRefactoringEnabled(), base::NotFatalUntil::M160);
   GURL tabURL = webState->GetVisibleURL();
   BOOL isNTP = tabURL == kChromeUINewTabURL;
 
@@ -2624,24 +2656,32 @@ bool IsFullscreenNextIAEnabled() {
 
 // Returns the frame for the foreground tab animation view.
 - (CGRect)foregroundTabAnimationViewFrameForWebState:(web::WebState*)webState {
+  CHECK(!CanShowTabStrip(self), base::NotFatalUntil::M160);
+
   GURL tabURL = webState->GetVisibleURL();
   BOOL isNTP = tabURL == kChromeUINewTabURL;
 
-  CGRect frameInView = self.view.bounds;
+  UIEdgeInsets insets = UIEdgeInsetsZero;
   // On iPhone landscape, the AppBar is covering part of screen under which the
   // NTP is not displayed.
-  if (isNTP && !_isOffTheRecord && !CanShowTabStrip(self) &&
-      IsChromeNextIaEnabled()) {
+  if (isNTP && !CanShowTabStrip(self) && IsChromeNextIaEnabled()) {
     AppBarPosition position = self.layoutState.appBarPosition;
-    UIEdgeInsets insets = UIEdgeInsetsZero;
 
     if (position == AppBarPosition::kLeft) {
       insets.left = kAppBarHeightLandscape;
     } else if (position == AppBarPosition::kRight) {
       insets.right = kAppBarHeightLandscape;
     }
-    frameInView = UIEdgeInsetsInsetRect(frameInView, insets);
   }
+
+  if (IsChromeNextIaEnabled() && isNTP && _isOffTheRecord) {
+    insets.bottom = [self secondaryToolbarHeightWithInset];
+    insets.top = [self expandedTopToolbarHeight];
+    if (self.layoutState.appBarPosition == AppBarPosition::kBottom) {
+      insets.bottom += kAppBarHeight;
+    }
+  }
+  CGRect frameInView = UIEdgeInsetsInsetRect(self.view.bounds, insets);
   return [self.contentArea convertRect:frameInView fromView:self.view];
 }
 
@@ -2687,6 +2727,8 @@ bool IsFullscreenNextIAEnabled() {
 
 - (void)animateNewTabForWebState:(web::WebState*)webState
       inForegroundWithCompletion:(ProceduralBlock)completion {
+  CHECK(!CanShowTabStrip(self), base::NotFatalUntil::M160);
+
   // Create the new page image, and load with the new tab snapshot except if
   // it is the NTP.
   UIView* newPage = [self viewForWebState:webState];
@@ -2702,7 +2744,11 @@ bool IsFullscreenNextIAEnabled() {
   BOOL isIncognito = _isOffTheRecord;
   BOOL useDeviceCornerRadius = NO;
 
-  newPage.frame = [self newPageFrameForWebState:webState];
+  if (IsFullscreenRefactoringEnabled()) {
+    newPage.frame = [self foregroundTabAnimationViewFrameForWebState:webState];
+  } else {
+    newPage.frame = [self newPageFrameForWebState:webState];
+  }
 
   if (isNTP && !isIncognito && !CanShowTabStrip(self)) {
     // Add a snapshot of the primary toolbar to the background as the
@@ -2752,8 +2798,15 @@ bool IsFullscreenNextIAEnabled() {
   if (IsChromeNextIaEnabled()) {
     animatedView.appBarPosition = self.layoutState.appBarPosition;
   }
-  animatedView.backgroundView =
-      [self.contentArea snapshotViewAfterScreenUpdates:NO];
+  if (IsFullscreenRefactoringEnabled() && isNTP) {
+    animatedView.backgroundView =
+        [self.contentArea resizableSnapshotViewFromRect:frame
+                                     afterScreenUpdates:NO
+                                          withCapInsets:UIEdgeInsetsZero];
+  } else {
+    animatedView.backgroundView =
+        [self.contentArea snapshotViewAfterScreenUpdates:NO];
+  }
 
   __weak UIView* weakAnimatedView = animatedView;
   auto completionBlock = ^() {
@@ -2955,10 +3008,18 @@ bool IsFullscreenNextIAEnabled() {
 }
 
 - (CGFloat)headerHeightForSideSwipe {
+  UIView* primaryToolbarView =
+      self.toolbarCoordinator.primaryToolbarViewController.view;
+  if (IsChromeNextIaEnabled() && primaryToolbarView.alpha == 0.0) {
+    // When Chrome Next is enabled, the toolbar on the NTP is hidden by
+    // setting its alpha to 0.0 instead of setting hidden to YES.
+    return 0;
+  }
+
   // If the toolbar is hidden, only inset the side swipe navigation view by
   // `safeAreaInsets.top`.  Otherwise insetting by `self.headerHeight` would
   // show a grey strip where the toolbar would normally be.
-  if (self.toolbarCoordinator.primaryToolbarViewController.view.hidden) {
+  if (primaryToolbarView.hidden) {
     return self.rootSafeAreaInsets.top;
   }
   return self.headerHeight;
@@ -3083,6 +3144,7 @@ bool IsFullscreenNextIAEnabled() {
     return;
   }
 
+  [self.sceneHandler hideAssistant];
   [self.geminiHandler
       hideFloatyIfInvokedAnimated:NO
                        fromSource:gemini::FloatyUpdateSource::Overlay];
@@ -3097,6 +3159,7 @@ bool IsFullscreenNextIAEnabled() {
 - (void)lensOverlayWillDisappear {
   [_sideSwipeCoordinator setEnabled:YES];
   _lensOverlayVisible = NO;
+  [self.sceneHandler revealAssistant];
   self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
 }
 

@@ -122,6 +122,7 @@ public class MostVisitedTilesLayoutTest {
             new String[] {"ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"};
 
     private final CallbackHelper mLoadCompleteHelper = new CallbackHelper();
+    private MostVisitedTilesCoordinator mCoordinator;
 
     @BeforeClass
     public static void setUpBeforeActivityLaunched() {
@@ -141,6 +142,10 @@ public class MostVisitedTilesLayoutTest {
 
     @After
     public void tearDown() {
+        if (mCoordinator != null) {
+            ThreadUtils.runOnUiThreadBlocking(() -> mCoordinator.destroy());
+            mCoordinator = null;
+        }
         // Since renderTiles() calls setContentView() on the Activity, the clean up causes an
         // exception.
         mActivityTestRule.skipWindowAndTabStateCleanup();
@@ -366,9 +371,9 @@ public class MostVisitedTilesLayoutTest {
                     }
                 };
 
-        MostVisitedTilesCoordinator coordinator =
+        mCoordinator =
                 new MostVisitedTilesCoordinator(
                         activity, mActivityLifecycleDispatcher, containerLayout, null, null);
-        coordinator.initWithNative(profile, uiDelegate, delegate, mTouchEnabledDelegate);
+        mCoordinator.initWithNative(profile, uiDelegate, delegate, mTouchEnabledDelegate);
     }
 }

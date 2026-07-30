@@ -13,7 +13,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
-import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.support.v4.media.MediaMetadataCompat;
@@ -491,6 +490,9 @@ public class MediaNotificationController {
 
         /** Called when a notification has been shown and should be logged in UMA. */
         void logNotificationShown(NotificationWrapper notification);
+
+        /** Returns true if multiple media notifications are enabled. */
+        boolean isMultipleMediaNotificationsEnabled();
     }
 
     public MediaNotificationController(Delegate delegate) {
@@ -596,9 +598,8 @@ public class MediaNotificationController {
             onPlay(MediaNotificationListener.ACTION_SOURCE_MEDIA_NOTIFICATION);
         } else if (ACTION_PAUSE.equals(action)) {
             onPause(MediaNotificationListener.ACTION_SOURCE_MEDIA_NOTIFICATION);
-        } else if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(action)) {
-            onPause(MediaNotificationListener.ACTION_SOURCE_HEADSET_UNPLUG);
         } else if (ACTION_PREVIOUS_TRACK.equals(action)) {
+
             onMediaSessionAction(MediaSessionAction.PREVIOUS_TRACK);
         } else if (ACTION_NEXT_TRACK.equals(action)) {
             onMediaSessionAction(MediaSessionAction.NEXT_TRACK);
@@ -616,6 +617,7 @@ public class MediaNotificationController {
         // or something that isn't properly cleaned up but given that the
         // crashes are rare and the fix is simple, null check was enough.
         if (mMediaNotificationInfo == null || !mMediaNotificationInfo.isPaused) return;
+
         mMediaNotificationInfo.listener.onPlay(actionSource);
     }
 
@@ -626,6 +628,7 @@ public class MediaNotificationController {
         // or something that isn't properly cleaned up but given that the
         // crashes are rare and the fix is simple, null check was enough.
         if (mMediaNotificationInfo == null || mMediaNotificationInfo.isPaused) return;
+
         mMediaNotificationInfo.listener.onPause(actionSource);
     }
 

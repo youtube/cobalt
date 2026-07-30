@@ -548,6 +548,10 @@ class NoVarySearchCacheStorage::Loader final {
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
            base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
     }
+    // Permit `operations_` and `*writer_result` to be used on a different
+    // sequence.
+    operations_->DetachFromCurrentSequence();
+    writer_result.value()->DetachFromCurrentSequence();
     auto journal = base::SequenceBound<Journaller>(
         std::move(journal_task_runner), std::move(operations_),
         std::move(storage_ptr_), std::move(parent_sequence_), snapshot_size_,

@@ -118,19 +118,11 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="2236949375853147973">Moja aktivnost</translation>
 <translation id="2238130810669087193">Da dobijate adrese i druge stavke na svim svojim uređajima, prijavite se u Chromium. Ova adresa će se sačuvati na Google račun nakon što se prijavite.</translation>
 <translation id="2241627712206172106">Ako dijelite računar, prijatelji i porodica mogu odvojeno pretraživati i postaviti Chromium na način koji njima odgovara.</translation>
+<translation id="22571759390241347">Vještine u Chromiumu</translation>
 <translation id="2283803047247799269">Pretraži ovu karticu putem pretraživanja pomoću slika</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium preporučuje da pauzirate karticu koja usporava preglednik}one{Chromium preporučuje da pauzirate kartice koje usporavaju preglednik}few{Chromium preporučuje da pauzirate kartice koje usporavaju preglednik}other{Chromium preporučuje da pauzirate kartice koje usporavaju preglednik}}</translation>
 <translation id="2307973900865360088">Zadrži na donjoj traci</translation>
 <translation id="2313870531055795960">Provjerava URL-ove s listom nesigurnih web lokacija pohranjenih u Chromiumu. Ako web lokacija pokuša ukrasti vašu lozinku ili kada preuzimate štetan fajl, Chromium može slati i URL-ove, uključujući dijelove sadržaja stranice, u Sigurno pregledanje.</translation>
-<translation id="2332076562712130931">Ova radnja će:
-          <ph name="LINE_BREAKS" />
-           • vratiti određene postavke i prečice Chromiuma na zadano
-           <ph name="LINE_BREAK" />
-           • onemogućiti ekstenzije
-           <ph name="LINE_BREAK" />
-           • izbrisati kolačiće i druge privremene podatke web lokacije
-            <ph name="LINE_BREAKS" />
-           Ova radnja neće uticati na oznake, historiju i sačuvane lozinke.</translation>
 <translation id="2343156876103232566">Da pošaljete broj s ovog uređaja na svoj Android telefon, prijavite se u Chromium na oba uređaja.</translation>
 <translation id="2356070529366658676">Pitaj</translation>
 <translation id="2359808026110333948">Nastavi</translation>
@@ -192,6 +184,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="3003694935412297923">Svi zadaci</translation>
 <translation id="3012615494352020668">{count,plural, =1{Da se određeni podaci mogu sačuvati na Google računu i koristiti na svim vašim uređajima, Chromium mora potvrditi vaš identitet. Ako se sada odjavite, ovi podaci (1 stavka) će se izbrisati.}one{Da se određeni podaci mogu sačuvati na Google računu i koristiti na svim vašim uređajima, Chromium mora potvrditi vaš identitet. Ako se sada odjavite, ovi podaci ({count} stavka) će se izbrisati.}few{Da se određeni podaci mogu sačuvati na Google računu i koristiti na svim vašim uređajima, Chromium mora potvrditi vaš identitet. Ako se sada odjavite, ovi podaci ({count} stavke) će se izbrisati.}other{Da se određeni podaci mogu sačuvati na Google računu i koristiti na svim vašim uređajima, Chromium mora potvrditi vaš identitet. Ako se sada odjavite, ovi podaci ({count} stavki) će se izbrisati.}}</translation>
 <translation id="3013473503895162900">Otvorite <ph name="URL" /> u novoj kartici u Chromiumu.</translation>
+<translation id="302551344979399011">AI inovacije kao što su vještine se pohranjuju na vašem Google računu i njima se upravlja odvojeno od sinhronizacije Chromiuma</translation>
 <translation id="3032787606318309379">Dodavanje u Chromium…</translation>
 <translation id="3038232873781883849">Čekanje na instalaciju...</translation>
 <translation id="3045032126857188731">Jezik prevoda: <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="5289287148052354622">Preuzmite aplikaciju Chromium</translation>
 <translation id="5294316920224716406">Prilikom pregledanja u anonimnom načinu rada Chromium će vas upozoriti prije učitavanja web lokacije putem nesigurne veze</translation>
 <translation id="5313228254328109263">Interna usluga za ažuriranje Chromiuma</translation>
+<translation id="5324450571874973775">Koristite ih zajedno s drugim funkcijama Geminija u Chromiumu</translation>
 <translation id="5346389065299425353">Produbite pretraživanje dodavanjem više kartica, fajlova i alata</translation>
 <translation id="5348677704241861105">Dobijte brzi pregled ovog dokumenta i postavljajte pitanja putem Geminija u Chromiumu</translation>
 <translation id="5352264705793813212">Chromium je pronašao neke sigurnosne preporuke koje trebate pregledati</translation>
@@ -674,6 +668,7 @@ Chromium ne može vratiti vaše postavke.</translation>
 <translation id="8318772038038596122">Vaš organizacija zatvara Chromium kada se ne koristi <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Sačuvaj kao sliku</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> je prethodno koristio/la Chromium</translation>
+<translation id="8351551329754447960">Omogući vještine u Chromiumu</translation>
 <translation id="8359544530202147897">Ažurirajte Chromium da nastavite koristiti podatke Chromiuma na Google računu <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Da primate buduća ažuriranja za Chromium, trebat će vam Windows 10 ili novija verzija. Računar koristi Windows 8.</translation>
 <translation id="8362914115861174987">Prevedi na</translation>

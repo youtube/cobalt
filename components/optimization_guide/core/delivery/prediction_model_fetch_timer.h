@@ -33,7 +33,7 @@ class PredictionModelFetchTimer {
   };
 
   PredictionModelFetchTimer(PrefService* local_state,
-                            base::RepeatingCallback<void(void)> fetch_callback);
+                            base::RepeatingClosure fetch_callback);
 
   PredictionModelFetchTimer(const PredictionModelFetchTimer&) = delete;
   PredictionModelFetchTimer& operator=(const PredictionModelFetchTimer&) =
@@ -94,7 +94,7 @@ class PredictionModelFetchTimer {
       nullptr;
 
   // The callback to call to trigger the model fetches.
-  base::RepeatingCallback<void(void)> fetch_callback_;
+  base::RepeatingClosure fetch_callback_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

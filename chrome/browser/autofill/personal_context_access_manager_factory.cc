@@ -16,9 +16,9 @@
 namespace autofill {
 
 // static
-autofill::PersonalContextAccessManager*
+PersonalContextAccessManager*
 PersonalContextAccessManagerFactory::GetForProfile(Profile* profile) {
-  return static_cast<autofill::PersonalContextAccessManager*>(
+  return static_cast<PersonalContextAccessManager*>(
       GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
 }
 
@@ -47,8 +47,7 @@ PersonalContextAccessManagerFactory::~PersonalContextAccessManagerFactory() =
 std::unique_ptr<KeyedService>
 PersonalContextAccessManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (!base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAmbientAutofill)) {
+  if (!base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill)) {
     return nullptr;
   }
 
@@ -63,7 +62,7 @@ PersonalContextAccessManagerFactory::BuildServiceInstanceForBrowserContext(
     return nullptr;
   }
 
-  return std::make_unique<autofill::PersonalContextAccessManagerImpl>(
+  return std::make_unique<PersonalContextAccessManagerImpl>(
       personal_context_service, personal_context_enablement_service);
 }
 

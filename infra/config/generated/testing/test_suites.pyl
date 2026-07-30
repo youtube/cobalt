@@ -1937,26 +1937,6 @@
       },
     },
 
-    'gpu_webgl_conformance_d3d9_passthrough_telemetry_tests': {
-      'webgl_conformance_d3d9_passthrough_tests': {
-        'test_common': {
-          'mixins': [
-            'has_native_resultdb_integration',
-            'gpu_force_command_decoder_passthrough',
-            'gpu_force_angle_d3d9',
-            'gpu_force_high_performance_gpu',
-            'gpu_integration_test_webgl1_args',
-            'gpu_integration_test_common_args',
-          ],
-          'module_scheme': 'flat',
-        },
-        'telemetry_test_name': 'webgl1_conformance',
-        'swarming': {
-          'shards': 2,
-        },
-      },
-    },
-
     'gpu_webgl_conformance_gl_passthrough_ganesh_telemetry_tests': {
       'webgl_conformance_gl_passthrough_ganesh_tests': {
         'test_common': {
@@ -2811,7 +2791,6 @@
       'gpu_webcodecs_telemetry_test',
       'gpu_webgl2_conformance_d3d11_passthrough_telemetry_tests',
       'gpu_webgl_conformance_d3d11_passthrough_telemetry_tests',
-      'gpu_webgl_conformance_d3d9_passthrough_telemetry_tests',
       'gpu_webgl_conformance_vulkan_passthrough_telemetry_tests',
       'gpu_webrtc_telemetry_test',
     ],
@@ -2838,11 +2817,6 @@
     'linux_chromeos_isolated_scripts': [
       'blink_web_tests_ppapi_isolated_scripts',
       'chrome_sizes_suite',
-    ],
-
-    'win_specific_isolated_scripts_and_sizes': [
-      'chrome_sizes_suite',
-      'win_specific_isolated_scripts',
     ],
   },
 

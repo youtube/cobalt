@@ -43,6 +43,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/fakes/fake_ui_view_controller.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -71,10 +72,6 @@ std::unique_ptr<KeyedService> BuildTestShareKitService(ProfileIOS* profile) {
 std::unique_ptr<KeyedService> BuildFakeTabGroupSyncService(
     ProfileIOS* profile) {
   return std::make_unique<tab_groups::FakeTabGroupSyncService>();
-}
-
-std::unique_ptr<KeyedService> BuildTestSyncService(ProfileIOS* profile) {
-  return std::make_unique<syncer::TestSyncService>();
 }
 
 std::unique_ptr<KeyedService> BuildMockCollaborationService(
@@ -114,7 +111,7 @@ class IOSCollaborationControllerDelegateTest : public PlatformTest {
             std::make_unique<FakeAuthenticationServiceDelegate>()));
     test_profile_builder.AddTestingFactory(
         SyncServiceFactory::GetInstance(),
-        base::BindRepeating(&BuildTestSyncService));
+        base::BindRepeating(&CreateTestSyncService));
     test_profile_builder.AddTestingFactory(
         CollaborationServiceFactory::GetInstance(),
         base::BindRepeating(&BuildMockCollaborationService));

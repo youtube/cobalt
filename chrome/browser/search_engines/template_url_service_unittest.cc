@@ -51,7 +51,6 @@
 
 using base::ASCIIToUTF16;
 using base::Time;
-using SearchPolicyConflictType = TemplateURLService::SearchPolicyConflictType;
 using testing::NotNull;
 
 namespace {
@@ -148,22 +147,6 @@ TemplateURLData CreateTestSearchEngineWithSafeForAutoreplace(
               ".com/q={searchTerms}");
   data.safe_for_autoreplace = safe_for_autoreplace;
   return data;
-}
-
-void VerifyEnterpriseSearchPolicyConflictHistograms(
-    const base::HistogramTester& histogram_tester,
-    const base::flat_map<SearchPolicyConflictType, int>& expected_counts) {
-  for (auto [type, count] : expected_counts) {
-    histogram_tester.ExpectBucketCount(
-        TemplateURLService::kSearchPolicyConflictCountHistogramName, type,
-        count);
-  }
-  histogram_tester.ExpectBucketCount(
-      TemplateURLService::kSearchPolicyHasConflictWithFeaturedHistogramName,
-      expected_counts.at(SearchPolicyConflictType::kWithFeatured) > 0, 1);
-  histogram_tester.ExpectBucketCount(
-      TemplateURLService::kSearchPolicyHasConflictWithNonFeaturedHistogramName,
-      expected_counts.at(SearchPolicyConflictType::kWithNonFeatured) > 0, 1);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
@@ -3048,8 +3031,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   constexpr char kKeyword1[] = "enterprise_search_1";
   constexpr char kKeyword2[] = "enterprise_search_2";
 
-  base::HistogramTester histogram_tester;
-
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
   test_util()->ResetModel(/*verify_load=*/true);
@@ -3090,13 +3071,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
     ExpectSimilar(engine, &actual_turl->data());
   }
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 1},
-                            {SearchPolicyConflictType::kWithFeatured, 0},
-                            {SearchPolicyConflictType::kWithNonFeatured, 1},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3118,8 +3092,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   constexpr char kKeywordWithAt1[] = "@enterprise_search_1";
   constexpr char kKeyword2[] = "enterprise_search_2";
   constexpr char kKeywordWithAt2[] = "@enterprise_search_2";
-
-  base::HistogramTester histogram_tester;
 
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
@@ -3173,13 +3145,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
     ExpectSimilar(engine, &actual_turl->data());
   }
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 2},
-                            {SearchPolicyConflictType::kWithFeatured, 1},
-                            {SearchPolicyConflictType::kWithNonFeatured, 1},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3197,8 +3162,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
 
 TEST_P(TemplateURLServiceEnterpriseSearchTest,
        NonFeaturedEnterpriseSearchPolicyConflictWithDSP) {
-  base::HistogramTester histogram_tester;
-
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
   test_util()->ResetModel(/*verify_load=*/true);
@@ -3224,13 +3187,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   ExpectSimilar(enterprise_search_engines[0].get(),
                 &model()->GetTemplateURLForKeyword(dse->keyword())->data());
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 1},
-                            {SearchPolicyConflictType::kWithFeatured, 0},
-                            {SearchPolicyConflictType::kWithNonFeatured, 0},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3245,8 +3201,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
        NonFeaturedEnterpriseSearchPolicyConflictWithUserDefinedDSP) {
   constexpr char kKeyword[] = "keyword";
   constexpr char16_t kKeywordU16[] = u"keyword";
-
-  base::HistogramTester histogram_tester;
 
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
@@ -3274,13 +3228,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   // false.
   AssertEquals(*user_dse, *model()->GetTemplateURLForKeyword(kKeywordU16));
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 0},
-                            {SearchPolicyConflictType::kWithFeatured, 0},
-                            {SearchPolicyConflictType::kWithNonFeatured, 1},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3295,8 +3242,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
        NonFeaturedEnterpriseSearchPolicyConflictWithDSPSetByExtension) {
   constexpr char kKeyword[] = "keyword";
   constexpr char16_t kKeywordU16[] = u"keyword";
-
-  base::HistogramTester histogram_tester;
 
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
@@ -3321,13 +3266,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   // false.
   AssertEquals(extension_dse, model()->GetTemplateURLForKeyword(kKeywordU16));
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 0},
-                            {SearchPolicyConflictType::kWithFeatured, 0},
-                            {SearchPolicyConflictType::kWithNonFeatured, 1},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3342,8 +3280,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
        FeaturedEnterpriseSearchPolicyConflictWithUserDefinedDSP) {
   constexpr char kKeyword[] = "@keyword";
   constexpr char16_t kKeywordU16[] = u"@keyword";
-
-  base::HistogramTester histogram_tester;
 
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
@@ -3373,13 +3309,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   ExpectSimilar(enterprise_search_engines[0].get(),
                 &model()->GetTemplateURLForKeyword(kKeywordU16)->data());
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 0},
-                            {SearchPolicyConflictType::kWithFeatured, 1},
-                            {SearchPolicyConflictType::kWithNonFeatured, 0},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3394,8 +3323,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
        FeaturedEnterpriseSearchPolicyConflictWithDSPSetByExtension) {
   constexpr char kKeyword[] = "@keyword";
   constexpr char16_t kKeywordU16[] = u"@keyword";
-
-  base::HistogramTester histogram_tester;
 
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
@@ -3422,13 +3349,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   ExpectSimilar(enterprise_search_engines[0].get(),
                 &model()->GetTemplateURLForKeyword(kKeywordU16)->data());
 
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 0},
-                            {SearchPolicyConflictType::kWithFeatured, 1},
-                            {SearchPolicyConflictType::kWithNonFeatured, 0},
-                        });
-
   // Reset the policy.
   SetManagedSearchSettingsPreference(
       EnterpriseSearchManager::OwnedTemplateURLDataVector(),
@@ -3443,8 +3363,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
        FeaturedEnterpriseSearchPolicyConflictWithStarterPack) {
   constexpr char kBookmarksKeyword[] = "@bookmarks";
   constexpr char16_t kBookmarksKeywordU16[] = u"@bookmarks";
-
-  base::HistogramTester histogram_tester;
 
   // Reset the model to ensure an `EnterpriseSearchManager` instance is
   // created.
@@ -3469,13 +3387,6 @@ TEST_P(TemplateURLServiceEnterpriseSearchTest,
   ExpectSimilar(
       enterprise_search_engines[0].get(),
       &model()->GetTemplateURLForKeyword(kBookmarksKeywordU16)->data());
-
-  VerifyEnterpriseSearchPolicyConflictHistograms(
-      histogram_tester, {
-                            {SearchPolicyConflictType::kNone, 1},
-                            {SearchPolicyConflictType::kWithFeatured, 0},
-                            {SearchPolicyConflictType::kWithNonFeatured, 0},
-                        });
 
   // Reset the policy.
   SetManagedSearchSettingsPreference(

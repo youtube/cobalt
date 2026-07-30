@@ -47,7 +47,7 @@ class RenderFrameHostImpl;
 }  // namespace content
 
 namespace extensions {
-class ManifestV2ExperimentManager;
+class ManifestV2Handler;
 class ExtensionContextMenuModel;
 class MetricsPrivateRecordExtensionUsageUkmFunction;
 class TabsUpdateFunction;
@@ -156,7 +156,7 @@ class METRICS_EXPORT UkmRecorder {
   // from the manifest v2 experiment manager. This method should only be called
   // by approved cases, indicated by the PassKeys.
   static SourceId GetSourceIdForExtensionUrl(
-      base::PassKey<extensions::ManifestV2ExperimentManager>,
+      base::PassKey<extensions::ManifestV2Handler>,
       const GURL& extension_url);
   static SourceId GetSourceIdForExtensionUrl(
       base::PassKey<extensions::ExtensionContextMenuModel>,

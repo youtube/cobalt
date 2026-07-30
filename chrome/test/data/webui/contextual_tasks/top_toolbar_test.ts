@@ -30,7 +30,8 @@ suite('TopToolbarTest', () => {
     loadTimeData.overrideValues({contextManagementInComposeboxEnabled: false});
   });
 
-  suite('Expand button enabled', () => {
+  (loadTimeData.getBoolean('isSmallDeviceFormFactor') ? suite.skip : suite)(
+      'Expand button enabled', () => {
     setup(() => {
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
@@ -417,7 +418,9 @@ suite('TopToolbarTest', () => {
       document.body.appendChild(topToolbar);
     });
 
-    test('handles more menu interactions', async () => {
+    const isPhone = loadTimeData.getBoolean('isSmallDeviceFormFactor');
+    (isPhone ? test.skip :
+               test)('handles more menu interactions', async () => {
       const moreButton =
           topToolbar.shadowRoot.querySelector<CrIconButtonElement>(
               '#overflowMenuButton');
@@ -448,7 +451,8 @@ suite('TopToolbarTest', () => {
       assertFalse(moreButton.hidden);
     });
 
-    test('handles open in new tab click in menu', async () => {
+    (isPhone ? test.skip :
+               test)('handles open in new tab click in menu', async () => {
       topToolbar.enableOpenInNewTabButton = true;
       await microtasksFinished();
 
@@ -507,7 +511,8 @@ suite('TopToolbarTest', () => {
     });
   });
 
-  suite('Menu for lens flows only', () => {
+  (loadTimeData.getBoolean('isSmallDeviceFormFactor') ? suite.skip : suite)(
+      'Menu for lens flows only', () => {
     setup(() => {
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
 

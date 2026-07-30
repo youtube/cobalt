@@ -41,8 +41,8 @@ class CORE_EXPORT HTMLCanvasAccessibilityManager
   // LINT.IfChange(CanvasAccessibilityHeuristicResult)
   enum class HeuristicResult {
     kUnknown,
-    kIsNotVisible,
-    kIsIgnoredOrAriaHidden,
+    kDeprecatedIsNotVisible,  // Not used anymore.
+    kIsIgnored,
     kTooSmall,
     kHasLayoutSubtree,
     kHasFallbackContent,
@@ -58,7 +58,7 @@ class CORE_EXPORT HTMLCanvasAccessibilityManager
 
   void ReadAriaAttributes();
 
-  void SetVisible(bool is_visible);
+  void SetIgnored(bool is_ignored);
 
   void SetHasLayoutSubtree(bool has_layoutsubtree);
 
@@ -77,6 +77,7 @@ class CORE_EXPORT HTMLCanvasAccessibilityManager
  private:
   void SetHeuristicResult(HeuristicResult result);
   void RecordUma(TimerBase*);
+  bool IsTooSmall() const;
 
   HeuristicResult heuristic_result_ = HeuristicResult::kUnknown;
 
@@ -84,13 +85,8 @@ class CORE_EXPORT HTMLCanvasAccessibilityManager
   // support.
   bool has_layoutsubtree_ = false;
 
-  // If canvas is hidden, accessibility support is not needed.
-  bool is_visible_ = false;
-
-  // If canvas is ignored or is aria-hidden, accessibility support is not
-  // needed.
+  // If canvas is ignored, accessibility support is not needed.
   bool is_ignored_ = false;
-  bool is_aria_hidden_ = false;
 
   // Set to true if any of the role, label, labelledby, describedby, or title
   // aria attributes are set, or aria-hidden=false. This is an indicator that

@@ -66,7 +66,7 @@ TEST_F(FamilyLinkUserCapabilitiesTest,
 
   AccountInfo account_info = identity_test_env_.MakePrimaryAccountAvailable(
       kEmail, signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_parental_controls(false);
   identity_test_env_.UpdateAccountInfoForAccount(account_info);
 
@@ -88,7 +88,7 @@ TEST_F(FamilyLinkUserCapabilitiesTest, SignedInChildSubjectToParentalControls) {
 
   AccountInfo account_info = identity_test_env_.MakePrimaryAccountAvailable(
       kEmail, signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_parental_controls(true);
   identity_test_env_.UpdateAccountInfoForAccount(account_info);
 
@@ -127,7 +127,7 @@ TEST_F(FamilyLinkUserCapabilitiesTest, SignedInCanFetchFamilyMemberInfo) {
 
   AccountInfo account_info = identity_test_env_.MakePrimaryAccountAvailable(
       kEmail, signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_fetch_family_member_info(false);
   identity_test_env_.UpdateAccountInfoForAccount(account_info);
 }

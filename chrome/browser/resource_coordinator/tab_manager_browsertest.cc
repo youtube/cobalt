@@ -1014,7 +1014,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTest, MAYBE_DiscardTabsWithMinimizedWindow) {
 
   // Minimized browser.
   EnsureTabsInBrowser(browser(), 2);
-  browser()->window()->Minimize();
+  browser()->GetWindow()->Minimize();
 
   for (int i = 0; i < 8; ++i) {
     UrgentDiscardTabImmediately();
@@ -1031,7 +1031,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTest, MAYBE_DiscardTabsWithMinimizedWindow) {
       IsTabDiscarded(browser()->tab_strip_model()->GetWebContentsAt(1)));
 
   // Showing the browser again should reload the active tab.
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(
       IsTabDiscarded(browser()->tab_strip_model()->GetWebContentsAt(0)));
@@ -1048,7 +1048,7 @@ IN_PROC_BROWSER_TEST_P(TabManagerTest, MAYBE_DiscardTabsWithMinimizedWindow) {
 IN_PROC_BROWSER_TEST_P(TabManagerTest, MAYBE_DiscardTabsWithOccludedWindow) {
   // Occluded browser.
   EnsureTabsInBrowser(browser(), 2);
-  browser()->window()->SetBounds(gfx::Rect(10, 10, 10, 10));
+  browser()->GetWindow()->SetBounds(gfx::Rect(10, 10, 10, 10));
   // Other browser that covers the occluded browser.
   BrowserWindowInterface* const other_browser = CreateBrowserWithTabs(1);
   EXPECT_NE(other_browser, browser());

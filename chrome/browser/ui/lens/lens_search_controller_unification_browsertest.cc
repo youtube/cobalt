@@ -7,6 +7,7 @@
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_cookie_synchronizer.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -238,6 +239,38 @@ IN_PROC_BROWSER_TEST_F(LensSearchControllerUnificationSignOutDisabledTest,
 
   controller->OpenLensOverlay(
       lens::LensOverlayInvocationSource::kContextualTasksComposebox);
+}
 
-  EXPECT_TRUE(controller->should_route_to_contextual_tasks());
+IN_PROC_BROWSER_TEST_F(LensSearchControllerUnificationBrowserTest,
+                       IsWebUIEnabledInIncognito_WithUnificationEnabled) {
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  Profile* incognito_profile = incognito_browser->profile();
+  EXPECT_TRUE(incognito_profile->IsOffTheRecord());
+
+  ContextualTasksUIConfig config;
+  EXPECT_TRUE(config.IsWebUIEnabled(incognito_profile));
+}
+
+class LensSearchControllerUnificationDisabledTest
+    : public InProcessBrowserTest {
+ public:
+  void SetUp() override {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{contextual_tasks::kContextualTasks, {}}},
+        {{lens::features::kLensSidePanelUnification}});
+    InProcessBrowserTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(LensSearchControllerUnificationDisabledTest,
+                       IsWebUIEnabledInIncognito_WithUnificationDisabled) {
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  Profile* incognito_profile = incognito_browser->profile();
+  EXPECT_TRUE(incognito_profile->IsOffTheRecord());
+
+  ContextualTasksUIConfig config;
+  EXPECT_FALSE(config.IsWebUIEnabled(incognito_profile));
 }

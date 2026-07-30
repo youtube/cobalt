@@ -40,6 +40,8 @@ class SlimWebViewPageHandler
                      int32_t request_id,
                      mojom::PageHandler_PermissionResponseAction action,
                      SetPermissionCallback callback) override;
+  void SetUserAgentOverride(int32_t guest_instance_id,
+                            const std::string& user_agent_override) override;
 
  private:
   friend class content::DocumentUserData<SlimWebViewPageHandler>;

@@ -18,6 +18,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "ui/base/interaction/element_tracker.h"
 
 namespace base {
 class Uuid;

@@ -96,12 +96,14 @@ void MediaSessionController::OnSetVolumeMultiplier(int player_id,
   observer->GetMediaPlayerRemote(id_)->SetVolumeMultiplier(volume_multiplier);
 }
 
-void MediaSessionController::OnEnterPictureInPicture(int player_id) {
+void MediaSessionController::OnEnterPictureInPicture(
+    int player_id,
+    const std::optional<gfx::Size>& min_size) {
   DCHECK_EQ(player_id_, player_id);
 
   web_contents_->media_web_contents_observer()
       ->GetMediaPlayerRemote(id_)
-      ->RequestEnterPictureInPicture();
+      ->RequestEnterPictureInPicture(min_size);
 }
 
 void MediaSessionController::OnSetAudioSinkId(

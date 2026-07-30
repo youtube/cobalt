@@ -251,6 +251,13 @@ BASE_DECLARE_FEATURE(kEstimateNewSignInUsersWithFinchAvailablePopulation);
 // sign-in status for short-lived sessions instead of the default OFF value.
 BASE_DECLARE_FEATURE(kSyncFixWebSigninSessionDurationForShortLivedSessions);
 
+// If enabled, simplifies the device naming architecture by using the
+// most user friendly name that can be computed for a device (the so-called
+// "preferred name" in legacy path) as a single source of truth, bypassing the
+// legacy deduplication and name-based local device filtering. This affects Send
+// Tab to Self and Sharing features.
+BASE_DECLARE_FEATURE(kSyncSimplifyDeviceNaming);
+
 }  // namespace syncer
 
 #endif  // COMPONENTS_SYNC_BASE_FEATURES_H_

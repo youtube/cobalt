@@ -42,6 +42,7 @@ if (!is_android || is_desktop_android) {
       "//chrome/browser/resource_coordinator",
       "//chrome/browser/resources/discards:resources",
       "//chrome/browser/ui/webui",
+      "//chrome/browser/ui/webui:favicon_source",
       "//chrome/common",
       "//components/favicon/core",
       "//components/favicon_base",

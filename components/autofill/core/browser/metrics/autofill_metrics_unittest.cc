@@ -695,7 +695,7 @@ TEST_F(AutofillMetricsTest, CreditCardCheckoutFlowUserActions) {
   {
     base::UserActionTester user_action_tester;
     autofill_manager().FillOrPreviewForm(
-        mojom::ActionPersistence::kFill, form,
+        mojom::ActionPersistence::kFill, form.global_id(),
         form.fields().front().global_id(),
         paydm().GetCreditCardByGUID(kTestLocalCardId),
         AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
@@ -999,7 +999,8 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
     // Simulating filling a masked card server suggestion.
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
-        mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
+        mojom::ActionPersistence::kFill, form.global_id(),
+        form.fields().back().global_id(),
         paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
     OnDidGetRealPan(PaymentsRpcResult::kSuccess, "6011000990139424");
@@ -1021,7 +1022,8 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
     // Simulating filling a masked card server suggestion.
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
-        mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
+        mojom::ActionPersistence::kFill, form.global_id(),
+        form.fields().back().global_id(),
         paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
     OnDidGetRealPan(PaymentsRpcResult::kPermanentFailure, std::string());
@@ -1043,7 +1045,8 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
     // Simulating filling a masked card server suggestion.
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
-        mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
+        mojom::ActionPersistence::kFill, form.global_id(),
+        form.fields().back().global_id(),
         paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
     OnDidGetRealPan(PaymentsRpcResult::kClientSideTimeout, std::string());
@@ -1078,7 +1081,8 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_BadServerResponse) {
     // Simulating filling a masked card server suggestion.
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
-        mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
+        mojom::ActionPersistence::kFill, form.global_id(),
+        form.fields().back().global_id(),
         paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
     OnDidGetRealPanWithNonHttpOkResponse();
@@ -2744,6 +2748,8 @@ TEST_F(AutofillMetricsTest, GetFieldTypeUserEditStatusMetric) {
 
 // Base class for cross-frame filling metrics, in particular for
 // Autofill.CreditCard.SeamlessFills.*.
+// This uses the simplified security model of `TestAutofillDriver` which only
+// allows filling fields from the same origin.
 class AutofillMetricsCrossFrameFormTest : public AutofillMetricsTest {
  public:
   struct CreditCardAndCvc {
@@ -2798,16 +2804,6 @@ class AutofillMetricsCrossFrameFormTest : public AutofillMetricsTest {
     ASSERT_NE(form_.main_frame_origin(), form_.fields()[1].origin());
     ASSERT_NE(form_.main_frame_origin(), form_.fields()[3].origin());
     ASSERT_EQ(form_.fields()[1].origin(), form_.fields()[3].origin());
-
-    // Mock a simplified security model which allows to filter (only) fields
-    // from the same origin.
-    autofill_driver().SetFieldTypeMapFilter(base::BindRepeating(
-        [](AutofillMetricsCrossFrameFormTest* self,
-           const url::Origin& triggered_origin, FieldGlobalId field,
-           FieldType) {
-          return triggered_origin == self->GetFieldById(field).origin();
-        },
-        this));
   }
 
   CreditCard& credit_card() { return credit_card_; }
@@ -2818,8 +2814,9 @@ class AutofillMetricsCrossFrameFormTest : public AutofillMetricsTest {
     EXPECT_CALL(credit_card_access_manager(), FetchCreditCard)
         .WillOnce(base::test::RunOnceCallback<1>(credit_card()));
     autofill_manager().FillOrPreviewForm(
-        mojom::ActionPersistence::kFill, form_, triggering_field.global_id(),
-        &credit_card_, AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
+        mojom::ActionPersistence::kFill, form_.global_id(),
+        triggering_field.global_id(), &credit_card_,
+        AutofillTriggerSource::kPopup, /*blocked_fields=*/{});
   }
 
   // Sets the field values of |form_| according to the parameters.
@@ -2979,6 +2976,8 @@ TEST_F(AutofillMetricsSeamlessnessTest,
   };
 
   SeeForm(form_);
+  FormStructure& form_structure =
+      *test_api(autofill_manager()).FindCachedFormById(form_.global_id());
 
   credit_card().clear_cvc();
 
@@ -2993,6 +2992,7 @@ TEST_F(AutofillMetricsSeamlessnessTest,
   SetFormValues({CREDIT_CARD_NAME_FULL, CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR},
                 /*is_autofilled_according_to_renderer=*/true,
                 /*is_user_typed=*/false);
+  test_api(form_structure).UpdateFormData(form_);
 
   // Fakes an Autofill with the following behavior:
   // - before security and assuming a complete profile: kFullFill;
@@ -3006,6 +3006,7 @@ TEST_F(AutofillMetricsSeamlessnessTest,
   SetFormValues({CREDIT_CARD_NUMBER},
                 /*is_autofilled_according_to_renderer=*/true,
                 /*is_user_typed=*/false);
+  test_api(form_structure).UpdateFormData(form_);
 
   SubmitForm(form_);
   DeleteDriverToCommitMetrics();
@@ -3163,7 +3164,8 @@ TEST_F(AutofillMetricsSeamlessnessTest, CreditCardFormRecordOnIFrames) {
       skipped_status_vector = {FieldFillingSkipReason::kNotSkipped,
                                FieldFillingSkipReason::kAlreadyAutofilled};
     } else {
-      skipped_status_vector = {FieldFillingSkipReason::kNotSkipped};
+      skipped_status_vector = {FieldFillingSkipReason::kNotSkipped,
+                               FieldFillingSkipReason::kIframeSecurityPolicy};
     }
     DenseSet<AutofillStatus> autofill_status_vector;
     int field_log_events_count = 0;

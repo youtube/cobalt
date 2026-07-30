@@ -33,7 +33,7 @@ class KeyboardReplacingSurfaceVisibilityController;
 }
 
 class PasswordCredentialFetcher;
-class TouchToFillController;
+class TouchToFillPasswordManagerController;
 
 // Helper class for connecting the autofill implementation to the WebAuthn
 // request handling for Conditional UI on Android. This is attached to a
@@ -113,7 +113,8 @@ class WebAuthnRequestDelegateAndroid : public base::SupportsUserData::Data,
 
   // Controller for using the Touch To Fill bottom sheet for non-conditional
   // requests.
-  std::unique_ptr<TouchToFillController> touch_to_fill_controller_;
+  std::unique_ptr<TouchToFillPasswordManagerController>
+      touch_to_fill_controller_;
 
   std::unique_ptr<
       password_manager::KeyboardReplacingSurfaceVisibilityController>

@@ -19,6 +19,7 @@ source_set("utils") {
     "//components/browser_apis/browser_controls:mojom_data_model",
     "//components/browser_apis/ui_controllers/toolbar:mojom_data_model",
     "//components/browser_apis/ui_controllers/toolbar:types",
+    "//components/omnibox/browser:vector_icons",
     "//ui/base",
     "//ui/webui",
   ]

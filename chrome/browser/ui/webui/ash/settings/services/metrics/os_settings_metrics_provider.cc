@@ -5,11 +5,11 @@
 #include "chrome/browser/ui/webui/ash/settings/services/metrics/os_settings_metrics_provider.h"
 
 #include "ash/constants/ash_login_pref_names.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/settings/services/metrics/settings_user_action_tracker.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/metrics/metrics_service.h"
@@ -63,7 +63,7 @@ void OsSettingsMetricsProvider::MaybeLogTotalUniqueSettingsChanged() {
   }
 
   int total_unique_settings_changed_count =
-      profile_pref_service->GetDict(::prefs::kTotalUniqueOsSettingsChanged)
+      profile_pref_service->GetDict(ash::prefs::kTotalUniqueOsSettingsChanged)
           .size();
 
   // prefs::kOobeOnboardingTime does not exist for users in guest mode.
@@ -92,10 +92,10 @@ void OsSettingsMetricsProvider::MaybeLogTotalUniqueSettingsChanged() {
 bool OsSettingsMetricsProvider::ShouldRecordMetrics(
     PrefService* profile_pref_service) {
   if (profile_pref_service->GetBoolean(
-          ::prefs::kHasEverRevokedMetricsConsent)) {
+          ash::prefs::kHasEverRevokedMetricsConsent)) {
     // If the pref has been turned off at least once in the user's lifetime,
     // clear the pref kTotalUniqueOsSettingsChanged.
-    profile_pref_service->ClearPref(::prefs::kTotalUniqueOsSettingsChanged);
+    profile_pref_service->ClearPref(ash::prefs::kTotalUniqueOsSettingsChanged);
 
     // We do not have consent to record the user's metrics.
     return false;

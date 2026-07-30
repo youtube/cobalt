@@ -15,8 +15,8 @@
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
 #import "ios/chrome/browser/shared/public/commands/save_to_photos_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -28,6 +28,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
+#import "ios/web/public/ui/context_menu_params.h"
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -37,6 +38,7 @@
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/base/test/ios/ui_image_test_utils.h"
 #import "url/gurl.h"
+#import "url/origin.h"
 
 namespace {
 const MenuScenarioHistogram kTestMenuScenario =
@@ -83,11 +85,10 @@ class BrowserActionFactoryTest : public PlatformTest {
         startDispatchingToTarget:mock_save_to_photos_commands_handler_
                      forProtocol:@protocol(SaveToPhotosCommands)];
 
-    mock_gemini_commands_handler_ =
-        OCMStrictProtocolMock(@protocol(BWGCommands));
+    mock_gemini_handler_ = OCMStrictProtocolMock(@protocol(GeminiCommands));
     [test_browser_->GetCommandDispatcher()
-        startDispatchingToTarget:mock_gemini_commands_handler_
-                     forProtocol:@protocol(BWGCommands)];
+        startDispatchingToTarget:mock_gemini_handler_
+                     forProtocol:@protocol(GeminiCommands)];
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -101,7 +102,7 @@ class BrowserActionFactoryTest : public PlatformTest {
   id mock_browser_coordinator_commands_handler_;
   id mock_qr_scanner_commands_handler_;
   id mock_save_to_photos_commands_handler_;
-  id mock_gemini_commands_handler_;
+  id mock_gemini_handler_;
 };
 
 // Tests that the Open in New Tab actions have the right titles and images.
@@ -456,10 +457,16 @@ TEST_F(BrowserActionFactoryTest, SaveImageInGooglePhotosAction) {
   web::Referrer fakeImageReferrer;
   std::unique_ptr<web::WebState> fakeWebState =
       std::make_unique<web::FakeWebState>();
+  web::ContextMenuParams fakeParams;
+  fakeParams.frame_id = "fake_frame_id";
+  fakeParams.frame_security_origin =
+      url::Origin::Create(GURL("http://chromium.test/"));
+
   UIAction* action =
       [factory actionToSaveToPhotosWithImageURL:fakeImageURL
                                        referrer:fakeImageReferrer
                                        webState:fakeWebState.get()
+                                         params:fakeParams
                                           block:nil];
 
   EXPECT_NSEQ(expectedTitle, action.title);

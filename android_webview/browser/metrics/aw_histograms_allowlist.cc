@@ -39,6 +39,7 @@ const char* const kHistogramsAllowlist[] = {
     "PageLoad.PaintTiming.NavigationToFirstContentfulPaint",
     "PageLoad.PaintTiming.NavigationToLargestContentfulPaint2",
     "Power.ForegroundBatteryDrain.30SecondsAvg2",
+    "Stability.Android.ProcessedCrashCounts",
     // histograms_allowlist_check END_PARSING
     // clang-format on
 };

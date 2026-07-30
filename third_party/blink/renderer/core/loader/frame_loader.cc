@@ -1197,8 +1197,19 @@ void FrameLoader::CommitNavigation(
   // so that the old document can access it and fill in the information as it
   // is being unloaded/swapped out.
   auto url_origin = SecurityOrigin::Create(navigation_params->url);
-  ScopedOldDocumentInfoForCommitCapturer scoped_old_document_info(
-      MakeGarbageCollected<OldDocumentInfoForCommit>(url_origin));
+  auto* info = MakeGarbageCollected<OldDocumentInfoForCommit>(url_origin);
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled()) {
+    if (frame_->IsProvisional()) {
+      if (const Frame* prev_frame = frame_->GetProvisionalOwnerFrame()) {
+        info->old_document_origin =
+            prev_frame->GetSecurityContext()->GetSecurityOrigin();
+      }
+    } else {
+      info->old_document_origin =
+          frame_->GetSecurityContext()->GetSecurityOrigin();
+    }
+  }
+  ScopedOldDocumentInfoForCommitCapturer scoped_old_document_info(info);
   scoped_old_document_info.CurrentInfo()
       ->total_lifecycle_events_processing_time_on_commit =
       navigation_params->navigation_timings

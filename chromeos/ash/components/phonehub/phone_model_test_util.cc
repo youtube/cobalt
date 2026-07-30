@@ -73,8 +73,13 @@ const int64_t kFakeInlineReplyId = 1337;
 const int64_t kUserId = 1;
 const char16_t kFakeNotificationTitle[] = u"Fake Title";
 const char16_t kFakeNotificationText[] = u"Fake Text";
-const base::flat_map<Notification::ActionType, int64_t> kFakeActionIdMap = {
-    {Notification::ActionType::kInlineReply, kFakeInlineReplyId}};
+
+const base::flat_map<Notification::ActionType, int64_t>& GetFakeActionIdMap() {
+  static const base::NoDestructor<
+      base::flat_map<Notification::ActionType, int64_t>>
+      map({{Notification::ActionType::kInlineReply, kFakeInlineReplyId}});
+  return *map;
+}
 
 const Notification::AppMetadata& CreateFakeAppMetadata() {
   static const base::NoDestructor<Notification::AppMetadata> fake_app_metadata{
@@ -95,7 +100,7 @@ const Notification& CreateFakeNotification() {
       base::Time(),
       Notification::Importance::kDefault,
       Notification::Category::kConversation,
-      kFakeActionIdMap,
+      GetFakeActionIdMap(),
       Notification::InteractionBehavior::kNone,
       kFakeNotificationTitle,
       kFakeNotificationText};

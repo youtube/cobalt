@@ -110,7 +110,7 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   void SetPasswordGenerationAgent(PasswordGenerationAgent* generation_agent);
 
   // Callers should not store the returned value longer than a function scope.
-  mojom::PasswordManagerDriver& GetPasswordManagerDriver();
+  mojom::PasswordManagerDriver* unsafe_driver();
 
   // mojom::PasswordAutofillAgent:
   void ApplyFillDataOnParsingCompletion(
@@ -406,6 +406,23 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
     bool was_user_gesture_seen_;
     std::vector<FieldRef> elements_;
   };
+
+  // The RenderFrame* is nullptr while the PasswordAutofillAgent is pending
+  // deletion, between AutofillAgent::OnDestruct() and ~PasswordAutofillAgent().
+  content::RenderFrame* unsafe_render_frame() const {
+    return content::RenderFrameObserver::render_frame();
+  }
+
+  // Use unsafe_render_frame() instead.
+  template <typename T = int>
+  content::RenderFrame* render_frame(T* = 0) const {
+    static_assert(
+        std::is_void_v<T>,
+        "Beware that the RenderFrame may become nullptr by OnDestruct() "
+        "because the owner of PasswordAutofillAgent destructs itself "
+        "asynchronously. Use unsafe_render_frame() instead and test that it is "
+        "non-nullptr.");
+  }
 
   void OnFormSubmitted(const FormData& submitted_form);
 

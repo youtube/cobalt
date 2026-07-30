@@ -547,7 +547,7 @@ public class LocationBarCoordinator
 
     @Override
     public float getUrlBarHeight() {
-        return mUrlBar.getHeight();
+        return mUrlBar.getMeasuredHeight();
     }
 
     /**

@@ -1,2 +1,2 @@
-TYPE_WINDOW_CONTENT_CHANGED class_name=android.widget.TextView - [contentTypes=SUBTREE] [Before]
-TYPE_WINDOW_CONTENT_CHANGED class_name=android.widget.TextView - [contentTypes=SUBTREE] [After]
+TYPE_WINDOW_CONTENT_CHANGED class_name=android.widget.TextView [contentTypes=SUBTREE] on [Before] class_name=android.widget.TextView
+TYPE_WINDOW_CONTENT_CHANGED class_name=android.widget.TextView [contentTypes=SUBTREE] on [After] class_name=android.widget.TextView

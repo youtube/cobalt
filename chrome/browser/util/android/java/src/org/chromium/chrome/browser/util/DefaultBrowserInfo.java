@@ -214,14 +214,14 @@ public final class DefaultBrowserInfo {
                 }
 
                 final DefaultInfo postInfo = info;
-                PostTask.postTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(postInfo));
+                PostTask.postTask(TaskTraits.UI_DEFAULT, callback.bind(postInfo));
             } else {
                 if (getStatus() == Status.PENDING) {
                     try {
                         executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                     } catch (RejectedExecutionException e) {
                         // Fail silently here since this is not a critical task.
-                        PostTask.postTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(null));
+                        PostTask.postTask(TaskTraits.UI_DEFAULT, callback.bind(null));
                         return;
                     }
                 }

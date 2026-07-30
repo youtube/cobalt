@@ -11,6 +11,7 @@
 #include "base/base64.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ref.h"
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/test/gmock_callback_support.h"
@@ -1557,20 +1558,21 @@ std::vector<uint8_t> ReadTestFile(const std::string& file_name) {
 }
 
 const std::vector<uint8_t>& GetPkcs12DataRsa() {
-  static std::vector<uint8_t> pkcs12_data = ReadTestFile("client.p12");
-  return pkcs12_data;
+  static const base::NoDestructor<std::vector<uint8_t>> pkcs12_data(
+      ReadTestFile("client.p12"));
+  return *pkcs12_data;
 }
 
 const std::vector<uint8_t>& GetPkcs12DataEc() {
-  static std::vector<uint8_t> pkcs12_data =
-      ReadTestFile("client_with_ec_key.p12");
-  return pkcs12_data;
+  static const base::NoDestructor<std::vector<uint8_t>> pkcs12_data(
+      ReadTestFile("client_with_ec_key.p12"));
+  return *pkcs12_data;
 }
 
 const std::vector<uint8_t>& GetPkcs12DataWith2Certs() {
-  static std::vector<uint8_t> pkcs12_data =
-      ReadTestFile("2_client_certs_1_key.p12");
-  return pkcs12_data;
+  static const base::NoDestructor<std::vector<uint8_t>> pkcs12_data(
+      ReadTestFile("2_client_certs_1_key.p12"));
+  return *pkcs12_data;
 }
 
 base::flat_map<uint32_t /*attribute_id*/, const chaps::Attribute*> MakeMap(

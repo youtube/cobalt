@@ -410,14 +410,14 @@ CreditCardFieldParser::~CreditCardFieldParser() = default;
 void CreditCardFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
   for (const FieldAndMatchInfo& number : numbers_) {
-    AddClassification(number, CREDIT_CARD_NUMBER, kBaseCreditCardParserScore,
+    AddClassification(number, CREDIT_CARD_NUMBER, HeuristicParser::kCreditCard,
                       field_candidates);
   }
 
-  AddClassification(type_, CREDIT_CARD_TYPE, kBaseCreditCardParserScore,
+  AddClassification(type_, CREDIT_CARD_TYPE, HeuristicParser::kCreditCard,
                     field_candidates);
   AddClassification(verification_, CREDIT_CARD_VERIFICATION_CODE,
-                    kBaseCreditCardParserScore, field_candidates);
+                    HeuristicParser::kCreditCard, field_candidates);
 
   // If the heuristics detected first and last name in separate fields,
   // then ignore both fields. Putting them into separate fields is probably
@@ -425,12 +425,12 @@ void CreditCardFieldParser::AddClassifications(
   // initial.
   if (!cardholder_last_.has_value()) {
     AddClassification(cardholder_, CREDIT_CARD_NAME_FULL,
-                      kBaseCreditCardParserScore, field_candidates);
+                      HeuristicParser::kCreditCard, field_candidates);
   } else {
     AddClassification(cardholder_, CREDIT_CARD_NAME_FIRST,
-                      kBaseCreditCardParserScore, field_candidates);
+                      HeuristicParser::kCreditCard, field_candidates);
     AddClassification(cardholder_last_, CREDIT_CARD_NAME_LAST,
-                      kBaseCreditCardParserScore, field_candidates);
+                      HeuristicParser::kCreditCard, field_candidates);
   }
 
   if (expiration_date_) {
@@ -454,16 +454,16 @@ void CreditCardFieldParser::AddClassifications(
                         format.digits_in_expiration_year == 2
                             ? CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR
                             : CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR,
-                        kBaseCreditCardParserScore, field_candidates);
+                        HeuristicParser::kCreditCard, field_candidates);
     } else {
       AddClassification(expiration_date_, GetExpirationYearType(),
-                        kBaseCreditCardParserScore, field_candidates);
+                        HeuristicParser::kCreditCard, field_candidates);
     }
   } else {
     AddClassification(expiration_month_, CREDIT_CARD_EXP_MONTH,
-                      kBaseCreditCardParserScore, field_candidates);
+                      HeuristicParser::kCreditCard, field_candidates);
     AddClassification(expiration_year_, GetExpirationYearType(),
-                      kBaseCreditCardParserScore, field_candidates);
+                      HeuristicParser::kCreditCard, field_candidates);
   }
 }
 

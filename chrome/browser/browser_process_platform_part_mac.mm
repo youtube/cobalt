@@ -37,7 +37,8 @@ void BrowserProcessPlatformPart::AttemptExit(bool try_to_quit_application) {
 
   if (!try_to_quit_application) {
     // A keyboard menu invocation.
-    if (![AppController.sharedController runConfirmQuitPanel]) {
+    if ([AppController.sharedController confirmQuitIfNeeded] ==
+        ConfirmQuitResultAborted) {
       chrome::OnClosingAllBrowsers(false);
       return;
     }

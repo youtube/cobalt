@@ -55,8 +55,11 @@ public class MockitoResetter {
                 field.setAccessible(true);
                 try {
                     Object value = field.get(target);
-                    if (value != null && Mockito.mockingDetails(value).isMock()) {
-                        sMocksToReset.add(value);
+                    if (value != null) {
+                        var mockingDetails = Mockito.mockingDetails(value);
+                        if (mockingDetails.isMock() || mockingDetails.isSpy()) {
+                            sMocksToReset.add(value);
+                        }
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);

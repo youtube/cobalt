@@ -84,6 +84,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync_sessions/session_sync_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 #include "components/variations/service/variations_service.h"
@@ -93,6 +94,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "extensions/buildflags/buildflags.h"
+#include "net/base/url_util.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/origin.h"
@@ -110,6 +112,9 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -751,6 +756,40 @@ bool ChromeAutocompleteProviderClient::OpenJourneys(const std::string& query) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   return false;
+}
+
+bool ChromeAutocompleteProviderClient::ShouldOpenCoBrowsePanel() const {
+#if !BUILDFLAG(IS_ANDROID)
+  return omnibox::kAskGCoBrowse.Get();
+#else
+  return false;
+#endif
+}
+
+void ChromeAutocompleteProviderClient::OpenCoBrowsePanel() {
+#if !BUILDFLAG(IS_ANDROID)
+  content::WebContents* web_contents = GetWebContents(web_contents_getter_);
+  auto* tab = web_contents
+                  ? tabs::TabInterface::MaybeGetFromContents(web_contents)
+                  : nullptr;
+  BrowserWindowInterface* bwi =
+      tab ? tab->GetBrowserWindowInterface() : nullptr;
+  auto* ui_service = bwi ? contextual_tasks::ContextualTasksUiServiceFactory::
+                               GetForBrowserContext(bwi->GetProfile())
+                         : nullptr;
+
+  if (ui_service) {
+    GURL creation_url = ui_service->GetDefaultAiPageUrl();
+    auto* tab_helper =
+        ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
+            web_contents);
+    std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+        session_handle = tab_helper->TakeSessionHandle();
+
+    ui_service->StartTaskUiInSidePanel(bwi, tab, creation_url,
+                                       std::move(session_handle));
+  }
+#endif
 }
 
 void ChromeAutocompleteProviderClient::OpenLensOverlay(bool show) {

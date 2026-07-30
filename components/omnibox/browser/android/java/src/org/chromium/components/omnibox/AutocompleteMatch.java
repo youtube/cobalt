@@ -104,6 +104,7 @@ public class AutocompleteMatch {
     private final @Nullable String mAssociatedKeyword;
     private final boolean mIsRefineable;
     private @Nullable SuggestTemplateInfo mSuggestTemplate;
+    private final @DocumentType int mDocumentType;
 
     public AutocompleteMatch(
             int nativeType,
@@ -136,7 +137,8 @@ public class AutocompleteMatch {
             String additionalText,
             @Nullable String tabGroupUuid,
             @Nullable String associatedKeyword,
-            byte @Nullable [] serializedSuggestTemplate) {
+            byte @Nullable [] serializedSuggestTemplate,
+            @DocumentType int documentType) {
         if (subtypes == null) {
             subtypes = Collections.emptySet();
         }
@@ -194,6 +196,7 @@ public class AutocompleteMatch {
             }
         }
 
+        mDocumentType = documentType;
         updatePostContentType(postContentType);
     }
 
@@ -240,7 +243,8 @@ public class AutocompleteMatch {
             @JniType("std::u16string") String additionalText,
             @JniType("std::optional<std::string>") @Nullable String localTabGroupId,
             @JniType("std::u16string") String associatedKeyword,
-            byte[] serializedSuggestTemplate) {
+            byte[] serializedSuggestTemplate,
+            @JniType("AutocompleteMatch::DocumentType") @DocumentType int documentType) {
         assert contentClassificationOffsets.length == contentClassificationStyles.length;
         List<MatchClassification> contentClassifications = new ArrayList<>();
         for (int i = 0; i < contentClassificationOffsets.length; i++) {
@@ -286,7 +290,8 @@ public class AutocompleteMatch {
                         additionalText,
                         localTabGroupId,
                         TextUtils.isEmpty(associatedKeyword) ? null : associatedKeyword,
-                        serializedSuggestTemplate);
+                        serializedSuggestTemplate,
+                        documentType);
         match.updateNativeObjectRef(nativeObject);
         match.setDescription(
                 description, descriptionClassificationOffsets, descriptionClassificationStyles);
@@ -573,6 +578,13 @@ public class AutocompleteMatch {
     }
 
     /**
+     * @return The document type for document suggestions, or DocumentType.NONE.
+     */
+    public @DocumentType int getDocumentType() {
+        return mDocumentType;
+    }
+
+    /**
      * @return The starter pack engine id, or 0 if not a starter pack match.
      */
     public @StarterPackId int getStarterPackId() {
@@ -704,7 +716,8 @@ public class AutocompleteMatch {
                 input.getAdditionalText(),
                 /* tabGroupUuid= */ null,
                 /* associatedKeyword= */ null,
-                /* serializedSuggestTemplate= */ null);
+                /* serializedSuggestTemplate= */ null,
+                DocumentType.NONE);
     }
 
     @Override

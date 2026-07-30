@@ -46,6 +46,8 @@ class DesktopWindowTreeHostWinTestApi {
 
   void SetMockCursorPositionForTesting(const gfx::Point& position);
 
+  void SetRemoteSessionForTesting(bool is_remote);
+
  private:
   raw_ptr<DesktopWindowTreeHostWin> host_;
 };

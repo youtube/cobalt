@@ -1067,6 +1067,28 @@ TEST_F(PasswordFormHelperTest, HandleFormSubmittedMessage_CantExtractFormData) {
   EXPECT_OCMOCK_VERIFY(delegate);
 }
 
+// Tests that the form submit message isn't handled when user interaction is
+// absent.
+TEST_F(PasswordFormHelperTest, HandleFormSubmittedMessage_NoUserInteraction) {
+  id delegate = OCMStrictProtocolMock(@protocol(PasswordFormHelperDelegate));
+  helper_.delegate = delegate;
+
+  LoadHtml(@"<p>");
+
+  web::ScriptMessage submit_message(
+      ValidFormSubmittedMessageBody(GetMainFrame()->GetFrameId()),
+      /*is_user_interacting=*/false,
+      /*is_main_frame=*/true,
+      /*request_url=*/std::nullopt, url::Origin());
+
+  HandleSubmittedFormStatus status =
+      [helper_ handleFormSubmittedMessage:submit_message];
+
+  EXPECT_EQ(HandleSubmittedFormStatus::kRejectedNoUserInteraction, status);
+
+  EXPECT_OCMOCK_VERIFY(delegate);
+}
+
 }  // namespace
 
 NS_ASSUME_NONNULL_END

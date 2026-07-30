@@ -37,6 +37,7 @@
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/session_manager/core/session_manager.h"
 
@@ -65,7 +66,9 @@ std::unique_ptr<SearchController> CreateSearchController(
   controller->AddProvider(std::make_unique<AppZeroStateProvider>(
       controller->GetAppSearchDataSource()));
   controller->AddProvider(std::make_unique<OmniboxProvider>(
-      profile, list_controller, LauncherSearchProviderTypes()));
+      profile, list_controller,
+      TemplateURLServiceFactory::GetForProfile(profile),
+      LauncherSearchProviderTypes()));
 
   // File search providers are added only when not in guest session and running
   // on Chrome OS.

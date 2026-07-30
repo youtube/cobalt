@@ -308,10 +308,7 @@ source_set("browser_tests") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [
-    "boca_web_app_info_unittest.cc",
-    "os_settings_web_app_info_unittest.cc",
-  ]
+  sources = [ "boca_web_app_info_unittest.cc" ]
 
   deps = [
     ":apps",

@@ -287,8 +287,8 @@ public class TabGridDialogTest {
 
         dismissAllModalDialogs();
 
-        if (cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER)
-                && !cta.getLayoutManager().isLayoutStartingToHide(LayoutType.TAB_SWITCHER)) {
+        if (cta.getLayoutManager().isLayoutVisible(LayoutType.HUB)
+                && !cta.getLayoutManager().isLayoutStartingToHide(LayoutType.HUB)) {
             int tabCount =
                     ThreadUtils.runOnUiThreadBlocking(
                             () -> cta.getTabModelSelectorSupplier().get().getTotalTabCount());
@@ -324,7 +324,7 @@ public class TabGridDialogTest {
         verifyTabSwitcherCardCount(cta, 1);
 
         // Enter first tab page.
-        assertTrue(cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER));
+        assertTrue(cta.getLayoutManager().isLayoutVisible(LayoutType.HUB));
         clickFirstCardFromTabSwitcher(cta);
         clickFirstTabInDialog(cta);
         waitForDialogHidingAnimation(cta);
@@ -373,7 +373,7 @@ public class TabGridDialogTest {
         verifyTabSwitcherCardCount(cta, 1);
 
         // Enter first tab page.
-        assertTrue(cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER));
+        assertTrue(cta.getLayoutManager().isLayoutVisible(LayoutType.HUB));
         clickFirstCardFromTabSwitcher(cta);
         clickFirstTabInDialog(cta);
         waitForDialogHidingAnimation(cta);
@@ -1749,7 +1749,7 @@ public class TabGridDialogTest {
         clickThroughConfirmationDialog();
 
         // Rather than destroying the activity the GTS should be showing.
-        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.TAB_SWITCHER);
+        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.HUB);
         verifyTabSwitcherCardCount(cta, 0);
     }
 
@@ -2081,7 +2081,7 @@ public class TabGridDialogTest {
     }
 
     private void showDialogFromStrip(ChromeTabbedActivity cta) {
-        assertFalse(cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER));
+        assertFalse(cta.getLayoutManager().isLayoutVisible(LayoutType.HUB));
         waitForVisibleView(
                 allOf(
                         withId(R.id.tab_list_recycler_view),

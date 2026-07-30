@@ -63,6 +63,23 @@ TEST(InstallerTest, HandleRunElevated) {
   EXPECT_EQ(exit_result.windows_error, 0U);
 }
 
+TEST(InstallerTest, HandleRunElevatedSilentBlocked) {
+  if (::IsUserAnAdmin()) {
+    return;
+  }
+
+  base::CommandLine command_line(
+      base::FilePath(FILE_PATH_LITERAL("UpdaterSetup.exe")));
+  command_line.AppendSwitch(updater::kInstallSwitch);
+  command_line.AppendSwitch(updater::kSystemSwitch);
+  command_line.AppendSwitch(updater::kSilentSwitch);
+
+  updater::ProcessExitResult exit_result =
+      updater::HandleRunElevated(command_line);
+  EXPECT_EQ(exit_result.exit_code, updater::UNEXPECTED_ELEVATION_LOOP_SILENT);
+  EXPECT_EQ(exit_result.windows_error, 0U);
+}
+
 TEST(InstallerTest, FindOfflineDir) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());

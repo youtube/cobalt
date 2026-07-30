@@ -304,7 +304,7 @@ bool ShouldBlockUiTabletModeInKiosk() {
 // certain operation.
 class TabletModeController::DestroyObserver : public aura::WindowObserver {
  public:
-  DestroyObserver(aura::Window* window, base::OnceCallback<void(void)> callback)
+  DestroyObserver(aura::Window* window, base::OnceClosure callback)
       : window_(window), callback_(std::move(callback)) {
     window_->AddObserver(this);
   }
@@ -326,7 +326,7 @@ class TabletModeController::DestroyObserver : public aura::WindowObserver {
 
  private:
   raw_ptr<aura::Window> window_;
-  base::OnceCallback<void(void)> callback_;
+  base::OnceClosure callback_;
 };
 
 // Used to hide the shelf and float containers while screenshot for tablet mode

@@ -14,10 +14,10 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_task.h"
-#include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/test/base/platform_browser_test.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_quality_logger_interface.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_service.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/webid/identity_credential_source.h"
@@ -30,8 +30,8 @@ namespace gfx {
 class RectF;
 }
 
-namespace tabs {
-class TabInterface;
+namespace actor_login {
+class ActorLoginDelegateClient;
 }
 
 namespace actor {
@@ -50,12 +50,12 @@ class MockActorLoginService : public actor_login::ActorLoginService {
 
   // `actor_login::ActorLoginService`:
   void GetCredentials(
-      tabs::TabInterface* tab,
+      actor_login::ActorLoginDelegateClient* client,
       bool has_sign_in_with_google_button,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
       actor_login::CredentialsOrErrorReply callback) override;
   void AttemptLogin(
-      tabs::TabInterface* tab,
+      actor_login::ActorLoginDelegateClient* client,
       const actor_login::Credential& credential,
       bool should_store_permission,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
@@ -85,7 +85,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
   void OnActionSequenceEnded(bool success);
 
   static void OnFederatedLoginResume(
-      tabs::TabInterface* tab,
+      content::WebContents* web_contents,
       content::webid::FederatedLoginResult result);
 
   actor_login::CredentialsOrError credentials_;

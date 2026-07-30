@@ -148,6 +148,8 @@ class ChildProcessLauncherHelper
   // Platform specific.
   void BeforeLaunchOnClientThread();
 
+  ChildProcessId child_process_id() const { return child_process_id_; }
+
 #if !BUILDFLAG(IS_FUCHSIA)
   // Called to give implementors a chance at creating a server pipe. Platform-
   // specific. Returns |std::nullopt| if the helper should initialize
@@ -291,7 +293,6 @@ class ChildProcessLauncherHelper
     DCHECK(CurrentlyOnProcessLauncherTaskRunner());
     return command_line_.get();
   }
-  ChildProcessId child_process_id() const { return child_process_id_; }
 
   static void ForceNormalProcessTerminationSync(
       ChildProcessLauncherHelper::Process process);

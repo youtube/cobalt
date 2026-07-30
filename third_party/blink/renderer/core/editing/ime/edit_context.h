@@ -10,8 +10,8 @@
 #include "third_party/blink/public/web/web_input_method_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/base/ime/ime_text_span.h"
@@ -30,11 +30,10 @@ class InputMethodController;
 // modern operating systems to facilitate various input modalities to unlock
 // advanced editing scenarios. For more information please refer
 // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/master/EditContext/explainer.md.
-
 class CORE_EXPORT EditContext final : public EventTarget,
                                       public ActiveScriptWrappable<EditContext>,
                                       public WebInputMethodController,
-                                      public ElementRareDataField {
+                                      public NodeRareDataField {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

@@ -4,6 +4,62 @@
 
 assert(!is_android, "This is desktop code for fedcm.")
 
+source_set("webid") {
+  sources = [
+    "account_selection_bubble_view.h",
+    "account_selection_modal_view.h",
+    "account_selection_view_base.h",
+    "fedcm_account_selection_view_desktop.h",
+    "fedcm_modal_dialog_view.h",
+    "webid_utils.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//chrome/browser/picture_in_picture",
+    "//chrome/browser/ui/page_action",
+    "//chrome/browser/ui/tabs:tab_strip_model_observer",
+    "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/views/controls",
+    "//chrome/browser/ui/webid",
+    "//components/image_fetcher/core",
+    "//content/public/browser",
+    "//services/network/public/cpp",
+    "//third_party/blink/public/common",
+    "//ui/views",
+  ]
+}
+
+source_set("impl") {
+  sources = [
+    "account_selection_bubble_view.cc",
+    "account_selection_modal_view.cc",
+    "account_selection_view_base.cc",
+    "fedcm_account_selection_view_desktop.cc",
+    "fedcm_modal_dialog_view.cc",
+    "webid_utils.cc",
+  ]
+  deps = [
+    ":webid",
+    "//base",
+    "//chrome/browser/actor",
+    "//chrome/browser/image_fetcher",
+    "//chrome/browser/net",
+    "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/passwords",
+    "//chrome/browser/ui/tabs",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/views/interaction",
+    "//components/constrained_window",
+    "//components/url_formatter",
+    "//components/web_modal",
+    "//content/public/browser",
+    "//ui/base",
+    "//ui/views",
+  ]
+}
+
 source_set("test_support") {
   testonly = true
   sources = [
@@ -15,6 +71,7 @@ source_set("test_support") {
 
   public_deps = [
     "//base",
+    "//chrome/browser/ui/views/controls",
     "//chrome/browser/ui/webid",
     "//chrome/test:test_support",
     "//content/public/browser",
@@ -23,6 +80,7 @@ source_set("test_support") {
     "//ui/views",
   ]
   deps = [
+    ":webid",
     "//ui/events:test_support",
     "//ui/views:test_support",
   ]
@@ -32,12 +90,57 @@ source_set("test_support") {
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "account_selection_bubble_view_unittest.cc",
+    "fedcm_account_selection_view_desktop_unittest.cc",
+    "fedcm_modal_dialog_view_unittest.cc",
+  ]
+  deps = [
+    ":test_support",
+    ":webid",
+    "//base/test:test_support",
+    "//chrome/browser/ui/webid",
+    "//chrome/test:test_support",
+    "//components/tabs:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [
+    "account_selection_modal_view_browsertest.cc",
+    "fedcm_account_selection_view_desktop_browsertest.cc",
+    "fedcm_ambient_ui_browsertest.cc",
+  ]
+  deps = [
+    ":test_support",
+    ":webid",
+    "//base/test:test_support",
+    "//chrome/browser/actor:test_support",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/page_action",
+    "//chrome/browser/ui/page_action:icon_type",
+    "//chrome/browser/ui/test:dialog",
+    "//chrome/browser/ui/test:test_support",
+    "//chrome/browser/ui/views/controls",
+    "//content/test:test_support",
+    "//services/network:test_support",
+  ]
+}
+
 source_set("interactive_ui_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [ "fedcm_interactive_uitest.cc" ]
   deps = [
     ":test_support",
+    ":webid",
     "//build/config/linux/dbus:buildflags",
     "//chrome/browser/ui",
     "//chrome/browser/ui:browser_element_identifiers",

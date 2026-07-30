@@ -55,10 +55,10 @@ void OverscrollRefreshHandler::PullUpdate(float x_delta, float y_delta) {
                                      x_delta, y_delta);
 }
 
-void OverscrollRefreshHandler::PullRelease(bool allow_refresh) {
+void OverscrollRefreshHandler::PullRelease(OverscrollActivationStatus status) {
   auto* env = AttachCurrentThread();
   Java_OverscrollRefreshHandler_release(env, GetRefreshHandlerChecked(env),
-                                        allow_refresh);
+                                        std::to_underlying(status));
 }
 
 void OverscrollRefreshHandler::PullReset() {

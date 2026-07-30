@@ -625,20 +625,11 @@ TEST_F(DatabaseConnectionOpenCorruptionTest, EmptyFile) {
 }
 
 TEST_F(DatabaseConnectionOpenCorruptionTest, DropMetaTable) {
-  // The data tables survive, so the first open's CreateSchema collides with
-  // them and fails; the retry razes the DB and recreates it empty. The failed
-  // open logs no SQL-error event because its transaction rollback clears the
-  // error code before cleanup sees it.
-  ASSERT_NO_FATAL_FAILURE(SetUpAndCorruptDb(u"db", CorruptDropMetaTable));
-  base::HistogramTester histograms;
-  std::unique_ptr<BackingStore::Database> db = OpenDb(u"db");
-  EXPECT_EQ(db->GetDataLossInfo().status, blink::mojom::IDBDataLoss::None);
-  EXPECT_FALSE(db->GetMetadata().object_stores.contains(kObjectStoreId));
-  DropDbAndDestructDatabaseConnection(std::move(db));
-  histograms.ExpectUniqueSample(kSpecificEventHistogram,
-                                SpecificEvent::kDatabaseOpenAttempt, 2);
-  histograms.ExpectUniqueSample(kOpenRetryResultHistogram,
-                                0 /*Status::Type::kOk*/, 1);
+  // The data tables survive the meta-table drop, so the first open's
+  // CreateSchema collides with them and fails with a SQL error; recovery then
+  // razes the DB and the retry recreates it empty.
+  ExpectRecreated(CorruptDropMetaTable, SpecificEvent::kDatabaseHadSqlError,
+                  /*data_loss_reported=*/false);
 }
 
 TEST_F(DatabaseConnectionOpenCorruptionTest, ZeroedHeader) {

@@ -14,6 +14,7 @@ consoles.defaults.set(
 
 exec("./ci.star")
 exec("./try.star")
+exec("./trusted-robots.star")
 
 # TODO(gbeaty) Move the builders in these files into the per-builder group
 # files, this can't be done during the freeze because it changes the grace

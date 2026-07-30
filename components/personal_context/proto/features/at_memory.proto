@@ -10,11 +10,78 @@ import "components/personal_context/proto/features/common_data.proto";
 
 option optimize_for = LITE_RUNTIME;
 
-message ContextMemoryAtMemoryRequest {
-  string query = 1;
+// Request payload for the AtMemory search query.
+message AtMemoryQueryRequest {
+  // The natural language search string entered by the user.
+  string input_query = 1;
+
+  // The list of Autofill data types supported by this client build.
+  repeated MemoryDataType supported_local_data_types = 2;
+
+  // The site URL, improving the quality of results by giving more context where
+  // the popup has been triggered.
+  string url = 3;
+
+  // locale of a user's Chrome client: "en-us"
+  string locale = 4;
 }
 
-message ContextMemoryAtMemoryResponse {
-  repeated Entity entities = 1;
-  string text_response = 2;
+// The response payload returned to answer the query.
+message AtMemoryQueryResponse {
+  // Classification status of the user's query.
+  enum QueryClassification {
+    QUERY_CLASSIFICATION_UNSPECIFIED = 0;
+    // Valid, supported factual lookup.
+    QUERY_CLASSIFICATION_AT_MEMORY = 1;
+    // Query is not supported by AtMemory
+    QUERY_CLASSIFICATION_UNSUPPORTED = 2;
+    // Blocked by safety filters (CSAM, adult)
+    QUERY_CLASSIFICATION_SENSITIVE = 3;
+  }
+  QueryClassification query_classification = 1;
+
+  // Instructions returned to fetch local data.
+  AutofillFetchPlan autofill_fetch_plan = 2;
+
+  // List of resolved 1P candidate results (Gmail, Photos) ready to render.
+  repeated AtMemorySearchResult results = 3;
+}
+
+// Instructions for retrieving local Autofill data.
+message AutofillFetchPlan {
+  // The list of target local data categories to fetch (e.g.
+  // [MEMORY_DATA_TYPE_FLIGHT_RESERVATION]).
+  repeated MemoryDataType data_types = 1;
+
+  // Keywords extracted from the query to filter local database results.
+  repeated string filter_keywords = 2;
+}
+
+// An individual candidate result entry.
+message AtMemorySearchResult {
+  // The sources where the information was extracted.
+  repeated SourceReference sources = 1;
+
+  // The metadata attribute that should populate the primary line of the UI
+  // suggestion.
+  Attribute primary_attribute = 2;
+
+  // The metadata attributes that should populate the secondary description line
+  // of the UI suggestion. Ordered by relevance, starting from most helpful
+  // ones.
+  repeated Attribute secondary_attributes = 3;
+}
+
+message Attribute {
+  // The key can either be a known Chrome EntryType enum, or a free-form string
+  // label.
+  oneof key {
+    // This key should match Autofill data type, eg. FLIGHT_NUMBER.
+    MemoryDataType schemaful_key = 2;
+    // This should be the free-form localized type labels, such as "Health
+    // insurance number".
+    string schemaless_key = 3;
+  }
+  // The value to fill or display (e.g. "CX123" or "42").
+  string value = 4;
 }

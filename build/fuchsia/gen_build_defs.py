@@ -12,6 +12,7 @@
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
@@ -374,25 +375,24 @@ def ConvertMeta(meta_path):
 
 
 def PopulateBuildIdDirectory(toplevel_meta):
-  """Populate the SDK_ROOT/.build-id directory with symlinks.
+  """Populate the SDK_ROOT/.build-id directory with hard-links.
 
   Future versions of the IDK will no longer place debug symbols
   in the top-level .build-id/ directory directly. Instead their
   location is available by parsing the meta.json files of various
   prebuilt atom types.
 
-  This function supports both the existing and future layout,
-  by only creating entries under SDK_ROOT/.build_id for
-  GNU build ID values that are not already listed here.
+  This function supports both the existing and future layout.
+  It wipes the .build-id directory upfront and recreates hard-links
+  for all debug symbols listed in the current manifest.
 
   Note that this script is run as a DEPS hook and has no knowledge
-  of the current target_cpu value or Fuchsia API level, so symlinks
+  of the current target_cpu value or Fuchsia API level, so hard-links
   for all possible debug symbols will be created.
   """
   readelf_path = _FindReadelfPath()
 
-  # First, collect all debug symbols location from the manifest
-  # that are not already in the top-level .build-id directory.
+  # First, collect all debug symbol locations from the manifest.
 
   # Map a Build ID hex value to the corresponding debug symbol file
   # path, relative to the SDK root.
@@ -460,20 +460,14 @@ def PopulateBuildIdDirectory(toplevel_meta):
       parser(meta_json)
 
   # Populate the FUCHSIA_SDK_ROOT/.build-id/ directory with hard-links to the
-  # corresponding debug symbols
+  # corresponding debug symbols. Wipes the directory first to ensure no stale
+  # links remain from previous SDK versions.
   build_id_dir = os.path.join(SDK_ROOT, ".build-id")
+  shutil.rmtree(build_id_dir, ignore_errors=True)
+
   for build_id, debug_file in build_ids_map.items():
     link_path = os.path.join(build_id_dir, build_id[0:2],
                              f"{build_id[2:]}.debug")
-
-    # https://issues.chromium.org/issues/407890258
-    # Remove symlinks in favor of hard-links to avoid incremental flakiness.
-    if os.path.islink(link_path):
-      os.remove(link_path)
-
-    if os.path.exists(link_path):
-      continue  # File already exists, ignore.
-
     link_target = os.path.join(SDK_ROOT, debug_file)
     link_dir = os.path.dirname(link_path)
     os.makedirs(link_dir, exist_ok=True)

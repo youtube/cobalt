@@ -52,14 +52,17 @@ enum class IncognitoLockState;
     BOOL authenticationRequired;
 
 // Initializes with the given scene state.
-- (instancetype)initWithSceneState:(SceneState*)sceneState;
-
+- (instancetype)initWithSceneState:(SceneState*)sceneState
+    NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
 // Adds `observer`.
 - (void)addObserver:(id<IncognitoStateObserver>)observer;
 // Removes `observer`.
 - (void)removeObserver:(id<IncognitoStateObserver>)observer;
+
+// Invoked when the preferences have been loaded.
+- (void)preferencesDidLoad;
 
 @end
 

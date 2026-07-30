@@ -13,11 +13,9 @@
 namespace multistep_filter {
 
 ExtractTaskAttributesResponse CreateExtractTaskAttributesResponse(
-    const std::string& domain,
     const std::string& task_type,
     const std::vector<std::pair<std::string, std::string>>& attributes) {
   ExtractTaskAttributesResponse response;
-  response.set_domain(domain);
   response.set_task_type(task_type);
   for (const auto& attribute : attributes) {
     auto* attr = response.add_task_attributes();

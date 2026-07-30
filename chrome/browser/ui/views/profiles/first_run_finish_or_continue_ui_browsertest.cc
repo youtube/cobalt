@@ -27,23 +27,39 @@
 #include "url/gurl.h"
 
 namespace {
-const std::vector<PixelTestParam>& GetTestParams() {
-  static const base::NoDestructor<std::vector<PixelTestParam>> kParams({
-      {.test_suffix = "LightTheme"},
-      {.test_suffix = "DarkTheme", .use_dark_theme = true},
-      {.test_suffix = "RightToLeftLanguage",
-       .use_right_to_left_language = true},
-  });
+struct FinishOrContinueTestParam {
+  PixelTestParam pixel_test_param;
+  bool is_feature_showcase_eligible = true;
+};
+
+const std::vector<FinishOrContinueTestParam>& GetTestParams() {
+  static const base::NoDestructor<std::vector<FinishOrContinueTestParam>>
+      kParams([] {
+        const PixelTestParam kBaseTestParams[] = {
+            {.test_suffix = "LightTheme"},
+            {.test_suffix = "DarkTheme", .use_dark_theme = true},
+            {.test_suffix = "RtlLanguage", .use_right_to_left_language = true},
+        };
+
+        std::vector<FinishOrContinueTestParam> params;
+        for (const auto& pixel_test_param : kBaseTestParams) {
+          for (bool eligible : {false, true}) {
+            params.push_back({.pixel_test_param = pixel_test_param,
+                              .is_feature_showcase_eligible = eligible});
+          }
+        }
+        return params;
+      }());
   return *kParams;
 }
 }  // namespace
 
 class FirstRunFinishOrContinuePixelTest
     : public ProfilesPixelTestBaseT<UiBrowserTest>,
-      public testing::WithParamInterface<PixelTestParam> {
+      public testing::WithParamInterface<FinishOrContinueTestParam> {
  public:
   FirstRunFinishOrContinuePixelTest()
-      : ProfilesPixelTestBaseT<UiBrowserTest>(GetParam()) {
+      : ProfilesPixelTestBaseT<UiBrowserTest>(GetParam().pixel_test_param) {
     scoped_feature_list_.InitWithFeatureStates(
         {{switches::kFirstRunDesktopRefresh, true},
          {switches::kFirstRunDesktopChoiceScreenRefresh, true},
@@ -57,27 +73,21 @@ class FirstRunFinishOrContinuePixelTest
     auto* view = new ProfileManagementStepTestView(
         ProfilePicker::Params::ForFirstRun(browser()->profile()->GetPath(),
                                            base::DoNothing()),
-        ProfileManagementFlowController::Step::kIntro,
+        ProfileManagementFlowController::Step::kFinishOrContinue,
         /*step_controller_factory=*/
-        base::BindRepeating([](ProfilePickerWebContentsHost* host) {
-          return CreateIntroStep(
-              host, /*choice_callback=*/base::DoNothing(),
-              /*enable_animations=*/false,
-              /*query_effects_callback=*/base::BindRepeating([] {
-                return false;
-              }));
-        }));
+        base::BindRepeating(
+            [](bool eligible, ProfilePickerWebContentsHost* host)
+                -> std::unique_ptr<ProfileManagementStepController> {
+              return CreateFinishOrContinueStep(
+                  host,
+                  /*eligibility_callback=*/
+                  base::BindOnce([](bool eligible) { return eligible; },
+                                 eligible),
+                  /*step_completed_callback=*/base::DoNothing());
+            },
+            GetParam().is_feature_showcase_eligible));
     profile_picker_view_tracker_.SetView(view);
     view->ShowAndWait();
-
-    GURL finish_or_continue_url =
-        GURL(chrome::kChromeUIIntroURL)
-            .Resolve(chrome::kChromeUIIntroFinishOrContinueSubPage);
-    content::TestNavigationObserver observer(view->GetPickerContents());
-    view->GetPickerContents()->GetController().LoadURL(
-        finish_or_continue_url, content::Referrer(),
-        ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
-    observer.Wait();
 
     // Wait for all cr-lotties to initialize to prevent flakiness.
     EXPECT_EQ(true, content::EvalJs(view->GetPickerContents(), R"(
@@ -133,6 +143,9 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     FirstRunFinishOrContinuePixelTest,
     testing::ValuesIn(GetTestParams()),
-    [](const testing::TestParamInfo<PixelTestParam>& info) {
-      return info.param.test_suffix;
+    [](const testing::TestParamInfo<FinishOrContinueTestParam>& info) {
+      return base::StrCat({info.param.pixel_test_param.test_suffix,
+                           info.param.is_feature_showcase_eligible
+                               ? "ShowMoreTipsButton"
+                               : "ShowWhatsNewButton"});
     });

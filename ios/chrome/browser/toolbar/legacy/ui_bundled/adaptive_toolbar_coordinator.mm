@@ -30,9 +30,9 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -213,9 +213,6 @@ using tab_groups::VersioningMessageController;
   return nil;
 }
 
-- (void)didNavigateToNTPOnActiveWebState {
-  // Implemented in `ToolbarCoordinator`.
-}
 
 #pragma mark - ToolbarCommands
 
@@ -265,7 +262,8 @@ using tab_groups::VersioningMessageController;
       [[LegacyToolbarButtonFactory alloc] initWithStyle:style];
   buttonFactory.actionHandler = actionHandler;
   if (IsGeminiCopresenceEnabled()) {
-    buttonFactory.geminiHandler = HandlerForProtocol(dispatcher, BWGCommands);
+    buttonFactory.geminiHandler =
+        HandlerForProtocol(dispatcher, GeminiCommands);
   }
   buttonFactory.visibilityConfiguration =
       [[ToolbarButtonVisibilityConfiguration alloc] initWithType:type];

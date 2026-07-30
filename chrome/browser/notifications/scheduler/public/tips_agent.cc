@@ -15,7 +15,8 @@ class TipsAgentDefault : public TipsAgent {
   ~TipsAgentDefault() override = default;
 
  private:
-  void ShowTipsPromo(TipsNotificationsFeatureType feature_type) override {}
+  void ShowTipsPromo(tips::TipsNotificationsFeatureType feature_type) override {
+  }
 };
 
 // static

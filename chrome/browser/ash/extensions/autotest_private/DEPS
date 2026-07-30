@@ -32,6 +32,7 @@ include_rules = [
   "+chrome/browser/browser_process_platform_part.h",
   "+chrome/browser/component_updater",
   "+chrome/browser/extensions/component_loader.h",
+  "+chrome/browser/platform_util.h",
   "+chrome/browser/policy",
   "+chrome/browser/profiles",
   "+chrome/browser/signin",
@@ -41,17 +42,16 @@ include_rules = [
   "+chrome/browser/ui/views/bruschetta",
   "+chrome/browser/ui/views/crostini",
   "+chrome/browser/ui/views/plugin_vm",
-  "+chrome/browser/ui/views/web_apps/web_app_testing_flags.h",
   "+chrome/browser/ui/web_applications",
   "+chrome/browser/ui/webui/ash/crostini_installer",
   "+chrome/browser/web_applications/web_app_provider.h",
   "+chrome/browser/web_applications/web_app_registrar.h",
   "+chrome/common/extensions/api",
-  "+chrome/common/pref_names.h",
 ]
 
 specific_include_rules = {
   "autotest_private_api\\.cc": [
+    "+chrome/common/pref_names.h",
     "+ui/message_center",
   ],
   "autotest_private_apitest\\.cc": [

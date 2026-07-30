@@ -28,6 +28,72 @@ enum class NotificationStatus {
   kMaxValue = kThrottled,
 };
 
+SendTabToSelfFormFactorCombination GetFormFactorCombination(
+    syncer::DeviceInfo::FormFactor sender_form_factor,
+    syncer::DeviceInfo::FormFactor target_form_factor) {
+  switch (sender_form_factor) {
+    case syncer::DeviceInfo::FormFactor::kDesktop:
+      switch (target_form_factor) {
+        case syncer::DeviceInfo::FormFactor::kDesktop:
+          return SendTabToSelfFormFactorCombination::kDesktopToDesktop;
+        case syncer::DeviceInfo::FormFactor::kPhone:
+          return SendTabToSelfFormFactorCombination::kDesktopToPhone;
+        case syncer::DeviceInfo::FormFactor::kTablet:
+          return SendTabToSelfFormFactorCombination::kDesktopToTablet;
+        case syncer::DeviceInfo::FormFactor::kUnknown:
+        case syncer::DeviceInfo::FormFactor::kAutomotive:
+        case syncer::DeviceInfo::FormFactor::kWearable:
+        case syncer::DeviceInfo::FormFactor::kTv:
+          return SendTabToSelfFormFactorCombination::kDesktopToUnknown;
+      }
+    case syncer::DeviceInfo::FormFactor::kPhone:
+      switch (target_form_factor) {
+        case syncer::DeviceInfo::FormFactor::kDesktop:
+          return SendTabToSelfFormFactorCombination::kPhoneToDesktop;
+        case syncer::DeviceInfo::FormFactor::kPhone:
+          return SendTabToSelfFormFactorCombination::kPhoneToPhone;
+        case syncer::DeviceInfo::FormFactor::kTablet:
+          return SendTabToSelfFormFactorCombination::kPhoneToTablet;
+        case syncer::DeviceInfo::FormFactor::kUnknown:
+        case syncer::DeviceInfo::FormFactor::kAutomotive:
+        case syncer::DeviceInfo::FormFactor::kWearable:
+        case syncer::DeviceInfo::FormFactor::kTv:
+          return SendTabToSelfFormFactorCombination::kPhoneToUnknown;
+      }
+    case syncer::DeviceInfo::FormFactor::kTablet:
+      switch (target_form_factor) {
+        case syncer::DeviceInfo::FormFactor::kDesktop:
+          return SendTabToSelfFormFactorCombination::kTabletToDesktop;
+        case syncer::DeviceInfo::FormFactor::kPhone:
+          return SendTabToSelfFormFactorCombination::kTabletToPhone;
+        case syncer::DeviceInfo::FormFactor::kTablet:
+          return SendTabToSelfFormFactorCombination::kTabletToTablet;
+        case syncer::DeviceInfo::FormFactor::kUnknown:
+        case syncer::DeviceInfo::FormFactor::kAutomotive:
+        case syncer::DeviceInfo::FormFactor::kWearable:
+        case syncer::DeviceInfo::FormFactor::kTv:
+          return SendTabToSelfFormFactorCombination::kTabletToUnknown;
+      }
+    case syncer::DeviceInfo::FormFactor::kUnknown:
+    case syncer::DeviceInfo::FormFactor::kAutomotive:
+    case syncer::DeviceInfo::FormFactor::kWearable:
+    case syncer::DeviceInfo::FormFactor::kTv:
+      switch (target_form_factor) {
+        case syncer::DeviceInfo::FormFactor::kDesktop:
+          return SendTabToSelfFormFactorCombination::kUnknownToDesktop;
+        case syncer::DeviceInfo::FormFactor::kPhone:
+          return SendTabToSelfFormFactorCombination::kUnknownToPhone;
+        case syncer::DeviceInfo::FormFactor::kTablet:
+          return SendTabToSelfFormFactorCombination::kUnknownToTablet;
+        case syncer::DeviceInfo::FormFactor::kUnknown:
+        case syncer::DeviceInfo::FormFactor::kAutomotive:
+        case syncer::DeviceInfo::FormFactor::kWearable:
+        case syncer::DeviceInfo::FormFactor::kTv:
+          return SendTabToSelfFormFactorCombination::kUnknownToUnknown;
+      }
+  }
+}
+
 }  // namespace
 
 void RecordNotificationShown() {
@@ -115,6 +181,14 @@ void RecordTimeSentToReceived(base::TimeDelta delay) {
 void RecordTimeSentToOpened(base::TimeDelta delay) {
   base::UmaHistogramCustomTimes("Sharing.SendTabToSelf.TimeSentToOpened", delay,
                                 base::Milliseconds(100), base::Days(10), 100);
+}
+
+void RecordDeviceFormFactorCombination(
+    syncer::DeviceInfo::FormFactor sender_form_factor,
+    syncer::DeviceInfo::FormFactor target_form_factor) {
+  base::UmaHistogramEnumeration(
+      "Sharing.SendTabToSelf.DeviceFormFactorCombination",
+      GetFormFactorCombination(sender_form_factor, target_form_factor));
 }
 
 }  // namespace send_tab_to_self

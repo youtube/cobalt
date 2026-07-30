@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_AUTOFILL_ANDROID_AT_MEMORY_BOTTOM_SHEET_DELEGATE_H_
 #define CHROME_BROWSER_AUTOFILL_ANDROID_AT_MEMORY_BOTTOM_SHEET_DELEGATE_H_
 
+#include <string>
+
 namespace autofill {
 
 // Delegate interface for receiving events from the @memory bottom sheet.
@@ -14,6 +16,9 @@ class AtMemoryBottomSheetDelegate {
 
   // Called when the bottom sheet is dismissed.
   virtual void OnDismissed() = 0;
+
+  // Called when the search query changes.
+  virtual void OnQuerySubmitted(const std::u16string& query) = 0;
 };
 
 }  // namespace autofill

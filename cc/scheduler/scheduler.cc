@@ -1130,9 +1130,6 @@ void Scheduler::ClearHistory() {
   ProcessScheduledActions();
 }
 
-void Scheduler::SetShouldThrottleFrameRate(bool flag) {
-  state_machine_->SetShouldThrottleFrameRate(flag);
-}
 
 void Scheduler::SetRequestHighFramerate(bool flag) {
   TRACE_EVENT("blink", __PRETTY_FUNCTION__);

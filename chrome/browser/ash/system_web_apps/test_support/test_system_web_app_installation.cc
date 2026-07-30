@@ -212,9 +212,6 @@ bool UnittestingSystemAppDelegate::IsUrlInSystemAppScope(
 bool UnittestingSystemAppDelegate::UseSystemThemeColor() const {
   return use_system_theme_color_;
 }
-bool UnittestingSystemAppDelegate::ShouldAnimateThemeChanges() const {
-  return should_animate_theme_changes_;
-}
 
 void UnittestingSystemAppDelegate::SetShouldForceReinstall(bool value) {
   should_force_reinstall_ = value;
@@ -297,9 +294,6 @@ void UnittestingSystemAppDelegate::SetUrlInSystemAppScope(const GURL& url) {
 }
 void UnittestingSystemAppDelegate::SetUseSystemThemeColor(bool value) {
   use_system_theme_color_ = value;
-}
-void UnittestingSystemAppDelegate::SetShouldAnimateThemeChanges(bool value) {
-  should_animate_theme_changes_ = value;
 }
 
 TestSystemWebAppInstallation::TestSystemWebAppInstallation(

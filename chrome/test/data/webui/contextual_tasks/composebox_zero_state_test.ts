@@ -24,7 +24,8 @@ import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {ADD_FILE_CONTEXT_FN, assertStyle, FAKE_TOKEN_STRING, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, setupAutocompleteResults, simulateUserInput, uploadFileAndVerify} from './test_utils.js';
+import {ADD_FILE_CONTEXT_FN, setupAutocompleteResults, uploadFileAndVerify} from './test_searchbox_utils.js';
+import {assertStyle, FAKE_TOKEN_STRING, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, simulateUserInput} from './test_utils.js';
 
 function disableAnimationsRecursively(element: Element) {
   const noAnimation = document.createElement('style');
@@ -97,6 +98,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     mockTimer = new MockTimer();
 
     loadTimeData.overrideValues({
+      useContextualTasksComposeboxFork: false,
       contextualMenuUsePecApi: false,
       composeboxSmartTabSharingVisible: false,
       composeboxShowTypedSuggest: true,
@@ -113,6 +115,8 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     mockComposeboxPageHandler = TestMock.fromClass(ComposeboxPageHandlerRemote);
     mockComposeboxPageHandler.setResultFor(
         'getSmartTabSharingActive', Promise.resolve({active: false}));
+    mockComposeboxPageHandler.setResultFor(
+        'canShowNextboxAnimation', Promise.resolve({canShow: true}));
     mockSearchboxPageHandler = TestMock.fromClass(SearchboxPageHandlerRemote);
     mockSearchboxPageHandler.setResultFor(
         'getPageClassification',
@@ -495,6 +499,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         'Suggestions should be hidden via CSS when dropdown is hidden');
   });
 
+  // <if expr="not is_android">
   test('TooltipImpressionTimerResetsOnHide', async () => {
     loadTimeData.overrideValues({
       showOnboardingTooltip: true,
@@ -548,6 +553,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
     // Should NOT have incremented because timer was cleared.
     assertEquals(0, contextualTasksApp.numberOfTimesTooltipShownForTesting);
   });
+  // </if>
 
   test(
       'on focus out does not set animation state as none \
@@ -1068,4 +1074,40 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         assertTrue(appElement.hasAttribute('is-dom-content-loaded_'));
         assertEquals('visible', window.getComputedStyle(composebox).visibility);
       });
+
+  suite('NextboxAnimationLimiting', () => {
+    setup(() => {
+      loadTimeData.overrideValues({
+        contextMenuAnimationLimitingEnabled: true,
+      });
+      mockComposeboxPageHandler.setResultFor(
+          'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+    });
+
+    test('allow animation if canShow is true', async () => {
+      contextualTasksApp.$.composebox.isZeroState = true;
+      await microtasksFinished();
+
+      assertEquals(
+          1, mockComposeboxPageHandler.getCallCount('canShowNextboxAnimation'));
+      assertEquals(
+          1,
+          mockComposeboxPageHandler.getCallCount(
+              'recordNextboxAnimationImpression'));
+    });
+
+    test('block animation if canShow is false', async () => {
+      mockComposeboxPageHandler.setResultFor(
+          'canShowNextboxAnimation', Promise.resolve({canShow: false}));
+      contextualTasksApp.$.composebox.isZeroState = true;
+      await microtasksFinished();
+
+      assertEquals(
+          1, mockComposeboxPageHandler.getCallCount('canShowNextboxAnimation'));
+      assertEquals(
+          0,
+          mockComposeboxPageHandler.getCallCount(
+              'recordNextboxAnimationImpression'));
+    });
+  });
 });

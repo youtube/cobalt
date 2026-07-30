@@ -26,6 +26,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
+#include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -65,6 +67,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
+#include "components/services/app_service/public/cpp/app_types.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/user_education_data.h"
@@ -75,6 +78,7 @@
 #include "content/public/browser/clear_site_data_utils.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_features.h"
 #include "extensions/browser/app_sorting.h"
 #include "extensions/browser/extension_system.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-shared.h"
@@ -101,6 +105,8 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/public/cpp/shelf_model.h"
+#include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service_factory.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
@@ -168,6 +174,19 @@ void ShowNonclosableAppToast(const web_app::WebAppRegistrar& registrar,
   ash::ShowNonclosableAppToast(app_id, registrar.GetAppShortName(app_id));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+bool IsNavigationCapturingIphEnabled() {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  return base::FeatureList::IsEnabled(features::kPwaNavigationCapturing) &&
+         (features::kNavigationCapturingDefaultState.Get() ==
+              features::CapturingState::kReimplDefaultOn ||
+          features::kNavigationCapturingDefaultState.Get() ==
+              features::CapturingState::kReimplOnViaClientMode);
+#else
+  return false;
+#endif
+}
 
 }  // namespace
 
@@ -570,6 +589,12 @@ void WebAppUiManagerImpl::PresentUserUninstallDialog(
                      std::move(uninstall_scheduled_callback)));
 }
 
+void WebAppUiManagerImpl::UninstallAppSilentlyForMigration(
+    const webapps::AppId& app_id) {
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+  proxy->UninstallSilently(app_id, apps::UninstallSource::kMigration);
+}
+
 void WebAppUiManagerImpl::ShowProfileErrorDialogForCorruptDB() {
   ::ShowProfileErrorDialog(ProfileErrorType::DB_WEB_APP_DATA,
                            IDS_COULDNT_OPEN_PROFILE_ERROR,
@@ -649,13 +674,27 @@ void WebAppUiManagerImpl::MaybeShowIPHPromoForAppsLaunchedViaLinkCapturing(
     Browser* browser,
     Profile* profile,
     const std::string& app_id) {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  if (!IsNavigationCapturingIphEnabled()) {
+    return;
+  }
+
   WebAppProvider* provider = WebAppProvider::GetForWebApps(profile);
   CHECK(provider);
 
+#if BUILDFLAG(IS_CHROMEOS)
+  if (!apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile)) {
+    return;
+  }
+  apps::AppServiceProxy* proxy =
+      apps::AppServiceProxyFactory::GetForProfile(profile);
+  if (!proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id)) {
+    return;
+  }
+#else
   if (!provider->registrar_unsafe().CapturesLinksInScope(app_id)) {
     return;
   }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   BrowserWindowInterface* const app_browser =
       browser ? browser : AppBrowserController::FindForWebApp(*profile, app_id);
@@ -675,7 +714,6 @@ void WebAppUiManagerImpl::MaybeShowIPHPromoForAppsLaunchedViaLinkCapturing(
           &WebAppUiManagerImpl::ShowIPHPromoForAppsLaunchedViaLinkCapturing,
           weak_ptr_factory_.GetWeakPtr(),
           app_browser->GetBrowserForMigrationOnly(), app_id));
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 }
 
 void WebAppUiManagerImpl::OnBrowserCreated(BrowserWindowInterface* browser) {
@@ -867,7 +905,8 @@ void WebAppUiManagerImpl::ClearWebAppSiteDataIfNeeded(
   }
 }
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
 
 const base::Feature& GetPromoFeatureEngagementFromBrowser(
     const BrowserWindowInterface* browser) {
@@ -880,7 +919,7 @@ void WebAppUiManagerImpl::ShowIPHPromoForAppsLaunchedViaLinkCapturing(
     Browser* browser,
     const webapps::AppId& app_id,
     bool is_activated) {
-  if (!is_activated) {
+  if (!browser || !is_activated) {
     return;
   }
 
@@ -969,7 +1008,8 @@ void WebAppUiManagerImpl::OnTabChangedDuringIph(
   }
 }
 
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
 void WebAppUiManagerImpl::OnBrowserCloseCancelled(

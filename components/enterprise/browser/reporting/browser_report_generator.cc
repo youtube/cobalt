@@ -64,7 +64,7 @@ void BrowserReportGenerator::GenerateBasicInfo(em::BrowserReport* report,
   }
 
   switch (report_type) {
-    case ReportType::kFull:
+    case ReportType::kBrowser:
       report->set_executable_path(delegate_->GetExecutablePath());
       break;
     case ReportType::kProfileReport:

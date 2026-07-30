@@ -32,25 +32,6 @@ class FullRestoreAppLaunchHandler;
 class FullRestoreDataHandler;
 class NewUserRestorePrefHandler;
 
-// The restore notification button index.
-enum class RestoreNotificationButtonIndex {
-  kRestore = 0,
-  kCancel,
-};
-
-// This is used to record histograms, so do not remove or reorder existing
-// entries.
-enum class RestoreAction {
-  kRestore = 0,
-  kCancel = 1,
-  kCloseByUser = 2,
-  kCloseNotByUser = 3,
-
-  // Add any new values above this one, and update kMaxValue to the highest
-  // enumerator value.
-  kMaxValue = kCloseNotByUser,
-};
-
 // The FullRestoreService class calls AppService and Window Management
 // interfaces to restore the app launchings and app windows.
 class FullRestoreService : public KeyedService,

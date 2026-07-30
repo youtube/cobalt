@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
@@ -113,6 +114,13 @@ class NET_EXPORT_PRIVATE CacheBodyCompressor {
   // Safe to call even if Init() was never called.
   void Reset();
 
+  // Causes Compress() to fail with ERR_CACHE_COMPRESSION_FAILURE once
+  // `total_input_bytes_` exceeds `max_size`. Used by tests to exercise
+  // error paths in HttpCache::Writers that are otherwise unreachable.
+  void set_max_uncompressed_size_for_testing(int64_t max_size) {
+    max_uncompressed_size_for_testing_ = max_size;
+  }
+
  private:
 #if !defined(NET_DISABLE_ZSTD_COMPRESS)
   struct ZstdCCtxDeleter {
@@ -131,6 +139,7 @@ class NET_EXPORT_PRIVATE CacheBodyCompressor {
   scoped_refptr<IOBuffer> output_buffer_;
   size_t output_length_ = 0;
   int64_t total_input_bytes_ = 0;
+  std::optional<int64_t> max_uncompressed_size_for_testing_;
 };
 
 }  // namespace net

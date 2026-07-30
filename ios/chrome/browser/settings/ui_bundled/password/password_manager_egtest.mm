@@ -1806,8 +1806,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
         performAction:grey_tap()];
     [[EarlGrey selectElementWithMatcher:NavigationBarBackButton()]
         performAction:grey_tap()];
-    [[EarlGrey selectElementWithMatcher:SettingsDoneButton()]
-        performAction:grey_tap()];
+    [ChromeEarlGrey waitForAndTapButton:SettingsDoneButton()];
   }
 }
 

@@ -149,16 +149,6 @@ def lenient_run_command_output(args, **kwargs):
     return (process.wait(), stdout, stderr)
 
 
-def macos_version():
-    """Determines the macOS version of the running system.
-
-    Returns:
-        A list containing one element for each component of the version number,
-        such as [10, 15, 6] and [11, 0].
-    """
-    return [int(x) for x in platform.mac_ver()[0].split('.')]
-
-
 def read_plist(path):
     """Loads Plist at |path| and returns it as a dictionary."""
     with open(path, 'rb') as f:

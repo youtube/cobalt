@@ -148,22 +148,22 @@ TEST_P(ToggleEffectsViewTest, TooltipIsUpdated) {
   controller()->GetEffectsManager().RegisterDelegate(office_bunny());
   LeftClickOn(toggle_bubble_button());
 
-  EXPECT_EQ(
-      GetFirstToggleEffectButton()->GetTooltipText(),
-      l10n_util::GetStringFUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
-          l10n_util::GetStringUTF16(IDS_PRIVACY_INDICATORS_STATUS_CAMERA),
-          l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
+  EXPECT_EQ(GetFirstToggleEffectButton()->GetTooltipText(),
+            l10n_util::GetStringFUTF16(
+                IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+                l10n_util::GetStringUTF16(IDS_PRIVACY_INDICATORS_STATUS_CAMERA),
+                l10n_util::GetStringUTF16(
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
 
   // Toggle it on, the tooltip should update.
   LeftClickOn(GetFirstToggleEffectButton());
 
-  EXPECT_EQ(
-      GetFirstToggleEffectButton()->GetTooltipText(),
-      l10n_util::GetStringFUTF16(
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
-          l10n_util::GetStringUTF16(IDS_PRIVACY_INDICATORS_STATUS_CAMERA),
-          l10n_util::GetStringUTF16(VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON)));
+  EXPECT_EQ(GetFirstToggleEffectButton()->GetTooltipText(),
+            l10n_util::GetStringFUTF16(
+                IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP,
+                l10n_util::GetStringUTF16(IDS_PRIVACY_INDICATORS_STATUS_CAMERA),
+                l10n_util::GetStringUTF16(
+                    IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON)));
 
   // Cleanup.
   controller()->GetEffectsManager().UnregisterDelegate(office_bunny());

@@ -72,12 +72,19 @@ void GridSizingTree::SetSizingNodeData(const BlockNode& grid_node,
 }
 
 const GridLayoutTree* GridSizingTree::FinalizeTree() const {
-  const auto tree_size = tree_data_.size();
+  return FinalizeSubtreeAt(/*subtree_root=*/0);
+}
+
+const GridLayoutTree* GridSizingTree::FinalizeSubtreeAt(
+    wtf_size_t subtree_root) const {
+  DCHECK_LT(subtree_root, tree_data_.size());
+  const auto subtree_size = SubtreeSize(subtree_root);
 
   HeapVector<Member<GridLayoutTree::GridTreeNode>, 16> layout_tree_data;
-  layout_tree_data.ReserveInitialCapacity(tree_size);
+  layout_tree_data.ReserveInitialCapacity(subtree_size);
 
-  for (const auto& grid_tree_node : tree_data_) {
+  for (wtf_size_t i = 0; i < subtree_size; ++i) {
+    const auto& grid_tree_node = tree_data_[subtree_root + i];
     auto* layout_data = grid_tree_node.layout_data.Get();
 
     // Avoid copying layout data when it won't be mutated during baseline
@@ -99,7 +106,7 @@ const GridLayoutTree* GridSizingTree::FinalizeTree() const {
             finalized_data, grid_tree_node.subtree_size));
   }
 
-  for (wtf_size_t i = tree_size; i; --i) {
+  for (wtf_size_t i = subtree_size; i; --i) {
     auto& subtree_data = layout_tree_data[i - 1];
 
     if (subtree_data->has_unresolved_geometry &&
@@ -111,7 +118,7 @@ const GridLayoutTree* GridSizingTree::FinalizeTree() const {
     for (wtf_size_t j = i;
          j < next_subtree_index && !subtree_data->has_unresolved_geometry;
          j += layout_tree_data[j]->subtree_size) {
-      DCHECK_LT(j, tree_size);
+      DCHECK_LT(j, subtree_size);
       subtree_data->has_unresolved_geometry =
           layout_tree_data[j]->has_unresolved_geometry;
     }

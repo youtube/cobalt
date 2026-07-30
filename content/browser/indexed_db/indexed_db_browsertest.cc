@@ -47,6 +47,7 @@
 #include "components/services/storage/sandboxed_vfs_file_impl.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/browser_main_loop.h"
+#include "content/browser/indexed_db/file_path_util.h"
 #include "content/browser/indexed_db/indexed_db_leveldb_coding.h"
 #include "content/browser/indexed_db/instance/bucket_context.h"
 #include "content/browser/indexed_db/instance/leveldb/backing_store.h"
@@ -416,6 +417,66 @@ class VfsDelegateWithErrors : public storage::SandboxedVfsDelegate {
   }
 };
 
+class IndexedDBBrowserTestWithSqlite : public IndexedDBBrowserTestBase {
+ public:
+  IndexedDBBrowserTestWithSqlite()
+      : IndexedDBBrowserTestBase(/*use_sqlite=*/true) {}
+
+  base::FilePath DatabaseFilePath(const storage::BucketLocator& bucket_locator,
+                                  std::u16string_view db_name) {
+    base::test::TestFuture<base::FilePath> sqlite_dir;
+    mojo::Remote<storage::mojom::IndexedDBControlTest> control_test =
+        GetControlTest();
+    control_test->GetFilePathForTesting(
+        bucket_locator, /*for_sqlite=*/true,
+        sqlite_dir.GetCallback<const base::FilePath&>());
+    return sqlite_dir.Get().Append(DatabaseNameToFileName(db_name));
+  }
+
+  // Loads a page that builds a database with an index, then corrupts that index
+  // on disk, reloads the page and expects recovery. If `concurrent_rw_txn` is
+  // true, the page holds open a non-overlapping readwrite transaction while the
+  // corruption is detected, so that the corruption-triggering read executes in
+  // the context of a SQLite transaction.
+  void RunCorruptIndexRecoveryTest(bool concurrent_rw_txn) {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+
+    GURL url = GetTestUrl("indexeddb", "sqlite_corrupt_index.html");
+    if (concurrent_rw_txn) {
+      url = url.Resolve("?concurrent");
+    }
+    SimpleTest(url);
+
+    const blink::StorageKey storage_key =
+        blink::StorageKey::CreateFirstParty(url::Origin::Create(url));
+    ASSERT_OK_AND_ASSIGN(
+        const storage::BucketInfo bucket_info,
+        GetOrCreateBucket(
+            storage::BucketInitParams::ForDefaultBucket(storage_key)));
+    const storage::BucketLocator bucket_locator = bucket_info.ToBucketLocator();
+
+    // Ensures the database is read from disk on the next open.
+    {
+      base::RunLoop loop;
+      GetControl().ForceClose(bucket_locator.id, loop.QuitClosure());
+      loop.Run();
+    }
+
+    ASSERT_TRUE(sql::test::CorruptIndexRootPage(
+        DatabaseFilePath(bucket_locator, u"corrupt-index"),
+        "index_references_by_key"));
+
+    base::HistogramTester histograms;
+    SimpleTest(url);
+
+    histograms.ExpectBucketCount("IndexedDB.SQLite.SpecificEvent.OnDisk",
+                                 /*SpecificEvent::kDatabaseHadSqlError=*/1,
+                                 /*expected_count=*/1);
+    histograms.ExpectUniqueSample("Sql.Recovery.Result.IndexedDB",
+                                  /*sql::Recovery::Result::kSuccess=*/1, 1);
+  }
+};
+
 // This test fixture allows injecting errors into the SQLite VFS layer to test
 // various failure modes. It replaces `MockFailureSingleton` that is used for
 // LevelDB.
@@ -427,11 +488,8 @@ class VfsDelegateWithErrors : public storage::SandboxedVfsDelegate {
 // TODO(crbug.com/488755563): This doesn't work on Fuchsia. Understand why and
 // fix if possible.
 class IndexedDBBrowserTestWithSqliteErrorInjector
-    : public IndexedDBBrowserTestBase {
+    : public IndexedDBBrowserTestWithSqlite {
  public:
-  IndexedDBBrowserTestWithSqliteErrorInjector()
-      : IndexedDBBrowserTestBase(/*use_sqlite=*/true) {}
-
   void SetUp() override {
 #if BUILDFLAG(IS_FUCHSIA)
     GTEST_SKIP() << "TODO(crbug.com/488755563): test doesn't work on Fuchsia";
@@ -1041,6 +1099,29 @@ IN_PROC_BROWSER_TEST_F(IndexedDBBrowserTestWithSqliteErrorInjector,
   SqliteFileWithErrors::fail_values.get()->emplace("valueThatTriggersFailure",
                                                    SQLITE_FULL);
   SimpleTest(GetTestUrl("indexeddb", "disk_full_on_commit.html"));
+}
+
+// Fuchsia deletes the database rather than recovering it, so these recovery
+// tests are disabled there.
+#if BUILDFLAG(IS_FUCHSIA)
+#define MAYBE_CorruptIndexRecovers DISABLED_CorruptIndexRecovers
+#else
+#define MAYBE_CorruptIndexRecovers CorruptIndexRecovers
+#endif
+IN_PROC_BROWSER_TEST_F(IndexedDBBrowserTestWithSqlite,
+                       MAYBE_CorruptIndexRecovers) {
+  RunCorruptIndexRecoveryTest(/*concurrent_rw_txn=*/false);
+}
+#if BUILDFLAG(IS_FUCHSIA)
+#define MAYBE_CorruptIndexRecoversUnderConcurrentTransaction \
+  DISABLED_CorruptIndexRecoversUnderConcurrentTransaction
+#else
+#define MAYBE_CorruptIndexRecoversUnderConcurrentTransaction \
+  CorruptIndexRecoversUnderConcurrentTransaction
+#endif
+IN_PROC_BROWSER_TEST_F(IndexedDBBrowserTestWithSqlite,
+                       MAYBE_CorruptIndexRecoversUnderConcurrentTransaction) {
+  RunCorruptIndexRecoveryTest(/*concurrent_rw_txn=*/true);
 }
 
 std::unique_ptr<net::test_server::HttpResponse> ServePath(

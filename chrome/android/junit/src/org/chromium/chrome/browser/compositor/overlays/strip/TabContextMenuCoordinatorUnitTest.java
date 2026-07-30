@@ -39,7 +39,6 @@ import android.annotation.StringRes;
 import android.app.Activity;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.InsetDrawable;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
@@ -2854,8 +2853,7 @@ public class TabContextMenuCoordinatorUnitTest {
                         .getResources()
                         .getDimensionPixelSize(R.dimen.tab_group_nested_menu_color_icon_size),
                 tabGroupRowModel.get(START_ICON_WIDTH));
-        InsetDrawable insetDrawable = (InsetDrawable) tabGroupRowModel.get(START_ICON_DRAWABLE);
-        GradientDrawable drawable = (GradientDrawable) insetDrawable.getDrawable();
+        GradientDrawable drawable = (GradientDrawable) tabGroupRowModel.get(START_ICON_DRAWABLE);
         assertEquals(
                 "Expected circle to have correct color",
                 TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(

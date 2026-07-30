@@ -62,11 +62,18 @@ class RenderViewContextMenuMac : public RenderViewContextMenu,
   // Handler for the "Look Up" menu item.
   void LookUpInDictionary();
 
+  // Handler for the "Remove from Dictionary" menu item.
+  void RemoveFromDictionary();
+
   // Returns the ContextMenuParams value associated with |direction|.
   int ParamsForTextDirection(base::i18n::TextDirection direction) const;
 
   // The context menu that adds and handles Speech and BiDi.
   ui::TextServicesContextMenu text_services_context_menu_;
+
+  // The word under the cursor that the user has manually added to their
+  // dictionary. This will be empty if the word is not in the user dictionary.
+  std::u16string user_added_word_;
 };
 
 #endif  // CHROME_BROWSER_UI_COCOA_RENDERER_CONTEXT_MENU_RENDER_VIEW_CONTEXT_MENU_MAC_H_

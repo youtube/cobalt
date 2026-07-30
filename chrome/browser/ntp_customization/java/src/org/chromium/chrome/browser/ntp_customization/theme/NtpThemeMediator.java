@@ -39,6 +39,7 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationMetricsUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.OnImageLoadedCallback;
 import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.BackgroundCollection;
 import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.NtpThemeCollectionManager;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -63,7 +64,7 @@ public class NtpThemeMediator {
     private final BottomSheetDelegate mBottomSheetDelegate;
     private final Context mContext;
     private final NtpCustomizationConfigManager mNtpCustomizationConfigManager;
-    private final Callback<@Nullable Bitmap> mOnImageSelectedCallback;
+    private final OnImageLoadedCallback mOnImageSelectedCallback;
     private final NtpThemeDelegate mNtpThemeDelegate;
     private final NtpThemeCollectionManager mNtpThemeCollectionManager;
     private final Profile mProfile;
@@ -79,7 +80,7 @@ public class NtpThemeMediator {
             BottomSheetDelegate delegate,
             NtpCustomizationConfigManager ntpCustomizationConfigManager,
             @Nullable ActivityResultRegistry activityResultRegistry,
-            Callback<@Nullable Bitmap> onImageSelectedCallback,
+            OnImageLoadedCallback onImageSelectedCallback,
             NtpThemeDelegate ntpThemeDelegate,
             NtpThemeCollectionManager ntpThemeCollectionManager) {
         mContext = context;

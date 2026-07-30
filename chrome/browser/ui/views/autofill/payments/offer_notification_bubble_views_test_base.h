@@ -141,7 +141,7 @@ class OfferNotificationBubbleViewsTestBase
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
   TestAutofillManagerInjector<TestAutofillManager> autofill_manager_injector_;
   raw_ptr<PersonalDataManager> personal_data_ = nullptr;
-  std::unique_ptr<autofill::EventWaiter<DialogEvent>> event_waiter_;
+  std::unique_ptr<EventWaiter<DialogEvent>> event_waiter_;
   net::EmbeddedTestServer https_server_;
   content::ContentMockCertVerifier cert_verifier_;
 };

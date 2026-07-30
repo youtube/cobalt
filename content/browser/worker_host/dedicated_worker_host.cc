@@ -88,8 +88,7 @@ DedicatedWorkerHost::DedicatedWorkerHost(
     network::mojom::ClientSecurityStatePtr creator_client_security_state,
     const PolicyContainerPolicies& creator_policies,
     base::WeakPtr<CrossOriginEmbedderPolicyReporter> creator_coep_reporter,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id,
+    const base::UnguessableToken& creator_network_restrictions_id,
     mojo::PendingReceiver<blink::mojom::DedicatedWorkerHost> host,
     net::StorageAccessApiStatus storage_access_api_status)
     : service_(service),

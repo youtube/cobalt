@@ -2012,7 +2012,7 @@ TEST_F(ContextMenuControllerTest,
   const auto& selected_end = Position(first_paragraph, 9);
 
   GetDocument()->GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(selected_start, selected_end)
           .Build(),
       SetSelectionOptions());
@@ -2285,7 +2285,7 @@ TEST_F(ContextMenuControllerTest, SelectUnselectableContent) {
   const auto& start = Position(element->firstChild(), 0);
   const auto& end = Position(element->lastChild(), 2);
   document->GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder().SetBaseAndExtent(start, end).Build(),
+      SelectionInDomTree::Builder().SetBaseAndExtent(start, end).Build(),
       SetSelectionOptions());
 
   // The context menu should omit the unselectable content from the selected
@@ -2514,6 +2514,25 @@ TEST_F(ContextMenuControllerTest, MixedContentImageAutoupgrade) {
   EXPECT_EQ(context_menu_data.media_type,
             mojom::blink::ContextMenuDataMediaType::kImage);
   EXPECT_EQ(context_menu_data.src_url.spec(), "https://example.com/image.png");
+}
+
+TEST_F(ContextMenuControllerTest, RevealedPasswordField) {
+  Document* document = GetDocument();
+  document->documentElement()->SetInnerHTMLWithoutTrustedTypes(
+      "<input type=text id=test>");
+  document->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  document->GetFrame()->Selection().SelectAll();
+
+  Element* element = document->getElementById(AtomicString("test"));
+  HTMLInputElement* input_element = To<HTMLInputElement>(element);
+  ASSERT_TRUE(input_element);
+  input_element->MaybeSetHasBeenPasswordField();
+
+  ASSERT_TRUE(ShowContextMenuForElement(
+      element, ui::mojom::blink::MenuSourceType::kMouse));
+  ContextMenuData context_menu_data = GetWebFrameClient().GetContextMenuData();
+  EXPECT_EQ(context_menu_data.form_control_type,
+            mojom::blink::FormControlType::kInputPassword);
 }
 
 }  // namespace blink

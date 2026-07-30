@@ -274,6 +274,7 @@ component("platform") {
         "ax_utils_mac.mm",
         "browser_accessibility_cocoa.h",
         "browser_accessibility_cocoa.mm",
+        "browser_accessibility_cocoa_test_helpers.h",
         "browser_accessibility_mac.h",
         "browser_accessibility_mac.mm",
         "browser_accessibility_manager_mac.h",

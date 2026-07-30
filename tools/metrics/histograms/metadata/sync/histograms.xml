@@ -236,7 +236,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.BackedOffDataType" enum="SyncDataTypes"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -244,6 +244,22 @@ chromium-metrics-reviews@google.com.
 
     This histogram can help explain changes in
     Sync.PostedClientToServerMessageError2::PARTIAL_FAILURE.
+  </summary>
+</histogram>
+
+<histogram name="Sync.BatchUpload.BookmarksDisabledDueToLimitExceeded"
+    enum="Boolean" expires_after="2026-09-15">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records whether Bookmarks batch upload is disabled due to the bookmark limit
+    being exceeded. Recorded when the batch upload local data description for
+    bookmarks is requested, provided there are local bookmarks available to
+    upload.
+
+    Note: This metric is recorded in GetLocalDataDescription to avoid double
+    logging during the migration process itself, but this means its trigger
+    depends on how often GetLocalDataDescription is called by external UI code.
   </summary>
 </histogram>
 
@@ -753,7 +769,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="Sync.Crypto.CustomPassphraseKeyDerivationMethodOnSuccessfulDecryption"
     enum="SyncCustomPassphraseKeyDerivationMethodState"
-    expires_after="2026-09-23">
+    expires_after="2026-12-06">
   <owner>mmoskvitin@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -843,7 +859,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeActiveForSyncToSigninMigration{SyncDataType}"
-    enum="BooleanActive" expires_after="2026-09-27">
+    enum="BooleanActive" expires_after="2026-12-06">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -857,7 +873,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeCommitMessageHasDepletedQuota"
-    enum="SyncDataTypes" expires_after="2026-10-04">
+    enum="SyncDataTypes" expires_after="2026-12-06">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -957,7 +973,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeMemoryKB{SyncDataType}" units="KB"
-    expires_after="2026-10-04">
+    expires_after="2026-12-06">
   <owner>mastiz@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <summary>
@@ -1491,22 +1507,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.EntityEncryptionSucceeded{SyncDataType}"
-    enum="BooleanSuccess" expires_after="2026-07-26">
-  <owner>rushans@google.com</owner>
-  <owner>treib@chromium.org</owner>
-  <summary>
-    Recorded for each committed sync entity ({SyncDataType}) when encryption is
-    enabled (e.g. custom passphrase, always encrypted data type). The value is
-    whether the encryption succeeded.
-  </summary>
-  <token key="SyncDataType" variants="SyncDataType">
-    <variant name="" summary="Any type"/>
-  </token>
-</histogram>
-
 <histogram name="Sync.EntitySizeOnCommit.Entity.SpecificsOnly{SyncDataType}"
-    units="bytes" expires_after="2026-08-23">
+    units="bytes" expires_after="2026-12-06">
   <owner>ankushkush@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1530,7 +1532,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.EntitySizeOnCommit.Tombstone{SyncDataType}" units="bytes"
-    expires_after="2026-07-28">
+    expires_after="2026-12-06">
   <owner>ankushkush@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1558,7 +1560,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.History.DatabaseError" enum="SyncHistoryDatabaseError"
-    expires_after="2026-07-27">
+    expires_after="2027-07-27">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1636,6 +1638,21 @@ chromium-metrics-reviews@google.com.
   <owner>treib@chromium.org</owner>
   <summary>
     Histogram tracks the number of invalidations received per sync data type.
+  </summary>
+</histogram>
+
+<histogram name="Sync.Invalidations.OnMessagesDeleted" enum="Boolean"
+    expires_after="2026-10-25">
+  <owner>rushans@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records true whenever OnMessagesDeleted is called on FCMHandler. This metric
+    should be compared against Sync.IncomingInvalidationStatus total count to
+    compare the ratio of deleted messages in FCM.
+
+    Note: messages can be deleted if there are too many incoming FCM messages
+    from different sender IDs on one client, i.e. not only sync invalidations.
+    Refer to FCM documentation for more details.
   </summary>
 </histogram>
 
@@ -1987,7 +2004,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PostedClientToServerMessage"
-    enum="SyncClientToServerMessageContents" expires_after="2026-10-11">
+    enum="SyncClientToServerMessageContents" expires_after="2026-12-13">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
@@ -2000,7 +2017,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PostedClientToServerMessageError2" enum="SyncErrorType"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
@@ -2012,7 +2029,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PostedClientToServerMessageLatency" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
@@ -2038,7 +2055,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PostedDataTypeCommitRequest" enum="SyncDataTypes"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>mastiz@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
@@ -2055,7 +2072,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PostedDataTypeGetUpdatesRequest" enum="SyncDataTypes"
-    expires_after="2026-10-11">
+    expires_after="2026-12-13">
   <owner>mastiz@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
@@ -2488,18 +2505,6 @@ chromium-metrics-reviews@google.com.
     The decision whether to migrate the user from sync-setup-incomplete state to
     signed-in history-off state. This is recorded for all users upon profile
     load.
-  </summary>
-</histogram>
-
-<histogram name="Sync.SyncStoppedReported" enum="Boolean"
-    expires_after="2026-07-26">
-  <owner>rushans@google.com</owner>
-  <owner>treib@chromium.org</owner>
-  <summary>
-    Counts the number of Sync stopped events broken down by whether it was
-    reported to the server. The event may be reported only if an access token
-    and a birthday are not empty. Recorded when sync engine is stopped or
-    disabled (it doesn't include regular browser shutdown).
   </summary>
 </histogram>
 
@@ -3094,7 +3099,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.URLFetchResponse"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-10-11">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-12-13">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <summary>

@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/media_type_names.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 
@@ -53,6 +54,9 @@ void SVGStyleElement::setDisabled(bool set_disabled) {
 }
 
 const AtomicString& SVGStyleElement::type() const {
+  if (RuntimeEnabledFeatures::SvgStyleElementReflectTypeAndMediaEnabled()) {
+    return getAttribute(svg_names::kTypeAttr);
+  }
   DEFINE_STATIC_LOCAL(const AtomicString, default_value, ("text/css"));
   const AtomicString& n = getAttribute(svg_names::kTypeAttr);
   return n.IsNull() ? default_value : n;
@@ -63,6 +67,9 @@ void SVGStyleElement::setType(const AtomicString& type) {
 }
 
 const AtomicString& SVGStyleElement::media() const {
+  if (RuntimeEnabledFeatures::SvgStyleElementReflectTypeAndMediaEnabled()) {
+    return FastGetAttribute(svg_names::kMediaAttr);
+  }
   const AtomicString& n = FastGetAttribute(svg_names::kMediaAttr);
   return n.IsNull() ? media_type_names::kAll : n;
 }
@@ -82,12 +89,21 @@ void SVGStyleElement::setTitle(const AtomicString& title) {
 void SVGStyleElement::ParseAttribute(
     const AttributeModificationParams& params) {
   if (params.name == svg_names::kTitleAttr) {
-    if (sheet_ && IsInDocumentTree())
+    if (sheet_ && IsInDocumentTree()) {
       sheet_->SetTitle(params.new_value);
-
+    }
     return;
   }
-
+  if (RuntimeEnabledFeatures::SvgStyleElementReflectTypeAndMediaEnabled()) {
+    if (params.name == svg_names::kMediaAttr) {
+      MediaAttributeChanged(*this, params.new_value);
+      return;
+    }
+    if (params.name == svg_names::kTypeAttr) {
+      StyleElement::ChildrenChanged(*this);
+      return;
+    }
+  }
   SVGElement::ParseAttribute(params);
 }
 

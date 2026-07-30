@@ -68,7 +68,7 @@ class MEDIA_GPU_EXPORT AndroidVideoSurfaceChooser {
   // Notify the client that the most recently provided overlay should be
   // discarded.  The overlay is still valid, but we recommend against
   // using it soon, in favor of a TextureOwner.
-  using UseTextureOwnerCB = base::RepeatingCallback<void(void)>;
+  using UseTextureOwnerCB = base::RepeatingClosure;
 
   AndroidVideoSurfaceChooser() {}
 

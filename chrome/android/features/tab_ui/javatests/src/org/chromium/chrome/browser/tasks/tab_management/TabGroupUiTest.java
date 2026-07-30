@@ -125,7 +125,7 @@ public class TabGroupUiTest {
         // Select the 1st tab in group.
         clickFirstCardFromTabSwitcher(cta);
         clickFirstTabInDialog(cta);
-        assertFalse(cta.getLayoutManager().isLayoutVisible(LayoutType.TAB_SWITCHER));
+        assertFalse(cta.getLayoutManager().isLayoutVisible(LayoutType.HUB));
         ViewUtils.waitForVisibleView(
                 allOf(
                         withId(R.id.tab_list_recycler_view),

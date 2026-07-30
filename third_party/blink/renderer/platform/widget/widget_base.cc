@@ -801,19 +801,6 @@ void WidgetBase::RequestNewLayerTreeFrameSink(
   // internal begin frame source is started.
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
-  if (base::FeatureList::IsEnabled(
-          ::features::kInternalBeginFrameSourceOnManyDidNotProduceFrame) &&
-      !params.embedder_params->synthetic_begin_frame_source &&
-      !settings.single_thread_proxy_scheduler &&
-      !settings.using_synchronous_renderer_compositor &&
-      !command_line.HasSwitch(switches::kAllowPreCommitInput)) {
-    static const uint64_t num_did_not_produce_frame = static_cast<uint64_t>(
-        ::features::kNumDidNotProduceFrameBeforeInternalBeginFrameSource.Get());
-    params.embedder_params
-        ->num_did_not_produce_frame_before_internal_begin_frame_source =
-        num_did_not_produce_frame;
-    params.embedder_params->auto_needs_begin_frame = true;
-  }
 
   if (base::FeatureList::IsEnabled(::features::kManualBeginFrame) &&
       !command_line.HasSwitch(switches::kAllowPreCommitInput)) {
@@ -1158,7 +1145,11 @@ void WidgetBase::UpdateVisualState() {
       ShouldRecordBeginMainFrameMetrics()
           ? DocumentUpdateReason::kBeginMainFrame
           : DocumentUpdateReason::kTest;
+  auto weak_this = weak_ptr_factory_.GetWeakPtr();
   client_->UpdateLifecycle(WebLifecycleUpdate::kAll, lifecycle_reason);
+  if (!weak_this) {
+    return;
+  }
   client_->SetSuppressFrameRequestsWorkaroundFor704763Only(false);
 }
 
@@ -1344,6 +1335,10 @@ void WidgetBase::UpdateTextInputStateInternal(bool show_virtual_keyboard,
 #endif
     params->flags |= next_previous_flags_;
     params->value = new_info.value;
+    params->html_label = new_info.label;
+    params->html_name = new_info.name;
+    params->html_id = new_info.id;
+    params->html_placeholder = new_info.placeholder;
     params->selection =
         gfx::Range(new_info.selection_start, new_info.selection_end);
     if (new_info.composition_start != -1) {
@@ -1806,7 +1801,8 @@ void WidgetBase::RequestAnimationAfterDelayTimerFired(TimerBase*) {
   bool urgent_for_input =
       input_handler_.handling_input_event() &&
       base::FeatureList::IsEnabled(features::kUrgentMainFrameForInput);
-  client_->ScheduleAnimation(/*urgent=*/urgent_for_input);
+  client_->ScheduleAnimation(cc::BeginMainFrameReason::kDelayedTimerFired,
+                             /*urgent=*/urgent_for_input);
 }
 
 float WidgetBase::GetOriginalDeviceScaleFactor() const {
@@ -1857,8 +1853,13 @@ void WidgetBase::UpdateSurfaceAndScreenInfo(
         screen_infos_.current().display_color_spaces);
   }
 
-  if (orientation_changed)
+  if (orientation_changed) {
+    auto weak_this = weak_ptr_factory_.GetWeakPtr();
     client_->OrientationChanged();
+    if (!weak_this) {
+      return;
+    }
+  }
 
   client_->DidUpdateSurfaceAndScreen(previous_original_screen_infos);
 }

@@ -625,8 +625,8 @@ std::string WebAXObjectProxy::ValueDescription() {
   if (!UpdateLayout()) {
     return "";
   }
-  std::string value_description =
-      GetAXNodeData().GetStringAttribute(ax::mojom::StringAttribute::kValue);
+  std::string value_description = GetAXNodeData().GetStringAttribute(
+      ax::mojom::StringAttribute::kAriaValueText);
   return value_description.insert(0, "AXValueDescription: ");
 }
 

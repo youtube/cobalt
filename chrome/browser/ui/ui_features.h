@@ -222,6 +222,7 @@ inline constexpr char kTabHoverCardAdditionalMaxWidthDelay[] =
     "additional_max_width_delay";
 
 BASE_DECLARE_FEATURE(kTabStripSkipSelectionEventOnActivation);
+BASE_DECLARE_FEATURE(kTabStripNewTabButtonFlickerFix);
 
 // If enabled, use desktop widget to show tab modal dialogs.
 BASE_DECLARE_FEATURE(kTabModalUsesDesktopWidget);
@@ -254,6 +255,7 @@ BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
+BASE_DECLARE_FEATURE(kEnterpriseReleaseNotes);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
 // Cocoa to views migration.

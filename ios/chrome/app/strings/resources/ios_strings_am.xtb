@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ዓዓዓዓ</translation>
 <translation id="1013952917065545813">በቅርብ ጊዜ የዘጓቸውን ትሮች መልሰው ለመክፈት ወደዚህ ተመልሰው መምጣት ይችላሉ</translation>
 <translation id="1016495303386450659">ንጥል ተዘምኗል</translation>
+<translation id="1018804590490383958">ቃኝ እና በራስ-ሙላ</translation>
 <translation id="1019990162050689579">የGemini መተግበሪያ እንቅስቃሴ</translation>
 <translation id="102916930470544692">የይለፍ ቁልፍ</translation>
 <translation id="1030376737535466765">የሚስጥር ቁልፍ አስተዳዳሪ ክፈት</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">አሳሽዎን ያዘምኑ</translation>
 <translation id="4021931095789478915">${ዩአርኤል} ን ወደ የንባብ ዝርዝር ያክሉ</translation>
 <translation id="4028871427853484857">በመለያ ውስጥ አስቀምጥ…</translation>
+<translation id="4036529942385659684">ከእንቅስቃሴ-አልባነት ጊዜ በኋላ የመነሻ ገጽን አሳይ</translation>
 <translation id="4038354071007134711">ፋይሉን መክፈት የሚችል መተግበሪያ በዚህ መሣሪያ ላይ የለም።</translation>
 <translation id="4042870976416480368">በዚህ ገፅ ውስጥ አግኝ</translation>
 <translation id="4045441967987592849">ዳግም ክፈት</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">ቡድን ያስተዳድሩ</translation>
 <translation id="4172051516777682613">ሁልጊዜ አሳይ</translation>
 <translation id="417273154673973994">{count,plural, =1{1 የትር ቡድን ተዘግቷል እና ተቀምጧል}one{{count} የትር ቡድን ተዘግቷል እና ተቀምጧል}other{{count} የትር ቡድኖች ተዘግተዋል እና ተቀምጠዋል}}</translation>
-<translation id="417612446554534067">ወደ የእርስዎ መሣሪያዎች ይላኩ</translation>
 <translation id="4180726336228139707">በዚህ መሣሪያ ላይ ብቻ</translation>
 <translation id="4181841719683918333">ቋንቋዎች</translation>
 <translation id="4183350924949589798">ተጨማሪ ደህንነት?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">ትሮች ተዘግተዋል፤ እርስዎ ዘግተው ወጥተዋል</translation>
 <translation id="4911042367886397055">እንኳን በደህና ተመልሰው መጡ፣ <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">የይለፍ ቃልዎ ቅጂ ደህንነቱ በተጠበቀ ሁኔታ በቤተሰብ ቡድንዎ ውስጥ ካለ ሰው ጋር ማጋራት ይችላሉ። <ph name="BEGIN_LINK" />የበለጠ ለመረዳት<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">ሌንስ</translation>
 <translation id="4917025507570489430">እንደ <ph name="USER_EMAIL" /> በመለያ ሲገቡ ነባር የአሰሳ ውሂብን መምረጥ ይችላሉ። ድርጅትዎ ይህን ውሂብ መመልከት ይችል ይሆናል።</translation>
 <translation id="4918086044614829423">ይቀበሉ</translation>
 <translation id="4930714375720679147">አብራ</translation>
@@ -1549,6 +1551,7 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">አድራሻ አሞሌ ቦታዎን ይምረጡ</translation>
 <translation id="6307241780749477694">ሁሉንም የይለፍ ቃላትዎን በዚህ መሣሪያ ላይ ለማግኘት እርስዎ መሆንዎን ያረጋግጡ</translation>
+<translation id="6307792728709337290">ለዚህ ግዢ እና Chrome ላይ ለሚደረጉ የወደፊት ግዢዎች በራስ-ሰር ለመሙላት ካርድዎን በGoogle መለያዎ ውስጥ ያስቀምጡ።</translation>
 <translation id="6316141353357700666">ከሚታየው ዝርዝር ውስጥ ለመጠቀም የሚፈልጉትን የይለፍ ቃል ይምረጡ።</translation>
 <translation id="6321526113093607004">ወደ ዕልባቶች አክል</translation>
 <translation id="6327249202318869726">Gemini ለመለያዎ ጠፍቷል። ተጨማሪ መረጃ ለማግኘት አስተዳዳሪዎን ያነጋግሩ።</translation>
@@ -2143,6 +2146,7 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="8263809106706527890">በነባሪ የአሳሽ ቅንብሮችዎ ላይ ለውጥ ተደርጎ ሊሆን ይችላል። ይህንን በቅንብሮች ውስጥ መፈተሽ ይችላሉ።</translation>
 <translation id="8264966119170358612">ከእርስዎ የተቀመጡ የይለፍ ቃላት መካከል አንዳንዶቹ የGoogle ባልሆነ የውሂብ ጥሰት ተጋልጠው ነበረ። <ph name="BEGIN_LINK" />የበለጠ ለመረዳት<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">እንደ የእርስዎ iPad ዳግም ማስጀመር አንድ አካል ከመለያዎ <ph name="USER_NAME" /> ዘግተው ወጥተዋል። ተመልሰው በመለያ ለመግባት ከታች «ቀጥል»ን መታ ያድርጉ።</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">መረጃ ወደ <ph name="URL" /> ውስጥ ይሞላሉ</translation>
 <translation id="8275068909952022340">ተጨማሪ…</translation>
 <translation id="8281781826761538115">ነባሪ - <ph name="DEFAULT_LOCALE" /></translation>

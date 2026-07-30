@@ -5,10 +5,10 @@
 #ifndef COMPONENTS_BROWSER_APIS_TAB_DRAG_TESTING_TOY_TAB_DRAG_SESSION_INPUT_ADAPTER_H_
 #define COMPONENTS_BROWSER_APIS_TAB_DRAG_TESTING_TOY_TAB_DRAG_SESSION_INPUT_ADAPTER_H_
 
-#include <vector>
-
+#include "base/memory/raw_ref.h"
 #include "base/types/expected.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_session_input_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 
@@ -21,7 +21,6 @@ class ToyTabDragSessionInputAdapter : public TabDragSessionInputAdapter {
 
   // TabDragSessionInputAdapter overrides:
   base::expected<void, mojo_base::mojom::ErrorPtr> StartInputCapture(
-      const std::vector<tabs_api::NodeId>& source_tab_ids,
       EventCallback callback) override;
 
   void ReleaseInputCapture() override;
@@ -36,6 +35,26 @@ class ToyTabDragSessionInputAdapter : public TabDragSessionInputAdapter {
   bool capture_started_ = false;
   bool capture_released_ = false;
   EventCallback callback_;
+};
+
+class TabDragSessionListener;
+
+class ToyTabDragSessionInjector : public TabDragSessionInjector {
+ public:
+  ToyTabDragSessionInjector(TabDragSessionInputAdapter& adapter,
+                            TabDragSessionListener& listener,
+                            DropTargetRegistry& registry)
+      : adapter_(adapter), listener_(listener), registry_(registry) {}
+  ~ToyTabDragSessionInjector() override = default;
+
+  TabDragSessionInputAdapter& GetInputAdapter() override { return *adapter_; }
+  TabDragSessionListener& GetSessionListener() override { return *listener_; }
+  DropTargetRegistry& GetDropTargetRegistry() override { return *registry_; }
+
+ private:
+  const raw_ref<TabDragSessionInputAdapter> adapter_;
+  const raw_ref<TabDragSessionListener> listener_;
+  const raw_ref<DropTargetRegistry> registry_;
 };
 
 }  // namespace tabs_api

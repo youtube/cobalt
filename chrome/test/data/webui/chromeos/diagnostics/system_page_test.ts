@@ -19,7 +19,7 @@ import type {RoutineSectionElement} from 'chrome://diagnostics/routine_section.j
 import type {BatteryChargeStatus, BatteryHealth, BatteryInfo, CpuUsage, MemoryUsage, SystemInfo} from 'chrome://diagnostics/system_data_provider.mojom-webui.js';
 import {SystemPageElement} from 'chrome://diagnostics/system_page.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import * as dx_utils from './diagnostics_test_utils.js';

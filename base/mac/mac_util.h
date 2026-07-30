@@ -62,8 +62,8 @@ BASE_EXPORT void SetFileTags(const FilePath& file_path,
 
 // The following two functions return the version of the macOS currently
 // running. MacOSVersion() returns the full trio of version numbers, packed into
-// one int (e.g. macOS 12.6.5 returns 12'06'05), and MacOSMajorVersion() returns
-// only the major version number (e.g. macOS 12.6.5 returns 12). Use for runtime
+// one int (e.g. macOS 14.8.7 returns 14'08'07), and MacOSMajorVersion() returns
+// only the major version number (e.g. macOS 14.8.7 returns 14). Use for runtime
 // OS version checking. Prefer to use @available in Objective-C files. Note that
 // this does not include any Rapid Security Response (RSR) suffixes (the "(a)"
 // at the end of version numbers.)

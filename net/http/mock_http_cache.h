@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_split.h"
@@ -113,6 +114,11 @@ class MockDiskEntry : public disk_cache::Entry,
   // |resume_return_code_|.
   void ResumeDiskEntryOperation();
 
+  // Returns true if a deferred operation is pending (callback stored).
+  bool HasDeferredOperation() const { return !resume_callback_.is_null(); }
+
+  void set_resume_return_code(int code) { resume_return_code_ = code; }
+
   // Sets the maximum length of a stream. This is only applied to stream 1.
   void set_max_file_size(int val) { max_file_size_ = val; }
 
@@ -192,6 +198,8 @@ class MockDiskCache : public disk_cache::Backend {
   void OnExternalCacheHit(const std::string& key) override;
   uint8_t GetEntryInMemoryData(const std::string& key) override;
   int64_t MaxFileSize() const override;
+  void SetMaxBytes(base::ByteSize max_bytes) override;
+  base::ByteSize GetMaxBytesForTesting() const override;
 
   // Returns number of times a cache entry was successfully opened.
   int open_count() const { return open_count_; }
@@ -270,6 +278,7 @@ class MockDiskCache : public disk_cache::Backend {
   int create_count_ = 0;
   int doomed_count_ = 0;
   int max_file_size_;
+  int64_t max_bytes_ = 0;
   bool fail_requests_ = false;
   int soft_failures_ = 0;
   int soft_failures_one_instance_ = 0;
@@ -285,9 +294,22 @@ class MockDiskCache : public disk_cache::Backend {
 
 class MockBackendFactory : public HttpCache::BackendFactory {
  public:
+  MockBackendFactory();
+  ~MockBackendFactory() override;
+
   disk_cache::BackendResult CreateBackend(
       NetLog* net_log,
       disk_cache::BackendResultCallback callback) override;
+  void SetMaxBytes(int max_bytes) override;
+
+  void set_callback_later(bool val) { callback_later_ = val; }
+  void CompleteCreateBackend();
+
+ private:
+  int max_bytes_ = 0;
+  bool callback_later_ = false;
+  disk_cache::BackendResultCallback pending_callback_;
+  std::unique_ptr<MockDiskCache> pending_backend_;
 };
 
 class MockHttpCache {

@@ -49,7 +49,7 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT MappableBufferIOSurface
   bool Map() override;
   void MapAsync(base::OnceCallback<void(bool)> callback) override;
   bool AsyncMappingIsNonBlocking() const override;
-  void* memory(size_t plane) override;
+  base::span<uint8_t> memory(size_t plane) override;
   void Unmap() override;
   int stride(size_t plane) const override;
   gfx::GpuMemoryBufferType GetType() const override;

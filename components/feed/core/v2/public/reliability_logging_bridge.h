@@ -32,8 +32,6 @@ class ReliabilityLoggingBridge {
                                    base::TimeTicks timestamp) = 0;
   virtual void LogActionsUploadRequestStart(NetworkRequestId id,
                                             base::TimeTicks timestamp) = 0;
-  virtual void LogWebFeedRequestStart(NetworkRequestId id,
-                                      base::TimeTicks timestamp) = 0;
   virtual void LogRequestSent(NetworkRequestId id,
                               base::TimeTicks timestamp) = 0;
   virtual void LogResponseReceived(

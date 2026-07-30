@@ -460,7 +460,9 @@ source_set("eg_app_support+eg2") {
     "//ios/chrome/browser/share_kit/model:factory",
     "//ios/chrome/browser/share_kit/model:test_support",
     "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/test/app:test_support",
   ]

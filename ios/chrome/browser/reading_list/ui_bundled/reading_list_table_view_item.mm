@@ -30,23 +30,13 @@
 
 namespace {
 
-// The size of the symbol badge image.
-constexpr CGFloat kSymbolBadgeImagePointSize = 13;
-
-// The string format used to append the distillation date to the URL host.
-NSString* const kURLAndDistillationDateFormat = @"%@ • %@";
-
 }  // namespace
 
-@implementation ReadingListTableViewItem {
-  UIImage* _distillationBadgeImage;
-}
+@implementation ReadingListTableViewItem
 
 @synthesize title = _title;
 @synthesize entryURL = _entryURL;
 @synthesize faviconPageURL = _faviconPageURL;
-@synthesize distillationState = _distillationState;
-@synthesize distillationDateText = _distillationDateText;
 @synthesize showCloudSlashIcon = _showCloudSlashIcon;
 @synthesize customActionFactory = _customActionFactory;
 @synthesize attributes = _attributes;
@@ -58,32 +48,7 @@ NSString* const kURLAndDistillationDateFormat = @"%@ • %@";
   return self;
 }
 
-#pragma mark - Accessors
 
-- (void)setDistillationState:
-    (ReadingListUIDistillationStatus)distillationState {
-  if (_distillationState == distillationState) {
-    return;
-  }
-  _distillationState = distillationState;
-  switch (_distillationState) {
-    case ReadingListUIDistillationStatusFailure:
-      _distillationBadgeImage = SymbolWithPalette(
-          DefaultSymbolTemplateWithPointSize(kErrorCircleFillSymbol,
-                                             kSymbolBadgeImagePointSize),
-          @[ [UIColor colorNamed:kGrey600Color] ]);
-      break;
-    case ReadingListUIDistillationStatusSuccess:
-      _distillationBadgeImage = SymbolWithPalette(
-          DefaultSymbolTemplateWithPointSize(kCheckmarkCircleFillSymbol,
-                                             kSymbolBadgeImagePointSize),
-          @[ [UIColor colorNamed:kGreen500Color] ]);
-      break;
-    case ReadingListUIDistillationStatusPending:
-      _distillationBadgeImage = nil;
-      break;
-  }
-}
 
 #pragma mark - ListItem
 
@@ -100,9 +65,6 @@ NSString* const kURLAndDistillationDateFormat = @"%@ • %@";
   FaviconContentConfiguration* faviconConfiguration =
       [[FaviconContentConfiguration alloc] init];
   faviconConfiguration.faviconAttributes = self.attributes;
-
-  faviconConfiguration.badgeImage = _distillationBadgeImage;
-  faviconConfiguration.badgeAccessibilityID = kReadingListItemBadgeID;
 
   configuration.leadingConfiguration = faviconConfiguration;
 
@@ -126,8 +88,7 @@ NSString* const kURLAndDistillationDateFormat = @"%@ • %@";
   cell.accessibilityTraits |= UIAccessibilityTraitButton;
 
   cell.accessibilityLabel = GetReadingListCellAccessibilityLabel(
-      self.title, [self hostname], self.distillationState,
-      self.showCloudSlashIcon);
+      self.title, [self hostname], self.showCloudSlashIcon);
   cell.accessibilityCustomActions =
       [self.customActionFactory customActionsForItem:self];
 }
@@ -158,20 +119,7 @@ NSString* const kURLAndDistillationDateFormat = @"%@ • %@";
 
 // Returns the text to use when configuring a URL.
 - (NSString*)URLLabelText {
-  // If there's no title text, the URL is used as the cell title.  Simply
-  // display the distillation date in the URL label when this occurs.
-  if (!self.title.length) {
-    return self.distillationDateText;
-  }
-
-  // Append the hostname with the distillation date if it exists.
-  if (self.distillationDateText.length) {
-    return
-        [NSString stringWithFormat:kURLAndDistillationDateFormat,
-                                   [self hostname], self.distillationDateText];
-  } else {
-    return [self hostname];
-  }
+  return [self hostname];
 }
 
 - (NSString*)hostname {

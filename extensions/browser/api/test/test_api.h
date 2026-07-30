@@ -108,6 +108,22 @@ class TestSendScriptResultFunction : public TestExtensionFunction {
   ResponseAction Run() override;
 };
 
+class TestNotifyTestStartedFunction : public TestExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("test.notifyTestStarted", UNKNOWN)
+ protected:
+  ~TestNotifyTestStartedFunction() override;
+  ResponseAction Run() override;
+};
+
+class TestNotifyTestFinishedFunction : public TestExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("test.notifyTestFinished", UNKNOWN)
+ protected:
+  ~TestNotifyTestFinishedFunction() override;
+  ResponseAction Run() override;
+};
+
 class TestGetConfigFunction : public TestExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("test.getConfig", UNKNOWN)

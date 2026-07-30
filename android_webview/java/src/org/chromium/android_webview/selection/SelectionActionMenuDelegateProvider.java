@@ -27,6 +27,6 @@ public class SelectionActionMenuDelegateProvider {
                 && SamsungSelectionActionMenuDelegate.shouldUseSamsungMenuItemOrdering()) {
             return new SamsungSelectionActionMenuDelegate();
         }
-        return new AwSelectionActionMenuDelegate();
+        return new AutofillSelectionActionMenuDelegate();
     }
 }

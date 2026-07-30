@@ -463,7 +463,8 @@ scoped_refptr<const VideoFrame> CreateVideoFrameFromImage(const Image& image) {
   const auto format = image.PixelFormat();
   const auto& image_size = image.Size();
   // Loaded image data must be tight.
-  DCHECK_EQ(image.DataSize(), VideoFrame::AllocationSize(format, image_size));
+  DCHECK_EQ(image.DataSpan().size(),
+            VideoFrame::AllocationSize(format, image_size));
 
   // Create planes for layout. We cannot use WrapExternalData() because it
   // calls GetDefaultLayout() and it supports only a few pixel formats.

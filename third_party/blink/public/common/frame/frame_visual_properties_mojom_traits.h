@@ -31,10 +31,6 @@ struct BLINK_COMMON_EXPORT
     return r.is_pinch_gesture_active;
   }
 
-  static uint32_t capture_sequence_number(
-      const blink::FrameVisualProperties& r) {
-    return r.capture_sequence_number;
-  }
 
   static double zoom_level(const blink::FrameVisualProperties& r) {
     return r.zoom_level;

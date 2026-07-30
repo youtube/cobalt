@@ -906,9 +906,7 @@ LRESULT CustomProgressBarCtrl::OnSetPos(UINT, WPARAM new_position, LPARAM) {
     current_position_ = std::min(static_cast<int>(new_position), kMaxPosition);
   }
 
-  if (current_position_ < kMinPosition) {
-    current_position_ = kMinPosition;
-  }
+  current_position_ = std::max(current_position_, kMinPosition);
 
   ::RedrawWindow(hwnd(), nullptr, nullptr,
                  RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);

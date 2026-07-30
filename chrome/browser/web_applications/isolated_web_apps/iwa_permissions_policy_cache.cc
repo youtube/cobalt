@@ -105,45 +105,6 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       }
     )");
 
-std::string GetPermissionsPolicyFeatureName(
-    network::mojom::PermissionsPolicyFeature feature) {
-  const auto& map = blink::GetPermissionsPolicyFeatureToNameMap();
-  auto it = map.find(feature);
-  return it != map.end() ? std::string(it->second) : std::string();
-}
-
-std::optional<std::vector<std::string>> GetAllowedOrigins(
-    const IwaPermissionsPolicyCache::CacheEntry& manifest,
-    network::mojom::PermissionsPolicyFeature feature) {
-  auto it = std::ranges::find_if(manifest, [&](const auto& entry) {
-    return entry.feature == GetPermissionsPolicyFeatureName(feature);
-  });
-
-  if (it == manifest.end()) {
-    return std::nullopt;
-  }
-
-  return it->allowed_origins;
-}
-
-void AddDirectSocketsPrivatePermissionPolicyWarningMessage(
-    std::vector<IwaPermissionsPolicyCache::ManifestWarning>& manifest_warnings,
-    network::mojom::PermissionsPolicyFeature feature) {
-  std::string feature_name = GetPermissionsPolicyFeatureName(feature);
-
-  manifest_warnings.emplace_back(
-      blink::mojom::ConsoleMessageSource::kDeprecation,
-      base::StrCat({"The 'permissions_policy' field in the manifest includes "
-                    "'direct-sockets-private' but is missing the required '",
-                    feature_name,
-                    "' policy. While Chrome is automatically including '",
-                    feature_name,
-                    "' to maintain backward compatibility, this behavior is "
-                    "deprecated and will be removed in Chrome 151. Please "
-                    "update your manifest to include '",
-                    feature_name, "' explicitly."}));
-}
-
 std::optional<IwaPermissionsPolicyCache::CacheEntry> ParseManifest(
     const std::string& manifest_content,
     std::vector<IwaPermissionsPolicyCache::ManifestWarning>&
@@ -219,39 +180,6 @@ std::optional<IwaPermissionsPolicyCache::CacheEntry> ParseManifest(
     permissions_policy.emplace_back(key, std::move(allowed_origins));
   }
 
-  // TODO(b/492476083): Remove backward compatibility code by Chrome Milestone
-  // 151. Now "direct-sockets-private" requires "loopback-network" and
-  // "local-network" to function. So "direct-sockets-private" is temporarily
-  // unpacked to "local-network" and "loopback-network" for backwards
-  // compatibility to existing apps. A DevTools warning is shown in the console.
-  // This behavior will be removed in Chrome Milestone 151.
-  auto direct_sockets_private_origins = GetAllowedOrigins(
-      permissions_policy,
-      network::mojom::PermissionsPolicyFeature::kDirectSocketsPrivate);
-  if (direct_sockets_private_origins) {
-    if (!GetAllowedOrigins(
-            permissions_policy,
-            network::mojom::PermissionsPolicyFeature::kLocalNetwork)) {
-      permissions_policy.emplace_back(
-          std::string(GetPermissionsPolicyFeatureName(
-              network::mojom::PermissionsPolicyFeature::kLocalNetwork)),
-          *direct_sockets_private_origins);
-      AddDirectSocketsPrivatePermissionPolicyWarningMessage(
-          manifest_warnings,
-          network::mojom::PermissionsPolicyFeature::kLocalNetwork);
-    }
-    if (!GetAllowedOrigins(
-            permissions_policy,
-            network::mojom::PermissionsPolicyFeature::kLoopbackNetwork)) {
-      permissions_policy.emplace_back(
-          std::string(GetPermissionsPolicyFeatureName(
-              network::mojom::PermissionsPolicyFeature::kLoopbackNetwork)),
-          *direct_sockets_private_origins);
-      AddDirectSocketsPrivatePermissionPolicyWarningMessage(
-          manifest_warnings,
-          network::mojom::PermissionsPolicyFeature::kLoopbackNetwork);
-    }
-  }
   return permissions_policy;
 }
 

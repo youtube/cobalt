@@ -83,7 +83,6 @@ class NetworkConnectivityMetricsServiceTest : public testing::Test {
                           const std::string& value) {
     helper_.network_state_test_helper()->SetServiceProperty(service_path, key,
                                                             base::Value(value));
-    task_environment_.RunUntilIdle();
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;

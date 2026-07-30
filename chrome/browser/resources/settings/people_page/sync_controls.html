@@ -65,7 +65,15 @@
         <h2 class="cr-title-text flex">$i18n{accountDataTypesHeading}</h2>
       </div>
       <div class="cr-row continuation">
+<if expr="is_chromeos">
+        <localized-link class="cr-secondary-text flex"
+            localized-string="$i18n{accountDataTypesBody}"
+            link-url="$i18n{osSyncSettingsUrl}">
+        </localized-link>
+</if>
+<if expr="not is_chromeos">
         <div class="cr-secondary-text flex">$i18n{accountDataTypesBody}</div>
+</if>
       </div>
       <div class="cr-row continuation" hidden="[[!shouldShowBatchUploadPromo_(
             batchUploadPromoHTML_, isAccountSettingsPage_)]]">

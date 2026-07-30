@@ -444,7 +444,7 @@ TEST_F(AccountInvestigatorTest, TryPeriodicReportWithEnterprisePrimary) {
       email, signin::ConsentLevel::kSignin);
   account_info =
       AccountInfo::Builder(account_info).SetHostedDomain("bar.com").Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_enterprise_features(true);
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
 

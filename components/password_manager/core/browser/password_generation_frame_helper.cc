@@ -119,15 +119,14 @@ bool PasswordGenerationFrameHelper::IsGenerationEnabled(
 
   if (!password_manager_util::IsAbleToSavePasswords(client_)) {
     if (logger) {
-      logger->LogMessage(
-          Logger::STRING_GENERATION_DISABLED_NOT_ABLE_TO_SAVE_PASSWORDS);
+      logger->LogMessage(Logger::STRING_GENERATION_DISABLED_STORE_ERROR);
     }
     return false;
   }
 
   if (!client_->IsSavingAndFillingEnabled(url)) {
     if (logger) {
-      logger->LogMessage(Logger::STRING_GENERATION_DISABLED_SAVING_DISABLED);
+      logger->LogMessage(Logger::STRING_GENERATION_DISABLED_BY_USER_OR_POLICY);
     }
     return false;
   }

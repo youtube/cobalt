@@ -102,8 +102,9 @@ class SwitchMenuItemView : public views::MenuItemView {
             IDS_ASH_VIDEO_CONFERENCE_SETTINGS_STUDIO_LOOK_PREFERENCE),
         title(),
         l10n_util::GetStringUTF16(
-            switch_->GetIsOn() ? VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON
-                               : VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
+            switch_->GetIsOn()
+                ? IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON
+                : IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF)));
   }
 
   raw_ptr<ash::Switch> switch_ = nullptr;

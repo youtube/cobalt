@@ -867,6 +867,11 @@ std::string AudioManagerBase::GetDeviceNameFromCache(
     prefix = "Default - ";
   } else if (media::AudioDeviceDescription::IsCommunicationsDevice(device_id)) {
     prefix = "Communications - ";
+  } else if (media::AudioDeviceDescription::IsLoopbackDevice(device_id)) {
+    // Loopback devices are virtual and not enumerated, so they won't exist in
+    // the cache. For application loopback devices, anonymize the log by
+    // stripping the PID.
+    return device_id.substr(0, device_id.find(':'));
   }
 
   // Attempt to find the device ID directly in the cache.

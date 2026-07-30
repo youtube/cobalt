@@ -157,6 +157,7 @@ void HandleDriveUploadResponse(
     file_attachment->name = file->file_name;
     file_attachment->mime_type = file->mime_type;
     file_attachment->image_data_url = file->thumbnail_url;
+    file_attachment->icon_url = file->icon_url;
 
     file_attachments.push_back(
         searchbox::mojom::SearchContextAttachment::NewFileAttachment(
@@ -523,23 +524,8 @@ void OmniboxContextMenuController::AddModelPickerItems() {
     menu_model_->AddTitle(base::UTF8ToUTF16(model_section_config->header()));
   }
 
-  const bool thinking_icon_update_enabled =
-      base::FeatureList::IsEnabled(omnibox::kThinkingModelIconUpdate);
-  const bool has_thinking_model =
-      model_info_.find(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO) !=
-      model_info_.end();
-  const bool has_pro_no_gen_ui_model =
-      model_info_.find(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI) !=
-      model_info_.end();
-  const bool use_new_thinking_icon = thinking_icon_update_enabled &&
-                                     has_thinking_model &&
-                                     has_pro_no_gen_ui_model;
   auto thinking_model_icon = ui::ImageModel::FromVectorIcon(
-      use_new_thinking_icon               ? features::IsRoundedIconsEnabled()
-                                                ? kAstrophotographyModeIcon
-                                                : kAstrophotographyModeOldIcon
-      : features::IsRoundedIconsEnabled() ? kTimerIcon
-                                          : kTimerOldIcon,
+      features::IsRoundedIconsEnabled() ? kTimerIcon : kTimerOldIcon,
       ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
 
   auto check_icon = ui::ImageModel::FromVectorIcon(
@@ -1249,8 +1235,26 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
           it != input_type_for_command_id_.end()) {
         if (it->second == omnibox::InputType::INPUT_TYPE_DRIVE) {
           if (composebox_handler) {
-            composebox_handler->OnDriveUploadClicked(base::BindOnce(
-                &HandleDriveUploadResponse, is_aim_popup_open, web_contents_));
+            composebox_handler->GetDriveDisclaimerStatus(base::BindOnce(
+                [](base::WeakPtr<content::WebContents> web_contents,
+                   bool is_aim_popup_open,
+                   searchbox::mojom::DriveDisclaimerStatus status) {
+                  if (status !=
+                      searchbox::mojom::DriveDisclaimerStatus::kAccepted) {
+                    return;
+                  }
+                  auto* omnibox_popup_ui =
+                      GetOmniboxPopupUI(web_contents.get());
+                  auto* handler = omnibox_popup_ui
+                                      ? omnibox_popup_ui->composebox_handler()
+                                      : nullptr;
+                  if (handler) {
+                    handler->OnDriveUploadClicked(
+                        base::BindOnce(&HandleDriveUploadResponse,
+                                       is_aim_popup_open, web_contents));
+                  }
+                },
+                web_contents_, is_aim_popup_open));
           }
           RecordContextMenuItemSelection(sliced_prefix, id);
           return;
@@ -1432,7 +1436,8 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
   }
 
   auto omnibox_popup_ui = GetOmniboxPopupUI();
-  if (!omnibox_popup_ui || !omnibox_popup_ui->composebox_handler()) {
+  if (!omnibox_popup_ui || !omnibox_popup_ui->composebox_handler() ||
+      !omnibox_popup_ui->composebox_handler()->input_state_model()) {
     return false;
   }
 

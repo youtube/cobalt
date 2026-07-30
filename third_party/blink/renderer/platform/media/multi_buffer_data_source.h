@@ -47,7 +47,7 @@ class PLATFORM_EXPORT MultiBufferDataSource
  public:
   using DownloadingCB = base::RepeatingCallback<void(bool)>;
 
-  class PLATFORM_EXPORT Factory : public media::DataSource::Factory {
+  class PLATFORM_EXPORT Factory : public media::CrossOriginDataSource::Factory {
    public:
     using UrlDataCb = base::RepeatingCallback<void(
         const GURL& url,
@@ -64,13 +64,16 @@ class PLATFORM_EXPORT MultiBufferDataSource
             const base::TickClock* tick_clock,
             scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
-    void Create(const GURL& uri,
-                media::DataSource::CacheMode cache_mode,
-                media::DataSource::EncodingMode encoding_mode,
-                DataSourceCb cb) override;
+    void Create(
+        const GURL& uri,
+        media::DataSource::CacheMode cache_mode,
+        media::DataSource::EncodingMode encoding_mode,
+        base::OnceCallback<void(std::unique_ptr<media::CrossOriginDataSource>)>
+            cb) override;
 
    private:
-    void OnUrlData(DataSourceCb cb,
+    void OnUrlData(base::OnceCallback<
+                       void(std::unique_ptr<media::CrossOriginDataSource>)> cb,
                    base::RepeatingCallback<void(bool)> download_cb,
                    scoped_refptr<UrlData> data);
 
@@ -157,8 +160,6 @@ class PLATFORM_EXPORT MultiBufferDataSource
   void SetIsClientAudioElement(bool is_client_audio_element) {
     is_client_audio_element_ = is_client_audio_element;
   }
-
-  CrossOriginDataSource* GetAsCrossOriginDataSource() override { return this; }
 
   bool cancel_on_defer_for_testing() const { return cancel_on_defer_; }
 

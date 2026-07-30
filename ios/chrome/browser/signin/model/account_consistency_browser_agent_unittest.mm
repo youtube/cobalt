@@ -29,6 +29,7 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
+#import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -72,8 +73,11 @@ class AccountConsistencyBrowserAgentTest : public PlatformTest {
 
     WebStateList* web_state_list = browser_.get()->GetWebStateList();
     auto test_web_state = std::make_unique<web::FakeWebState>();
+    test_web_state->SetNavigationManager(
+        std::make_unique<web::FakeNavigationManager>());
     web_state_list->InsertWebState(std::move(test_web_state),
                                    WebStateList::InsertionParams::AtIndex(0));
+    web_state_list->ActivateWebStateAt(0);
   }
 
   void TearDown() override {
@@ -116,7 +120,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithNoURL) {
   __block OpenNewTabCommand* received_command = nil;
   OCMExpect([mock_scene_handler_
       openURLInNewTab:AssignValueToVariable(received_command)]);
-  agent_->OnGoIncognito(GURL());
+  agent_->OnGoIncognito(GURL(),
+                        browser_->GetWebStateList()->GetActiveWebState());
   EXPECT_NE(received_command, nil);
   EXPECT_TRUE(received_command.inIncognito);
   EXPECT_FALSE(received_command.inBackground);
@@ -129,7 +134,7 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithURL) {
   __block OpenNewTabCommand* received_command = nil;
   OCMExpect([mock_scene_handler_
       openURLInNewTab:AssignValueToVariable(received_command)]);
-  agent_->OnGoIncognito(url_);
+  agent_->OnGoIncognito(url_, browser_->GetWebStateList()->GetActiveWebState());
   EXPECT_NE(received_command, nil);
   EXPECT_TRUE(received_command.inIncognito);
   EXPECT_FALSE(received_command.inBackground);
@@ -142,7 +147,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithURL) {
 TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountWithPresentedView) {
   OCMStub([base_view_controller_mock_ presentedViewController])
       .andReturn([[UIViewController alloc] init]);
-  agent_->OnAddAccount(GURL(), "");
+  agent_->OnAddAccount(GURL(), "",
+                       browser_->GetWebStateList()->GetActiveWebState());
   // Expect [mock_scene_handler_ showSignin:baseViewController:] to not
   // be called. This is ensured by TearDown because mock_scene_handler_
   // is a strict mock.
@@ -158,7 +164,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountWithoutPresentedView) {
   OCMExpect([browser_coordinator_commands_mock_
       showAddAccountWithAccessPoint:access_point
                      prefilledEmail:@"test"]);
-  agent_->OnAddAccount(GURL(), "test");
+  agent_->OnAddAccount(GURL(), "test",
+                       browser_->GetWebStateList()->GetActiveWebState());
 }
 
 TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountShowsAccountMenu) {
@@ -181,7 +188,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountShowsAccountMenu) {
   OCMExpect([mock_scene_handler_ showAccountMenuFromWebWithURL:url_]);
   // The expected email is foo2@gmail.com. Using foo.2 instead allows to check
   // adding account with a non-canonical email.
-  agent_->OnAddAccount(url_, "foo.2@gmail.com");
+  agent_->OnAddAccount(url_, "foo.2@gmail.com",
+                       browser_->GetWebStateList()->GetActiveWebState());
 }
 
 // Tests that calling the `OnRestoreGaiaCookies()` callback invokes the account
@@ -216,7 +224,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountShowsAddAccount) {
   OCMExpect([browser_coordinator_commands_mock_
       showAddAccountWithAccessPoint:access_point
                      prefilledEmail:email]);
-  agent_->OnAddAccount(url_, base::SysNSStringToUTF8(email));
+  agent_->OnAddAccount(url_, base::SysNSStringToUTF8(email),
+                       browser_->GetWebStateList()->GetActiveWebState());
 }
 
 // Tests that calling the `OnManageAccounts()` callback invokes the account
@@ -225,7 +234,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnManageAccountsCallsCommand) {
   OCMExpect([settings_commands_mock_
       showAccountsSettingsFromViewController:base_view_controller_mock_
                         skipIfUINotAvailable:YES]);
-  agent_->OnManageAccounts(GURL());
+  agent_->OnManageAccounts(GURL(),
+                           browser_->GetWebStateList()->GetActiveWebState());
   // Expect -showAccountsSettingsFromViewController:skipIfUINotAvailable: to
   // have been called. This is ensured by TearDown because
   // settings_commands_mock_ is a strict mock.
@@ -243,7 +253,8 @@ TEST_F(AccountConsistencyBrowserAgentTest, OnManageAccountsShowsAccountMenu) {
   // Since there is another profile, the agent should trigger the account menu
   // instead of the manage accounts screen.
   OCMExpect([mock_scene_handler_ showAccountMenuFromWebWithURL:url_]);
-  agent_->OnManageAccounts(url_);
+  agent_->OnManageAccounts(url_,
+                           browser_->GetWebStateList()->GetActiveWebState());
   // Expect showAccountsSettingsFromViewController:skipIfUINotAvailable: to not
   // be called. This is ensured by TearDown because mock_scene_handler_
   // is a strict mock.
@@ -286,4 +297,46 @@ TEST_F(AccountConsistencyBrowserAgentTest,
   // Expect -showWebSigninPromoFromViewController:URL: to have not been called.
   // This is ensured by TearDown because mock_scene_handler_ is a strict
   // mock.
+}
+
+// Tests that calling the `OnManageAccounts()` callback with a non-active
+// web state does not invoke any command.
+TEST_F(AccountConsistencyBrowserAgentTest, OnManageAccountsWithOtherWebState) {
+  WebStateList* web_state_list = browser_.get()->GetWebStateList();
+  web_state_list->ActivateWebStateAt(0);
+  auto test_web_state = std::make_unique<web::FakeWebState>();
+  WebStateOpener opener;
+  web_state_list->InsertWebState(
+      std::move(test_web_state),
+      WebStateList::InsertionParams::AtIndex(1).WithOpener(opener));
+  web::WebState* web_state = web_state_list->GetWebStateAt(1);
+  agent_->OnManageAccounts(url_, web_state);
+}
+
+// Tests that calling the `OnAddAccount()` callback with a non-active
+// web state does not invoke any command.
+TEST_F(AccountConsistencyBrowserAgentTest, OnAddAccountWithOtherWebState) {
+  WebStateList* web_state_list = browser_.get()->GetWebStateList();
+  web_state_list->ActivateWebStateAt(0);
+  auto test_web_state = std::make_unique<web::FakeWebState>();
+  WebStateOpener opener;
+  web_state_list->InsertWebState(
+      std::move(test_web_state),
+      WebStateList::InsertionParams::AtIndex(1).WithOpener(opener));
+  web::WebState* web_state = web_state_list->GetWebStateAt(1);
+  agent_->OnAddAccount(url_, "test", web_state);
+}
+
+// Tests that calling the `OnGoIncognito()` callback with a non-active
+// web state does not invoke any command.
+TEST_F(AccountConsistencyBrowserAgentTest, OnGoIncognitoWithOtherWebState) {
+  WebStateList* web_state_list = browser_.get()->GetWebStateList();
+  web_state_list->ActivateWebStateAt(0);
+  auto test_web_state = std::make_unique<web::FakeWebState>();
+  WebStateOpener opener;
+  web_state_list->InsertWebState(
+      std::move(test_web_state),
+      WebStateList::InsertionParams::AtIndex(1).WithOpener(opener));
+  web::WebState* web_state = web_state_list->GetWebStateAt(1);
+  agent_->OnGoIncognito(url_, web_state);
 }

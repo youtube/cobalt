@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
+#include "chrome/browser/tips/core/tips_types.h"
 
 namespace notifications {
 
@@ -18,7 +19,8 @@ class TipsAgent {
   static std::unique_ptr<TipsAgent> Create();
 
   // Shows the tips promo in UI.
-  virtual void ShowTipsPromo(TipsNotificationsFeatureType feature_type) = 0;
+  virtual void ShowTipsPromo(
+      tips::TipsNotificationsFeatureType feature_type) = 0;
 
   TipsAgent(const TipsAgent&) = delete;
   TipsAgent& operator=(const TipsAgent&) = delete;

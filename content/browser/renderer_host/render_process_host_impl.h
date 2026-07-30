@@ -705,6 +705,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
 
   void OnImmersiveXrSessionStarted() override;
   void OnImmersiveXrSessionStopped() override;
+  bool HasImmersiveXrSessionForTesting() const override;
 
   // Sets the global factory used to create new RenderProcessHosts in unit
   // tests.  It may be nullptr, in which case the default RenderProcessHost will

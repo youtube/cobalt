@@ -474,15 +474,6 @@ bool HasManuallyFilledFields(const PasswordForm& form) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-std::unique_ptr<BrowserSavePasswordProgressLogger> GetLoggerIfAvailable(
-    password_manager::PasswordManagerClient* client) {
-  if (!password_manager_util::IsLoggingActive(client)) {
-    return nullptr;
-  }
-  return std::make_unique<BrowserSavePasswordProgressLogger>(
-      client->GetCurrentLogManager());
-}
-
 void RecordProvisionalSaveFailure(
     password_manager::PasswordManagerClient* client,
     PasswordManagerMetricsRecorder::ProvisionalSaveFailure failure,
@@ -491,7 +482,7 @@ void RecordProvisionalSaveFailure(
   if (client->GetMetricsRecorder()) {
     client->GetMetricsRecorder()->RecordProvisionalSaveFailure(failure);
   }
-  if (auto logger = GetLoggerIfAvailable(client)) {
+  if (auto logger = password_manager_util::GetLoggerIfAvailable(client)) {
     logger->LogProvisionalSaveFailure(failure, main_frame_url, form_origin);
   }
 }
@@ -746,7 +737,7 @@ PasswordManagerClient* PasswordManager::GetClient() {
 
 void PasswordManager::DidNavigateMainFrame(bool form_may_be_submitted) {
   std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
-      GetLoggerIfAvailable(client_);
+      password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogBoolean(Logger::STRING_DID_NAVIGATE_MAIN_FRAME,
                        form_may_be_submitted);
@@ -867,7 +858,7 @@ void PasswordManager::OnPasswordFormSubmitted(PasswordManagerDriver* driver,
 void PasswordManager::OnDynamicFormSubmission(
     password_manager::PasswordManagerDriver* driver,
     SubmissionIndicatorEvent event) {
-  if (auto logger = GetLoggerIfAvailable(client_)) {
+  if (auto logger = password_manager_util::GetLoggerIfAvailable(client_)) {
     logger->LogMessage(Logger::STRING_ON_DYNAMIC_FORM_SUBMISSION);
   }
   PasswordFormManager* submitted_manager = GetSubmittedManager();
@@ -918,7 +909,7 @@ void PasswordManager::OnDynamicFormSubmission(
 void PasswordManager::OnPasswordFormCleared(
     PasswordManagerDriver* driver,
     const autofill::FormData& form_data) {
-  auto logger = GetLoggerIfAvailable(client_);
+  auto logger = password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogMessage(Logger::STRING_ON_PASSWORD_FORM_CLEARED);
   }
@@ -962,7 +953,7 @@ void PasswordManager::OnPasswordFormCleared(
 #if BUILDFLAG(IS_IOS)
 void PasswordManager::OnSubframeFormSubmission(PasswordManagerDriver* driver,
                                                const FormData& form_data) {
-  if (auto logger = GetLoggerIfAvailable(client_)) {
+  if (auto logger = password_manager_util::GetLoggerIfAvailable(client_)) {
     logger->LogMessage(Logger::STRING_ON_DYNAMIC_FORM_SUBMISSION);
   }
 
@@ -1064,7 +1055,7 @@ void PasswordManager::OnResourceLoadingFailed(PasswordManagerDriver* driver,
     return;
   }
 
-  auto logger = GetLoggerIfAvailable(client_);
+  auto logger = password_manager_util::GetLoggerIfAvailable(client_);
   if (!GetSubmittedManager()) {
     if (logger) {
       logger->LogMessage(
@@ -1112,14 +1103,14 @@ void PasswordManager::OnPasswordFormsParsed(
       driver ? driver->GetPasswordGenerationHelper() : nullptr;
   if (password_generation_manager) {
     password_generation_manager->PrefetchSpec(
-        client_->GetLastCommittedOrigin().GetURL());
+        driver->GetLastCommittedOrigin().GetURL());
   }
 }
 
 void PasswordManager::CreatePendingLoginManagers(
     PasswordManagerDriver* driver,
     const std::vector<FormData>& forms_data) {
-  if (auto logger = GetLoggerIfAvailable(client_)) {
+  if (auto logger = password_manager_util::GetLoggerIfAvailable(client_)) {
     logger->LogMessage(Logger::STRING_CREATE_LOGIN_MANAGERS_METHOD);
   }
 
@@ -1187,7 +1178,7 @@ PasswordFormManager* PasswordManager::ProvisionallySaveForm(
     const FormData& submitted_form,
     PasswordManagerDriver* driver,
     bool is_manual_fallback) {
-  auto logger = GetLoggerIfAvailable(client_);
+  auto logger = password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogMessage(Logger::STRING_PROVISIONALLY_SAVE_FORM_METHOD);
   }
@@ -1468,7 +1459,7 @@ void PasswordManager::PropagateFieldDataManagerInfo(
 bool PasswordManager::IsAutomaticSavePromptAvailable(
     PasswordFormManager* form_manager) {
   std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
-      GetLoggerIfAvailable(client_);
+      password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogMessage(Logger::STRING_CAN_PROVISIONAL_MANAGER_SAVE_METHOD);
   }
@@ -1521,7 +1512,7 @@ void PasswordManager::OnPasswordFormsRendered(
 #endif
   CreatePendingLoginManagers(driver, visible_forms_data);
   std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
-      GetLoggerIfAvailable(client_);
+      password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogMessage(Logger::STRING_ON_PASSWORD_FORMS_RENDERED_METHOD);
   }
@@ -1610,7 +1601,7 @@ void PasswordManager::OnLoginSuccessful() {
   // PreventPasswordManagerOnFederatedLogin running, which prevents
   // `OnLoginSuccessful` from triggering if a non-password login was detected.
   std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
-      GetLoggerIfAvailable(client_);
+      password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogMessage(Logger::STRING_ON_ASK_USER_OR_SAVE_PASSWORD);
   }
@@ -1721,7 +1712,8 @@ void PasswordManager::OnLoginSuccessful() {
     }
   } else {
     if (logger) {
-      logger->LogMessage(Logger::STRING_DECISION_SAVE);
+      logger->LogMessage(
+          Logger::STRING_DECISION_ATTEMPT_TO_SAVE_WITHOUT_PROMPT);
     }
     std::unique_ptr<PasswordFormManagerForUI> owned_submitted_manager =
         MoveOwnedSubmittedManager();
@@ -1785,7 +1777,7 @@ void PasswordManager::ProcessAutofillPredictions(
   }
 
   std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
-      GetLoggerIfAvailable(client_);
+      password_manager_util::GetLoggerIfAvailable(client_);
   if (logger) {
     logger->LogFormDataWithServerPredictions(form, predictions);
   }
@@ -1856,7 +1848,7 @@ void PasswordManager::ProcessClassificationModelPredictions(
       driver, form.renderer_id())] =
       KeyPredictionsByRendererIds(field_predictions);
 
-  if (auto logger = GetLoggerIfAvailable(client_)) {
+  if (auto logger = password_manager_util::GetLoggerIfAvailable(client_)) {
     logger->LogFormDataWithModelPredictions(form, predictions_for_form);
   }
 

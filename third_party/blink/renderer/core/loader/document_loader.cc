@@ -101,6 +101,7 @@
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/frame_console.h"
+#include "third_party/blink/renderer/core/frame/frame_owner.h"
 #include "third_party/blink/renderer/core/frame/intervention.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -1935,20 +1936,27 @@ void DocumentLoader::ProcessDataBuffer(BodyData* data) {
   if (data)
     CommitData(*data);
 
-  // Process data received in reentrant invocations. Note that the invocations
-  // of CommitData() may queue more data in reentrant invocations, so iterate
-  // until it's empty.
+  // Process data received in reentrant invocations. Note that
+  // - invocations of `CommitData()` may queue more data in reentrant
+  //   invocations, so iterate until the buffers are completely consumed
+  // - for any given instance of `DocumentLoader`, only one of `data_buffer_`
+  //   or `decoded_data_buffer_` will ever be used.
   DCHECK(data_buffer_->empty() || decoded_data_buffer_.empty());
-  for (const auto& span : *data_buffer_) {
-    EncodedBodyData body_data(span);
-    CommitData(body_data);
+  while (!data_buffer_->empty()) {
+    scoped_refptr<SharedBuffer> data_buffer =
+        std::exchange(data_buffer_, SharedBuffer::Create());
+    for (const auto& span : *data_buffer) {
+      EncodedBodyData body_data(span);
+      CommitData(body_data);
+    }
   }
-  for (auto& decoded_data : decoded_data_buffer_)
-    CommitData(decoded_data);
-
-  // All data has been consumed, so flush the buffer.
-  data_buffer_->Clear();
-  decoded_data_buffer_.clear();
+  while (!decoded_data_buffer_.empty()) {
+    Vector<DecodedBodyData> decoded_data_buffer =
+        std::move(decoded_data_buffer_);
+    for (const auto& decoded_data : decoded_data_buffer) {
+      CommitData(const_cast<DecodedBodyData&>(decoded_data));
+    }
+  }
 }
 
 void DocumentLoader::StopLoading() {
@@ -2960,6 +2968,20 @@ void DocumentLoader::CommitNavigation() {
 
   LocalDOMWindow* previous_window = frame_->DomWindow();
   InitializeWindow(owner_document);
+
+  // If the navigation is cross-origin, clear the natural size.
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() && frame_->Owner()) {
+    if (const OldDocumentInfoForCommit* info =
+            ScopedOldDocumentInfoForCommitCapturer::CurrentInfo();
+        info && info->old_document_origin) {
+      const SecurityOrigin* old_origin = info->old_document_origin.get();
+      const SecurityOrigin* new_origin =
+          frame_->DomWindow()->GetSecurityOrigin();
+      if (!old_origin->IsSameOriginWith(new_origin)) {
+        frame_->Owner()->ClearAllNaturalSizingInfo();
+      }
+    }
+  }
 
   frame_->DomWindow()
       ->GetRuntimeFeatureStateOverrideContext()

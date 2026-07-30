@@ -23,16 +23,6 @@ if (enable_js_protobuf) {
 # depends on both. In component builds, a single shared library is used for
 # both, because they can't be broken into separate shared libraries. See
 # https://crbug.com/40229487 for further background.
-#
-# On Android component builds, protobuf libraries must be static libraries to
-# avoid symbol conflicts with the system's version of protobuf. Exclude Android
-# fuzzing builds since having targets that include a proto_library and a
-# fuzzable_proto_library leads to symbol conflicts due to the inclusion of the
-# protobuf lite_runtime and full_runtime.
-# TODO(448809154): Investigate whether symbol conflicts with the system's
-# protobuf version appear on our android fuzzing devices.
-use_shared_protobuf_library =
-    is_component_build && !(is_android && !use_fuzzing_engine_with_lpm)
 
 # This group allows `gn suggest` to suggest `:absl` instead of
 # `//third_party/abseil-cpp:absl`
@@ -50,7 +40,7 @@ config("protobuf_config") {
   if (!is_win) {
     defines += [ "HAVE_PTHREAD" ]
   }
-  if (use_shared_protobuf_library) {
+  if (is_component_build) {
     defines += [ "PROTOBUF_USE_DLLS" ]
   }
 }
@@ -110,13 +100,7 @@ source_set("protobuf_headers_source_set") {
 }
 
 if (is_component_build) {
-  if (use_shared_protobuf_library) {
-    _library_type = "shared_library"
-  } else {
-    _library_type = "static_library"
-  }
-
-  target(_library_type, "protobuf_full_and_lite_library") {
+  component("protobuf_full_and_lite_library") {
     visibility = [
       ":protobuf_full",
       ":protobuf_lite",
@@ -128,9 +112,7 @@ if (is_component_build) {
     configs -= protobuf_library_configs_to_remove
     configs += protobuf_library_configs_to_add
 
-    if (use_shared_protobuf_library) {
-      defines = [ "LIBPROTOBUF_EXPORTS" ]
-    }
+    defines = [ "LIBPROTOBUF_EXPORTS" ]
   }
 } else {
   static_library("protobuf_lite_library") {
@@ -549,18 +531,18 @@ if (enable_js_protobuf) {
 source_set("time_util") {
   public = [ "src/google/protobuf/util/time_util.h" ]
   sources = [ "src/google/protobuf/util/time_util.cc" ]
-  deps = [
+  public_deps = [
     ":duration_proto",
-    ":protobuf_lite",
     ":timestamp_proto",
   ]
+  deps = [ ":protobuf_lite" ]
 }
 
 source_set("io_gzip_stream") {
   public = [ "src/google/protobuf/io/gzip_stream.h" ]
   sources = [ "src/google/protobuf/io/gzip_stream.cc" ]
 
-  deps = [
+  public_deps = [
     ":protobuf_lite",
     "//third_party/zlib",
   ]
@@ -575,6 +557,10 @@ proto_wkt("any_proto") {
   full_target_visibility = [
     # libprotobuf-mutator uses the full version of any.proto internally.
     "//third_party/libprotobuf-mutator",
+
+    # only used in fuzzing builds.
+    "//net/third_party/quiche:blind_sign_auth_proto",
+    "//net/third_party/quiche:blind_sign_auth_test_support",
   ]
 }
 

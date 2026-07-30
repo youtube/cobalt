@@ -11,7 +11,9 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/browser/filling/filling_product.h"
 #import "components/autofill/core/common/autofill_features.h"
+#import "components/autofill/ios/browser/form_suggestion.h"
 #import "components/webauthn/ios/features.h"
+#import "ios/chrome/browser/autofill/form_input_accessory/public/autofill_suggestion_context_menu_handler.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/ui/form_input_accessory_view_controller_delegate.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/ui/form_suggestion_view.h"
 #import "ios/chrome/browser/autofill/manual_fill/public/manual_fill_constants.h"
@@ -685,6 +687,14 @@ UIImage* GetManualFillSymbol() {
                completion:^{
                  [weakFormSuggestionView setActivityIndicatorEnabled:NO];
                }];
+}
+
+- (void)openSettingsForSuggestion:(FormSuggestion*)suggestion {
+  [self.contextMenuHandler openSettingsForSuggestion:suggestion];
+}
+
+- (void)openEditForSuggestion:(FormSuggestion*)suggestion {
+  [self.contextMenuHandler openEditForSuggestion:suggestion];
 }
 
 @end

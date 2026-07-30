@@ -244,6 +244,7 @@ mojom("mojom_platform") {
     "timing/declarative_performance_observer.mojom",
     "timing/performance_mark_or_measure.mojom",
     "timing/resource_timing.mojom",
+    "unbounded_element/unbounded_element.mojom",
     "use_counter/use_counter_feature.mojom",
     "user_agent/user_agent_metadata.mojom",
     "v8_cache_options.mojom",

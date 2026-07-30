@@ -29,11 +29,6 @@
 #include "ui/gfx/android/android_surface_control_compat.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#include "base/system/sys_info.h"
-#endif  // BUILDFLAG(IS_MAC)
-
 namespace features {
 namespace {
 
@@ -223,7 +218,7 @@ BASE_FEATURE(kWebGPUBlobCache, WEBGPU_ENABLED);
 
 // Feature enforces WebGPU security in Android Advanced Protection Mode.
 // Disable feature by default for Finch testing.
-BASE_FEATURE(kAAPMBlocksWebGPU, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAAPMBlocksWebGPU, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // List of Dawn toggles for WebGPU, delimited by ,
 // The FeatureParam may be overridden via Finch config, or via the command line
@@ -325,12 +320,36 @@ BASE_FEATURE(kUseStrongRefToSharedImageInterface,
 // SkiaGraphite is also enabled.
 BASE_FEATURE(kSkiaGraphiteSmallPathAtlas, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the Graphite feature check (including blocklist) is deferred to
+// the GPU process rather than evaluated in the browser process.
+BASE_FEATURE(kLateGraphiteFeatureCheck,
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 // Enable Skia Graphite's Pipeline precompilation feature.
 // Note: This is only meaningful when Skia Graphite is enabled but can then also
 // be overridden by
 // --enable-skia-graphite-precompilation and
 // --disable-skia-graphite-precompilation.
 BASE_FEATURE(kSkiaGraphitePrecompilation, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether to use PersistentCache for Skia Graphite's pipeline cache.
+BASE_FEATURE(kSkiaGraphiteUsePersistentCache,
+             "SkiaGraphiteUsePersistentCache",
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+bool SkiaGraphiteUsesPersistentCache() {
+  return base::FeatureList::IsEnabled(kSkiaGraphiteUsePersistentCache);
+}
 
 BASE_FEATURE(kConditionallySkipGpuChannelFlush,
 // To enable on ChromeOS, test failures must be investigated
@@ -359,13 +378,6 @@ const base::FeatureParam<bool> kSkiaGraphiteDawnBackendDebugLabels{
 // Enables automatic buffer mappings in Dawn's backend.
 const base::FeatureParam<bool> kSkiaGraphiteDawnEnableAutoMap{
     &kSkiaGraphite, "dawn_enable_auto_map", true};
-
-// Whether to use PersistentCache for Dawn's pipeline cache.
-BASE_FEATURE_PARAM(bool,
-                   kSkiaGraphiteDawnUsePersistentCache,
-                   &kSkiaGraphite,
-                   "dawn_use_persistent_cache",
-                   BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN));
 
 const base::FeatureParam<int> kSkiaGraphiteMaxPendingRecordings{
     &kSkiaGraphite, "max_pending_recordings", 100};
@@ -515,56 +527,13 @@ namespace {
 bool IsSkiaGraphiteSupportedByDevice(const base::CommandLine* command_line) {
 #if BUILDFLAG(IS_APPLE)
   // Graphite only works well with ANGLE Metal on Mac or iOS.
-  // TODO(crbug.com/40063538): Remove this after ANGLE Metal launches fully.
-  const bool is_angle_metal_enabled =
-      UsePassthroughCommandDecoder() &&
-      (base::FeatureList::IsEnabled(features::kDefaultANGLEMetal) ||
-       command_line->GetSwitchValueASCII(switches::kUseANGLE) ==
-           gl::kANGLEImplementationMetalName);
-  if (!is_angle_metal_enabled) {
-    return false;
-  }
-#if BUILDFLAG(IS_MAC)
-  // This function only works in the Browser process on Macs. Calling
-  // HardwareModelName() from the Renderer or GPU processes will result in an
-  // empty hardware model name and an inability to detect unsupported devices.
-
-  // The following code tries to match angle::IsMetalRendererAvailable().
-  auto model_name_split = base::SysInfo::SplitHardwareModelNameDoNotUse(
-      base::SysInfo::HardwareModelName());
-  if (model_name_split.has_value()) {
-    // We hardcode the minimum model numbers supporting Mac2 Metal GPU family
-    // since ANGLE Metal requires that. We can't check if ANGLE uses Metal until
-    // we initialize the GPU process, but this code runs in the browser so we
-    // just do our best here to skip the feature check below if we know that
-    // ANGLE can't possibly use Metal since we don't want to contaminate the
-    // experiment arms with devices that won't run Graphite. Any models not in
-    // the list are those that support Mac2 GPU family universally e.g. Mac
-    // Mini/Studio. The 5K Retina iMac15,1 is special as it has a discrete GPU
-    // and can support ANGLE Metal, but its successors can't until iMac17,1.
-    const bool is_imac_15_1 = model_name_split->category == "iMac" &&
-                              model_name_split->model == 15 &&
-                              model_name_split->variant == 1;
-    if (!is_imac_15_1) {
-      static constexpr struct {
-        std::string category;
-        int32_t min_supported_model;
-      } kModelSupportData[] = {
-          {"MacBookPro", 13}, {"MacBookAir", 8}, {"MacBook", 9},
-          {"iMac", 17},       {"iMacPro", 1},    {"Macmini", 8},
-      };
-      for (const auto& [category, min_supported_model] : kModelSupportData) {
-        if (model_name_split->category == category) {
-          if (model_name_split->model < min_supported_model) {
-            return false;
-          }
-          break;
-        }
-      }
-    }
-  }
-#endif  // BUILDFLAG(IS_MAC)
-  return true;
+  // TODO(https://crbug.com/40063538): Remove this after ANGLE Metal launches
+  // fully.
+  const bool is_angle_metal_selected =
+      base::FeatureList::IsEnabled(features::kDefaultANGLEMetal) ||
+      command_line->GetSwitchValueASCII(switches::kUseANGLE) ==
+          gl::kANGLEImplementationMetalName;
+  return UsePassthroughCommandDecoder() && is_angle_metal_selected;
 #elif BUILDFLAG(IS_ANDROID)
   // Desktop Android isn't ready to pick up the fieldtrial_testing_config.json
   // change that enables graphite. However, it's the same platform as regular
@@ -598,11 +567,6 @@ bool IsSkiaGraphiteSupportedByDevice(const base::CommandLine* command_line) {
 #endif
 }
 }  // namespace
-
-// This function should be called only from the browser process on all platforms
-// so that the finch flag check will happen in exactly one place and then the
-// Graphite enabled state will be propagated elsewhere via GpuPreferences to GPU
-// process launch and then later to renderer processes via GpuFeatureInfo.
 
 bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
   // Force disabling graphite if --disable-skia-graphite flag is specified.

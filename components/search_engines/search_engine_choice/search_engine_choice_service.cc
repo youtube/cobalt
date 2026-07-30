@@ -384,7 +384,7 @@ bool AccountCanMakeChoiceScreenChoice(
   // Treat accounts with signin::Tribool::kUnknown (this covers signed-out
   // users, and signed-in users where the capability is not known yet) as able
   // to make a choice.
-  return account_info.capabilities
+  return account_info.GetAccountCapabilities()
              .can_make_chrome_search_engine_choice_screen_choice() !=
          signin::Tribool::kFalse;
 #else

@@ -70,7 +70,7 @@ TEST_F(ShowFeedbackPageTest, CanShowFeedback_FeatureEnabled_Enabled_CanSubmit) {
           ->MakePrimaryAccountAvailable("test@example.com",
                                         signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_submit_feedback(true);
   signin::UpdateAccountInfoForAccount(
       identity_test_env_adaptor_->identity_test_env()->identity_manager(),
@@ -89,7 +89,7 @@ TEST_F(ShowFeedbackPageTest,
           ->MakePrimaryAccountAvailable("test@example.com",
                                         signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_submit_feedback(false);
   signin::UpdateAccountInfoForAccount(
       identity_test_env_adaptor_->identity_test_env()->identity_manager(),
@@ -108,7 +108,7 @@ TEST_F(ShowFeedbackPageTest,
           ->MakePrimaryAccountAvailable("test@example.com",
                                         signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_submit_feedback(true);
   signin::UpdateAccountInfoForAccount(
       identity_test_env_adaptor_->identity_test_env()->identity_manager(),
@@ -129,7 +129,7 @@ TEST_F(ShowFeedbackPageTest,
           ->MakePrimaryAccountAvailable("test@example.com",
                                         signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_submit_feedback(false);
   signin::UpdateAccountInfoForAccount(
       identity_test_env_adaptor_->identity_test_env()->identity_manager(),

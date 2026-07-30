@@ -147,7 +147,7 @@ class LayoutSelectionTest : public LayoutSelectionTestBase {
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObject) {
   SetBodyContent("foo<br>bar");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -165,7 +165,7 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectTruncateVisibilityHidden) {
       "<span style='visibility:hidden;'>before</span>"
       "foo"
       "<span style='visibility:hidden;'>after</span>");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -182,7 +182,7 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectTruncateVisibilityHidden) {
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObjectBRs) {
   SetBodyContent("<br><br>foo<br><br>");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -203,7 +203,7 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectListStyleImage) {
       "image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=)}"
       "</style>"
       "<ul><li>foo<li>bar</ul>");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -254,7 +254,7 @@ TEST_F(LayoutSelectionTest,
       "<div id='d1'>div1</div><div id='d2'>foo<span>bar</span>baz</div>");
   Node* span = QuerySelector("span");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(span->firstChild(), 0),
                             Position(span->firstChild(), 3))
           .Build(),
@@ -274,7 +274,7 @@ TEST_F(LayoutSelectionTest,
   Node* d1 = QuerySelector("#d1");
   Node* d2 = QuerySelector("#d2");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(d1, 0), Position(d2, 0))
           .Build(),
       SetSelectionOptions());
@@ -294,7 +294,7 @@ TEST_F(LayoutSelectionTest,
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObjectLineWrap) {
   SetBodyContent("bar\n");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -309,7 +309,7 @@ TEST_F(LayoutSelectionTest, FirstLetter) {
   SetBodyContent(
       "<style>::first-letter { color: red; }</style>"
       "<span>foo</span>");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -376,7 +376,7 @@ TEST_F(LayoutSelectionTest, FirstLetterUpdateSeletion) {
                         ->nextSibling()
                         ->nextSibling();
   // <div>fo^o</div><div>bar</div>b|az
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SetBaseAndExtent({foo, 2}, {baz, 1})
                                .Build(),
                            SetSelectionOptions());
@@ -403,7 +403,7 @@ TEST_F(LayoutSelectionTest, FirstLetterUpdateSeletion) {
   UpdateAllLifecyclePhasesForTest();
 
   // <div>foo</div><div>bar</div>ba^z|
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SetBaseAndExtent({baz, 2}, {baz, 3})
                                .Build(),
                            SetSelectionOptions());
@@ -432,7 +432,7 @@ TEST_F(LayoutSelectionTest, CommitAppearanceIfNeededNotCrash) {
 }
 
 TEST_F(LayoutSelectionTest, SelectImage) {
-  const SelectionInDOMTree& selection =
+  const SelectionInDomTree& selection =
       SetSelectionTextToBody("^<img style=\"width:100px; height:100px\"/>|");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
@@ -443,7 +443,7 @@ TEST_F(LayoutSelectionTest, SelectImage) {
 }
 
 TEST_F(LayoutSelectionTest, MoveOnSameNode_Start) {
-  const SelectionInDOMTree& selection =
+  const SelectionInDomTree& selection =
       SetSelectionTextToBody("f^oo<span>b|ar</span>");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
@@ -465,7 +465,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_Start) {
 
   // "fo^o<span>b|ar</span>"
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent({selection.Anchor().AnchorNode(), 2},
                             selection.Focus())
           .Build(),
@@ -481,7 +481,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_Start) {
 }
 
 TEST_F(LayoutSelectionTest, MoveOnSameNode_End) {
-  const SelectionInDOMTree& selection =
+  const SelectionInDomTree& selection =
       SetSelectionTextToBody("f^oo<span>b|ar</span>");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
@@ -503,7 +503,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_End) {
 
   // "fo^o<span>ba|r</span>"
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(selection.Anchor(),
                             {selection.Focus().AnchorNode(), 2})
           .Build(),
@@ -519,7 +519,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_End) {
 }
 
 TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody("f^oob|ar");
+  const SelectionInDomTree& selection = SetSelectionTextToBody("f^oob|ar");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
@@ -536,7 +536,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd) {
 
   // "f^ooba|r"
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(selection.Anchor(),
                             {selection.Focus().AnchorNode(), 5})
           .Build(),
@@ -550,7 +550,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd) {
 }
 
 TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd_Collapse) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody("f^oob|ar");
+  const SelectionInDomTree& selection = SetSelectionTextToBody("f^oob|ar");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
@@ -566,7 +566,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd_Collapse) {
       DumpSelectionInfo());
 
   // "foo^|bar"
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse({selection.Anchor().AnchorNode(), 3})
                                .Build(),
                            SetSelectionOptions());
@@ -580,7 +580,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd_Collapse) {
 
 TEST_F(LayoutSelectionTest, ContentEditableButton) {
   SetBodyContent("<input type=button value=foo contenteditable>");
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SelectAllChildren(*GetDocument().body())
                                .Build(),
                            SetSelectionOptions());
@@ -620,7 +620,7 @@ TEST_F(LayoutSelectionTest, ClearSelection) {
 }
 
 TEST_F(LayoutSelectionTest, SVG) {
-  const SelectionInDOMTree& selection =
+  const SelectionInDomTree& selection =
       SetSelectionTextToBody("<svg><text x=10 y=10>fo^o|bar</text></svg>");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
@@ -641,7 +641,7 @@ TEST_F(LayoutSelectionTest, SVG) {
       DumpSelectionInfo());
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(selection.Anchor(),
                             {selection.Focus().AnchorNode(), 4})
           .Build(),
@@ -657,7 +657,7 @@ TEST_F(LayoutSelectionTest, SVG) {
 
 // crbug.com/781705
 TEST_F(LayoutSelectionTest, SVGAncestor) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody(
+  const SelectionInDomTree& selection = SetSelectionTextToBody(
       "<svg><text x=10 y=10><tspan>fo^o|bar</tspan></text></svg>");
   Selection().SetSelection(selection, SetSelectionOptions());
   // LayoutSVGText should be invalidated.
@@ -680,7 +680,7 @@ TEST_F(LayoutSelectionTest, SVGAncestor) {
       DumpSelectionInfo());
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(selection.Anchor(),
                             {selection.Focus().AnchorNode(), 4})
           .Build(),
@@ -970,7 +970,7 @@ class NGLayoutSelectionTest
   }
 
   void SetSelectionAndUpdateLayoutSelection(const std::string& selection_text) {
-    const SelectionInDOMTree& selection =
+    const SelectionInDomTree& selection =
         SetSelectionTextToBody(selection_text);
     Selection().SetSelection(selection, SetSelectionOptions());
     Selection().CommitAppearanceIfNeeded();
@@ -1235,7 +1235,7 @@ TEST_F(NGLayoutSelectionTest, LineBreakImage) {
 }
 
 TEST_F(NGLayoutSelectionTest, BRStatus) {
-  const SelectionInDOMTree& selection =
+  const SelectionInDomTree& selection =
       SetSelectionTextToBody("<div>foo<!--^--><br><!--|-->bar</div>");
   Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();

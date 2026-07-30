@@ -26,10 +26,15 @@
 namespace history_embeddings {
 
 using passage_embeddings::Embedding;
+using testing::AllOf;
+using testing::ElementsAre;
 using testing::ElementsAreArray;
 using testing::Eq;
 using testing::ExplainMatchResult;
+using testing::Field;
+using testing::IsEmpty;
 using testing::Optional;
+using testing::UnorderedElementsAre;
 
 namespace {
 
@@ -38,6 +43,21 @@ MATCHER_P(PassageEmbeddingEq, expected, "") {
                             result_listener) &&
          ExplainMatchResult(ElementsAreArray(expected.embedding.GetData()),
                             arg.embedding.GetData(), result_listener);
+}
+
+// Drains a `UrlDataIterator` and matches the yielded `UrlData` rows against
+// `expected_rows_matcher`. Use with `EXPECT_THAT(MakeUrlDataIterator(...),
+// ...)` to keep filter assertions terse.
+MATCHER_P(YieldsUrlData, expected_rows_matcher, "") {
+  if (!arg) {
+    *result_listener << "iterator is null";
+    return false;
+  }
+  std::vector<UrlData> yielded;
+  while (const UrlData* data = arg->Next()) {
+    yielded.push_back(*data);
+  }
+  return ExplainMatchResult(expected_rows_matcher, yielded, result_listener);
 }
 
 constexpr int64_t kEmbeddingsVersion = 1;
@@ -92,7 +112,7 @@ class HistoryEmbeddingsSqlDatabaseTest : public testing::Test {
   }
 
   size_t GetEmbeddingCount(SqlDatabase* sql_database) {
-    auto iterator = sql_database->MakeUrlDataIterator({});
+    auto iterator = sql_database->MakeUrlDataIterator({}, {});
     EXPECT_TRUE(iterator);
     size_t count = 0;
     while (iterator->Next()) {
@@ -195,7 +215,7 @@ TEST_F(HistoryEmbeddingsSqlDatabaseTest, WriteCloseAndThenReadUrlData) {
   {
     // Block scope destructs iterator before database is closed.
     std::unique_ptr<VectorDatabase::UrlDataIterator> iterator =
-        sql_database->MakeUrlDataIterator({});
+        sql_database->MakeUrlDataIterator({}, {});
     EXPECT_TRUE(iterator);
     for (const UrlData& url_data : url_datas) {
       const UrlData* read_url_data = iterator->Next();
@@ -318,7 +338,7 @@ TEST_F(HistoryEmbeddingsSqlDatabaseTest, IteratorMaySafelyOutliveDatabase) {
   // Without database reset, iteration reads data.
   {
     std::unique_ptr<VectorDatabase::UrlDataIterator> iterator =
-        sql_database->MakeUrlDataIterator({});
+        sql_database->MakeUrlDataIterator({}, {});
     EXPECT_TRUE(iterator);
     EXPECT_TRUE(iterator->Next());
   }
@@ -326,7 +346,7 @@ TEST_F(HistoryEmbeddingsSqlDatabaseTest, IteratorMaySafelyOutliveDatabase) {
   // With database reset, iteration gracefully ends.
   {
     std::unique_ptr<VectorDatabase::UrlDataIterator> iterator =
-        sql_database->MakeUrlDataIterator({});
+        sql_database->MakeUrlDataIterator({}, {});
     EXPECT_TRUE(iterator);
 
     // Reset database while iterator is still in scope.
@@ -335,6 +355,87 @@ TEST_F(HistoryEmbeddingsSqlDatabaseTest, IteratorMaySafelyOutliveDatabase) {
     // Iterator access with dead database doesn't crash, just ends iteration.
     EXPECT_FALSE(iterator->Next());
   }
+}
+
+TEST_F(HistoryEmbeddingsSqlDatabaseTest,
+       MakeUrlDataIteratorWithUrlIdFilterReturnsOnlyMatching) {
+  auto sql_database = MakeDatabase();
+  sql_database->SetEmbedderMetadata({kEmbeddingsVersion, kEmbeddingsSize},
+                                    GetEncryptorInstance());
+  AddBasicMockData(sql_database.get());
+
+  std::vector<history::URLID> filter = {2};
+  EXPECT_THAT(sql_database->MakeUrlDataIterator({}, filter),
+              YieldsUrlData(ElementsAre(Field(&UrlData::url_id, 2))));
+}
+
+TEST_F(HistoryEmbeddingsSqlDatabaseTest,
+       MakeUrlDataIteratorWithUrlIdFilterSkipsUnknownIds) {
+  auto sql_database = MakeDatabase();
+  sql_database->SetEmbedderMetadata({kEmbeddingsVersion, kEmbeddingsSize},
+                                    GetEncryptorInstance());
+  AddBasicMockData(sql_database.get());
+
+  std::vector<history::URLID> filter = {1, 999};
+  EXPECT_THAT(sql_database->MakeUrlDataIterator({}, filter),
+              YieldsUrlData(ElementsAre(Field(&UrlData::url_id, 1))));
+}
+
+TEST_F(HistoryEmbeddingsSqlDatabaseTest,
+       MakeUrlDataIteratorWithEmptyUrlIdFilterFallsBackToUnfiltered) {
+  auto sql_database = MakeDatabase();
+  sql_database->SetEmbedderMetadata({kEmbeddingsVersion, kEmbeddingsSize},
+                                    GetEncryptorInstance());
+  AddBasicMockData(sql_database.get());
+
+  EXPECT_THAT(sql_database->MakeUrlDataIterator({}, {}),
+              YieldsUrlData(UnorderedElementsAre(Field(&UrlData::url_id, 1),
+                                                 Field(&UrlData::url_id, 2))));
+}
+
+TEST_F(HistoryEmbeddingsSqlDatabaseTest,
+       MakeUrlDataIteratorWithUrlIdFilterSkipsRowsWithoutEmbeddings) {
+  auto sql_database = MakeDatabase();
+  sql_database->SetEmbedderMetadata({kEmbeddingsVersion, kEmbeddingsSize},
+                                    GetEncryptorInstance());
+  AddBasicMockData(sql_database.get());
+
+  // Drop embeddings while keeping passages. The filter should still resolve
+  // its ids without yielding rows that have no embeddings to score.
+  sql_database->DeleteAllData(/*delete_passages=*/false,
+                              /*delete_embeddings=*/true);
+
+  std::vector<history::URLID> filter = {1, 2};
+  EXPECT_THAT(sql_database->MakeUrlDataIterator({}, filter),
+              YieldsUrlData(IsEmpty()));
+}
+
+TEST_F(HistoryEmbeddingsSqlDatabaseTest,
+       MakeUrlDataIteratorWithUrlIdFilterAppliesTimeRange) {
+  auto sql_database = MakeDatabase();
+  sql_database->SetEmbedderMetadata({kEmbeddingsVersion, kEmbeddingsSize},
+                                    GetEncryptorInstance());
+
+  const base::Time t_old = base::Time::Now() - base::Days(2);
+  const base::Time t_new = base::Time::Now();
+  {
+    UrlData url_data_old(1, 10, t_old);
+    url_data_old.passages.add_passages("old");
+    url_data_old.passage_embeddings.push_back(FakeEmbedding());
+    ASSERT_TRUE(sql_database->AddUrlData(url_data_old));
+  }
+  {
+    UrlData url_data_new(2, 11, t_new);
+    url_data_new.passages.add_passages("new");
+    url_data_new.passage_embeddings.push_back(FakeEmbedding());
+    ASSERT_TRUE(sql_database->AddUrlData(url_data_new));
+  }
+
+  std::vector<history::URLID> filter = {1, 2};
+  EXPECT_THAT(sql_database->MakeUrlDataIterator(t_new - base::Days(1), filter),
+              YieldsUrlData(ElementsAre(AllOf(
+                  Field(&UrlData::url_id, 2), Field(&UrlData::visit_id, 11),
+                  Field(&UrlData::visit_time, t_new)))));
 }
 
 TEST_F(HistoryEmbeddingsSqlDatabaseTest, DeleteDataForUrlId) {
@@ -506,7 +607,7 @@ TEST_F(HistoryEmbeddingsSqlDatabaseTest, IterationSkipsAndReportsMismatches) {
   {
     // Iterate through stored data once.
     std::unique_ptr<VectorDatabase::UrlDataIterator> iterator =
-        sql_database->MakeUrlDataIterator({});
+        sql_database->MakeUrlDataIterator({}, {});
     EXPECT_TRUE(iterator);
     while (iterator->Next()) {
       observed++;

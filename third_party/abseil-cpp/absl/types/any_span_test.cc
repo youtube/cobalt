@@ -84,8 +84,7 @@ class AnySpanTest : public ::testing::Test {
   // Const T if this test instantiation is supposed to cover const AnySpans.
   // T if this test instantiation is supposed to cover mutable AnySpans.
   template <typename T>
-  using MaybeConst =
-      typename std::conditional<IsConstTest::value, const T, T>::type;
+  using MaybeConst = std::conditional_t<IsConstTest::value, const T, T>;
 
   // Initalizes a AnySpan around the given container and tests for
   // equality in a variety of ways.
@@ -498,9 +497,8 @@ TYPED_TEST(AnySpanTest, InvokableTransforms) {
 
   // For const span tests, we need a pointer to constant member function. We
   // choose the correct type of member function here.
-  using MemFunPtr =
-      typename std::conditional<TestFixture::IsConstTest::value,
-                                T& (S::*)() const, T& (S::*)()>::type;
+  using MemFunPtr = std::conditional_t<TestFixture::IsConstTest::value,
+                                       T& (S::*)() const, T& (S::*)()>;
 
   std::vector<S> v = {{"1", "2"}, {"3", "4"}};
   S a[] = {{"1", "2"}, {"3", "4"}};
@@ -779,9 +777,9 @@ TYPED_TEST(AnySpanTest, TriviallyCopyable) {
   using T = typename TestFixture::template MaybeConst<std::string>;
   // Note: we could use is_trivially_copyable, but it is not implemented in
   // Crosstool v18 which is the current version at the time of writing.
-  EXPECT_TRUE(std::is_trivially_copy_constructible<AnySpan<T>>::value);
-  EXPECT_TRUE(std::is_trivially_copy_assignable<AnySpan<T>>::value);
-  EXPECT_TRUE(std::is_trivially_destructible<AnySpan<T>>::value);
+  EXPECT_TRUE(std::is_trivially_copy_constructible_v<AnySpan<T>>);
+  EXPECT_TRUE(std::is_trivially_copy_assignable_v<AnySpan<T>>);
+  EXPECT_TRUE(std::is_trivially_destructible_v<AnySpan<T>>);
 }
 
 TYPED_TEST(AnySpanTest, IsConstructible) {
@@ -790,16 +788,16 @@ TYPED_TEST(AnySpanTest, IsConstructible) {
   using VectorT =
       typename TestFixture::template MaybeConst<std::vector<std::string>>;
   using VectorU = typename TestFixture::template MaybeConst<std::vector<int>>;
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, T>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, T*>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, U>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, U(&)[5]>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, U*, std::size_t>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, VectorU&>::value));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, T>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, T*>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, U>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, U(&)[5]>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, U*, std::size_t>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, VectorU&>));
 
-  EXPECT_TRUE((std::is_constructible<AnySpan<T>, VectorT&>::value));
-  EXPECT_TRUE((std::is_constructible<AnySpan<T>, T(&)[5]>::value));
-  EXPECT_TRUE((std::is_constructible<AnySpan<T>, T*, std::size_t>::value));
+  EXPECT_TRUE((std::is_constructible_v<AnySpan<T>, VectorT&>));
+  EXPECT_TRUE((std::is_constructible_v<AnySpan<T>, T(&)[5]>));
+  EXPECT_TRUE((std::is_constructible_v<AnySpan<T>, T*, std::size_t>));
 }
 
 //

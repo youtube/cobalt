@@ -85,6 +85,16 @@ ServiceErrorOr<mojom::NewSigningKeyDataPtr> PopulateNewSigningKeyData(
   return data;
 }
 
+ServiceErrorOr<mojom::NewAttestationKeyDataPtr> PopulateNewAttestationKeyData(
+    unexportable_keys::UnexportableKeyService& unexportable_key_service,
+    const ServiceErrorOr<UnexportableAttestationKeyId> error_or_key_id) {
+  auto data = mojom::NewAttestationKeyData::New();
+  ASSIGN_OR_RETURN(data->key_id, error_or_key_id);
+  ASSIGN_OR_RETURN(data->metadata,
+                   PopulateKeyMetadata(unexportable_key_service, data->key_id));
+  return data;
+}
+
 ServiceErrorOr<std::vector<mojom::NewKeyDataPtr>> PopulateAllNewKeyData(
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
     ServiceErrorOr<std::vector<UnexportableKeyId>> error_or_key_ids) {
@@ -134,6 +144,33 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::FromWrappedSigningKey(
           .Then(std::move(callback)));
 }
 
+void unexportable_keys::UnexportableKeyServiceProxyImpl::GenerateAttestationKey(
+    const std::vector<crypto::SignatureVerifier::SignatureAlgorithm>&
+        acceptable_algorithms,
+    BackgroundTaskPriority priority,
+    GenerateAttestationKeyCallback callback) {
+  unexportable_key_service_->GenerateAttestationKeySlowlyAsync(
+      acceptable_algorithms, priority,
+      base::BindOnce(PopulateNewAttestationKeyData,
+                     std::ref(*unexportable_key_service_))
+          .Then(std::move(callback)));
+}
+
+void unexportable_keys::UnexportableKeyServiceProxyImpl::
+    FromWrappedAttestationKey(const std::vector<uint8_t>& wrapped_key,
+                              BackgroundTaskPriority priority,
+                              FromWrappedAttestationKeyCallback callback) {
+  if (wrapped_key.size() > kMaxWrappedKeySize) {
+    receiver_.ReportBadMessage("wrapped key size too long");
+    return;
+  }
+  unexportable_key_service_->FromWrappedAttestationKeySlowlyAsync(
+      wrapped_key, priority,
+      base::BindOnce(PopulateNewAttestationKeyData,
+                     std::ref(*unexportable_key_service_))
+          .Then(std::move(callback)));
+}
+
 void unexportable_keys::UnexportableKeyServiceProxyImpl::Sign(
     const UnexportableSigningKeyId& key_id,
     const std::vector<uint8_t>& data,
@@ -141,6 +178,17 @@ void unexportable_keys::UnexportableKeyServiceProxyImpl::Sign(
     SignCallback callback) {
   unexportable_key_service_->SignSlowlyAsync(key_id, data, priority,
                                              std::move(callback));
+}
+
+void unexportable_keys::UnexportableKeyServiceProxyImpl::Certify(
+    const UnexportableAttestationKeyId& attestation_key_id,
+    const UnexportableSigningKeyId& signing_key_id,
+    const std::vector<uint8_t>& challenge,
+    BackgroundTaskPriority priority,
+    CertifyCallback callback) {
+  unexportable_key_service_->CertifySlowlyAsync(attestation_key_id,
+                                                signing_key_id, challenge,
+                                                priority, std::move(callback));
 }
 
 void unexportable_keys::UnexportableKeyServiceProxyImpl::

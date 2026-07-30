@@ -23,7 +23,10 @@
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service_factory.h"
 #import "ios/chrome/browser/share_kit/model/test_share_kit_service.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
 #import "ios/chrome/test/app/sync_test_util.h"
 
@@ -231,6 +234,14 @@ ACTION_TEMPLATE(InvokeCallbackArgument,
   collaboration::CollaborationService* collaboration_service =
       collaboration::CollaborationServiceFactory::GetForProfile(profile);
   return IsSharedTabGroupsCreateEnabled(collaboration_service);
+}
+
++ (void)triggerDoubleEmptyTabGroupCreation {
+  Browser* browser = chrome_test_util::GetCurrentBrowser();
+  id<TabGroupsCommands> tabGroupsHandler =
+      HandlerForProtocol(browser->GetCommandDispatcher(), TabGroupsCommands);
+  [tabGroupsHandler showTabGroupCreationWithoutTabs];
+  [tabGroupsHandler showTabGroupCreationWithoutTabs];
 }
 
 @end

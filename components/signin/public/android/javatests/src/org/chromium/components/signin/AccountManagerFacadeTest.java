@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +34,7 @@ import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
+import org.chromium.components.extensions.ExtensionsBuildflags;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.test.util.FakeAccountManagerDelegate;
@@ -173,6 +175,11 @@ public class AccountManagerFacadeTest {
 
     @Before
     public void setUp() {
+        if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
+            Assume.assumeFalse(
+                    "MigrateAccountManagerDelegate is not supported when extensions are enabled.",
+                    ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE);
+        }
         // Load native library because GoogleServiceAuthError may be created during access token
         // tests and it calls into native code.
         NativeLibraryTestUtils.loadNativeLibraryNoBrowserProcess();
@@ -379,6 +386,9 @@ public class AccountManagerFacadeTest {
     @Test
     @SmallTest
     public void testFetchAccessTokenIfNoAccountsAreLoaded() throws Exception {
+        Assume.assumeFalse(
+                "MigrateAccountManagerDelegate is not supported when extensions are enabled.",
+                ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE);
         FeatureOverrides.overrideFlag(SigninFeatures.MIGRATE_ACCOUNT_MANAGER_DELEGATE, true);
 
         FakeAccountManagerDelegate delegate = new FakeAccountManagerDelegate();

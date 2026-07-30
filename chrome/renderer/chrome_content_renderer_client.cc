@@ -1450,11 +1450,6 @@ void ChromeContentRendererClient::
 #if !BUILDFLAG(IS_ANDROID)
     blink::WebRuntimeFeatures::EnableWebHIDOnServiceWorkers(true);
 #endif  // !BUILDFLAG(IS_ANDROID)
-    if (blink::WebRuntimeFeatures::IsAIPromptAPIForExtensionEnabled() &&
-        base::FeatureList::IsEnabled(
-            blink::features::kAIPromptAPIForExtension)) {
-      blink::WebRuntimeFeatures::EnableAIPromptAPI(true);
-    }
     blink::WebRuntimeFeatures::EnableAIPromptAPIForWorkers(true);
     blink::WebRuntimeFeatures::EnableAIPromptAPILegacyIdentifiers(true);
     blink::WebRuntimeFeatures::EnableAIPromptAPILegacyParams(true);

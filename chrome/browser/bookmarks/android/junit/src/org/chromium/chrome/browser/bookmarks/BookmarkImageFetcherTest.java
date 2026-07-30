@@ -86,14 +86,15 @@ public class BookmarkImageFetcherTest {
     private final BookmarkId mFolderId = new BookmarkId(/* id= */ 1, BookmarkType.NORMAL);
     private final BookmarkId mBookmarkId1 = new BookmarkId(/* id= */ 2, BookmarkType.NORMAL);
     private final BookmarkId mBookmarkId2 = new BookmarkId(/* id= */ 3, BookmarkType.NORMAL);
+    private final BookmarkId mBookmarkId3 = new BookmarkId(/* id= */ 4, BookmarkType.NORMAL);
 
     private final BookmarkItem mFolderItem =
             new BookmarkItem(
                     mFolderId, "Folder", null, true, null, true, false, 0, false, 0, false);
-    private final BookmarkItem mBookmarkItem1 =
+    private final BookmarkItem mAccountBookmark1 =
             new BookmarkItem(
                     mBookmarkId1,
-                    "Bookmark1",
+                    "AccountBookmark1",
                     JUnitTestGURLs.EXAMPLE_URL,
                     false,
                     mFolderId,
@@ -102,11 +103,24 @@ public class BookmarkImageFetcherTest {
                     0,
                     false,
                     0,
-                    false);
-    private final BookmarkItem mBookmarkItem2 =
+                    true);
+    private final BookmarkItem mAccountBookmark2 =
             new BookmarkItem(
                     mBookmarkId2,
-                    "Bookmark1",
+                    "AccountBookmark2",
+                    JUnitTestGURLs.EXAMPLE_URL,
+                    false,
+                    mFolderId,
+                    true,
+                    false,
+                    0,
+                    false,
+                    0,
+                    true);
+    private final BookmarkItem mLocalBookmark =
+            new BookmarkItem(
+                    mBookmarkId3,
+                    "LocalBookmark",
                     JUnitTestGURLs.EXAMPLE_URL,
                     false,
                     mFolderId,
@@ -135,10 +149,10 @@ public class BookmarkImageFetcherTest {
                                     .when(mBookmarkModel)
                                     .getChildIds(mFolderId);
                             doReturn(mFolderItem).when(mBookmarkModel).getBookmarkById(mFolderId);
-                            doReturn(mBookmarkItem1)
+                            doReturn(mAccountBookmark1)
                                     .when(mBookmarkModel)
                                     .getBookmarkById(mBookmarkId1);
-                            doReturn(mBookmarkItem2)
+                            doReturn(mAccountBookmark2)
                                     .when(mBookmarkModel)
                                     .getBookmarkById(mBookmarkId2);
 
@@ -171,9 +185,6 @@ public class BookmarkImageFetcherTest {
                                     .when(mFaviconHelper)
                                     .getLocalFaviconImageForURL(
                                             any(), any(), anyInt(), anyBoolean(), any());
-                            doReturn(true)
-                                    .when(mImageServiceBridge)
-                                    .hasConsentToFetchImages(anyBoolean());
 
                             mBookmarkImageFetcher =
                                     new BookmarkImageFetcher(
@@ -215,7 +226,7 @@ public class BookmarkImageFetcherTest {
     @Test
     public void testFetchImageForBookmarkWithFaviconFallback() {
         mBookmarkImageFetcher.fetchImageForBookmarkWithFaviconFallback(
-                mBookmarkItem1, 100, mDrawableCallback);
+                mAccountBookmark1, 100, mDrawableCallback);
         verify(mDrawableCallback).onResult(mDrawableCaptor.capture());
         // There shouldn't be any interaction with favicon helper since an image was found.
         verify(mFaviconHelper, times(0))
@@ -236,7 +247,7 @@ public class BookmarkImageFetcherTest {
 
         doReturn(meta).when(mBookmarkModel).getPowerBookmarkMeta(mBookmarkId1);
         mBookmarkImageFetcher.fetchImageForBookmarkWithFaviconFallback(
-                mBookmarkItem1, 100, mDrawableCallback);
+                mAccountBookmark1, 100, mDrawableCallback);
 
         ArgumentCaptor<ImageFetcher.Params> paramsArgumentCaptor =
                 ArgumentCaptor.forClass(ImageFetcher.Params.class);
@@ -262,7 +273,7 @@ public class BookmarkImageFetcherTest {
                 .fetchImageFor(anyBoolean(), any(), anyInt(), any());
 
         mBookmarkImageFetcher.fetchImageForBookmarkWithFaviconFallback(
-                mBookmarkItem1, 100, mDrawableCallback);
+                mAccountBookmark1, 100, mDrawableCallback);
         verify(mDrawableCallback).onResult(mDrawableCaptor.capture());
         verify(mFaviconHelper)
                 .getForeignFaviconImageForURL(any(), any(), anyInt(), anyBoolean(), any());
@@ -272,9 +283,7 @@ public class BookmarkImageFetcherTest {
 
     @Test
     public void testFetchFaviconForBookmark_Foreign() {
-        doReturn(true).when(mImageServiceBridge).hasConsentToFetchImages(anyBoolean());
-
-        mBookmarkImageFetcher.fetchFaviconForBookmark(mBookmarkItem1, mDrawableCallback);
+        mBookmarkImageFetcher.fetchFaviconForBookmark(mAccountBookmark1, mDrawableCallback);
         verify(mDrawableCallback).onResult(mDrawableCaptor.capture());
         verify(mFaviconHelper)
                 .getForeignFaviconImageForURL(any(), any(), anyInt(), anyBoolean(), any());
@@ -284,9 +293,7 @@ public class BookmarkImageFetcherTest {
 
     @Test
     public void testFetchFaviconForBookmark_Local() {
-        doReturn(false).when(mImageServiceBridge).hasConsentToFetchImages(anyBoolean());
-
-        mBookmarkImageFetcher.fetchFaviconForBookmark(mBookmarkItem1, mDrawableCallback);
+        mBookmarkImageFetcher.fetchFaviconForBookmark(mLocalBookmark, mDrawableCallback);
         verify(mDrawableCallback).onResult(mDrawableCaptor.capture());
         verify(mFaviconHelper)
                 .getLocalFaviconImageForURL(any(), any(), anyInt(), anyBoolean(), any());

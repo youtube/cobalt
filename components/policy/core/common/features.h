@@ -81,6 +81,10 @@ POLICY_EXPORT BASE_DECLARE_FEATURE(kPolicyPageMojoMigration);
 // for profiles created before the profile flow with disclaimer was released.
 POLICY_EXPORT BASE_DECLARE_FEATURE(kDeviceSignalsBackfillDisclaimer);
 
+// When enabled, URLs in the general blocklist are still blocked in incognito
+// even if they are in the incognito allowlist.
+POLICY_EXPORT BASE_DECLARE_FEATURE(kURLBlocklistOverridesIncognitoAllowlist);
+
 }  // namespace policy::features
 
 #endif  // COMPONENTS_POLICY_CORE_COMMON_FEATURES_H_

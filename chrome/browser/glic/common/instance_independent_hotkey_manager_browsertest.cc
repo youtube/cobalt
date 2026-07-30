@@ -4,12 +4,13 @@
 
 #include "chrome/browser/glic/common/instance_independent_hotkey_manager.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_pref_names_internal.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
@@ -21,12 +22,17 @@ namespace {
 
 class InstanceIndependentHotkeyManagerBrowserTest : public GlicBrowserTest {
  public:
-  InstanceIndependentHotkeyManagerBrowserTest() = default;
+  InstanceIndependentHotkeyManagerBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(features::kGlicHotkeyLocalScope);
+  }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     GlicBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitch(switches::kGlicDev);
   }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(InstanceIndependentHotkeyManagerBrowserTest,
@@ -60,6 +66,58 @@ IN_PROC_BROWSER_TEST_F(InstanceIndependentHotkeyManagerBrowserTest,
                                            GetBrowser()->GetProfile());
   // Should return false because FRE is not completed.
   EXPECT_FALSE(manager.CanHandleAccelerators());
+}
+
+IN_PROC_BROWSER_TEST_F(InstanceIndependentHotkeyManagerBrowserTest,
+                       AcceleratorPressedLaunchesGlicInLocalScope) {
+  GlicKeyedService* service = GlicKeyedServiceFactory::GetGlicKeyedService(
+      GetBrowser()->GetProfile(), /*create=*/true);
+  ASSERT_TRUE(service);
+
+  InstanceIndependentHotkeyManager manager(&service->instance_coordinator(),
+                                           GetBrowser()->GetProfile());
+
+  // Simulate the accelerator being pressed.
+  EXPECT_TRUE(
+      manager.AcceleratorPressed(LocalHotkeyManager::Command::kPanelToggle));
+
+  // Verify that the panel actually opens.
+  EXPECT_TRUE(WaitForGlicOpen().has_value());
+}
+
+class InstanceIndependentHotkeyManagerFeatureDisabledBrowserTest
+    : public GlicBrowserTest {
+ public:
+  InstanceIndependentHotkeyManagerFeatureDisabledBrowserTest() {
+    scoped_feature_list_.InitAndDisableFeature(features::kGlicHotkeyLocalScope);
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    GlicBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kGlicDev);
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    InstanceIndependentHotkeyManagerFeatureDisabledBrowserTest,
+    AcceleratorPressedDoesNotLaunchGlicWhenFeatureDisabled) {
+  GlicKeyedService* service = GlicKeyedServiceFactory::GetGlicKeyedService(
+      GetBrowser()->GetProfile(), /*create=*/true);
+  ASSERT_TRUE(service);
+
+  InstanceIndependentHotkeyManager manager(&service->instance_coordinator(),
+                                           GetBrowser()->GetProfile());
+
+  // Even though hotkey is pressed, it should behave as global (return false)
+  // because the feature is disabled (default behavior).
+  EXPECT_FALSE(
+      manager.AcceleratorPressed(LocalHotkeyManager::Command::kPanelToggle));
+
+  // Verify that the panel is not showing.
+  EXPECT_FALSE(service->instance_coordinator().IsAnyPanelShowing());
 }
 
 }  // namespace

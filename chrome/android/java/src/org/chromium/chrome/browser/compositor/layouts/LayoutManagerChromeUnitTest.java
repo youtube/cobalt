@@ -75,7 +75,7 @@ public class LayoutManagerChromeUnitTest {
                         mToolbarThemeColorProvider,
                         mHubLayoutDependencyHolder);
         layoutManagerChrome.destroy();
-        layoutManagerChrome.showLayout(LayoutType.TAB_SWITCHER, /* animate= */ true);
+        layoutManagerChrome.showLayout(LayoutType.HUB, /* animate= */ true);
         verifyNoInteractions(mHubLayoutDependencyHolder);
     }
 }

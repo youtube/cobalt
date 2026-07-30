@@ -1,4 +1,5 @@
-from six.moves.urllib import parse
+from urllib import parse
+
 from mod_pywebsocket import common
 from mod_pywebsocket import msgutil
 

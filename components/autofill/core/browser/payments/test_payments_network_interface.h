@@ -25,7 +25,7 @@ class SharedURLLoaderFactory;
 
 namespace autofill::payments {
 
-class TestPaymentsNetworkInterface : public payments::PaymentsNetworkInterface {
+class TestPaymentsNetworkInterface : public PaymentsNetworkInterface {
  public:
   TestPaymentsNetworkInterface(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_,
@@ -62,7 +62,7 @@ class TestPaymentsNetworkInterface : public payments::PaymentsNetworkInterface {
           UploadCardSource::kUnknown) override;
 
   void UploadCard(
-      const payments::UploadCardRequestDetails& request_details,
+      const UploadCardRequestDetails& request_details,
       base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
                               const UploadCardResponseDetails&)> callback)
       override;
@@ -74,10 +74,9 @@ class TestPaymentsNetworkInterface : public payments::PaymentsNetworkInterface {
 
   void GetVirtualCardEnrollmentDetails(
       const GetDetailsForEnrollmentRequestDetails& request_details,
-      base::OnceCallback<void(
-          PaymentsAutofillClient::PaymentsRpcResult,
-          const payments::GetDetailsForEnrollmentResponseDetails&)> callback)
-      override;
+      base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                              const GetDetailsForEnrollmentResponseDetails&)>
+          callback) override;
 
   void UpdateVirtualCardEnrollment(
       const UpdateVirtualCardEnrollmentRequestDetails& request_details,
@@ -119,12 +118,11 @@ class TestPaymentsNetworkInterface : public payments::PaymentsNetworkInterface {
     update_virtual_card_enrollment_result_ = result;
   }
 
-  payments::UnmaskDetails* unmask_details() { return &unmask_details_; }
-  const std::optional<payments::UnmaskRequestDetails>& unmask_request() const {
+  UnmaskDetails* unmask_details() { return &unmask_details_; }
+  const std::optional<UnmaskRequestDetails>& unmask_request() const {
     return unmask_request_;
   }
-  const payments::SelectChallengeOptionRequestDetails*
-  select_challenge_option_request() {
+  const SelectChallengeOptionRequestDetails* select_challenge_option_request() {
     return &select_challenge_option_request_;
   }
   int detected_values_in_upload_details() const { return detected_values_; }
@@ -163,10 +161,9 @@ class TestPaymentsNetworkInterface : public payments::PaymentsNetworkInterface {
   // Some metrics are affected by the latency of GetUnmaskDetails, so it is
   // useful to control whether or not GetUnmaskDetails() is responded to.
   bool should_return_unmask_details_ = true;
-  payments::UnmaskDetails unmask_details_;
-  std::optional<payments::UnmaskRequestDetails> unmask_request_;
-  payments::SelectChallengeOptionRequestDetails
-      select_challenge_option_request_;
+  UnmaskDetails unmask_details_;
+  std::optional<UnmaskRequestDetails> unmask_request_;
+  SelectChallengeOptionRequestDetails select_challenge_option_request_;
   std::vector<std::pair<int, int>> supported_card_bin_ranges_;
   std::vector<AutofillProfile> upload_details_addresses_;
   std::vector<AutofillProfile> upload_card_addresses_;
@@ -183,9 +180,9 @@ class TestPaymentsNetworkInterface : public payments::PaymentsNetworkInterface {
       select_challenge_option_result_;
   std::optional<PaymentsAutofillClient::PaymentsRpcResult>
       update_virtual_card_enrollment_result_;
-  payments::GetDetailsForEnrollmentRequestDetails
+  GetDetailsForEnrollmentRequestDetails
       get_details_for_enrollment_request_details_;
-  payments::UpdateVirtualCardEnrollmentRequestDetails
+  UpdateVirtualCardEnrollmentRequestDetails
       update_virtual_card_enrollment_request_details_;
 };
 

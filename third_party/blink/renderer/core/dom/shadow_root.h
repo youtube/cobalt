@@ -34,7 +34,7 @@
 #include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/html/parser/fragment_parser.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_parser_options.h"
@@ -58,7 +58,7 @@ enum class ShadowRootMode { kOpen, kClosed, kUserAgent };
 
 class CORE_EXPORT ShadowRoot final : public DocumentFragment,
                                      public TreeScope,
-                                     public ElementRareDataField {
+                                     public NodeRareDataField {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

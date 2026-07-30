@@ -409,8 +409,6 @@ class MetricsWebContentsObserver
   base::flat_map<content::RenderFrameHost*, std::unique_ptr<PageLoadTracker>>
       inactive_pages_;
 
-  std::vector<mojom::CustomUserTimingMarkPtr> page_load_custom_timings_;
-
   // Has the MWCO observed at least one navigation?
   bool has_navigated_;
 

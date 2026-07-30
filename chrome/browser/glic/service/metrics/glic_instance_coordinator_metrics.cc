@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/render_process_host.h"
@@ -229,6 +230,36 @@ void GlicInstanceCoordinatorMetrics::OnPinningPrefChanged() {
   } else {
     base::RecordAction(base::UserMetricsAction("Glic.Unpinned"));
   }
+}
+
+void GlicInstanceCoordinatorMetrics::RecordCountOnCreation() {
+  size_t count = data_provider_->GetInstances().size();
+  base::UmaHistogramExactLinear("Glic.Instances.Count.OnCreation", count, 10);
+}
+
+void GlicInstanceCoordinatorMetrics::RecordCountAwakeOnContentsCreated() {
+  size_t unhibernated_count = 0;
+  for (GlicInstanceImpl* instance : data_provider_->GetInstances()) {
+    if (!instance->IsHibernated()) {
+      unhibernated_count++;
+    }
+  }
+  // The current instance is about to become unhibernated by this container
+  // creation.
+  unhibernated_count++;
+  base::UmaHistogramExactLinear("Glic.Instances.CountAwake.OnContentsCreated",
+                                unhibernated_count, 10);
+}
+
+void GlicInstanceCoordinatorMetrics::RecordCountActuatingOnTaskCreation() {
+  size_t actuating_count = 0;
+  for (GlicInstanceImpl* instance : data_provider_->GetInstances()) {
+    if (instance->IsActuating()) {
+      actuating_count++;
+    }
+  }
+  base::UmaHistogramExactLinear("Glic.Instances.CountActuating.OnTaskCreation",
+                                actuating_count, 10);
 }
 
 }  // namespace glic

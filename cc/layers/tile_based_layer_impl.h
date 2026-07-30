@@ -101,8 +101,6 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
       : LayerImpl(tree_impl, id) {}
 
   std::optional<SkColor4f> solid_color() const { return solid_color_; }
-  std::optional<gfx::Rect> CalculateScaledCullRect(
-      float max_contents_scale) const;
   std::optional<gfx::Rect> CalculateCullRectInLayerSpace() const;
 
   void ClearLastAppendQuadsScales() { last_append_quads_scales_.clear(); }
@@ -670,26 +668,6 @@ void TileBasedLayerImpl<Tiling>::AppendSolidQuad(
       render_pass, occlusion, shared_quad_state, scaled_visible_layer_rect,
       color, !layer_tree_impl()->settings().enable_edge_anti_aliasing,
       effect_node.blend_mode, append_quads_data);
-}
-
-template <typename Tiling>
-std::optional<gfx::Rect> TileBasedLayerImpl<Tiling>::CalculateScaledCullRect(
-    float max_contents_scale) const {
-  const ScrollTree& scroll_tree =
-      layer_tree_impl()->property_trees()->scroll_tree();
-  if (scroll_tree_index() != kInvalidPropertyNodeId) {
-    const ScrollNode& scroll_node = scroll_tree.Node(scroll_tree_index());
-    if (transform_tree_index() == scroll_node.transform_id) {
-      if (const gfx::Rect* cull_rect =
-              scroll_tree.ScrollingContentsCullRect(scroll_node.element_id)) {
-        return gfx::ToEnclosingRect(gfx::ScaleRect(
-            // Convert into layer space.
-            gfx::RectF(*cull_rect) - offset_to_transform_parent(),
-            max_contents_scale));
-      }
-    }
-  }
-  return std::nullopt;
 }
 
 template <typename Tiling>

@@ -115,7 +115,7 @@ class ReportGeneratorIOSTest : public PlatformTest,
     std::vector<std::unique_ptr<ReportRequest>> reqs;
 
     generator_.Generate(
-        ReportType::kFull,
+        ReportType::kBrowser,
         base::BindLambdaForTesting(
             [&run_loop, &reqs](base::expected<ReportRequestQueue,
                                               ReportGenerationError> result) {

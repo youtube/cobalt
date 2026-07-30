@@ -1,0 +1,44 @@
+[
+  {
+    "can_be_recommended": false,
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "android",
+      "ios"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "note": "Default value (no policies set).",
+        "prefs": {
+          "autofill.types_blocked": {
+            "default_value": []
+          }
+        }
+      },
+      {
+        "note": "Blocked URLs configuration mapped to preferences.",
+        "policies": {
+          "AutofillSettings": [
+            {
+              "url_pattern": "https://[*.]sensitive-portal.com",
+              "blocked_types": ["contact_info", "payments"]
+            }
+          ]
+        },
+        "prefs": {
+          "autofill.types_blocked": {
+            "value": [
+              {
+                "url_pattern": "https://[*.]sensitive-portal.com",
+                "blocked_types": ["contact_info", "payments"]
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]

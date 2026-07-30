@@ -303,7 +303,7 @@ class PrivacySandboxServiceTest : public testing::Test {
     auto account_info = identity_test_env_adaptor_->identity_test_env()
                             ->MakePrimaryAccountAvailable(
                                 kTestEmail, signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     signin::UpdateAccountInfoForAccount(
         identity_test_env_adaptor_->identity_test_env()->identity_manager(),
         account_info);
@@ -316,7 +316,7 @@ class PrivacySandboxServiceTest : public testing::Test {
     auto account_info = identity_test_env_adaptor_->identity_test_env()
                             ->MakePrimaryAccountAvailable(
                                 kTestEmail, signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_run_chrome_privacy_sandbox_trials(false);
     signin::UpdateAccountInfoForAccount(
         identity_test_env_adaptor_->identity_test_env()->identity_manager(),
@@ -330,7 +330,7 @@ class PrivacySandboxServiceTest : public testing::Test {
     auto account_info = identity_test_env_adaptor_->identity_test_env()
                             ->MakePrimaryAccountAvailable(
                                 kTestEmail, signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_run_chrome_privacy_sandbox_trials(true);
     signin::UpdateAccountInfoForAccount(
         identity_test_env_adaptor_->identity_test_env()->identity_manager(),

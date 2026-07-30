@@ -692,6 +692,15 @@ TEST_F(GlicMetricsTest, LogGetContextFromFocusedTabError_ChangingModes) {
       "Glic.Api.GetContextFromFocusedTab.Error.Unknown", 0);
 }
 
+TEST_F(GlicMetricsTest, LogGetImageBytesFromTabError) {
+  metrics()->LogGetImageBytesFromTabError(
+      GlicGetContextFromTabError::kTabNotFound);
+
+  histogram_tester().ExpectUniqueSample(
+      "Glic.Api.GetImageBytesFromTab.Error",
+      GlicGetContextFromTabError::kTabNotFound, 1);
+}
+
 TEST_F(GlicMetricsTest, ImpressionBeforeFreNotPermittedByPolicy) {
   enabling()->SetCompletedFre(prefs::FreStatus::kNotStarted);
 

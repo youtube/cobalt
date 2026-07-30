@@ -2,7 +2,7 @@
 
 This directory contains the new version of `OSCrypt` that supports asynchronous
 initialization and pluggable providers. It has replaced the legacy synchronous
-`OSCrypt` implementation.
+`OSCrypt` implementation which has now been removed.
 
 **Main interfaces**
 
@@ -13,11 +13,9 @@ instance that's accessible from `g_browser_process` using `os_crypt_async()`
 method.
 
 `GetInstance` can be called as many times as necessary to obtain instances of
-`Encryptor` that should be used for encryption operations. When calling
-`GetInstance` an Encryptor hint can be supplied. This can change the Encryption
-behavior of the resulting Encryptor instance, see `encryptor.h` for details. Note
-that all `Encryptor` instances returned from the same instance of `OSCryptAsync`
-will always be able to decrypt each other's data.
+`Encryptor` that should be used for encryption operations. Note that all
+`Encryptor` instances returned from the same instance of `OSCryptAsync` will
+always be able to decrypt each other's data.
 
 `common/` can be included by any code in any process and allows `Encryptor`
 instances to perform encrypt/decrypt operations. These `EncryptString` and
@@ -33,63 +31,10 @@ however the `EncryptString` and `DecryptString` APIs are provided for ease of
 compatibility with existing callers. The string and span APIs are compatible
 with one another.
 
-**Integration Guide**
-
-`OSCryptAsync` is currently integrated into the Cookie encryption within the
-network service, and this code can be used as a full end-to-end example of how
-to integrate `OSCryptAsync` into your existing code.
-
-There are a few considerations that are important for integrators:
-
-1.  `GetInstance()` must be called on the same sequence that it was created on,
-    which, if you are using the instance managed by \/\/chrome is the UI thread.
-    Therefore, plan for your `GetInstance` calls to be made on this sequence.
-    Callbacks will also arrive on this sequence, and note that the callback
-    might be executed before `GetInstance` returns, if the Encryptor is already
-    available. Once you have an `Encryptor` it can be safely passed and used on
-    another sequence, though.
-2.  Care should be taken during the rollout of any integration. In particular,
-    the following three phase approach is recommended, although you might want
-    to shorten this depending on your risk profile. Bear in mind that
-    `OSCryptAsync` is likely being used to seal valuable data so all precautions
-    should be made to avoid any potential data loss.
-    1.  **Phase 1: Convert code to async**: In this first phase, the existing
-        sync code should be converted to perform an asynchronous initialization
-        of an Encryptor instance by calling `GetInstance` and handling the
-        callback. The `Encryptor` instance that is returned can then be used as
-        if the code were calling directly to a sync API but since the
-        `Encryptor` is move-only it will have to be held by an object on the
-        calling sequence to make the calls themselves. If multiple sequences
-        need to make encryption calls, that's supported, but you'll need to get
-        an `Encryptor` for each sequence and explicitly pass it to those
-        sequences. In this phase, it is **highly recommended** to:
-        1.  Call `GetInstance` with the `kEncryptSyncCompat` option. This will
-            ask the `Encryptor` to always encrypt any data in a format that is
-            backwards compatible with previously encrypted data.
-        2.  Land the async code behind a feature, although this might not always
-            be possible given the restructuring required. By both using
-            `kEncryptSyncCompat` and a feature flag, the code can be iterated on
-            without risk to any permanent data loss for users.
-        3.  Monitor baseline metrics, to verify no guardrail metrics are
-            impacted. If your code needs to perform Encrypt or Decrypt
-            operations very early on in startup, then it is possible that there
-            could be performance regressions as `OSCryptAsync` might not yet
-            have obtained a valid `Encryptor` instance.
-    2.  **Phase 2: Engage new Encryption**: Once Phase 1 has landed and no
-        regressions are seen, then a feature can land that removes the
-        `kEncryptSyncCompat` option passed to `GetInstance` from all calls, and
-        data will now start being encrypted with the keys managed by the
-        installed `OSCryptAsync` key providers in a potentially non-backwards
-        compatible way. In this phase, for example, data might start being
-        encrypted with App-Bound encryption on supported platforms. At this
-        point you will want to double check no data loss caused by encrypting
-        data with the new keys, although core `OSCryptAsync` metrics themselves
-        are used as guardrails against this scenario.
-    3.  **Phase 3: Re-encrypt all data**: Once Phase 2 has landed and there
-        appear to be no regressions from using the new key, then all data
-        currently encrypted (which will include a mix of data encrypted with
-        legacy keys, and data encrypted with `OSCryptAsync` depending on when it
-        was originally encrypted) should be read in from persistent storage,
-        decrypted, re-encrypted, and then and written back to persistent
-        storage. This ensures that all data is now encrypted with `OSCryptAsync`
-        and secured by new keys.
+`GetInstance()` must be called on the same sequence that it was created on,
+which, if you are using the instance managed by \/\/chrome is the UI thread.
+Therefore, plan for your `GetInstance` calls to be made on this sequence.
+Callbacks will also arrive on this sequence, and note that the callback
+might be executed before `GetInstance` returns, if the Encryptor is already
+available. Once you have an `Encryptor` it can be safely passed and used on
+another sequence, though.

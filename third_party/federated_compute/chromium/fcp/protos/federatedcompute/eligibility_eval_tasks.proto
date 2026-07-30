@@ -1,0 +1,161 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.internal.federatedcompute.v1;
+
+import "google/rpc/code.proto";
+import "fcp/protos/federatedcompute/common.proto";
+
+option java_package = "com.google.internal.federatedcompute.v1";
+option java_multiple_files = true;
+
+message EligibilityEvalTaskRequest {
+  // The name of the population this client belongs to.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string population_name = 1;
+      ;
+
+  // The attestation measurement providing evidence of integrity for this
+  // client. The measurement is bound to the population_name value in this
+  // request.
+  //
+  // Note that the subsequent `StartTaskAssignmentRequest` will use the same
+  // value for this field, since it is considered part of the same logical
+  // protocol session as this request.
+  AttestationMeasurement attestation_measurement = 2;
+
+  ClientVersion client_version = 3;
+
+  // The client's capabilities when downloading and processing resources.
+  ResourceCapabilities resource_capabilities = 4;
+
+  // The client's capabilities when downloading and running Eligibility Eval
+  // tasks.
+  EligibilityEvalTaskCapabilities eligibility_eval_task_capabilities = 5;
+}
+
+// The client's capabilities for determining task eligibility.
+message EligibilityEvalTaskCapabilities {
+  // Whether the client supports multiple task assignment
+  // (/TaskAssignments.PerformMultipleTaskAssignments). If false, the client
+  // will not be provided information about tasks that require multiple task
+  // assignment.
+  bool supports_multiple_task_assignment = 1;
+
+  // Whether the client supports native evaluation of Eligibility Eval Tasks.
+  bool supports_native_eets = 2;
+}
+
+message EligibilityEvalTaskResponse {
+  // Information to construct the URI to use when calling StartTaskAssignment.
+  // This will not be populated if the result below contains a RejectionInfo
+  // message since the client should not call StartTaskAssignment in that case.
+  //
+  // Note that this forwarding info does not apply to
+  // `ReportEligibilityEvalTaskResult` which should instead be sent to the same
+  // endpoint as `RequestEligibilityEvalTask`.
+  ForwardingInfo task_assignment_forwarding_info = 1;
+
+  // Unique identifier for the protocol session. This field will not be set if
+  // the result below contains a RejectionInfo.
+  string session_id = 2;
+
+  oneof result {
+    // If the population has an eligibility-computing task configured, and if
+    // the client is compatible with that task, then this field will be set,
+    // containing the task's information. The client should run the task and
+    // include its `TaskEligibilityInfo` result in the subsequent
+    // `StartTaskAssignmentRequest`.
+    EligibilityEvalTask eligibility_eval_task = 3;
+
+    // If the population does not have an eligibility-computing task configured,
+    // then this field will be set. The client should continue by issuing a
+    // `StartTaskAssignmentRequest` without the `task_eligibility_info` field
+    // set.
+    NoEligibilityEvalConfigured no_eligibility_eval_configured = 4;
+
+    // If the population has an eligibility-computing task configured, but the
+    // client is incompatible with that task or if the server is unable to
+    // service the request at the moment, then this field will be set.
+    RejectionInfo rejection_info = 5;
+  }
+
+  // Retry window to use for the next RequestEligibilityEvalTask attempt if
+  // the following StartTaskAssignment attempt ends up being subsequently
+  // accepted by the server, as in the client received a
+  // StartTaskAssignmentResponse with a TaskAssignment. This will not be set if
+  // the result above contains a RejectionInfo.
+  RetryWindow retry_window_if_accepted = 6;
+
+  // Retry window to use if this request was rejected or if the following
+  // StartTaskAssignment attempt is not accepted by the server, as in the client
+  // receives a StartTaskAssignmentResponse without a TaskAssignment.
+  RetryWindow retry_window_if_rejected = 7;
+}
+
+message EligibilityEvalTask {
+  // The checkpoint from which to start execution (if any).
+  // Optional: This field and `plan` may both be unset if the client supports
+  // multiple task assignment but the population does not have an Eligibility
+  // Eval task configured.
+  Resource init_checkpoint = 1;
+
+  // The task to be used for execution.
+  // Optional: This field and `init_checkpoint` may both be unset if the client
+  // supports multiple task assignment but the population does not have an
+  // Eligibility Eval task configured.
+  Resource plan = 2;
+
+  // A serialized PopulationEligibilitySpec describing the eligibility criteria
+  // for tasks in the population.
+  Resource population_eligibility_spec = 4;
+
+  // The opaque id of the eligibility evaluation task payload the client is
+  // being given. This is a string generated by the server and used by the
+  // client for logging purposes. This id MUST NOT contain any information that
+  // could be used to identify a specific device.
+  // Also see the similar `TaskAssignment.execution_phase_id`.
+  // Optional: If `plan` is absent, this field may also be absent.
+  string execution_id = 3;
+}
+
+// Currently-empty message describing the case where a population does not have
+// an eligibility-computing task configured.
+message NoEligibilityEvalConfigured {}
+
+message ReportEligibilityEvalTaskResultRequest {
+  // The name of the population this client belongs to.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string population_name = 1;
+      ;
+
+  // The session id returned by the server.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string session_id = 2;
+      ;
+
+  // Status code reported by client.
+  // Code.OK indicates that client execution completed successfully. Any other
+  // code indicates unsuccessful execution and termination of the protocol
+  // session.
+  google.rpc.Code status_code = 3;
+}

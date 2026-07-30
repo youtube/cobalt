@@ -94,12 +94,15 @@ blink_modules_sources("xr") {
     "xr_layer_event.h",
     "xr_layer_shared_image_manager.cc",
     "xr_layer_shared_image_manager.h",
+    "xr_layer_utils.h",
     "xr_light_estimate.cc",
     "xr_light_estimate.h",
     "xr_light_probe.cc",
     "xr_light_probe.h",
     "xr_media_binding.cc",
     "xr_media_binding.h",
+    "xr_media_drawing_context.cc",
+    "xr_media_drawing_context.h",
     "xr_mesh.cc",
     "xr_mesh.h",
     "xr_mesh_manager.cc",
@@ -197,4 +200,6 @@ blink_modules_sources("xr") {
     "//third_party/blink/renderer/modules/gamepad",
     "//third_party/blink/renderer/modules/webgpu",
   ]
+
+  configs += [ "//third_party/blink/renderer:narrowing" ]
 }

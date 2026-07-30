@@ -93,10 +93,7 @@ class MockAutofillAgent : public mojom::AutofillAgent {
                base::OnceCallback<void(const std::string&)>),
               (override));
 
-  MOCK_METHOD(void,
-              ScrollFieldIntoView,
-              (::autofill::FieldRendererId),
-              (override));
+  MOCK_METHOD(void, ScrollFieldIntoView, (FieldRendererId), (override));
 
  private:
   mojo::AssociatedReceiverSet<mojom::AutofillAgent> receivers_;

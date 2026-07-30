@@ -409,6 +409,39 @@ TEST_P(PaintManagerTest, ScrollIgnored) {
   histograms.ExpectTotalCount(kRenderPaintAndFlushTimeMetric, 16);
 }
 
+TEST_P(PaintManagerTest, ResizeRecyclesDrawBuffer) {
+  // 1. Set size to 100x100 and trigger a paint that returns early (no flush).
+  // If `draw_buffer_` isn't cleared on SetSize(), this leaves draw_buffer_
+  // allocated but not released.
+  SetSizeAndInstall(gfx::Size(100, 100), 1.0f);
+  paint_manager_.Invalidate();
+  WaitForOnPaint();
+
+  // 2. Resize to 200x200.
+  SetSizeAndInstall(gfx::Size(200, 200), 1.0f);
+  paint_manager_.Invalidate();
+  SkBitmap larger_bitmap;
+  larger_bitmap.allocN32Pixels(200, 200);
+  larger_bitmap.eraseColor(SK_ColorBLUE);
+
+  // 3. Paint at 200x200, if `draw_buffer_` is still 150x150, the copy will clip
+  // at 150x150 and fail the pixel comparison, however, since it is cleared,
+  // this works.
+  auto snapshot = WaitForFlush(
+      {gfx::Rect(0, 0, 200, 200)},
+      {PaintReadyRect(gfx::Rect(0, 0, 200, 200), larger_bitmap.asImage())}, {});
+  ASSERT_TRUE(snapshot);
+
+  snapshot = snapshot->makeSubset(nullptr, SkIRect::MakeWH(200, 200), {});
+  ASSERT_TRUE(snapshot);
+
+  SkBitmap snapshot_bitmap;
+  ASSERT_TRUE(snapshot->asLegacyBitmap(&snapshot_bitmap));
+
+  EXPECT_TRUE(cc::MatchesBitmap(snapshot_bitmap, larger_bitmap,
+                                cc::ExactPixelComparator()));
+}
+
 INSTANTIATE_TEST_SUITE_P(BufferedPaintManager,
                          PaintManagerTest,
                          testing::Bool());

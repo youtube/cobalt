@@ -12,8 +12,7 @@
 #import "ios/chrome/browser/overlays/model/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_support.h"
 #import "ios/chrome/browser/overlays/ui_bundled/overlay_request_mediator+subclassing.h"
-#import "ios/chrome/browser/passwords/model/ios_chrome_save_password_infobar_delegate.h"
-#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/passwords/infobars/model/ios_chrome_save_password_infobar_delegate.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -26,6 +25,16 @@
 
 @implementation PasswordInfobarModalOverlayMediator {
   InfobarType infobarType_;
+  __weak id<SettingsCommands> _settingsCommandHandler;
+}
+
+- (instancetype)initWithRequest:(OverlayRequest*)request
+         settingsCommandHandler:(id<SettingsCommands>)settingsCommandHandler {
+  self = [super initWithRequest:request];
+  if (self) {
+    _settingsCommandHandler = settingsCommandHandler;
+  }
+  return self;
 }
 
 #pragma mark - Accessors
@@ -139,9 +148,7 @@
 
   [self dismissInfobarModal:nil];
 
-  id<SettingsCommands> settings_command_handler =
-      HandlerForProtocol(delegate->GetDispatcher(), SettingsCommands);
-  [settings_command_handler showSavedPasswordsSettingsFromViewController:nil];
+  [_settingsCommandHandler showSavedPasswordsSettingsFromViewController:nil];
 
   UMA_HISTOGRAM_ENUMERATION(
       "PasswordManager.ManagePasswordsReferrer",

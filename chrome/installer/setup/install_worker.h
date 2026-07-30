@@ -96,7 +96,7 @@ void AddSetMsiMarkerWorkItem(const InstallerState& installer_state,
                              bool set,
                              WorkItemList* work_item_list);
 
-// Adds Active Setup registration for sytem-level setup to be called by Windows
+// Adds Active Setup registration for system-level setup to be called by Windows
 // on user-login post-install/update. This method should be called for
 // installation only.
 void AddActiveSetupWorkItems(const InstallerState& installer_state,

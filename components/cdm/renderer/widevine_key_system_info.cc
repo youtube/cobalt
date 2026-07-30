@@ -45,14 +45,6 @@ Robustness ConvertRobustness(const std::string& robustness) {
   return Robustness::INVALID;
 }
 
-#if BUILDFLAG(IS_WIN)
-bool IsHardwareSecurityEnabledForKeySystem(const std::string& key_system) {
-  return (key_system == kWidevineExperimentKeySystem) &&
-         base::FeatureList::IsEnabled(
-             media::kHardwareSecureDecryptionExperiment);
-}
-#endif  // BUILDFLAG(IS_WIN)
-
 }  // namespace
 
 WidevineKeySystemInfo::WidevineKeySystemInfo(
@@ -85,12 +77,6 @@ std::string WidevineKeySystemInfo::GetBaseKeySystemName() const {
 
 bool WidevineKeySystemInfo::IsSupportedKeySystem(
     const std::string& key_system) const {
-#if BUILDFLAG(IS_WIN)
-  if (is_experimental_) {
-    return key_system == kWidevineExperimentKeySystem;
-  }
-#endif  // BUILDFLAG(IS_WIN)
-
   return key_system == kWidevineKeySystem;
 }
 
@@ -199,16 +185,9 @@ EmeConfig::Rule WidevineKeySystemInfo::GetRobustnessConfigRule(
 
 #elif BUILDFLAG(IS_WIN)
   if (robustness >= Robustness::HW_SECURE_CRYPTO) {
-    // On Windows, hardware security uses MediaFoundation-based CDM which
-    // requires identifier and persistent state.
-
-    if (IsHardwareSecurityEnabledForKeySystem(key_system)) {
-      return EmeConfig{.identifier = EmeConfigRuleState::kRequired,
-                       .persistence = EmeConfigRuleState::kRequired,
-                       .hw_secure_codecs = EmeConfigRuleState::kRequired};
-    } else {
-      return media::EmeConfig::UnsupportedRule();
-    }
+    // On Windows, hardware security is not supported with the Widevine key
+    // system.
+    return media::EmeConfig::UnsupportedRule();
   } else if (robustness < Robustness::HW_SECURE_CRYPTO) {
     // On Windows, when software security is queried, explicitly not allow
     // hardware secure codecs to prevent robustness level upgrade, for stability

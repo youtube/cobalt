@@ -117,8 +117,6 @@ static_library("test_support") {
     "mock_cert_provisioning_client.h",
     "mock_cert_provisioning_invalidator.cc",
     "mock_cert_provisioning_invalidator.h",
-    "mock_cert_provisioning_scheduler.cc",
-    "mock_cert_provisioning_scheduler.h",
     "mock_cert_provisioning_worker.cc",
     "mock_cert_provisioning_worker.h",
   ]

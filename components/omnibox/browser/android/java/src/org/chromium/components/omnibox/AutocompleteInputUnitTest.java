@@ -406,7 +406,7 @@ public class AutocompleteInputUnitTest {
     }
 
     @Test
-    public void getAutocompleteState_updatesOwnState() {
+    public void setUserText_transitionsFromStandbyToEnabled() {
         mInput.setInitialUserText("initial");
         mInput.setUserText("initial");
         mInput.setAutocompleteState(AutocompleteState.STANDBY);
@@ -421,6 +421,31 @@ public class AutocompleteInputUnitTest {
         // Reverts to initial text - should still be ENABLED.
         mInput.setUserText("initial");
         assertEquals(AutocompleteState.ENABLED, mInput.getAutocompleteState());
+    }
+
+    @Test
+    public void setUserText_transitionsFromStandbyNoFocusToEnabled() {
+        mInput.setInitialUserText("initial");
+        mInput.setUserText("initial");
+
+        mInput.setAutocompleteState(AutocompleteState.STANDBY_NO_FOCUS);
+        assertEquals(AutocompleteState.STANDBY_NO_FOCUS, mInput.getAutocompleteState());
+
+        mInput.setUserText("initial typing");
+        assertEquals(AutocompleteState.ENABLED, mInput.getAutocompleteState());
+
+        mInput.setUserText("initial");
+        assertEquals(AutocompleteState.ENABLED, mInput.getAutocompleteState());
+    }
+
+    @Test
+    public void setAutocompleteState_doesNotTriggerStateTransition() {
+        mInput.setInitialUserText("initial");
+        mInput.setUserText("different");
+
+        mInput.setAutocompleteState(AutocompleteState.STANDBY);
+
+        assertEquals(AutocompleteState.STANDBY, mInput.getAutocompleteState());
     }
 
     @Test

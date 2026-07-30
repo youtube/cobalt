@@ -22,10 +22,11 @@ void SetIsInvisible(AXTree* tree, int id, bool invisible) {
   AXTreeUpdate update;
   update.nodes.resize(1);
   update.nodes[0] = tree->GetFromId(id)->data();
-  if (invisible)
+  if (invisible) {
     update.nodes[0].AddState(ax::mojom::State::kInvisible);
-  else
+  } else {
     update.nodes[0].RemoveState(ax::mojom::State::kInvisible);
+  }
   tree->Unserialize(update);
 }
 
@@ -687,6 +688,46 @@ TEST_F(AXPlatformNodeTest, HypertextOffsetFromEndpoint) {
     EXPECT_EQ(link->GetHypertextOffsetFromEndpoint(link, 0), 0);
     EXPECT_EQ(link->GetHypertextOffsetFromEndpoint(link, 1), 4);
   }
+}
+
+TEST_F(AXPlatformNodeTest, CanvasAnnotationName) {
+  AXNodeData root_data;
+  root_data.id = 1;
+  root_data.role = ax::mojom::Role::kRootWebArea;
+
+  AXNodeData canvas_node;
+  canvas_node.id = 2;
+  canvas_node.role = ax::mojom::Role::kCanvas;
+  canvas_node.AddStringAttribute(ax::mojom::StringAttribute::kCanvasAnnotation,
+                                 "captured_text");
+
+  AXNodeData canvas_node_with_name;
+  canvas_node_with_name.id = 3;
+  canvas_node_with_name.role = ax::mojom::Role::kCanvas;
+  canvas_node_with_name.SetName("author_name");
+  canvas_node_with_name.AddStringAttribute(
+      ax::mojom::StringAttribute::kCanvasAnnotation, "captured_text");
+
+  root_data.child_ids = {canvas_node.id, canvas_node_with_name.id};
+
+  AXTreeUpdate update;
+  update.root_id = 1;
+  update.nodes = {root_data, canvas_node, canvas_node_with_name};
+
+  AXTree* tree = Init(update);
+
+  ScopedAXModeSetter ax_mode_setter(kAXModeComplete);
+
+  AXPlatformNodeBase* root = static_cast<AXPlatformNodeBase*>(
+      TestAXNodeWrapper::GetOrCreate(tree, tree->root())->ax_platform_node());
+
+  AXPlatformNodeBase* canvas = static_cast<AXPlatformNodeBase*>(
+      AXPlatformNode::FromNativeViewAccessible(root->ChildAtIndex(0)));
+  EXPECT_EQ(canvas->GetName(), "captured_text");
+
+  AXPlatformNodeBase* canvas_with_name = static_cast<AXPlatformNodeBase*>(
+      AXPlatformNode::FromNativeViewAccessible(root->ChildAtIndex(1)));
+  EXPECT_EQ(canvas_with_name->GetName(), "author_name. captured_text");
 }
 
 }  // namespace ui

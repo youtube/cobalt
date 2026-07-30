@@ -24,13 +24,13 @@
 namespace autofill::payments {
 namespace {
 
-using IssuerId = autofill::BnplIssuer::IssuerId;
+using IssuerId = ::autofill::BnplIssuer::IssuerId;
 using ::testing::_;
 using ::testing::Return;
 using ::testing::Test;
 
 struct EligibleBnplIssuerParams {
-  BnplIssuer::IssuerId issuer_id;
+  IssuerId issuer_id;
   int expected_issuer_selection_text_id;
 };
 
@@ -44,27 +44,27 @@ INSTANTIATE_TEST_SUITE_P(
 #if BUILDFLAG(IS_ANDROID)
     testing::Values(
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplAffirm,
+            IssuerId::kBnplAffirm,
             IDS_AUTOFILL_BNPL_ISSUER_SELECTION_TEXT_AFFIRM_BOTTOM_SHEET},
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplKlarna,
+            IssuerId::kBnplKlarna,
             IDS_AUTOFILL_BNPL_ISSUER_SELECTION_TEXT_KLARNA_BOTTOM_SHEET},
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplZip,
+            IssuerId::kBnplZip,
             IDS_AUTOFILL_BNPL_ISSUER_SELECTION_TEXT_ZIP_BOTTOM_SHEET}));
 #else
     testing::Values(
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplAffirm,
+            IssuerId::kBnplAffirm,
             IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_AFFIRM_AND_AFTERPAY},
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplAfterpay,
+            IssuerId::kBnplAfterpay,
             IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_AFFIRM_AND_AFTERPAY},
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplKlarna,
+            IssuerId::kBnplKlarna,
             IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_KLARNA},
         EligibleBnplIssuerParams{
-            BnplIssuer::IssuerId::kBnplZip,
+            IssuerId::kBnplZip,
             IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_ZIP}));
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -73,15 +73,12 @@ TEST_P(BnplUtilEligibleTest, GetBnplIssuerSelectionOptionText) {
   std::vector<BnplIssuerContext> issuer_contexts = {
       BnplIssuerContext(test::GetTestLinkedBnplIssuer(),
                         BnplIssuerEligibilityForPage::kIsEligible),
-      BnplIssuerContext(
-          test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip),
-          BnplIssuerEligibilityForPage::kIsEligible),
-      BnplIssuerContext(
-          test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAfterpay),
-          BnplIssuerEligibilityForPage::kIsEligible),
-      BnplIssuerContext(
-          test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplKlarna),
-          BnplIssuerEligibilityForPage::kIsEligible)};
+      BnplIssuerContext(test::GetTestLinkedBnplIssuer(IssuerId::kBnplZip),
+                        BnplIssuerEligibilityForPage::kIsEligible),
+      BnplIssuerContext(test::GetTestLinkedBnplIssuer(IssuerId::kBnplAfterpay),
+                        BnplIssuerEligibilityForPage::kIsEligible),
+      BnplIssuerContext(test::GetTestLinkedBnplIssuer(IssuerId::kBnplKlarna),
+                        BnplIssuerEligibilityForPage::kIsEligible)};
 
   EXPECT_EQ(
       GetBnplIssuerSelectionOptionText(params.issuer_id, "en-US",
@@ -161,7 +158,7 @@ class BnplUtilTest : public Test, public WithTestAutofillClientDriverManager<> {
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
+  test::AutofillUnitTestEnvironment autofill_test_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -202,8 +199,8 @@ TEST_F(
       BnplIssuerEligibilityForPage::kNotEligibleIssuerDoesNotSupportMerchant)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAffirm,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAffirm, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_NOT_AVAILABLE_FOR_MERCHANT));
 }
@@ -220,8 +217,8 @@ TEST_F(
       BnplIssuerEligibilityForPage::kNotEligibleIssuerDoesNotSupportMerchant)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAffirm,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAffirm, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringUTF16(
           IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_NOT_SUPPORTED_BY_MERCHANT));
 }
@@ -232,11 +229,11 @@ TEST_F(BnplUtilTest,
       features::kAutofillEnablePayNowPayLaterTabs};
 
   std::vector<BnplIssuerContext> issuer_contexts = {BnplIssuerContext(
-      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip),
+      test::GetTestLinkedBnplIssuer(IssuerId::kBnplZip),
       BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooLow)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplZip, "en-US",
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplZip, "en-US",
                                        issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_LOW,
@@ -249,12 +246,12 @@ TEST_F(BnplUtilTest,
       features::kAutofillEnablePayNowPayLaterTabs};
 
   std::vector<BnplIssuerContext> issuer_contexts = {BnplIssuerContext(
-      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAfterpay),
+      test::GetTestLinkedBnplIssuer(IssuerId::kBnplAfterpay),
       BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooHigh)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAfterpay,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAfterpay, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_HIGH,
           u"$200.00"));
@@ -268,11 +265,11 @@ TEST_F(
       features::kAutofillEnablePayNowPayLaterTabs);
 
   std::vector<BnplIssuerContext> issuer_contexts = {BnplIssuerContext(
-      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip),
+      test::GetTestLinkedBnplIssuer(IssuerId::kBnplZip),
       BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooLow)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplZip, "en-US",
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplZip, "en-US",
                                        issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_LOW,
@@ -287,12 +284,12 @@ TEST_F(
       features::kAutofillEnablePayNowPayLaterTabs);
 
   std::vector<BnplIssuerContext> issuer_contexts = {BnplIssuerContext(
-      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAfterpay),
+      test::GetTestLinkedBnplIssuer(IssuerId::kBnplAfterpay),
       BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooHigh)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAfterpay,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAfterpay, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_HIGH,
           u"$200.00"));
@@ -313,8 +310,8 @@ TEST_F(BnplUtilTest,
       issuer, BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooHigh)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAffirm,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAffirm, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_HIGH,
           u"$30,000.00"));
@@ -336,8 +333,8 @@ TEST_F(BnplUtilTest,
 
   // Check that `$49.491234` truncates to `$49.49`.
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAffirm,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAffirm, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_LOW,
           u"$49.49"));
@@ -359,8 +356,8 @@ TEST_F(BnplUtilTest,
 
   // Check that `$99.9999` rounds up to `$100.00`.
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAffirm,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAffirm, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_LOW,
           u"$100.00"));
@@ -661,8 +658,8 @@ TEST_F(
                             kNotEligibleAmountExtractionErrorNegativeAmount)};
 
   EXPECT_EQ(
-      GetBnplIssuerSelectionOptionText(BnplIssuer::IssuerId::kBnplAffirm,
-                                       "en-US", issuer_contexts),
+      GetBnplIssuerSelectionOptionText(IssuerId::kBnplAffirm, "en-US",
+                                       issuer_contexts),
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_CHECKOUT_AMOUNT_TOO_LOW,
           u"$50.00"));
@@ -730,7 +727,7 @@ INSTANTIATE_TEST_SUITE_P(
             IDS_AUTOFILL_CARD_BNPL_PAY_LATER_PAYMENT_OPTION_NOT_AVAILABLE_RIGHT_NOW}));
 
 struct BnplSuggestionIconParams {
-  BnplIssuer::IssuerId issuer_id;
+  IssuerId issuer_id;
   Suggestion::Icon expected_icon;
 };
 
@@ -745,14 +742,13 @@ TEST_P(BnplUtilGetSuggestionIconTest, GetBnplSuggestionIcon) {
 INSTANTIATE_TEST_SUITE_P(
     All,
     BnplUtilGetSuggestionIconTest,
-    testing::Values(BnplSuggestionIconParams{BnplIssuer::IssuerId::kBnplAffirm,
+    testing::Values(BnplSuggestionIconParams{IssuerId::kBnplAffirm,
                                              Suggestion::Icon::kBnplAffirm},
-                    BnplSuggestionIconParams{
-                        BnplIssuer::IssuerId::kBnplAfterpay,
-                        Suggestion::Icon::kBnplAfterpay},
-                    BnplSuggestionIconParams{BnplIssuer::IssuerId::kBnplKlarna,
+                    BnplSuggestionIconParams{IssuerId::kBnplAfterpay,
+                                             Suggestion::Icon::kBnplAfterpay},
+                    BnplSuggestionIconParams{IssuerId::kBnplKlarna,
                                              Suggestion::Icon::kBnplKlarna},
-                    BnplSuggestionIconParams{BnplIssuer::IssuerId::kBnplZip,
+                    BnplSuggestionIconParams{IssuerId::kBnplZip,
                                              Suggestion::Icon::kBnplZip}));
 
 }  // namespace

@@ -6,7 +6,6 @@
 
 #include "base/functional/callback.h"
 #include "chrome/browser/enterprise/data_controls/android_data_controls_dialog.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/modal_dialog_wrapper.h"

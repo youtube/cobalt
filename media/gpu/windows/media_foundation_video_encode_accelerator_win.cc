@@ -754,10 +754,17 @@ void MediaFoundationVideoEncodeAccelerator::Encode(
     scoped_refptr<VideoFrame> frame,
     const EncodeOptions& options) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  bool force_key_frame =
-      (input_since_keyframe_count_ + pending_input_queue_.size()) %
-          gop_length_ ==
-      0;
+  bool force_key_frame = false;
+
+  // Clients can configure the encoder with an infinite GOP length by setting
+  // `gop_length_` to 0. We must ensure it is strictly greater than 0 before
+  // performing a modulo operation to prevent a divide-by-zero crash.
+  if (gop_length_ > 0) {
+    force_key_frame =
+        (input_since_keyframe_count_ + pending_input_queue_.size()) %
+            gop_length_ ==
+        0;
+  }
   EncodeOptions effective_options(options);
   effective_options.key_frame |= force_key_frame;
 

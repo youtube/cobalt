@@ -20,7 +20,6 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_switcher/browser_switcher_prefs.h"
-#include "chrome/grit/generated_resources.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "third_party/re2/src/re2/re2.h"

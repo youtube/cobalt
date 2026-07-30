@@ -9,7 +9,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
-#include "base/scoped_observation.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -74,7 +73,6 @@
 #include "ui/views/interaction/widget_focus_observer.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/view.h"
-#include "ui/views/view_observer.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_utils.h"
 
@@ -595,7 +593,7 @@ IN_PROC_BROWSER_TEST_F(BrowserFeaturePromoControllerUiTest,
 
   RunTestSequence(InAnyContext(
       MaybeShowPromo(kCustomActionTestFeature),
-      Do([this]() { browser()->window()->Close(); }),
+      Do([this]() { browser()->GetWindow()->Close(); }),
       WaitForHide(kBrowserViewElementId).SetTransitionOnlyOnEvent(true),
       EnsurePresent(
           user_education::HelpBubbleView::kHelpBubbleElementIdForTesting),
@@ -778,8 +776,7 @@ namespace {
 // Class that allows the injection of a startup promo when the browser user
 // education interface is initialized.
 class BrowserUserEducationInterfaceWithStartupPromo
-    : public BrowserUserEducationInterfaceImpl,
-      public views::ViewObserver {
+    : public BrowserUserEducationInterfaceImpl {
  public:
   BrowserUserEducationInterfaceWithStartupPromo(
       BrowserWindowInterface* browser,
@@ -789,22 +786,16 @@ class BrowserUserEducationInterfaceWithStartupPromo
   ~BrowserUserEducationInterfaceWithStartupPromo() override = default;
 
   void Init(BrowserView* browser_view) override {
+    CHECK(browser_view->GetWidget());
     BrowserUserEducationInterfaceImpl::Init(browser_view);
-    browser_view_observation_.Observe(browser_view);
-  }
-
- private:
-  void OnViewAddedToWidget(views::View* observed_view) override {
-    browser_view_observation_.Reset();
     // This is about the same point where startup promos are queued; when the
     // BrowserView is added to the widget, but after browser window features are
     // initialized.
     MaybeShowStartupFeaturePromo(std::move(startup_promo_params_));
   }
 
+ private:
   user_education::FeaturePromoParams startup_promo_params_;
-  base::ScopedObservation<views::View, views::ViewObserver>
-      browser_view_observation_{this};
 };
 
 }  // namespace

@@ -71,6 +71,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="PrivateMetrics.PrivateInsights.FcpEvent"
+    enum="PrivateInsightsFcpEvent" expires_after="2027-06-01">
+  <owner>kjarosz@google.com</owner>
+  <owner>private-metrics@google.com</owner>
+  <summary>
+    FCP-client-related events, as reported by FCP's event publisher interface.
+    Logged each time the FCP client publishes an event.
+  </summary>
+</histogram>
+
 <histogram name="PrivateMetrics.PrivateInsights.TriggerUploadOutcome"
     enum="PrivateInsightsTriggerUploadOutcome" expires_after="2027-06-01">
   <owner>kjarosz@google.com</owner>
@@ -112,7 +122,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrivateMetrics.PUMA.LogRotationOutcome"
-    enum="PumaLogRotationOutcome" expires_after="2026-10-04">
+    enum="PumaLogRotationOutcome" expires_after="2026-12-06">
   <owner>kjarosz@google.com</owner>
   <owner>private-metrics@google.com</owner>
   <summary>
@@ -121,7 +131,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrivateMetrics.PUMA.ReportBuildingOutcome.Rc"
-    enum="PumaReportBuildingOutcome" expires_after="2026-10-04">
+    enum="PumaReportBuildingOutcome" expires_after="2026-12-06">
   <owner>kjarosz@google.com</owner>
   <owner>private-metrics@google.com</owner>
   <summary>
@@ -131,7 +141,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrivateMetrics.PUMA.ReportStoringOutcome.Rc"
-    enum="PumaReportStoringOutcome" expires_after="2026-10-04">
+    enum="PumaReportStoringOutcome" expires_after="2026-12-06">
   <owner>kjarosz@google.com</owner>
   <owner>private-metrics@google.com</owner>
   <summary>

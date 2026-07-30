@@ -17,6 +17,7 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -172,9 +173,15 @@ class PageSpecificSiteDataDialogModelDelegate : public ui::DialogModelDelegate {
     }
 
     if (status_changed_) {
-      CollectedCookiesInfoBarDelegate::Create(
-          infobars::ContentInfoBarManager::FromWebContents(
-              web_contents_.get()));
+      if (infobars::IsInfoBarMigrated(
+              infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)) {
+        PageSpecificSiteDataDialogController::ShowCollectedCookiesInfoBar(
+            web_contents_.get());
+      } else {
+        CollectedCookiesInfoBarDelegate::Create(
+            infobars::ContentInfoBarManager::FromWebContents(
+                web_contents_.get()));
+      }
     }
 
     // Reset the dialog reference in the user data. If the dialog is opened

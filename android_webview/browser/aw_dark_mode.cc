@@ -8,7 +8,6 @@
 #include "android_webview/common/aw_features.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/ptr_util.h"
-#include "base/metrics/histogram_macros.h"
 #include "content/public/browser/navigation_details.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
@@ -160,23 +159,6 @@ bool AwDarkMode::IsAppUsingDarkTheme() {
 
 void AwDarkMode::DetachFromJavaObject(JNIEnv* env) {
   jobj_.reset();
-}
-
-void AwDarkMode::NavigationEntryCommitted(
-    const content::LoadCommittedDetails& load_details) {
-  if (!load_details.is_main_frame)
-    return;
-  UMA_HISTOGRAM_BOOLEAN("Android.WebView.DarkMode.PrefersDarkFromTheme",
-                        prefers_dark_from_theme_);
-}
-
-void AwDarkMode::InferredColorSchemeUpdated(
-    std::optional<blink::mojom::PreferredColorScheme> color_scheme) {
-  if (prefers_dark_from_theme_ && color_scheme.has_value()) {
-    UMA_HISTOGRAM_BOOLEAN(
-        "Android.WebView.DarkMode.PageDarkenedAccordingToAppTheme",
-        color_scheme.value() == blink::mojom::PreferredColorScheme::kDark);
-  }
 }
 
 }  // namespace android_webview

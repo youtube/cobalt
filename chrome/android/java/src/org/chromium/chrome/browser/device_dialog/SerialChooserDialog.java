@@ -204,6 +204,10 @@ public class SerialChooserDialog
 
     @Override
     public void onItemSelected(String id) {
+        if (mIsLocationModeChangedReceiverRegistered) {
+            mContext.unregisterReceiver(mLocationModeBroadcastReceiver);
+            mIsLocationModeChangedReceiverRegistered = false;
+        }
         if (mNativeSerialChooserDialogPtr != 0) {
             Natives jni = SerialChooserDialogJni.get();
             if (id.isEmpty()) {
@@ -236,7 +240,9 @@ public class SerialChooserDialog
                 && !PermissionUtil.canRequestSystemPermissionsForBluetooth(mWindowAndroid)) {
             // Immediately close the dialog because the user has asked Chrome not to request the
             // necessary permissions.
-            finishDialog();
+            // dismiss() will trigger the onDismissListener in ItemChooserDialog,
+            // which calls back to onItemSelected("").
+            mItemChooserDialog.dismiss();
             return false;
         }
 
@@ -392,6 +398,8 @@ public class SerialChooserDialog
     @CalledByNative
     void closeDialog() {
         mNativeSerialChooserDialogPtr = 0;
+        // dismiss() will trigger the onDismissListener in ItemChooserDialog,
+        // which calls back to onItemSelected("").
         mItemChooserDialog.dismiss();
     }
 
@@ -430,16 +438,6 @@ public class SerialChooserDialog
                                     createLinkSpan(LinkType.ADAPTER_OFF_HELP)));
             mItemChooserDialog.setErrorState(adapterOffMessage, mAdapterOffStatus);
         }
-    }
-
-    private void finishDialog() {
-        if (mIsLocationModeChangedReceiverRegistered) {
-            mContext.unregisterReceiver(mLocationModeBroadcastReceiver);
-            mIsLocationModeChangedReceiverRegistered = false;
-        }
-
-        mItemChooserDialog.dismiss();
-        SerialChooserDialogJni.get().onDialogCancelled(mNativeSerialChooserDialogPtr);
     }
 
     @NativeMethods

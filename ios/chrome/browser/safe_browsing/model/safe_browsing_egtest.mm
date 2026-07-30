@@ -1071,7 +1071,13 @@ void EnableEnterpriseUrlFilteringPrefs() {
 
 // Verifies that the Enteprise warning interstitial allows to bypass the warning
 // and navigate to urls flagged by Enterprise organizations.
+// TODO(crbug.com/522400526): Test fails on physical iOS 18 devices.
 - (void)testEnterpriseWarningPageBypass {
+#if !TARGET_OS_SIMULATOR
+  if (!@available(iOS 26.0, *)) {
+    EARL_GREY_TEST_DISABLED(@"Fails on physical iOS 18 devices.");
+  }
+#endif
   EnableEnterpriseUrlFilteringPrefs();
 
   [ChromeEarlGrey loadURL:_safeURL1];
@@ -1117,7 +1123,13 @@ void EnableEnterpriseUrlFilteringPrefs() {
 // Verifies that the Enteprise warning interstitial allows to bypass the warning
 // after refreshing the warning page and navigate to urls flagged by Enterprise
 // organizations.
+// TODO(crbug.com/522400526): Test fails on physical iOS 18 devices.
 - (void)testEnterpriseWarningPageRefreshedThenBypass {
+#if !TARGET_OS_SIMULATOR
+  if (!@available(iOS 26.0, *)) {
+    EARL_GREY_TEST_DISABLED(@"Fails on physical iOS 18 devices.");
+  }
+#endif
   EnableEnterpriseUrlFilteringPrefs();
 
   [ChromeEarlGrey loadURL:_safeURL1];

@@ -695,3 +695,9 @@ content::KAnonymityServiceDelegate*
 OffTheRecordProfileImpl::GetKAnonymityServiceDelegate() {
   return KAnonymityServiceFactory::GetForProfile(this);
 }
+
+#if BUILDFLAG(IS_WIN)
+void OffTheRecordProfileImpl::AckCrashForTracking() {
+  profile_->AckCrashForTracking();
+}
+#endif

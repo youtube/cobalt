@@ -156,8 +156,7 @@ IN_PROC_BROWSER_TEST_F(WebUIMochaSuccessFailureTest, HostErrorFails) {
       RunTestStatic("js/test_suite_self_test.js", "mocha.run();"),
       "Navigation to "
       "'chrome://does-not-exist/"
-      "test_loader.html?adapter=mocha_adapter_simple.js&"
-      "module=js/test_suite_self_test.js' failed.");
+      "test_loader.html?module=js/test_suite_self_test.js' failed.");
 }
 
 // Test that when the requested test file does not exist the test fails.

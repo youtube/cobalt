@@ -123,7 +123,6 @@ class SocsCookieFetcherTest : public testing::Test {
   std::unique_ptr<app_list::SocsCookieFetcher> socs_cookie_fetcher_;
 
   network::TestURLLoaderFactory url_loader_factory_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
 };
 

@@ -39,7 +39,6 @@
 namespace blink {
 
 class Element;
-class LocalFrame;
 class UndoStep;
 
 // |UndoStack| is owned by and always 1:1 to |Editor|. Since |Editor| is 1:1 to

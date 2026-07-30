@@ -23,11 +23,18 @@ void NetworkRestrictionsNavigationThrottle::MaybeCreateAndAdd(
   NavigationRequest* navigation_request =
       static_cast<NavigationRequest*>(&registry.GetNavigationHandle());
 
-  if (!base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
+  if (navigation_request->IsSameDocument()) {
+    navigation_request->set_network_restrictions_id(
+        navigation_request->frame_tree_node()
+            ->current_frame_host()
+            ->GetNetworkRestrictionsID());
     return;
   }
 
-  if (navigation_request->IsSameDocument()) {
+  navigation_request->set_network_restrictions_id(
+      base::UnguessableToken::Create());
+
+  if (!base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     return;
   }
 
@@ -37,9 +44,6 @@ void NetworkRestrictionsNavigationThrottle::MaybeCreateAndAdd(
   if (navigation_request->frame_tree_node()->IsInFencedFrameTree()) {
     return;
   }
-
-  navigation_request->set_network_restrictions_id(
-      base::UnguessableToken::Create());
 
   registry.AddThrottle(
       std::make_unique<NetworkRestrictionsNavigationThrottle>(registry));
@@ -51,7 +55,7 @@ NetworkRestrictionsNavigationThrottle::MaybeApplyNetworkRestrictions(
     NavigationRequest& navigation_request,
     base::OnceClosure on_complete) {
   auto network_restrictions_id = navigation_request.network_restrictions_id();
-  CHECK(network_restrictions_id.has_value());
+  CHECK(!network_restrictions_id.is_empty());
 
   const auto& policy_container_policies =
       navigation_request.GetPolicyContainerPolicies();
@@ -96,7 +100,7 @@ NetworkRestrictionsNavigationThrottle::MaybeApplyNetworkRestrictions(
   navigation_request.GetRenderFrameHost()
       ->GetStoragePartition()
       ->RestrictNetworkForIdsInNetworkContext(
-          {{*network_restrictions_id, std::move(allowlists)}},
+          {{network_restrictions_id, std::move(allowlists)}},
           std::move(on_complete));
 
   return NetworkRestrictionsResult::kDefer;

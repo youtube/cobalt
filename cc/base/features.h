@@ -165,6 +165,9 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60Hz);
 #if BUILDFLAG(IS_ANDROID)
 // Same as above, for WebView.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60HzWebView);
+
+// Same as above, for Desktop Android.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kThrottleMainFrameTo60HzDesktopAndroid);
 #endif
 
 // When enabled, clients can request a high framerate, which disables
@@ -186,22 +189,7 @@ CC_BASE_EXPORT void SetIsEligibleForThrottleMainFrameTo60Hz(bool is_eligible);
 // capture.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kViewTransitionCaptureAndDisplay);
 
-// Allow the main thread to throttle the main frame rate.
-// Note that the composited animations will not be affected.
-// Typically the throttle is triggered with the render-blocking API <link
-// rel="expect" blocking="full-frame-rate"/>.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kRenderThrottleFrameRate);
-// The throttled frame rate when the main thread requests a throttle.
-CC_BASE_EXPORT extern const base::FeatureParam<int>
-    kRenderThrottledFrameIntervalHz;
 
-// When enabled, internal begin frame source will be used in cc to reduce IPC
-// between cc and viz when there were many "did not produce frame" recently,
-// and SetAutoNeedsBeginFrame will be called on CompositorFrameSink.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(
-    kInternalBeginFrameSourceOnManyDidNotProduceFrame);
-CC_BASE_EXPORT extern const base::FeatureParam<int>
-    kNumDidNotProduceFrameBeforeInternalBeginFrameSource;
 
 // When enabled, the LayerTreeHost will expect to use layer lists instead of
 // layer trees by default; the caller can explicitly opt into enabled or

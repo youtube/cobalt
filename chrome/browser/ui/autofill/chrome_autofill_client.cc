@@ -67,6 +67,7 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/strike_database/strike_database_factory.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/autofill/address_bubbles_controller.h"
@@ -97,7 +98,7 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/content/browser/content_identity_credential_delegate.h"
-#include "components/autofill/content/browser/email_verifier_delegate.h"
+#include "components/autofill/content/browser/integrators/email_verifier/email_verifier_delegate.h"
 #include "components/autofill/core/browser/at_memory_promo_tracker.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
@@ -198,8 +199,8 @@
 #include "chrome/browser/ui/autofill/autofill_ai/autofill_ai_import_data_controller.h"
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller_impl.h"
 #include "chrome/browser/ui/autofill/delete_address_profile_dialog_controller_impl.h"
-#include "chrome/browser/ui/autofill/email_verification_popup_controller.h"
-#include "chrome/browser/ui/autofill/email_verified_toast_menu_model.h"
+#include "chrome/browser/ui/autofill/email_verifier/email_verification_popup_controller.h"
+#include "chrome/browser/ui/autofill/email_verifier/email_verified_toast_menu_model.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -244,7 +245,7 @@ const base::Feature& GetFeature(AutofillClient::IphFeature iph_feature) {
 ui::ElementIdentifier GetElementId(AutofillClient::IphFeature iph_feature) {
   switch (iph_feature) {
     case AutofillClient::IphFeature::kAutofillAi:
-      return autofill::PopupViewViews::kAutofillAiOptInIphElementId;
+      return PopupViewViews::kAutofillAiOptInIphElementId;
   }
   NOTREACHED();
 }
@@ -376,6 +377,14 @@ bool ChromeAutofillClient::IsOffTheRecord() const {
   return mutable_this->web_contents()->GetBrowserContext()->IsOffTheRecord();
 }
 
+const subscription_eligibility::SubscriptionEligibilityService*
+ChromeAutofillClient::GetSubscriptionEligibilityService() const {
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  return subscription_eligibility::SubscriptionEligibilityServiceFactory::
+      GetForProfile(profile);
+}
+
 scoped_refptr<network::SharedURLLoaderFactory>
 ChromeAutofillClient::GetURLLoaderFactory() {
   return web_contents()
@@ -449,6 +458,15 @@ bool ChromeAutofillClient::ShouldShowPersonalContextAutofillNotice() const {
   personal_context::PersonalContextFirstRunService* service =
       PersonalContextFirstRunServiceFactory::GetForProfile(profile);
   return service && service->ShouldShowPersonalContextAutofillNotice();
+}
+
+void ChromeAutofillClient::MarkPersonalContextInAutofillNoticeAsAcknowledged() {
+  Profile* profile = GetProfile();
+  personal_context::PersonalContextFirstRunService* service =
+      PersonalContextFirstRunServiceFactory::GetForProfile(profile);
+  if (service) {
+    service->MarkPersonalContextInAutofillNoticeAsAcknowledged();
+  }
 }
 
 SingleFieldFillRouter& ChromeAutofillClient::GetSingleFieldFillRouter() {
@@ -738,7 +756,7 @@ void ChromeAutofillClient::ShowAutofillSettings(
         return;
       case SuggestionType::kManageAutofillAi:
         if (base::FeatureList::IsEnabled(
-                autofill::features::kYourSavedInfoSettingsPage)) {
+                features::kYourSavedInfoSettingsPage)) {
           base::UmaHistogramEnumeration(
               "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
               autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
@@ -1073,11 +1091,12 @@ bool ChromeAutofillClient::IsAndroidLargeFormFactor() const {
 
 #if BUILDFLAG(IS_ANDROID)
 void ChromeAutofillClient::ShowAtMemoryBottomSheet(
-    base::span<const Suggestion> suggestions) {
+    base::span<const Suggestion> suggestions,
+    base::WeakPtr<AutofillSuggestionDelegate> delegate) {
   if (AtMemoryBottomSheetBridge* bridge =
           GetOrCreateAtMemoryBottomSheetBridge()) {
     bridge->RequestShowContent(
-        std::make_unique<AtMemoryBottomSheetDelegateAndroid>(this),
+        std::make_unique<AtMemoryBottomSheetDelegateAndroid>(this, delegate),
         suggestions);
   }
 }

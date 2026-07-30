@@ -255,6 +255,7 @@ public class AdaptiveToolbarButtonController
         setSingleProvider(AdaptiveToolbarButtonVariant.UNKNOWN);
         mObservers.clear();
         mCallbackController.destroy();
+        mToolbarBehavior.destroy();
         ContextUtils.getAppSharedPreferences().unregisterOnSharedPreferenceChangeListener(this);
         mToolbarContainer.removeOnLayoutChangeListener(mLayoutChangeListener);
         mLifecycleDispatcher.unregister(this);

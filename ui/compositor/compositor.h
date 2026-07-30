@@ -256,8 +256,6 @@ class COMPOSITOR_EXPORT Compositor
   // Set the current CGDirectDisplayID and update the private client.
   void SetVSyncDisplayID(const int64_t display_id);
   int64_t display_id() const;
-
-  void RefreshRateChangedOnSameDisplay();
 #endif
 
   const gfx::DisplayColorSpaces& display_color_spaces() const {

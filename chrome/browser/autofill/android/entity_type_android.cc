@@ -63,7 +63,7 @@ EntityTypeAndroid::EntityTypeAndroid(const EntityType& entity_type,
                                      })),
       required_types(
           base::ToVector(entity_type.import_constraints(),
-                         [](autofill::DenseSet<AttributeType> group) {
+                         [](DenseSet<AttributeType> group) {
                            // It was decided to keep the schema expressive to
                            // allow future complex
                            // constraints, rather than restricting it to match

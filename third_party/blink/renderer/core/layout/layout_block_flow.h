@@ -128,9 +128,10 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
     NOT_DESTROYED();
     if (inline_node_data_) {
       // inline_node_data_ is not used from now on but exists until GC happens,
-      // so it is better to eagerly clear HeapVector to improve memory
-      // utilization.
+      // so it is better to eagerly clear HeapVector and Strings to improve
+      // memory utilization.
       inline_node_data_->items.clear();
+      inline_node_data_->text_content = String();
       inline_node_data_.Clear();
     }
   }

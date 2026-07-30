@@ -48,7 +48,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) ScopedSessionRefresher {
 // returned to storage as soon as operation completes.
 class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthSessionStorage {
  public:
-  using InvalidationCallback = base::OnceCallback<void(void)>;
+  using InvalidationCallback = base::OnceClosure;
 
   // TODO (b/271249180): Define an observer for notifications about token
   // expiration/borrowing.

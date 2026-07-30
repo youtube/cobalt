@@ -104,7 +104,7 @@ public class TabGroupsPane extends PaneBase {
                 new ResourceButtonData(
                         R.string.accessibility_tab_groups,
                         R.string.accessibility_tab_groups,
-                        R.drawable.ic_features_24dp));
+                        R.drawable.ic_grid_view_24dp));
     }
 
     @SuppressWarnings("NullAway")

@@ -18,6 +18,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.accessibility.settings.ChromeAccessibilitySettingsDelegate;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsCoordinator;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextCoordinator;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillCreditCardEditor;
 import org.chromium.chrome.browser.autofill.settings.AutofillLocalIbanEditor;
 import org.chromium.chrome.browser.autofill.settings.HomeOfTransactionsFragment;
@@ -208,6 +210,10 @@ public class FragmentDependencyProvider extends FragmentManager.FragmentLifecycl
                     (AutofillOptionsFragment) fragment,
                     mModalDialogManagerSupplier,
                     () -> ApplicationLifetime.terminate(true));
+        }
+        if (fragment instanceof AutofillPersonalContextFragment) {
+            AutofillPersonalContextCoordinator.createFor(
+                    (AutofillPersonalContextFragment) fragment, mActivity, mProfile);
         }
         if (fragment instanceof AutofillCreditCardEditor) {
             ((AutofillCreditCardEditor) fragment)

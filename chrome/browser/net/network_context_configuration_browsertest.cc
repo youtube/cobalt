@@ -89,6 +89,7 @@
 #include "net/test/gtest_util.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/referrer_policy.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -2055,7 +2056,8 @@ class NetworkContextConfigurationProxySettingsBrowserTest
                                                    frame->GetRoutingID())),
           mojo::NullRemote(), mojo::NullRemote(),
           /*throttling_profile_id=*/std::nullopt,
-          /*network_restrictions_id=*/std::nullopt);
+          /*network_restrictions_id=*/
+          network::GetTestNetworkRestrictionsId());
       waiters.emplace_back(std::move(client));
     }
     expected_connections_run_loop.Run();

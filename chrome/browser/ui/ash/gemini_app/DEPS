@@ -14,7 +14,6 @@ specific_include_rules = {
     "+chrome/browser/ui/browser_window/public/browser_collection_observer.h",
     "+chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h",
     "+chrome/browser/ui/browser_window/public/global_browser_collection.h",
-    "+chrome/browser/ui/chrome_pages.h",
     "+chrome/browser/ui/web_applications",
     "+chrome/browser/web_applications/preinstalled_web_apps",
     "+chrome/browser/web_applications/test",

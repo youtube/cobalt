@@ -94,14 +94,25 @@ std::u16string GetPromptTitle(EntityTypeName type_name,
   }
 #else
   if (is_save_prompt) {
+    const bool is_wallet_branded =
+        is_server_wallet &&
+        base::FeatureList::IsEnabled(
+            features::kAutofillAiWalletPassBranding2026);
     switch (type_name) {
       case EntityTypeName::kDriversLicense:
         return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE);
+            is_wallet_branded
+                ? IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_BRANDED
+                : IDS_AUTOFILL_AI_SAVE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE);
       case EntityTypeName::kKnownTravelerNumber:
         return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE);
+            is_wallet_branded
+                ? IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_BRANDED
+                : IDS_AUTOFILL_AI_SAVE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE);
       case EntityTypeName::kNationalIdCard:
+        if (is_wallet_branded) {
+          return l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_SAVE_ID_CARD_ENTITY_DIALOG_TITLE_BRANDED);
+        }
         return l10n_util::GetStringUTF16(
             base::FeatureList::IsEnabled(
                 features::kAutofillAiWalletPrivatePasses)
@@ -109,13 +120,19 @@ std::u16string GetPromptTitle(EntityTypeName type_name,
                 : IDS_AUTOFILL_AI_SAVE_NATIONAL_ID_CARD_ENTITY_DIALOG_TITLE);
       case EntityTypeName::kPassport:
         return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE);
+            is_wallet_branded
+                ? IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_BRANDED
+                : IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE);
       case EntityTypeName::kRedressNumber:
         return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE);
+            is_wallet_branded
+                ? IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_BRANDED
+                : IDS_AUTOFILL_AI_SAVE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE);
       case EntityTypeName::kVehicle:
         return l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE);
+            is_wallet_branded
+                ? IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE_BRANDED
+                : IDS_AUTOFILL_AI_SAVE_VEHICLE_ENTITY_DIALOG_TITLE);
       case EntityTypeName::kFlightReservation:
         NOTREACHED() << "Entity is read only and doesn't support save prompts.";
       case EntityTypeName::kOrder:

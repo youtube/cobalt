@@ -306,10 +306,10 @@ std::optional<double> CSSToLengthConversionData::ContainerSizes::FindNamedSize(
 
 CSSToLengthConversionData::AnchorData::AnchorData(
     AnchorEvaluator* evaluator,
-    const StylePositionAnchor& position_anchor,
+    const DefaultAnchorData& default_anchor_data,
     const std::optional<PositionAreaOffsets>& position_area_offsets)
     : evaluator_(evaluator),
-      position_anchor_(position_anchor),
+      default_anchor_data_(default_anchor_data),
       position_area_offsets_(position_area_offsets) {}
 
 CSSToLengthConversionData::CSSToLengthConversionData(

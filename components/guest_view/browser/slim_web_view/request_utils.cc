@@ -74,8 +74,9 @@ RequestResourceType RequestResourceTypeFromResourceRequest(
     case network::mojom::RequestDestination::kStyle:
     case network::mojom::RequestDestination::kXslt:
       return RequestResourceType::kStylesheet;
-    case network::mojom::RequestDestination::kScript:
     case network::mojom::RequestDestination::kJson:
+    case network::mojom::RequestDestination::kScript:
+    case network::mojom::RequestDestination::kText:
       return RequestResourceType::kScript;
     case network::mojom::RequestDestination::kImage:
       return RequestResourceType::kImage;

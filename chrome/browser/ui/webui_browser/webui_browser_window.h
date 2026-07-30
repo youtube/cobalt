@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/webui/webui_toolbar/icon_table.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -42,7 +43,8 @@ class WebUIBrowserWindow : public BrowserWindow,
                            public ui::AcceleratorProvider,
                            public ui::AcceleratorTarget,
                            public views::WidgetObserver,
-                           public BookmarkBarController::Delegate {
+                           public BookmarkBarController::Delegate,
+                           public webui_toolbar::IconTable::Delegate {
  public:
   explicit WebUIBrowserWindow(Browser* browser);
   ~WebUIBrowserWindow() override;
@@ -55,6 +57,8 @@ class WebUIBrowserWindow : public BrowserWindow,
   // Returns the WebUIBrowserWindow for a BrowserWindowInterface. If browser
   // does not use WebUIBrowserWindow, returns nullptr.
   static WebUIBrowserWindow* FromBrowser(BrowserWindowInterface* browser);
+  static const WebUIBrowserWindow* FromBrowser(
+      const BrowserWindowInterface* browser);
 
   // Returns the WebUIBrowserWindow for the given `window`.
   static WebUIBrowserWindow* FromNativeWindow(gfx::NativeWindow window);
@@ -205,6 +209,9 @@ class WebUIBrowserWindow : public BrowserWindow,
       ui::ColorProviderKey::ColorMode color_mode,
       ui::ColorProviderKey::ForcedColors forced_colors) const override;
 
+  // webui_toolbar::IconTable::Delegate:
+  float GetScaleFactor() const override;
+
   // ui::AcceleratorProvider:
   bool GetAcceleratorForCommandId(int command_id,
                                   ui::Accelerator* accelerator) const override;
@@ -294,6 +301,7 @@ class WebUIBrowserWindow : public BrowserWindow,
   ui::AcceleratorManager accelerator_manager_;
 
   std::unique_ptr<WebUIBrowserModalDialogHost> modal_dialog_host_;
+  std::unique_ptr<webui_toolbar::IconTable> icon_table_;
   std::unique_ptr<WebUIToolbarExtensionsContainer> extensions_container_;
   std::unique_ptr<ui::ScopedUnownedUserData<ExtensionsContainer>>
       scoped_extensions_container_user_data_;

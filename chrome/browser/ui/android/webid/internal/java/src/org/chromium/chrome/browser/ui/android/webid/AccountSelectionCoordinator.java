@@ -236,12 +236,12 @@ public class AccountSelectionCoordinator
 
     @Override
     public void close() {
+        mMediator.close();
+        // If this is the opener (not the popup), we only need to close the mediator.
         if (mOpenerDelegate == null) {
-            // Close the bottom sheet.
-            mMediator.close();
             return;
         }
-        // This is the popup.
+        // This is the popup, so we also need to finish the CCT activity.
         Activity activity = mWindowAndroid.getActivity().get();
         if (activity != null) {
             activity.finish();

@@ -209,6 +209,7 @@ source_set("unit_tests") {
     "//chrome/browser/consent_auditor",
     "//chrome/browser/consent_auditor:test_support",
     "//chrome/browser/prefs",
+    "//chrome/browser/prefs:util",
     "//chrome/browser/ui/ash/login:test_support",
     "//chrome/browser/ui/ash/multi_user",
     "//chrome/test:test_support",

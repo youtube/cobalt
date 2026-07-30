@@ -14,6 +14,7 @@
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/network/autofill_ai/personal_context_access_manager_impl.h"
 
 namespace autofill {
 
@@ -175,6 +176,9 @@ std::optional<std::vector<EntityInstance>> EntitiesFromJSON(
 void MaybeImportProfilesAndCardsForTesting(
     base::WeakPtr<PersonalDataManager> pdm);
 void MaybeImportEntitiesForTesting(base::WeakPtr<EntityDataManager> edm);
+void MaybeImportEntitiesForTesting(
+    base::WeakPtr<PersonalContextAccessManagerImpl>
+        personal_context_access_manager);
 
 }  // namespace autofill
 

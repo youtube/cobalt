@@ -268,7 +268,14 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     // apply throttling rules, delay event construction, etc.
     private final AccessibilityEventDispatcher mEventDispatcher;
     private volatile @Nullable String mSystemLanguageTag;
-    private @Nullable BroadcastReceiver mBroadcastReceiver;
+    private final BroadcastReceiver mBroadcastReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    mSystemLanguageTag = Locale.getDefault().toLanguageTag();
+                }
+            };
+
     // Only un-register the broadcast receiver if this is true, otherwise it would result in a
     // crash.
     private volatile boolean mIsBroadcastReceiverRegistered;
@@ -472,7 +479,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                         // Invalidate cached state for the node that has changed.
                         clearNodeInfoCacheForGivenId(virtualViewId);
 
-                        requestSendAccessibilityEvent(event);
+                        requestSendAccessibilityEvent(
+                                event, WindowContentChangedSubtype.NONE, virtualViewId);
 
                         // Always send the ENTER and then the EXIT event, to match a
                         // standard Android View.
@@ -544,13 +552,6 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
         mSupportedHtmlElementTypes =
                 WebContentsAccessibilityImplJni.get().getSupportedHtmlElementTypes(mNativeObj);
-        mBroadcastReceiver =
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        mSystemLanguageTag = Locale.getDefault().toLanguageTag();
-                    }
-                };
 
         // Register a broadcast receiver for locale change.
         if (mView.isAttachedToWindow()) {
@@ -838,11 +839,19 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     }
 
     private void maybeUnregisterReceiver() {
-        if (mIsBroadcastReceiverRegistered) {
-            if (mBroadcastReceiver != null) {
-                ContextUtils.getApplicationContext().unregisterReceiver(mBroadcastReceiver);
-            }
-            mIsBroadcastReceiverRegistered = false;
+        Runnable doUnregister =
+                () -> {
+                    if (mIsBroadcastReceiverRegistered) {
+                        mIsBroadcastReceiverRegistered = false;
+                        ContextUtils.getApplicationContext().unregisterReceiver(mBroadcastReceiver);
+                    }
+                };
+
+        if (ContentFeatureMap.isEnabled(ACCESSIBILITY_MANAGE_BROADCAST_RECEIVER_ON_BACKGROUND)) {
+            // We must always enqueue in case there is already a register task in the queue.
+            sSequencedTaskRunner.execute(doUnregister);
+        } else {
+            doUnregister.run();
         }
     }
 
@@ -868,12 +877,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             // When the native code was initialized, also record performance metrics unregister
             // our broadcast receiver.
             if (isNativeInitialized()) {
-                if (ContentFeatureMap.isEnabled(
-                        ACCESSIBILITY_MANAGE_BROADCAST_RECEIVER_ON_BACKGROUND)) {
-                    sSequencedTaskRunner.execute(() -> maybeUnregisterReceiver());
-                } else {
-                    maybeUnregisterReceiver();
-                }
+                maybeUnregisterReceiver();
                 mHistogramRecorder.recordAccessibilityPerformanceHistograms();
                 // When we are in an initialized state, accessibility may be disabled. In that
                 // case, we should keep an on-going sum of the time spent disabled (without
@@ -968,6 +972,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mNodeInfoCache.clear();
         mEventDispatcher.clearQueue();
         mAutoDisableAccessibilityHandler.cancelDisableTimer();
+        maybeUnregisterReceiver();
         WebContents webContents = mDelegate.getWebContents();
         if (webContents == null) {
             deleteEarly();
@@ -1973,7 +1978,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                         ? ACTION_NEXT_AT_MOVEMENT_GRANULARITY.getId()
                         : ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY.getId());
 
-        requestSendAccessibilityEvent(traverseEvent);
+        requestSendAccessibilityEvent(
+                traverseEvent, WindowContentChangedSubtype.NONE, mAccessibilityFocusId);
     }
 
     private void scrollToMakeNodeVisible(int virtualViewId) {
@@ -2337,7 +2343,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
             event.setContentChangeTypes(AccessibilityEvent.CONTENT_CHANGE_TYPE_CHECKED);
             event.setSource(mView, id);
-            requestSendAccessibilityEvent(event);
+            requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, id);
         }
     }
 
@@ -2356,7 +2362,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 event.setContentChangeTypes(subType);
             }
             event.setSource(mView, id);
-            requestSendAccessibilityEvent(event);
+            requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, id);
         }
     }
 
@@ -2392,7 +2398,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         if (delegate != null) {
             delegate.setTextChangeTypes(event, subType);
         }
-        requestSendAccessibilityEvent(event);
+        requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, id);
     }
 
     @CalledByNative
@@ -2422,7 +2428,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
             event.setContentChangeTypes(AccessibilityEvent.CONTENT_CHANGE_TYPE_SUBTREE);
             event.setSource(mView, virtualViewId);
-            requestSendAccessibilityEvent(event);
+            requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, virtualViewId);
         }
     }
 
@@ -2462,7 +2468,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
         event.setContentChangeTypes(CONTENT_CHANGE_TYPE_SORT_DIRECTION);
 
-        requestSendAccessibilityEvent(event);
+        requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, id);
     }
 
     @CalledByNative
@@ -2508,7 +2514,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
             event.setContentChangeTypes(CONTENT_CHANGE_TYPE_PANE_APPEARED);
             event.setSource(mView, virtualViewId);
-            requestSendAccessibilityEvent(event);
+            requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, virtualViewId);
         }
     }
 
@@ -2545,7 +2551,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 return;
             }
             event.setSource(mView, virtualViewId);
-            requestSendAccessibilityEvent(event);
+            requestSendAccessibilityEvent(event, WindowContentChangedSubtype.NONE, virtualViewId);
         }
     }
 

@@ -33,7 +33,6 @@ namespace {
 
 const char kInvalidImeSpec[] = "ime_spec_never_support";
 constexpr char kValidImeSpec[] = "valid_spec";
-const std::vector<uint8_t> extra{0x66, 0x77, 0x88};
 
 void ConnectCallback(bool* success, bool result) {
   *success = result;
@@ -269,6 +268,7 @@ TEST_F(ImeServiceTest, ConnectInvalidImeEngineDoesNotConnectRemote) {
   MockInputChannel test_channel;
   mojo::Remote<mojom::InputChannel> remote_engine;
 
+  const std::vector<uint8_t> extra{0x66, 0x77, 0x88};
   remote_manager_->ConnectToImeEngine(
       kInvalidImeSpec, remote_engine.BindNewPipeAndPassReceiver(),
       test_channel.CreatePendingRemote(), extra,

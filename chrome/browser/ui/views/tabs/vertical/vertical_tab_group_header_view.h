@@ -46,7 +46,7 @@ class VerticalTabGroupHeaderView : public views::FlexLayoutView,
     virtual ~Delegate() = default;
     virtual void ToggleCollapsedState(
         ToggleTabGroupCollapsedStateOrigin origin) = 0;
-    virtual views::Widget* ShowGroupEditorBubble(
+    virtual std::unique_ptr<views::Widget> ShowGroupEditorBubble(
         bool stop_context_menu_propagation) = 0;
     virtual std::u16string GetGroupContentString() const = 0;
 

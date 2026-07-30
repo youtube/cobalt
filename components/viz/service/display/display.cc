@@ -900,8 +900,9 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
     return false;
   }
 
-  TRACE_EVENT_BEGIN("viz,benchmark", "Graphics.Pipeline.DrawAndSwap",
-                    perfetto::Track(display_trace_id));
+  TRACE_EVENT_BEGIN(
+      "viz,benchmark", "Graphics.Pipeline.DrawAndSwap",
+      perfetto::NamedTrack("Graphics.Pipeline", display_trace_id));
 
   // Run callbacks early to allow pipelining and collect presented callbacks.
   damage_tracker_->RunDrawCallbacks();
@@ -960,8 +961,9 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
 
   std::optional<base::ElapsedTimer> draw_timer;
   if (should_draw) {
-    TRACE_EVENT_BEGIN("viz,benchmark", "Graphics.Pipeline.Draw",
-                      perfetto::Track(display_trace_id));
+    TRACE_EVENT_BEGIN(
+        "viz,benchmark", "Graphics.Pipeline.Draw",
+        perfetto::NamedTrack("Graphics.Pipeline", display_trace_id));
     base::ElapsedTimer draw_occlusion_timer;
     occlusion_culler_->RemoveOverdrawQuads(&frame);
     DebugDrawFrameVisible(frame);
@@ -986,7 +988,8 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
                          current_surface_size, display_color_spaces_,
                          std::move(frame.surface_damage_rect_list_),
                          frame.tracked_element_rects);
-    TRACE_EVENT_END("viz,benchmark", perfetto::Track(display_trace_id));
+    TRACE_EVENT_END("viz,benchmark", perfetto::NamedTrack("Graphics.Pipeline",
+                                                          display_trace_id));
   } else {
     TRACE_EVENT_INSTANT("viz", "Draw skipped.");
   }
@@ -1082,8 +1085,9 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
       }
     }
 
-    TRACE_EVENT_INSTANT("viz,benchmark", "Graphics.Pipeline.WaitForSwap",
-                        perfetto::Track(display_trace_id));
+    TRACE_EVENT_INSTANT(
+        "viz,benchmark", "Graphics.Pipeline.WaitForSwap",
+        perfetto::NamedTrack("Graphics.Pipeline", display_trace_id));
     swapped_since_resize_ = true;
 
     IssueDisplayRenderingStatsEvent();
@@ -1151,10 +1155,10 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
     if (should_draw)
       renderer_->SwapBuffersSkipped();
 
-    TRACE_EVENT_END(
-        "viz,benchmark",
-        /* Graphics.Pipeline.DrawAndSwap */ perfetto::Track(display_trace_id),
-        "status", "canceled");
+    TRACE_EVENT_END("viz,benchmark",
+                    /* Graphics.Pipeline.DrawAndSwap */
+                    perfetto::NamedTrack("Graphics.Pipeline", display_trace_id),
+                    "status", "canceled");
     if (scheduler_) {
       scheduler_->DidSwapBuffers();
       scheduler_->DidReceiveSwapBuffersAck();
@@ -1197,11 +1201,14 @@ void Display::DidReceiveSwapBuffersAck(gpu::SwapBuffersCompleteParams params,
   }
 
   const gfx::SwapTimings& timings = params.swap_response.timings;
-  TRACE_EVENT_INSTANT("viz,benchmark", "Swap",
-                      perfetto::Track(params.swap_trace_id),
-                      timings.swap_start);
-  TRACE_EVENT_INSTANT("viz,benchmark", "WaitForPresentation",
-                      perfetto::Track(params.swap_trace_id), timings.swap_end);
+  TRACE_EVENT_INSTANT(
+      "viz,benchmark", "Swap",
+      perfetto::NamedTrack("Graphics.Pipeline", params.swap_trace_id),
+      timings.swap_start);
+  TRACE_EVENT_INSTANT(
+      "viz,benchmark", "WaitForPresentation",
+      perfetto::NamedTrack("Graphics.Pipeline", params.swap_trace_id),
+      timings.swap_end);
 
   if (overlay_processor_)
     overlay_processor_->OverlayPresentationComplete();
@@ -1277,12 +1284,12 @@ void Display::DidReceiveSwapBuffersAck(gpu::SwapBuffersCompleteParams params,
 
   if (!timings.gpu_started_overlay.is_null()) {
     DCHECK_LE(draw_start_timestamp, timings.gpu_started_overlay);
-    TRACE_EVENT_ASYNC_BEGIN_WITH_TIMESTAMP0("viz", "DrawToScheduleOverlay",
-                                            params.swap_trace_id,
-                                            draw_start_timestamp);
-    TRACE_EVENT_ASYNC_END_WITH_TIMESTAMP0("viz", "DrawToScheduleOverlay",
-                                          params.swap_trace_id,
-                                          timings.gpu_started_overlay);
+    auto track = perfetto::NamedTrack("Graphics.Pipeline.DrawToScheduleOverlay",
+                                      params.swap_trace_id);
+    TRACE_EVENT_BEGIN("viz", "DrawToScheduleOverlay", track,
+                      draw_start_timestamp);
+    TRACE_EVENT_END("viz", track, timings.gpu_started_overlay);
+
     base::TimeDelta draw_start_to_overlay_start =
         timings.gpu_started_overlay - draw_start_timestamp;
     UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
@@ -1357,10 +1364,10 @@ void Display::DidReceivePresentationFeedback(
 
   int64_t presented_trace_id = presentation_group_timing.swap_trace_id();
   copy_feedback.display_trace_id = presented_trace_id;
-  TRACE_EVENT_END(
-      "viz,benchmark",
-      /* Graphics.Pipeline.DrawAndSwap */ perfetto::Track(presented_trace_id),
-      copy_feedback.timestamp);
+  TRACE_EVENT_END("viz,benchmark",
+                  /* Graphics.Pipeline.DrawAndSwap */
+                  perfetto::NamedTrack("Graphics.Pipeline", presented_trace_id),
+                  copy_feedback.timestamp);
   TRACE_EVENT_INSTANT(
       "benchmark,viz," TRACE_DISABLED_BY_DEFAULT("display.framedisplayed"),
       "Display::FrameDisplayed", copy_feedback.timestamp);

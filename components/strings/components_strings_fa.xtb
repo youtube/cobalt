@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">باز کردن همه</translation>
 <translation id="1408696301184924537">‏برای اینکه این IBAN دفعه بعد به‌طور خودکار تکمیل شود، آن را در «حساب Google» خود ذخیره کنید</translation>
 <translation id="1408787208417187241">سه منگنه در بالا</translation>
+<translation id="1410306713026702438">‫<ph name="SUGGESTION_TITLE" />، <ph name="SUGGESTION_DESCRIPTION" />. ‫<ph name="SUGGESTION_TYPE" />. ‫<ph name="MATCH_POSITION" /> در <ph name="NUM_MATCHES_IN_GROUP" /> در گروه <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">‏افراد دیگری که از این دستگاه استفاده می‌کنند فعالیت شما را نخواهند دید تا بتوانید مرور خصوصی‌تری داشته باشید. نحوه جمع‌آوری داده‌ها توسط وب‌سایت‌هایی که بازدید می‌کنید و سرویس‌هایی که استفاده می‌کنید (شامل Google) تغییر نخواهد کرد. بااین‌حال، نشانک‌ها و موارد فهرست خواندن ذخیره خواهند شد.</translation>
 <translation id="1410941016594047814">پاکت دعوت‌نامه</translation>
 <translation id="1413235258620101697">‏برای تسویه‌حساب سریع‌تر، کد تأیید این کارت رمزگذاری خواهد شد و در «کیف پول Google» ذخیره می‌شود</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">مزايا و پاداش‌های دردسترس کارت را هنگام تسویه‌حساب نمایش می‌دهد. شرایط صادرکننده اعمال می‌شود.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">کلیدهای «<ph name="DATA_CONTROLS_FIRST_KEY_SET" />» را نمی‌توان در واژه‌نامه کلیدهای «<ph name="DATA_CONTROLS_SECOND_KEY_SET" />» تنظیم کرد</translation>
+<translation id="1449251255954293933">‏ذخیره شماره رسیدگی در «کیف پول Google»</translation>
 <translation id="1455413310270022028">پاک‌کن</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{مشاهده ۰ مرور}=1{مشاهده ۱ مرور}one{مشاهده همه # مرور}other{مشاهده همه # مرور}}</translation>
 <translation id="1458059624921545588">افراد و اجتماع</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">پاکت شخصی</translation>
 <translation id="2046951263634619614">خرده‌فروشی کتاب</translation>
 <translation id="2048261947532620704">درحال ترجمه صفحه</translation>
+<translation id="2055016614992422886">مکالمه</translation>
 <translation id="2059166748188874810">شهرداری</translation>
 <translation id="2059202684901022309">۳۴ × ۲۲ اینچ</translation>
 <translation id="2064568741209980952">اعتبار و وام</translation>
@@ -1156,6 +1159,7 @@
 <translation id="2782088940970074970">اجاره خودرو</translation>
 <translation id="278436560439594386">لوازم خانگی</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">‫ گذرواژه‌ها • گذرکلیدها</translation>
 <translation id="2784949926578158345">اتصال مجدداً برقرار شد.</translation>
 <translation id="2786008859124691917">دوچرخه و لوازم جانبی</translation>
 <translation id="2792012897584536778">سرپرستان این دستگاه چند گواهینامه امنیتی راه‌اندازی کرده‌اند که می‌تواند به آن‌ها اجازه دهد محتوای وب‌سایت‌هایی را که بازدید می‌کنید، ببینند.</translation>
@@ -2306,6 +2310,7 @@
 <translation id="46128681529823442">تجهیزات فوتبال</translation>
 <translation id="4612904677925722054">این سایت ممکن است محتوای مناسب بزرگسالان داشته باشد. ولی یا سرپرست باید بازدید شما از این وب‌سایت را تأیید کند.</translation>
 <translation id="4619564267100705184">درستی‌سنجی کردن هویت</translation>
+<translation id="4619669610757527494">‏ذخیره گواهینامه رانندگی در «کیف پول Google»</translation>
 <translation id="4622292761762557753">درهرصورت منتقل شود</translation>
 <translation id="4622647778991854660">اعلان‌ها را در «مرکز اعلان‌ها» فعال کنید. باز کردن <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">مدارک شناسایی</translation>
@@ -2835,6 +2840,7 @@
 <translation id="543656192084990644">حسگرهای حرکتی مجاز نیستند</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />، قبلاً <ph name="PREVIOUS_VALUE" /> بود</translation>
 <translation id="5443468954631487277">روبه‌بالا به‌ترتیب معکوس</translation>
+<translation id="5447103258548475868">‏ذخیره گذرنامه در «کیف پول Google»</translation>
 <translation id="5447235695608032700">اجازه دادن به <ph name="SITE" /> برای استفاده از اطلاعاتی که درباره شما ذخیره کرده‌اند</translation>
 <translation id="5447973833955560753">گذرواژه بازیابی</translation>
 <translation id="5451331376824595378">‏وقتی Chrome رویدادهای امنیتی را پرچم‌گذاری می‌کند، داده‌های مرتبط درباره این رویدادها به سرپرستتان ارسال می‌شود. این داده‌ها می‌تواند شامل موارد زیر باشد: نشانی‌های وب صفحه‌هایی که در Chrome بازدید می‌کنید، نشانی‌های وب صفحه‌هایی که داده‌ها را از آن‌ها کپی کرده‌اید، نام فایل‌ها یا فراداده‌ها، نشانی‌های IP، خرابی‌های مرورگر یا زبانه‌ها، و نام کاربری‌ای که برای ورود به سیستم برنامه‌های تحت وب، دستگاه، و Chrome استفاده می‌کنید.</translation>
@@ -3017,6 +3023,7 @@
 <translation id="5718601519531438273">شامل اطلاعاتی مانند گذرنامه و گواهینامه رانندگی می‌شود</translation>
 <translation id="5720705177508910913">کاربر کنونی</translation>
 <translation id="5720895412771013401">رایانه رومیزی</translation>
+<translation id="5721147290164931316">برای ورود به سیستم ازطریق تلفن همراه خود کد را اسکن کنید</translation>
 <translation id="5721367770070844253">{count,plural, =1{‫{website_1}}=2{‫{website_1}،‏ {website_2}}=3{‫{website_1}،‏ {website_2}، و ۱ وب‌سایت دیگر}one{‫{website_1}،‏ {website_2}، و {more_count} وب‌سایت دیگر}other{‫{website_1}،‏ {website_2}، و {more_count} وب‌سایت دیگر}}</translation>
 <translation id="572328651809341494">زبانه‌های اخیر</translation>
 <translation id="5723873695528696965">‏کنترل و برنامه‌ریزی مجدد دستگاه‌های MIDI</translation>
@@ -3558,6 +3565,7 @@
 <translation id="6550245281449521513">قفل موشواره مجاز نیست</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />، جدید</translation>
 <translation id="6552566579578780089">پرداخت</translation>
+<translation id="6553777254569586547">‫<ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. ‫<ph name="MATCH_POSITION" /> در <ph name="NUM_MATCHES_IN_GROUP" /> در گروه <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">آخرین بازدید: <ph name="NUM_DAYS" /> روز پیش</translation>
 <translation id="6556866813142980365">ازنو انجام دادن</translation>
 <translation id="6557715786897013164">۱۷ × ۱۴ اینچ</translation>
@@ -4235,6 +4243,7 @@
 <translation id="7599089013883397081">مهلت زمانی بارگیری تمام شد</translation>
 <translation id="7602868996817972616">‏پرسیدن از Google درباره این صفحه</translation>
 <translation id="7606123685356405076">‏مدل‌های Gemini 3</translation>
+<translation id="760632772920590778">‏ذخیره خودرو در «کیف پول Google»</translation>
 <translation id="7610193165460212391">مقدار خارج از محدوده <ph name="VALUE" /> است.</translation>
 <translation id="761261689936461781">ضخیم</translation>
 <translation id="7613889955535752492">انقضا: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4263,7 +4272,9 @@
 <translation id="7646681339175747202">‏گذرواژه‌ای که اکنون استفاده کردید در سرقت اطلاعات شبکه لو رفته است. «مدیر گذرواژه Google» توصیه می‌کند گذرواژه‌تان را همین‌حالا تغییر دهید.</translation>
 <translation id="7647206758853451655">کیفیت چاپ</translation>
 <translation id="7648133459447652947">برای نمایش مکان‌نما، بین برنامه‌ها جابه‌جا شوید، صفحه را مجدداً بار کنید، یا به عقب برگردید</translation>
+<translation id="764847582138410250">برای ورود به سیستم ازطریق تلفن همراه خود کد را اسکن کنید</translation>
 <translation id="7648527891719919697">‏این سایت مسدود خواهد ماند زیرا «محافظت پیشرفته» را در <ph name="BEGIN_ANDROID_SETTINGS_LINK" />تنظیمات Android<ph name="END_ANDROID_SETTINGS_LINK" /> روشن کرده‌اید. <ph name="BEGIN_LEARN_MORE_LINK" />درباره این هشدار بیشتر بدانید<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">‏ذخیره شماره مسافر شناخته‌شده در «کیف پول Google»</translation>
 <translation id="7648992873808071793">ذخیره کردن فایل در این دستگاه</translation>
 <translation id="7649070708921625228">راهنما</translation>
 <translation id="7650141368285545431">استفاده از گذرکلید از دستگاهی دیگر</translation>
@@ -4356,6 +4367,7 @@
 <translation id="7773005668374414287">ترتیب یکسان، روبه‌بالا</translation>
 <translation id="7779418012194492374">لغو دسترسی برای <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">دیروز</translation>
+<translation id="7782228658217918863">‏ذخیره کارت شناسایی در «کیف پول Google»</translation>
 <translation id="7782465647372057580">اطلاعات حساب رمزگذاری می‌شود و محرمانه نگه داشته می‌شود</translation>
 <translation id="7785471469930192436">برای اینکه سابقه جستجویتان را درصورت امکان حذف کنید، به دستورالعمل‌های موتور جستجو مراجعه کنید</translation>
 <translation id="7785790577395078482">این رایانه لوحی</translation>

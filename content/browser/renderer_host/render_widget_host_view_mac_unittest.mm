@@ -1446,6 +1446,29 @@ TEST_F(RenderWidgetHostViewMacTest, TimerBasedPhaseInfo) {
                   .data.scroll_end.synthetic);
 }
 
+TEST_F(RenderWidgetHostViewMacTest,
+       GestureScrollUpdateAckUpdatesLatchingState) {
+  // Initially it should be kNotArrived.
+  EXPECT_EQ(FirstScrollUpdateAckState::kNotArrived,
+            rwhv_mac_->mouse_wheel_phase_handler_
+                .first_scroll_update_ack_state_for_testing());
+
+  // Send a GSU event that was not consumed.
+  blink::WebGestureEvent gesture_event(
+      blink::WebInputEvent::Type::kGestureScrollUpdate,
+      blink::WebInputEvent::kNoModifiers, ui::EventTimeForNow(),
+      blink::WebGestureDevice::kTouchpad);
+
+  rwhv_mac_->GestureEventAck(
+      gesture_event, blink::mojom::InputEventResultSource::kCompositorThread,
+      blink::mojom::InputEventResultState::kNotConsumed);
+
+  // The state should now be updated to kNotConsumed.
+  EXPECT_EQ(FirstScrollUpdateAckState::kNotConsumed,
+            rwhv_mac_->mouse_wheel_phase_handler_
+                .first_scroll_update_ack_state_for_testing());
+}
+
 // With wheel scroll latching wheel end events are not sent immediately, instead
 // we start a timer to see if momentum phase of the scroll starts or not.
 TEST_F(RenderWidgetHostViewMacTest,

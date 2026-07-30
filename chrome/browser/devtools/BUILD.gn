@@ -269,6 +269,7 @@ static_library("devtools") {
       "//chrome/browser/ui/navigator",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views:layout_provider",
       "//chrome/browser/ui/webui_browser:headers",
       "//chrome/browser/user_education",
       "//chrome/browser/web_applications",
@@ -392,6 +393,7 @@ static_library("devtools") {
       "//chrome/browser/first_party_sets",
       "//chrome/browser/ui/media_router",
       "//chrome/browser/ui/startup",
+      "//components/content_settings/core/common",
       "//components/custom_handlers",
       "//components/media_router/browser",
       "//components/media_router/common/mojom:media_router",
@@ -408,6 +410,10 @@ static_library("devtools") {
       "//ui/gfx/geometry",
     ]
     sources += [
+      "devtools_navigation_gating_rule_manager.cc",
+      "devtools_navigation_gating_rule_manager.h",
+      "devtools_navigation_throttle.cc",
+      "devtools_navigation_throttle.h",
       "protocol/ads_handler.cc",
       "protocol/ads_handler.h",
       "protocol/autofill_handler.cc",

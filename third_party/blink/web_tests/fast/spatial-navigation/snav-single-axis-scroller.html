@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<title>Spatial Navigation: single-axis scrollers are transparent to cross-axis navigation</title>
+<link rel="help" href="https://drafts.csswg.org/css-nav-1/#can-be-manually-scrolled">
+<!--
+  #scroller-x can only be manually scrolled along the x-axis and #scroller-y
+  only along the y-axis. Navigation along the other axis must treat them like
+  non-scrollable elements: their content takes part in the surrounding
+  document's search, and arrow keys are never consumed to scroll them.
+-->
+<style>
+  a {
+    display: block;
+    width: 60px;
+    height: 20px;
+  }
+  #row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  #scroller-x, #scroller-y {
+    border: 1px solid black;
+  }
+  #scroller-x {
+    width: 100px;
+    height: 50px;
+    margin: 10px 0;
+    overflow-x: scroll;
+    overflow-y: clip;
+  }
+  #content-x {
+    width: 300px;  /* Forces scrollable overflow on the x-axis only. */
+    height: 20px;
+  }
+  #scroller-y {
+    width: 100px;
+    height: 100px;
+    overflow-x: clip;
+    overflow-y: scroll;
+  }
+  #spacer-y {
+    height: 280px;  /* Forces scrollable overflow on the y-axis only. */
+  }
+</style>
+
+<a id="a" href="#">a</a>
+<div id="scroller-x">
+  <div id="content-x">
+    <a id="b" href="#">b</a>
+  </div>
+</div>
+<div id="row">
+  <a id="c" href="#">c</a>
+  <div id="scroller-y">
+    <a id="d" href="#">d</a>
+    <div id="spacer-y"></div>
+  </div>
+  <a id="e" href="#">e</a>
+</div>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/snav-testharness.js"></script>
+<script>
+  window.addEventListener('load', () => {
+    document.getElementById("a").focus();
+  });
+  snav.assertFocusMoves([
+      // Down moves directly onto the x-scroller's content...
+      ["Down", "b"],
+      // ...and out of it again; Down is never consumed to scroll it.
+      ["Down", "c"],
+      // Likewise Right moves through the y-scroller without being consumed.
+      ["Right", "d"],
+      ["Right", "e"]]);
+</script>

@@ -98,7 +98,7 @@ void ConnectionTokenAttestation::OnTokenFetched(
     std::optional<phosphor::BlindSignedAuthToken> auth_token) {
   if (!auth_token.has_value()) {
     logger_->LogError(FROM_HERE, "Failed to get anonymous auth token");
-    CallOnDisconnect(StatusCode::kClientAttestationFailed);
+    CallOnDisconnect(StatusCode::kClientAttestationTokenFetchFailed);
     return;
   }
 
@@ -113,7 +113,7 @@ void ConnectionTokenAttestation::OnTokenFetched(
 
   if (!token_str || !extensions_str) {
     logger_->LogError(FROM_HERE, "Failed to decode anonymous auth token");
-    CallOnDisconnect(StatusCode::kClientAttestationFailed);
+    CallOnDisconnect(StatusCode::kClientAttestationTokenDecodeFailed);
     return;
   }
 
@@ -162,14 +162,20 @@ void ConnectionTokenAttestation::OnInnerConnectionResponse(
       // after sending the token, we assume it's an attestation failure caused
       // by an invalid token. The server closes the stream on invalid token,
       // which surfaces as an error here.
+      base::UmaHistogramEnumeration(
+          "PrivateAi.Client.ClientAttestationRequestFailureReason",
+          result.error());
+
       logger_->LogError(
           FROM_HERE,
           base::StrCat({"Request failed with error code: ",
                         base::NumberToString(static_cast<int>(result.error())),
                         ", assuming token rejection."}));
       attestation_state_ = AttestationState::kTokenFailed;
-      std::move(original_callback)
-          .Run(base::unexpected(StatusCode::kClientAttestationFailed));
+      if (original_callback) {
+        std::move(original_callback)
+            .Run(base::unexpected(StatusCode::kClientAttestationFailed));
+      }
       // The connection is now considered broken due to failed attestation.
       CallOnDisconnect(StatusCode::kClientAttestationFailed);
       return;
@@ -181,7 +187,9 @@ void ConnectionTokenAttestation::OnInnerConnectionResponse(
     }
   }
 
-  std::move(original_callback).Run(std::move(result));
+  if (original_callback) {
+    std::move(original_callback).Run(std::move(result));
+  }
 }
 
 void ConnectionTokenAttestation::OnDestroy(StatusCode status_code) {

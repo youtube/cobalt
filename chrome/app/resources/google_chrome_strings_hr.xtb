@@ -398,6 +398,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="5234764350956374838">Odbaci</translation>
 <translation id="5239627039202700673">Chrome možete upotrebljavati svaki put kad kliknete veze u porukama, dokumentima i drugim aplikacijama.</translation>
 <translation id="5251420635869119124">Gosti mogu upotrebljavati Chrome bez ostavljanja tragova o upotrebi.</translation>
+<translation id="5271833978500241046">Upotrebljavajte ih uz druge Geminijeve značajke u Chromeu</translation>
 <translation id="5286907366254680517">Otkriveno</translation>
 <translation id="5320351714793324716">Ako dopustite kolačiće, Chrome ih može koristiti prilikom predučitavanja.</translation>
 <translation id="5321325624576443340">Google objektiv nije dostupan. Pokušajte ponovo kasnije.</translation>
@@ -434,15 +435,6 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="569897634095159764">Povezivanje s internetom nije moguće. Proxy poslužitelj zahtijeva autentifikaciju.</translation>
 <translation id="5709557627224531708">Postavite Chrome kao zadani preglednik</translation>
 <translation id="5719246646468301581">Dodatni uvjeti pružanja usluge za Google Chrome i ChromeOS</translation>
-<translation id="5719324992913248873">Tom ćete radnjom:
-        <ph name="LINE_BREAKS" />
-          • vratiti neke postavke Chromea i Chromeove prečace na zadano
-          <ph name="LINE_BREAK" />
-          • onemogućiti proširenja
-          <ph name="LINE_BREAK" />
-          • izbrisati kolačiće i druge privremene podatke web-lokacije.
-          <ph name="LINE_BREAKS" />
-          To neće utjecati na oznake, povijest i spremljene zaporke.</translation>
 <translation id="5736850870166430177">Ako neka web-lokacija pokuša ukrasti vašu zaporku ili ako preuzmete štetnu datoteku, Chrome također može sigurnom pregledavanju poslati URL-ove, uključujući dijelove sadržaja web-stranice</translation>
 <translation id="5756509061973259733">Profil u Chromeu s tim računom već postoji na ovom uređaju</translation>
 <translation id="5759947850379142561">Odaberite bilo koji tekst ili sliku za pretraživanje pomoću Google objektiva ili pritisnite Escape da biste zatvorili Google objektiv</translation>
@@ -640,6 +632,7 @@ Ako ova stranica ne funkcionira ispravno, dopustite optimizaciju.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Da biste zaštitili svoje podatke, dopustite Chromeu da ukloni dopuštenja s web-lokacija koje niste posjetili u posljednje vrijeme.</translation>
 <translation id="7629695634924605473">Chrome će vas obavijestiti ako vaše zaporke budu ugrožene</translation>
+<translation id="7629898584100520089">AI inovacije kao što su vještine spremaju se na vaš Google račun i njima se upravlja odvojeno od Chrome sinkronizacije</translation>
 <translation id="7641148173327520642">Vaš administrator sustava konfigurirao je Google Chrome da otvara <ph name="ALTERNATIVE_BROWSER_NAME" /> za pristup URL-u <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Pomoć</translation>
 <translation id="7651907282515937834">Logotip Chrome Enterprise</translation>

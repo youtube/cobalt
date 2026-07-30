@@ -62,8 +62,9 @@ enum class SubmitResult {
   HIT_TEST_DATA_INVALID = 6,
   INVALID_FRAME = 7,
   INVALID_DISPLAY_TRANSFORM = 8,
+  INVALID_BEGIN_FRAME_ACK = 9,
   // Magic constant used by the histogram macros.
-  kMaxValue = INVALID_DISPLAY_TRANSFORM,
+  kMaxValue = INVALID_BEGIN_FRAME_ACK,
 };
 
 class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
@@ -199,7 +200,7 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   void SetWantsAnimateOnlyBeginFrames();
   void SetAutoNeedsBeginFrame();
   void SetNoCompositorFrameAcks();
-  void DidNotProduceFrame(const BeginFrameAck& ack);
+  bool DidNotProduceFrame(const BeginFrameAck& ack);
   void SubmitCompositorFrame(
       const LocalSurfaceId& local_surface_id,
       CompositorFrame frame,

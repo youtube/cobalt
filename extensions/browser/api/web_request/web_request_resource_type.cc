@@ -76,10 +76,11 @@ WebRequestResourceType ToWebRequestResourceType(
     case network::mojom::RequestDestination::kStyle:
     case network::mojom::RequestDestination::kXslt:
       return WebRequestResourceType::STYLESHEET;
-    case network::mojom::RequestDestination::kScript:
     // TODO(crbug.com/41484304): Consider adding a new
     // webRequest.ResourceType for JSON requests modules.
     case network::mojom::RequestDestination::kJson:
+    case network::mojom::RequestDestination::kScript:
+    case network::mojom::RequestDestination::kText:
       return WebRequestResourceType::SCRIPT;
     case network::mojom::RequestDestination::kImage:
       return WebRequestResourceType::IMAGE;

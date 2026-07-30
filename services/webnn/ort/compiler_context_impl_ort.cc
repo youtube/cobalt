@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -50,15 +51,28 @@ std::unique_ptr<CompilerContextImplOrt> CompilerContextImplOrt::Create(
     mojo::PendingRemote<mojom::WebNNModelLoader> model_loader) {
   auto env = Environment::GetOrCreateInstance(ep_package_info);
   if (!env.has_value()) {
+    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime environment: "
+               << env.error();
     return nullptr;
   }
+
+  auto session_options = SessionOptions::Create(
+      WebnnToOrtDeviceType(options->device), env.value());
+  if (!session_options.has_value()) {
+    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
+               << session_options.error();
+    return nullptr;
+  }
+
   return std::make_unique<CompilerContextImplOrt>(
-      std::move(env.value()), std::move(options), std::move(properties),
-      std::move(model_loader), base::PassKey<CompilerContextImplOrt>());
+      std::move(env.value()), std::move(session_options.value()),
+      std::move(options), std::move(properties), std::move(model_loader),
+      base::PassKey<CompilerContextImplOrt>());
 }
 
 CompilerContextImplOrt::CompilerContextImplOrt(
     scoped_refptr<Environment> env,
+    scoped_refptr<SessionOptions> session_options,
     mojom::CreateContextOptionsPtr options,
     ContextProperties properties,
     mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,
@@ -66,10 +80,8 @@ CompilerContextImplOrt::CompilerContextImplOrt(
     : properties_(std::move(properties)),
       options_(std::move(options)),
       model_loader_(std::move(model_loader)),
-      env_(std::move(env)) {
-  session_options_ =
-      SessionOptions::Create(WebnnToOrtDeviceType(options_->device), env_);
-
+      env_(std::move(env)),
+      session_options_(std::move(session_options)) {
   model_loader_.set_disconnect_handler(
       base::BindOnce(&CompilerContextImplOrt::OnModelLoaderDisconnected,
                      base::Unretained(this)));

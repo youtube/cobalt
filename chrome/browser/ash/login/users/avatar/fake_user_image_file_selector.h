@@ -23,7 +23,7 @@ class FakeUserImageFileSelector : public UserImageFileSelector {
   ~FakeUserImageFileSelector() override;
 
   void SelectFile(base::OnceCallback<void(const base::FilePath&)> selected_cb,
-                  base::OnceCallback<void(void)> canceled_cb) override;
+                  base::OnceClosure canceled_cb) override;
 
   void SetFilePath(const base::FilePath& file_path);
 

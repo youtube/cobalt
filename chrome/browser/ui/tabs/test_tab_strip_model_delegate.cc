@@ -159,21 +159,5 @@ void TestTabStripModelDelegate::OnRemovingAllTabsFromGroups(
   std::move(callback).Run();
 }
 
-bool TestTabStripModelDelegate::IsTabGlicPinned(tabs::TabHandle tab_handle) {
-  return true;
-}
-
-bool TestTabStripModelDelegate::GlicPinTabs(
-    base::span<const tabs::TabHandle> tab_handles) {
-  return true;
-}
-
-bool TestTabStripModelDelegate::GlicUnpinTabs(
-    base::span<const tabs::TabHandle> tab_handles) {
-  return true;
-}
-
-void TestTabStripModelDelegate::OpenGlicWindowFromSharedTab() {}
-
 void TestTabStripModelDelegate::GlicUnpinTabsFromAllConversations(
     base::span<const tabs::TabHandle> tab_handles) {}

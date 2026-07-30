@@ -12,9 +12,10 @@
 }
 
 #chip {
-  -webkit-tap-highlight-color: transparent;
   align-items: center;
+  appearance: none;
   background-color: var(--chip-bg-color, var(--color-omnibox-chip-background));
+  border: none;
   border-radius: var(--location-bar-child-corner-radius);
   box-shadow: var(--chip-box-shadow, none);
   box-sizing: border-box;
@@ -28,21 +29,23 @@
   height: calc(
       var(--location-bar-height) -
       var(--location-bar-page-info-icon-vertical-padding) * 2);
-  overflow: hidden;
-  padding-block: var(--location-bar-chip-padding);
-  padding-inline-end: calc(var(--location-bar-chip-padding) * 2);
-  padding-inline-start: var(--location-bar-chip-padding);
-  position: relative;
-  user-select: none;
+  margin: 0;
   /* TODO(crbug.com/502598627): max-width is an arbitrary magic number. If the
    * translated string exceeds this, it will be truncated. Animating to a very
    * large max-width breaks the easing curve. Investigate using CSS Grid
    * 0fr->1fr transition to animate to the exact intrinsic width instead. */
   max-width: 250px; /* Arbitrary large max-width for expanded state */
+  overflow: hidden;
+  padding-block: var(--location-bar-chip-padding);
+  padding-inline-end: calc(var(--location-bar-chip-padding) * 2);
+  padding-inline-start: var(--location-bar-chip-padding);
+  position: relative;
   /* 350ms matches the C++ expand duration in PermissionDashboardController.
      ease-out matches the native SlideAnimation's default Tween::EASE_OUT. */
   transition: max-width 350ms ease-out,
               padding-inline-end 350ms ease-out;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #chip:focus-visible {

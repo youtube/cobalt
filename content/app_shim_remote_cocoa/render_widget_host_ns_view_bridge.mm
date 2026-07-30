@@ -324,19 +324,14 @@ void RenderWidgetHostNSViewBridge::ShowSharingServicePicker(
     ShowSharingServicePickerCallback callback) {
   NSMutableArray* items = [[NSMutableArray alloc] init];
   if (url.is_valid()) {
-    if (@available(macOS 13.0, *)) {
-      NSString* ns_title =
-          base::SysUTF8ToNSString(title.empty() ? url.spec() : title);
-      NSURL* ns_url = net::NSURLWithGURL(url);
-      [items addObject:[[NSPreviewRepresentingActivityItem alloc]
-                           initWithItem:ns_url
-                                  title:ns_title
-                                  image:nil
-                                   icon:nil]];
-    } else {
-      [items addObject:base::SysUTF8ToNSString(url.spec())];
-      [items addObject:base::SysUTF8ToNSString(title)];
-    }
+    NSString* ns_title =
+        base::SysUTF8ToNSString(title.empty() ? url.spec() : title);
+    NSURL* ns_url = net::NSURLWithGURL(url);
+    [items addObject:[[NSPreviewRepresentingActivityItem alloc]
+                         initWithItem:ns_url
+                                title:ns_title
+                                image:nil
+                                 icon:nil]];
   } else if (!title.empty()) {
     [items addObject:base::SysUTF8ToNSString(title)];
   }

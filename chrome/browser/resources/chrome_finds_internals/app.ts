@@ -71,11 +71,6 @@ export class ChromeFindsInternalsAppElement extends CrLitElement {
     this.handler_.getFindsServiceModelResponse();
   }
 
-  protected onTriggerFindsTestNotificationClick_() {
-    this.appendLog_('Triggering Finds Test Notification...');
-    this.handler_.triggerFindsTestNotification();
-  }
-
   protected async onDumpHistoryClick_() {
     this.appendLog_(
         `Requesting history JSON (count: ${this.historyCount_})...`);

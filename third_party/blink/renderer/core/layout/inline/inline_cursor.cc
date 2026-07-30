@@ -453,6 +453,10 @@ UBiDiLevel InlineCursorPosition::BidiLevel() const {
 
 std::pair<base::span<const Member<InlineItem>>, bool>
 InlineCursorPosition::InlineItemsFor(const LayoutText& layout_text) const {
+  const auto* const items = layout_text.GetInlineItems();
+  if (!items || items->empty()) [[unlikely]] {
+    return {{}, false};
+  }
   if (UsesFirstLineStyle() &&
       RuntimeEnabledFeatures::FirstLineTextTransformEnabled()) [[unlikely]] {
     if (const LayoutBlockFlow* block_flow =
@@ -464,11 +468,7 @@ InlineCursorPosition::InlineItemsFor(const LayoutText& layout_text) const {
       }
     }
   }
-  const auto* const items = layout_text.GetInlineItems();
-  if (items && !items->empty()) {
-    return {items->Items(), false};
-  }
-  return {{}, false};
+  return {items->Items(), false};
 }
 
 const DisplayItemClient* InlineCursorPosition::GetSelectionDisplayItemClient()

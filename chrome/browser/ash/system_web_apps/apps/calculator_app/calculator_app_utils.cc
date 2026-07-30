@@ -6,15 +6,15 @@
 
 #include "ash/constants/web_app_id_constants.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/extension_status_utils.h"
+#include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
 
 namespace ash {
 namespace calculator_app {
 
 std::string GetInstalledCalculatorAppId(Profile* profile) {
-  if (extensions::IsExtensionInstalled(profile,
-                                       extension_misc::kCalculatorAppId)) {
+  if (extensions::ExtensionRegistry::Get(profile)->GetInstalledExtension(
+          extension_misc::kCalculatorAppId)) {
     return extension_misc::kCalculatorAppId;
   }
   return ash::kCalculatorAppId;

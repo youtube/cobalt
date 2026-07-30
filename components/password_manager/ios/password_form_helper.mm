@@ -385,6 +385,10 @@ const char kHostFrameKey[] = "host_frame";
     return HandleSubmittedFormStatus::kRejectedNoDelegate;
   }
 
+  if (!message.is_user_interacting()) {
+    return HandleSubmittedFormStatus::kRejectedNoUserInteraction;
+  }
+
   std::optional<GURL> pageURL = _webState->GetLastCommittedURLIfTrusted();
   if (!pageURL) {
     return HandleSubmittedFormStatus::kRejectedNoTrustedUrl;

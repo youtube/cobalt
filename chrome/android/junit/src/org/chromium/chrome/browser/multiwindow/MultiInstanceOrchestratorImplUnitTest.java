@@ -17,6 +17,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,7 +26,6 @@ import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WIN
 
 import android.app.Activity;
 import android.app.ActivityManager.AppTask;
-import android.app.ApplicationExitInfo;
 import android.content.Intent;
 import android.os.Bundle;
 
@@ -35,7 +36,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -973,135 +973,61 @@ public class MultiInstanceOrchestratorImplUnitTest {
     }
 
     @Test
-    @Config(sdk = 30)
-    public void testOnForegroundBrowserProcessInitialized_noCrash_noOp() {
-        // List of reasons that should NOT trigger crash recovery.
-        int[] nonCrashReasons = {
-            ApplicationExitInfo.REASON_USER_REQUESTED,
-            ApplicationExitInfo.REASON_EXIT_SELF,
-            ApplicationExitInfo.REASON_USER_STOPPED,
-            -1 // API failure
-        };
-
-        for (int reason : nonCrashReasons) {
-            mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized(reason);
-            assertFalse(
-                    "Reason " + reason + " should not trigger crash recovery.",
-                    ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending());
-        }
-
-        verify(mTabbedCrashRecoveryDelegate, never()).initiateCrashRecovery(any(), any(), any());
-    }
-
-    @Test
-    @Config(sdk = 30)
-    public void testOnForegroundBrowserProcessInitialized_crash_immediateRecovery() {
-        MultiWindowTestUtils.createInstance(SOURCE_WINDOW_ID, "www.example.com", 1, 1);
-        ChromeMultiInstancePersistentStore.writeIsRecoverable(SOURCE_WINDOW_ID, true);
-
-        int[] crashReasons = {
-            ApplicationExitInfo.REASON_CRASH,
-            ApplicationExitInfo.REASON_CRASH_NATIVE,
-            ApplicationExitInfo.REASON_ANR
-        };
-
-        for (int reason : crashReasons) {
-            // Register one activity.
-            ((MultiInstanceOrchestratorImpl) mMultiInstanceOrchestrator)
-                    .clearAssignmentsForTesting();
-            mMultiInstanceOrchestrator.onInitialize(mTabbedActivity1, mMultiInstanceManager1);
-
-            // Act: Initialize with a crash exit reason.
-            mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized(reason);
-
-            // Verify: Immediate crash recovery initiated.
-            verify(mTabbedCrashRecoveryDelegate)
-                    .initiateCrashRecovery(
-                            eq(mModalDialogManagerSupplier), eq(mTabbedActivity1), any());
-            assertFalse(ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending());
-
-            // Reset mock for the next iteration.
-            Mockito.reset(mTabbedCrashRecoveryDelegate);
-        }
-    }
-
-    @Test
-    @Config(sdk = 30)
-    public void testOnForegroundBrowserProcessInitialized_crash_deferredRecovery() {
-        // Setup: One crashed window.
-        MultiWindowTestUtils.createInstance(SOURCE_WINDOW_ID, "www.example.com", 1, 1);
-        ChromeMultiInstancePersistentStore.writeIsRecoverable(SOURCE_WINDOW_ID, true);
-
-        int[] crashReasons = {
-            ApplicationExitInfo.REASON_CRASH,
-            ApplicationExitInfo.REASON_CRASH_NATIVE,
-            ApplicationExitInfo.REASON_ANR
-        };
-
-        for (int reason : crashReasons) {
-            // Clear any registered activities.
-            ((MultiInstanceOrchestratorImpl) mMultiInstanceOrchestrator)
-                    .clearAssignmentsForTesting();
-
-            // Act: Initialize with a crash exit reason.
-            mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized(reason);
-
-            // Verify: Deferred crash recovery.
-            verify(mTabbedCrashRecoveryDelegate, never())
-                    .initiateCrashRecovery(any(), any(), any());
-            assertTrue(
-                    "Reason " + reason + " should trigger deferred crash recovery.",
-                    ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending());
-        }
-    }
-
-    @Test
-    @Config(sdk = 30)
-    public void testOnInitialize_pendingRecovery() {
-        // Setup: One crashed window.
-        MultiWindowTestUtils.createInstance(SOURCE_WINDOW_ID, "www.example.com", 1, 1);
-        ChromeMultiInstancePersistentStore.writeIsRecoverable(SOURCE_WINDOW_ID, true);
-
-        // Clear any registered activities and trigger deferred recovery.
+    public void testOnInitialize_firstTabbedActivity_initializesCrashRecoveryMetadata() {
+        // Setup.
         ((MultiInstanceOrchestratorImpl) mMultiInstanceOrchestrator).clearAssignmentsForTesting();
-        mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized(
-                ApplicationExitInfo.REASON_CRASH);
-        assertTrue(ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending());
+        reset(mTabbedCrashRecoveryDelegate);
 
-        // Act: Initialize a new ChromeTabbedActivity.
+        // Act: Initialize the first ChromeTabbedActivity.
         mMultiInstanceOrchestrator.onInitialize(mTabbedActivity1, mMultiInstanceManager1);
 
-        // Verify: Crash recovery initiated during onInitialize.
-        verify(mTabbedCrashRecoveryDelegate)
-                .initiateCrashRecovery(
-                        eq(mModalDialogManagerSupplier), eq(mTabbedActivity1), any());
-        assertFalse(ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending());
+        // Verify: Metadata initialization is triggered.
+        verify(mTabbedCrashRecoveryDelegate).initializeCrashRecoveryMetadata();
+    }
+
+    @Test
+    public void testOnInitialize_subsequentTabbedActivity_doesNotInitializeMetadata() {
+        // Setup.
+        ((MultiInstanceOrchestratorImpl) mMultiInstanceOrchestrator).clearAssignmentsForTesting();
+        reset(mTabbedCrashRecoveryDelegate);
+
+        // Act: Initialize the first activity.
+        mMultiInstanceOrchestrator.onInitialize(mTabbedActivity1, mMultiInstanceManager1);
+        verify(mTabbedCrashRecoveryDelegate).initializeCrashRecoveryMetadata();
+
+        // Act: Initialize a second activity.
+        mMultiInstanceOrchestrator.onInitialize(mTabbedActivity2, mMultiInstanceManager2);
+
+        // Verify: Not called a second time.
+        verify(mTabbedCrashRecoveryDelegate, times(1)).initializeCrashRecoveryMetadata();
+    }
+
+    @Test
+    @Config(sdk = 30)
+    public void testOnForegroundBrowserProcessInitialized_withTabbedActivity_noOp() {
+        // Setup.
+        ((MultiInstanceOrchestratorImpl) mMultiInstanceOrchestrator).clearAssignmentsForTesting();
+        mMultiInstanceOrchestrator.onInitialize(mTabbedActivity1, mMultiInstanceManager1);
+
+        // Act.
+        mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized();
+
+        // Verify: returns immediately without calling maybeDeferCrashRecovery.
+        verify(mTabbedCrashRecoveryDelegate, never()).maybeDeferCrashRecovery();
     }
 
     @Test
     @Config(sdk = 30)
     public void
-            testOnForegroundBrowserProcessInitialized_crash_newActivityNoPreviousActiveTabbedActivity() {
-        // Setup: No crashed tabbed windows exist initially on disk.
-        MultiWindowTestUtils.resetInstanceInfo();
-
-        // Clear any registered activities.
+            testOnForegroundBrowserProcessInitialized_noTabbedActivity_callsDeferCrashRecovery() {
+        // Setup.
         ((MultiInstanceOrchestratorImpl) mMultiInstanceOrchestrator).clearAssignmentsForTesting();
 
-        // Register the new activity. This triggers onInitialize(), which captures the empty list.
-        mMultiInstanceOrchestrator.onInitialize(mTabbedActivity1, mMultiInstanceManager1);
+        // Act.
+        mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized();
 
-        // The new activity now writes writeIsRecoverable(0, true) during its normal initialization.
-        ChromeMultiInstancePersistentStore.writeIsRecoverable(SOURCE_WINDOW_ID, true);
-
-        // Act: Foreground browser process is initialized with a crash exit reason.
-        mMultiInstanceOrchestrator.onForegroundBrowserProcessInitialized(
-                ApplicationExitInfo.REASON_CRASH);
-
-        // Verify: No crash recovery is initiated because no ChromeTabbedActivity was active before
-        // the crash.
-        verify(mTabbedCrashRecoveryDelegate, never()).initiateCrashRecovery(any(), any(), any());
-        assertFalse(ChromeMultiInstancePersistentStore.readIsCrashRecoveryPending());
+        // Verify: maybeDeferCrashRecovery is called.
+        verify(mTabbedCrashRecoveryDelegate).maybeDeferCrashRecovery();
     }
 
     private void doTestOpenUrlInOtherWindowWithIncognitoWindowingEnabled(

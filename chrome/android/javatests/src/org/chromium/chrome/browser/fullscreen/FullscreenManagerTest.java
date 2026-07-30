@@ -1323,7 +1323,7 @@ public class FullscreenManagerTest {
      */
     private void setTabSwitcherModeAndWait(boolean inSwitcher) {
         LayoutManager layoutManager = mActivityTestRule.getActivity().getLayoutManager();
-        @LayoutType int layout = inSwitcher ? LayoutType.TAB_SWITCHER : LayoutType.BROWSING;
+        @LayoutType int layout = inSwitcher ? LayoutType.HUB : LayoutType.BROWSING;
         LayoutTestUtils.startShowingAndWaitForLayout(layoutManager, layout, false);
     }
 

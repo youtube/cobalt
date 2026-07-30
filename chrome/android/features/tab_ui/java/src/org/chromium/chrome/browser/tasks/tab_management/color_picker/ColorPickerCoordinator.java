@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.tasks.tab_management.color_picker;
 
 import android.content.Context;
 import android.view.View;
-import android.widget.FrameLayout;
 import android.widget.RadioGroup;
 
 import androidx.annotation.IntDef;
@@ -67,11 +66,11 @@ public class ColorPickerCoordinator implements ColorPicker {
         mContainerView.setColorPickerLayoutType(layoutType);
 
         List<PropertyModel> colorItems = new ArrayList<>();
-        List<FrameLayout> colorViews = new ArrayList<>();
+        List<View> colorViews = new ArrayList<>();
 
         for (int i = 0; i < colors.size(); i++) {
             int color = colors.get(i);
-            FrameLayout view = (FrameLayout) ColorPickerItemViewBinder.createItemView(context);
+            View view = ColorPickerItemViewBinder.createItemView(mContainerView);
             colorViews.add(view);
 
             PropertyModel model =

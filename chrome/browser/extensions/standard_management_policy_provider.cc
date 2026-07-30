@@ -11,7 +11,7 @@
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/grit/generated_resources.h"
 #include "extensions/browser/managed_installation_mode.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
@@ -177,9 +177,8 @@ void StandardManagementPolicyProvider::UserMayInstall(
 
   // Check if the extension would be force-disabled once it's installed. If it
   // would, block the new installation.
-  auto* mv2_experiment_manager = ManifestV2ExperimentManager::Get(profile_);
-  if (mv2_experiment_manager &&
-      mv2_experiment_manager->ShouldBlockExtensionEnable(*extension)) {
+  auto* mv2_handler = ManifestV2Handler::Get(profile_);
+  if (mv2_handler && mv2_handler->ShouldBlockExtensionEnable(*extension)) {
     error =
         l10n_util::GetStringUTF16(IDS_EXTENSIONS_CANT_INSTALL_MV2_EXTENSION);
     std::move(callback).Run({false, error});
@@ -241,12 +240,11 @@ bool StandardManagementPolicyProvider::MustRemainDisabled(
     return true;
   }
 
-  // Note: `mv2_experiment_manager` may be null for certain types of profiles
+  // Note: `mv2_handler` may be null for certain types of profiles
   // (such as the sign-in profile). We can ignore this check in this case, since
   // users can't install extensions in these profiles.
-  auto* mv2_experiment_manager = ManifestV2ExperimentManager::Get(profile_);
-  if (mv2_experiment_manager &&
-      mv2_experiment_manager->ShouldBlockExtensionEnable(*extension)) {
+  auto* mv2_handler = ManifestV2Handler::Get(profile_);
+  if (mv2_handler && mv2_handler->ShouldBlockExtensionEnable(*extension)) {
     if (reason) {
       *reason = disable_reason::DISABLE_UNSUPPORTED_MANIFEST_VERSION;
     }

@@ -294,13 +294,6 @@ SkBitmap BackForwardTransitionAnimationManagerAndroid::
       ->GetBackForwardTransitionFallbackUXInternalPageIcon();
 }
 
-void BackForwardTransitionAnimationManagerAndroid::MaybeRecordIgnoredInput(
-    const blink::WebInputEvent& event) {
-  if (animator_) {
-    animator_->MaybeRecordIgnoredInput(event);
-  }
-}
-
 void BackForwardTransitionAnimationManagerAndroid::MaybeDestroyAnimator() {
   CHECK(animator_);
   if (animator_->IsTerminalState()) {

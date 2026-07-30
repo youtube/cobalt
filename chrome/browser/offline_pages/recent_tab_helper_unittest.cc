@@ -425,7 +425,7 @@ TEST_F(RecentTabHelperTest, LastNWontSaveCustomTab) {
   EXPECT_EQ(1U, page_added_count());
   ASSERT_EQ(1U, GetAllPages().size());
 
-  // Simulates the tab being transfered from the CustomTabActivity back to a
+  // Simulates the tab being transferred from the CustomTabActivity back to a
   // ChromeActivity.
   default_test_delegate()->set_is_custom_tab(false);
 

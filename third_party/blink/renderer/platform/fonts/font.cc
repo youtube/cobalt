@@ -213,10 +213,6 @@ base::span<const FontFeatureRange> Font::GetFontFeatures() const {
   return EnsureFontFallbackList()->GetFontFeatures(font_description_);
 }
 
-bool Font::HasNonInitialFontFeatures() const {
-  return EnsureFontFallbackList()->HasNonInitialFontFeatures(font_description_);
-}
-
 bool Font::HasSimpleFontFeatures() const {
   return EnsureFontFallbackList()->HasSimpleFontFeatures(font_description_);
 }
@@ -260,31 +256,41 @@ GlyphData Font::GetEmphasisMarkGlyphData(const AtomicString& mark) const {
       .EmphasisMarkGlyphData(font_description_);
 }
 
-int Font::EmphasisMarkAscent(const AtomicString& mark) const {
+LayoutUnit Font::EmphasisMarkAscent(const AtomicString& mark) const {
   const auto mark_glyph_data = GetEmphasisMarkGlyphData(mark);
   const SimpleFontData* mark_font_data = mark_glyph_data.font_data;
   if (!mark_font_data)
-    return 0;
+    return LayoutUnit();
 
-  return mark_font_data->GetFontMetrics().Ascent();
+  if (RuntimeEnabledFeatures::TextEmphasisAsRubyEnabled()) {
+    return mark_font_data->NormalizedTypoAscent();
+  }
+  return mark_font_data->GetFontMetrics().FixedAscent();
 }
 
-int Font::EmphasisMarkDescent(const AtomicString& mark) const {
+LayoutUnit Font::EmphasisMarkDescent(const AtomicString& mark) const {
   const auto mark_glyph_data = GetEmphasisMarkGlyphData(mark);
   const SimpleFontData* mark_font_data = mark_glyph_data.font_data;
   if (!mark_font_data)
-    return 0;
+    return LayoutUnit();
 
-  return mark_font_data->GetFontMetrics().Descent();
+  if (RuntimeEnabledFeatures::TextEmphasisAsRubyEnabled()) {
+    return mark_font_data->NormalizedTypoDescent();
+  }
+  return mark_font_data->GetFontMetrics().FixedDescent();
 }
 
-int Font::EmphasisMarkHeight(const AtomicString& mark) const {
+LayoutUnit Font::EmphasisMarkHeight(const AtomicString& mark) const {
   const auto mark_glyph_data = GetEmphasisMarkGlyphData(mark);
   const SimpleFontData* mark_font_data = mark_glyph_data.font_data;
   if (!mark_font_data)
-    return 0;
+    return LayoutUnit();
 
-  return mark_font_data->GetFontMetrics().Height();
+  if (RuntimeEnabledFeatures::TextEmphasisAsRubyEnabled()) {
+    return mark_font_data->NormalizedTypoAscentAndDescent().LineHeight();
+  }
+  return LayoutUnit::FromFloatRound(
+      mark_font_data->GetFontMetrics().FloatHeight());
 }
 
 float Font::TextAutoSpaceInlineSize() const {

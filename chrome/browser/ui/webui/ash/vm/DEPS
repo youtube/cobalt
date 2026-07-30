@@ -14,6 +14,5 @@ include_rules = [
   # Whenever possible, avoid adding new //chrome dependencies to this list.
   "+chrome/browser/ash/plugin_vm",
   "+chrome/browser/profiles/profile.h",
-  "+chrome/common",
   "+chrome/grit",
 ]

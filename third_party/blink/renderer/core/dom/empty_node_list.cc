@@ -31,7 +31,6 @@
 
 #include "third_party/blink/renderer/core/dom/empty_node_list.h"
 
-#include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 
 namespace blink {

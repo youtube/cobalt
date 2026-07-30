@@ -152,9 +152,7 @@ class Buffer::Texture : public viz::ContextLostObserver {
 
   // Copy the contents of texture to |destination| and runs |callback| when
   // completed.
-  void CopyTexImage(std::unique_ptr<gfx::GpuFence> acquire_fence,
-                    Texture* destination,
-                    base::OnceClosure callback);
+  void CopyTexImage(Texture* destination, base::OnceClosure callback);
 
   // Returns the ClientSharedImage for this texture.
   gpu::ClientSharedImage* shared_image() const { return shared_image_.get(); }
@@ -164,20 +162,20 @@ class Buffer::Texture : public viz::ContextLostObserver {
 
  private:
   void DestroyResources();
+  static uintptr_t GetBufferIdHelper(gfx::GpuMemoryBufferHandle* handle);
   void ReleaseWhenQueryResultIsAvailable(base::OnceClosure callback);
   void Released();
   void ScheduleWaitForRelease(base::TimeDelta delay);
   void WaitForRelease();
   const void* GetBufferId() const;
 
-  // Note that the owning reference to this pointers is ::Buffer which can be
-  // destroyed before it when ::Buffer::Texture is destroyed via
-  // ::Buffer::Texture::ReleaseSharedImage(). This causes pointer to dangle. But
-  // this pointer is safe to dangle as we never access it during
-  // ::Buffer::Texture destructor and is also never accessed after the owning
-  // object ::Buffer is destroyed.
-  const raw_ptr<gfx::GpuMemoryBufferHandle, DisableDanglingPtrDetection>
-      gpu_memory_buffer_handle_;
+  // Stores the address of the GpuMemoryBufferHandle as a stable identifier
+  // for tracing. We store this as a uintptr_t rather than a raw_ptr to avoid
+  // dangling pointer detection issues, as the owning ::Buffer can be
+  // destroyed before the ::Buffer::Texture is destroyed (e.g. during
+  // ReleaseSharedImage). This identifier is only used for tracing and is
+  // never dereferenced.
+  const uintptr_t buffer_id_;
   const gfx::Size size_;
   scoped_refptr<viz::RasterContextProvider> context_provider_;
   const unsigned query_type_;
@@ -191,11 +189,19 @@ class Buffer::Texture : public viz::ContextLostObserver {
   base::WeakPtrFactory<Texture> weak_ptr_factory_{this};
 };
 
+// static
+uintptr_t Buffer::Texture::GetBufferIdHelper(
+    gfx::GpuMemoryBufferHandle* handle) {
+  CHECK(handle);
+  CHECK(!handle->is_null());
+  return reinterpret_cast<uintptr_t>(handle);
+}
+
 Buffer::Texture::Texture(
     scoped_refptr<viz::RasterContextProvider> context_provider,
     const gfx::Size& size,
     gfx::ColorSpace color_space)
-    : gpu_memory_buffer_handle_(nullptr),
+    : buffer_id_(0),
       size_(size),
       context_provider_(std::move(context_provider)),
       query_type_(GL_COMMANDS_COMPLETED_CHROMIUM) {
@@ -229,13 +235,11 @@ Buffer::Texture::Texture(
     unsigned query_type,
     base::TimeDelta wait_for_release_delay,
     bool is_overlay_candidate)
-    : gpu_memory_buffer_handle_(gpu_memory_buffer_handle),
+    : buffer_id_(GetBufferIdHelper(gpu_memory_buffer_handle)),
       size_(size),
       context_provider_(std::move(context_provider)),
       query_type_(query_type),
       wait_for_release_delay_(wait_for_release_delay) {
-  CHECK(!gpu_memory_buffer_handle_->is_null());
-
   gpu::SharedImageInterface* sii = context_provider_->SharedImageInterface();
 
   // These SharedImages are used over the raster interface as both the source
@@ -253,7 +257,7 @@ Buffer::Texture::Texture(
 
   shared_image_ = sii->CreateSharedImage(
       {format, size_, color_space, usage, gpu::kExoTextureLabelPrefix},
-      gpu_memory_buffer_handle_->Clone());
+      gpu_memory_buffer_handle->Clone());
   CHECK(shared_image_);
   sync_token_ = shared_image_->creation_sync_token();
   if (query_type_ != 0) {
@@ -301,22 +305,6 @@ void Buffer::Texture::Release(base::OnceClosure callback,
   std::move(callback).Run();
 }
 
-void Buffer::Texture::UpdateSharedImage(
-    std::unique_ptr<gfx::GpuFence> acquire_fence) {
-  if (context_provider_) {
-    gpu::SharedImageInterface* sii = context_provider_->SharedImageInterface();
-    CHECK(shared_image_);
-    // UpdateSharedImage gets called only after |mailbox_| can be reused.
-    // A buffer can be reattached to a surface only after it has been returned
-    // to wayland clients. We return buffers to clients only after the query
-    // |query_type_| is available.
-    sii->UpdateSharedImage(gpu::SyncToken(), std::move(acquire_fence),
-                           shared_image_->mailbox());
-    sync_token_ = sii->GenUnverifiedSyncToken();
-    TRACE_EVENT_INSTANT("exo", "bound", GetTrack(GetBufferId()));
-  }
-}
-
 void Buffer::Texture::ReleaseSharedImage(base::OnceClosure callback,
                                          viz::ReturnedResource resource) {
   if (context_provider_ && query_type_ != 0) {
@@ -341,14 +329,12 @@ void Buffer::Texture::ReleaseSharedImage(base::OnceClosure callback,
   std::move(callback).Run();
 }
 
-void Buffer::Texture::CopyTexImage(std::unique_ptr<gfx::GpuFence> acquire_fence,
-                                   Texture* destination,
+void Buffer::Texture::CopyTexImage(Texture* destination,
                                    base::OnceClosure callback) {
   if (context_provider_) {
     CHECK(shared_image_);
     gpu::SharedImageInterface* sii = context_provider_->SharedImageInterface();
-    sii->UpdateSharedImage(sync_token_, std::move(acquire_fence),
-                           shared_image_->mailbox());
+    sii->UpdateSharedImage(sync_token_, nullptr, shared_image_->mailbox());
     gpu::SyncToken sync_token = sii->GenUnverifiedSyncToken();
 
     gpu::raster::RasterInterface* ri = context_provider_->RasterInterface();
@@ -451,7 +437,7 @@ void Buffer::Texture::WaitForRelease() {
 }
 
 const void* Buffer::Texture::GetBufferId() const {
-  return static_cast<const void*>(gpu_memory_buffer_handle_);
+  return reinterpret_cast<const void*>(buffer_id_);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -562,7 +548,6 @@ std::unique_ptr<Buffer> Buffer::CreateBuffer(
 
 std::optional<viz::TransferableResource> Buffer::ProduceTransferableResource(
     FrameSinkResourceManager* resource_manager,
-    std::unique_ptr<gfx::GpuFence> acquire_fence,
     bool secure_output_only,
     gfx::ColorSpace color_space,
     ProtectedNativePixmapQueryDelegate* protected_native_pixmap_query) {
@@ -640,15 +625,6 @@ std::optional<viz::TransferableResource> Buffer::ProduceTransferableResource(
   // Zero-copy means using the contents texture directly.
   if (use_zero_copy_) {
     // This binds the latest contents of this buffer to |contents_texture|.
-
-    // If there is no acquire fence there is no need to update the shared image.
-    // We can sync on the existing sync token if present. Examples of where this
-    // can happen is video, where there is no fence provided, or in
-    // raster/composite when the fence already signaled at this stage.
-    if (acquire_fence && !acquire_fence->GetGpuFenceHandle().is_null()) {
-      contents_texture->UpdateSharedImage(std::move(acquire_fence));
-    }
-
     viz::TransferableResource::MetadataOverride overrides;
     overrides.is_overlay_candidate = is_overlay_candidate_;
     auto resource = viz::TransferableResource::Make(
@@ -682,10 +658,9 @@ std::optional<viz::TransferableResource> Buffer::ProduceTransferableResource(
   // texture mailbox from the result in |texture|. The contents texture will
   // be released when copy has completed.
   contents_texture->CopyTexImage(
-      std::move(acquire_fence), texture,
-      base::BindOnce(&Buffer::ReleaseContentsTexture, AsWeakPtr(),
-                     std::move(contents_texture_),
-                     release_contents_callback_.callback()));
+      texture, base::BindOnce(&Buffer::ReleaseContentsTexture, AsWeakPtr(),
+                              std::move(contents_texture_),
+                              release_contents_callback_.callback()));
 
   auto resource = viz::TransferableResource::Make(
       texture->shared_image(),
@@ -854,7 +829,6 @@ SolidColorBuffer::~SolidColorBuffer() = default;
 std::optional<viz::TransferableResource>
 SolidColorBuffer::ProduceTransferableResource(
     FrameSinkResourceManager* resource_manager,
-    std::unique_ptr<gfx::GpuFence> acquire_fence,
     bool secure_output_only,
     gfx::ColorSpace color_space,
     ProtectedNativePixmapQueryDelegate* protected_native_pixmap_query) {

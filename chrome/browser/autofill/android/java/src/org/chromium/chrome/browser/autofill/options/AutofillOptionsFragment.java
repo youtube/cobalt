@@ -21,7 +21,6 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.R;
-import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
@@ -45,7 +44,6 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
     public static final String AUTOFILL_OPTIONS_REFERRER = "autofill-options-referrer";
     public static final String PREF_AUTOFILL_THIRD_PARTY_FILLING = "autofill_third_party_filling";
     public static final String PREF_THIRD_PARTY_TOGGLE_HINT = "third_party_toggle_hint";
-    public static final String PREF_AUTOFILL_AI_PERSONAL_CONTEXT = "autofill_ai_personal_context";
     public static final String PREF_AUTOFILL_AI_SWITCH = "autofill_ai_switch";
     public static final String PREF_AUTOFILL_AI_AUTHENTICATION_SWITCH =
             "autofill_ai_authentication_switch";
@@ -115,10 +113,6 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
                 findPreference(PREF_AUTOFILL_THIRD_PARTY_FILLING);
         assert thirdPartyFillingSwitch != null;
         return thirdPartyFillingSwitch;
-    }
-
-    @Nullable Preference getAutofillAiPersonalContext() {
-        return findPreference(PREF_AUTOFILL_AI_PERSONAL_CONTEXT);
     }
 
     ChromeSwitchPreference getAutofillAiSwitch() {
@@ -260,14 +254,10 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
                         Context context, SettingsIndexData indexData, Profile profile) {
                     indexData.removeEntry(getUniqueId(PREF_THIRD_PARTY_TOGGLE_HINT));
                     if (!isAutofillAiEnabled()) {
-                        indexData.removeEntry(getUniqueId(PREF_AUTOFILL_AI_PERSONAL_CONTEXT));
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_AI_SWITCH));
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_AI_AUTHENTICATION_SWITCH));
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_SERVICE_PROVIDER_CETEGORY));
                     } else {
-                        if (!EntityDataManager.isPersonalContextSettingVisible(profile)) {
-                            indexData.removeEntry(getUniqueId(PREF_AUTOFILL_AI_PERSONAL_CONTEXT));
-                        }
                         if (!isAutofillAiReauthEnabled()) {
                             indexData.removeEntry(
                                     getUniqueId(PREF_AUTOFILL_AI_AUTHENTICATION_SWITCH));

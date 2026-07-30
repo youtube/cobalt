@@ -68,6 +68,7 @@ class PopupMenuHelpCoordinatorTest : public PlatformTest {
 
   void TearDown() override {
     ClearDefaultBrowserPromoData();
+    tracker_ = nullptr;
     profile_.reset();
     TestingApplicationContext::GetGlobal()->SetLocalState(nullptr);
     local_state_.reset();
@@ -82,7 +83,7 @@ class PopupMenuHelpCoordinatorTest : public PlatformTest {
   std::unique_ptr<TestBrowser> browser_;
   PopupMenuHelpCoordinator* popup_menu_help_coordinator_;
   id<PopupMenuUIUpdating> popupMenuUIUpdating_;
-  raw_ptr<feature_engagement::test::MockTracker, DanglingUntriaged> tracker_;
+  raw_ptr<feature_engagement::test::MockTracker> tracker_;
 };
 
 // Test that blue dot is set on foreground.

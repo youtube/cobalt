@@ -133,7 +133,7 @@ void OnCookiesToTransferRetrieved(base::RepeatingClosure completion_callback,
 
 // Callback that receives the content of `to_profile`'s cookie jar. Checks
 // whether this is the user's first login, based on the state of the cookie
-// jar, and starts retrieval of the data that should be transfered.
+// jar, and starts retrieval of the data that should be transferred.
 void OnTargetCookieJarContentsRetrieved(
     base::RepeatingClosure completion_callback,
     content::StoragePartition* from_partition,

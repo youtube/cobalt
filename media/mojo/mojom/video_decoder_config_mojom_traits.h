@@ -12,6 +12,7 @@
 #include "media/mojo/mojom/media_types.mojom.h"
 #include "media/mojo/mojom/video_aspect_ratio_mojom_traits.h"
 #include "media/mojo/mojom/video_color_space_mojom_traits.h"
+#include "media/mojo/mojom/video_spatial_format_mojom_traits.h"
 #include "media/mojo/mojom/video_transformation_mojom_traits.h"
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
 #include "ui/gfx/mojom/hdr_metadata_mojom_traits.h"
@@ -79,6 +80,11 @@ struct StructTraits<media::mojom::VideoDecoderConfigDataView,
 
   static uint32_t level(const media::VideoDecoderConfig& input) {
     return input.level();
+  }
+
+  static const media::VideoSpatialFormat& spatial_format(
+      const media::VideoDecoderConfig& input) {
+    return input.spatial_format();
   }
 
   static bool Read(media::mojom::VideoDecoderConfigDataView input,

@@ -10,8 +10,7 @@ namespace blink {
 // The values must be contiguous for iterating through all the possible values.
 enum class RenderBlockingLevel {
   kNone = 0,
-  kLimitFrameRate = 1,
-  kBlock = 2,
+  kBlock = 1,
   kMax = kBlock,
 };
 

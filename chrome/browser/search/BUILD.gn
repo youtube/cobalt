@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//ui/webui/webui_features.gni")
+
 assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
 source_set("search") {
@@ -35,6 +37,9 @@ source_set("search") {
     ]
     public_deps += [ "//components/policy/core/browser" ]
     deps += [ "//components/prefs" ]
+    if (enable_webui_ntp) {
+      public_deps += [ "//chrome/browser/ui/webui/new_tab_page" ]
+    }
   } else {
     sources += [
       "instant_service.cc",
@@ -53,6 +58,8 @@ source_set("search") {
       "//chrome/browser/ntp_tiles",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/themes",
+      "//chrome/browser/ui/webui/new_tab_page",
+      "//chrome/browser/ui/webui/new_tab_page_third_party",
       "//chrome/common",
       "//components/history/core/browser",
       "//components/keyed_service/core",
@@ -69,6 +76,7 @@ source_set("search") {
       "//chrome/app/theme:theme_resources_grit",
       "//chrome/browser/resources/new_tab_page_instant:resources",
       "//chrome/browser/resources/new_tab_page_instant:resources_grit",
+      "//chrome/browser/ui/webui:theme_source",
       "//chrome/common:constants",
       "//chrome/common:non_code_constants",
       "//chrome/common/search:mojo_bindings",
@@ -85,5 +93,10 @@ source_set("search") {
       "//ui/gfx:color_utils",
       "//ui/webui/resources/cr_components/composebox:mojo_bindings",
     ]
+
+    # InstantService constructs ThemeSource while theme_source.cc includes
+    # instant_service.h (InstantService::ShouldServiceRequest) — a genuine
+    # bidirectional pair, with the real dep edge owned here.
+    allow_circular_includes_from = [ "//chrome/browser/ui/webui:theme_source" ]
   }
 }

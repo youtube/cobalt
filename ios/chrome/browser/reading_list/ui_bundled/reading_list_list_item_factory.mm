@@ -4,17 +4,11 @@
 
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_list_item_factory.h"
 
-#import "base/apple/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/reading_list/core/reading_list_entry.h"
-#import "components/url_formatter/url_formatter.h"
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_list_item_custom_action_factory.h"
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_list_item_util.h"
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_table_view_item.h"
-#import "ios/chrome/browser/reading_list/ui_bundled/reading_list_utils.h"
-#import "ios/chrome/grit/ios_strings.h"
-#import "ui/base/l10n/l10n_util_mac.h"
-#import "ui/base/l10n/time_format.h"
 
 @interface ReadingListListItemFactory ()
 
@@ -64,17 +58,7 @@
   item.title = base::SysUTF8ToNSString(entry->Title());
   const GURL& URL = entry->URL();
   item.entryURL = URL;
-  item.faviconPageURL =
-      entry->DistilledURL().is_valid() ? entry->DistilledURL() : URL;
-  item.distillationState =
-      reading_list::UIStatusFromModelStatus(entry->DistilledState());
-  BOOL hasDistillationDetails =
-      entry->DistilledState() == ReadingListEntry::PROCESSED &&
-      entry->DistillationTime() != 0;
-  int64_t distillationDate =
-      hasDistillationDetails ? entry->DistillationTime() : 0;
-  item.distillationDateText =
-      GetReadingListCellDistillationDateText(distillationDate);
+  item.faviconPageURL = URL;
   item.showCloudSlashIcon = needsExplicitUpload;
   item.customActionFactory = self.customActionFactory;
   return item;

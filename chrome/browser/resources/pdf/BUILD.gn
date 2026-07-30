@@ -98,6 +98,8 @@ build_webui("build") {
       "elements/ink_color_selector.ts",
       "elements/ink_size_selector.html.ts",
       "elements/ink_size_selector.ts",
+      "elements/ink_text_annotations.html.ts",
+      "elements/ink_text_annotations.ts",
       "elements/ink_text_box.html.ts",
       "elements/ink_text_box.ts",
       "elements/ink_text_observer_mixin.ts",
@@ -118,6 +120,7 @@ build_webui("build") {
       "elements/viewer_text_side_panel.html.ts",
       "elements/viewer_text_side_panel.ts",
       "ink2_manager.ts",
+      "ink_text_annotation_utils.ts",
       "undo_redo_stack.ts",
     ]
   }
@@ -165,6 +168,7 @@ build_webui("build") {
       "elements/ink_brush_selector.css",
       "elements/ink_color_selector.css",
       "elements/ink_size_selector.css",
+      "elements/ink_text_annotations.css",
       "elements/ink_text_box.css",
       "elements/selectable_icon_button.css",
       "elements/side_panel_shared.css",

@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_POLICY_WEEKLY_TIME_WEEKLY_TIME_H_
 #define CHROMEOS_ASH_COMPONENTS_POLICY_WEEKLY_TIME_WEEKLY_TIME_H_
 
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -25,7 +26,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_POLICY) WeeklyTime {
   static const char kTime[];
   static const char kTimezoneOffset[];
   // Dictionary value constants for testing.
-  static const std::vector<std::string> kWeekDays;
+  static const std::array<const char*, 8> kWeekDays;
 
   WeeklyTime(int day_of_week,
              int milliseconds,

@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome kameradan foydalanmoqda.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> zararli edi, shuning uchun u Chrome tomonidan bloklandi.</translation>
 <translation id="1597911401261118146">Parollarni axborotlar sizib chiqishi va xavfsizlikka oid boshqa muammolardan himoyalash uchun <ph name="BEGIN_LINK" />Chrome hisobingizga kiring<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Bunda:
+          <ph name="LINE_BREAKS" />
+            • Boshlangʻich sahifa, yangi varaq sahifasi, qidiruv tizimi va qadalgan varaqlar dastlabki holatiga qaytariladi
+            <ph name="LINE_BREAK" />
+            • Kengaytmalar faolsizlantiriladi
+            <ph name="LINE_BREAK" />
+            • Cookie fayllari va saytlarning boshqa vaqtincha maʼlumotlari oʻchirib tashlanadi
+            <ph name="LINE_BREAK" />
+            • Chrome yorliqlari tiklanadi
+            <ph name="LINE_BREAKS" />
+            Bukmarklar, tarix va saqlangan parollar joyida qoladi.</translation>
 <translation id="1619887657840448962">Chrome brauzerini xavfsiz holda saqlash uchun <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ro‘yxatida keltirilmagan va sizga bildirmasdan qo‘shilgan bo‘lishi mumkin bo‘lgan quyidagi kengaytma o‘chirib qo‘yiladi.</translation>
 <translation id="1628000112320670027">Chrome yordam markazi</translation>
 <translation id="1640672724030957280">Yuklab olinmoqda...</translation>
@@ -400,6 +411,7 @@ Ba’zi imkoniyatlar ishlamasligi mumkin. Profilni saqlash uchun boshqa jild tan
 <translation id="5234764350956374838">Yopish</translation>
 <translation id="5239627039202700673">Xabarlar, hujjatlar va boshqa ilovalardagi havolalarni bosganda Chrome ochiladi</translation>
 <translation id="5251420635869119124">Agar tashrif buyurgan saytlaringiz haqidagi ma’lumotlar saqlanmasligini xohlasangiz, Chrome mehmon rejimidan foydalaning.</translation>
+<translation id="5271833978500241046">Ulardan Chromium ichida boshqa Gemini funksiyalari bilan birga foydalaning</translation>
 <translation id="5286907366254680517">Aniqlandi</translation>
 <translation id="5320351714793324716">Cookie fayllarga ruxsat bersangiz, Chrome oldindan yuklashda ulardan foydalanishi mumkin</translation>
 <translation id="5321325624576443340">Google Lens ishlamayapti. Keyinroq qayta urining.</translation>
@@ -438,15 +450,6 @@ Google Chrome sozlamalaringizni qaytadan tiklay olmadi.</translation>
 <translation id="569897634095159764">Internetga ulanmadi. Proksi server autentifikatsiyani talab qiladi.</translation>
 <translation id="5709557627224531708">Chromeni standart brauzer etib tayinlang</translation>
 <translation id="5719246646468301581">Google Chrome va Chrome OS Qoʻshimcha xizmat shartlari</translation>
-<translation id="5719324992913248873">Bunda:
-          <ph name="LINE_BREAKS" />
-           • Ayrim Chrome sozlamalari va Chrome yorliqlari tiklanadi
-           <ph name="LINE_BREAK" />
-           • Kengaytmalar faolsizlantiriladi
-           <ph name="LINE_BREAK" />
-           • Cookie fayllar va boshqa vaqtincha sayt maʼlumotlari tozalanadi
-            <ph name="LINE_BREAKS" />
-           Bukmarklar, tarix va saqlangan parollar joyida qoladi.</translation>
 <translation id="5736850870166430177">Agar sayt parolingizni oʻgirlashga urinsa yoki zararli fayl yuklab olsangiz, Chrome ham URL manzillar kabi sahifa elementlarini Saytlarni xavfsiz kezish tizimiga yuborishi mumkin</translation>
 <translation id="5756509061973259733">Bu hisobli Chrome profili ushbu qurilmada allaqachon mavjud</translation>
 <translation id="5759947850379142561">Google Lens yordamida qidirish uchun istalgan matn yoki rasmni tanlang yoki Esc tugmasini bosib, Google Lensni yoping</translation>
@@ -644,6 +647,7 @@ Google Chrome sozlamalaringizni qaytadan tiklay olmadi.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Maʼlumotlaringizni himoyalash maqsadida Chrome brauzeriga uzoq vaqt kirmagan saytlardan ruxsatlarni olib tashlashi uchun ruxsat bering.</translation>
 <translation id="7629695634924605473">Parollaringiz oshkor etilsa, Chrome bu haqida xabar qiladi</translation>
+<translation id="7629898584100520089">Malakalar kabi AI innovatsiyalari Google hisobingizga saqlanadi va Chrome sinxronizatsiyasidan alohida boshqariladi</translation>
 <translation id="7641148173327520642">Tizim administratori tomonidan Google Chrome brauzeri <ph name="TARGET_URL_HOSTNAME" /> sahifasini <ph name="ALTERNATIVE_BROWSER_NAME" /> orqali ochiladigan qilib sozlangan.</translation>
 <translation id="7649070708921625228">Yordam</translation>
 <translation id="7651907282515937834">Chrome Enterprise logotipi</translation>
@@ -784,6 +788,15 @@ Ayrim bukmarklar hisobingizdan oʻchirilmaguncha yangilari saqlanmaydi. Hozir hi
 <translation id="8922998289262614701">Bu ilova maʼlumotlarini Chrome xotirasidan olib tashlang</translation>
 <translation id="8925636929359899517">Bu xizmatni yaxshilash uchun axborotdan foydalanamiz. <ph name="BEGIN_LINK1" />Maxfiylik siyosati<ph name="END_LINK1" /> va <ph name="BEGIN_LINK2" />Xizmat shartlari<ph name="END_LINK2" /> bilan tanishing.</translation>
 <translation id="8936233353620149764">Chrome ichida Gemini tugmasi</translation>
+<translation id="8944232836376404813">Bunda:
+          <ph name="LINE_BREAKS" />
+            • Boshlangʻich sahifa, yangi varaq sahifasi, qidiruv tizimi va qadalgan varaqlar dastlabki holatiga qaytariladi
+            <ph name="LINE_BREAK" />
+            • Kengaytmalar faolsizlantiriladi
+            <ph name="LINE_BREAK" />
+            • Cookie fayllari va saytlarning boshqa vaqtincha maʼlumotlari oʻchirib tashlanadi
+            <ph name="LINE_BREAKS" />
+            Bukmarklar, tarix va saqlangan parollar joyida qoladi.</translation>
 <translation id="8948460679427074738">Bu kengaytma axborot jamlashi va ishlatishi kabi maxfiylikka oid ochiqlama joylamagan. Chrome uni olib tashlashni tavsiya qiladi.</translation>
 <translation id="8958307504142971576">Endi koʻproq Chrome funksiyalaridan foydalanishingiz mumkin</translation>
 <translation id="8991530961471831170">Chrome ichida Gemini ochish</translation>

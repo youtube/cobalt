@@ -7,7 +7,7 @@ import {PostMessageHandler} from 'chrome://contextual-tasks/post_message_handler
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
 import {HANDSHAKE_REQUEST_MESSAGE_BASE64, HANDSHAKE_RESPONSE_BYTES} from './test_utils.js';
@@ -98,7 +98,7 @@ suite('PostMessageHandlerTest', () => {
     simulateLoadCommit();
 
     simulateMessage(new ArrayBuffer(8), 'https://wrong.origin');
-    await flushTasks();
+    await microtasksFinished();
 
     assertEquals(
         0, browserProxy.handler.getCallCount('onWebviewMessage'),
@@ -134,7 +134,7 @@ suite('PostMessageHandlerTest', () => {
     };
 
     simulateMessage(message, TARGET_ORIGIN);
-    await flushTasks();
+    await microtasksFinished();
 
     assertTrue(callbackCalled, 'Callback should be called');
     assertDeepEquals(rect, receivedRect, 'Rect should match');

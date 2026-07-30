@@ -1,7 +1,7 @@
 Name: NullAway
 Short Name: NullAway
-Version: 0.13.2
-Update Mechanism: Autoroll
+Version: 0.13.6
+Update Mechanism: Manual
 License: MIT
 License File: LICENSE
 Security Critical: No
@@ -37,4 +37,4 @@ If there are a lot of new warnings, suppress them by:
    +                          'org.chromium.build.NullUtil.suppressNullAway')]
 3) Update build/config/siso/android.star (for "android/errorprone" block):
    +            "remote": False,
-4) Build all targets: cd out/Debug && autoninja
+4) Build all targets: cd out/Debug && ../../tools/android/tools/android/build_all_errorprone.sh

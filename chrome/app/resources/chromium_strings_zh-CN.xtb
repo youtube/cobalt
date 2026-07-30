@@ -115,19 +115,11 @@
 <translation id="2236949375853147973">我的活动记录</translation>
 <translation id="2238130810669087193">如需将您的地址等信息同步到您的所有设备上，请登录 Chromium。登录后，该地址将保存到您的 Google 账号。</translation>
 <translation id="2241627712206172106">如果您与亲朋好友共用计算机，他们将能够使用单独的账号进行浏览，并可随心所欲地设置Chromium。</translation>
+<translation id="22571759390241347">Chromium 中的技能</translation>
 <translation id="2283803047247799269">使用“图片搜索”功能搜索此标签页</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium 建议您暂停导致浏览器运行缓慢的标签页}other{Chromium 建议您暂停导致浏览器运行缓慢的标签页}}</translation>
 <translation id="2307973900865360088">保留在程序坞中</translation>
 <translation id="2313870531055795960">将网址与存储在 Chromium 中的不安全网站列表进行比对。如果某个网站企图窃取您的密码，或者您下载了有害的文件，Chromium 可能还会将相应网址连同少量网页内容发送给“安全浏览”功能。</translation>
-<translation id="2332076562712130931">此操作将会：
-        <ph name="LINE_BREAKS" />
-          • 重置某些 Chromium 设置和快捷键
-          <ph name="LINE_BREAK" />
-          • 停用扩展程序
-          <ph name="LINE_BREAK" />
-          • 删除 Cookie 和其他临时网站数据
-          <ph name="LINE_BREAKS" />
-          书签、历史记录和已保存的密码不受影响。</translation>
 <translation id="2343156876103232566">若要从此处向您的 Android 手机发送电话号码，请在这两部设备上分别登录 Chromium。</translation>
 <translation id="2356070529366658676">询问</translation>
 <translation id="2359808026110333948">继续</translation>
@@ -189,6 +181,7 @@
 <translation id="3003694935412297923">所有任务</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium 需要先验证您的身份，然后才能将某些数据保存到您的 Google 账号中，供您在所有设备上使用。如果现在就退出账号，这些数据（1 项）将被删除。}other{Chromium 需要先验证您的身份，然后才能将某些数据保存到您的 Google 账号中，供您在所有设备上使用。如果现在就退出账号，这些数据（{count} 项）将被删除。}}</translation>
 <translation id="3013473503895162900">在 Chromium 的新标签页中打开 <ph name="URL" />。</translation>
+<translation id="302551344979399011">技能等 AI 创新功能会保存到您的 Google 账号，并与 Chromium 同步功能分开管理</translation>
 <translation id="3032787606318309379">正在添加到 Chromium...</translation>
 <translation id="3038232873781883849">正在等待安装…</translation>
 <translation id="3045032126857188731">译文语言：<ph name="LANGUAGE" /></translation>
@@ -380,6 +373,7 @@
 <translation id="5289287148052354622">获取 Chromium 应用</translation>
 <translation id="5294316920224716406">当您在无痕模式下浏览内容时，Chromium 会在使用不安全的连接加载网站前向您发出警告</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+<translation id="5324450571874973775">在 Chromium 中与其他 Gemini 功能搭配使用</translation>
 <translation id="5346389065299425353">添加多个标签页、文件和工具，让搜索更深入、更精准</translation>
 <translation id="5348677704241861105">使用 Chromium 中的 Gemini 快速了解此文档的概要信息并提出问题</translation>
 <translation id="5352264705793813212">Chromium 找到了一些供您审查的安全建议</translation>
@@ -671,6 +665,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8318772038038596122">贵组织会在 Chromium 闲置 <ph name="TIMEOUT_DURATION" />后将其关闭。</translation>
 <translation id="8321888067342493336">另存为图片</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> 之前使用的是 Chromium</translation>
+<translation id="8351551329754447960">在 Chromium 中启用技能</translation>
 <translation id="8359544530202147897">请更新 Chromium，以便继续使用 Google 账号 <ph name="ACCOUNT_EMAIL" /> 中的 Chromium 数据</translation>
 <translation id="8360718212975266891">若要接收后续 Chromium 更新，您需使用 Windows 10 或更高版本。此计算机目前使用的是 Windows 8。</translation>
 <translation id="8362914115861174987">目标语言</translation>

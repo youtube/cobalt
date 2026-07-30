@@ -10,8 +10,8 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
@@ -31,7 +31,7 @@
   __weak id<SnackbarCoordinatorDelegate> _delegate;
   SnackbarView* _snackbarView;
   ChromeOverlayWindow* _overlay_window;
-  __weak id<BWGCommands> _geminiHandler;
+  __weak id<GeminiCommands> _geminiHandler;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
@@ -44,8 +44,8 @@
   if (self) {
     _delegate = delegate;
     if (IsGeminiCopresenceEnabled()) {
-      _geminiHandler =
-          HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
+      _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                                          GeminiCommands);
     }
   }
   return self;
@@ -169,7 +169,7 @@
     _snackbarView.message.completionHandler(NO);
   }
 
-  __weak id<BWGCommands> weakGeminiHandler = _geminiHandler;
+  __weak id<GeminiCommands> weakGeminiHandler = _geminiHandler;
   [_snackbarView
       dismissAnimated:animated
            completion:^() {

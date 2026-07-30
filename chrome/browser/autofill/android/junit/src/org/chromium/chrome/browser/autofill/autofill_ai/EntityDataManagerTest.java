@@ -285,6 +285,27 @@ public class EntityDataManagerTest {
     }
 
     @Test
+    public void testIsPersonalContextPreferenceVisible() {
+        when(mEntityDataManagerJniMock.isPersonalContextPreferenceVisible(NATIVE_PTR))
+                .thenReturn(true);
+        assertTrue(mEntityDataManager.isPersonalContextPreferenceVisible());
+        verify(mEntityDataManagerJniMock).isPersonalContextPreferenceVisible(NATIVE_PTR);
+    }
+
+    @Test
+    public void testIsPersonalContextEnabled() {
+        when(mEntityDataManagerJniMock.isPersonalContextEnabled(NATIVE_PTR)).thenReturn(true);
+        assertTrue(mEntityDataManager.isPersonalContextEnabled());
+        verify(mEntityDataManagerJniMock).isPersonalContextEnabled(NATIVE_PTR);
+    }
+
+    @Test
+    public void testSetPersonalContextEnabled() {
+        mEntityDataManager.setPersonalContextEnabled(true);
+        verify(mEntityDataManagerJniMock).setPersonalContextEnabled(NATIVE_PTR, true);
+    }
+
+    @Test
     public void testObservers() {
         EntityDataManager.EntityDataManagerObserver observer =
                 mock(EntityDataManager.EntityDataManagerObserver.class);

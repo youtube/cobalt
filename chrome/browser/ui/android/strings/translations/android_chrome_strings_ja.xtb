@@ -244,6 +244,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2082238445998314030">結果 <ph name="TOTAL_RESULTS" /> 件中 <ph name="RESULT_NUMBER" /> 件目</translation>
 <translation id="2091863218454846791">コンパクト表示を表示しています</translation>
 <translation id="2093731487903423814">過去 15 分間</translation>
+<translation id="2094298041331405438">ここをタップするとすべてのシークレット ウィンドウを閉じます</translation>
 <translation id="2096577711562668473">自動入力サービスを変更しますか？</translation>
 <translation id="2109384632594340939">プロフィール写真</translation>
 <translation id="2111511281910874386">ページを開く</translation>
@@ -505,6 +506,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3114507951000454849">今日のニュースをチェック <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">詳細</translation>
 <translation id="3123734510202723619">お知らせ</translation>
+<translation id="3132267803114336523">すべてのシークレット ウィンドウを閉じるには、シークレット モードのインジケーターをタップします</translation>
 <translation id="3134385238404760368">最近使用したタブはありません</translation>
 <translation id="3135655388926735587">[最近使ったタブ] をタップ</translation>
 <translation id="314939179385989105">Chrome のホームページ</translation>
@@ -613,6 +615,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3635073343384702370">パスワードを保存すると、Chrome による確認が可能になります</translation>
 <translation id="3636940436873918441">優先言語</translation>
 <translation id="3637744895182738742">パスフレーズを忘れた場合や、この設定を変更する場合は、<ph name="BEGIN_LINK" />アカウントの Chrome データを削除<ph name="END_LINK" />してください。</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" />～<ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" />: <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Google アプリのホームに移動</translation>
 <translation id="368329460027487650">ログアウトしています。ログインのオプションを開きます。</translation>
@@ -637,6 +640,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> にブックマークしました</translation>
 <translation id="3740290940447881599">このサイトを信頼できるかどうかをご確認ください</translation>
 <translation id="3740525748616366977">音声検索はこのデバイスではご利用いただけません</translation>
+<translation id="3756823472711156529">グループを復元</translation>
 <translation id="3763110477555836428">このカードでご購入手続きを行う際に仮想カード番号が入力され、実際のカード情報が保護されます。管理は Google ウォレットで行います。<ph name="BEGIN_LINK1" />仮想カードの詳細<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">一部のデータがまだ保存されていません</translation>
 <translation id="3770620323585347665">ウィンドウに名前を付ける</translation>

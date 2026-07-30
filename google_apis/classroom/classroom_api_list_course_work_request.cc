@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/strings/escape.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
 #include "base/values.h"
@@ -30,12 +31,37 @@ namespace {
 constexpr char kListCourseWorkUrlTemplate[] = "/v1/courses/$1/courseWork";
 
 constexpr char kFieldsParameterName[] = "fields";
-constexpr char kRequestedFields[] =
-    "courseWork(id,title,state,alternateLink,creationTime,updateTime,"
-    "dueDate(year,month,day),dueTime(hours,minutes,seconds,nanos),workType,"
-    "materials(youtubeVideo(title),link(title),form(title),"
-    "guidedLearning(title),notebook(title),driveFile(driveFile(title)))),"
-    "nextPageToken";
+
+std::string BuildFieldsQuery(
+    base::span<const ListCourseWorkRequest::AdditionalRequestField>
+        additional_request_fields) {
+  std::vector<std::string> course_work_fields = {
+      "id",
+      "title",
+      "state",
+      "alternateLink",
+      "creationTime",
+      "updateTime",
+      "dueDate(year,month,day)",
+      "dueTime(hours,minutes,seconds,nanos)"};
+
+  for (const auto& field : additional_request_fields) {
+    switch (field) {
+      case ListCourseWorkRequest::AdditionalRequestField::kWorkType:
+        course_work_fields.push_back("workType");
+        break;
+      case ListCourseWorkRequest::AdditionalRequestField::kMaterials:
+        course_work_fields.push_back(
+            "materials(youtubeVideo(title),link(title),form(title),"
+            "guidedLearning(title),notebook(title),"
+            "driveFile(driveFile(title)))");
+        break;
+    }
+  }
+
+  return base::StrCat({"courseWork(", base::JoinString(course_work_fields, ","),
+                       "),nextPageToken"});
+}
 
 constexpr char kPageTokenParameterName[] = "pageToken";
 
@@ -46,13 +72,16 @@ std::unique_ptr<CourseWork> ParseResponse(std::string json) {
 
 }  // namespace
 
-ListCourseWorkRequest::ListCourseWorkRequest(RequestSender* sender,
-                                             const std::string& course_id,
-                                             const std::string& page_token,
-                                             Callback callback)
+ListCourseWorkRequest::ListCourseWorkRequest(
+    RequestSender* sender,
+    const std::string& course_id,
+    const std::string& page_token,
+    base::span<const AdditionalRequestField> additional_request_fields,
+    Callback callback)
     : UrlFetchRequestBase(sender, ProgressCallback(), ProgressCallback()),
       course_id_(base::EscapeAllExceptUnreserved(course_id)),
       page_token_(page_token),
+      requested_fields_(BuildFieldsQuery(additional_request_fields)),
       callback_(std::move(callback)) {
   CHECK(!course_id_.empty());
   CHECK(!callback_.is_null());
@@ -65,7 +94,7 @@ GURL ListCourseWorkRequest::GetURL() const {
       base::ReplaceStringPlaceholders(kListCourseWorkUrlTemplate, {course_id_},
                                       nullptr));
   url = net::AppendOrReplaceQueryParameter(url, kFieldsParameterName,
-                                           kRequestedFields);
+                                           requested_fields_);
   if (!page_token_.empty()) {
     url = net::AppendOrReplaceQueryParameter(url, kPageTokenParameterName,
                                              page_token_);

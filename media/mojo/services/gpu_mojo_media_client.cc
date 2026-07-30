@@ -51,15 +51,6 @@ gpu::CommandBufferStub* GetCommandBufferStub(
   if (!stub)
     return nullptr;
 
-#if !BUILDFLAG(IS_ANDROID)
-  // Only allow stubs that have a ContextGroup, that is, the GLES2 ones. Later
-  // code assumes the ContextGroup is valid. ContextGroup is used only by the
-  // legacy VDA implementation, which is not supported on Android.
-  if (!stub->decoder_context()->GetContextGroup()) {
-    return nullptr;
-  }
-#endif
-
   return stub;
 }
 

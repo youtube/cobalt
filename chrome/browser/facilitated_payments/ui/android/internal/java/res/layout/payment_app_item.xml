@@ -8,7 +8,7 @@ found in the LICENSE file.
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:background="@drawable/touch_to_fill_credential_background_modern_rounded_all"
+    android:background="@drawable/card_with_corners_background"
     android:descendantFocusability="blocksDescendants"
     android:gravity="center_vertical"
     android:layout_height="wrap_content"

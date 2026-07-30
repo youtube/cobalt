@@ -1235,7 +1235,8 @@ class ChromeAimEligibilityServiceOAuthBrowserTest
         {{omnibox::kAimEnabled, {}},
          {omnibox::kAimServerEligibilityEnabled, {}},
          {omnibox::kAimServerRequestOnStartupEnabled, {}},
-         {omnibox::kAimEligibilityServiceIdentityImprovements, {}}},
+         {omnibox::kAimEligibilityServiceIdentityImprovements,
+          {{"oauth_enabled", "true"}}}},
         // Disabled features.
         {});
     InProcessBrowserTest::SetUp();

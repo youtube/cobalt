@@ -12,6 +12,7 @@
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/download_item_model.h"
 #include "chrome/browser/download/download_ui_model.h"
+#include "chrome/browser/download/mock_download_core_service.h"
 #include "chrome/browser/download/offline_item_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/download/download_bubble_info.h"
@@ -66,29 +67,10 @@ class MockDownloadBubbleNavigationHandler
   base::WeakPtrFactory<MockDownloadBubbleNavigationHandler> weak_factory_{this};
 };
 
-class MockDownloadCoreService : public DownloadCoreService {
- public:
-  MOCK_METHOD(ChromeDownloadManagerDelegate*, GetDownloadManagerDelegate, ());
-  MOCK_METHOD(DownloadUIController*, GetDownloadUIController, ());
-  MOCK_METHOD(DownloadHistory*, GetDownloadHistory, ());
-  MOCK_METHOD(extensions::ExtensionDownloadsEventRouter*,
-              GetExtensionEventRouter,
-              ());
-  MOCK_METHOD(bool, HasCreatedDownloadManager, ());
-  MOCK_METHOD(int, BlockingShutdownCount, (), (const));
-  MOCK_METHOD(void,
-              CancelDownloads,
-              (DownloadCoreService::CancelDownloadsTrigger));
-  MOCK_METHOD(void,
-              SetDownloadManagerDelegateForTesting,
-              (std::unique_ptr<ChromeDownloadManagerDelegate> delegate));
-  MOCK_METHOD(bool, IsDownloadUiEnabled, ());
-  MOCK_METHOD(bool, IsDownloadObservedByExtension, ());
-};
 
 std::unique_ptr<KeyedService> BuildMockDownloadCoreService(
     content::BrowserContext* browser_context) {
-  return std::make_unique<MockDownloadCoreService>();
+  return std::make_unique<testing::NiceMock<MockDownloadCoreService>>();
 }
 
 }  // namespace

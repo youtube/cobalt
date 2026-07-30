@@ -199,6 +199,50 @@ void DeviceImpl::CloseHandle() {
   device_handle_ = nullptr;
 }
 
+const mojom::UsbInterfaceInfo* DeviceImpl::FindInterface(
+    const mojom::UsbConfigurationInfo* config,
+    uint8_t interface_number) const {
+  auto it = std::ranges::find(config->interfaces, interface_number,
+                              &mojom::UsbInterfaceInfo::interface_number);
+  return it == config->interfaces.end() ? nullptr : it->get();
+}
+
+std::optional<uint8_t> DeviceImpl::FindBlockedClass(
+    const mojom::UsbInterfaceInfo* interface) const {
+  if (!base::FeatureList::IsEnabled(
+          features::kWebUsbProtectedClassControlTransferBlock)) {
+    return std::nullopt;
+  }
+  for (const auto& alternate : interface->alternates) {
+    if (blocked_interface_classes_.contains(alternate->class_code)) {
+      return alternate->class_code;
+    }
+  }
+  return std::nullopt;
+}
+
+bool DeviceImpl::HasProtectedInterface(
+    const mojom::UsbConfigurationInfo* config) const {
+  for (const auto& interface : config->interfaces) {
+    if (FindBlockedClass(interface.get())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool DeviceImpl::AllowAndLog(WebUsbControlTransferPermissionOutcome outcome) {
+  base::UmaHistogramEnumeration("WebUsb.ControlTransferPermissionOutcome",
+                                outcome);
+  return true;
+}
+
+bool DeviceImpl::BlockAndLog(WebUsbControlTransferPermissionOutcome outcome) {
+  base::UmaHistogramEnumeration("WebUsb.ControlTransferPermissionOutcome",
+                                outcome);
+  return false;
+}
+
 bool DeviceImpl::HasControlTransferPermission(
     UsbTransferDirection direction,
     UsbControlTransferType type,
@@ -207,6 +251,15 @@ bool DeviceImpl::HasControlTransferPermission(
     uint16_t index) {
   DCHECK(device_handle_);
 
+  const mojom::UsbConfigurationInfo* config = device_->GetActiveConfiguration();
+  if (!config) {
+    return BlockAndLog(
+        WebUsbControlTransferPermissionOutcome::kError_NoConfiguration);
+  }
+
+  // ==========================================
+  // 1. STANDARD Requests
+  // ==========================================
   if (type == UsbControlTransferType::STANDARD) {
     if (base::FeatureList::IsEnabled(
             features::kWebUsbEnforceStandardRequestAllowlist)) {
@@ -221,102 +274,119 @@ bool DeviceImpl::HasControlTransferPermission(
            request == kUsbRequestGetConfiguration ||
            request == kUsbRequestGetInterface ||
            request == kUsbRequestSynchFrame)) {
-        base::UmaHistogramEnumeration(
-            "WebUsb.ControlTransferPermissionOutcome",
-            WebUsbControlTransferPermissionOutcome::kAllowed);
-        return true;
-      } else {
-        base::UmaHistogramEnumeration(
-            "WebUsb.ControlTransferPermissionOutcome",
-            WebUsbControlTransferPermissionOutcome::kBlocked);
-        return false;
+        return AllowAndLog(WebUsbControlTransferPermissionOutcome::kAllowed);
       }
+      return BlockAndLog(WebUsbControlTransferPermissionOutcome::kBlocked);
+    }
+
+    // Legacy fallback behavior.
+    if (recipient == UsbControlTransferRecipient::DEVICE ||
+        recipient == UsbControlTransferRecipient::OTHER) {
+      return AllowAndLog(WebUsbControlTransferPermissionOutcome::kAllowed);
+    }
+
+    // Fall through case: allowlist is disabled, and recipient is
+    // INTERFACE/ENDPOINT. We must validate the interface.
+    const mojom::UsbInterfaceInfo* interface = nullptr;
+    if (recipient == UsbControlTransferRecipient::ENDPOINT) {
+      interface = device_handle_->FindInterfaceByEndpoint(index & 0xff);
+    } else if (recipient == UsbControlTransferRecipient::INTERFACE) {
+      interface = FindInterface(config, index & 0xff);
+    }
+
+    if (interface) {
+      auto blocked_class = FindBlockedClass(interface);
+      if (blocked_class) {
+        LogBlockedControlTransfer(*blocked_class, direction, type);
+        return BlockAndLog(WebUsbControlTransferPermissionOutcome::kBlocked);
+      }
+      return AllowAndLog(WebUsbControlTransferPermissionOutcome::kAllowed);
+    }
+
+    return BlockAndLog(
+        WebUsbControlTransferPermissionOutcome::kError_InterfaceNotFound);
+  }
+
+  // ==========================================
+  // 2. CLASS Requests
+  // ==========================================
+  if (type == UsbControlTransferType::CLASS) {
+    const mojom::UsbInterfaceInfo* interface = nullptr;
+    if (recipient == UsbControlTransferRecipient::ENDPOINT) {
+      interface = device_handle_->FindInterfaceByEndpoint(index & 0xff);
     } else {
-      // Legacy fallback behavior.
-      if (recipient == UsbControlTransferRecipient::DEVICE ||
-          recipient == UsbControlTransferRecipient::OTHER) {
-        base::UmaHistogramEnumeration(
-            "WebUsb.ControlTransferPermissionOutcome",
-            WebUsbControlTransferPermissionOutcome::kAllowed);
-        return true;
+      // For CLASS requests, we assume index identifies the interface for all
+      // other recipients (INTERFACE, DEVICE, OTHER).
+      interface = FindInterface(config, index & 0xff);
+    }
+
+    // Block if the targeted interface is protected.
+    if (interface) {
+      auto blocked_class = FindBlockedClass(interface);
+      if (blocked_class) {
+        LogBlockedControlTransfer(*blocked_class, direction, type);
+        return BlockAndLog(WebUsbControlTransferPermissionOutcome::kBlocked);
       }
     }
-  }
 
-  const mojom::UsbConfigurationInfo* config = device_->GetActiveConfiguration();
-  if (!config) {
-    base::UmaHistogramEnumeration(
-        "WebUsb.ControlTransferPermissionOutcome",
-        WebUsbControlTransferPermissionOutcome::kError_NoConfiguration);
-    return false;
-  }
-
-  // Identify the interface targeted by this request.
-  const mojom::UsbInterfaceInfo* interface = nullptr;
-  if (recipient == UsbControlTransferRecipient::ENDPOINT) {
-    // For the ENDPOINT recipient, the low byte of `index` is the endpoint
-    // address. We look up the interface that owns this endpoint.
-    interface = device_handle_->FindInterfaceByEndpoint(index & 0xff);
-  } else if (recipient == UsbControlTransferRecipient::INTERFACE ||
-             type == UsbControlTransferType::CLASS) {
-    // For the INTERFACE recipient, `index` identifies the target interface.
-    // For CLASS requests to DEVICE/OTHER recipients, `index` is often used to
-    // identify an interface as defined in class-specific specs (e.g. HID, Mass
-    // Storage, Audio). For VENDOR requests, `index` is manufacturer-defined and
-    // highly variable (e.g. AOA string index), so it is not treated as an
-    // interface ID.
-    auto interface_it =
-        std::ranges::find(config->interfaces, index & 0xff,
-                          &mojom::UsbInterfaceInfo::interface_number);
-    if (interface_it != config->interfaces.end()) {
-      interface = interface_it->get();
+    // For requests explicitly targeting an INTERFACE or ENDPOINT, the interface
+    // must actually exist in the current configuration.
+    if (recipient == UsbControlTransferRecipient::INTERFACE ||
+        recipient == UsbControlTransferRecipient::ENDPOINT) {
+      return interface ? AllowAndLog(
+                             WebUsbControlTransferPermissionOutcome::kAllowed)
+                       : BlockAndLog(WebUsbControlTransferPermissionOutcome::
+                                         kError_InterfaceNotFound);
     }
+
+    // For DEVICE and OTHER recipients, if we could not identify the target
+    // interface, we must block it if the device has any protected interfaces.
+    // This prevents bypassing the blocklist by specifying an invalid interface
+    // number (e.g. 0xFF) on a device that ignores the wIndex field.
+    if (!interface && HasProtectedInterface(config)) {
+      return BlockAndLog(WebUsbControlTransferPermissionOutcome::kBlocked);
+    }
+
+    return AllowAndLog(WebUsbControlTransferPermissionOutcome::kAllowed);
   }
 
-  // If the request targets a protected interface class (e.g. HID, Mass
-  // Storage), it must be blocked. This prevents a site from communicating
-  // with a protected interface,
-  // 1. by explicitly targeting an INTERFACE or ENDPOINT recipient, or
-  // 2. CLASS requests to the DEVICE or OTHER recipient where index looks
-  //    like an interface number in case the device will respond to these
-  //    requests despite an incorrectly set recipient.
-  if (interface && base::FeatureList::IsEnabled(
-                       features::kWebUsbProtectedClassControlTransferBlock)) {
-    for (const auto& alternate : interface->alternates) {
-      if (blocked_interface_classes_.contains(alternate->class_code)) {
-        LogBlockedControlTransfer(alternate->class_code, direction, type);
-        base::UmaHistogramEnumeration(
-            "WebUsb.ControlTransferPermissionOutcome",
-            WebUsbControlTransferPermissionOutcome::kBlocked);
-        return false;
+  // ==========================================
+  // 3. VENDOR Requests
+  // ==========================================
+  if (type == UsbControlTransferType::VENDOR) {
+    const mojom::UsbInterfaceInfo* interface = nullptr;
+    if (recipient == UsbControlTransferRecipient::ENDPOINT) {
+      interface = device_handle_->FindInterfaceByEndpoint(index & 0xff);
+    } else if (recipient == UsbControlTransferRecipient::INTERFACE) {
+      // We ONLY lookup interface for INTERFACE recipient.
+      interface = FindInterface(config, index & 0xff);
+    }
+
+    // Block if the targeted interface is protected.
+    if (interface) {
+      auto blocked_class = FindBlockedClass(interface);
+      if (blocked_class) {
+        LogBlockedControlTransfer(*blocked_class, direction, type);
+        return BlockAndLog(WebUsbControlTransferPermissionOutcome::kBlocked);
       }
     }
-  }
 
-  // For requests explicitly targeting an INTERFACE or ENDPOINT, the interface
-  // must actually exist in the current configuration.
-  if (recipient == UsbControlTransferRecipient::INTERFACE ||
-      recipient == UsbControlTransferRecipient::ENDPOINT) {
-    bool has_permission = interface != nullptr;
-    if (has_permission) {
-      base::UmaHistogramEnumeration(
-          "WebUsb.ControlTransferPermissionOutcome",
-          WebUsbControlTransferPermissionOutcome::kAllowed);
-    } else {
-      base::UmaHistogramEnumeration(
-          "WebUsb.ControlTransferPermissionOutcome",
-          WebUsbControlTransferPermissionOutcome::kError_InterfaceNotFound);
+    // For requests explicitly targeting an INTERFACE or ENDPOINT, the interface
+    // must actually exist in the current configuration.
+    if (recipient == UsbControlTransferRecipient::INTERFACE ||
+        recipient == UsbControlTransferRecipient::ENDPOINT) {
+      return interface ? AllowAndLog(
+                             WebUsbControlTransferPermissionOutcome::kAllowed)
+                       : BlockAndLog(WebUsbControlTransferPermissionOutcome::
+                                         kError_InterfaceNotFound);
     }
-    return has_permission;
+
+    // DEVICE/OTHER vendor requests are always allowed.
+    return AllowAndLog(WebUsbControlTransferPermissionOutcome::kAllowed);
   }
 
-  // For DEVICE and OTHER recipients, if we reached here, it means either no
-  // interface was identified by wIndex, or the interface it identified is
-  // not protected. These requests are allowed for device-level management.
-  base::UmaHistogramEnumeration(
-      "WebUsb.ControlTransferPermissionOutcome",
-      WebUsbControlTransferPermissionOutcome::kAllowed);
-  return true;
+  // Default fallback (should not be reached unless new types are added).
+  return BlockAndLog(WebUsbControlTransferPermissionOutcome::kBlocked);
 }
 
 // static

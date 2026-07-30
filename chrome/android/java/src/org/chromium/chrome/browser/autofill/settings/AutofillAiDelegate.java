@@ -15,6 +15,7 @@ import androidx.preference.PreferenceScreen;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.TimeUtils;
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
@@ -28,6 +29,7 @@ import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory
 import org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorCoordinator;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.DeviceAuthSource;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
@@ -46,6 +48,7 @@ import org.chromium.components.autofill.autofill_ai.EntityType;
 import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 import org.chromium.components.autofill.autofill_ai.RecordType;
 import org.chromium.components.browser_ui.settings.CardWithButtonPreference;
+import org.chromium.components.browser_ui.settings.ChromeBasePreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
@@ -68,18 +71,30 @@ public class AutofillAiDelegate {
     private static final int DEFAULT_SNACKBAR_DURATION = 10000;
     static final String DISABLED_WALLET_DATA_SHARING = "disabled_wallet_data_sharing";
     static final String DISABLED_SETTINGS_INFO = "disabled_settings_info";
+    private static final String PREF_AUTOFILL_PERSONAL_CONTEXT_PREFIX =
+            "autofill_personal_context_";
 
     static class ToggleConfig {
         public final String key;
         public final int labelRes;
         public final int subLabelRes;
         public final String prefName;
+        public final boolean isPersonalContextSupported;
+        public final @Nullable String personalContextUserAction;
 
-        ToggleConfig(String key, int labelRes, int subLabelRes, String prefName) {
+        ToggleConfig(
+                String key,
+                int labelRes,
+                int subLabelRes,
+                String prefName,
+                boolean isPersonalContextSupported,
+                @Nullable String personalContextUserAction) {
             this.key = key;
             this.labelRes = labelRes;
             this.subLabelRes = subLabelRes;
             this.prefName = prefName;
+            this.isPersonalContextSupported = isPersonalContextSupported;
+            this.personalContextUserAction = personalContextUserAction;
         }
     }
 
@@ -286,6 +301,29 @@ public class AutofillAiDelegate {
                 });
 
         screen.addPreference(optInToggle);
+
+        if (mToggleConfig.isPersonalContextSupported
+                && AutofillPersonalContextFragment.shouldShowPersonalContext(
+                        mFragment.getProfile())) {
+            ChromeBasePreference personalContextPref = new ChromeBasePreference(getStyledContext());
+            personalContextPref.setKey(PREF_AUTOFILL_PERSONAL_CONTEXT_PREFIX + mToggleConfig.key);
+            personalContextPref.setTitle(R.string.personal_context_autofill_settings_title_android);
+            personalContextPref.setSummary(
+                    R.string.personal_context_autofill_settings_summary_android);
+
+            personalContextPref.setOnPreferenceClickListener(
+                    preference -> {
+                        if (mToggleConfig.personalContextUserAction != null) {
+                            RecordUserAction.record(mToggleConfig.personalContextUserAction);
+                        }
+
+                        SettingsNavigationHelper.showAutofillPersonalContextSettings(
+                                mFragment.requireActivity());
+                        return true;
+                    });
+
+            screen.addPreference(personalContextPref);
+        }
     }
 
     static void maybeAddOptInToggle(

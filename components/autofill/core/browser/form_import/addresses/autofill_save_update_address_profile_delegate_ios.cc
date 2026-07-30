@@ -92,7 +92,7 @@ std::u16string AutofillSaveUpdateAddressProfileDelegateIOS::GetEmailAddress()
 
 std::u16string AutofillSaveUpdateAddressProfileDelegateIOS::
     GetProfileDescriptionForMigrationPrompt() const {
-  return ::autofill::GetProfileSummaryForMigrationPrompt(profile_, locale_);
+  return GetProfileSummaryForMigrationPrompt(profile_, locale_);
 }
 
 std::u16string AutofillSaveUpdateAddressProfileDelegateIOS::GetDescription()

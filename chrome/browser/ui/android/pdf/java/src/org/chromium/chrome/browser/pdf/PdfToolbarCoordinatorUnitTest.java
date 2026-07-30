@@ -22,7 +22,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.PopupWindow;
 import android.widget.TextView;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -40,6 +39,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.widget.ChromePopupWindow;
 import org.chromium.ui.widget.UiWidgetFactory;
 
 @RunWith(BaseRobolectricTestRunner.class)
@@ -56,7 +56,7 @@ public class PdfToolbarCoordinatorUnitTest {
     private PdfToolbarCoordinator mPdfToolbarCoordinator;
     private AutoCloseable mCloseableMocks;
     private UiWidgetFactory mMockUiWidgetFactory;
-    private PopupWindow mSpyPopupWindow;
+    private ChromePopupWindow mSpyPopupWindow;
 
     @Before
     public void setUp() {
@@ -64,7 +64,7 @@ public class PdfToolbarCoordinatorUnitTest {
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
 
         mMockUiWidgetFactory = mock(UiWidgetFactory.class);
-        mSpyPopupWindow = spy(new PopupWindow(mActivity));
+        mSpyPopupWindow = spy(new ChromePopupWindow(mActivity));
         UiWidgetFactory.setInstance(mMockUiWidgetFactory);
         when(mMockUiWidgetFactory.createPopupWindow(any())).thenReturn(mSpyPopupWindow);
         doNothing()
@@ -243,7 +243,7 @@ public class PdfToolbarCoordinatorUnitTest {
 
         // 2. Second State: Two Page View is active (TWO_PAGES_PER_ROW_ACTIVE = true)
         // Reset the spy for the next popup window creation
-        mSpyPopupWindow = spy(new PopupWindow(mActivity));
+        mSpyPopupWindow = spy(new ChromePopupWindow(mActivity));
         when(mMockUiWidgetFactory.createPopupWindow(any())).thenReturn(mSpyPopupWindow);
         doNothing()
                 .when(mSpyPopupWindow)

@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">您只需回到这里，便可重新打开最近关闭的标签页</translation>
 <translation id="1016495303386450659">书签已更新</translation>
+<translation id="1018804590490383958">扫描并自动填充</translation>
 <translation id="1019990162050689579">Gemini 应用活动记录</translation>
 <translation id="102916930470544692">通行密钥</translation>
 <translation id="1030376737535466765">打开密码管理工具</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">更新浏览器</translation>
 <translation id="4021931095789478915">将 ${url} 添加到阅读清单</translation>
 <translation id="4028871427853484857">保存到账号…</translation>
+<translation id="4036529942385659684">在闲置一段时间后显示起始页</translation>
 <translation id="4038354071007134711">此设备上没有可以打开该文件的应用。</translation>
 <translation id="4042870976416480368">在网页中查找</translation>
 <translation id="4045441967987592849">重新打开</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">管理分组</translation>
 <translation id="4172051516777682613">一律显示</translation>
 <translation id="417273154673973994">{count,plural, =1{已关闭并保存 1 个标签页分组}other{已关闭并保存 {count} 个标签页分组}}</translation>
-<translation id="417612446554534067">发送到您的设备</translation>
 <translation id="4180726336228139707">仅在此设备上</translation>
 <translation id="4181841719683918333">语言</translation>
 <translation id="4183350924949589798">想提升安全性？</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">标签页已关闭；您已退出账号</translation>
 <translation id="4911042367886397055"><ph name="USER_NAME" />，欢迎回来！</translation>
 <translation id="4913626501929406101">您可以安全地与家人群组成员分享您的密码。<ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">镜头</translation>
 <translation id="4917025507570489430">以 <ph name="USER_EMAIL" /> 的身份登录后，即可使用现有的浏览数据。您的组织或许可以查看这些数据。</translation>
 <translation id="4918086044614829423">接受</translation>
 <translation id="4930714375720679147">开启</translation>
@@ -1549,6 +1551,7 @@
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">选择地址栏的位置</translation>
 <translation id="6307241780749477694">请验证您的身份，以便在此设备上获取您的所有密码</translation>
+<translation id="6307792728709337290">将卡片保存至 Google 账号，以便在本次及日后使用 Chrome 购物时自动填充信息。</translation>
 <translation id="6316141353357700666">从显示的列表中选择要使用的密码。</translation>
 <translation id="6321526113093607004">添加到书签</translation>
 <translation id="6327249202318869726">您的账号已停用 Gemini。如需了解详情，请与管理员联系。</translation>
@@ -2143,6 +2146,7 @@
 <translation id="8263809106706527890">您的默认浏览器设置可能发生了变更。您可以在设置中检查这项变更。</translation>
 <translation id="8264966119170358612">您保存的密码中有一些已在非 Google 数据泄露事件中外泄。<ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">您在 iPad 重置过程中退出了账号 <ph name="USER_NAME" />。如需重新登录，请点按下方的“继续”。</translation>
+<translation id="8270320981823560179">云端硬盘</translation>
 <translation id="8273982424131314219">信息即将填写到 <ph name="URL" /></translation>
 <translation id="8275068909952022340">更多…</translation>
 <translation id="8281781826761538115">默认语言区域 - <ph name="DEFAULT_LOCALE" /></translation>

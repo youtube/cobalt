@@ -17,7 +17,7 @@ rootWebArea
 ++++++button name='button3' nameFrom=contents
 ++++++++staticText name='button3' nameFrom=contents
 ++++++++++inlineTextBox name='button3' nameFrom=contents
-++++++slider horizontal name='slider' nameFrom=attribute valueForRange=5.00 minValueForRange=0.00 maxValueForRange=10.00
+++++++slider horizontal name='slider' value='5' nameFrom=attribute valueForRange=5.00 minValueForRange=0.00 maxValueForRange=10.00
 ++++++list
 ++++++++listItem role='listitem'
 ++++++genericContainer

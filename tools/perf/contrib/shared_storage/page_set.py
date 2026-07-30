@@ -6,10 +6,11 @@ from collections import Counter
 import json
 import logging
 import os
-import py_utils
-import six
 from socket import timeout
 import time
+from urllib.parse import urlparse
+
+import py_utils
 
 from telemetry import story
 from telemetry.internal.backends.chrome_inspector import websocket
@@ -72,7 +73,7 @@ def _RenderEvents(events_template, index):
 
 # Extracts origin from a URL.
 def _GetOriginFromURL(url):
-  parse_result = six.moves.urllib.parse.urlparse(url)
+  parse_result = urlparse(url)
   return '://'.join([parse_result[0], parse_result[1]])
 
 
@@ -90,8 +91,7 @@ class _MetaSharedStorageStory(type):
     return cls.__dict__.get('ABSTRACT_STORY', False)
 
 
-class SharedStorageStory(
-    six.with_metaclass(_MetaSharedStorageStory, page_module.Page)):
+class SharedStorageStory(page_module.Page, metaclass=_MetaSharedStorageStory):
   """Abstract base class for SharedStorage user stories."""
 
   NAME = NotImplemented

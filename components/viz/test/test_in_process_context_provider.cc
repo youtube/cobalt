@@ -138,6 +138,16 @@ void TestInProcessContextProvider::RemoveObserver(ContextLostObserver* obs) {
   observers_.RemoveObserver(obs);
 }
 
+bool TestInProcessContextProvider::IsLost() {
+  if (gles2_context_) {
+    return gles2_context_->GetImplementation()->GetGraphicsResetStatusKHR() !=
+           GL_NO_ERROR;
+  } else {
+    return raster_context_->GetImplementation()->GetGraphicsResetStatusKHR() !=
+           GL_NO_ERROR;
+  }
+}
+
 void TestInProcessContextProvider::SendOnContextLost() {
   for (auto& observer : observers_) {
     observer.OnContextLost();

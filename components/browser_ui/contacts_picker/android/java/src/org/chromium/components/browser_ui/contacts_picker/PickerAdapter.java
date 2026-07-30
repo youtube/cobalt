@@ -280,6 +280,9 @@ public abstract class PickerAdapter extends Adapter<RecyclerView.ViewHolder>
         update();
     }
 
+    /** Called when the dialog is dismissed to perform cleanup. */
+    public void destroy() {}
+
     // RecyclerView.Adapter:
 
     @Override

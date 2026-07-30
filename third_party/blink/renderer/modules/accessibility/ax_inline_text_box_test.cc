@@ -891,6 +891,20 @@ TEST_P(AXInlineTextBoxTest, AXBlockFlowIteratorAPI_CharacterWidths_Ligature) {
   ASSERT_FALSE(it.Next());
 }
 
+TEST_P(AXInlineTextBoxTest, FirstLineTextTransformCrash) {
+  InsertStyleElement(
+      "#root { white-space: pre-wrap; word-break: break-all; width: 3ch; "
+      "font-family: monospace; }"
+      "#root::first-line { text-transform: uppercase; }");
+  SetBodyInnerHTML(
+      "<div id=\"root\">"
+      "<span>&szlig;</span><span>&szlig;</span><span>&szlig;</span>"
+      "</div>");
+
+  AXObject* ax_root = GetAXObjectByElementId("root");
+  ASSERT_NE(nullptr, ax_root);
+}
+
 }  // namespace test
 
 TEST_F(AccessibilityTest, LoadInlineTextBoxesCrashsOnAndroid) {

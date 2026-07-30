@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//extensions/buildflags/buildflags.gni")
+
 assert(!is_android)
 
 source_set("picture_in_picture") {
@@ -34,20 +36,32 @@ source_set("picture_in_picture") {
 
   deps = [
     "//chrome/app:generated_resources",
+    "//chrome/browser/media/webrtc",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/color:color_headers",
+    "//chrome/browser/ui/content_settings",
+    "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/page_info",
     "//components/omnibox/browser:location_bar",
+    "//components/page_load_metrics/browser",
     "//components/security_state/content",
     "//components/security_state/core",
     "//components/url_formatter",
     "//components/vector_icons",
+    "//extensions/buildflags",
     "//ui/base",
     "//ui/base/metadata",
     "//ui/display",
     "//ui/views/controls/webview",
   ]
+
+  if (enable_extensions_core) {
+    deps += [
+      "//extensions/browser",
+      "//extensions/common",
+    ]
+  }
 }
 
 source_set("unit_tests") {
@@ -65,12 +79,15 @@ source_set("unit_tests") {
     ":picture_in_picture",
     "//base",
     "//chrome/browser/ssl",
+    "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/page_info",
     "//chrome/test:test_support",
+    "//components/input",
     "//content/public/browser",
     "//content/test:test_support",
     "//testing/gtest",
     "//third_party/blink/public/common:headers",
+    "//ui/base",
     "//ui/display",
     "//ui/display:test_support",
     "//ui/gfx",

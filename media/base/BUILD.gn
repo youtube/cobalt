@@ -383,6 +383,8 @@ source_set("base") {
     "video_renderer.cc",
     "video_renderer.h",
     "video_renderer_sink.h",
+    "video_spatial_format.cc",
+    "video_spatial_format.h",
     "video_thumbnail_decoder.cc",
     "video_thumbnail_decoder.h",
     "video_transformation.cc",

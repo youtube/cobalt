@@ -53,6 +53,10 @@
 // shared group.
 + (BOOL)isAllowedToShareTabGroups;
 
+// Triggers `showTabGroupCreationWithoutTabs` twice to check that it handles
+// reentrancy and doesn't crash the app.
++ (void)triggerDoubleEmptyTabGroupCreation;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_TAB_SWITCHER_UI_BUNDLED_TAB_GRID_TAB_GROUPS_TAB_GROUP_APP_INTERFACE_H_

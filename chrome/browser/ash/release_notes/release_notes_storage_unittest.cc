@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/webui/help_app_ui/help_app_prefs.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/version.h"
@@ -98,7 +99,7 @@ class ReleaseNotesStorageTest : public testing::Test,
 // milestone.
 TEST_F(ReleaseNotesStorageTest, ShouldNotShowReleaseNotesOOBE) {
   SetUpProfile();
-  profile_.get()->GetPrefs()->SetString(prefs::kProfileCreatedByVersion,
+  profile_.get()->GetPrefs()->SetString(::prefs::kProfileCreatedByVersion,
                                         version_info::GetVersion().GetString());
 
   EXPECT_EQ(false, release_notes_storage_->ShouldNotify());
@@ -108,7 +109,7 @@ TEST_F(ReleaseNotesStorageTest, ShouldNotShowReleaseNotesOOBE) {
 // version of chrome.
 TEST_F(ReleaseNotesStorageTest, ShouldShowReleaseNotesOldProfile) {
   SetUpProfile();
-  profile_.get()->GetPrefs()->SetString(prefs::kProfileCreatedByVersion,
+  profile_.get()->GetPrefs()->SetString(::prefs::kProfileCreatedByVersion,
                                         "20.0.0.0");
 
   EXPECT_EQ(true, release_notes_storage_->ShouldNotify());
@@ -194,7 +195,7 @@ TEST_F(ReleaseNotesStorageTest, ShouldShowReleaseNotesForUnicornProfile) {
 TEST_F(ReleaseNotesStorageTest, DoesNotShowReleaseNotesSuggestionChip) {
   SetUpProfile();
   profile_.get()->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
 
   EXPECT_EQ(false, release_notes_storage_->ShouldShowSuggestionChip());
 }
@@ -205,14 +206,14 @@ TEST_F(ReleaseNotesStorageTest, DoesNotShowReleaseNotesSuggestionChip) {
 TEST_F(ReleaseNotesStorageTest, ShowReleaseNotesSuggestionChip) {
   SetUpProfile();
   profile_.get()->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 1);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 1);
 
   ASSERT_EQ(true, release_notes_storage_->ShouldShowSuggestionChip());
 
   release_notes_storage_->DecreaseTimesLeftToShowSuggestionChip();
 
   EXPECT_EQ(0, profile_.get()->GetPrefs()->GetInteger(
-                   prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
+                   ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow));
   EXPECT_EQ(false, release_notes_storage_->ShouldShowSuggestionChip());
 }
 

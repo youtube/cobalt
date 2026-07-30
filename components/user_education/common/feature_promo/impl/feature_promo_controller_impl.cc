@@ -31,11 +31,11 @@
 #include "components/user_education/common/feature_promo/impl/feature_promo_queue_set.h"
 #include "components/user_education/common/feature_promo/impl/messaging_coordinator.h"
 #include "components/user_education/common/feature_promo/impl/precondition_list_provider.h"
-#include "components/user_education/common/product_messaging_controller.h"
 #include "components/user_education/common/user_education_context.h"
 #include "components/user_education/common/user_education_data.h"
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/common/user_education_storage_service.h"
+#include "components/user_education/product_messaging/product_messaging_controller.h"
 #include "ui/accessibility/ax_mode.h"
 #include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -550,7 +550,7 @@ FeaturePromoControllerImpl::GetNextPromoData() {
     // If there's a pending promo determine if it can show right now.
     const bool is_high_priority =
         pending->second == FeaturePromoPriorityProvider::PromoPriority::kHigh;
-    if (private_->messaging_coordinator.CanShowPromo(is_high_priority)) {
+    if (private_->messaging_coordinator.ReadyToShow(is_high_priority)) {
       result.eligible_promo = private_->queues.UnqueueEligiblePromo(*pending);
     } else {
       result.pending_priority = pending->second;

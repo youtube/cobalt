@@ -95,7 +95,7 @@ PasswordManagerSettingsServiceAndroidImplTest::
   RegisterPrefs();
   CoreAccountInfo sync_account_info;
   sync_account_info.email = kTestAccount;
-  test_sync_service_.SetSignedIn(signin::ConsentLevel::kSync,
+  test_sync_service_.SetSignedIn(signin::ConsentLevel::kSignin,
                                  sync_account_info);
 }
 

@@ -244,6 +244,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="2082238445998314030">Résultat <ph name="RESULT_NUMBER" /> sur <ph name="TOTAL_RESULTS" /></translation>
 <translation id="2091863218454846791">Affichage de la vue compacte</translation>
 <translation id="2093731487903423814">15 dernières minutes</translation>
+<translation id="2094298041331405438">Appuyer ici pour fermer toutes les fenêtres de navigation privée</translation>
 <translation id="2096577711562668473">Modifier le service de saisie automatique ?</translation>
 <translation id="2109384632594340939">photo de profil</translation>
 <translation id="2111511281910874386">Accéder à la page</translation>
@@ -497,7 +498,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="3067505415088964188">Prix bas</translation>
 <translation id="3070005020161560471">Traduire automatiquement</translation>
 <translation id="3072980200212375806"><ph name="APP_NAME" /> va s'ouvrir dans Chrome. En continuant, vous acceptez les <ph name="BEGIN_LINK1" />Conditions d'utilisation de Google<ph name="END_LINK1" /> et les <ph name="BEGIN_LINK2" />Conditions d'utilisation supplémentaires de Google Chrome et Chrome OS<ph name="END_LINK2" />. Les <ph name="BEGIN_LINK3" />Règles de confidentialité<ph name="END_LINK3" /> s'appliquent également.</translation>
-<translation id="3080375898390966733">Chercher dans onglet avec Google Lens</translation>
+<translation id="3080375898390966733">Explorer l'onglet avec Google Lens</translation>
 <translation id="3080525922482950719">Vous pouvez enregistrer des pages pour les consulter plus tard ou hors connexion</translation>
 <translation id="3087734570205094154">En bas</translation>
 <translation id="3091010850649238832">Afficher le contenu du presse-papiers</translation>
@@ -505,6 +506,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="3114507951000454849">Lisez les actualités du jour <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Plus d'informations</translation>
 <translation id="3123734510202723619">Annonces</translation>
+<translation id="3132267803114336523">Pour fermer toutes les fenêtres de navigation privée, appuyer sur l'indicateur de navigation privée</translation>
 <translation id="3134385238404760368">Aucun onglet récent</translation>
 <translation id="3135655388926735587">Appuyez sur "Onglets récents"</translation>
 <translation id="314939179385989105">Page d'accueil de Chrome</translation>
@@ -613,6 +615,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="3635073343384702370">Chrome ne peut vérifier vos mots de passe que si vous les enregistrez</translation>
 <translation id="3636940436873918441">Langues préférées</translation>
 <translation id="3637744895182738742">Si vous avez oublié votre phrase secrète ou si vous souhaitez modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chrome de votre compte<ph name="END_LINK" />.</translation>
+<translation id="3649090831059057090"><ph name="WINDOW_TITLE" /> - <ph name="TAB_COUNT" /></translation>
 <translation id="3653111872753786013"><ph name="WEBSITE_TITLE" /> : <ph name="WEBSITE_URL" /></translation>
 <translation id="3674208116086565128">Accéder à la page d'accueil de l'appli Google</translation>
 <translation id="368329460027487650">Déconnecté. Ouvre les options de connexion.</translation>
@@ -637,6 +640,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="3739899004075612870">Favori ajouté dans <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Vérifiez que ce site est fiable</translation>
 <translation id="3740525748616366977">La recherche vocale n'est pas disponible sur cet appareil</translation>
+<translation id="3756823472711156529">Restaurer le groupe</translation>
 <translation id="3763110477555836428">Un numéro de carte virtuelle sera renseigné lorsque vous paierez avec cette carte pour protéger vos informations réelles. Gérez-la dans Google Wallet. <ph name="BEGIN_LINK1" />En savoir plus sur les cartes virtuelles<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Certaines données ne sont pas encore enregistrées</translation>
 <translation id="3770620323585347665">Nommer la fenêtre</translation>

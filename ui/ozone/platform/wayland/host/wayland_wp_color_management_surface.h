@@ -57,6 +57,11 @@ class WaylandWpColorManagementSurface : public WaylandWpColorManager::Observer {
   void OnImageDescription(
       scoped_refptr<WaylandWpImageDescription> image_description);
 
+  // Issues a `get_preferred` request and (re)creates `image_description_`
+  // from the result. Called once at construction time and again whenever the
+  // compositor sends a `preferred_changed` event.
+  void FetchPreferredImageDescription();
+
   const raw_ptr<WaylandSurface> wayland_surface_;
   const raw_ptr<WaylandConnection> connection_;
   wl::Object<wp_color_management_surface_v1> management_surface_;

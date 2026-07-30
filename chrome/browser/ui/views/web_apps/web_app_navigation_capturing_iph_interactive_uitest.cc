@@ -370,6 +370,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingIphUiTestParameterized,
           NavigationCapturingV2Enabled())));
 }
 
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIphUiTest,
                        IPHNotShownOnAuxContext) {
   const webapps::AppId app_id_a = InstallTestWebApp(GetStartUrl());
@@ -426,6 +427,7 @@ IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIphUiTest,
           PressDefaultPromoButton(),
           CheckActionCount("LinkCapturingIPHAppBubbleNotAccepted", 1)));
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingIphUiTestParameterized,
                        IPHShownForNavigateExistingAppInTab) {

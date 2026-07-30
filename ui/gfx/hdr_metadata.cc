@@ -187,7 +187,7 @@ void HDRMetadata::SetSerializedAgtm(base::span<const uint8_t> data) {
   skhdr::AdaptiveGlobalToneMap agtm;
   if (agtm.parse(MakeSkDataFromSpanWithoutCopy(data).get())) {
     agtm_ = agtm;
-  } else {
+  } else if (base::FeatureList::IsEnabled(features::kHdrAgtmParseOldSyntax)) {
     // TODO(https://crbug.com/395659818): Several tests use out-of-date
     // encodings, but expect the data to still parse. To keep those tests
     // passing, set the HDR reference white to the default, with the size

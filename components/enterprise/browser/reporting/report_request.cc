@@ -14,7 +14,7 @@ namespace em = enterprise_management;
 
 ReportRequest::ReportRequest(ReportType type) {
   switch (type) {
-    case ReportType::kFull:
+    case ReportType::kBrowser:
     case ReportType::kBrowserVersion:
 #if BUILDFLAG(IS_CHROMEOS)
       proto_.emplace<em::ChromeOsUserReportRequest>();

@@ -216,6 +216,7 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
     public void search(String query) {
         mQueryText = query;
         onSearchStart();
+        mIsLoadingItems = true;
         mClearOnNextQueryComplete = true;
         mHistoryProvider.queryHistory(mQueryText, mAppId);
     }
@@ -271,6 +272,7 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
 
     /**
      * Sets the selectable item mode. Items only selectable if they have a SelectableItemViewHolder.
+     *
      * @param active Whether the selection mode is on or not.
      */
     public void setSelectionActive(boolean active) {
@@ -394,8 +396,7 @@ public class HistoryAdapter extends DateDividedAdapter implements BrowsingHistor
     }
 
     /**
-     * Initialize a more progress button as footer items that will be re-used
-     * during page loading.
+     * Initialize a more progress button as footer items that will be re-used during page loading.
      */
     @Initializer
     void generateFooterItems() {

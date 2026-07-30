@@ -228,8 +228,8 @@ void AppManagementPageHandlerChromeOs::GetOverlappingPreferredApps(
   auto intent_filters = GetSupportedLinkIntentFilters(profile(), app_id);
   auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
   base::flat_set<std::string> app_ids =
-      proxy->PreferredAppsList().FindPreferredAppsForFilters(intent_filters);
-  app_ids.erase(app_id);
+      proxy->PreferredAppsList().FindPreferredAppsForFilters(app_id,
+                                                             intent_filters);
 
   // Erase all IDs that do not correspond to installed apps in App Service. Such
   // IDs could be apps that have been uninstalled but did not have their

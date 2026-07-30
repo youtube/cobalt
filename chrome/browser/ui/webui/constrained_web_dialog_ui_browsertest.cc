@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
@@ -20,6 +21,7 @@
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -151,6 +153,31 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
   EXPECT_TRUE(watcher.IsDestroyed());
 }
 
+constexpr char kAutoSizeUsesScrollWidthForOverflow[] =
+    "AutoSizeUsesScrollWidthForOverflow";
+
+class ConstrainedWebDialogBrowserAutosizeTest
+    : public ConstrainedWebDialogBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ConstrainedWebDialogBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(GetParam()
+                                        ? switches::kEnableBlinkFeatures
+                                        : switches::kDisableBlinkFeatures,
+                                    kAutoSizeUsesScrollWidthForOverflow);
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ConstrainedWebDialogBrowserAutosizeTest,
+    testing::Bool(),
+    [](const testing::TestParamInfo<bool>& info) {
+      return info.param ? "AutoSizeUsesScrollWidthForOverflowEnabled"
+                        : "AutoSizeUsesScrollWidthForOverflowDisabled";
+    });
+
 // Tests that dialog autoresizes based on web contents when autoresizing
 // is enabled.
 // Flaky on CrOS: http://crbug.com/41439468
@@ -162,14 +189,20 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
 #define MAYBE_ContentResizeInAutoResizingDialog \
   ContentResizeInAutoResizingDialog
 #endif
-IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
+IN_PROC_BROWSER_TEST_P(ConstrainedWebDialogBrowserAutosizeTest,
                        MAYBE_ContentResizeInAutoResizingDialog) {
   // During auto-resizing, dialogs size to (WebContents size) + 16.
-  const int dialog_border_space = 16;
+  constexpr int kDialogBorderSpace = 16;
+  const bool feature_enabled = GetParam();
 
   // Expected dialog sizes after auto-resizing.
-  const int initial_size = 150 + dialog_border_space;
-  const int new_size = 175 + dialog_border_space;
+  const gfx::Size min_size(100, 100);
+  const gfx::Size initial_size(feature_enabled ? 158 : 150 + kDialogBorderSpace,
+                               150 + kDialogBorderSpace);
+  const gfx::Size resized_size(feature_enabled ? 183 : 175 + kDialogBorderSpace,
+                               175 + kDialogBorderSpace);
+  const gfx::Size minimum_content_size =
+      feature_enabled ? gfx::Size(183, 100) : min_size;
 
   auto delegate =
       std::make_unique<AutoResizingTestWebDialogDelegate>(GURL(kTestDataURL));
@@ -181,7 +214,6 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
   content::TestNavigationObserver observer(nullptr);
   observer.StartWatchingNewWebContents();
 
-  gfx::Size min_size = gfx::Size(100, 100);
   gfx::Size max_size = gfx::Size(200, 200);
   gfx::Size initial_dialog_size;
 
@@ -209,20 +241,20 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
   ASSERT_TRUE(IsShowingWebContentsModalDialog(web_contents));
 
   // Resize to content's originally set dimensions.
-  ASSERT_TRUE(RunLoopUntil(base::BindRepeating(
-      &IsEqualSizes, gfx::Size(initial_size, initial_size), dialog_delegate)));
+  ASSERT_TRUE(RunLoopUntil(
+      base::BindRepeating(&IsEqualSizes, initial_size, dialog_delegate)));
 
   // Resize to dimensions within expected bounds.
   EXPECT_TRUE(ExecJs(dialog_delegate->GetWebContents(),
                      GetChangeDimensionsScript(175)));
-  ASSERT_TRUE(RunLoopUntil(base::BindRepeating(
-      &IsEqualSizes, gfx::Size(new_size, new_size), dialog_delegate)));
+  ASSERT_TRUE(RunLoopUntil(
+      base::BindRepeating(&IsEqualSizes, resized_size, dialog_delegate)));
 
   // Resize to dimensions smaller than the minimum bounds.
   EXPECT_TRUE(
       ExecJs(dialog_delegate->GetWebContents(), GetChangeDimensionsScript(50)));
-  ASSERT_TRUE(RunLoopUntil(
-      base::BindRepeating(&IsEqualSizes, min_size, dialog_delegate)));
+  ASSERT_TRUE(RunLoopUntil(base::BindRepeating(
+      &IsEqualSizes, minimum_content_size, dialog_delegate)));
 
   // Resize to dimensions greater than the maximum bounds.
   EXPECT_TRUE(ExecJs(dialog_delegate->GetWebContents(),

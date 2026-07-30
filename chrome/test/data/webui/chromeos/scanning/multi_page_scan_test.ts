@@ -12,7 +12,7 @@ import {assert} from 'chrome://resources/js/assert.js';
 import type {MultiPageScanElement} from 'chrome://scanning/multi_page_scan.js';
 import {AppState} from 'chrome://scanning/scanning_app_types.js';
 import {ScanningBrowserProxyImpl} from 'chrome://scanning/scanning_browser_proxy.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, isVisible} from 'chrome://webui-test/chromeos/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 

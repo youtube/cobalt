@@ -272,7 +272,7 @@ bool MjpegFileParser::Initialize(VideoCaptureFormat* capture_format) {
   }
 
   frame_size_ = result.image_size;
-  if (frame_size_ > mapped_file_->length()) {
+  if (frame_size_ > mapped_file_->bytes().size()) {
     LOG(ERROR) << "File is incomplete";
     return false;
   }
@@ -300,7 +300,7 @@ base::span<const uint8_t> MjpegFileParser::GetNextFrame() {
   int frame_size = frame_size_ = result.image_size;
   current_byte_index_ += frame_size_;
   // Reset the pointer to play repeatedly.
-  if (current_byte_index_ >= mapped_file_->length()) {
+  if (current_byte_index_ >= mapped_file_->bytes().size()) {
     current_byte_index_ = first_frame_byte_index_;
   }
   return buf_span.first(base::checked_cast<size_t>(frame_size));

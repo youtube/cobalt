@@ -253,7 +253,7 @@ TEST_F(AutofillAgentTests,
             u"\"-default\",\"value\":\"name_value\"},\"4\":{\"hostFormId\":0,"
             u"\"isAutofilled\":false,\"section\":\"-default\","
             u"\"value\":\"01\"},\"5\":{\"hostFormId\":0,\"isAutofilled\":true,"
-            u"\"section\":\"-default\",\"value\":\"\"}}}, 0]);",
+            u"\"section\":\"-default\",\"value\":\"\"}}}]);",
             fake_main_frame_->GetLastJavaScriptCall());
 }
 
@@ -985,13 +985,58 @@ TEST_F(AutofillAgentTests, DidSelectSuggestion_AutocompleteEntry) {
   FieldRendererId field1_id(2);
   const std::u16string field1_value = u"test-value";
 
+  AutofillDriverIOS* driver = AutofillDriverIOS::FromWebStateAndWebFrame(
+      &fake_web_state_, fake_main_frame_);
+  ASSERT_TRUE(driver);
+
+  autofill::FormFieldData field;
+  field.set_renderer_id(field1_id);
+  field.set_host_frame(driver->GetFrameToken());
+  field.set_host_form_id(form_id);
+
+  autofill::FormData form;
+  form.set_host_frame(driver->GetFrameToken());
+  form.set_renderer_id(form_id);
+  form.set_fields({field});
+  driver->FormsSeen({form}, {});
+
   // Set the result returned from filling as a success.
   base::Value result(true);
-  fake_main_frame_->AddJsResultForFunctionCall(&result,
-                                               "autofill.fillActiveFormField");
+  fake_main_frame_->AddJsResultForFunctionCall(
+      &result, "autofill.fillSpecificFormField");
 
   // Declare the page as shown to allow field filling.
   fake_web_state_.WasShown();
+
+  // Setup mock delegate.
+  autofill::MockAutofillSuggestionDelegate mock_delegate;
+  EXPECT_CALL(
+      mock_delegate,
+      DidAcceptSuggestion(
+          ::testing::Field(&autofill::Suggestion::type,
+                           autofill::SuggestionType::kAutocompleteEntry),
+          ::testing::_))
+      .WillOnce(
+          [&](const autofill::Suggestion& suggestion,
+              const autofill::AutofillSuggestionDelegate::SuggestionMetadata&
+                  metadata) {
+            AutofillDriverIOS* driver =
+                AutofillDriverIOS::FromWebStateAndWebFrame(&fake_web_state_,
+                                                           fake_main_frame_);
+            ASSERT_TRUE(driver);
+            driver->ApplyFieldAction(
+                autofill::mojom::FieldActionType::kReplaceAll,
+                autofill::mojom::ActionPersistence::kFill,
+                autofill::FieldGlobalId(driver->GetFrameToken(), field1_id),
+                suggestion.main_text.value);
+          });
+
+  // Show the popup to set the delegate.
+  std::vector<autofill::Suggestion> suggestions;
+  suggestions.emplace_back(field1_value,
+                           autofill::SuggestionType::kAutocompleteEntry);
+  [autofill_agent_ showAutofillPopup:suggestions
+                  suggestionDelegate:mock_delegate.GetWeakPtr()];
 
   // Select suggestion to trigger field filling.
   __block BOOL completion_handler_called = NO;
@@ -1008,10 +1053,9 @@ TEST_F(AutofillAgentTests, DidSelectSuggestion_AutocompleteEntry) {
                        completion_handler_called = YES;
                      }];
 
-  EXPECT_CALL(delegate_mock_,
-              DidFillField(fake_main_frame_.get(),
-                           std::make_optional<FormRendererId>(form_id),
-                           field1_id, field1_value));
+  EXPECT_CALL(delegate_mock_, DidFillField(fake_main_frame_.get(),
+                                           std::optional<FormRendererId>(),
+                                           field1_id, field1_value));
 
   // Run queues to yield the field filling results from the JS call.
   web::test::WaitForBackgroundTasks();

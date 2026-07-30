@@ -483,7 +483,6 @@ Se a política for definida como "Desativada" ou não for definida, as configura
       Se ela estiver ativada, a melhoria ficará ativada.
       Se a política for deixada sem definição, ela ficará ativada em dispositivos gerenciados e dispositivos de consumidores.
       Observe que esta é uma política temporária para permitir que os usuários gerenciados continuem usando atalhos legados descontinuados. Esta política será descontinuada quando os atalhos personalizados ficarem disponíveis.</translation>
-<translation id="1359459742455216057">Identificador exclusivo do app <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />.</translation>
 <translation id="1361661842732478894">Mostrar o botão "Página inicial" na barra de ferramentas</translation>
 <translation id="1363275621236827384">Permitir consultas no Servidor Quirks para perfis de hardware</translation>
 <translation id="1363839375295535439">Se a política for ativada ou não for definida, permite que o sandbox do LPAC seja ativado para serviços de impressão sempre que a configuração do sistema permitir.
@@ -7493,9 +7492,6 @@ Se ela estiver sem definição ou não for possível determinar a idade de lanç
 <translation id="5649788773465136073">Desativa o uso de identificadores de conteúdo protegido com sites, o que pode levar a uma qualidade inferior de reprodução desse tipo de conteúdo.</translation>
 <translation id="5650256117857913687">Impedir que os usuários de acesso remoto abram URLs do lado do host no navegador cliente local</translation>
 <translation id="5650716720715977549">Aplicar restrições a solicitações para endpoints de uma rede mais particular</translation>
-<translation id="5651538748810288218">Se a política for definida como 1, os sites poderão acessar e usar sensores, como os de luz e movimento. Se for definida como 2, o acesso aos sensores será negado.
-
-      Se a política não for definida, a <ph name="ALLOW_SENSORS_POLICY_NAME" /> será aplicada, mas os usuários poderão mudar essa configuração.</translation>
 <translation id="5652250453612826983">Controla as políticas de supervisão da família, que são aplicadas apenas às contas de crianças.
       Essas políticas não são definidas no Admin Console, mas configuradas diretamente pelo Kids API Server.</translation>
 <translation id="5654682237531873653">Se a política for definida como "Ativada", a verificação ortográfica será ativada e os usuários não poderão desativá-la. No <ph name="MS_WIN_NAME" />, <ph name="PRODUCT_OS_NAME" /> e <ph name="LINUX_OS_NAME" />, os idiomas de verificação ortográfica podem ser ativados ou desativados individualmente. Assim, os usuários ainda poderão desativar a verificação ortográfica desativando todos os idiomas dela. Para impedir isso, use a <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> para forçar a ativação de idiomas específicos de verificação ortográfica.
@@ -7981,6 +7977,7 @@ A partir do <ph name="PRODUCT_NAME" /> 147, esta política será descontinuada. 
 <translation id="5962271004971310788">Extensões que precisam ser executadas pelo usuário no modo de navegação anônima para navegar nesse modo</translation>
 <translation id="5963752574792883406">porta 990 (pode ser desbloqueada até 01/02/2022)</translation>
 <translation id="596523880465577341">Essa política foi descontinuada e parou de ter suporte. Use a <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />.</translation>
+<translation id="5965344524743236327">O ID ou número de projeto do <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> correspondente à instância do <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> a ser ativada. Saiba mais sobre IDs de projeto em https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects.</translation>
 <translation id="5966615072639944554">Extensões que podem usar a API de declaração remota</translation>
 <translation id="596732417280023843">O nome do perfil de certificado.</translation>
 <translation id="5972538402066550344">Permitir controles de geração de relatórios granulares</translation>
@@ -8404,6 +8401,7 @@ Se a política <ph name="ALLOWED_INPUT_METHODS_POLICY_NAME" /> for deixada sem d
 <translation id="6264247808139384018">Se a política for ativada ou não for definida, os usuários que autenticam com uma senha poderão bloquear a tela.
 
 Se a política for desativada, os usuários não poderão bloquear a tela. Eles só poderão sair da sessão do usuário.</translation>
+<translation id="6265114688953151459">O identificador exclusivo do mecanismo do <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" />. O formato deve ser de 1 a 63 caracteres e corresponder ao padrão [a-z0-9][a-z0-9-_]*. Saiba mais em https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine.</translation>
 <translation id="6265892395051519509">Permite acesso a sensores nesses sites</translation>
 <translation id="6266043141694454734">Determina se a Chrome Root Store e o verificador de certificados integrado vão ser usados para verificar os certificados do servidor</translation>
 <translation id="6266686172120601139">Ativar o armazenamento em buffer adaptável para a API Web Audio</translation>
@@ -9280,7 +9278,6 @@ Quando a política é ativada, os dados são coletados e enviados por upload par
 
 Para o <ph name="PRODUCT_NAME" />, esta política só é eficaz quando a máquina está registrada no <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
 Para o <ph name="PRODUCT_OS_NAME" />, ela sempre é eficaz.</translation>
-<translation id="6714333117401088746">O ID do projeto <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> correspondente à instância do <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> a ser ativada.</translation>
 <translation id="6720330829631914048">Horas decorridas desde o começo do dia (no formato de 24 horas).</translation>
 <translation id="6720862827454058309">Substituir mapeamentos de espaço de endereço IP</translation>
 <translation id="6721252203593581486">O WebSQL em contextos de terceiros (por exemplo, iframes entre sites) fica desativado por padrão a partir do M97 e será totalmente removido no M101.

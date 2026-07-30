@@ -150,8 +150,10 @@ CreateTestIwaWithDirectSockets() {
                      network::mojom::PermissionsPolicyFeature::kDirectSockets,
                      /*self=*/true, /*origins=*/{})
                  .AddPermissionsPolicy(
-                     network::mojom::PermissionsPolicyFeature::
-                         kDirectSocketsPrivate,
+                     network::mojom::PermissionsPolicyFeature::kLocalNetwork,
+                     /*self=*/true, /*origins=*/{})
+                 .AddPermissionsPolicy(
+                     network::mojom::PermissionsPolicyFeature::kLoopbackNetwork,
                      /*self=*/true, /*origins=*/{}))
       .BuildBundle(GetTestKeyPair());
 }

@@ -12,6 +12,7 @@ import type {ConfirmationCodePageElement} from 'chrome://resources/ash/common/ce
 import type {EsimFlowUiElement} from 'chrome://resources/ash/common/cellular_setup/esim_flow_ui.js';
 import {EsimPageName, EsimSetupFlowResult, FAILED_ESIM_SETUP_DURATION_METRIC_NAME, SUCCESSFUL_ESIM_SETUP_DURATION_METRIC_NAME} from 'chrome://resources/ash/common/cellular_setup/esim_flow_ui.js';
 import type {FinalPageElement} from 'chrome://resources/ash/common/cellular_setup/final_page.js';
+import {MetricsBrowserProxy} from 'chrome://resources/ash/common/cellular_setup/metrics_browser_proxy.js';
 import {setESimManagerRemoteForTesting} from 'chrome://resources/ash/common/cellular_setup/mojo_interface_provider.js';
 import type {ProfileDiscoveryConsentPageElement} from 'chrome://resources/ash/common/cellular_setup/profile_discovery_consent_page.js';
 import type {ProfileDiscoveryListItemElement} from 'chrome://resources/ash/common/cellular_setup/profile_discovery_list_item.js';
@@ -32,7 +33,7 @@ import {FakeBarcodeDetector, FakeImageCapture} from './fake_barcode_detector.js'
 import {FakeCellularSetupDelegate} from './fake_cellular_setup_delegate.js';
 import type {FakeEuicc} from './fake_esim_manager_remote.js';
 import {FakeESimManagerRemote} from './fake_esim_manager_remote.js';
-import {MockMetricsPrivate} from './mock_metrics_private.js';
+import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
 
 suite(`CrComponentsEsimFlowUiTest`, function() {
@@ -48,7 +49,7 @@ suite(`CrComponentsEsimFlowUiTest`, function() {
   let confirmationCodePage: ConfirmationCodePageElement|null;
   let finalPage: FinalPageElement|null;
   let networkConfigRemote: FakeNetworkConfig;
-  let metrics: MockMetricsPrivate;
+  let metrics: TestMetricsBrowserProxy;
   let focusDefaultButtonEventFired = false;
   const wifiGuidPrefix = 'wifi';
 
@@ -95,8 +96,8 @@ suite(`CrComponentsEsimFlowUiTest`, function() {
 
     addOnlineWifiNetwork();
 
-    metrics = new MockMetricsPrivate();
-    chrome.metricsPrivate = metrics as unknown as typeof chrome.metricsPrivate;
+    metrics = new TestMetricsBrowserProxy();
+    MetricsBrowserProxy.setInstance(metrics);
     eSimManagerRemote = new FakeESimManagerRemote();
     setESimManagerRemoteForTesting(eSimManagerRemote);
 

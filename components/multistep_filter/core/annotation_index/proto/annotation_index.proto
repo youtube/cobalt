@@ -29,10 +29,11 @@ message ExtractionSource {
 }
 
 // Response containing attributes extracted from the provided source.
+// Note: The domain field has been removed. The domain should now be derived
+// from the source URL provided in the request.
 message ExtractTaskAttributesResponse {
-  // The normalized domain identifier (eTLD+1) associated with the extraction
-  // (e.g., "travel-example.com").
-  string domain = 1;
+  reserved 1;
+  reserved "domain";
 
   // The universal task task type derived from the source (e.g.,
   // "SEARCH_FLIGHTS").

@@ -7,13 +7,15 @@
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/time/time.h"
+#import "components/feature_engagement/public/event_constants.h"
+#import "components/feature_engagement/public/tracker.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/public/provider/chrome/browser/bwg/gemini_api.h"
 
@@ -113,6 +115,8 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 @implementation GeminiSessionHandler {
   // The associated WebStateList.
   raw_ptr<WebStateList> _webStateList;
+  // The feature engagement tracker.
+  raw_ptr<feature_engagement::Tracker> _tracker;
   // Session start time for duration tracking.
   base::TimeTicks _sessionStartTime;
   // Tracks if user has received the first response in current session.
@@ -126,10 +130,12 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   int _totalPromptsInSession;
 }
 
-- (instancetype)initWithWebStateList:(WebStateList*)webStateList {
+- (instancetype)initWithWebStateList:(WebStateList*)webStateList
+                             tracker:(feature_engagement::Tracker*)tracker {
   self = [super init];
   if (self) {
     _webStateList = webStateList;
+    _tracker = tracker;
   }
   return self;
 }
@@ -289,6 +295,12 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   _lastPromptSentTime = base::TimeTicks::Now();
   _lastPromptHadPageContext = pageContextAttached;
   _waitingForResponse = YES;
+
+  if (_tracker && inputType == gemini::InputType::kWhatCanGeminiDo &&
+      IsZeroStateSuggestionsCentralizationEnabled()) {
+    _tracker->NotifyEvent(
+        feature_engagement::events::kIOSGeminiWhatCanGeminiDoTapped);
+  }
 }
 
 // Called when a new chat button is tapped.
@@ -303,7 +315,6 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   // Ensure page context is attached for a new chat.
   ios::provider::UpdatePageAttachmentState(
       ios::provider::GeminiPageContextAttachmentState::kAttached);
-  geminiTabHelper->NotifyPageContextUpdated(webState);
   // Record the new chat metric.
   RecordGeminiNewChatButtonTapped();
 

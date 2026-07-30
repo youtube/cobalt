@@ -18,6 +18,12 @@
 // List of tasks.
 @property(nonatomic, copy, readonly) NSArray<LevelUpTask*>* tasks;
 
+// List of active (non-completed) tasks.
+@property(nonatomic, copy, readonly) NSArray<LevelUpTask*>* activeTasks;
+
+// List of completed tasks.
+@property(nonatomic, copy, readonly) NSArray<LevelUpTask*>* completedTasks;
+
 - (instancetype)initWithTitle:(NSString*)title
                         tasks:(NSArray<LevelUpTask*>*)tasks;
 

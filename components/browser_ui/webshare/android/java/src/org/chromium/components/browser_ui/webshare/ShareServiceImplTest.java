@@ -11,12 +11,22 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.FileUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.blink.mojom.SerializedBlob;
+import org.chromium.components.browser_ui.share.ShareImageFileUtils;
 import org.chromium.components.browser_ui.share.ShareParams;
+import org.chromium.mojo_base.mojom.FilePath;
+import org.chromium.mojo_base.mojom.SafeBaseName;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.mojom.Url;
 import org.chromium.webshare.mojom.ShareError;
 import org.chromium.webshare.mojom.ShareService;
+import org.chromium.webshare.mojom.SharedFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 
 /** Unit tests for {@link ShareServiceImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -202,5 +212,52 @@ public class ShareServiceImplTest {
         Assert.assertTrue(shareCalled[0]);
         Assert.assertEquals(ShareError.OK, shareError[0]);
         Assert.assertEquals(0, badMessageReason[0]);
+    }
+
+    // Verifies that ShareServiceImpl preserves file names when creating temporary shared files.
+    @Test
+    @SmallTest
+    public void testPreservesFileNames() {
+        String filename = "intro.webm";
+        SafeBaseName name = new SafeBaseName();
+        name.path = new FilePath();
+        name.path.path = filename;
+        SerializedBlob blob = new SerializedBlob();
+        blob.contentType = "video/webm";
+        blob.size = 0;
+        SharedFile sharedFile = new SharedFile();
+        sharedFile.name = name;
+        sharedFile.blob = blob;
+        SharedFile[] files = new SharedFile[] {sharedFile};
+
+        ShareParams.Builder paramsBuilder = new ShareParams.Builder(null, "title", "");
+        ArrayList<BlobReceiver> blobReceivers = new ArrayList<>();
+
+        boolean result =
+                ShareServiceImpl.prepareShareParamsWithFiles(files, paramsBuilder, blobReceivers);
+        File[] shareDirs = null;
+        try {
+            // Verify that the temp file was created with the correct name.
+            Assert.assertTrue(result);
+            File sharePath = ShareImageFileUtils.getSharedFilesDirectory();
+            shareDirs = sharePath.listFiles(File::isDirectory);
+
+            Assert.assertNotNull(shareDirs);
+            Assert.assertEquals(1, shareDirs.length);
+
+            File[] sharedFiles = shareDirs[0].listFiles(File::isFile);
+            Assert.assertNotNull(sharedFiles);
+            Assert.assertEquals(1, sharedFiles.length);
+            Assert.assertEquals(filename, sharedFiles[0].getName());
+        } catch (IOException e) {
+            e.printStackTrace();
+            Assert.fail();
+        } finally {
+            if (shareDirs != null) {
+                for (File dir : shareDirs) {
+                    FileUtils.recursivelyDeleteFile(dir, FileUtils.DELETE_ALL);
+                }
+            }
+        }
     }
 }

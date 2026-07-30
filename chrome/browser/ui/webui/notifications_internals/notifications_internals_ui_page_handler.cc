@@ -9,9 +9,10 @@
 #include "base/values.h"
 #include "chrome/browser/notifications/scheduler/public/notification_params.h"
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
-#include "chrome/browser/notifications/scheduler/public/tips_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
+#include "chrome/browser/tips/core/tips_types.h"
+#include "chrome/browser/tips/core/tips_utils.h"
 #include "chrome/browser/ui/webui/notifications_internals/notifications_internals.mojom.h"
 #include "content/public/browser/web_ui.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -30,25 +31,25 @@ NotificationsInternalsUIPageHandler::~NotificationsInternalsUIPageHandler() =
 
 void NotificationsInternalsUIPageHandler::ScheduleNotification(
     const std::string& feature_type) {
-  notifications::TipsNotificationsFeatureType type;
+  tips::TipsNotificationsFeatureType type;
   if (feature_type == "esb") {
-    type = notifications::TipsNotificationsFeatureType::kEnhancedSafeBrowsing;
+    type = tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing;
   } else if (feature_type == "quick_delete") {
-    type = notifications::TipsNotificationsFeatureType::kQuickDelete;
+    type = tips::TipsNotificationsFeatureType::kQuickDelete;
   } else if (feature_type == "google_lens") {
-    type = notifications::TipsNotificationsFeatureType::kGoogleLens;
+    type = tips::TipsNotificationsFeatureType::kGoogleLens;
   } else if (feature_type == "bottom_omnibox") {
-    type = notifications::TipsNotificationsFeatureType::kBottomOmnibox;
+    type = tips::TipsNotificationsFeatureType::kBottomOmnibox;
   } else if (feature_type == "password_autofill") {
-    type = notifications::TipsNotificationsFeatureType::kPasswordAutofill;
+    type = tips::TipsNotificationsFeatureType::kPasswordAutofill;
   } else if (feature_type == "signin") {
-    type = notifications::TipsNotificationsFeatureType::kSignin;
+    type = tips::TipsNotificationsFeatureType::kSignin;
   } else if (feature_type == "create_tab_groups") {
-    type = notifications::TipsNotificationsFeatureType::kCreateTabGroups;
+    type = tips::TipsNotificationsFeatureType::kCreateTabGroups;
   } else if (feature_type == "customize_mvt") {
-    type = notifications::TipsNotificationsFeatureType::kCustomizeMVT;
+    type = tips::TipsNotificationsFeatureType::kCustomizeMVT;
   } else if (feature_type == "recent_tabs") {
-    type = notifications::TipsNotificationsFeatureType::kRecentTabs;
+    type = tips::TipsNotificationsFeatureType::kRecentTabs;
   } else {
     NOTREACHED();
   }
@@ -58,8 +59,7 @@ void NotificationsInternalsUIPageHandler::ScheduleNotification(
       notifications::ScheduleParams::Priority::kNoThrottle;
   schedule_params.deliver_time_start = base::Time::Now();
   schedule_params.deliver_time_end = base::Time::Now() + base::Minutes(1);
-  notifications::NotificationData data =
-      notifications::GetTipsNotificationData(type);
+  notifications::NotificationData data = tips::GetTipsNotificationData(type);
   auto params = std::make_unique<notifications::NotificationParams>(
       notifications::SchedulerClientType::kTips, std::move(data),
       std::move(schedule_params));

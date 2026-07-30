@@ -11,6 +11,9 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/page_action/action_ids.h"
 #include "chrome/browser/ui/page_action/chip_selector.h"
 #include "chrome/browser/ui/page_action/page_action_metrics_recorder.h"
 #include "chrome/browser/ui/page_action/page_action_metrics_recorder_interface.h"
@@ -431,6 +434,10 @@ void PageActionControllerImpl::SetAnchoredMessageAction(
       PageActionPassKey(), action_icon_type, std::move(model));
 }
 
+bool PageActionControllerImpl::ActionExists(actions::ActionId action_id) const {
+  return page_actions_.contains(action_id);
+}
+
 void PageActionControllerImpl::AddObserver(
     actions::ActionId action_id,
     base::ScopedObservation<PageActionModelInterface, PageActionModelObserver>&
@@ -567,6 +574,50 @@ std::ostream& operator<<(std::ostream& os, const SuggestionChipConfig& config) {
   os << "{ should_animate: " << config.should_animate
      << ", should_announce_chip: " << config.should_announce_chip << " }";
   return os;
+}
+
+std::vector<actions::ActionId> GetActivePageActionIds(
+    BrowserWindowInterface& bwi) {
+  auto* browser_actions = bwi.GetActions();
+  if (!browser_actions) {
+    return {};
+  }
+
+  auto* root_action_item = browser_actions->root_action_item();
+  if (!root_action_item) {
+    return {};
+  }
+
+  std::vector<actions::ActionId> ids;
+  for (actions::ActionId action_id : kActionIds) {
+    if (actions::ActionManager::Get().FindAction(action_id, root_action_item)) {
+      ids.push_back(action_id);
+    }
+  }
+
+  return ids;
+}
+
+std::vector<actions::ActionItem*> GetActivePageActionItems(
+    BrowserWindowInterface& bwi) {
+  auto* browser_actions = bwi.GetActions();
+  if (!browser_actions) {
+    return {};
+  }
+
+  auto* root_action_item = browser_actions->root_action_item();
+  if (!root_action_item) {
+    return {};
+  }
+
+  std::vector<actions::ActionItem*> items;
+  for (actions::ActionId action_id : kActionIds) {
+    if (actions::ActionItem* item = actions::ActionManager::Get().FindAction(
+            action_id, root_action_item)) {
+      items.push_back(item);
+    }
+  }
+  return items;
 }
 
 }  // namespace page_actions

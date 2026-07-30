@@ -99,7 +99,8 @@ class FirewallHoleBrowserTest : public ContentBrowserTest {
         .WithCOIHeaders()
         .WithPermissionsPolicy("cross-origin-isolated", "(self)")
         .WithPermissionsPolicy("direct-sockets", "(self)")
-        .WithPermissionsPolicy("direct-sockets-private", "(self)")
+        .WithPermissionsPolicy("local-network", "(self)")
+        .WithPermissionsPolicy("loopback-network", "(self)")
         .WithPermissionsPolicy("direct-sockets-multicast", "(self)")
         .Build(embedded_test_server());
   }

@@ -77,7 +77,7 @@ void AutofillJavaScriptFeature::FetchForms(
   CallJavaScriptFunction(
       frame, "autofill.extractForms",
       base::ListValue().Append(restrict_unowned_fields_to_formless_checkout),
-      autofill::CreateStringCallback(std::move(callback)),
+      CreateStringCallback(std::move(callback)),
       base::Seconds(kJavaScriptExecutionTimeoutInSeconds));
 }
 
@@ -87,7 +87,7 @@ void AutofillJavaScriptFeature::FillActiveFormField(
     base::OnceCallback<void(BOOL)> callback) {
   CallJavaScriptFunction(frame, "autofill.fillActiveFormField",
                          base::ListValue().Append(std::move(data)),
-                         autofill::CreateBoolCallback(std::move(callback)),
+                         CreateBoolCallback(std::move(callback)),
                          base::Seconds(kJavaScriptExecutionTimeoutInSeconds));
 }
 
@@ -97,30 +97,26 @@ void AutofillJavaScriptFeature::FillSpecificFormField(
     base::OnceCallback<void(BOOL)> callback) {
   CallJavaScriptFunction(frame, "autofill.fillSpecificFormField",
                          base::ListValue().Append(std::move(data)),
-                         autofill::CreateBoolCallback(std::move(callback)),
+                         CreateBoolCallback(std::move(callback)),
                          base::Seconds(kJavaScriptExecutionTimeoutInSeconds));
 }
 
 void AutofillJavaScriptFeature::FillForm(
     web::WebFrame* frame,
     base::DictValue data,
-    autofill::FieldRendererId force_fill_field_id,
     base::OnceCallback<void(NSString*)> callback) {
   DCHECK(!callback.is_null());
 
-  CallJavaScriptFunction(
-      frame, "autofill.fillForm",
-      base::ListValue()
-          .Append(std::move(data))
-          .Append(static_cast<int>(force_fill_field_id.value())),
-      autofill::CreateStringCallback(std::move(callback)),
-      base::Seconds(kJavaScriptExecutionTimeoutInSeconds));
+  CallJavaScriptFunction(frame, "autofill.fillForm",
+                         base::ListValue().Append(std::move(data)),
+                         CreateStringCallback(std::move(callback)),
+                         base::Seconds(kJavaScriptExecutionTimeoutInSeconds));
 }
 
 void AutofillJavaScriptFeature::ClearAutofilledFieldsForForm(
     web::WebFrame* frame,
-    autofill::FormRendererId form_renderer_id,
-    autofill::FieldRendererId field_renderer_id,
+    FormRendererId form_renderer_id,
+    FieldRendererId field_renderer_id,
     base::OnceCallback<void(NSString*)> callback) {
   DCHECK(!callback.is_null());
 
@@ -129,7 +125,7 @@ void AutofillJavaScriptFeature::ClearAutofilledFieldsForForm(
       base::ListValue()
           .Append(static_cast<int>(form_renderer_id.value()))
           .Append(static_cast<int>(field_renderer_id.value())),
-      autofill::CreateStringCallback(std::move(callback)),
+      CreateStringCallback(std::move(callback)),
       base::Seconds(kJavaScriptExecutionTimeoutInSeconds));
 }
 
@@ -164,13 +160,12 @@ void AutofillJavaScriptFeature::ScriptMessageReceived(
     return;
   }
 
-  auto* driver =
-      autofill::AutofillDriverIOS::FromWebStateAndWebFrame(web_state, frame);
+  auto* driver = AutofillDriverIOS::FromWebStateAndWebFrame(web_state, frame);
 
   const scoped_refptr<FieldDataManager> field_data_manager =
       FieldDataManagerFactoryIOS::GetRetainable(frame);
 
-  if (base::expected<autofill::FormData, ExtractFormDataFailure> form_data =
+  if (base::expected<FormData, ExtractFormDataFailure> form_data =
           ExtractFormData(*form_dict, /*form_name_filter=*/std::nullopt,
                           web_state->GetLastCommittedURL(),
                           frame->GetSecurityOrigin(), frame->GetUrl(),

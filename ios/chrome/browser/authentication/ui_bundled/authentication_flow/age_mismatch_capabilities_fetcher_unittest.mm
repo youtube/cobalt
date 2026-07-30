@@ -91,7 +91,7 @@ class AgeMismatchCapabilitiesFetcherTest
   void SetAccountInfoCanSignInToChromeCapability(AccountInfo account,
                                                  signin::Tribool capability) {
     account = signin::WithGeneratedUserInfo(account, "given_name");
-    AccountCapabilitiesTestMutator mutator(&account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account);
     mutator.set_can_sign_in_to_chrome(capability == signin::Tribool::kTrue);
     identity_test_env_.UpdateAccountInfoForAccount(account);
   }

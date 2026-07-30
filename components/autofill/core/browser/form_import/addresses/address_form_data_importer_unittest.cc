@@ -1638,7 +1638,7 @@ TEST_F(AddressFormDataImporterTest,
   field2.set_selected_option_text(u"United States");
   field2.SetTypeTo(AutofillType(ADDRESS_HOME_COUNTRY),
                    AutofillPredictionSource::kHeuristics);
-  const std::array<const autofill::AutofillField*, 2> section_fields =
+  const std::array<const AutofillField*, 2> section_fields =
       std::to_array<const AutofillField*>({&field, &field2});
 
   EXPECT_FALSE(test_api(form_data_importer().GetAddressFormDataImporter())
@@ -1665,7 +1665,7 @@ TEST_F(AddressFormDataImporterTest,
   field2.SetTypeTo(AutofillType(ADDRESS_HOME_COUNTRY),
                    AutofillPredictionSource::kHeuristics);
   field2.set_value(u"US");
-  const std::array<const autofill::AutofillField*, 2> section_fields =
+  const std::array<const AutofillField*, 2> section_fields =
       std::to_array<const AutofillField*>({&field, &field2});
 
   EXPECT_FALSE(test_api(form_data_importer().GetAddressFormDataImporter())

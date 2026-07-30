@@ -9,15 +9,13 @@ class GURL;
 
 namespace glic::net_log {
 
-enum class GlicPage { kGlicFre, kGlic };
 // Log a fake network request to NetLog with a Glic traffic annotation. This
 // doesn't *send* a request, it just logs it for chrome://net-export.
 //
 // Unfortunately there's no way to pass `traffic_annotation` to
 // LoadURLWithParams() or to tag the WebContents with an annotation, so we
 // use this hacky workaround to capture the annotation at runtime.
-void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url,
-                                                GlicPage glic_page);
+void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url);
 
 }  // namespace glic::net_log
 

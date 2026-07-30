@@ -16,7 +16,7 @@
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
-#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
+#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_payment_method_delegate.h"
 #include "components/autofill/core/browser/payments/autofill_offer_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_strategy.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
@@ -161,7 +161,7 @@ void TestPaymentsAutofillClient::OnCardDataAvailable(
 void TestPaymentsAutofillClient::ConfirmSaveIbanLocally(
     const Iban& iban,
     bool should_show_prompt,
-    payments::PaymentsAutofillClient::SaveIbanPromptCallback callback) {
+    PaymentsAutofillClient::SaveIbanPromptCallback callback) {
   confirm_save_iban_locally_called_ = true;
   offer_to_save_iban_bubble_was_shown_ = should_show_prompt;
 }
@@ -170,7 +170,7 @@ void TestPaymentsAutofillClient::ConfirmUploadIbanToCloud(
     const Iban& iban,
     LegalMessageLines legal_message_lines,
     bool should_show_prompt,
-    payments::PaymentsAutofillClient::SaveIbanPromptCallback callback) {
+    PaymentsAutofillClient::SaveIbanPromptCallback callback) {
   confirm_upload_iban_to_cloud_called_ = true;
   legal_message_lines_ = std::move(legal_message_lines);
   offer_to_save_iban_bubble_was_shown_ = should_show_prompt;
@@ -301,10 +301,6 @@ TestPaymentsAutofillClient::GetRiskBasedAuthenticator() {
   return risk_based_authenticator_.get();
 }
 
-bool TestPaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable() const {
-  return true;
-}
-
 bool TestPaymentsAutofillClient::IsMandatoryReauthEnabled() {
   return GetPaymentsDataManager().IsPaymentMethodsMandatoryReauthEnabled();
 }
@@ -364,31 +360,31 @@ void TestPaymentsAutofillClient::UpdateOfferNotification(
 void TestPaymentsAutofillClient::DismissOfferNotification() {}
 
 bool TestPaymentsAutofillClient::ShowTouchToFillCreditCard(
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     base::span<const Suggestion> suggestions) {
   return false;
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillIban(
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     base::span<const Iban> ibans_to_suggest) {
   return false;
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillAffiliatedLoyaltyCard(
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     std::vector<LoyaltyCard> loyalty_cards_to_suggest) {
   return false;
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillForAllLoyaltyCards(
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     std::vector<LoyaltyCard> loyalty_cards_to_suggest) {
   return false;
 }
 
 bool TestPaymentsAutofillClient::OnPurchaseAmountExtracted(
-    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+    base::span<const BnplIssuerContext> bnpl_issuer_contexts,
     std::optional<int64_t> extracted_amount,
     bool is_amount_supported_by_any_issuer,
     const std::optional<std::string>& app_locale,
@@ -403,7 +399,7 @@ bool TestPaymentsAutofillClient::ShowTouchToFillProgress(
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillBnplIssuers(
-    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+    base::span<const BnplIssuerContext> bnpl_issuer_contexts,
     const std::string& app_locale,
     base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
     base::OnceClosure cancel_callback) {
@@ -416,7 +412,7 @@ bool TestPaymentsAutofillClient::ShowTouchToFillError(
 }
 
 bool TestPaymentsAutofillClient::ShowTouchToFillBnplTos(
-    payments::BnplTosModel bnpl_tos_model,
+    BnplTosModel bnpl_tos_model,
     base::OnceClosure accept_callback,
     base::OnceClosure cancel_callback) {
   return false;
@@ -442,7 +438,7 @@ MockMandatoryReauthManager*
 TestPaymentsAutofillClient::GetOrCreatePaymentsMandatoryReauthManager() {
   if (!mock_payments_mandatory_reauth_manager_) {
     mock_payments_mandatory_reauth_manager_ =
-        std::make_unique<NiceMock<payments::MockMandatoryReauthManager>>();
+        std::make_unique<NiceMock<MockMandatoryReauthManager>>();
   }
   return mock_payments_mandatory_reauth_manager_.get();
 }
@@ -516,12 +512,11 @@ void TestPaymentsAutofillClient::
     return;
   }
 
-  payments::MockMandatoryReauthManager& mandatory_reauth_manager =
+  MockMandatoryReauthManager& mandatory_reauth_manager =
       *GetOrCreatePaymentsMandatoryReauthManager();
 
   ON_CALL(mandatory_reauth_manager, GetAuthenticationMethod)
-      .WillByDefault(
-          Return(payments::MandatoryReauthAuthenticationMethod::kBiometric));
+      .WillByDefault(Return(MandatoryReauthAuthenticationMethod::kBiometric));
   ON_CALL(mandatory_reauth_manager, Authenticate)
       .WillByDefault(RunOnceCallbackRepeatedly<0>(true));
 }

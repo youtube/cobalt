@@ -39,7 +39,6 @@ class COMPONENT_EXPORT(OS_CRYPT_ASYNC) KeychainKeyProvider
   // os_crypt_async::KeyProvider interface.
   void GetKey(KeyCallback callback) override;
   bool UseForEncryption() override;
-  bool IsCompatibleWithOsCryptSync() override;
 
   raw_ptr<crypto::apple::KeychainV2> keychain_for_testing_ = nullptr;
 };

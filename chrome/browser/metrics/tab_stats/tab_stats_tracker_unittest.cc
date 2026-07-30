@@ -988,6 +988,21 @@ TEST_F(TabStatsTrackerTest, HeartbeatMetrics) {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
+TEST_F(TabStatsTrackerTest, HeartbeatMetricsPinnedTabs) {
+  tab_stats_tracker_->AddTabs(5, this, tab_strip_modifier_.get());
+
+  tab_strip_model_->SetTabPinned(0, true);
+  tab_strip_model_->SetTabPinned(1, true);
+  size_t expected_pinned_tab_count = 2;
+
+  tab_stats_tracker_->OnHeartbeatEvent();
+
+  ExpectBucketedSample(
+      base::StrCat({UmaStatsReportingDelegate::kPinnedTabCountHistogramName,
+                    ".HorizontalTabStrip"}),
+      expected_pinned_tab_count, 1);
+}
+
 TEST_F(TabStatsTrackerTest, HeartbeatMetricsWithVerticalTabs) {
   tabs::VerticalTabStripStateController::From(&mock_browser_window_interface_)
       ->SetVerticalTabsEnabled(true);

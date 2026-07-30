@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/html_script_element.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
@@ -274,7 +275,7 @@ void ModelContext::registerTool(ScriptState* script_state,
     return;
   }
 
-  if (!IsOriginIsolatedOrFileUrl()) {
+  if (!IsModelContextAllowed()) {
     exception_state.ThrowSecurityError(kDocumentDomainEnabledError);
     return;
   }
@@ -663,7 +664,7 @@ void ModelContext::RegisterDeclarativeTool(
     return;
   }
 
-  if (!IsOriginIsolatedOrFileUrl()) {
+  if (!IsModelContextAllowed()) {
     return;
   }
 
@@ -795,10 +796,20 @@ const AtomicString& ModelContext::InterfaceName() const {
   return name;
 }
 
-bool ModelContext::IsOriginIsolatedOrFileUrl() const {
-  return document_->domWindow()->originAgentCluster() ||
-         document_->GetExecutionContext()->GetSecurityOrigin()->Protocol() ==
-             url::kFileScheme;
+bool ModelContext::IsModelContextAllowed() const {
+  const Agent* agent = document_->GetExecutionContext()->GetAgent();
+  const AgentClusterKey& key = agent->GetAgentClusterKey();
+  // ModelContext is allowed under any of the following conditions:
+  // 1. The document is in a standard origin-keyed agent cluster.
+  // 2. The document is a local file:// URL and is in the universal file agent
+  // cluster.
+  // 3. Web security is disabled (e.g., via --disable-web-security for testing).
+  return key.IsOriginKeyed() ||
+         (document_->GetExecutionContext()->GetSecurityOrigin()->Protocol() ==
+              url::kFileScheme &&
+          key.IsUniversalFileAgent()) ||
+         (document_->GetSettings() &&
+          !document_->GetSettings()->GetWebSecurityEnabled());
 }
 
 ScriptPromise<IDLSequence<RegisteredTool>> ModelContext::getTools(
@@ -811,7 +822,7 @@ ScriptPromise<IDLSequence<RegisteredTool>> ModelContext::getTools(
                                            kInactiveDocumentError));
   }
 
-  if (!IsOriginIsolatedOrFileUrl()) {
+  if (!IsModelContextAllowed()) {
     return ScriptPromise<IDLSequence<RegisteredTool>>::RejectWithDOMException(
         script_state,
         MakeGarbageCollected<DOMException>(DOMExceptionCode::kSecurityError,
@@ -912,7 +923,7 @@ ScriptPromise<IDLNullable<IDLString>> ModelContext::executeTool(
                                            kInactiveDocumentError));
   }
 
-  if (!IsOriginIsolatedOrFileUrl()) {
+  if (!IsModelContextAllowed()) {
     return ScriptPromise<IDLNullable<IDLString>>::RejectWithDOMException(
         script_state,
         MakeGarbageCollected<DOMException>(DOMExceptionCode::kSecurityError,

@@ -46,7 +46,7 @@ ValuablesDataManagerFactory::BuildServiceInstanceForBrowserContext(
   AutofillImageFetcherBase* image_fetcher =
       AutofillImageFetcherFactory::GetForProfile(profile);
 
-  scoped_refptr<autofill::AutofillWebDataService> storage =
+  scoped_refptr<AutofillWebDataService> storage =
       WebDataServiceFactory::GetAutofillWebDataForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS);
   if (!storage) {

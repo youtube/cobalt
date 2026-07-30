@@ -33,9 +33,9 @@ found in the LICENSE file.
     <dimen name="reset_button_padding">4dp</dimen>
 
     <!-- Page zoom item dimensions -->
-    <dimen name="zoom_percentage_menu_item_margin">10dp</dimen>
+    <dimen name="zoom_percentage_menu_item_margin">2dp</dimen>
     <dimen name="zoom_percentage_menu_item_width">44dp</dimen>
     <dimen name="zoom_menu_item_divider_width">1dp</dimen>
-    <dimen name="zoom_menu_item_divider_margin">10dp</dimen>
+    <dimen name="zoom_menu_item_divider_margin">4dp</dimen>
     <dimen name="zoom_menu_item_divider_height">24dp</dimen>
 </resources>

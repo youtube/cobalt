@@ -564,7 +564,13 @@ void VerticalTabDragHandlerImpl::OnGestureEvent(ui::GestureEvent* event) {
         views::View* source_view = source_node->view();
         ui::GestureEvent converted_event(*event, static_cast<View*>(this),
                                          source_view);
+
+        // OnGestureEvent could start a blocking loop, so this may be destroyed.
+        auto ref = weak_factory_.GetWeakPtr();
         source_view->OnGestureEvent(&converted_event);
+        if (!ref) {
+          return;
+        }
       }
 
       EndDrag(EndDragReason::kCancel);

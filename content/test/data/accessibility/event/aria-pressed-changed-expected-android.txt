@@ -1,2 +1,2 @@
-TYPE_WINDOW_CONTENT_CHANGED - [contentTypes=STATE_DESCRIPTION]
-TYPE_WINDOW_CONTENT_CHANGED - [contentTypes=STATE_DESCRIPTION]
+TYPE_WINDOW_CONTENT_CHANGED [contentTypes=STATE_DESCRIPTION] on [button1] class_name=android.widget.ToggleButton
+TYPE_WINDOW_CONTENT_CHANGED [contentTypes=STATE_DESCRIPTION] on [button2] class_name=android.widget.ToggleButton

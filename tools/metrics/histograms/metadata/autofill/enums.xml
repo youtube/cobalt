@@ -629,6 +629,7 @@ Called by update_autofill_enums.py.-->
   <int value="8" label="Password"/>
   <int value="9" label="WalletablePassConsent"/>
   <int value="10" label="WalletablePassSave"/>
+  <int value="11" label="OmniboxAutofill"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/autofill/bubble_controller_base.h:BubbleType) -->
@@ -5713,6 +5714,7 @@ Called by update_autofill_enums.py.-->
   <int value="84" label="AtMemory search trigger affordance"/>
   <int value="85" label="Personal context notice"/>
   <int value="86" label="Webauthn passkey QR code"/>
+  <int value="87" label="Fetching Ambient Data"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->

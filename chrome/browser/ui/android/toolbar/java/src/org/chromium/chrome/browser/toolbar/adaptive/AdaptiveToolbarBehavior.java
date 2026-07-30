@@ -167,4 +167,7 @@ public interface AdaptiveToolbarBehavior {
     /** Returns the default button variant when none of the predicted results cannot be chosen. */
     @AdaptiveToolbarButtonVariant
     int getSegmentationDefault(Profile profile);
+
+    /** Destroys the instance. */
+    default void destroy() {}
 }

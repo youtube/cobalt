@@ -12,7 +12,9 @@ found in the LICENSE file.
     android:paddingStart="@dimen/tab_bottom_sheet_peek_padding_start"
     android:paddingEnd="@dimen/tab_bottom_sheet_peek_padding_end"
     android:paddingTop="@dimen/tab_bottom_sheet_peek_padding_top"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:focusable="true"
+    android:clickable="true">
 
     <ImageView
         android:id="@+id/peek_icon"

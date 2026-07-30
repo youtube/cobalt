@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/core/timing/largest_contentful_paint.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace blink {
 
@@ -30,15 +31,15 @@ SoftNavigationContext::SoftNavigationContext(
       lcp_calculator_(MakeGarbageCollected<LargestContentfulPaintCalculator>(
           DOMWindowPerformance::performance(window),
           this)),
-      initial_event_timing_(initial_event_timing) {
+      initial_event_timing_(initial_event_timing),
+      track_(perfetto::NamedTrack::FromPointer("blink::SoftNavigation", this)) {
   CHECK(initial_event_timing_);
   CHECK(initial_event_timing_->IsInteraction());
 
-  TRACE_EVENT_BEGIN("loading", "SoftNavigation",
-                    perfetto::Track::FromPointer(this), TimeOrigin());
+  TRACE_EVENT_BEGIN("loading", "SoftNavigation", track_, TimeOrigin());
 
-  TRACE_EVENT_INSTANT("loading", "SoftNavigationContextCreated",
-                      perfetto::Track::FromPointer(this), "context", *this);
+  TRACE_EVENT_INSTANT("loading", "SoftNavigationContextCreated", track_,
+                      "context", *this);
 
   GetSoftNavigationHeuristics()->ForEachInteractionEffectsMonitor(
       [&](InteractionEffectsMonitor& monitor) {
@@ -87,9 +88,8 @@ void SoftNavigationContext::AddModifiedNode(Node* node) {
   ++num_modified_dom_nodes_;
   TRACE_EVENT_INSTANT(
       "loading", "SoftNavigationContext::AddedModifiedNodeInAnimationFrame",
-      perfetto::Track::FromPointer(this), "context", this, "nodeId",
-      node->GetDomNodeId(), "nodeDebugName", node->DebugName(),
-      "domModificationsThisAnimationFrame",
+      track_, "context", this, "nodeId", node->GetDomNodeId(), "nodeDebugName",
+      node->DebugName(), "domModificationsThisAnimationFrame",
       num_modified_dom_nodes_ - num_modified_dom_nodes_last_animation_frame_);
 }
 
@@ -112,10 +112,10 @@ bool SoftNavigationContext::AddPaintedArea(PaintTimingRecord* record) {
   painted_area_ += painted_area;
   TRACE_EVENT_INSTANT(
       "loading", "SoftNavigationContext::AttributablePaintInAnimationFrame",
-      perfetto::Track::FromPointer(this), "context", this, "nodeId",
-      node->GetDomNodeId(), "nodeDebugName", node->DebugName(), "rect_x",
-      rect.x(), "rect_y", rect.y(), "rect_width", rect.width(), "rect_height",
-      rect.height(), "paintedAreaThisAnimationFrame",
+      track_, "context", this, "nodeId", node->GetDomNodeId(), "nodeDebugName",
+      node->DebugName(), "rect_x", rect.x(), "rect_y", rect.y(), "rect_width",
+      rect.width(), "rect_height", rect.height(),
+      "paintedAreaThisAnimationFrame",
       painted_area_ - painted_area_last_animation_frame_);
 
   // TODO(crbug.com/434159332): This doesn't currently match hard-FCP semantics
@@ -157,9 +157,9 @@ bool SoftNavigationContext::OnPaintFinished() {
   // if we have an extra loud tracing debug mode.
   if (num_modded_new_nodes || new_painted_area) {
     TRACE_EVENT_INSTANT("loading", "SoftNavigationContext::OnPaintFinished",
-                        perfetto::Track::FromPointer(this), "context", this,
-                        "numModdedNewNodes", num_modded_new_nodes,
-                        "newPaintedArea", new_painted_area);
+                        track_, "context", this, "numModdedNewNodes",
+                        num_modded_new_nodes, "newPaintedArea",
+                        new_painted_area);
   }
 
   if (new_painted_area > 0) {
@@ -235,7 +235,7 @@ void SoftNavigationContext::Trace(Visitor* visitor) const {
 }
 
 void SoftNavigationContext::Shutdown() {
-  TRACE_EVENT_END("loading", perfetto::Track::FromPointer(this));
+  TRACE_EVENT_END("loading", track_);
 
   lcp_calculator_ = nullptr;
   first_image_or_text_ = nullptr;
@@ -258,17 +258,16 @@ void SoftNavigationContext::EmitSoftNavigation() {
     // However, that other event reports all new *potential* soft navs, while
     // this event only reports actually *emitted* soft navs.
     // This is used by DevTools performance profiler to mark the perf timeline.
-    TRACE_EVENT_INSTANT(
-        "scheduler,devtools.timeline,loading", "SoftNavigationStart",
-        perfetto::Track::FromPointer(this), TimeOrigin(), "context", *this,
-        "frame", GetFrameIdForTracing(window_->GetFrame()));
+    TRACE_EVENT_INSTANT("scheduler,devtools.timeline,loading",
+                        "SoftNavigationStart", track_, TimeOrigin(), "context",
+                        *this, "frame",
+                        GetFrameIdForTracing(window_->GetFrame()));
 
     // This trace event reports the when the soft nav heuristics were observerd,
     // and thus when the new navigationId was created, and when the performance
     // timeline is logically "sliced" into soft-nav sub-timelines.
     TRACE_EVENT_INSTANT("scheduler,devtools.timeline,loading",
-                        "SoftNavigationEmitted",
-                        perfetto::Track::FromPointer(this),
+                        "SoftNavigationEmitted", track_,
                         soft_navigation_slicing_time_, "context", *this);
   }
 

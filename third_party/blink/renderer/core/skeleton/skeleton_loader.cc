@@ -34,34 +34,41 @@ SkeletonLoader& SkeletonLoader::Ensure(Document& document) {
 }
 
 void SkeletonLoader::AddSkeletonPrefetchLink(KURL url) {
-  use_skeleton_for_.insert(url);
+  auto result = skeletons_.insert(url, nullptr);
+  if (result.is_new_entry) {
+    result.stored_value->value = MakeGarbageCollected<Skeleton>(*this);
+    result.stored_value->value->FetchSkeletonURL(url, GetDocument());
+  }
 }
 
 void SkeletonLoader::NavigateTo(KURL url) {
-  if (use_skeleton_for_.Contains(url)) {
-    skeleton_ = MakeGarbageCollected<Skeleton>(*this);
-    skeleton_->Render(url, GetDocument());
+  CHECK(!current_skeleton_);
+  auto it = skeletons_.find(url);
+  if (it == skeletons_.end()) {
+    return;
   }
+  current_skeleton_ = it->value.Get();
+  current_skeleton_->Render(url, GetDocument());
 }
 
 void SkeletonLoader::CancelNavigation() {
   RemoveSkeletonTree();
-  skeleton_ = nullptr;
+  current_skeleton_ = nullptr;
 }
 
 void SkeletonLoader::RestoringFromBFCache() {
   RemoveSkeletonTree();
-  skeleton_ = nullptr;
+  current_skeleton_ = nullptr;
 }
 
 void SkeletonLoader::DocumentReady(Skeleton& skeleton) {
-  if (&skeleton == skeleton_.Get()) {
+  if (&skeleton == current_skeleton_.Get()) {
     UpdateSkeletonTree();
   }
 }
 
 void SkeletonLoader::UpdateSkeletonTree() {
-  Document& skeleton_document = skeleton_->GetDocument();
+  Document& skeleton_document = current_skeleton_->GetDocument();
   const Sanitizer* sanitizer = SanitizerBuiltins::GetBaseline();
   sanitizer->SanitizeSafe(&skeleton_document);
 
@@ -86,7 +93,8 @@ void SkeletonLoader::InsertSkeletonTree(Document& skeleton_document) {
 }
 
 void SkeletonLoader::Trace(Visitor* visitor) const {
-  visitor->Trace(skeleton_);
+  visitor->Trace(current_skeleton_);
+  visitor->Trace(skeletons_);
   Supplement<Document>::Trace(visitor);
 }
 

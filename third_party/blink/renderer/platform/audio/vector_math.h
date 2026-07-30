@@ -45,7 +45,7 @@ namespace blink::vector_math {
 PLATFORM_EXPORT void Conv(base::span<const float> source,
                           base::span<const float> filter,
                           base::span<float> dest,
-                          uint32_t frames_to_process,
+                          size_t frames_to_process,
                           const AudioFloatArray& prepared_filter);
 
 // Prepare filter for Conv for faster processing.
@@ -61,7 +61,7 @@ PLATFORM_EXPORT void PrepareFilterForConv(base::span<const float> filter,
 PLATFORM_EXPORT void Vsma(base::span<const float> source,
                           float scale,
                           base::span<float> dest,
-                          uint32_t frames_to_process);
+                          size_t frames_to_process);
 
 // Vector scalar multiply:
 //
@@ -69,7 +69,7 @@ PLATFORM_EXPORT void Vsma(base::span<const float> source,
 PLATFORM_EXPORT void Vsmul(base::span<const float> source,
                            float scale,
                            base::span<float> dest,
-                           uint32_t frames_to_process);
+                           size_t frames_to_process);
 
 // Vector scalar add:
 //
@@ -77,14 +77,14 @@ PLATFORM_EXPORT void Vsmul(base::span<const float> source,
 PLATFORM_EXPORT void Vsadd(base::span<const float> source,
                            float addend,
                            base::span<float> dest,
-                           uint32_t frames_to_process);
+                           size_t frames_to_process);
 // Vector add:
 //
 // dest[k] = source1[k] + source2[k]
 PLATFORM_EXPORT void Vadd(base::span<const float> source1,
                           base::span<const float> source2,
                           base::span<float> dest,
-                          uint32_t frames_to_process);
+                          size_t frames_to_process);
 
 // Vector subtract:
 //
@@ -92,19 +92,19 @@ PLATFORM_EXPORT void Vadd(base::span<const float> source1,
 PLATFORM_EXPORT void Vsub(base::span<const float> source1,
                           base::span<const float> source2,
                           base::span<float> dest,
-                          uint32_t frames_to_process);
+                          size_t frames_to_process);
 
 // Finds the maximum magnitude of a float vector:
 //
 // max = max(abs(source[k])) for all k.
 PLATFORM_EXPORT float Vmaxmgv(base::span<const float> source,
-                              uint32_t frames_to_process);
+                              size_t frames_to_process);
 
 // Sums the squares of a float vector's elements:
 //
 // sum = sum(source[k]^2, k = 0, frames_to_process);
 PLATFORM_EXPORT float Vsvesq(base::span<const float> source,
-                             uint32_t frames_to_process);
+                             size_t frames_to_process);
 
 // For an element-by-element multiply of two float vectors:
 //
@@ -112,7 +112,7 @@ PLATFORM_EXPORT float Vsvesq(base::span<const float> source,
 PLATFORM_EXPORT void Vmul(base::span<const float> source1,
                           base::span<const float> source2,
                           base::span<float> dest,
-                          uint32_t frames_to_process);
+                          size_t frames_to_process);
 
 // Multiplies two complex vectors.  Complex version of Vmul where |real1| and
 // |imag1| forms the real and complex components of source1; |real2| and
@@ -124,7 +124,7 @@ PLATFORM_EXPORT void Zvmul(base::span<const float> real1,
                            base::span<const float> imag2,
                            base::span<float> real_dest,
                            base::span<float> imag_dest,
-                           uint32_t frames_to_process);
+                           size_t frames_to_process);
 
 // Copies elements while clipping values to the threshold inputs.
 //
@@ -141,7 +141,7 @@ PLATFORM_EXPORT void Vclip(base::span<const float> source,
                            float low_threshold,
                            float high_threshold,
                            base::span<float> dest,
-                           uint32_t frames_to_process);
+                           size_t frames_to_process);
 
 }  // namespace blink::vector_math
 

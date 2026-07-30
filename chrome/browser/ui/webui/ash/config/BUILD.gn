@@ -117,8 +117,5 @@ static_library("config") {
 
   if (!is_official_build) {
     deps += [ "//ash/webui/sample_system_web_app_ui" ]
-    if (!use_real_dbus_clients) {
-      deps += [ "//chrome/browser/ui/webui/ash/emulator" ]
-    }
   }
 }

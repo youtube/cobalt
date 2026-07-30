@@ -544,6 +544,47 @@ TEST_F(GlicEnablingProfileEligibilityTest, Eligible) {
   EXPECT_TRUE(GlicEnabling::IsProfileEligible(profile()));
 }
 
+TEST_F(GlicEnablingProfileEligibilityTest, WasPreviouslyNotAllowedTest) {
+  // 1. Initially, when signed out and never previously evaluated, it defaults
+  // to false (not previously not allowed).
+  EXPECT_FALSE(GlicEnabling::WasPreviouslyNotAllowed(profile()));
+
+  // 2. Sign in a capable account.
+  auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
+  AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
+      "test@example.com", signin::ConsentLevel::kSignin);
+  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  mutator.set_can_use_model_execution_features(true);
+  signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
+                                      account_info);
+
+  // 3. Now they should be eligible, and not previously not allowed.
+  EXPECT_FALSE(GlicEnabling::WasPreviouslyNotAllowed(profile()));
+
+  // 4. Become ineligible while signed in.
+  mutator.set_can_use_model_execution_features(false);
+  signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
+                                      account_info);
+
+  // 5. They are now ineligible but still signed in, so previously not allowed
+  // should be true.
+  EXPECT_TRUE(GlicEnabling::WasPreviouslyNotAllowed(profile()));
+
+  // 6. Make them eligible again.
+  mutator.set_can_use_model_execution_features(true);
+  signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
+                                      account_info);
+  EXPECT_FALSE(GlicEnabling::WasPreviouslyNotAllowed(profile()));
+
+  // 7. Sign out.
+#if !BUILDFLAG(IS_CHROMEOS)
+  signin::ClearPrimaryAccount(identity_test_env->identity_manager());
+
+  // 8. Even after signing out, WasPreviouslyNotAllowed should remain false.
+  EXPECT_FALSE(GlicEnabling::WasPreviouslyNotAllowed(profile()));
+#endif
+}
+
 class GlicEnablingProfileReadyStateTestBase
     : public GlicEnablingProfileEligibilityTest {
  public:
@@ -578,7 +619,7 @@ class GlicEnablingProfileReadyStateTestBase
     auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
     AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
         "test@example.com", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
                                         account_info);
@@ -654,7 +695,7 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
         IdentityManagerFactory::GetForProfile(profile());
     AccountInfo account_info = signin::MakePrimaryAccountAvailable(
         identity_manager, "test@example.com", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     signin::UpdateAccountInfoForAccount(identity_manager, account_info);
   }
@@ -769,7 +810,7 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
   AccountInfo account_info =
       identity_manager->FindExtendedAccountInfoByAccountId(
           identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_model_execution_features(false);
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 
@@ -1484,6 +1525,7 @@ base::DictValue ToDictValue(
 
 struct GeminiEnterpriseSettingsParams {
   bool feature_enabled = false;
+  bool is_enterprise = true;
   std::optional<glic::mojom::GeminiEnterpriseSettings> pref_settings;
   std::optional<glic::mojom::GeminiEnterpriseSettings> cmd_settings;
   std::optional<glic::mojom::GeminiEnterpriseSettings> expected_settings;
@@ -1506,8 +1548,26 @@ class GlicEnablingGeminiEnterpriseSettingsTest
 
   void SetUp() override {
     GlicEnablingProfileEligibilityTest::SetUp();
+    if (IsSkipped()) {
+      return;
+    }
 
     const auto& params = GetParam();
+
+    auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
+    // Glic requires the model execution capability to be enabled for the
+    // profile to be eligible.
+    AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
+        params.is_enterprise ? "user@enterprise.com" : "user@gmail.com",
+        signin::ConsentLevel::kSignin);
+    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    mutator.set_can_use_model_execution_features(true);
+    if (params.is_enterprise) {
+      account_info = AccountInfo::Builder(account_info)
+                         .SetHostedDomain("enterprise.com")
+                         .Build();
+    }
+    identity_test_env->UpdateAccountInfoForAccount(account_info);
 
     if (params.pref_settings.has_value()) {
       profile()->GetPrefs()->SetDict(glic::prefs::kGlicGeminiEnterpriseSettings,
@@ -1585,7 +1645,11 @@ INSTANTIATE_TEST_SUITE_P(
                                        .expected_settings = std::nullopt},
         GeminiEnterpriseSettingsParams{.feature_enabled = true,
                                        .cmd_settings = GetCmdSettings(),
-                                       .expected_settings = GetCmdSettings()}));
+                                       .expected_settings = GetCmdSettings()},
+        GeminiEnterpriseSettingsParams{.feature_enabled = true,
+                                       .is_enterprise = false,
+                                       .pref_settings = GetPrefSettings(),
+                                       .expected_settings = std::nullopt}));
 
 class GlicEnablingGeminiEnterpriseSettingsErrorTest
     : public GlicEnablingProfileEligibilityTest {

@@ -196,19 +196,19 @@ class ChromiumDepGraph {
                     licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
                     licenseName: 'Apache 2.0'),
             org_ow2_asm_asm: new PropertyOverride(
-                    licenseUrl: 'https://gitlab.ow2.org/asm/asm/raw/master/LICENSE.txt',
+                    licenseUrl: 'https://raw.githubusercontent.com/llbit/ow2-asm/f83ab1a894ba4d369dd18c318da0ae35a7ec114a/LICENSE.txt',
                     licenseName: 'BSD'),
             org_ow2_asm_asm_analysis: new PropertyOverride(
-                    licenseUrl: 'https://gitlab.ow2.org/asm/asm/raw/master/LICENSE.txt',
+                    licenseUrl: 'https://raw.githubusercontent.com/llbit/ow2-asm/f83ab1a894ba4d369dd18c318da0ae35a7ec114a/LICENSE.txt',
                     licenseName: 'BSD'),
             org_ow2_asm_asm_commons: new PropertyOverride(
-                    licenseUrl: 'https://gitlab.ow2.org/asm/asm/raw/master/LICENSE.txt',
+                    licenseUrl: 'https://raw.githubusercontent.com/llbit/ow2-asm/f83ab1a894ba4d369dd18c318da0ae35a7ec114a/LICENSE.txt',
                     licenseName: 'BSD'),
             org_ow2_asm_asm_tree: new PropertyOverride(
-                    licenseUrl: 'https://gitlab.ow2.org/asm/asm/raw/master/LICENSE.txt',
+                    licenseUrl: 'https://raw.githubusercontent.com/llbit/ow2-asm/f83ab1a894ba4d369dd18c318da0ae35a7ec114a/LICENSE.txt',
                     licenseName: 'BSD'),
             org_ow2_asm_asm_util: new PropertyOverride(
-                    licenseUrl: 'https://gitlab.ow2.org/asm/asm/raw/master/LICENSE.txt',
+                    licenseUrl: 'https://raw.githubusercontent.com/llbit/ow2-asm/f83ab1a894ba4d369dd18c318da0ae35a7ec114a/LICENSE.txt',
                     licenseName: 'BSD'),
             org_robolectric_annotations: new PropertyOverride(
                     licenseName: 'Apache-2.0, MIT',

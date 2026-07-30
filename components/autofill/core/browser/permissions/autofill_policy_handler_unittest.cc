@@ -24,8 +24,7 @@ TEST_F(AutofillPolicyHandlerTest, Default) {
   PrefValueMap prefs;
   AutofillPolicyHandler handler;
   handler.ApplyPolicySettings(policy, &prefs);
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillEnabledDeprecated, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillEnabledDeprecated, nullptr));
 }
 
 TEST_F(AutofillPolicyHandlerTest, Enabled) {
@@ -39,12 +38,9 @@ TEST_F(AutofillPolicyHandlerTest, Enabled) {
 
   // Enabling Autofill should not set the pref. Profile and credit card Autofill
   // prefs should also not get set.
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillEnabledDeprecated, nullptr));
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillProfileEnabled, nullptr));
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillCreditCardEnabled, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillEnabledDeprecated, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillProfileEnabled, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillCreditCardEnabled, nullptr));
 }
 
 TEST_F(AutofillPolicyHandlerTest, Disabled) {
@@ -58,21 +54,19 @@ TEST_F(AutofillPolicyHandlerTest, Disabled) {
 
   // Disabling Autofill by policy should set the pref.
   const base::Value* value = nullptr;
-  EXPECT_TRUE(
-      prefs.GetValue(autofill::prefs::kAutofillEnabledDeprecated, &value));
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillEnabledDeprecated, &value));
   ASSERT_TRUE(value);
   EXPECT_FALSE(value->GetBool());
 
   // Disabling Autofill by policy should set the profile Autofill pref.
   value = nullptr;
-  EXPECT_TRUE(prefs.GetValue(autofill::prefs::kAutofillProfileEnabled, &value));
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillProfileEnabled, &value));
   ASSERT_TRUE(value);
   EXPECT_FALSE(value->GetBool());
 
   // Disabling Autofill by policy should set the credit card Autofill pref.
   value = nullptr;
-  EXPECT_TRUE(
-      prefs.GetValue(autofill::prefs::kAutofillCreditCardEnabled, &value));
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillCreditCardEnabled, &value));
   ASSERT_TRUE(value);
   EXPECT_FALSE(value->GetBool());
 }
@@ -92,12 +86,9 @@ TEST_F(AutofillPolicyHandlerTest, DeprecatedPolicyIgnored_AddressEnabled) {
   // Settings either of the fine-grained policies should cause the old policy to
   // be ignored. The fine-grained policies should not get set by this handler
   // either.
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillEnabledDeprecated, nullptr));
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillProfileEnabled, nullptr));
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillCreditCardEnabled, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillEnabledDeprecated, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillProfileEnabled, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillCreditCardEnabled, nullptr));
 }
 
 TEST_F(AutofillPolicyHandlerTest, DeprecatedPolicyIgnored_CreditCardEnabled) {
@@ -115,12 +106,9 @@ TEST_F(AutofillPolicyHandlerTest, DeprecatedPolicyIgnored_CreditCardEnabled) {
   // Settings either of the fine-grained policies should cause the old policy to
   // be ignored. The fine-grained policies should not get set by this handler
   // either.
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillEnabledDeprecated, nullptr));
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillProfileEnabled, nullptr));
-  EXPECT_FALSE(
-      prefs.GetValue(autofill::prefs::kAutofillCreditCardEnabled, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillEnabledDeprecated, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillProfileEnabled, nullptr));
+  EXPECT_FALSE(prefs.GetValue(prefs::kAutofillCreditCardEnabled, nullptr));
 }
 
 }  // namespace autofill

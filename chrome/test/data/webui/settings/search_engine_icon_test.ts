@@ -99,4 +99,13 @@ suite('SearchEngineIconTest', function() {
     assertTrue(!!favicon);
     assertTrue(isVisible(favicon));
   });
+
+  // Tests that the icon is not picked up by the screen reader.
+  test('IconsHiddenForScreenReader', function() {
+    icon.engine = createSampleSearchEngine();
+    assertEquals('', icon.$.downloadedIcon.alt);
+    const siteFavicon = icon.shadowRoot!.querySelector('site-favicon');
+    assertTrue(!!siteFavicon);
+    assertEquals('true', siteFavicon.ariaHidden);
+  });
 });

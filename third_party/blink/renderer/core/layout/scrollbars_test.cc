@@ -2719,7 +2719,11 @@ TEST_P(ScrollbarsTest, AutosizeAlmostRemovableScrollbar) {
     Compositor().BeginFrame();
     EXPECT_TRUE(layout_viewport->VerticalScrollbar());
     EXPECT_FALSE(layout_viewport->HorizontalScrollbar());
-    EXPECT_EQ(445, frame_view->Width());
+    EXPECT_EQ(
+        RuntimeEnabledFeatures::AutoSizeUsesScrollWidthForOverflowEnabled()
+            ? 430
+            : 445,
+        frame_view->Width());
     EXPECT_EQ(600, frame_view->Height());
   }
 }

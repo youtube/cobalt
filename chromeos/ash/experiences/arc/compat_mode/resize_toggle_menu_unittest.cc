@@ -6,6 +6,8 @@
 
 #include <memory>
 
+#include "ash/public/cpp/window_properties.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "chromeos/ash/experiences/arc/compat_mode/arc_resize_lock_pref_delegate.h"
@@ -13,11 +15,60 @@
 #include "chromeos/ash/experiences/arc/compat_mode/test/compat_mode_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/controls/button/button.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_observer.h"
 
 namespace arc {
 namespace {
 
 constexpr char kTestAppId[] = "123";
+
+class WidgetDestroyedTrigger : public views::WidgetObserver {
+ public:
+  WidgetDestroyedTrigger(views::Widget* bubble_widget,
+                         aura::Window* parent_window)
+      : parent_window_(parent_window) {
+    observation_.Observe(bubble_widget);
+  }
+
+  WidgetDestroyedTrigger(const WidgetDestroyedTrigger&) = delete;
+  WidgetDestroyedTrigger& operator=(const WidgetDestroyedTrigger&) = delete;
+
+  ~WidgetDestroyedTrigger() override = default;
+
+  // views::WidgetObserver:
+  void OnWidgetDestroyed(views::Widget* widget) override {
+    observation_.Reset();
+    parent_window_->SetProperty(
+        ash::kArcResizeLockTypeKey,
+        ash::ArcResizeLockType::RESIZE_DISABLED_TOGGLABLE);
+  }
+
+ private:
+  raw_ptr<aura::Window> parent_window_;
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
+      this};
+};
+
+class TestResizeToggleMenu : public ResizeToggleMenu {
+ public:
+  using ResizeToggleMenu::ResizeToggleMenu;
+
+  void UpdateSelectedButton() override {
+    update_selected_button_called_ = true;
+    ResizeToggleMenu::UpdateSelectedButton();
+  }
+
+  bool update_selected_button_called() const {
+    return update_selected_button_called_;
+  }
+  void clear_update_selected_button_called() {
+    update_selected_button_called_ = false;
+  }
+
+ private:
+  bool update_selected_button_called_ = false;
+};
 
 }  // namespace
 
@@ -31,7 +82,7 @@ class ResizeToggleMenuTest : public CompatModeTestBase {
     pref_delegate()->SetResizeLockState(kTestAppId,
                                         mojom::ArcResizeLockState::OFF);
     SyncResizeLockPropertyWithMojoState(widget());
-    resize_toggle_menu_ = std::make_unique<ResizeToggleMenu>(
+    resize_toggle_menu_ = std::make_unique<TestResizeToggleMenu>(
         on_bubble_widget_closing_callback_, widget_.get(), pref_delegate());
   }
   void TearDown() override {
@@ -47,7 +98,7 @@ class ResizeToggleMenuTest : public CompatModeTestBase {
   // Re-show the menu. This might close the running menu if any.
   void ReshowMenu() {
     resize_toggle_menu_.reset();
-    resize_toggle_menu_ = std::make_unique<ResizeToggleMenu>(
+    resize_toggle_menu_ = std::make_unique<TestResizeToggleMenu>(
         on_bubble_widget_closing_callback_, widget_.get(), pref_delegate());
   }
 
@@ -69,7 +120,12 @@ class ResizeToggleMenuTest : public CompatModeTestBase {
   void CloseBubble() { resize_toggle_menu_->CloseBubble(); }
 
   views::Widget* widget() { return widget_.get(); }
-  ResizeToggleMenu* resize_toggle_menu() { return resize_toggle_menu_.get(); }
+  TestResizeToggleMenu* resize_toggle_menu() {
+    return resize_toggle_menu_.get();
+  }
+  views::Widget* bubble_widget() {
+    return resize_toggle_menu_->bubble_widget_.get();
+  }
 
  private:
   views::Button* GetButtonByCommandId(ash::ResizeCompatMode command_id) {
@@ -88,7 +144,7 @@ class ResizeToggleMenuTest : public CompatModeTestBase {
       base::BindLambdaForTesting(
           [&]() { on_bubble_widget_closing_callback_called_ = true; });
   std::unique_ptr<views::Widget> widget_;
-  std::unique_ptr<ResizeToggleMenu> resize_toggle_menu_;
+  std::unique_ptr<TestResizeToggleMenu> resize_toggle_menu_;
 };
 
 TEST_F(ResizeToggleMenuTest, ConstructDestruct) {
@@ -292,6 +348,21 @@ TEST_F(ResizeToggleMenuTest, TestIsBubbleShown) {
   CloseBubble();
   RunPendingMessages();
   EXPECT_FALSE(resize_toggle_menu()->IsBubbleShown());
+}
+
+// Test that closing the bubble doesn't crash if a property change is triggered
+// during destruction.
+TEST_F(ResizeToggleMenuTest, CloseBubbleCrash) {
+  EXPECT_TRUE(IsMenuRunning());
+
+  WidgetDestroyedTrigger trigger(bubble_widget(), widget()->GetNativeWindow());
+
+  // Clear the flag that might have been set during initialization.
+  resize_toggle_menu()->clear_update_selected_button_called();
+
+  CloseBubble();
+
+  EXPECT_FALSE(resize_toggle_menu()->update_selected_button_called());
 }
 
 }  // namespace arc

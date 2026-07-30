@@ -7,18 +7,14 @@
 #include <map>
 #include <memory>
 
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ash/printing/print_server.h"
 #include "chrome/browser/ash/printing/enterprise/print_servers_provider.h"
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
-
+#include "chrome/browser/ash/printing/print_server.h"
+#include "chrome/browser/ash/printing/print_servers_manager.h"
 class Profile;
 
 namespace ash {
-
-using ServerPrintersFetchingMode =
-    crosapi::mojom::PrintServersConfig::ServerPrintersFetchingMode;
 
 // This class observes values provided by the DeviceExternalPrintServers and
 // ExternalPrintServers policies and calculates resultant list of available

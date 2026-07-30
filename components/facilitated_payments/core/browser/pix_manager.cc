@@ -84,6 +84,7 @@ void PixManager::OnPixCodeCopiedToClipboard(
     const GURL& main_frame_url,
     const std::optional<GURL>& iframe_url,
     const url::Origin& main_frame_origin,
+    bool is_same_origin,
     std::optional<PixCodeRustValidationResult> rust_validation_result,
     std::string pix_code,
     ukm::SourceId ukm_source_id) {
@@ -112,9 +113,10 @@ void PixManager::OnPixCodeCopiedToClipboard(
   // is allowlisted. Otherwise, check whether the main frame URL is allowlisted.
   if (pix_code_is_in_iframe_) {
     LogPixCodeCopiedInIframe();
-    if (!IsIframeUrlAllowlisted(iframe_url.value())) {
-      // The iframe URL is not part of the allowlist, ignore the copy event.
-      LogPixFlowExitedReason(PixFlowExitedReason::kIframeUrlNotAllowlisted);
+    std::optional<PixFlowExitedReason> exited_reason = GetExitedReasonForIframe(
+        iframe_url.value(), main_frame_url, is_same_origin);
+    if (exited_reason.has_value()) {
+      LogPixFlowExitedReason(exited_reason.value());
       return;
     }
     // Set psp hostname to initiate payment request details.
@@ -180,6 +182,20 @@ bool PixManager::IsIframeUrlAllowlisted(const GURL& url) const {
              url, optimization_guide::proto::PIX_PSP_ALLOWLIST,
              /*optimization_metadata=*/nullptr) ==
          optimization_guide::OptimizationGuideDecision::kTrue;
+}
+
+std::optional<PixFlowExitedReason> PixManager::GetExitedReasonForIframe(
+    const GURL& iframe_url,
+    const GURL& main_frame_url,
+    bool is_same_origin) const {
+  if (IsIframeUrlAllowlisted(iframe_url)) {
+    return std::nullopt;
+  }
+  if (is_same_origin && IsMerchantAllowlisted(main_frame_url)) {
+    return std::nullopt;
+  }
+  return is_same_origin ? PixFlowExitedReason::kSameOriginMerchantNotAllowlisted
+                        : PixFlowExitedReason::kIframeUrlNotAllowlisted;
 }
 
 void PixManager::OnPixCodeValidated(

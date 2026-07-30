@@ -60,6 +60,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kAndroidBlockGrammarSuggestionSpanInCompositionMode,
     &features::kStrictHighRankProcessLRU,
     &features::kFedCm,
+    &features::kFedCmNativeIdPs,
     &features::kHidePastePopupOnGSB,
     &features::kNoSelectionMenuCaching,
     &features::kPrefetchOffTheMainThread,

@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/release_notes/release_notes_storage.h"
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/webui/help_app_ui/help_app_prefs.h"
 #include "base/command_line.h"
 #include "base/version.h"
@@ -13,7 +14,6 @@
 #include "chrome/browser/profiles/chrome_version_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/channel/channel_info.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -73,7 +73,7 @@ namespace ash {
 // Called on every session startup.
 void ReleaseNotesStorage::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
 }
 
 ReleaseNotesStorage::ReleaseNotesStorage(Profile* profile)
@@ -119,29 +119,29 @@ void ReleaseNotesStorage::MarkNotificationShown() {
 
 void ReleaseNotesStorage::StartShowingSuggestionChip() {
   profile_->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow,
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow,
       kTimesToShowSuggestionChip);
 }
 
 bool ReleaseNotesStorage::ShouldShowSuggestionChip() {
   const int times_left_to_show = profile_->GetPrefs()->GetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow);
   return times_left_to_show > 0;
 }
 
 void ReleaseNotesStorage::DecreaseTimesLeftToShowSuggestionChip() {
   const int times_left_to_show = profile_->GetPrefs()->GetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow);
   if (times_left_to_show == 0)
     return;
   profile_->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow,
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow,
       times_left_to_show - 1);
 }
 
 void ReleaseNotesStorage::StopShowingSuggestionChip() {
   profile_->GetPrefs()->SetInteger(
-      prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
+      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow, 0);
 }
 
 }  // namespace ash

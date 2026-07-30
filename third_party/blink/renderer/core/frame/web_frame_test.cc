@@ -11200,7 +11200,7 @@ TEST_F(WebFrameTest, CopyTextInImageDocument) {
   Node* text = document->createTextNode("copy me");
   document->body()->appendChild(text);
   document->GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder().SelectAllChildren(*text).Build(),
+      SelectionInDomTree::Builder().SelectAllChildren(*text).Build(),
       SetSelectionOptions());
 
   // Setup a mock clipboard host.

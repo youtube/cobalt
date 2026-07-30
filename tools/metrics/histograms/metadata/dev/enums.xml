@@ -1547,6 +1547,7 @@ Called by update_protocol_commands_enum.py.-->
   <int value="66" label="Drawer - Resource Loading"/>
   <int value="67" label="Drawer - Autofill"/>
   <int value="68" label="AI Assistance"/>
+  <int value="69" label="Application - Ads"/>
 </enum>
 
 <enum name="DevToolsRecordingReplayFinished">

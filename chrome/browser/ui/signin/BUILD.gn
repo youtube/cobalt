@@ -121,6 +121,8 @@ source_set("impl") {
       "//chrome/browser/signin:signin_promo",
       "//chrome/browser/ui/hats",
       "//chrome/browser/ui/toasts",
+      "//chrome/browser/ui/views:layout_provider",
+      "//chrome/browser/ui/views/controls",
       "//chrome/browser/ui/views/infobars",
       "//chrome/browser/ui/web_applications",
       "//components/infobars/content",

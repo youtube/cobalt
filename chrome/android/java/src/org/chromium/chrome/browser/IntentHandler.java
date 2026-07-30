@@ -377,6 +377,9 @@ public class IntentHandler {
             "BRING_TAB_GROUP_TO_FRONT_SOURCE";
     public static final String DAYDREAM_CATEGORY = "com.google.intent.category.DAYDREAM";
     public static final String SHARE_INTENT_HISTOGRAM = "Android.Intent.ShareIntentUrlCount";
+    public static final String TRUSTED_REFERRER_HISTOGRAM = "Android.Intent.TrustedReferrer";
+    public static final String TRUSTED_TRANSITION_TYPE_HISTOGRAM =
+            "Android.Intent.TrustedTransitionTypeUsed";
 
     /**
      * Represents popular external applications that can load a page in Chrome via intent. DO NOT
@@ -431,6 +434,45 @@ public class IntentHandler {
         int SAMSUNG_LAUNCHER = 19;
         // Update ClientAppId in enums.xml when adding new items.
         int NUM_ENTRIES = 20;
+    }
+
+    /** Histogram for insecure usage of first party referrer string. */
+    @IntDef({
+        IntentReferrer.IGNORED,
+        IntentReferrer.ALLOWED_THROUGH_SESSION,
+        IntentReferrer.ALLOWED_INSECURE,
+        IntentReferrer.NUM_ENTRIES
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface IntentReferrer {
+        /* The intent's specified referrer was ignored. */
+        int IGNORED = 0;
+        /* The intent was allowed to specify a referrer through its CustomTabs session. */
+        int ALLOWED_THROUGH_SESSION = 1;
+        /* The intent was allowed to specify a referrer through an insecure PendingIntent check. */
+        int ALLOWED_INSECURE = 2;
+
+        int NUM_ENTRIES = 6;
+    }
+
+    /** Histogram for insecure usage of first party transition type. */
+    @IntDef({
+        IntentTransitionType.IGNORED,
+        IntentTransitionType.ALLOWED_TYPED,
+        IntentTransitionType.ALLOWED_INSECURE,
+        IntentTransitionType.NUM_ENTRIES
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface IntentTransitionType {
+        /* The intent's specified referrer was ignored. */
+        int IGNORED = 0;
+        /* The intent was allowed to set a Typed transition type. */
+        int ALLOWED_TYPED = 1;
+        /* The intent was allowed to specify a transition type through an insecure PendingIntent
+         * check. */
+        int ALLOWED_INSECURE = 2;
+
+        int NUM_ENTRIES = 6;
     }
 
     /** Intent extra to open an incognito tab. */
@@ -653,14 +695,27 @@ public class IntentHandler {
                 referrerExtra = Uri.parse(referrer.getUrl());
             }
         }
-
         if (referrerExtra == null) return null;
         if (isValidReferrerHeader(referrerExtra)) {
             return referrerExtra.toString();
-        } else if (IntentHandler.notSecureIsIntentChromeOrFirstParty(intent)
-                || SessionDataHolder.getInstance()
-                        .canActiveHandlerUseReferrer(session, referrerExtra)) {
+        } else if (IntentUtils.isTrustedIntentFromSelf(intent)) {
             return referrerExtra.toString();
+        } else if (SessionDataHolder.getInstance()
+                .canActiveHandlerUseReferrer(session, referrerExtra)) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    TRUSTED_REFERRER_HISTOGRAM,
+                    IntentReferrer.ALLOWED_THROUGH_SESSION,
+                    IntentReferrer.NUM_ENTRIES);
+            return referrerExtra.toString();
+        } else if (IntentHandler.notSecureIsIntentChromeOrFirstParty(intent)) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    TRUSTED_REFERRER_HISTOGRAM,
+                    IntentReferrer.ALLOWED_INSECURE,
+                    IntentReferrer.NUM_ENTRIES);
+            return referrerExtra.toString();
+        } else {
+            RecordHistogram.recordEnumeratedHistogram(
+                    TRUSTED_REFERRER_HISTOGRAM, IntentReferrer.IGNORED, IntentReferrer.NUM_ENTRIES);
         }
         return null;
     }
@@ -1467,11 +1522,26 @@ public class IntentHandler {
                 IntentUtils.safeGetIntExtra(
                         intent, IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, PageTransition.LINK);
         if (transitionType == PageTransition.TYPED) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    TRUSTED_TRANSITION_TYPE_HISTOGRAM,
+                    IntentTransitionType.ALLOWED_TYPED,
+                    IntentTransitionType.NUM_ENTRIES);
             return transitionType;
-        } else if (transitionType != PageTransition.LINK
-                && notSecureIsIntentChromeOrFirstParty(intent)) {
-            // 1st party applications may specify any transition type.
-            return transitionType;
+        } else if (transitionType != PageTransition.LINK) {
+            if (IntentUtils.isTrustedIntentFromSelf(intent)) return transitionType;
+            if (notSecureIsIntentChromeOrFirstParty(intent)) {
+                RecordHistogram.recordEnumeratedHistogram(
+                        TRUSTED_TRANSITION_TYPE_HISTOGRAM,
+                        IntentTransitionType.ALLOWED_INSECURE,
+                        IntentTransitionType.NUM_ENTRIES);
+
+                // 1st party applications may specify any transition type.
+                return transitionType;
+            }
+            RecordHistogram.recordEnumeratedHistogram(
+                    TRUSTED_TRANSITION_TYPE_HISTOGRAM,
+                    IntentTransitionType.IGNORED,
+                    IntentTransitionType.NUM_ENTRIES);
         }
         return defaultTransition;
     }

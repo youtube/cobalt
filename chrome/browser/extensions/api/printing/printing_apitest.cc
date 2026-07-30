@@ -8,7 +8,6 @@
 #include "chrome/browser/extensions/api/printing/print_job_submitter.h"
 #include "chrome/browser/extensions/api/printing/printing_test_utils.h"
 #include "chrome/browser/extensions/extension_apitest.h"
-#include "chrome/browser/printing/local_printer_utils_chromeos.h"
 #include "chrome/browser/ui/browser.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/test/test_extension_dir.h"

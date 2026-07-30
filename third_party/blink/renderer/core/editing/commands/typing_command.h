@@ -79,7 +79,7 @@ class CORE_EXPORT TypingCommand final : public CompositeEditCommand {
   static void InsertText(
       Document&,
       const String&,
-      const SelectionInDOMTree&,
+      const SelectionInDomTree&,
       Options,
       EditingState*,
       PasswordEchoBehavior,

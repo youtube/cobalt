@@ -157,19 +157,6 @@ class WaitForClientConnectedTask : public GlicInvokeTask,
   base::OnceClosure done_callback_;
 };
 
-// Task that notifies the host of invoking state.
-class NotifyIsInvokingTask : public GlicInvokeTask {
- public:
-  explicit NotifyIsInvokingTask(Host& host);
-  ~NotifyIsInvokingTask() override;
-  void Start(base::OnceClosure done_callback) override;
-  void OnSequenceCompleted(bool success) override;
-
- private:
-  const base::raw_ref<Host> host_;
-  bool did_start_ = false;
-};
-
 // Task that posts a callback asynchronously.
 class PostCallbackTask : public GlicInvokeTask {
  public:

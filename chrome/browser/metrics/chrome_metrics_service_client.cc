@@ -690,8 +690,8 @@ base::TimeDelta ChromeMetricsServiceClient::GetStandardUploadInterval() {
 std::optional<base::TimeDelta>
 ChromeMetricsServiceClient::GetCustomUploadInterval() const {
 #if BUILDFLAG(IS_CHROMEOS)
-  if (cros_pre_choice_manager_) {
-    return cros_pre_choice_manager_->GetUploadInterval();
+  if (cros_pre_choice_metrics_manager_) {
+    return cros_pre_choice_metrics_manager_->GetUploadInterval();
   }
 #endif
   return std::nullopt;
@@ -760,7 +760,7 @@ void ChromeMetricsServiceClient::Initialize() {
   //
   // See //chrome/browser/metrics/cros_pre_choice_metrics_manager.cc for all
   // conditions.
-  cros_pre_choice_manager_ =
+  cros_pre_choice_metrics_manager_ =
       metrics::CrOSPreChoiceMetricsManager::MaybeCreate();
 #endif
 }
@@ -1526,25 +1526,24 @@ bool ChromeMetricsServiceClient::ShouldUploadMetricsForUserId(
   return user_id == metrics::MetricsLog::Hash(current_user_id.value());
 }
 
-void ChromeMetricsServiceClient::UpdateCurrentUserMetricsConsent(
-    bool user_metrics_consent) {
+void ChromeMetricsServiceClient::UpdateCurrentUserMetricsChoice(
+    bool user_choice) {
   DCHECK(per_user_state_manager_);
-  per_user_state_manager_->SetCurrentUserMetricsConsent(user_metrics_consent);
+  per_user_state_manager_->SetCurrentUserMetricsChoice(user_choice);
 }
 
 void ChromeMetricsServiceClient::InitPerUserMetrics() {
   per_user_state_manager_ =
       std::make_unique<metrics::PerUserStateManagerChromeOS>(
           this, g_browser_process->local_state());
-  per_user_consent_change_subscription_ = per_user_state_manager_->AddObserver(
+  per_user_choice_change_subscription_ = per_user_state_manager_->AddObserver(
       base::BindRepeating(&UpdateMetricsServicesForPerUser));
 }
 
-std::optional<bool> ChromeMetricsServiceClient::GetCurrentUserMetricsConsent()
+std::optional<bool> ChromeMetricsServiceClient::GetCurrentUserMetricsChoice()
     const {
   if (per_user_state_manager_) {
-    return per_user_state_manager_
-        ->GetCurrentUserReportingConsentIfApplicable();
+    return per_user_state_manager_->GetCurrentUserReportingChoiceIfApplicable();
   }
 
   return std::nullopt;

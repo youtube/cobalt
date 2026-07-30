@@ -8,6 +8,8 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.content.pm.ProviderInfo;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.net.Uri;
@@ -709,6 +711,27 @@ public abstract class ContentUriUtils {
         } catch (IOException e) {
             return null;
         }
+    }
+
+    public static boolean isUriFromThisApp(@Nullable Uri uri) {
+        return isUriFromThisApp(uri, ContextUtils.getApplicationContext());
+    }
+
+    /**
+     * Returns whether the content URI is served by a ContentProvider belonging to the current
+     * application (i.e. running under the same UID).
+     *
+     * @param uri The URI to check.
+     * @param context The context to retrieve package and provider info.
+     * @return True if the URI is from the current application, false otherwise.
+     */
+    public static boolean isUriFromThisApp(@Nullable Uri uri, Context context) {
+        if (uri == null || !ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) return false;
+        String authority = uri.getAuthority();
+        if (TextUtils.isEmpty(authority)) return false;
+        PackageManager pm = context.getPackageManager();
+        ProviderInfo info = pm.resolveContentProvider(authority, 0);
+        return info != null && TextUtils.equals(info.packageName, context.getPackageName());
     }
 
     @NativeMethods

@@ -13,6 +13,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/tick_clock.h"
 #include "base/types/pass_key.h"
+#include "media/base/cross_origin_data_source.h"
 #include "media/base/data_source.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
@@ -24,7 +25,7 @@ class MEDIA_EXPORT HlsDataSourceProviderImpl : public HlsDataSourceProvider {
  public:
   ~HlsDataSourceProviderImpl() override;
   explicit HlsDataSourceProviderImpl(
-      std::unique_ptr<DataSource::Factory> factory);
+      std::unique_ptr<CrossOriginDataSource::Factory> factory);
 
   // HlsDataSourceProvider implementation
   void ReadFromCombinedUrlQueue(SegmentQueue segments,
@@ -35,22 +36,21 @@ class MEDIA_EXPORT HlsDataSourceProviderImpl : public HlsDataSourceProvider {
   void AbortPendingReads(base::OnceClosure cb) override;
 
  private:
-  void UpdateStreamMetadata(HlsDataSourceStream::StreamId,
-                            HlsDataSourceStream& stream);
   void OnDataSourceCreated(DataSource::RangeMode range_mode,
                            std::unique_ptr<HlsDataSourceStream> stream,
                            ReadCb callback,
-                           std::unique_ptr<DataSource> data_source);
+                           std::unique_ptr<CrossOriginDataSource> data_source);
   void OnStreamReleased(HlsDataSourceStream::StreamId stream_id);
   void DataSourceInitialized(std::unique_ptr<HlsDataSourceStream> stream,
                              ReadCb callback,
                              bool success);
 
-  std::unique_ptr<DataSource::Factory> data_source_factory_;
+  std::unique_ptr<CrossOriginDataSource::Factory> data_source_factory_;
 
   HlsDataSourceStream::StreamId::Generator stream_id_generator_;
 
-  base::flat_map<HlsDataSourceStream::StreamId, std::unique_ptr<DataSource>>
+  base::flat_map<HlsDataSourceStream::StreamId,
+                 std::unique_ptr<CrossOriginDataSource>>
       data_source_map_;
 
   bool would_taint_origin_ = false;

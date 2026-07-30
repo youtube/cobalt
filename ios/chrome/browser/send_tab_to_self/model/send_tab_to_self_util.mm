@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
+#import "ios/web/public/navigation/referrer.h"
 #import "ios/web/public/web_state.h"
 #import "url/origin.h"
 
@@ -25,6 +26,18 @@ namespace send_tab_to_self {
 OpenNewTabCommand* CreateOpenNewTabCommand(const SendTabToSelfEntry* entry) {
   OpenNewTabCommand* command =
       [OpenNewTabCommand commandWithURLFromChrome:entry->GetURL()];
+  command.sendTabToSelfEntryGUID = base::SysUTF8ToNSString(entry->GetGUID());
+  return command;
+}
+
+OpenNewTabCommand* CreateOpenNewBackgroundTabCommand(
+    const SendTabToSelfEntry* entry) {
+  OpenNewTabCommand* command =
+      [[OpenNewTabCommand alloc] initWithURL:entry->GetURL()
+                                    referrer:web::Referrer()
+                                 inIncognito:NO
+                                inBackground:YES
+                                    appendTo:OpenPosition::kLastTab];
   command.sendTabToSelfEntryGUID = base::SysUTF8ToNSString(entry->GetGUID());
   return command;
 }

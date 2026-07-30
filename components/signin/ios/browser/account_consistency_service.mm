@@ -276,7 +276,7 @@ void AccountConsistencyService::AccountConsistencyHandler::ShouldAllowResponse(
   switch (params.service_type) {
     case signin::GAIA_SERVICE_TYPE_INCOGNITO: {
       if (delegate_) {
-        delegate_->OnGoIncognito(continue_url);
+        delegate_->OnGoIncognito(continue_url, web_state_);
       }
       break;
     }
@@ -296,13 +296,13 @@ void AccountConsistencyService::AccountConsistencyHandler::ShouldAllowResponse(
         }
       }
       if (delegate_) {
-        delegate_->OnAddAccount(continue_url, params.email);
+        delegate_->OnAddAccount(continue_url, params.email, web_state_);
       }
       break;
     case signin::GAIA_SERVICE_TYPE_SIGNOUT:
     case signin::GAIA_SERVICE_TYPE_DEFAULT:
       if (delegate_) {
-        delegate_->OnManageAccounts(continue_url);
+        delegate_->OnManageAccounts(continue_url, web_state_);
       }
       break;
     case signin::GAIA_SERVICE_TYPE_NONE:
@@ -328,7 +328,7 @@ void AccountConsistencyService::AccountConsistencyHandler::
     // is not in an inconsistent state (where the identities on the device
     // are different than those on the web). Fallback to asking the user to
     // add an account.
-    delegate_->OnAddAccount(url, email);
+    delegate_->OnAddAccount(url, email, web_state_);
     return;
   }
   web_state_->OpenURL(web::WebState::OpenURLParams(

@@ -5,6 +5,7 @@
 #include "content/browser/site_info.h"
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 
 #include "base/command_line.h"
@@ -38,6 +39,9 @@ namespace content {
 namespace {
 
 using WebUIDomains = std::vector<std::string>;
+
+// Holdback flag for the OAC redundant lookup optimization.
+BASE_FEATURE(kOacRedundantLookupHoldback, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Parses the TLD and any lower level domains for WebUI URLs of the form
 // chrome://foo.bar/. Domains are returned in the same order they appear in the
@@ -381,6 +385,15 @@ SiteInfo SiteInfo::Create(const IsolationContext& isolation_context,
 SiteInfo SiteInfo::CreateForTesting(const IsolationContext& isolation_context,
                                     const GURL& url) {
   return Create(isolation_context, UrlInfo::CreateForTesting(url));
+}
+
+// static
+std::unique_ptr<SecurityPrincipal>
+SecurityPrincipal::CreateForTesting(  // IN-TEST
+    BrowserContext* context,
+    const GURL& url) {
+  return std::make_unique<SiteInfo>(
+      SiteInfo::CreateForTesting(IsolationContext(context), url));
 }
 
 SiteInfo::SiteInfo(const AgentClusterKey& agent_cluster_key,
@@ -792,7 +805,7 @@ bool SiteInfo::ShouldUseProcessPerSite(BrowserContext* browser_context) const {
 
   // Otherwise let the content client decide, defaulting to false.
   return GetContentClient()->browser()->ShouldUseProcessPerSite(browser_context,
-                                                                site_url_);
+                                                                *this);
 }
 
 // static
@@ -963,8 +976,7 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
   // https://crbug.com/776160).
   if (!origin.host().empty() && origin.scheme() != url::kFileScheme) {
     return GetAgentClusterKeyForNonOpaqueOrigin(
-        isolation_context, url_info, origin, oac_status,
-        requires_origin_keyed_process,
+        isolation_context, url_info, origin, oac_isolation_state,
         is_origin_isolated_sandboxed_data_iframe);
   }
 
@@ -1000,10 +1012,14 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForURL(
 AgentClusterKey SiteInfo::GetAgentClusterKeyForNonOpaqueOrigin(
     const IsolationContext& isolation_context,
     const UrlInfo& url_info,
-    const url::Origin origin,
-    AgentClusterKey::OACStatus oac_status,
-    bool requires_origin_keyed_process,
+    const url::Origin& origin,
+    const OriginAgentClusterIsolationState& oac_isolation_state,
     bool is_origin_isolated_sandboxed_data_iframe) {
+  AgentClusterKey::OACStatus oac_status =
+      oac_isolation_state.process_isolation_oac_status();
+  bool requires_origin_keyed_process =
+      oac_isolation_state.requires_origin_keyed_process();
+
   CHECK(!origin.host().empty() && origin.scheme() != url::kFileScheme);
   CHECK(!origin.opaque());
   // Cross-origin isolated contexts should always be given an origin-keyed
@@ -1055,17 +1071,28 @@ AgentClusterKey SiteInfo::GetAgentClusterKeyForNonOpaqueOrigin(
   // ChildProcessSecurityPolicyImpl::PerformJailAndCitadelChecks (which is
   // always created from an UrlInfo with default OAC status but picks up the
   // correct OAC status from the OAC status stored in the BrowsingInstance).
-  // In any case, it is still safe to pass |requests_origin_keyed_process| =
-  // false in GetMatchingProcessIsolatedOrigin because we have already
-  // computed that the appropriate OAC status for this SiteInfo is site-keyed,
-  // regardless of what the UrlInfo was asking for.
+  // In any case, it is still safe to pass `requests_origin_keyed_process =
+  // false` in the holdback path because we have already computed that the
+  // appropriate OAC status for this SiteInfo is site-keyed, regardless of what
+  // the UrlInfo was asking for. Since OAC is guaranteed to not require
+  // isolation here (see the CHECK below), we only care about the legacy
+  // isolated origin mechanism. Thus, the optimized path calls
+  // GetMatchingProcessIsolatedOriginFromLegacyOriginList directly.
   CHECK(!requires_origin_keyed_process);
   url::Origin isolated_origin;
   GURL site_url = GetSiteForOrigin(origin);
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
-  if (policy->GetMatchingProcessIsolatedOrigin(
-          isolation_context, origin, /*requests_origin_keyed_process=*/false,
-          site_url, &isolated_origin)) {
+  bool has_matching_isolated_origin = false;
+  if (base::FeatureList::IsEnabled(kOacRedundantLookupHoldback)) {
+    has_matching_isolated_origin = policy->GetMatchingProcessIsolatedOrigin(
+        isolation_context, origin, /*requests_origin_keyed_process=*/false,
+        site_url, &isolated_origin);
+  } else {
+    has_matching_isolated_origin =
+        policy->GetMatchingProcessIsolatedOriginFromLegacyOriginList(
+            isolation_context, origin, site_url, &isolated_origin);
+  }
+  if (has_matching_isolated_origin) {
     return AgentClusterKey::CreateSiteKeyed(isolated_origin.GetURL(),
                                             oac_status);
   }

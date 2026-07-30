@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/core/html/forms/select_type.h"
 #include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/html_hr_element.h"
+#include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_compositor.h"
@@ -1101,14 +1102,20 @@ TEST_F(HTMLSelectElementTest, InnerElementOverflow) {
   Element& inner_element = select->InnerElement();
 
   GetDocument().UpdateStyleAndLayoutTree();
-  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kVisible);
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kClip);
   EXPECT_EQ(inner_element.GetComputedStyle()->OverflowY(), EOverflow::kVisible);
 
   select->SetInlineStyleProperty(CSSPropertyID::kTextOverflow,
                                  CSSValueID::kEllipsis);
   GetDocument().UpdateStyleAndLayoutTree();
-  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kHidden);
-  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowY(), EOverflow::kHidden);
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kClip);
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowY(), EOverflow::kVisible);
+
+  select->SetInlineStyleProperty(CSSPropertyID::kWritingMode,
+                                 CSSValueID::kVerticalRl);
+  GetDocument().UpdateStyleAndLayoutTree();
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kVisible);
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowY(), EOverflow::kClip);
 }
 
 TEST_F(HTMLSelectElementTest, DescendantCounters) {
@@ -1124,8 +1131,11 @@ TEST_F(HTMLSelectElementTest, DescendantCounters) {
         <input id=c3i>
         <option id=c3o>option</option>
       </div>
-      <option id=c4>option</option>
-      <div id=c5></div>
+      <div id=c4>
+        <input>
+      </div>
+      <option id=c5>option</option>
+      <div id=c6></div>
     </select>
   )HTML");
 
@@ -1134,8 +1144,18 @@ TEST_F(HTMLSelectElementTest, DescendantCounters) {
   Element* c3 = GetElementById("c3");
   Element* c4 = GetElementById("c4");
   Element* c5 = GetElementById("c5");
+  Element* c6 = GetElementById("c6");
   HTMLInputElement* c1 = MakeGarbageCollected<HTMLInputElement>(GetDocument());
   select->insertBefore(c1, c2);
+
+  auto input_slot = [select]() {
+    return select->GetShadowRoot()->getElementById(
+        shadow_element_names::kSelectInput);
+  };
+  auto options_slot = [select]() {
+    return select->GetShadowRoot()->getElementById(
+        shadow_element_names::kSelectOptions);
+  };
 
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c1).num_options, 0);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c1).num_inputs, 1);
@@ -1143,30 +1163,90 @@ TEST_F(HTMLSelectElementTest, DescendantCounters) {
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c2).num_inputs, 1);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_options, 1);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_inputs, 1);
-  EXPECT_EQ(select->ChildrenDescendantCounts().at(c4).num_options, 1);
-  EXPECT_EQ(select->ChildrenDescendantCounts().at(c4).num_inputs, 0);
-  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c5));
-  EXPECT_EQ(select->NumDescendantInputs(), 3);
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c4).num_options, 0);
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c4).num_inputs, 1);
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c5).num_options, 1);
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c5).num_inputs, 0);
+  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c6));
+  EXPECT_EQ(select->NumDescendantInputs(), 4);
+  EXPECT_TRUE(!!input_slot());
+
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c1->AssignedSlot(), input_slot());
+  EXPECT_EQ(c2->AssignedSlot(), input_slot());
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
 
   c1->remove();
   EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c1));
-  EXPECT_EQ(select->NumDescendantInputs(), 2);
+  EXPECT_EQ(select->NumDescendantInputs(), 3);
+
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c2->AssignedSlot(), input_slot());
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
+
+  select->setAttribute(html_names::kMultipleAttr, g_empty_atom);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c2->AssignedSlot(), input_slot());
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
+  select->removeAttribute(html_names::kMultipleAttr);
 
   c2->remove();
   EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c2));
-  EXPECT_EQ(select->NumDescendantInputs(), 1);
+  EXPECT_EQ(select->NumDescendantInputs(), 2);
+
+  EXPECT_TRUE(!!input_slot());
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
 
   GetElementById("c3o")->remove();
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_options, 0);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_inputs, 1);
-  EXPECT_EQ(select->NumDescendantInputs(), 1);
+  EXPECT_EQ(select->NumDescendantInputs(), 2);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3->AssignedSlot(), input_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
+
   GetElementById("c3i")->remove();
   EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c3));
-  EXPECT_EQ(select->NumDescendantInputs(), 0);
+  EXPECT_EQ(select->NumDescendantInputs(), 1);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
 
   c4->remove();
-  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c4));
   EXPECT_EQ(select->NumDescendantInputs(), 0);
+
+  EXPECT_FALSE(!!input_slot());
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c4->AssignedSlot(), input_slot());
+  EXPECT_EQ(c5->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
+
+  c5->remove();
+  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c5));
+  EXPECT_EQ(select->NumDescendantInputs(), 0);
+
+  EXPECT_FALSE(!!input_slot());
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3->AssignedSlot(), options_slot());
+  EXPECT_EQ(c6->AssignedSlot(), options_slot());
 }
 
 class HTMLSelectElementSimTest : public SimTest {};

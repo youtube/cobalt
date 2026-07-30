@@ -138,12 +138,17 @@ def FindExcludedFiles(files, options):
         return True
     return False
 
+  def IsWebPageReplayThirdParty(path_string):
+    normalized_path = path_string.replace('\\', '/')
+    return 'third_party/webpagereplay/third_party/' in normalized_path
+
   # Collect filters we're going to use to exclude files.
   exclude_conditions = [
       IsHidden,
       IsPyc,
       IsInCloudStorage,
       MatchesExcludeOptions,
+      IsWebPageReplayThirdParty,
   ]
 
   # Check all the files against the filters.

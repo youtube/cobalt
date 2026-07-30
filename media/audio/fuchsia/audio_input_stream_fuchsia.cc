@@ -58,7 +58,7 @@ AudioInputStream::OpenOutcome AudioInputStreamFuchsia::Open() {
   factory->CreateAudioCapturer(capturer_.NewRequest(), is_loopback);
   capturer_.set_error_handler([this](zx_status_t status) {
     ZX_LOG(ERROR, status) << "AudioCapturer disconnected";
-    ReportError();
+    ReportError(Error::kRuntimeError);
   });
 
   // Bind the event for incoming packets.
@@ -103,7 +103,7 @@ AudioInputStream::OpenOutcome AudioInputStreamFuchsia::Open() {
 
 void AudioInputStreamFuchsia::Start(AudioInputCallback* callback) {
   if (!capturer_) {
-    callback->OnError();
+    callback->OnError(Error::kStartupFailed);
     return;
   }
 
@@ -167,7 +167,7 @@ void AudioInputStreamFuchsia::OnPacketProduced(
       packet.payload_size % bytes_per_frame != 0 ||
       packet.payload_size < bytes_per_frame) {
     LOG(ERROR) << "Received invalid packet from AudioCapturer.";
-    ReportError();
+    ReportError(Error::kRuntimeError);
     return;
   }
 
@@ -187,10 +187,10 @@ void AudioInputStreamFuchsia::OnPacketProduced(
   capturer_->ReleasePacket(std::move(packet));
 }
 
-void AudioInputStreamFuchsia::ReportError() {
+void AudioInputStreamFuchsia::ReportError(Error error_code) {
   capturer_.Unbind();
   if (callback_)
-    callback_->OnError();
+    callback_->OnError(error_code);
 }
 
 }  // namespace media

@@ -40,6 +40,7 @@
 #include "pdf/content_restriction.h"
 #include "pdf/document_layout.h"
 #include "pdf/mojom/pdf.mojom.h"
+#include "pdf/page_orientation.h"
 #include "pdf/paint_ready_rect.h"
 #include "pdf/pdf_accessibility_data_handler.h"
 #include "pdf/pdf_features.h"
@@ -3621,6 +3622,7 @@ TEST_P(PdfViewWebPluginInkTest, DrawText) {
       /*typeface=*/TextTypeface::kSansSerif,
       /*alignment=*/TextAlignment::kLeft,
       /*orientation=*/0,
+      /*viewport_orientation=*/PageOrientation::kOriginal,
       /*is_bold=*/true,
       /*is_italic=*/false,
       /*text=*/"Hello");

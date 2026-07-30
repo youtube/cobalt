@@ -165,7 +165,7 @@ class MediaEngagementContentsObserver : public content::WebContentsObserver {
   // Returns whether the player with |id| is considered significant.
   bool IsSignificantPlayer(const content::MediaPlayerId& id);
 
-  // Returns whether we have recieved all the state information about a
+  // Returns whether we have received all the state information about a
   // player in order to be able to make a decision about it.
   bool IsPlayerStateComplete(const PlayerState& state);
 

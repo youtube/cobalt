@@ -20,9 +20,7 @@ scoped_refptr<os_crypt_async::Encryptor> GetEncryptorForTest() {
       os_crypt_async(os_crypt_async::GetTestOSCryptAsyncForTesting(
           /*is_sync_for_unittests=*/true));
   base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
-  (*os_crypt_async)
-      ->GetInstance(future.GetCallback(),
-                    os_crypt_async::Encryptor::Option::kNone);
+  (*os_crypt_async)->GetInstance(future.GetCallback());
   return future.Take();
 }
 

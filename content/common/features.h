@@ -81,6 +81,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDisableAutoResizeOutputSurface);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kDocumentIsolationPolicyWithoutSiteIsolation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDocumentPolicyNegotiation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kEditContextSelectionSync);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kKillOnUnexpectedOriginHeader);
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableDevToolsJsErrorReporting);
@@ -188,6 +189,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kPermissionsPolicyVerificationInContent);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchCookieIndices);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrefetchDevtoolsUserAgentOverride);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kPreloadActivationReportWithExtensionInterception);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPreloadingConfig);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kPrerenderMoreCorrectSpeculativeRFHCreation);
@@ -198,6 +201,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kProgressiveAccessibilityPhase2);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReloadHiddenTabsWithCrashedSubframes);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPreferWarmRendererProcess);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReusePrerenderingProcessForMainFrames);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kReplaceInitialEntryForReload);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kRestrictOrientationLockToPhones);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kContinueGestureOnLosingFocus);
@@ -225,7 +229,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
 CONTENT_EXPORT extern const base::FeatureParam<std::string>
     kServiceWorkerBypassFetchHandlerBypassedHashStrings;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerSrcdocSupport);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterCORPCheck);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterOpaqueCheck);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterParsedHeaders);

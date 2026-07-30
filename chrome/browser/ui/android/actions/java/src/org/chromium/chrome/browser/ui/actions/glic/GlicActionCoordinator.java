@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.ui.drawable.DirtyDotDrawableWrapper;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -57,6 +58,7 @@ public class GlicActionCoordinator {
     private final Supplier<@Nullable TabModelSelector> mTabModelSelectorSupplier;
     private final Activity mActivity;
     private final SnackbarManager mSnackbarManager;
+    private final UserEducationHelper mUserEducationHelper;
     private @Nullable GlicTaskMenuCoordinator mTaskMenuCoordinator;
     private final Drawable mDefaultDrawable;
     private final Drawable mFilledDrawable;
@@ -72,12 +74,14 @@ public class GlicActionCoordinator {
             Supplier<@Nullable ChromeAndroidTask> taskSupplier,
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
             Supplier<@Nullable TabModelSelector> tabModelSelectorSupplier,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            UserEducationHelper userEducationHelper) {
         mActivity = activity;
         mToggleGlicCallback = toggleGlicCallback;
         mTabSupplier = tabSupplier;
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mSnackbarManager = snackbarManager;
+        mUserEducationHelper = userEducationHelper;
         mGlicActionModelSupplier = actionRegistry.get(ActionId.GLIC);
 
         mStateController =
@@ -119,7 +123,17 @@ public class GlicActionCoordinator {
 
         mDefaultDrawable = AppCompatResources.getDrawable(activity, glicIconResId);
         mFilledDrawable = AppCompatResources.getDrawable(activity, R.drawable.ic_spark_filled_24dp);
-        mWorkingDrawable = GlicUiHelper.createWorkingDrawable(activity, mFilledDrawable);
+
+        // Create a separate instance of the spark icon for mWorkingDrawable.
+        // Sharing the same drawable instance (mFilledDrawable) across multiple states
+        // causes the ImageView's callback clearing logic to break the callback chain of
+        // the child drawable. This results in the spark icon layer losing its themed tint
+        // initially when entering the WORKING state, until  a hover/state change forces a full view
+        // redraw.
+        Drawable workingSparkIcon =
+                AppCompatResources.getDrawable(activity, R.drawable.ic_spark_filled_24dp);
+        mWorkingDrawable = GlicUiHelper.createWorkingDrawable(activity, workingSparkIcon);
+
         Drawable sparkIcon =
                 AppCompatResources.getDrawable(activity, R.drawable.ic_spark_filled_24dp);
         int dotColor = activity.getColor(R.color.default_icon_color_accent1_baseline);
@@ -132,6 +146,7 @@ public class GlicActionCoordinator {
     private void onModelChanged(@Nullable PropertyModel model) {
         if (model == null) return;
         model.set(ActionProperties.ON_PRESS_CALLBACK, this::onGlicActionPressed);
+        model.set(ActionProperties.USER_EDUCATION_HELPER, mUserEducationHelper);
         updateButtonState();
     }
 

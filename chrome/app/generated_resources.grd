@@ -878,6 +878,11 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_ADD_TO_DICTIONARY" desc="The name of the Add to dictionary command in the content area context menu">
             &amp;Add to dictionary
           </message>
+          <if expr="is_macosx">
+            <message name="IDS_CONTENT_CONTEXT_REMOVE_FROM_DICTIONARY" desc="The name of the Remove from Dictionary command in the content area context menu">
+              &amp;Remove from dictionary
+            </message>
+          </if>
           <message name="IDS_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_MENU_OPTION" desc="The context-menu item that asks whether to integrate the accessibility image labeling service of Google to Chrome.">
             Get image descriptions from Google
           </message>
@@ -1229,6 +1234,11 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_ADD_TO_DICTIONARY" desc="In Title Case: The name of the Add to dictionary command in the content area context menu">
             &amp;Add to Dictionary
           </message>
+          <if expr="is_macosx">
+            <message name="IDS_CONTENT_CONTEXT_REMOVE_FROM_DICTIONARY" desc="In Title Case: The name of the Remove from Dictionary command in the content area context menu">
+              &amp;Remove from Dictionary
+            </message>
+          </if>
           <message name="IDS_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_MENU_OPTION" desc="The context-menu item that asks whether to integrate the accessibility image labeling service of Google to Chrome.">
             Get Image Descriptions from Google
           </message>
@@ -1841,6 +1851,9 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_BROWSER_PROFILE_MANAGED" desc="The text label of the 'Managed by' UI in the app menu, for enterprise users where the profile is managed by a different entity from the browser.">
         Your browser and profile are managed
+      </message>
+      <message name="IDS_CHROME_ENTERPRISE_RELEASE_NOTES" desc="Menu item to open the Chrome Enterprise and Education release notes.">
+        Chrome Enterprise release notes
       </message>
       <message name="IDS_CHROME_WHATS_NEW" desc="The text label of the Help menu item which takes the user to the Chrome What's New page.">
         What's New
@@ -9436,6 +9449,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_BOOKMARKS_COMPACT_VIEW" desc="Label for the compact view bookmarks menu option">
         Compact view
       </message>
+      <message name="IDS_BOOKMARKS_SWITCH_TO_COMPACT_VIEW" desc="Screen reader label for the button that switches the bookmarks side panel to compact view.">
+        Switch to compact view
+      </message>
+      <message name="IDS_BOOKMARKS_SWITCH_TO_VISUAL_VIEW" desc="Screen reader label for the button that switches the bookmarks side panel to visual view.">
+        Switch to visual view
+      </message>
       <message name="IDS_BOOKMARKS_SORT_MENU_A11Y_LABEL" is_accessibility_with_no_ui="true" desc="Screen reader label for the button which opens the sort menu in the bookmarks side panel.">
         Sorting and list options
       </message>
@@ -13642,9 +13661,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
 
         <!-- Reset Profile Settings strings -->
-        <message name="IDS_RESET_PROFILE_SETTINGS_EXPLANATION" desc="A label describing the consequences of the 'reset profile settings' feature">
-          This will reset your startup page, new tab page, search engine, and pinned tabs. It will also disable all extensions and clear temporary data like cookies. Your bookmarks, history and saved passwords will not be cleared.
-        </message>
         <message name="IDS_TRIGGERED_RESET_PROFILE_SETTINGS_TITLE" desc="Dialog title for reset dialog triggered by a third party tool">
           <ph name="THIRD_PARTY_TOOL_NAME">$1<ex>SuperDuper PC Cleaner Pro</ex></ph> wants to reset your settings.
         </message>

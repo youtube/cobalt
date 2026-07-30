@@ -21,7 +21,6 @@ include_rules = [
   "+chrome/browser/ui/ash/shelf/app_service",
   "+chrome/browser/ui/browser.h",
   "+chrome/common/extensions/api",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
   "+chrome/test/views",
 

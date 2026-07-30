@@ -128,20 +128,21 @@ enum class GenAiDefaultSettingsPolicy {
   kNotAllowed = 2,
 };
 
-// Current state of the Gemini FRE.
-// TODO(crbug.com/519213385): Rename to FirstRunState.
-// LINT.IfChange(FREState)
-enum class FREState {
+// Current state of the Gemini First Run.
+// LINT.IfChange(FirstRunState)
+enum class FirstRunState {
   // Initial state, when the flow was never started by the user.
   kPending = 0,
-  // The FRE flow was shown to the user but they did not proceed til the end and
+  // The First Run flow was shown to the user but they did not proceed til the
+  // end and
   // give their explicit consent to Gemini usage.
   kStarted = 1,
-  // The user completed the FRE flow and gave their consent to Gemini usage.
+  // The user completed the First Run flow and gave their consent to Gemini
+  // usage.
   kCompleted = 2,
   kMaxValue = kCompleted
 };
-// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFREState)
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFirstRunState)
 
 // Input type for Gemini queries.
 // LINT.IfChange(InputType)
@@ -210,9 +211,8 @@ enum class InputType {
 
 }  // namespace gemini
 
-// Types of Gemini First Run Experience (FRE).
-// TODO(crbug.com/519213385): Rename to GeminiFirstRunType.
-enum class GeminiFREType {
+// Types of Gemini First Run Experience.
+enum class GeminiFirstRunType {
   kNewUser,
   kLive,
 };
@@ -237,9 +237,8 @@ enum class GeminiFREType {
 // Gemini UI sheet detent identifier.
 extern NSString* const kGeminiPromoConsentFullDetentIdentifier;
 
-// Gemini UI Lottie Animation name for FRE Banner.
-// TODO(crbug.com/519213385): Rename to kLottieAnimationFirstRunBannerName.
-extern NSString* const kLottieAnimationFREBannerName;
+// Gemini UI Lottie Animation name for First Run Banner.
+extern NSString* const kLottieAnimationFirstRunBannerName;
 
 // Session map dictionary key for the last interaction timestamp.
 extern const char kLastInteractionTimestampDictKey[];
@@ -247,20 +246,20 @@ extern const char kLastInteractionTimestampDictKey[];
 // interaction.
 extern const char kURLOnLastInteractionDictKey[];
 
-// Consent row links for the new FRE.
+// Consent row links for the new Gemini First Run.
 extern const char kDataGovernanceManagedLinkURL[];
 extern const char kDataGovernanceStrictLinkURL[];
 extern const char kDataGovernanceNormalLocationLinkURL[];
 extern const char kDataGovernanceNormalChoicesLinkURL[];
 extern const char kConnectedServicesLinkURL[];
 
-// Consent row links for the old FRE.
+// Consent row links for the old First Run experience.
 // TODO(crbug.com/393204662): Remove these links once the old FRE is removed.
 extern const char kSecondBoxLinkURLManagedAccount[];
 extern const char kSecondBoxLink1URLNonManagedAccount[];
 extern const char kSecondBoxLink2URLNonManagedAccount[];
 
-// Consent row links for Live FRE.
+// Consent row links for Gemini Live First Run.
 extern const char kLivePrivacyNoticeLinkURL[];
 extern const char kLiveLearnMoreLinkURL[];
 extern const char kLivePrivacyPolicyLinkURL[];
@@ -271,19 +270,20 @@ extern const char kSecondFootnoteLinkURL[];
 extern const char kKoreanTermsFootnoteLinkURL[];
 extern const char kWatchLinkURL[];
 
-// Action identifiers for links in the new FRE Gemini consent rows.
+// Action identifiers for links in the new Gemini First Run consent rows.
 extern NSString* const kGeminiDataGovernanceManagedLinkAction;
 extern NSString* const kGeminiDataGovernanceStrictLinkAction;
 extern NSString* const kGeminiDataGovernanceNormalLocationLinkAction;
 extern NSString* const kGeminiDataGovernanceNormalChoicesLinkAction;
 extern NSString* const kGeminiConnectedServicesLinkAction;
 
-// Action identifiers for links in the old FRE Gemini consent rows.
+// TODO(crbug.com/393204662): Remove these links once the old FRE is removed.
+// Action identifiers for links in the old Gemini First Run consent rows.
 extern NSString* const kGeminiSecondBoxLinkActionManagedAccount;
 extern NSString* const kGeminiSecondBoxLink1ActionNonManagedAccount;
 extern NSString* const kGeminiSecondBoxLink2ActionNonManagedAccount;
 
-// Action identifiers for links in the Live FRE Gemini consent rows.
+// Action identifiers for links in the Gemini Live First Run consent rows.
 extern NSString* const kGeminiLivePrivacyNoticeLinkAction;
 extern NSString* const kGeminiLiveLearnMoreLinkAction;
 extern NSString* const kGeminiLivePrivacyPolicyLinkAction;

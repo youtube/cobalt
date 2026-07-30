@@ -83,6 +83,7 @@ public class AwContentsClientFaviconTest extends AwParameterizedTest {
 
     @Test
     @SmallTest
+    @CommandLineFlags.Add({"enable-features=WebViewDownloadFavicons"})
     public void testReceiveBasicFavicon() throws Throwable {
         int callCount = mContentsClient.getFaviconHelper().getCallCount();
 
@@ -117,6 +118,7 @@ public class AwContentsClientFaviconTest extends AwParameterizedTest {
 
     @Test
     @SmallTest
+    @CommandLineFlags.Add({"enable-features=WebViewDownloadFavicons"})
     public void testDoNotMakeRequestForFaviconAfter404() throws Throwable {
         mWebServer.setResponseWithNotFoundStatus(FAVICON1_URL);
         final String pageUrl =

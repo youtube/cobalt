@@ -9,8 +9,8 @@ import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import './icons.html.js';
 
-import type {PriceTrackingBrowserProxy} from '//resources/cr_components/commerce/price_tracking_browser_proxy.js';
-import {PriceTrackingBrowserProxyImpl} from '//resources/cr_components/commerce/price_tracking_browser_proxy.js';
+import type {BrowserProxy as PriceTrackingBrowserProxy} from '//resources/cr_components/commerce/price_tracking.mojom-webui.js';
+import {browserProxyFactory as priceTrackingBrowserProxyFactory} from '//resources/cr_components/commerce/price_tracking.mojom-webui.js';
 import type {BookmarkProductInfo} from '//resources/cr_components/commerce/shared.mojom-webui.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {getFaviconForPageURL} from 'chrome://resources/js/icon.js';
@@ -64,14 +64,14 @@ export class ShoppingListElement extends CrLitElement {
   private bookmarksApi_: BookmarksApiProxy =
       BookmarksApiProxyImpl.getInstance();
   private priceTrackingProxy_: PriceTrackingBrowserProxy =
-      PriceTrackingBrowserProxyImpl.getInstance();
+      priceTrackingBrowserProxyFactory.getInstance();
   private listenerIds_: number[] = [];
-  private retryOperationCallback_: () => void;
+  private retryOperationCallback_: (() => void)|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
 
-    const callbackRouter = this.priceTrackingProxy_.getCallbackRouter();
+    const callbackRouter = this.priceTrackingProxy_.callbackRouter;
     this.listenerIds_.push(
         callbackRouter.priceTrackedForBookmark.addListener(
             (product: BookmarkProductInfo) =>
@@ -96,7 +96,7 @@ export class ShoppingListElement extends CrLitElement {
     super.disconnectedCallback();
 
     this.listenerIds_.forEach(
-        id => this.priceTrackingProxy_.getCallbackRouter().removeListener(id));
+        id => this.priceTrackingProxy_.callbackRouter.removeListener(id));
   }
 
   override willUpdate(changedProperties: PropertyValues) {
@@ -129,7 +129,7 @@ export class ShoppingListElement extends CrLitElement {
   private getProductInfoFromEvent_(event: Event): BookmarkProductInfo {
     const target = event.currentTarget as HTMLElement;
     const index = Number(target.dataset['index']);
-    return this.productInfos[index];
+    return this.productInfos[index]!;
   }
 
   protected onProductAuxclick_(event: MouseEvent) {
@@ -189,13 +189,13 @@ export class ShoppingListElement extends CrLitElement {
       const index = this.untrackedItems_.indexOf(item);
       this.untrackedItems_.splice(index, 1);
       this.requestUpdate();
-      this.priceTrackingProxy_.trackPriceForBookmark(bookmarkId);
+      this.priceTrackingProxy_.handler.trackPriceForBookmark(bookmarkId);
       chrome.metricsPrivate.recordUserAction(
           'Commerce.PriceTracking.SidePanel.Track.BellButton');
     } else {
       this.untrackedItems_.push(item);
       this.requestUpdate();
-      this.priceTrackingProxy_.untrackPriceForBookmark(bookmarkId);
+      this.priceTrackingProxy_.handler.untrackPriceForBookmark(bookmarkId);
       chrome.metricsPrivate.recordUserAction(
           'Commerce.PriceTracking.SidePanel.Untrack.BellButton');
     }
@@ -271,9 +271,11 @@ export class ShoppingListElement extends CrLitElement {
       product: BookmarkProductInfo, attemptedTrack: boolean) {
     this.retryOperationCallback_ = () => {
       if (attemptedTrack) {
-        this.priceTrackingProxy_.trackPriceForBookmark(product.bookmarkId);
+        this.priceTrackingProxy_.handler.trackPriceForBookmark(
+            product.bookmarkId);
       } else {
-        this.priceTrackingProxy_.untrackPriceForBookmark(product.bookmarkId);
+        this.priceTrackingProxy_.handler.untrackPriceForBookmark(
+            product.bookmarkId);
       }
     };
     this.$.errorToast.show();

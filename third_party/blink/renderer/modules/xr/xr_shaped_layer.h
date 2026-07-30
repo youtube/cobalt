@@ -16,7 +16,8 @@ class XRSpace;
 
 class XRShapedLayer : public XRCompositionLayer {
  public:
-  XRShapedLayer(const XRLayerInit* init,
+  XRShapedLayer(XRSession* session,
+                const XRLayerInit* init,
                 V8XRLayerLayout::Enum final_layout,
                 XRGraphicsBinding* binding,
                 XRLayerDrawingContext* drawing_context);

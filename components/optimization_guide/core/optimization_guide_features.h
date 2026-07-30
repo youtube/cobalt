@@ -155,6 +155,12 @@ COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const base::FeatureParam<base::TimeDelta>
     kGetAIPageContentMainFrameTimeoutParam;
 
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+BASE_DECLARE_FEATURE(kGetAIPageContentGetImageBytesTimeoutEnabled);
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const base::FeatureParam<base::TimeDelta>
+    kGetAIPageContentGetImageBytesTimeoutParam;
+
 typedef base::EnumSet<proto::RequestContext,
                       proto::RequestContext_MIN,
                       proto::RequestContext_MAX>
@@ -430,6 +436,11 @@ std::optional<base::TimeDelta> GetSubframeGetAIPageContentTimeout();
 // applied.
 COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 std::optional<base::TimeDelta> GetMainFrameGetAIPageContentTimeout();
+
+// Returns what the timeout for calls to GetImageBytes should be.
+// An empty return value indicates no timeout should be applied.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+std::optional<base::TimeDelta> GetAIPageContentGetImageBytesTimeout();
 
 }  // namespace features
 }  // namespace optimization_guide

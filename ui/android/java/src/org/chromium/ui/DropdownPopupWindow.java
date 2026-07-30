@@ -119,4 +119,13 @@ public class DropdownPopupWindow {
     public boolean isShowing() {
         return mPopup.isShowing();
     }
+
+    /**
+     * Sets whether the popup is focusable.
+     *
+     * @param focusable True if the popup should be focusable, false otherwise.
+     */
+    public void setFocusable(boolean focusable) {
+        mPopup.setFocusable(focusable);
+    }
 }

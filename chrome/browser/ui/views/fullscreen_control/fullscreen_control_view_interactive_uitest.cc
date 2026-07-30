@@ -249,7 +249,8 @@ IN_PROC_BROWSER_TEST_F(FullscreenControlViewTest, MouseExitFullscreen) {
 }
 
 // TODO(https://crbug.com/374539762): Deflake and re-enable on Windows.
-#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/524685085): Flaky on ASAN.
+#if BUILDFLAG(IS_WIN) || defined(ADDRESS_SANITIZER)
 #define MAYBE_MouseExitFullscreen_TimeoutAndRetrigger \
   DISABLED_MouseExitFullscreen_TimeoutAndRetrigger
 #else
@@ -441,8 +442,16 @@ IN_PROC_BROWSER_TEST_F(FullscreenControlViewTest, MAYBE_TouchPopupInteraction) {
   ASSERT_FALSE(browser_view->IsFullscreen());
 }
 
+// TODO(crbug.com/524685085): Flaky on ASAN.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_MouseAndTouchInteraction_NoInterference \
+  DISABLED_MouseAndTouchInteraction_NoInterference
+#else
+#define MAYBE_MouseAndTouchInteraction_NoInterference \
+  MouseAndTouchInteraction_NoInterference
+#endif
 IN_PROC_BROWSER_TEST_F(FullscreenControlViewTest,
-                       MouseAndTouchInteraction_NoInterference) {
+                       MAYBE_MouseAndTouchInteraction_NoInterference) {
   EnterActiveTabFullscreenAndFinishPromptAnimation();
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   ASSERT_TRUE(browser_view->IsFullscreen());

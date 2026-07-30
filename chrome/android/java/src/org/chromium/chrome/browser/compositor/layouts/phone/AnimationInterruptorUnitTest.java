@@ -131,7 +131,7 @@ public class AnimationInterruptorUnitTest {
 
     @Test
     public void testLayoutChanged_TabSwitcher() {
-        mLayoutStateObserverCaptor.getValue().onStartedShowing(LayoutType.TAB_SWITCHER);
+        mLayoutStateObserverCaptor.getValue().onStartedShowing(LayoutType.HUB);
         assertEquals(1, mInterruptCount);
     }
 

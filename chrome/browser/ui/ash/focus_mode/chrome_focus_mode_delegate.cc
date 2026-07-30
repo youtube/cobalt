@@ -150,6 +150,6 @@ bool ChromeFocusModeDelegate::IsMinorUser() {
   const AccountInfo account_info =
       identity_manager->FindExtendedAccountInfoByGaiaId(gaia_id);
   // TODO(b/366042251): Update minor targeting to use a better signal.
-  return account_info.capabilities.can_use_manta_service() !=
+  return account_info.GetAccountCapabilities().can_use_manta_service() !=
          signin::Tribool::kTrue;
 }

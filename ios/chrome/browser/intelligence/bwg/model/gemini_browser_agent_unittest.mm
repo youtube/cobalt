@@ -38,9 +38,9 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/snapshots/model/fake_snapshot_generator_delegate.h"
@@ -109,10 +109,10 @@ class GeminiBrowserAgentTest : public PlatformTest {
     [browser_->GetCommandDispatcher()
         startDispatchingToTarget:mock_settings_handler_
                      forProtocol:@protocol(SettingsCommands)];
-    mock_bwg_handler_ = OCMProtocolMock(@protocol(BWGCommands));
+    mock_gemini_handler_ = OCMProtocolMock(@protocol(GeminiCommands));
     [browser_->GetCommandDispatcher()
-        startDispatchingToTarget:mock_bwg_handler_
-                     forProtocol:@protocol(BWGCommands)];
+        startDispatchingToTarget:mock_gemini_handler_
+                     forProtocol:@protocol(GeminiCommands)];
 
     std::unique_ptr<web::FakeWebState> web_state =
         std::make_unique<web::FakeWebState>();
@@ -170,7 +170,7 @@ class GeminiBrowserAgentTest : public PlatformTest {
     gemini_tab_helper_ = nullptr;
     optimization_guide_service_ = nullptr;
     mock_settings_handler_ = nullptr;
-    mock_bwg_handler_ = nullptr;
+    mock_gemini_handler_ = nullptr;
     fake_snapshot_delegate_ = nullptr;
     browser_.reset();
     profile_manager_.PrepareForDestruction();
@@ -258,7 +258,7 @@ class GeminiBrowserAgentTest : public PlatformTest {
   raw_ptr<web::FakeWebState> web_state_;
   raw_ptr<web::FakeWebFrame> fake_main_frame_;
   id mock_settings_handler_;
-  id mock_bwg_handler_;
+  id mock_gemini_handler_;
   FakeSnapshotGeneratorDelegate* fake_snapshot_delegate_;
   raw_ptr<feature_engagement::test::MockTracker> mock_tracker_;
 };
@@ -603,10 +603,10 @@ TEST_F(GeminiBrowserAgentTest, TestDismissGeminiFromOtherWindows) {
   BrowserList* browser_list = BrowserListFactory::GetForProfile(second_profile);
   browser_list->AddBrowser(second_browser.get());
 
-  id mock_second_handler = OCMProtocolMock(@protocol(BWGCommands));
+  id mock_second_handler = OCMProtocolMock(@protocol(GeminiCommands));
   [second_browser->GetCommandDispatcher()
       startDispatchingToTarget:mock_second_handler
-                   forProtocol:@protocol(BWGCommands)];
+                   forProtocol:@protocol(GeminiCommands)];
 
   [[mock_second_handler expect]
       dismissGeminiFlowWithCompletion:[OCMArg checkWithBlock:^BOOL(
@@ -776,10 +776,10 @@ TEST_F(GeminiBrowserAgentTest, TestStartGeminiFlowNoActiveWebState) {
   // Initialize browser agent on a browser with no active WebStates.
   std::unique_ptr<TestBrowser> empty_browser =
       std::make_unique<TestBrowser>(profile_);
-  id mock_bwg_handler = OCMProtocolMock(@protocol(BWGCommands));
+  id mock_gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
   [empty_browser->GetCommandDispatcher()
-      startDispatchingToTarget:mock_bwg_handler
-                   forProtocol:@protocol(BWGCommands)];
+      startDispatchingToTarget:mock_gemini_handler
+                   forProtocol:@protocol(GeminiCommands)];
   GeminiBrowserAgent::CreateForBrowser(empty_browser.get());
   GeminiBrowserAgent* empty_agent =
       GeminiBrowserAgent::FromBrowser(empty_browser.get());

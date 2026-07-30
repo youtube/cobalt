@@ -30,6 +30,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_scene_agent.h"
+#import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
@@ -37,6 +38,8 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
+#import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/snackbar/ui_bundled/snackbar_coordinator.h"
 #import "ios/chrome/browser/snackbar/ui_bundled/stub_snackbar_coordinator_delegate.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
@@ -330,6 +333,14 @@
   if (IsFullscreenRefactoringEnabled()) {
     FullscreenBrowserAgent::CreateForBrowser(browser);
   }
+
+  // Create a dummy view for top omnibox to satisfy LayoutGuideCenter checks
+  // in minimal UI tests.
+  UIView* dummyOmnibox =
+      [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 56)];
+  [self.helper.rootViewController.view addSubview:dummyOmnibox];
+  LayoutGuideCenter* layoutGuideCenter = LayoutGuideCenterForBrowser(browser);
+  [layoutGuideCenter referenceView:dummyOmnibox underName:kTopOmniboxGuide];
 
   // Insert a New Tab Page.
   std::unique_ptr<web::FakeWebState> webState =

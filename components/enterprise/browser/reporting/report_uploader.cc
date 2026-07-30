@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "components/enterprise/browser/reporting/report_type.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
@@ -130,8 +131,27 @@ void ReportUploader::Upload() {
   auto callback = base::BindRepeating(&ReportUploader::OnRequestFinished,
                                       weak_ptr_factory_.GetWeakPtr());
 
+  if (backoff_entry_.failure_count() == 0 && !requests_.empty()) {
+    size_t request_size = 0;
+    switch (config_.report_type) {
+      case ReportType::kBrowser:
+      case ReportType::kBrowserVersion:
+        request_size =
+            requests_.front()->GetDeviceReportRequest().ByteSizeLong();
+        break;
+      case ReportType::kProfileReport:
+        request_size =
+            requests_.front()->GetChromeProfileReportRequest().ByteSizeLong();
+        break;
+    }
+    base::UmaHistogramMemoryKB(
+        base::StrCat({"Enterprise.CloudReportingRequestSize.",
+                      GetReportTypeMetricSuffix(config_.report_type)}),
+        request_size / 1024);
+  }
+
   switch (config_.report_type) {
-    case ReportType::kFull:
+    case ReportType::kBrowser:
     case ReportType::kBrowserVersion: {
       auto request = std::make_unique<ReportRequest::DeviceReportRequestProto>(
           requests_.front()->GetDeviceReportRequest());

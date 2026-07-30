@@ -248,13 +248,6 @@ void RequestPrivateNetworkAccess(
               return;
             }
 
-            if (!rfh->IsFeatureEnabled(
-                    network::mojom::PermissionsPolicyFeature::
-                        kDirectSocketsPrivate)) {
-              std::move(callback).Run(/*access_allowed=*/false);
-              return;
-            }
-
               rfh->GetBrowserContext()
                   ->GetPermissionController()
                   ->RequestPermissionsFromCurrentDocument(

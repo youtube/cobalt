@@ -1,0 +1,30 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+edition = "2024";
+
+package personal_context.proto;
+
+import "components/personal_context/proto/features/common_data.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+message AutoTodosRequest {}
+
+message AutoTodosResponse {
+  // The list of Todos to be given to the user.
+  repeated AutoTodoItem todos = 1;
+}
+
+message AutoTodoItem {
+  // The title of the Todo (e.g., "Flight check-in").
+  string title = 1;
+
+  // The description of the Todo (e.g., "Check in for your upcoming flight to
+  // SFO").
+  string description = 2;
+
+  // The references/sources where the Todo was extracted from.
+  repeated SourceReference source_references = 3;
+}

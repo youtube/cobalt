@@ -93,7 +93,7 @@ class ReferenceTargetIdObserver : public IdTargetObserver {
 
 struct SameSizeAsShadowRoot : public DocumentFragment,
                               public TreeScope,
-                              public ElementRareDataField {
+                              public NodeRareDataField {
   Member<void*> member[2];
   AtomicString string_member;
   unsigned flags[1];
@@ -167,9 +167,15 @@ void ShadowRoot::SetInnerHTMLWithoutTrustedTypes(
 void ShadowRoot::setInnerHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
+  auto [compliant_string, resolved_options] =
+      TrustedTypesCheckForLegacyFragment(
+          html, GetExecutionContext(), trusted_types_names::kShadowRoot,
+          trusted_types_names::kInnerHTML, exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckHTML(html, trusted_types_names::kInnerHTML, exception_state),
-      FragmentParserOptions(), Sanitizer::Mode::kUnsafe,
+      compliant_string, resolved_options, Sanitizer::Mode::kUnsafe,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kDontParse,
       FragmentParserConfig::ForceHtml::kDontForce,
       trusted_types_names::kInnerHTML, exception_state);
@@ -178,9 +184,16 @@ void ShadowRoot::setInnerHTML(
 void ShadowRoot::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                                ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  FragmentParserOptions resolved_options;
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kShadowRoot, trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckHTML(html, trusted_types_names::kSetHTMLUnsafe, exception_state),
-      FragmentParserOptions(), Sanitizer::Mode::kUnsafe,
+      compliant_string, resolved_options, Sanitizer::Mode::kUnsafe,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
       FragmentParserConfig::ForceHtml::kForce,
       trusted_types_names::kSetHTMLUnsafe, exception_state);
@@ -191,9 +204,16 @@ void ShadowRoot::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                                SetHTMLUnsafeOptions* options,
                                ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  FragmentParserOptions resolved_options(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kShadowRoot, trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckHTML(html, trusted_types_names::kSetHTMLUnsafe, exception_state),
-      FragmentParserOptions(options), Sanitizer::Mode::kUnsafe,
+      compliant_string, resolved_options, Sanitizer::Mode::kUnsafe,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
       FragmentParserConfig::ForceHtml::kForce,
       trusted_types_names::kSetHTMLUnsafe, exception_state);
@@ -203,9 +223,16 @@ void ShadowRoot::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                                TrustedParserOptions* options,
                                ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  FragmentParserOptions resolved_options(options);
+  String compliant_string = TrustedTypesCheckForFragment(
+      html, resolved_options, GetExecutionContext(),
+      trusted_types_names::kShadowRoot, trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
   SetInnerHTMLInternal(
-      CheckHTML(html, trusted_types_names::kSetHTMLUnsafe, exception_state),
-      FragmentParserOptions(options), Sanitizer::Mode::kUnsafe,
+      compliant_string, resolved_options, Sanitizer::Mode::kUnsafe,
       FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
       FragmentParserConfig::ForceHtml::kForce,
       trusted_types_names::kSetHTMLUnsafe, exception_state);
@@ -532,7 +559,7 @@ void ShadowRoot::ReferenceTargetChanged() {
 void ShadowRoot::Trace(Visitor* visitor) const {
   visitor->Trace(slot_assignment_);
   visitor->Trace(reference_target_id_observer_);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
   TreeScope::Trace(visitor);
   DocumentFragment::Trace(visitor);
 }

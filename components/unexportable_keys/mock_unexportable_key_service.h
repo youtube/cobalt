@@ -13,6 +13,7 @@
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "components/unexportable_keys/unexportable_key_service.h"
 #include "crypto/signature_verifier.h"
+#include "crypto/unexportable_key.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace unexportable_keys {
@@ -70,6 +71,16 @@ class MockUnexportableKeyService : public UnexportableKeyService {
        base::span<const uint8_t> data,
        BackgroundTaskPriority priority,
        base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback),
+      (override));
+  MOCK_METHOD(
+      void,
+      CertifySlowlyAsync,
+      (UnexportableAttestationKeyId attestation_key_id,
+       UnexportableSigningKeyId signing_key_id,
+       base::span<const uint8_t> challenge,
+       BackgroundTaskPriority priority,
+       base::OnceCallback<void(ServiceErrorOr<crypto::AttestationStatement>)>
+           callback),
       (override));
   MOCK_METHOD(void,
               DeleteKeysSlowlyAsync,

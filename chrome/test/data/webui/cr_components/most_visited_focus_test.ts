@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {MostVisitedBrowserProxy} from 'chrome://resources/cr_components/most_visited/browser_proxy.js';
+
 import {MostVisitedElement} from 'chrome://resources/cr_components/most_visited/most_visited.js';
 import type {MostVisitedPageRemote} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
-import {MostVisitedPageCallbackRouter, MostVisitedPageHandlerRemote} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
+import {browserProxyFactory, MostVisitedPageHandlerRemote} from 'chrome://resources/cr_components/most_visited/most_visited.mojom-webui.js';
 import {TextDirection} from 'chrome://resources/mojo/mojo/public/mojom/base/text_direction.mojom-webui.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -39,10 +39,9 @@ suite('CrComponentsMostVisitedFocusTest', () => {
     const handler = TestMock.fromClass(MostVisitedPageHandlerRemote);
     handler.setResultFor(
         'getMostVisitedExpandedState', Promise.resolve({isExpanded: false}));
-    const callbackRouter = new MostVisitedPageCallbackRouter();
-    MostVisitedBrowserProxy.setInstance(
-        new MostVisitedBrowserProxy(handler, callbackRouter));
-    callbackRouterRemote = callbackRouter.$.bindNewPipeAndPassRemote();
+    const {instance, remote} = browserProxyFactory.createForTest(handler);
+    browserProxyFactory.setInstance(instance);
+    callbackRouterRemote = remote;
 
     mostVisited = new MostVisitedElement();
     if (options.expandableTilesEnabled) {

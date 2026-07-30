@@ -22,6 +22,8 @@ import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.chrome.browser.contextual_tasks.fusebox.ContextualTasksFusebox;
 import org.chromium.chrome.browser.contextual_tasks.fusebox.ContextualTasksFusebox.ContextualTasksFuseboxConfig;
 import org.chromium.chrome.browser.contextual_tasks.fusebox.ContextualTasksFuseboxManager;
+import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
+import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinatorSupplier;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -30,6 +32,8 @@ import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulator
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.url.GURL;
+import org.chromium.url.Origin;
 
 /** Factory for creating co-browse content. */
 @NullMarked
@@ -100,7 +104,7 @@ public class CoBrowseViewFactory {
             @ColorInt int backgroundColor,
             @TabBottomSheetClientType int clientType,
             @CoBrowseContainerType int containerType,
-            @Nullable TabBottomSheetContentProvider bottomSheetContentProvider) {
+            @Nullable CoBrowseComponentProvider bottomSheetContentProvider) {
         View containerView =
                 LayoutInflater.from(mActivity).inflate(R.layout.tab_bottom_sheet, null);
         TabBottomSheetWebUi webUi =
@@ -111,7 +115,37 @@ public class CoBrowseViewFactory {
                         mContextMenuPopulatorFactory,
                         mSelectionDropdownMenuDelegate,
                         backgroundColor,
-                        containerType);
+                        containerType,
+                        // Passes a callback to the components layer to open ephemeral tabs,
+                        // avoiding a circular dependency since the components layer cannot depend
+                        // on chrome/ UI coordinators directly.
+                        (GURL url, String title) -> {
+                            var ephemeralTabCoordinatorSupplier =
+                                    EphemeralTabCoordinatorSupplier.from(mWindowAndroid);
+                            if (ephemeralTabCoordinatorSupplier == null) return;
+                            EphemeralTabCoordinator coordinator =
+                                    ephemeralTabCoordinatorSupplier.get();
+                            if (coordinator == null) return;
+
+                            Profile profile = mProfileSupplier.get();
+                            if (profile == null) return;
+
+                            Origin initiatorOrigin = null;
+                            if (webContents != null && webContents.getMainFrame() != null) {
+                                initiatorOrigin =
+                                        webContents.getMainFrame().getLastCommittedOrigin();
+                            }
+
+                            coordinator.requestOpenSheet(
+                                    url,
+                                    /* fullPageUrl= */ null,
+                                    title,
+                                    profile,
+                                    /* canPromoteToNewTab= */ true,
+                                    /* shouldHaveContextMenu= */ true,
+                                    initiatorOrigin,
+                                    /* requestDeniedCallback= */ () -> {});
+                        });
         ContextualTasksFusebox fusebox = null;
         if (clientType == TabBottomSheetClientType.CONTEXTUAL_TASKS
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXTUAL_TASKS_JAVA_FUSEBOX)) {
@@ -154,7 +188,7 @@ public class CoBrowseViewFactory {
             @Nullable @JniType("content::WebContents*") WebContents webContents,
             @TabBottomSheetClientType int clientType,
             @CoBrowseContainerType int containerType,
-            @Nullable TabBottomSheetContentProvider bottomSheetContentProvider) {
+            @Nullable CoBrowseComponentProvider bottomSheetContentProvider) {
         CoBrowseViewFactory factory = TabBottomSheetUtils.getFactoryFromWindow(windowAndroid);
         if (factory == null) {
             return null;

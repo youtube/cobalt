@@ -1,0 +1,111 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#import "ios/chrome/browser/settings/ui_bundled/view_controller_catalog_view_controller.h"
+
+#import "ios/chrome/browser/alert_view/ui_bundled/alert_action.h"
+#import "ios/chrome/browser/alert_view/ui_bundled/alert_view_controller.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
+
+namespace {
+
+// Sections used in ViewController Catalog page.
+enum SectionIdentifier {
+  kSectionsIdentifierViewController = kSectionIdentifierEnumZero,
+};
+
+// Item types used per ViewController section.
+enum ItemType {
+  kItemTypeAlertViewController = kItemTypeEnumZero,
+};
+
+}  // namespace
+
+@implementation ViewControllerCatalogViewController
+
+- (instancetype)init {
+  return [super initWithStyle:UITableViewStyleInsetGrouped];
+}
+
+- (void)viewDidLoad {
+  [super viewDidLoad];
+
+  self.title = @"ViewController Catalog";
+
+  [self loadModel];
+}
+
+- (void)loadModel {
+  [super loadModel];
+
+  TableViewModel<TableViewItem*>* model = self.tableViewModel;
+
+  TableViewTextItem* alertItem =
+      [[TableViewTextItem alloc] initWithType:kItemTypeAlertViewController];
+  alertItem.text = @"AlertViewController";
+
+  // Adding sections.
+  [model addSectionWithIdentifier:kSectionsIdentifierViewController];
+
+  // Adding items.
+  [model addItem:alertItem
+      toSectionWithIdentifier:kSectionsIdentifierViewController];
+}
+
+#pragma mark - UITableViewDelegate
+
+- (void)tableView:(UITableView*)tableView
+    didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
+  switch ([self.tableViewModel itemTypeForIndexPath:indexPath]) {
+    case kItemTypeAlertViewController: {
+      [self presentViewController:[self configuredAlertViewController]
+                         animated:YES
+                       completion:nil];
+      break;
+    }
+  }
+}
+
+#pragma mark - Private
+
+// Initializes and configures the AlertViewController.
+- (AlertViewController*)configuredAlertViewController {
+  AlertViewController* alertViewController = [[AlertViewController alloc] init];
+
+  // This alert is designed for contexts where full-screen coverage is not
+  // desired.
+  alertViewController.modalPresentationStyle =
+      UIModalPresentationOverCurrentContext;
+  alertViewController.modalTransitionStyle =
+      UIModalTransitionStyleCrossDissolve;
+
+  [alertViewController setTitle:@"Alert title"];
+  [alertViewController
+      setMessage:@"Use this alert to avoid covering the entire screen."];
+
+  __weak AlertViewController* weakAlert = alertViewController;
+
+  void (^dismissAction)(AlertAction*) = ^(AlertAction* action) {
+    [weakAlert dismissViewControllerAnimated:YES completion:nil];
+  };
+
+  NSArray<NSArray<AlertAction*>*>* actions = @[
+    @[ [AlertAction actionWithTitle:@"Default"
+                              style:UIAlertActionStyleDefault
+                            handler:dismissAction] ],
+    @[ [AlertAction actionWithTitle:@"Cancel"
+                              style:UIAlertActionStyleCancel
+                            handler:dismissAction] ],
+    @[ [AlertAction actionWithTitle:@"Destructive"
+                              style:UIAlertActionStyleDestructive
+                            handler:dismissAction] ]
+  ];
+
+  [alertViewController setActions:actions];
+
+  return alertViewController;
+}
+
+@end

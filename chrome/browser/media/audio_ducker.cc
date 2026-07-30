@@ -33,9 +33,6 @@ AudioDucker::~AudioDucker() {
 }
 
 bool AudioDucker::StartDuckingOtherAudio() {
-  if (!base::FeatureList::IsEnabled(media::kAudioDucking)) {
-    return false;
-  }
   if (ducking_state_ == AudioDuckingState::kDucking) {
     return true;
   }
@@ -48,9 +45,6 @@ bool AudioDucker::StartDuckingOtherAudio() {
 }
 
 bool AudioDucker::StopDuckingOtherAudio() {
-  if (!base::FeatureList::IsEnabled(media::kAudioDucking)) {
-    return false;
-  }
   if (ducking_state_ == AudioDuckingState::kNoDucking) {
     return true;
   }
@@ -72,7 +66,7 @@ bool AudioDucker::StopDuckingOtherAudio() {
 void AudioDucker::MediaSessionCreated(content::MediaSession* session) {
   // When a MediaSession is created and we're already ducking, we need to tell
   // the AudioFocusManager to start ducking again while exempting the new
-  // request ID. This will supercede the previous request and replace it with a
+  // request ID. This will supersede the previous request and replace it with a
   // request that has an exempted MediaSession.
   if (ducking_state_ == AudioDuckingState::kDucking &&
       BindToAudioFocusManagerIfNecessary()) {

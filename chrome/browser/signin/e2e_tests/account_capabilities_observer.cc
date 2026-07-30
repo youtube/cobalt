@@ -19,8 +19,9 @@ void AccountCapabilitiesObserver::OnExtendedAccountInfoUpdated(
   if (info.account_id != account_id_)
     return;
 
-  if (info.capabilities.AreAllCapabilitiesKnown())
+  if (info.GetAccountCapabilities().AreAllCapabilitiesKnown()) {
     run_loop_.Quit();
+  }
 }
 
 // This should be called only once per AccountCapabilitiesObserver instance.
@@ -30,8 +31,9 @@ void AccountCapabilitiesObserver::WaitForAllCapabilitiesToBeKnown(
       identity_manager_observation_.IsObservingSource(identity_manager_.get()));
   AccountInfo info =
       identity_manager_->FindExtendedAccountInfoByAccountId(account_id);
-  if (info.capabilities.AreAllCapabilitiesKnown())
+  if (info.GetAccountCapabilities().AreAllCapabilitiesKnown()) {
     return;
+  }
 
   account_id_ = account_id;
   run_loop_.Run();

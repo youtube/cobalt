@@ -785,7 +785,8 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
     case OAuthConsumerId::kContextMemoryService:
       return OAuthConsumer(
           /*name=*/kContextMemoryServiceName,
-          /*scopes=*/{kContextMemoryServiceOAuth2Scope});
+          /*scopes=*/{kContextMemoryServiceOAuth2Scope,
+                      kWebHistoryOAuth2Scope});
     case OAuthConsumerId::kSyncPreview:
       return OAuthConsumer(
           /*name=*/kSyncPreviewName,

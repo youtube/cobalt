@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">MMMM</translation>
 <translation id="1013952917065545813">Galite grįžę čia atidaryti neseniai uždarytus skirtukus iš naujo</translation>
 <translation id="1016495303386450659">Elementas atnaujintas</translation>
+<translation id="1018804590490383958">Nuskaityti ir automatiškai užpildyti</translation>
 <translation id="1019990162050689579">„Gemini Apps“ veikla</translation>
 <translation id="102916930470544692">Prieigos raktas</translation>
 <translation id="1030376737535466765">Atidaryti slaptažodžių tvarkyklę</translation>
@@ -116,6 +117,7 @@
 <translation id="1373120905936431262">Įkelkite vaizdą, kurį norite perkurti naudodami „Nano Banana“</translation>
 <translation id="1377508275003315939">Slaptažodžiai</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position} adresas iš {count}}one{{position} adresas iš {count}}few{{position} adresas iš {count}}many{{position} adresas iš {count}}other{{position} adresas iš {count}}}</translation>
+<translation id="13813615483058219">Kažkas nepavyko. Patikrinkite interneto ryšį, padidinkite garsumą arba bandykite dar kartą.</translation>
 <translation id="1383876407941801731">Ieškoti</translation>
 <translation id="138618066238211776">Tęsti kaip <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Kortelės išsaugojimo parinktys</translation>
@@ -873,6 +875,7 @@
 <translation id="4021447724486050609">Naršyklės atnaujinimas</translation>
 <translation id="4021931095789478915">Pridėti ${url} prie skaitymo sąrašo</translation>
 <translation id="4028871427853484857">Išsaugoti paskyroje…</translation>
+<translation id="4036529942385659684">Rodyti pradžios puslapį po neaktyvumo laikotarpio</translation>
 <translation id="4038354071007134711">Šiame įreng. nėra progr., gal. atidaryti failą.</translation>
 <translation id="4042870976416480368">Rasti puslapyje</translation>
 <translation id="4045441967987592849">Atidaryti iš naujo</translation>
@@ -910,7 +913,6 @@
 <translation id="417138788035229076">Tvarkyti grupę</translation>
 <translation id="4172051516777682613">Visada rodyti</translation>
 <translation id="417273154673973994">{count,plural, =1{Viena skirtukų grupė uždaryta ir išsaugota}one{{count} skirtukų grupė uždaryta ir išsaugota}few{{count} skirtukų grupės uždarytos ir išsaugotos}many{{count} skirtukų grupės uždaryta ir išsaugota}other{{count} skirtukų grupių uždaryta ir išsaugota}}</translation>
-<translation id="417612446554534067">Išsiųsti į jūsų įrenginius</translation>
 <translation id="4180726336228139707">Tik šiame įrenginyje</translation>
 <translation id="4181841719683918333">Kalbos</translation>
 <translation id="4183350924949589798">Daugiau saugumo?</translation>
@@ -1134,6 +1136,7 @@
 <translation id="4896467949657706481">Skirtukai buvo uždaryti, buvote atjungti</translation>
 <translation id="4911042367886397055">Sveiki sugrįžę, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Galite saugiai bendrinti slaptažodžio kopiją su kitu šeimos grupės nariu. <ph name="BEGIN_LINK" />Sužinokite daugiau<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Objektyvas</translation>
 <translation id="4917025507570489430">Esamus naršymo duomenis galite naudoti, kai esate prisijungę kaip <ph name="USER_EMAIL" />. Jūsų organizacija gali peržiūrėti šiuos duomenis.</translation>
 <translation id="4918086044614829423">Priimti</translation>
 <translation id="4930714375720679147">Įjungti</translation>
@@ -1549,6 +1552,7 @@ Be to, reikia įgalinti „Handoff“ nustatymų skiltyje „Bendrieji“, o įr
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Adreso juostos pozicijos pasirinkimas</translation>
 <translation id="6307241780749477694">Patvirtinkite savo tapatybę, kad gautumėte visus slaptažodžius šiame įrenginyje</translation>
+<translation id="6307792728709337290">Išsaugokite kortelę „Google“ paskyroje, kad galėtumėte automatiškai ją užpildyti šiam ir būsimiems pirkiniams, atliekamiems naršyklėje „Chrome“.</translation>
 <translation id="6316141353357700666">Iš pateikto sąrašo pasirinkite norimą naudoti slaptažodį.</translation>
 <translation id="6321526113093607004">Pridėti prie žymių</translation>
 <translation id="6327249202318869726">„Gemini“ jūsų paskyroje išjungta. Daugiau informacijos galite gauti susisiekę su administratoriumi.</translation>
@@ -2143,6 +2147,7 @@ Jei norite tęsti kompiuteryje, perjunkite į <ph name="OTHER_EMAIL" />. Gausite
 <translation id="8263809106706527890">Galbūt buvo pakeisti numatytosios naršyklės nustatymai. Tai galite patikrinti nustatymuose.</translation>
 <translation id="8264966119170358612">Kai kurie jūsų išsaugoti slaptažodžiai buvo atskleisti dėl ne „Google“ duomenų saugos pažeidimo. <ph name="BEGIN_LINK" />Sužinokite daugiau<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Buvote atjungti nuo paskyros <ph name="USER_NAME" /> nustatant „iPad“ iš naujo. Jei norite vėl prisijungti, toliau palieskite „Tęsti“.</translation>
+<translation id="8270320981823560179">Diskas</translation>
 <translation id="8273982424131314219">Informaciją užpildysite adresu <ph name="URL" /></translation>
 <translation id="8275068909952022340">Daugiau…</translation>
 <translation id="8281781826761538115">Numatytoji – <ph name="DEFAULT_LOCALE" /></translation>

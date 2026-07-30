@@ -96,6 +96,7 @@
 #include "third_party/blink/renderer/core/timing/performance_navigation_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_observer.h"
 #include "third_party/blink/renderer/core/timing/performance_paint_timing.h"
+#include "third_party/blink/renderer/core/timing/performance_scroll_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_soft_navigation.h"
 #include "third_party/blink/renderer/core/timing/performance_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_timing_for_reporting.h"
@@ -826,9 +827,7 @@ void WindowPerformance::OnPresentationPromiseResolved(
   bool is_presentation_for_expected_source =
       !expected_frame_source_id || !actual_frame_source_id ||
       expected_frame_source_id == actual_frame_source_id;
-  if (base::FeatureList::IsEnabled(
-          ::features::kInternalBeginFrameSourceOnManyDidNotProduceFrame) ||
-      base::FeatureList::IsEnabled(::features::kManualBeginFrame)) {
+  if (base::FeatureList::IsEnabled(::features::kManualBeginFrame)) {
     // Switch to cc BeginFrameSource will generate kNotRestartable(0) begin
     // frame and submit compositor frame with kManualSourceId.
     if ((expected_frame_source_id >> 32) == 0 ||
@@ -1432,6 +1431,74 @@ void WindowPerformance::AddContainerTiming(
   }
 }
 
+namespace {
+
+// Performance Scroll Timing API: map a compositor scroll input type to the
+// `scrollSource` string defined by the API. Only touchscreen and wheel scrolls
+// emit entries; other input types return a null AtomicString and the caller
+// must skip emission.
+AtomicString ScrollInputTypeToScrollSource(ui::ScrollInputType input_type) {
+  switch (input_type) {
+    case ui::ScrollInputType::kTouchscreen:
+      return AtomicString("touch");
+    case ui::ScrollInputType::kWheel:
+      return AtomicString("wheel");
+    case ui::ScrollInputType::kAutoscroll:
+    case ui::ScrollInputType::kScrollbar:
+      return g_null_atom;
+  }
+}
+
+}  // namespace
+
+void WindowPerformance::AddScrollTiming(base::TimeTicks start_time,
+                                        base::TimeTicks end_time,
+                                        ui::ScrollInputType input_type,
+                                        Node* target) {
+  // The only production caller already CHECKs the feature, so catch any
+  // unguarded caller early rather than silently no-op'ing.
+  CHECK(RuntimeEnabledFeatures::ScrollPerformanceTimingEnabled(
+      GetExecutionContext()));
+  if (!DomWindow()) {
+    return;
+  }
+
+  const AtomicString scroll_source = ScrollInputTypeToScrollSource(input_type);
+  if (scroll_source.IsNull()) {
+    return;
+  }
+
+  const DOMHighResTimeStamp start_dom_time =
+      MonotonicTimeToDOMHighResTimeStamp(start_time);
+  // `cc::ScrollTimingController` guarantees both timestamps are non-null and
+  // `end_time >= start_time`.
+  CHECK(!start_time.is_null());
+  CHECK(!end_time.is_null());
+  CHECK_GE(end_time, start_time);
+  // Subtract clamped timestamps so duration inherits the Performance Timeline
+  // time resolution.
+  const DOMHighResTimeStamp duration =
+      MonotonicTimeToDOMHighResTimeStamp(end_time) - start_dom_time;
+
+  // Apply the documented exposure filter at write time. PerformanceScrollTiming
+  // also defends in its `target()` getter, but filtering here keeps the stored
+  // entry consistent with the intended design.
+  Node* exposable_target =
+      Performance::CanExposeNode(target) ? target : nullptr;
+
+  PerformanceScrollTiming* entry =
+      MakeGarbageCollected<PerformanceScrollTiming>(
+          start_dom_time, duration, /*first_frame_time=*/0.0,
+          /*delta_x=*/0, /*delta_y=*/0, scroll_source,
+          /*frames_expected=*/0u, /*frames_produced=*/0u,
+          /*checkerboard_time=*/0.0, exposable_target, DomWindow(),
+          NavigationId());
+
+  if (HasObserverFor(PerformanceEntry::kScroll)) {
+    NotifyObserversOfEntry(*entry);
+  }
+  AddToScrollTimingBuffer(*entry);
+}
 
 void WindowPerformance::TryReportAsFirstInputTiming(
     PerformanceEventTiming* event_timing_entry) {

@@ -49,6 +49,7 @@ source_set("chromeos") {
     "//media/mojo/common",
     "//remoting/base",
     "//remoting/host:clipboard",
+    "//remoting/host/base",
     "//ui/base/cursor/mojom:cursor_type",
     "//ui/display/manager",
     "//ui/wm",

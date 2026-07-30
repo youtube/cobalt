@@ -549,7 +549,7 @@ void ChromeAppSorting::OnWebAppInstallManagerDestroyed() {
 }
 
 void ChromeAppSorting::OnWebAppsWillBeUpdatedFromSync(
-    const std::vector<const web_app::WebApp*>& updated_apps_state) {
+    base::span<const web_app::WebApp* const> updated_apps_state) {
   DCHECK(web_app_registrar_);
 
   // Unlike the extensions system (which calls SetPageOrdinal() and

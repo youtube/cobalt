@@ -53,6 +53,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/sync/model/session_sync_service_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/block_cleanup_test.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/scoped_key_window.h"
@@ -74,11 +75,6 @@ namespace {
 
 std::unique_ptr<KeyedService> BuildMockSessionSyncService(ProfileIOS* profile) {
   return std::make_unique<testing::NiceMock<MockSessionSyncService>>();
-}
-
-// Returns a TestSyncService.
-std::unique_ptr<KeyedService> BuildFakeSyncServiceFactory(ProfileIOS* profile) {
-  return std::make_unique<syncer::TestSyncService>();
 }
 
 class OpenTabsUIDelegateMock : public sync_sessions::OpenTabsUIDelegate {
@@ -142,9 +138,8 @@ class RecentTabsTableCoordinatorTest : public BlockCleanupTest {
     builder.AddTestingFactory(ios::HistoryServiceFactory::GetInstance(),
                               ios::HistoryServiceFactory::GetDefaultFactory());
 
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindRepeating(&BuildFakeSyncServiceFactory));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
 
     builder.AddTestingFactory(
         SessionSyncServiceFactory::GetInstance(),

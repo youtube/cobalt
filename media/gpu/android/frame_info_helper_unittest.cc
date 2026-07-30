@@ -73,7 +73,8 @@ class FrameInfoHelperTest : public testing::Test {
                       : nullptr)
             : nullptr;
     auto buffer = CodecOutputBuffer::CreateForTesting(
-        0, size, MediaFormatColorSpace::MakeRec709(), coded_size_alignment);
+        0, size, gfx::Rect(size), MediaFormatColorSpace::MakeRec709(),
+        coded_size_alignment);
     auto buffer_renderer = std::make_unique<CodecOutputBufferRenderer>(
         std::move(buffer), codec_buffer_wait_coordinator,
         features::NeedThreadSafeAndroidMedia()

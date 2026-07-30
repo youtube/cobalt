@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">You can come back here to reopen tabs that you've recently closed</translation>
 <translation id="1016495303386450659">Item updated</translation>
+<translation id="1018804590490383958">Scan and autofill</translation>
 <translation id="1019990162050689579">Gemini App activity</translation>
 <translation id="102916930470544692">Passkey</translation>
 <translation id="1030376737535466765">Open Password Manager</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Update your browser</translation>
 <translation id="4021931095789478915">Add ${url} to reading list</translation>
 <translation id="4028871427853484857">Save in account…</translation>
+<translation id="4036529942385659684">Show start page after period of inactivity</translation>
 <translation id="4038354071007134711">No application on this device can open the file.</translation>
 <translation id="4042870976416480368">Find in Page</translation>
 <translation id="4045441967987592849">Re-open</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Manage group</translation>
 <translation id="4172051516777682613">Always show</translation>
 <translation id="417273154673973994">{count,plural, =1{1 tab group closed and saved}other{{count} tab groups closed and saved}}</translation>
-<translation id="417612446554534067">Send to your devices</translation>
 <translation id="4180726336228139707">Only on this device</translation>
 <translation id="4181841719683918333">Languages</translation>
 <translation id="4183350924949589798">More security?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Tabs were closed; you were signed out</translation>
 <translation id="4911042367886397055">Welcome back, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">You can securely share a copy of your password with someone in your family group. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lens</translation>
 <translation id="4917025507570489430">You can use existing browsing data when you’re signed in as <ph name="USER_EMAIL" />. Your organisation may be able to view this data.</translation>
 <translation id="4918086044614829423">Accept</translation>
 <translation id="4930714375720679147">Turn on</translation>
@@ -1549,6 +1551,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Choose your address bar position</translation>
 <translation id="6307241780749477694">Verify that it's you to get all your passwords on this device</translation>
+<translation id="6307792728709337290">Save your card in your Google Account to autofill it for this purchase and future purchases made on Chrome.</translation>
 <translation id="6316141353357700666">Choose the password that you want to use from the list that appears.</translation>
 <translation id="6321526113093607004">Add to bookmarks</translation>
 <translation id="6327249202318869726">Gemini is turned off for your account. Contact your admin for more information.</translation>
@@ -2143,6 +2146,7 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL" />. You'll get 
 <translation id="8263809106706527890">There may have been a change to your default browser settings. You can check this in settings.</translation>
 <translation id="8264966119170358612">Some of your saved passwords were exposed in a non-Google data breach. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">You were signed out of your account, <ph name="USER_NAME" />, as part of your iPad reset. To sign back in, tap 'Continue' below.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">You'll fill info into <ph name="URL" /></translation>
 <translation id="8275068909952022340">More…</translation>
 <translation id="8281781826761538115">Default - <ph name="DEFAULT_LOCALE" /></translation>

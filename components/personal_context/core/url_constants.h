@@ -15,6 +15,9 @@ inline constexpr char kPersonalContextSettingsURL[] =
 
 inline constexpr char kPersonalContextTriggerText[] = "@@";
 
+inline constexpr char kPersonalContextConnectedAppsURL[] =
+    "https://gemini.google.com/apps";
+
 }  // namespace personal_context
 
 #endif  // COMPONENTS_PERSONAL_CONTEXT_CORE_URL_CONSTANTS_H_

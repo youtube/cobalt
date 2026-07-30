@@ -15,7 +15,6 @@ source_set("coordinator") {
     "//ios/chrome/browser/composebox/public:input_item_source",
     "//ios/chrome/browser/composebox/shared/ui",
     "//ios/chrome/browser/shared/public/commands",
-    "//ios/chrome/browser/tab_picker/coordinator",
     "//ios/chrome/browser/tab_switcher/ui_bundled:utils",
     "//ios/chrome/browser/tabs/model",
   ]

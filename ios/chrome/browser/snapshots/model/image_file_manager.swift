@@ -268,11 +268,7 @@ let kJPEGImageQualityCompressed: CGFloat = 0.97
   // Returns the path of the image for `snapshotID` of type `imageType`.
   private func imagePath(snapshotID: SnapshotIDWrapper, imageType: ImageType) -> URL? {
     let fileName = imageFileName(snapshotID: snapshotID, imageType: imageType)
-    if #available(iOS 16, *) {
-      return storageDirectory.appending(path: fileName)
-    } else {
-      return storageDirectory.appendingPathComponent(fileName)
-    }
+    return storageDirectory.appending(path: fileName)
   }
 
   // Returns the file name of the image for `snapshotID` of type `imageType`.
@@ -289,11 +285,7 @@ let kJPEGImageQualityCompressed: CGFloat = 0.97
     let path =
       snapshotID + suffixForImageType(imageType: imageType)
       + suffixForImageScale(imageScale: imageScale) + ".jpg"
-    if #available(iOS 16, *) {
-      return storageDirectory.appending(path: path)
-    } else {
-      return storageDirectory.appendingPathComponent(path)
-    }
+    return storageDirectory.appending(path: path)
   }
 
   // Returns the suffix to append to image filename for `image_type`.

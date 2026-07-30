@@ -9,7 +9,7 @@
 namespace autofill {
 
 MockAutofillAiManager::MockAutofillAiManager(
-    autofill::AutofillClient* client,
+    AutofillClient* client,
     strike_database::StrikeDatabaseBase* strike_database)
     : AutofillAiManager(client, strike_database) {}
 

@@ -6,9 +6,11 @@ package org.chromium.chrome.browser.toolbar;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentCaptor.captor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -18,6 +20,7 @@ import android.content.Context;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnLayoutChangeListener;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -280,11 +283,16 @@ public class MiniOriginBarControllerTest {
 
     @Test
     public void testDestroy() {
+        ArgumentCaptor<OnLayoutChangeListener> captor = captor();
+        verify(mControlContainerView).addOnLayoutChangeListener(captor.capture());
+        OnLayoutChangeListener listener = captor.getValue();
+
         mMiniOriginBarController.destroy();
         mIsFormFieldFocused.onNodeAttributeUpdated(true, false);
         mKeyboardVisibilityDelegate.setVisibilityForTests(true);
 
         verify(mLocationBar, never()).setShowOriginOnly(true);
+        verify(mControlContainerView).removeOnLayoutChangeListener(listener);
     }
 
     @Test
@@ -429,8 +437,8 @@ public class MiniOriginBarControllerTest {
                         1.0f
                                 - mImeAnimation.getFraction()
                                         / MiniOriginBarController.LOCATION_BAR_SCALE_DENOMINATOR);
-        verify(mLocationBarView).setPivotY(urlBarHeight / 2);
-        verify(mLocationBarView).setPivotX(0.0f);
+        verify(mLocationBarView, atLeastOnce()).setPivotY(urlBarHeight / 2);
+        verify(mLocationBarView, atLeastOnce()).setPivotX(0.0f);
 
         currentKeyboardHeight = 40;
         insets =
@@ -635,7 +643,7 @@ public class MiniOriginBarControllerTest {
                                     - mImeAnimation.getFraction()
                                             / MiniOriginBarController
                                                     .LOCATION_BAR_SCALE_DENOMINATOR);
-            verify(mLocationBarView).setPivotY(urlBarHeight / 2);
+            verify(mLocationBarView, atLeastOnce()).setPivotY(urlBarHeight / 2);
 
             // --- PROGRESS 0.4 ---
             currentKeyboardHeight = 40;
@@ -904,8 +912,8 @@ public class MiniOriginBarControllerTest {
 
         assertEquals(MiniOriginState.READY, mMiniOriginBarController.getCurrentStateForTesting());
         assertEquals(0, (int) mControlContainerTranslationSupplier.get());
-        verify(mLocationBarView).setScaleX(1.0f);
-        verify(mLocationBarView).setScaleY(1.0f);
+        verify(mLocationBarView, atLeastOnce()).setScaleX(1.0f);
+        verify(mLocationBarView, atLeastOnce()).setScaleY(1.0f);
     }
 
     @Test
@@ -991,5 +999,37 @@ public class MiniOriginBarControllerTest {
 
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertEquals(MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
+    }
+
+    @Test
+    public void testLayoutChangeListener() {
+        ArgumentCaptor<OnLayoutChangeListener> captor = captor();
+        verify(mControlContainerView).addOnLayoutChangeListener(captor.capture());
+        OnLayoutChangeListener listener = captor.getValue();
+
+        // Put the controller into SHOWING state.
+        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsSizer).getControlsPosition();
+        mMiniOriginBarController.onControlsPositionChanged(ControlsPosition.BOTTOM);
+        mIsFormFieldFocused.onNodeAttributeUpdated(true, false);
+        mKeyboardVisibilityDelegate.setVisibilityForTests(true);
+        assertEquals(MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
+
+        // Stub new width for control container view.
+        final int newWidth = 800;
+        doReturn(newWidth).when(mControlContainerView).getWidth();
+        clearInvocations(mLocationBarView);
+
+        // Trigger layout change.
+        listener.onLayoutChange(
+                mControlContainerView, 0, 0, newWidth, 100, 0, 0, CONTROL_CONTAINER_WIDTH, 100);
+
+        // Verify recomputeLayouts measures the location bar with the new width.
+        final int newLocationBarHeight =
+                mContext.getResources().getDimensionPixelSize(R.dimen.mini_origin_bar_height);
+        verify(mLocationBarView)
+                .measure(
+                        View.MeasureSpec.makeMeasureSpec(newWidth, View.MeasureSpec.AT_MOST),
+                        View.MeasureSpec.makeMeasureSpec(
+                                newLocationBarHeight, View.MeasureSpec.AT_MOST));
     }
 }

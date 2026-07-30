@@ -12,7 +12,7 @@
  ' dropdown.
  '/
 @startuml
-interface "TouchToFillDelegate" as ttfd
+interface "TouchToFillPaymentMethodDelegate" as ttfd
 interface "PasswordManagerDelegate" as pmd
 interface "AutofillSuggestionDelegate" as asd
 class "AutofillExternalDelegate" as aed

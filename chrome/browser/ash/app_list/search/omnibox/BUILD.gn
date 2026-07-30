@@ -38,7 +38,6 @@ static_library("omnibox") {
     "//chrome/browser/favicon",
     "//chrome/browser/history",
     "//chrome/browser/profiles:profile",
-    "//chrome/browser/search_engines",
     "//chromeos/ash/components/string_matching",
     "//components/bookmarks/browser",
     "//components/favicon/core",

@@ -6,27 +6,43 @@
 
 #include <type_traits>
 
+#include "base/check_op.h"
 #include "base/notreached.h"
 
 namespace chrome_pdf {
 
 namespace {
 
+using PageOrientationIntType = std::underlying_type<PageOrientation>::type;
+
+constexpr auto kOrientationCount =
+    static_cast<PageOrientationIntType>(PageOrientation::kLast) + 1;
+
 // Adds two PageOrientation values together. This works because the underlying
 // integer values have been chosen to allow modular arithmetic.
 PageOrientation AddOrientations(PageOrientation first, PageOrientation second) {
-  using IntType = std::underlying_type<PageOrientation>::type;
-
-  constexpr auto kOrientationCount =
-      static_cast<IntType>(PageOrientation::kLast) + 1;
-
-  auto first_int = static_cast<IntType>(first);
-  auto second_int = static_cast<IntType>(second);
+  auto first_int = static_cast<PageOrientationIntType>(first);
+  auto second_int = static_cast<PageOrientationIntType>(second);
   return static_cast<PageOrientation>((first_int + second_int) %
                                       kOrientationCount);
 }
 
 }  // namespace
+
+PageOrientation PageOrientationFromClockwiseRotationSteps(int steps) {
+  CHECK_GE(steps, 0);
+  switch (steps % kOrientationCount) {
+    case 0:
+      return PageOrientation::kOriginal;
+    case 1:
+      return PageOrientation::kClockwise90;
+    case 2:
+      return PageOrientation::kClockwise180;
+    case 3:
+      return PageOrientation::kClockwise270;
+  }
+  NOTREACHED();
+}
 
 bool IsTransposedPageOrientation(PageOrientation orientation) {
   switch (orientation) {

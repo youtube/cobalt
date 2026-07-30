@@ -337,7 +337,6 @@ of all suites and resulting step names as of April 15th 2021:
   * `webgl2_conformance_tests`
   * `webgl2_conformance_validating_tests`
   * `webgl_conformance_d3d11_passthrough_tests`
-  * `webgl_conformance_d3d9_passthrough_tests`
   * `webgl_conformance_fast_call_tests`
   * `webgl_conformance_gl_passthrough_tests`
   * `webgl_conformance_gles_passthrough_tests`

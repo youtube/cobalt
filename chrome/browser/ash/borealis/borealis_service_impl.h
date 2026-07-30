@@ -10,7 +10,6 @@
 #include "chrome/browser/ash/borealis/borealis_app_uninstaller.h"
 #include "chrome/browser/ash/borealis/borealis_context_manager_impl.h"
 #include "chrome/browser/ash/borealis/borealis_features.h"
-#include "chrome/browser/ash/borealis/borealis_install_url_handler.h"
 #include "chrome/browser/ash/borealis/borealis_installer_impl.h"
 #include "chrome/browser/ash/borealis/borealis_launch_options.h"
 #include "chrome/browser/ash/borealis/borealis_service.h"
@@ -33,7 +32,6 @@ class BorealisServiceImpl : public BorealisService {
   BorealisContextManager& ContextManager() override;
   BorealisFeatures& Features() override;
   BorealisInstaller& Installer() override;
-  BorealisInstallUrlHandler& InstallUrlHandler() override;
   BorealisLaunchOptions& LaunchOptions() override;
   BorealisShutdownMonitor& ShutdownMonitor() override;
   BorealisWindowManager& WindowManager() override;
@@ -46,7 +44,6 @@ class BorealisServiceImpl : public BorealisService {
   BorealisContextManagerImpl context_manager_;
   BorealisFeatures features_;
   BorealisInstallerImpl installer_;
-  BorealisInstallUrlHandler install_url_handler_;
   BorealisLaunchOptions launch_options_;
   BorealisShutdownMonitor shutdown_monitor_;
   BorealisWindowManager window_manager_;

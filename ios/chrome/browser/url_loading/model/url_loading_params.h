@@ -81,6 +81,10 @@ struct UrlLoadParams {
   // widget).
   bool from_external = false;
 
+  // Whether the request to open the URL originated from a widget or a Siri
+  // shortcut.
+  bool from_widget_or_siri = false;
+
   // Whether the new tab command was initiated by the user (e.g. by tapping the
   // new tab button in the tools menu) or not (e.g. opening a new tab via a
   // Javascript action). Defaults to `true`. Only used when the `web_params.url`

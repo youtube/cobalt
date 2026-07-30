@@ -66,8 +66,8 @@ class TouchSelectionControllerClientAura::EnvEventObserver
  private:
   // ui::EventObserver:
   void OnEvent(const ui::Event& event) override {
-    DCHECK_NE(ui::TouchSelectionController::ActiveStatus::kInactive,
-              selection_controller_->active_status());
+    CHECK_NE(ui::TouchSelectionController::ActiveStatus::kInactive,
+             selection_controller_->active_status(), base::NotFatalUntil::M152);
 
     if (event.IsMouseEvent()) {
       // Check IsMouseEventsEnabled, except on Mus, where it's disabled on touch
@@ -109,7 +109,7 @@ TouchSelectionControllerClientAura::TouchSelectionControllerClientAura(
       scroll_in_progress_(false),
       handle_drag_in_progress_(false),
       show_quick_menu_immediately_for_test_(false) {
-  DCHECK(rwhva_);
+  CHECK(rwhva_, base::NotFatalUntil::M152);
 }
 
 TouchSelectionControllerClientAura::~TouchSelectionControllerClientAura() {
@@ -244,7 +244,7 @@ void TouchSelectionControllerClientAura::UpdateClientSelectionBounds(
 
 void TouchSelectionControllerClientAura::InvalidateClient(
     ui::TouchSelectionControllerClient* client) {
-  DCHECK(client != &internal_client_);
+  CHECK(client != &internal_client_, base::NotFatalUntil::M152);
   if (client == active_client_) {
     GetTouchSelectionController()->HideAndDisallowShowingAutomatically();
     active_client_ = &internal_client_;
@@ -369,15 +369,16 @@ void TouchSelectionControllerClientAura::ShowMagnifier() {
 
   aura::Window* context = rwhva_->GetNativeView();
   aura::Window* root_window = context->GetRootWindow();
-  DCHECK(root_window);
+  CHECK(root_window, base::NotFatalUntil::M152);
 
   if (!touch_selection_magnifier_) {
     touch_selection_magnifier_ =
         std::make_unique<ui::TouchSelectionMagnifierAura>();
   }
 
-  DCHECK_NE(GetTouchSelectionController()->active_status(),
-            ui::TouchSelectionController::ActiveStatus::kInactive);
+  CHECK_NE(GetTouchSelectionController()->active_status(),
+           ui::TouchSelectionController::ActiveStatus::kInactive,
+           base::NotFatalUntil::M152);
   const gfx::SelectionBound& focus_bound_in_context =
       GetTouchSelectionController()->GetFocusBound();
 

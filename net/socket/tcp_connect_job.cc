@@ -161,6 +161,10 @@ int TcpConnectJob::ConnectInternal() {
     HostResolver::ResolveHostParameters parameters;
     parameters.initial_priority = priority();
     parameters.secure_dns_policy = params_->secure_dns_policy();
+    if (base::FeatureList::IsEnabled(features::kOptimisticDnsForTcp)) {
+      parameters.cache_usage = HostResolver::ResolveHostParameters::CacheUsage::
+          STALE_ALLOWED_WHILE_REFRESHING;
+    }
     dns_request_ = host_resolver()->CreateServiceEndpointRequest(
         HostResolver::Host(params_->destination()),
         params_->network_anonymization_key(), params_->target_network(),

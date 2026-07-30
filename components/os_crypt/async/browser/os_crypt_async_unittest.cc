@@ -19,7 +19,7 @@
 #include "components/os_crypt/async/browser/test_utils.h"
 #include "components/os_crypt/async/common/algorithm.mojom.h"
 #include "components/os_crypt/async/common/encryptor.h"
-#include "crypto/hkdf.h"
+#include "crypto/kdf.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,11 +30,9 @@ class OSCryptAsyncTest : public ::testing::Test {
   using ProviderList =
       std::vector<std::pair<size_t, std::unique_ptr<KeyProvider>>>;
 
-  scoped_refptr<Encryptor> GetInstanceSync(
-      OSCryptAsync& factory,
-      Encryptor::Option option = Encryptor::Option::kNone) {
+  scoped_refptr<Encryptor> GetInstanceSync(OSCryptAsync& factory) {
     base::test::TestFuture<scoped_refptr<Encryptor>> future;
-    factory.GetInstance(future.GetCallback(), option);
+    factory.GetInstance(future.GetCallback());
     return future.Take();
   }
 
@@ -43,25 +41,21 @@ class OSCryptAsyncTest : public ::testing::Test {
 
 class TestKeyProvider : public KeyProvider {
  public:
-  TestKeyProvider(const std::string& name,
-                  bool use_for_encryption,
-                  bool compatible_with_os_crypt_sync = false)
-      : name_(name),
-        use_for_encryption_(use_for_encryption),
-        compatible_with_os_crypt_sync_(compatible_with_os_crypt_sync) {}
+  TestKeyProvider(const std::string& name, bool use_for_encryption)
+      : name_(name), use_for_encryption_(use_for_encryption) {}
 
  protected:
-  TestKeyProvider()
-      : name_("TEST"),
-        use_for_encryption_(true),
-        compatible_with_os_crypt_sync_(false) {}
+  TestKeyProvider() : name_("TEST"), use_for_encryption_(true) {}
 
   Encryptor::Key GenerateKey() {
     // Make the key derive from the name to ensure different providers have
     // different keys.
-    std::string key = crypto::HkdfSha256(name_, "salt", "info",
-                                         Encryptor::Key::kAES256GCMKeySize);
-    return Encryptor::Key(std::vector<uint8_t>(key.begin(), key.end()),
+    constexpr auto kAlgo = crypto::hash::kSha256;
+    constexpr auto kSalt = std::to_array<uint8_t>({'s', 'a', 'l', 't'});
+    constexpr auto kInfo = std::to_array<uint8_t>({'i', 'n', 'f', 'o'});
+    constexpr auto kSize = Encryptor::Key::kAES256GCMKeySize;
+    const auto name = base::as_byte_span(name_);
+    return Encryptor::Key(crypto::kdf::Hkdf<kSize>(kAlgo, name, kSalt, kInfo),
                           mojom::Algorithm::kAES256GCM);
   }
 
@@ -73,12 +67,8 @@ class TestKeyProvider : public KeyProvider {
   }
 
   bool UseForEncryption() override { return use_for_encryption_; }
-  bool IsCompatibleWithOsCryptSync() override {
-    return compatible_with_os_crypt_sync_;
-  }
 
   const bool use_for_encryption_;
-  const bool compatible_with_os_crypt_sync_;
 };
 
 TEST_F(OSCryptAsyncTest, EncryptHeader) {
@@ -205,7 +195,7 @@ class OSCryptAsyncTestSwapped
     : public OSCryptAsyncTest,
       public ::testing::WithParamInterface</*switched=*/bool> {};
 
-TEST_P(OSCryptAsyncTestSwapped, EncryptorOption) {
+TEST_P(OSCryptAsyncTestSwapped, Precedence) {
   std::string first_provider_name("TEST");
   std::string second_provider_name("BLAH");
 
@@ -215,7 +205,6 @@ TEST_P(OSCryptAsyncTestSwapped, EncryptorOption) {
     second_provider_name = "TEST";
   }
 
-  std::optional<std::vector<uint8_t>> first_ciphertext, second_ciphertext;
   {
     ProviderList providers;
     providers.emplace_back(
@@ -224,106 +213,15 @@ TEST_P(OSCryptAsyncTestSwapped, EncryptorOption) {
                                           /*use_for_encryption=*/true));
     providers.emplace_back(
         /*precedence=*/5u,
-        std::make_unique<TestKeyProvider>(
-            second_provider_name, /*use_for_encryption=*/true,
-            /*compatible_with_os_crypt_sync=*/true));
+        std::make_unique<TestKeyProvider>(second_provider_name,
+                                          /*use_for_encryption=*/true));
     OSCryptAsync factory(std::move(providers));
     scoped_refptr<Encryptor> encryptor = GetInstanceSync(factory);
 
-    first_ciphertext = encryptor->EncryptString("secrets");
-    ASSERT_TRUE(first_ciphertext);
+    auto ciphertext = encryptor->EncryptString("secrets");
+    ASSERT_TRUE(ciphertext);
     // First provider should be picked, because it has a higher precedence than
     // the second.
-    EXPECT_TRUE(std::equal(first_provider_name.cbegin(),
-                           first_provider_name.cend(),
-                           first_ciphertext->cbegin()));
-
-    // Now obtain an encryptor with a compatibility option.
-    scoped_refptr<Encryptor> encryptor_compat =
-        GetInstanceSync(factory, Encryptor::Option::kEncryptSyncCompat);
-    second_ciphertext = encryptor_compat->EncryptString("secrets");
-    ASSERT_TRUE(second_ciphertext);
-    // Should be encrypted with second key now.
-    EXPECT_TRUE(std::equal(second_provider_name.cbegin(),
-                           second_provider_name.cend(),
-                           second_ciphertext->cbegin()));
-  }
-  // Check that with just second provider, data can still be decrypted.
-  {
-    ProviderList providers;
-    providers.emplace_back(
-        /*precedence=*/5u,
-        std::make_unique<TestKeyProvider>(second_provider_name,
-                                          /*use_for_encryption=*/false));
-    OSCryptAsync factory(std::move(providers));
-    scoped_refptr<Encryptor> encryptor = GetInstanceSync(factory);
-
-    // The only provider has indicated that it is not to be used for encryption,
-    // so encryption should not be available.
-    ASSERT_FALSE(encryptor->IsEncryptionAvailable());
-    // Decryption is possible, as long as the data is encrypted with the second
-    // key.
-    ASSERT_TRUE(encryptor->IsDecryptionAvailable());
-
-    auto plaintext = encryptor->DecryptData(*second_ciphertext);
-    // The correct provider based on the encrypted data header should have been
-    // picked for data decryption.
-    ASSERT_TRUE(plaintext);
-    EXPECT_EQ("secrets", *plaintext);
-
-    // The first data that was encrypted with v20 cannot be decrypted.
-    auto failing_plaintext = encryptor->DecryptData(*first_ciphertext);
-    EXPECT_FALSE(failing_plaintext);
-  }
-  // Test also that if there are multiple key providers with
-  // compatible_with_os_crypt_sync then the highest precedence is picked.
-  {
-    ProviderList providers;
-    providers.emplace_back(/*precedence=*/10u,
-                           std::make_unique<TestKeyProvider>(
-                               first_provider_name, /*use_for_encryption=*/true,
-                               /*compatible_with_os_crypt_sync=*/true));
-    providers.emplace_back(/*precedence=*/8u,
-                           std::make_unique<TestKeyProvider>(
-                               "FOO", /*use_for_encryption=*/true,
-                               /*compatible_with_os_crypt_sync=*/false));
-    providers.emplace_back(/*precedence=*/5u,
-                           std::make_unique<TestKeyProvider>(
-                               "BAR", /*use_for_encryption=*/true,
-                               /*compatible_with_os_crypt_sync=*/true));
-    OSCryptAsync factory(std::move(providers));
-    scoped_refptr<Encryptor> encryptor =
-        GetInstanceSync(factory, Encryptor::Option::kEncryptSyncCompat);
-    const auto ciphertext = encryptor->EncryptString("secrets");
-    ASSERT_TRUE(ciphertext);
-    // Should be encrypted with first provider - it's the highest precedence
-    // provider that indicates it's compatible with OSCrypt Sync.
-    EXPECT_TRUE(std::equal(first_provider_name.cbegin(),
-                           first_provider_name.cend(), ciphertext->cbegin()));
-  }
-  // Just in case, test that order doesn't matter here, although this is also
-  // tested elsewhere.
-  {
-    ProviderList providers;
-    providers.emplace_back(/*precedence=*/5u,
-                           std::make_unique<TestKeyProvider>(
-                               "BAR", /*use_for_encryption=*/true,
-                               /*compatible_with_os_crypt_sync=*/true));
-    providers.emplace_back(/*precedence=*/8u,
-                           std::make_unique<TestKeyProvider>(
-                               "FOO", /*use_for_encryption=*/true,
-                               /*compatible_with_os_crypt_sync=*/false));
-    providers.emplace_back(/*precedence=*/10u,
-                           std::make_unique<TestKeyProvider>(
-                               first_provider_name, /*use_for_encryption=*/true,
-                               /*compatible_with_os_crypt_sync=*/true));
-    OSCryptAsync factory(std::move(providers));
-    scoped_refptr<Encryptor> encryptor =
-        GetInstanceSync(factory, Encryptor::Option::kEncryptSyncCompat);
-    const auto ciphertext = encryptor->EncryptString("secrets");
-    ASSERT_TRUE(ciphertext);
-    // Should be encrypted with first provider - it's the highest precedence
-    // provider that indicates it's compatible with OSCrypt Sync.
     EXPECT_TRUE(std::equal(first_provider_name.cbegin(),
                            first_provider_name.cend(), ciphertext->cbegin()));
   }
@@ -391,42 +289,6 @@ TEST_F(OSCryptAsyncTest, TestOSCryptAsyncInterface) {
     // the same keys.
     auto second_encryptor = GetInstanceSync(*os_crypt);
     auto decrypted = second_encryptor->DecryptData(*ciphertext);
-    ASSERT_TRUE(decrypted);
-    EXPECT_EQ(*decrypted, "testsecrets");
-  }
-  {
-    // Verify that the key used by the encryptor returned from the testing
-    // instance indicates compatibility with OSCrypt Sync.
-    const auto os_crypt_compat_encryptor =
-        GetInstanceSync(*os_crypt, Encryptor::Option::kEncryptSyncCompat);
-    {
-      Encryptor::DecryptFlags flags;
-      const auto decrypted =
-          os_crypt_compat_encryptor->DecryptData(*ciphertext, &flags);
-      ASSERT_TRUE(decrypted);
-      // Switching from kNone to kEncryptSyncCompat should result in the data
-      // needing to be re-encrypted.
-      EXPECT_TRUE(flags.should_reencrypt);
-      EXPECT_EQ(*decrypted, "testsecrets");
-    }
-    {
-      // Encrypt with the OSCrypt Sync compat one, then decrypt with the new
-      // one, which should signal again that the data needs to be re-encrypted.
-      const auto os_crypt_compat_ciphertext =
-          os_crypt_compat_encryptor->EncryptString("moresecret");
-      ASSERT_TRUE(os_crypt_compat_ciphertext);
-      Encryptor::DecryptFlags flags;
-      const auto decrypted =
-          encryptor->DecryptData(*os_crypt_compat_ciphertext, &flags);
-      ASSERT_TRUE(decrypted);
-      EXPECT_TRUE(flags.should_reencrypt);
-      EXPECT_EQ(*decrypted, "moresecret");
-    }
-  }
-  {
-    auto another_encryptor =
-        GetInstanceSync(*os_crypt, Encryptor::Option::kEncryptSyncCompat);
-    auto decrypted = another_encryptor->DecryptData(*ciphertext);
     ASSERT_TRUE(decrypted);
     EXPECT_EQ(*decrypted, "testsecrets");
   }

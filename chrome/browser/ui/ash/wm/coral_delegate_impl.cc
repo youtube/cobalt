@@ -307,9 +307,9 @@ void CoralDelegateImpl::CheckGenAIAgeAvailability(
   }
   const AccountInfo extended_account_info =
       identity_manager->FindExtendedAccountInfoByAccountId(account_id);
-  std::move(callback).Run(
-      extended_account_info.capabilities.can_use_chromeos_generative_ai() ==
-      signin::Tribool::kTrue);
+  std::move(callback).Run(extended_account_info.GetAccountCapabilities()
+                              .can_use_chromeos_generative_ai() ==
+                          signin::Tribool::kTrue);
   return;
 }
 

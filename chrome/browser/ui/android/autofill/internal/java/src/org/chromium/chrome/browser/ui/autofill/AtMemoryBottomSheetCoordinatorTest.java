@@ -5,12 +5,14 @@
 package org.chromium.chrome.browser.ui.autofill;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.view.ContextThemeWrapper;
+import android.view.View;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -24,7 +26,7 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 
 import java.util.List;
@@ -79,5 +81,17 @@ public class AtMemoryBottomSheetCoordinatorTest {
         mCoordinator.hide();
 
         verify(mBottomSheetController).hideContent(any(), eq(true));
+    }
+
+    @Test
+    public void testShow_FocusSearchArea() {
+        when(mBottomSheetController.requestShowContent(any(), eq(true))).thenReturn(true);
+
+        mCoordinator.show(List.of());
+
+        View contentView = mCoordinator.getBottomSheetContentForTesting().getContentView();
+        View searchInput = contentView.findViewById(R.id.search_query_input);
+        assertNotNull(searchInput);
+        assertTrue(searchInput.hasFocus());
     }
 }

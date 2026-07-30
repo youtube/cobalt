@@ -63,7 +63,6 @@ inline constexpr char kChromeUICrostiniInstallerHost[] = "crostini-installer";
 inline constexpr char kChromeUICrostiniInstallerURL[] =
     "chrome://crostini-installer";
 inline constexpr char kChromeUICryptohomeHost[] = "cryptohome";
-inline constexpr char kChromeUIDeviceEmulatorHost[] = "device-emulator";
 inline constexpr char kChromeUIDlpInternalsHost[] = "dlp-internals";
 inline constexpr char kChromeUIDriveInternalsHost[] = "drive-internals";
 

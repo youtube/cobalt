@@ -44,7 +44,7 @@ namespace arc {
 class ShareInfoFileHandler {
  public:
   // Signifies whether all shared files have started streaming successfully.
-  using StartedCallback = base::OnceCallback<void(void)>;
+  using StartedCallback = base::OnceClosure;
 
   // |result| signifies state of shared files after streaming has completed.
   using CompletedCallback =

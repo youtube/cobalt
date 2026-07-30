@@ -29,16 +29,16 @@ namespace {
 class TestUserMetricsServiceClient
     : public ::metrics::TestMetricsServiceClient {
  public:
-  std::optional<bool> GetCurrentUserMetricsConsent() const override {
-    return current_user_metrics_consent_;
+  std::optional<bool> GetCurrentUserMetricsChoice() const override {
+    return current_user_choice_;
   }
 
-  void UpdateCurrentUserMetricsConsent(bool metrics_consent) override {
-    current_user_metrics_consent_ = metrics_consent;
+  void UpdateCurrentUserMetricsChoice(bool user_choice) override {
+    current_user_choice_ = user_choice;
   }
 
  private:
-  bool current_user_metrics_consent_ = true;
+  bool current_user_choice_ = true;
 };
 }  // namespace
 

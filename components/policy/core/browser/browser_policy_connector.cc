@@ -22,6 +22,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_refresh_scheduler.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/configuration_policy_provider.h"
+#include "components/policy/core/common/enterprise_management_metrics_service.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/policy/core/common/policy_statistics_collector.h"
 #include "components/policy/core/common/policy_switches.h"
@@ -155,6 +156,7 @@ void BrowserPolicyConnector::RegisterPrefs(PrefRegistrySimple* registry) {
       CloudPolicyRefreshScheduler::kDefaultRefreshDelayMs);
   registry->RegisterBooleanPref(
       policy_prefs::kCloudManagementEnrollmentMandatory, false);
+  EnterpriseManagementMetricsService::RegisterLocalStatePrefs(registry);
 }
 
 }  // namespace policy

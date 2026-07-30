@@ -44,10 +44,7 @@ absl_source_set("conditions") {
 
 absl_source_set("config") {
   public = [ "config.h" ]
-  deps = [
-    "//third_party/abseil-cpp/absl/base:config",
-    "//third_party/abseil-cpp/absl/base:core_headers",
-  ]
+  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
 }
 
 absl_source_set("flags") {

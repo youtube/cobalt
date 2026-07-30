@@ -319,6 +319,131 @@ TEST_F(HighlightStyleUtilsTest, CurrentColorReportingSome) {
       HighlightStyleUtils::HighlightColorProperty::kSelectionDecorationColor));
 }
 
+// Regression test for crbug.com/516004705. When text is user-select:none the
+// ::selection overlay is ignored, but it must not contribute any color of its
+// own. The foreground colors (current/fill/emphasis) are seeded from the layer
+// below during layer construction, so they must be flagged for per-part
+// re-resolution; otherwise the selection layer freezes the color of whatever
+// layer preceded it (e.g. a custom highlight) and leaks it onto text that layer
+// does not cover. The background must stay transparent (selection backgrounds
+// are suppressed for non-selectable text), and the decoration colors -- which
+// are not seeded from the previous layer -- must likewise never become the
+// custom highlight color.
+TEST_F(HighlightStyleUtilsTest, IgnoredSelectionDoesNotLeakColorsFromBelow) {
+  SimRequest main_resource("https://example.com/test.html", "text/html");
+
+  LoadURL("https://example.com/test.html");
+
+  main_resource.Complete(R"HTML(
+    <!doctype html>
+    <style>
+      ::highlight(highlight1) {
+        background-color: black;
+        color: rgb(11, 22, 33);
+      }
+      ::selection {
+        text-decoration-line: underline;
+      }
+      #div {
+        user-select: none;
+        text-decoration-line: underline;
+      }
+    </style>
+    <div id="div">Some text</div>
+    <script>
+      let r1 = new Range();
+      r1.setStart(div.firstChild, 0);
+      r1.setEnd(div.firstChild, 1);
+      CSS.highlights.set("highlight1", new Highlight(r1));
+    </script>
+  )HTML");
+
+  Compositor().BeginFrame();
+
+  PaintController controller;
+  GraphicsContext context(controller);
+  PaintInfo paint_info(context, CullRect(), PaintPhase::kForeground,
+                       /*descendant_painting_blocked=*/false);
+
+  auto* div_text =
+      To<HTMLDivElement>(GetDocument().QuerySelector(AtomicString("#div")))
+          ->firstChild();
+  const ComputedStyle& div_style = div_text->GetLayoutObject()->StyleRef();
+  ASSERT_FALSE(div_style.IsSelectable());
+
+  // The originating layer paints black text.
+  const Color kOriginatingColor(0, 0, 0);
+  const Color kCustomColor(11, 22, 33);
+  TextPaintStyle originating_paint_style;
+  originating_paint_style.current_color = kOriginatingColor;
+  originating_paint_style.fill_color = kOriginatingColor;
+
+  // Build the custom highlight layer on top of the originating layer.
+  const ComputedStyle* highlight_pseudo_style =
+      HighlightStyleUtils::HighlightPseudoStyle(div_style, kPseudoIdHighlight,
+                                                AtomicString("highlight1"));
+  HighlightStyleUtils::HighlightTextPaintStyle custom_layer =
+      HighlightStyleUtils::HighlightPaintingStyle(
+          GetDocument(), div_style, highlight_pseudo_style, div_text,
+          kPseudoIdHighlight, originating_paint_style, paint_info,
+          SearchTextIsActiveMatch::kNo);
+  ASSERT_EQ(kCustomColor, custom_layer.style.current_color);
+
+  // Build the ::selection layer on top of the custom highlight layer, just as
+  // ComputeLayers() does. Because the text is user-select:none, the selection
+  // is ignored.
+  const ComputedStyle* selection_pseudo_style =
+      HighlightStyleUtils::HighlightPseudoStyle(div_style, kPseudoIdSelection);
+  HighlightStyleUtils::HighlightTextPaintStyle selection_layer =
+      HighlightStyleUtils::HighlightPaintingStyle(
+          GetDocument(), div_style, selection_pseudo_style, div_text,
+          kPseudoIdSelection, custom_layer.style, paint_info,
+          SearchTextIsActiveMatch::kNo);
+
+  // The ignored selection defers its foreground colors (current/fill/emphasis)
+  // to the layer below so they can be re-resolved per-part, but it must NOT
+  // introduce a background (it stays transparent for non-selectable text).
+  EXPECT_TRUE(selection_layer.properties_using_current_color.Has(
+      HighlightStyleUtils::HighlightColorProperty::kCurrentColor));
+  EXPECT_TRUE(selection_layer.properties_using_current_color.Has(
+      HighlightStyleUtils::HighlightColorProperty::kFillColor));
+  EXPECT_TRUE(selection_layer.properties_using_current_color.Has(
+      HighlightStyleUtils::HighlightColorProperty::kEmphasisColor));
+  EXPECT_FALSE(selection_layer.properties_using_current_color.Has(
+      HighlightStyleUtils::HighlightColorProperty::kBackgroundColor));
+  EXPECT_EQ(Color::kTransparent, selection_layer.background_color);
+
+  // The originating decoration makes the ignored selection carry a selection
+  // decoration. Its color must never be *painted* as the custom highlight color
+  // on text the highlight does not cover. Depending on the platform, the
+  // selection decoration color is either resolved to a default (e.g. on
+  // Windows) or -- when no default selection color is available, as in tests on
+  // Mac -- seeded from the previous layer and flagged for per-part resolution.
+  // In the latter case the pre-fold value is the previous (custom) color, so
+  // the meaningful invariant is checked after folding below. The overlay
+  // decoration override color (text_decoration_color), used by ComputeParts()
+  // for the selection layer, is left at its default for an ignored selection
+  // and is never sourced from the previous layer, so it can never leak the
+  // custom highlight color.
+  ASSERT_NE(TextDecorationLine::kNone,
+            selection_layer.style.selection_decoration_lines);
+  EXPECT_NE(kCustomColor, selection_layer.text_decoration_color);
+
+  // For text the custom highlight does not cover, the previous active layer is
+  // the originating layer. Folding must resolve every foreground color to the
+  // originating color -- never the leaked custom highlight color -- and must
+  // never produce the custom color for any decoration color.
+  HighlightStyleUtils::HighlightTextPaintStyle originating_layer{
+      originating_paint_style, kOriginatingColor, Color::kTransparent, {}};
+  HighlightStyleUtils::ResolveColorsFromPreviousLayer(selection_layer,
+                                                      originating_layer);
+  EXPECT_EQ(kOriginatingColor, selection_layer.style.current_color);
+  EXPECT_EQ(kOriginatingColor, selection_layer.style.fill_color);
+  EXPECT_EQ(kOriginatingColor, selection_layer.style.emphasis_mark_color);
+  EXPECT_NE(kCustomColor, selection_layer.style.selection_decoration_color);
+  EXPECT_NE(kCustomColor, selection_layer.text_decoration_color);
+}
+
 TEST_F(HighlightStyleUtilsTest, CustomPropertyInheritance) {
   SimRequest main_resource("https://example.com/test.html", "text/html");
 

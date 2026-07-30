@@ -13,5 +13,7 @@
 // the properties.
 @interface FakeStartupInformation : NSObject <StartupInformation>
 
+@property(nonatomic, assign) BOOL isTerminating;
+
 @end
 #endif  // IOS_CHROME_APP_APPLICATION_DELEGATE_FAKE_STARTUP_INFORMATION_H_

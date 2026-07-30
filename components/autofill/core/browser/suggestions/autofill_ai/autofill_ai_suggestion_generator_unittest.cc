@@ -1114,8 +1114,8 @@ class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
   static std::vector<base::test::FeatureRef> GetEnabledFeatures() {
     auto features = GetDefaultEnabledFeatures();
     features.push_back(
-        autofill::features::kSuggestionManageButtonSplitForEnhancedAutofill);
-    features.push_back(autofill::features::kYourSavedInfoSettingsPage);
+        features::kSuggestionManageButtonSplitForEnhancedAutofill);
+    features.push_back(features::kYourSavedInfoSettingsPage);
     return features;
   }
 };

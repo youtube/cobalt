@@ -21,7 +21,6 @@ class PosixKeyProvider : public KeyProvider {
   // KeyProvider:
   void GetKey(KeyCallback callback) override;
   bool UseForEncryption() override;
-  bool IsCompatibleWithOsCryptSync() override;
 };
 
 }  // namespace os_crypt_async

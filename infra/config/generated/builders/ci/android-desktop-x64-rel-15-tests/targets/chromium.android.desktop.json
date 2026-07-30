@@ -28,7 +28,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -88,7 +87,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -148,7 +146,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -208,7 +205,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -260,7 +256,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -312,7 +307,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -364,7 +358,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -416,7 +409,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -473,7 +465,6 @@
           "has_native_resultdb_integration": true
         },
         "results_handler": "layout tests",
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",
@@ -512,7 +503,6 @@
           "enable": true,
           "has_native_resultdb_integration": true
         },
-        "retry_only_failed_tests": true,
         "swarming": {
           "dimensions": {
             "cores": "8",

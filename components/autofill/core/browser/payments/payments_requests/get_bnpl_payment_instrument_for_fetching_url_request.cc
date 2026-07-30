@@ -53,7 +53,7 @@ std::string GetBnplPaymentInstrumentForFetchingUrlRequest::GetRequestContent() {
           .Set("context",
                Dict()
                    .Set("billable_service",
-                        payments::kUnmaskPaymentMethodBillableServiceNumber)
+                        kUnmaskPaymentMethodBillableServiceNumber)
                    .Set("customer_context",
                         BuildCustomerContextDictionary(
                             request_details_.billing_customer_number)))

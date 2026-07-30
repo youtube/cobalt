@@ -56,6 +56,8 @@ LINK_RESOURCE_ID(IDR_AUTOFILL_CC_VISA_OLD, R.drawable.visa_card)
 LINK_RESOURCE_ID(IDR_AUTOFILL_CC_VISA, R.drawable.visa_card)
 LINK_RESOURCE_ID(IDR_AUTOFILL_GOOGLE_PAY, R.drawable.google_pay)
 LINK_RESOURCE_ID(IDR_AUTOFILL_GOOGLE_PAY_PILL, R.drawable.googlepay_pill)
+LINK_RESOURCE_ID(IDR_AUTOFILL_GOOGLE_PAY_PILL_WITH_GRADIENT,
+                 R.drawable.googlepay_pill_with_gradient)
 LINK_RESOURCE_ID(IDR_AUTOFILL_GOOGLE_WALLET, R.drawable.googlewallet)
 LINK_RESOURCE_ID(IDR_AUTOFILL_GOOGLE_WALLET_ICON, R.drawable.google_wallet_24dp)
 LINK_RESOURCE_ID(IDR_AUTOFILL_METADATA_BNPL_GENERIC,
@@ -113,11 +115,6 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_OFFER_TAG_GREEN,
                     R.drawable.ic_offer_tag)
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ANDROID_MESSAGES,
                     R.drawable.ic_android_messages_icon)
-
-// Note that R.drawable.plus_addresses_logo is always present, but the icon in
-// branded builds is different from the one in unbranded builds,
-DECLARE_RESOURCE_ID(IDR_AUTOFILL_PLUS_ADDRESS,
-                    R.drawable.ic_plus_addresses_logo_16dp)
 
 // Home and work icons.
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_HOME, R.drawable.ic_home_24dp)

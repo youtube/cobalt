@@ -11,7 +11,7 @@ import type {Network, WiFiStateProperties} from 'chrome://diagnostics/network_he
 import {SecurityType} from 'chrome://diagnostics/network_health_provider.mojom-webui.js';
 import type {WifiInfoElement} from 'chrome://diagnostics/wifi_info.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {assertDataPointHasExpectedHeaderAndValue, assertTextContains, getDataPointValue} from './diagnostics_test_utils.js';

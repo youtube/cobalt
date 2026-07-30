@@ -80,6 +80,8 @@ source_set("ui_bundled") {
     "table_cell_catalog_view_controller.mm",
     "translate_table_view_controller.h",
     "translate_table_view_controller.mm",
+    "view_controller_catalog_view_controller.h",
+    "view_controller_catalog_view_controller.mm",
     "voice_search_table_view_controller.h",
     "voice_search_table_view_controller.mm",
   ]
@@ -119,6 +121,7 @@ source_set("ui_bundled") {
     "//components/url_formatter",
     "//components/version_info",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/alert_view/ui_bundled",
     "//ios/chrome/browser/authentication/ui_bundled",
     "//ios/chrome/browser/authentication/ui_bundled:authentication_constants",
     "//ios/chrome/browser/authentication/ui_bundled:signin_presenter",

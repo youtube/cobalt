@@ -106,6 +106,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method slice
 [Worker]     method stream
 [Worker]     method text
+[Worker]     method textStream
 [Worker] interface BroadcastChannel : EventTarget
 [Worker]     attribute @@toStringTag
 [Worker]     getter name
@@ -1786,6 +1787,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method formData
 [Worker]     method json
 [Worker]     method text
+[Worker]     method textStream
 [Worker] interface Response
 [Worker]     static method error
 [Worker]     static method redirect
@@ -1807,6 +1809,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method formData
 [Worker]     method json
 [Worker]     method text
+[Worker]     method textStream
 [Worker] interface RestrictionTarget
 [Worker]     attribute @@toStringTag
 [Worker]     method constructor

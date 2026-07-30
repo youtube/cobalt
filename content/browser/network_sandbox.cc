@@ -6,6 +6,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "base/files/file_util.h"
+#include "base/immediate_crash.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -15,10 +16,13 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "content/browser/network_sandbox_grant_result.h"
+#include "content/browser/network_sandbox_grant_result_helper.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_client.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "services/network/public/cpp/transferable_directory.h"
 #include "sql/database.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -51,6 +55,19 @@ struct SandboxParameters {
 #endif  // DCHECK_IS_ON()
 #endif  // BUILDFLAG(IS_WIN)
 };
+
+SandboxParameters GetSandboxParameters() {
+  SandboxParameters sandbox_params = {};
+#if BUILDFLAG(IS_WIN)
+  sandbox_params.lpac_capability_name =
+      GetContentClient()->browser()->GetLPACCapabilityNameForNetworkService();
+#if DCHECK_IS_ON()
+  sandbox_params.sandbox_enabled =
+      GetContentClient()->browser()->ShouldSandboxNetworkService();
+#endif  // DCHECK_IS_ON()
+#endif  // BUILDFLAG(IS_WIN)
+  return sandbox_params;
+}
 
 // Deletes the old data for a data file called `filename` from `old_path`. If
 // `file_path` refers to an SQL database then `is_sql` should be set to true,
@@ -612,15 +629,7 @@ void GrantSandboxAccessOnThreadPool(
     network::mojom::NetworkContextParamsPtr params,
     base::OnceCallback<void(network::mojom::NetworkContextParamsPtr,
                             SandboxGrantResult)> result_callback) {
-  SandboxParameters sandbox_params = {};
-#if BUILDFLAG(IS_WIN)
-  sandbox_params.lpac_capability_name =
-      GetContentClient()->browser()->GetLPACCapabilityNameForNetworkService();
-#if DCHECK_IS_ON()
-  sandbox_params.sandbox_enabled =
-      GetContentClient()->browser()->ShouldSandboxNetworkService();
-#endif  // DCHECK_IS_ON()
-#endif  // BUILDFLAG(IS_WIN)
+  SandboxParameters sandbox_params = GetSandboxParameters();
   base::OnceCallback<SandboxGrantResult()> worker_task =
       base::BindOnce(&MaybeGrantSandboxAccessToNetworkContextData,
                      sandbox_params, params.get());
@@ -628,6 +637,36 @@ void GrantSandboxAccessOnThreadPool(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
       std::move(worker_task),
       base::BindOnce(std::move(result_callback), std::move(params)));
+}
+
+void GrantSandboxAccessAndCreateNetworkContextOnThreadPool(
+    mojo::PendingRemote<network::mojom::NetworkContextCreator> context_creator,
+    mojo::PendingReceiver<network::mojom::NetworkContext> context,
+    network::mojom::NetworkContextParamsPtr params) {
+  SandboxParameters sandbox_params = GetSandboxParameters();
+
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::USER_BLOCKING})
+      ->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              [](mojo::PendingRemote<network::mojom::NetworkContextCreator>
+                     context_creator,
+                 mojo::PendingReceiver<network::mojom::NetworkContext> context,
+                 const SandboxParameters& sandbox_params,
+                 network::mojom::NetworkContextParamsPtr params) {
+                SandboxGrantResult grant_access_result =
+                    MaybeGrantSandboxAccessToNetworkContextData(sandbox_params,
+                                                                params.get());
+                ProcessSandboxGrantResult(*params.get(), grant_access_result);
+
+                mojo::Remote<network::mojom::NetworkContextCreator> creator(
+                    std::move(context_creator));
+                creator->CreateNetworkContext(std::move(context),
+                                              std::move(params));
+              },
+              std::move(context_creator), std::move(context), sandbox_params,
+              std::move(params)));
 }
 
 }  // namespace content

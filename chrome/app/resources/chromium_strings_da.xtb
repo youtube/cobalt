@@ -116,19 +116,11 @@
 <translation id="2236949375853147973">Min aktivitet</translation>
 <translation id="2238130810669087193">For at kunne se dine adresser m.m. på alle dine enheder skal du logge ind i Chromium. Denne adresse gemmes på din Google-konto, når du er logget ind.</translation>
 <translation id="2241627712206172106">Hvis du deler en computer, kan venner og familie browse individuelt og konfigurere Chromium, som de ønsker hver især.</translation>
+<translation id="22571759390241347">Færdigheder i Chromium</translation>
 <translation id="2283803047247799269">Søg på denne fane med Billedsøgning</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium anbefaler, at du sætter den fane, der gør din browser langsom, på pause}one{Chromium anbefaler, at du sætter den fane, der gør din browser langsom, på pause}other{Chromium anbefaler, at du sætter de faner, der gør din browser langsom, på pause}}</translation>
 <translation id="2307973900865360088">Behold på applinje</translation>
 <translation id="2313870531055795960">Tjekker webadresser ift. en liste over usikre websites, der er gemt i Chromium. Hvis et website forsøger at stjæle din adgangskode, eller hvis du downloader en skadelig fil, sender Chromium muligvis også webadresser og bl.a. mindre mængder sideindhold til Beskyttet browsing.</translation>
-<translation id="2332076562712130931">Denne handling gør følgende:
-          <ph name="LINE_BREAKS" />
-           • Nulstiller visse Chromium-indstillinger og Chromium-genveje
-           <ph name="LINE_BREAK" />
-           • Deaktiverer udvidelser
-           <ph name="LINE_BREAK" />
-           • Sletter cookies og andre midlertidige websitedata
-            <ph name="LINE_BREAKS" />
-           Bogmærker, historik og gemte adgangskoder påvirkes ikke</translation>
 <translation id="2343156876103232566">Hvis du vil sende et nummer fra denne enhed til din Android-telefon, skal du logge ind på Chromium på begge enheder.</translation>
 <translation id="2356070529366658676">Spørg</translation>
 <translation id="2359808026110333948">Fortsæt</translation>
@@ -190,6 +182,7 @@
 <translation id="3003694935412297923">Alle opgaver</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium skal verificere din identitet, før visse data kan gemmes på din Google-konto og bruges på alle dine enheder. Hvis du logger ud nu, slettes disse data (1 element).}one{Chromium skal verificere din identitet, før visse data kan gemmes på din Google-konto og bruges på alle dine enheder. Hvis du logger ud nu, slettes disse data ({count} element).}other{Chromium skal verificere din identitet, før visse data kan gemmes på din Google-konto og bruges på alle dine enheder. Hvis du logger ud nu, slettes disse data ({count} elementer).}}</translation>
 <translation id="3013473503895162900">Åbn <ph name="URL" /> på en ny fane i Chromium.</translation>
+<translation id="302551344979399011">AI-innovationer som f.eks. færdigheder gemmes på din Google-konto og administreres separat via Chromium-synkronisering</translation>
 <translation id="3032787606318309379">Føjer til Chromium...</translation>
 <translation id="3038232873781883849">Venter på at installere…</translation>
 <translation id="3045032126857188731">Oversat sprog: <ph name="LANGUAGE" /></translation>
@@ -381,6 +374,7 @@
 <translation id="5289287148052354622">Hent Chromium-appen</translation>
 <translation id="5294316920224716406">Når du browser i inkognitotilstand, advarer Chromium dig, inden et website indlæses via en usikker forbindelse</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+<translation id="5324450571874973775">Brug dem sammen med andre Gemini-funktioner i Chromium</translation>
 <translation id="5346389065299425353">Gør din søgning mere dybdegående ved at tilføje flere faner, filer og værktøjer</translation>
 <translation id="5348677704241861105">Få en hurtig oversigt over dette dokument, og stil spørgsmål med Gemini i Chromium</translation>
 <translation id="5352264705793813212">Chromium har fundet nogle sikkerhedsanbefalinger, du kan gennemgå</translation>
@@ -672,6 +666,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8318772038038596122">Din organisation lukker Chromium, når browseren ikke har været i brug i <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Gem som billede</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> brugte tidligere Chromium</translation>
+<translation id="8351551329754447960">Aktivér Færdigheder i Chromium</translation>
 <translation id="8359544530202147897">Opdater Chromium for at fortsætte med at bruge Chromium-dataene på din Google-konto, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Hvis du vil have fremtidige Chromium-opdateringer, skal du have Windows 10 eller nyere. Denne computer har Windows 8.</translation>
 <translation id="8362914115861174987">Oversæt til</translation>

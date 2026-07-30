@@ -42,6 +42,7 @@ source_set("impl") {
     "//chrome/browser/glic/browser_ui",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/ui:layout_constants",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui/color:color_headers",
     "//chrome/common:chrome_features",
     "//components/tabs:public",

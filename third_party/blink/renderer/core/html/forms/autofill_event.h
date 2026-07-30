@@ -47,6 +47,7 @@ class CORE_EXPORT AutofillEvent : public Event {
   // supported. When called, the callback triggers the refill and returns a
   // Promise that resolves immediately.
   V8AutofillRefillCallback* refill(ScriptState*);
+  bool IsRefillDirty() const { return false; }
   const HeapVector<Member<AutofillFieldData>>& autofillValues() const;
 
   void Trace(Visitor*) const final;
@@ -59,7 +60,6 @@ class CORE_EXPORT AutofillEvent : public Event {
   void DoRefill(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   HeapVector<Member<AutofillFieldData>> field_data_;
-  Member<V8AutofillRefillCallback> refill_callback_;
   base::UnguessableToken fill_id_;
   bool supports_refill_;
 };

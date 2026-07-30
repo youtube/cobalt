@@ -4,10 +4,11 @@
 
 import './icons.html.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
+import '/shared/icon_from_table.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {MenuSourceType} from '//resources/mojo/ui/base/mojom/menu_source_type.mojom-webui.js';
+import type {IconHandle} from '/shared/icon_handle.mojom-webui.js';
 
 import {getCss} from './extension.css.js';
 import {getHtml} from './extension.html.js';
@@ -28,12 +29,12 @@ export class ExtensionElement extends CrLitElement {
 
   static override get properties() {
     return {
-      iconUrl: {type: String},
+      iconHandle: {type: Object},
       visible: {type: Boolean, reflect: true},
     };
   }
 
-  accessor iconUrl: string = '';
+  accessor iconHandle: IconHandle = {handleId: 0n};
   accessor visible: boolean = false;
 
   private bar: ExtensionsBarElement;
@@ -43,11 +44,6 @@ export class ExtensionElement extends CrLitElement {
     super();
     this.extensionId = extensionId;
     this.bar = bar;
-  }
-
-  override update(changedProperties: PropertyValues) {
-    this.style.setProperty('--extension-icon-url', `url(${this.iconUrl})`);
-    super.update(changedProperties);
   }
 
   protected onClick() {

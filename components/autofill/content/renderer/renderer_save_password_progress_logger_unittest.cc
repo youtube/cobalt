@@ -40,7 +40,7 @@ class FakeContentPasswordManagerDriver : public mojom::PasswordManagerDriver {
   }
 
  private:
-  // autofill::mojom::PasswordManagerDriver:
+  // mojom::PasswordManagerDriver:
   void PasswordFormsParsed(const std::vector<FormData>& form_data) override {}
 
   void PasswordFormsRendered(

@@ -10,10 +10,8 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "base/files/memory_mapped_file.h"
+#include "components/safe_browsing/core/browser/db/hash_prefix_container.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
-#include "components/safe_browsing/core/browser/db/v4_store.pb.h"
-#include "components/safe_browsing/core/common/proto/webui.pb.h"
 
 namespace safe_browsing {
 
@@ -71,12 +69,6 @@ enum ApplyUpdateResult {
   APPLY_UPDATE_RESULT_MAX
 };
 
-// The sorted list of hash prefixes.
-using HashPrefixes = std::string;
-
-using HashPrefixesView = std::string_view;
-using HashPrefixMapView = std::unordered_map<PrefixSize, HashPrefixesView>;
-
 // Set a common sense limit on the store file size we try to read.
 // The maximum store file size, as of today, is about 6MB.
 constexpr size_t kMaxStoreSizeBytes = 50 * 1000 * 1000;
@@ -85,96 +77,45 @@ constexpr size_t kMaxStoreSizeBytes = 50 * 1000 * 1000;
 // For instance: {4: ["abcd", "bcde", "cdef", "gggg"], 5: ["fffff"]}
 // Maps will be stored a separate file for hash prefix lists of each
 // prefix size. These will be mapped into memory on initialization.
-class HashPrefixMap {
+class HashPrefixMap : public HashPrefixContainer {
  public:
   explicit HashPrefixMap(
       const base::FilePath& store_path,
       scoped_refptr<base::SequencedTaskRunner> task_runner = nullptr,
-      size_t buffer_size = 1024 * 512);
+      size_t buffer_size = kDefaultBufferSize);
 
-  virtual ~HashPrefixMap();
+  ~HashPrefixMap() override;
 
-  // Clears the underlying map.
-  void Clear();
+  // HashPrefixContainer:
+  void Clear() override;
 
-  // Returns a read-only view of the data stored in this map.
-  HashPrefixMapView view() const;
+  HashPrefixMapView view() const override;
 
-  // Appends |prefix| to the prefix list of size |size|.
-  void Append(PrefixSize size, HashPrefixesView prefix);
+  void Append(PrefixSize size, HashPrefixesView prefix) override;
 
   // Reads the map from disk.
-  ApplyUpdateResult ReadFromDisk(const V4StoreFileFormat& file_format);
+  ApplyUpdateResult ReadFromDisk(const SBStoreFileFormat& file_format);
 
-  class WriteSession {
-   public:
-    WriteSession(const WriteSession&) = delete;
-    WriteSession& operator=(const WriteSession&) = delete;
-    virtual ~WriteSession() = default;
-
-   protected:
-    WriteSession() = default;
-  };
-
-  // Write the map to disk. Returns null in case of error, or a session instance
-  // that must be kept alive until `file_format` is committed to disk.
-  // Implementations may lend some internal state to `file_format` so that it
-  // can be written to disk with minimal overhead.
-  std::unique_ptr<WriteSession> WriteToDisk(V4StoreFileFormat* file_format);
+  std::unique_ptr<HashPrefixContainer::WriteSession> WriteToDisk(
+      SBStoreFileFormat& file_format) override;
 
   // Returns true if the data in this map is valid and can be used.
   ApplyUpdateResult IsValid() const;
 
-  // Returns a hash prefix if it matches the prefixes stored in this map.
-  HashPrefixStr GetMatchingHashPrefix(std::string_view full_hash);
+  HashPrefixStr GetMatchingHashPrefix(std::string_view full_hash) override;
 
-
-  // Collects debug information about the prefixes in the map.
   void GetPrefixInfo(google::protobuf::RepeatedPtrField<
                      DatabaseManagerInfo::DatabaseInfo::StoreInfo::PrefixSet>*
-                         prefix_sets);
-
-  static base::FilePath GetPath(const base::FilePath& store_path,
-                                const std::string& extension);
+                         prefix_sets) override;
 
   const std::string& GetExtensionForTesting(PrefixSize size);
   void ClearAndWaitForTesting();
 
  private:
-  class BufferedFileWriter;
-  class FileInfo {
-   public:
-    FileInfo(const base::FilePath& store_path, PrefixSize size);
-    ~FileInfo();
-
-    // `initialize_after_write` will control some extra logging for
-    // investigating https://crbug.com/393395944.
-    // TODO(crbug.com/393395944): Remove `initialize_after_write`.
-    bool Initialize(const HashFile& hash_file, bool initialize_after_write);
-    bool Finalize(HashFile* hash_file);
-
-    HashPrefixesView GetView() const;
-    bool IsReadable() const { return file_.IsValid(); }
-    HashPrefixStr Matches(std::string_view full_hash) const;
-    BufferedFileWriter* GetOrCreateWriter(size_t buffer_size);
-
-    const std::string& GetExtensionForTesting() const;
-
-   private:
-    const base::FilePath store_path_;
-    const PrefixSize prefix_size_;
-
-    base::MemoryMappedFile file_;
-    std::unique_ptr<BufferedFileWriter> writer_;
-  };
-
   FileInfo& GetFileInfo(PrefixSize size);
   void ClearOnTaskRunner();
 
-  base::FilePath store_path_;
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   std::unordered_map<PrefixSize, FileInfo> map_;
-  size_t buffer_size_;
 };
 
 }  // namespace safe_browsing

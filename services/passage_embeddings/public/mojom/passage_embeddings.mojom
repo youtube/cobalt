@@ -50,6 +50,8 @@ struct PassageEmbeddingsLoadModelsParams {
 
 // Parameters used to run the passage embedder.
 struct PassageEmbedderParams {
+  // Whether to run Gemma-specific execution flows and metrics.
+  bool execute_for_gemma;
   // The number of threads to use for PassagePriority::kUserInitiated tasks.
   uint32 user_initiated_priority_num_threads;
   // The number of threads to use for PassagePriority::kUrgent tasks.

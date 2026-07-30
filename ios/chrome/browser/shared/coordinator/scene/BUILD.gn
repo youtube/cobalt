@@ -32,6 +32,7 @@ source_set("scene_state_header") {
     "scene_controller.h",
     "scene_delegate.h",
     "scene_state.h",
+    "scene_state_prefs.h",
     "scene_ui_provider.h",
   ]
   public_deps = [
@@ -84,6 +85,7 @@ source_set("scene") {
     "scene_controller.mm",
     "scene_delegate.mm",
     "scene_state.mm",
+    "scene_state_prefs.mm",
   ]
 
   deps = [
@@ -228,6 +230,7 @@ source_set("scene") {
     "//ios/chrome/common/app_group",
     "//ios/chrome/common/ui/reauthentication",
     "//ios/chrome/common/ui/util",
+    "//ios/components/webui:url_constants",
     "//ios/public/provider/chrome/browser/cobalt:cobalt_api",
     "//ios/public/provider/chrome/browser/user_feedback:user_feedback_api",
     "//ios/web/common:features",
@@ -288,6 +291,7 @@ source_set("unit_tests") {
   sources = [
     "scene_controller_unittest.mm",
     "scene_delegate_unittests.mm",
+    "scene_state_prefs_unittest.mm",
     "scene_util_unittest.mm",
     "state/layout_state_unittest.mm",
     "task_updater_scene_agent_unittest.mm",
@@ -339,6 +343,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:fake_system_identity_manager",
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/url_loading/model:url_loading_params_header",
     "//ios/chrome/common/ui/reauthentication",
     "//ios/chrome/test:test_support",
     "//ios/public/provider/chrome/browser/user_feedback:user_feedback_api",

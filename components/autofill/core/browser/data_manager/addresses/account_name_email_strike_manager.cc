@@ -67,8 +67,8 @@ AccountNameEmailStrikeManager::~AccountNameEmailStrikeManager() {
 }
 
 void AccountNameEmailStrikeManager::OnSuggestionsShown(
-    autofill::AutofillManager& manager,
-    base::span<const autofill::Suggestion> suggestions) {
+    AutofillManager& manager,
+    base::span<const Suggestion> suggestions) {
   was_name_email_profile_suggestion_shown_ =
       was_name_email_profile_suggestion_shown_ ||
       ContainsProfileSuggestionWithRecordType(

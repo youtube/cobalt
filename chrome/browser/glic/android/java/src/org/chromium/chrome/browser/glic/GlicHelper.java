@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.glic;
 
+import android.app.Activity;
 import android.content.Context;
 
 import androidx.annotation.IntDef;
@@ -33,6 +34,25 @@ public class GlicHelper {
 
     private static final WeakHashMap<SnackbarManageable, Boolean> sShownSnackbars =
             new WeakHashMap<>();
+
+    /**
+     * Shows a snackbar indicating Glic is not available in Incognito mode.
+     *
+     * @param activity The Android activity.
+     */
+    public static void showNotAvailableInIncognitoSnackbar(Activity activity) {
+        if (activity instanceof SnackbarManageable) {
+            SnackbarManager snackbarManager = ((SnackbarManageable) activity).getSnackbarManager();
+            if (snackbarManager != null) {
+                snackbarManager.showSnackbar(
+                        Snackbar.make(
+                                activity.getString(R.string.glic_incognito_not_available),
+                                null,
+                                Snackbar.TYPE_NOTIFICATION,
+                                Snackbar.UMA_GLIC));
+            }
+        }
+    }
 
     /**
      * Shows a snackbar if there are any active Glic tasks for the given profile.
@@ -69,11 +89,10 @@ public class GlicHelper {
                     .getSnackbarManager()
                     .showSnackbar(
                             Snackbar.make(
-                                            context.getString(R.string.glic_actor_task_in_progress),
-                                            null,
-                                            Snackbar.TYPE_NOTIFICATION,
-                                            Snackbar.UMA_UNKNOWN)
-                                    .setDuration(SnackbarManager.DEFAULT_SNACKBAR_DURATION_MS));
+                                    context.getString(R.string.glic_actor_task_in_progress),
+                                    null,
+                                    Snackbar.TYPE_NOTIFICATION,
+                                    Snackbar.UMA_UNKNOWN));
             return true;
         }
         return false;

@@ -15,5 +15,6 @@ IOSCustomLinksManagerFactory::NewForProfile(ProfileIOS* profile) {
       ios::HistoryServiceFactory::GetForProfile(
           profile, ServiceAccessType::EXPLICIT_ACCESS);
   return std::make_unique<ntp_tiles::CustomLinksManagerImpl>(
-      profile->GetPrefs(), history_service);
+      ntp_tiles::CustomLinksManagerImpl::Options{
+          .prefs = profile->GetPrefs(), .history_service = history_service});
 }

@@ -248,7 +248,7 @@ TEST_F(MediaEngagementSessionTest, TotalPlayers) {
   EXPECT_EQ(0, GetAudiblePlayersTotalForSession(session.get()));
   EXPECT_EQ(0, GetSignificantPlayersTotalForSession(session.get()));
 
-  // Commiting data increment totals.
+  // Committing data increment totals.
   session->RegisterAudiblePlayers(1, 1);
   CommitPendingDataForSession(session.get());
   EXPECT_EQ(2, GetAudiblePlayersTotalForSession(session.get()));

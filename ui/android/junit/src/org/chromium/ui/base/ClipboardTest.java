@@ -10,6 +10,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,6 +22,8 @@ import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ProviderInfo;
 import android.content.res.AssetFileDescriptor;
 import android.net.Uri;
 import android.os.Build;
@@ -33,10 +37,14 @@ import androidx.annotation.StringRes;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.fakes.BaseCursor;
@@ -46,6 +54,8 @@ import org.robolectric.shadows.ShadowToast;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.ui.R;
 import org.chromium.ui.widget.ToastManager;
 import org.chromium.url.GURL;
@@ -61,6 +71,12 @@ import java.util.Map;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class ClipboardTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock private Context mMockContext;
+    @Mock private PackageManager mMockPm;
+    @Mock private ClipboardManager mMockClipboardManager;
+
     private static final String PLAIN_TEXT = "plain";
     private static final String HTML_TEXT = "<span style=\"color: red;\">HTML</span>";
     private Uri mTempImageUri;
@@ -163,37 +179,18 @@ public class ClipboardTest {
         assertTrue(clipboard.hasCoercedText());
     }
 
-    @Test
-    public void testClipboardGetFilenames() {
-        Clipboard clipboard = Clipboard.getInstance();
-        ClipboardManager clipboardManager = Mockito.mock(ClipboardManager.class);
-        ((ClipboardImpl) clipboard).overrideClipboardManagerForTesting(clipboardManager);
-
-        ClipData clipData = ClipData.newPlainText("label", "text");
-        when(clipboardManager.getPrimaryClip()).thenReturn(clipData);
-        assertFalse(clipboard.hasFilenames());
-        assertEquals(0, clipboard.getFilenames().length);
-
-        ContentResolver cr = ContextUtils.getApplicationContext().getContentResolver();
+    private ClipData createTwoFilesClipData() {
         String file1 = "content://tmp/test/file1.jpg";
         String file2 = "content://tmp/test/file2.txt";
         registerMockFileUri(file1);
         registerMockFileUri(file2);
-        clipData = ClipData.newUri(cr, "label", Uri.parse(file1));
-        when(clipboardManager.getPrimaryClip()).thenReturn(clipData);
-        assertTrue(clipboard.hasFilenames());
-        String[][] filenames = clipboard.getFilenames();
-        assertEquals(1, filenames.length);
-        assertEquals(2, filenames[0].length);
-        assertEquals("content://tmp/test/file1.jpg", filenames[0][0]);
-        assertEquals("", filenames[0][1]);
-
-        clipData = ClipData.newPlainText("label", "text");
+        ClipData clipData = ClipData.newPlainText("label", "text");
         clipData.addItem(new ClipData.Item(Uri.parse(file1)));
         clipData.addItem(new ClipData.Item(Uri.parse(file2)));
-        when(clipboardManager.getPrimaryClip()).thenReturn(clipData);
-        assertTrue(clipboard.hasFilenames());
-        filenames = clipboard.getFilenames();
+        return clipData;
+    }
+
+    private void assertTwoFilesReturned(String[][] filenames) {
         assertEquals(2, filenames.length);
         assertEquals(2, filenames[0].length);
         assertEquals("content://tmp/test/file1.jpg", filenames[0][0]);
@@ -201,6 +198,67 @@ public class ClipboardTest {
         assertEquals(2, filenames[1].length);
         assertEquals("content://tmp/test/file2.txt", filenames[1][0]);
         assertEquals("", filenames[1][1]);
+    }
+
+    @Test
+    @DisableFeatures(UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_FILES)
+    public void testClipboardGetFilenames() {
+        Clipboard clipboard = Clipboard.getInstance();
+        ((ClipboardImpl) clipboard).overrideClipboardManagerForTesting(mMockClipboardManager);
+
+        ClipData clipData = ClipData.newPlainText("label", "text");
+        when(mMockClipboardManager.getPrimaryClip()).thenReturn(clipData);
+        assertFalse(clipboard.hasFilenames());
+        assertEquals(0, clipboard.getFilenames().length);
+
+        ContentResolver cr = ContextUtils.getApplicationContext().getContentResolver();
+        String file1 = "content://tmp/test/file1.jpg";
+        registerMockFileUri(file1);
+        clipData = ClipData.newUri(cr, "label", Uri.parse(file1));
+        when(mMockClipboardManager.getPrimaryClip()).thenReturn(clipData);
+        assertTrue(clipboard.hasFilenames());
+        String[][] filenames = clipboard.getFilenames();
+        assertEquals(1, filenames.length);
+        assertEquals(2, filenames[0].length);
+        assertEquals("content://tmp/test/file1.jpg", filenames[0][0]);
+        assertEquals("", filenames[0][1]);
+
+        clipData = createTwoFilesClipData();
+        when(mMockClipboardManager.getPrimaryClip()).thenReturn(clipData);
+        assertTrue(clipboard.hasFilenames());
+        assertTwoFilesReturned(clipboard.getFilenames());
+    }
+
+    @Test
+    @EnableFeatures(UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_FILES)
+    public void testClipboardGetFilenames_DefenseEnabled() {
+        Clipboard clipboard = Clipboard.getInstance();
+        ((ClipboardImpl) clipboard).overrideClipboardManagerForTesting(mMockClipboardManager);
+
+        Context appContext = ContextUtils.getApplicationContext();
+
+        when(mMockContext.getPackageName()).thenReturn(appContext.getPackageName());
+        when(mMockContext.getPackageManager()).thenReturn(mMockPm);
+        when(mMockContext.getContentResolver()).thenReturn(appContext.getContentResolver());
+
+        ContextUtils.initApplicationContextForTests(mMockContext);
+
+        ClipData clipData = createTwoFilesClipData();
+        when(mMockClipboardManager.getPrimaryClip()).thenReturn(clipData);
+
+        // Allowed.
+        ProviderInfo otherAppInfo = new ProviderInfo();
+        otherAppInfo.packageName = "com.other.app";
+        when(mMockPm.resolveContentProvider(eq("tmp"), anyInt())).thenReturn(otherAppInfo);
+        assertTrue(clipboard.hasFilenames());
+        assertTwoFilesReturned(clipboard.getFilenames());
+
+        // Rejected.
+        ProviderInfo ownAppInfo = new ProviderInfo();
+        ownAppInfo.packageName = appContext.getPackageName();
+        when(mMockPm.resolveContentProvider(eq("tmp"), anyInt())).thenReturn(ownAppInfo);
+        assertFalse(clipboard.hasFilenames());
+        assertEquals(0, clipboard.getFilenames().length);
     }
 
     @Test

@@ -115,6 +115,10 @@ class AppServiceProxyBase : public KeyedService,
   // PreferredAppsImpl::Host overrides.
   void OnSupportedLinksPreferenceChanged(const std::string& app_id,
                                          bool open_in_app) override;
+  bool QueryConflict(const std::string& first_app_id,
+                     const IntentFilterPtr& first_filter,
+                     const std::string& second_app_id,
+                     const IntentFilterPtr& second_filter) override;
 
   // Convenience method that calls app_icon_loader()->LoadIcon to load app icons
   // with `app_id`. `callback` may be dispatched synchronously if it's possible
@@ -470,6 +474,10 @@ class AppServiceProxyBase : public KeyedService,
   base::OnceClosure dialog_created_callback_;
 
  private:
+  bool IsNonSystemWebapp(const std::string& app_id);
+  bool AppScopesMatchForUserLinkCapturing(const std::string& app_id1,
+                                          const std::string& app_id2);
+
   // For access to Initialize.
   friend class AppServiceProxyFactory;
 

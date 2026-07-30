@@ -227,17 +227,6 @@ DocumentFragment* ParseHTMLFragment(const String& markup,
     return nullptr;
   }
 
-  if (RuntimeEnabledFeatures::TrustedTypesCreateParserOptionsEnabled()) {
-    auto trusted_options = TrustedTypesCheckForParserOptions(
-        options, MarkupInsertionMode::kFragment,
-        config.context_element->GetExecutionContext(), config.interface_name,
-        config.property_name, exception_state);
-    if (!trusted_options) {
-      return nullptr;
-    }
-    options = *trusted_options;
-  }
-
   const ParserContentPolicy content_policy =
       options.run_scripts() == FragmentParserOptions::RunScripts::kRunScripts
           ? kAllowScriptingContentAndDoNotMarkAlreadyStarted
@@ -281,6 +270,7 @@ DocumentFragment* ParseHTMLFragment(const String& markup,
 
 DocumentFragment* CreateContextualFragment(const String& html,
                                            Element* element,
+                                           const FragmentParserOptions& options,
                                            ExceptionState& exception_state) {
   if (exception_state.HadException()) {
     return nullptr;
@@ -303,8 +293,7 @@ DocumentFragment* CreateContextualFragment(const String& html,
           .context_element = element,
           .registry = registry,
       },
-      FragmentParserOptions(FragmentParserOptions::RunScripts::kRunScripts),
-      exception_state);
+      options, exception_state);
 
   if (!fragment) {
     return nullptr;

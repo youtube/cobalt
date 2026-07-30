@@ -353,6 +353,27 @@ suite('ContextualTasksAppTest', function() {
     assertEquals('12345', currentUrl.searchParams.get('chrome_task_id'));
   });
 
+  test('aim url updates webui url fragment', async () => {
+    const {proxy} = await createContextualTasksAppElement(/*url=*/ fixtureUrl);
+
+    const taskId = {value: '12345'};
+    const aimUrl = `${fixtureUrl}/search?q=123#my-fragment`;
+    proxy.callbackRouterRemote.setTaskDetails(taskId, aimUrl, true);
+    await proxy.callbackRouterRemote.$.flushForTesting();
+
+    let currentUrl = new URL(window.location.href);
+    assertEquals('123', currentUrl.searchParams.get('q'));
+    assertEquals('#my-fragment', currentUrl.hash);
+
+    // Ensure fragment is removed if no longer present on the aim URL.
+    const updatedAimUrl = `${fixtureUrl}/search?q=123`;
+    proxy.callbackRouterRemote.setTaskDetails(taskId, updatedAimUrl, true);
+    await proxy.callbackRouterRemote.$.flushForTesting();
+
+    currentUrl = new URL(window.location.href);
+    assertEquals('', currentUrl.hash);
+  });
+
   // Disabled: crbug.com/507859340
   test.skip('cs param updates dark mode only on commit', async () => {
     const {appElement} =
@@ -500,6 +521,7 @@ suite('ContextualTasksAppTest', function() {
     const composebox =
         appElement.shadowRoot.querySelector('contextual-tasks-composebox');
     assertTrue(!!composebox);
+    assertTrue(!!composebox.shadowRoot);
     const innerComposebox =
         composebox.shadowRoot.querySelector<HTMLElement>('#composebox');
     assertTrue(!!innerComposebox);
@@ -673,6 +695,7 @@ suite('ContextualTasksAppTest', function() {
     // 4. Transition out of zero state.
     proxy.callbackRouterRemote.onZeroStateChange(false);
     await proxy.callbackRouterRemote.$.flushForTesting();
+    await new Promise(resolve => requestAnimationFrame(resolve));
     await microtasksFinished();
 
     // 5. Bounds should now be updatable.
@@ -680,6 +703,7 @@ suite('ContextualTasksAppTest', function() {
       data: message,
       origin: new URL(fixtureUrl).origin,
     }));
+    await new Promise(resolve => requestAnimationFrame(resolve));
     await microtasksFinished();
 
     assertDeepEquals(
@@ -1004,6 +1028,7 @@ suite('ContextualTasksAppTest', function() {
 
         // Wait for any composebox height updates to process.
         await appElement.updateComplete;
+        await new Promise(resolve => requestAnimationFrame(resolve));
         await microtasksFinished();
         const boundsBeforeNav = appElement.getForcedComposeboxBoundsForTesting();
 

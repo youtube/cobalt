@@ -45,6 +45,9 @@ interface PageHandler {
   // permission was granted.
   SetPermission(int32 guest_instance_id, int32 request_id,
                 PermissionResponseAction action) => (bool allowed);
+
+  // Sets the user agent override for the GuestView.
+  SetUserAgentOverride(int32 guest_instance_id, string user_agent_override);
 };
 
 // Interface that implements browser-to-page messages for a SlimWebView.

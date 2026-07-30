@@ -128,7 +128,7 @@ TEST_F(LocalFrameFullContentSpellCheckTest,
 
   // Simulate the cursor at the word "world".
   Node* text = div->firstChild();
-  GetFrame().Selection().SetSelection(SelectionInDOMTree::Builder()
+  GetFrame().Selection().SetSelection(SelectionInDomTree::Builder()
                                           .Collapse(Position(text, 8))
                                           .Extend(Position(text, 8))
                                           .Build(),

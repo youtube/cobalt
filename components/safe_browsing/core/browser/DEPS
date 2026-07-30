@@ -6,6 +6,7 @@ include_rules = [
   "+components/sessions/core/session_id.h",
   "+components/version_info",
   "+net/cookies",
+  "+net/dns/public",
   "+net/extras",
   "+net/http",
   "+net/ssl",

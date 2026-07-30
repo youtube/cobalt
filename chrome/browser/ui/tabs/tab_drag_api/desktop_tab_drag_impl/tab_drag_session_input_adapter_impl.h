@@ -28,7 +28,6 @@ class TabDragSessionInputAdapterImpl : public TabDragSessionInputAdapter,
 
   // TabDragSessionInputAdapter overrides:
   base::expected<void, mojo_base::mojom::ErrorPtr> StartInputCapture(
-      const std::vector<tabs_api::NodeId>& source_tab_ids,
       EventCallback callback) override;
   void ReleaseInputCapture() override;
 

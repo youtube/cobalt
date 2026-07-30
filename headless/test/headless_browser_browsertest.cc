@@ -4,6 +4,7 @@
 
 #include "headless/public/headless_browser.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -16,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
@@ -72,6 +74,9 @@
 
 #if !BUILDFLAG(IS_FUCHSIA)
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"  // nogncheck
+#include "third_party/crashpad/crashpad/handler/minidump_to_upload_parameters.h"  // nogncheck
+#include "third_party/crashpad/crashpad/snapshot/minidump/process_snapshot_minidump.h"  // nogncheck
+#include "third_party/crashpad/crashpad/util/file/file_reader.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -280,30 +285,6 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserTestWithProxy, MAYBE_SetProxyConfig) {
   EXPECT_TRUE(browser_context->GetAllWebContents().empty());
 }
 
-// WebGL is not guaranteed to be supported everywhere except when using
-// --enable-unsafe-swiftshader.
-class HeadlessWebGLAvailabilityTest : public HeadlessBrowserTest {
- public:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitch(::switches::kEnableUnsafeSwiftShader);
-    HeadlessBrowserTest::SetUpCommandLine(command_line);
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(HeadlessWebGLAvailabilityTest, WebGLSupported) {
-  HeadlessBrowserContext* browser_context =
-      browser()->CreateBrowserContextBuilder().Build();
-
-  HeadlessWebContents* web_contents =
-      browser_context->CreateWebContentsBuilder().Build();
-
-  EXPECT_THAT(
-      EvaluateScript(web_contents,
-                     "(document.createElement('canvas').getContext('webgl')"
-                     "    instanceof WebGLRenderingContext)"),
-      DictHasValue("result.result.value", true));
-}
-
 IN_PROC_BROWSER_TEST_F(HeadlessBrowserTest, ClipboardCopyPasteText) {
   // Tests copy-pasting text with the clipboard in headless mode.
   ui::Clipboard* clipboard = ui::ClipboardNonBacked::GetForCurrentThread();
@@ -508,7 +489,27 @@ IN_PROC_BROWSER_TEST_F(CrashReporterTest, GenerateMinidump) {
     std::vector<crashpad::CrashReportDatabase::Report> reports;
     ASSERT_EQ(database->GetPendingReports(&reports),
               crashpad::CrashReportDatabase::kNoError);
-    EXPECT_EQ(reports.size(), 1u);
+    ASSERT_EQ(reports.size(), 1u);
+
+    crashpad::FileReader reader;
+    ASSERT_TRUE(reader.Open(reports[0].file_path));
+
+    crashpad::ProcessSnapshotMinidump snapshot;
+    ASSERT_TRUE(snapshot.Initialize(&reader));
+
+    // Crashpad stores crash key names by pointer. A dangling name pointer may
+    // still allow the minidump to be written, but later produce an empty or
+    // corrupted upload parameter name. Verify the generated report's parameter
+    // names to prevent that regression.
+    const auto upload_parameters =
+        crashpad::BreakpadHTTPFormParametersFromMinidump(&snapshot);
+
+    ASSERT_FALSE(upload_parameters.empty());
+    for (const auto& upload_parameter : upload_parameters) {
+      const std::string& name = upload_parameter.first;
+      EXPECT_FALSE(name.empty());
+      EXPECT_TRUE(base::IsStringASCII(name)) << name;
+    }
   }
 
   web_contents_ = nullptr;

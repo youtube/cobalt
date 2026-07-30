@@ -42,6 +42,7 @@
 #import "ui/accessibility/platform/ax_private_attributes_mac.h"
 #import "ui/accessibility/platform/ax_private_webkit_constants_mac.h"
 #include "ui/accessibility/platform/ax_utils_mac.h"
+#include "ui/accessibility/platform/browser_accessibility_cocoa_test_helpers.h"
 #include "ui/accessibility/platform/browser_accessibility_mac.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/accessibility/platform/browser_accessibility_manager_mac.h"
@@ -72,6 +73,35 @@ static_assert(
     "back an AXTextMarker");
 
 namespace {
+// Test-only attribute name used by accessibility dump tests to read
+// aria-actions custom-action names across the AXUIElementCopyAttributeValue
+// marshaling boundary (NSAccessibilityCustomAction is not marshalable).
+//
+// The attribute is gated by a process-wide runtime flag. Production code
+// never sets the flag; only the dump-test base class
+// (DumpAccessibilityTestBase::SetUp) flips it on Mac. With the flag
+// unset:
+//   - the attribute is NOT advertised by -accessibilityAttributeNames, so
+//     assistive technologies cannot discover it by enumeration, and
+//   - the -customActionNamesForTesting selector short-circuits to nil, so
+//     direct -accessibilityAttributeValue: queries by same-process callers
+//     also receive nil.
+//
+// Avoids compile-time build-flag gating per the //PRESUBMIT.py banned-
+// pattern check (gating the attribute plumbing on a shipping-build macro
+// would leave it effectively untested per Chromium policy).
+NSString* const kAXCustomActionNamesForTestingAttribute =
+    @"AXCustomActionNamesForTesting";
+
+// Set to true by ui::EnableAXCustomActionNamesForTestingProjection().
+// Gates both:
+//  - advertisement of the test attribute in
+//    -internalAccessibilityAttributeNames, and
+//  - the body of the -customActionNamesForTesting selector.
+// Without the opt-in, direct -accessibilityAttributeValue: queries by
+// same-process callers receive nil.
+bool g_enable_ax_custom_action_names_for_testing_projection = false;
+
 // A mapping from an accessibility attribute to its method name.
 NSDictionary* gAttributeToMethodNameMap = nil;
 
@@ -373,6 +403,20 @@ bool ui::IsNSRange(id value) {
          0 == UNSAFE_BUFFERS(strcmp([value objCType], @encode(NSRange)));
 }
 
+namespace ui {
+void EnableAXCustomActionNamesForTestingProjection() {
+  g_enable_ax_custom_action_names_for_testing_projection = true;
+}
+
+bool IsAXCustomActionNamesForTestingProjectionEnabled() {
+  return g_enable_ax_custom_action_names_for_testing_projection;
+}
+}  // namespace ui
+
+@interface BrowserAccessibilityCocoa ()
+- (NSArray<NSString*>*)customActionNamesForTesting;
+@end
+
 @implementation BrowserAccessibilityCocoa {
   // Dangling pointer https://crbug.com/1475830.
   raw_ptr<ui::BrowserAccessibility, DanglingUntriaged> _owner;
@@ -389,6 +433,7 @@ bool ui::IsNSRange(id value) {
     NSAccessibilityColumnsAttribute : @"columns",
     NSAccessibilityColumnIndexRangeAttribute : @"columnIndexRange",
     NSAccessibilityContentsAttribute : @"contents",
+    kAXCustomActionNamesForTestingAttribute : @"customActionNamesForTesting",
     NSAccessibilityDisclosingAttribute : @"disclosing",
     NSAccessibilityDisclosedByRowAttribute : @"disclosedByRow",
     NSAccessibilityDisclosureLevelAttribute : @"disclosureLevel",
@@ -1572,10 +1617,10 @@ bool ui::IsNSRange(id value) {
 
   // This method is only for exposing aria-valuetext to VoiceOver if present.
   // Blink places the value of aria-valuetext in
-  // ax::mojom::StringAttribute::kValue for objects that support range values,
-  // i.e., progress bars, sliders and steppers.
+  // ax::mojom::StringAttribute::kAriaValueText for objects that support range
+  // values, i.e., progress bars, sliders and steppers.
   return base::SysUTF8ToNSString(
-      _owner->GetStringAttribute(ax::mojom::StringAttribute::kValue));
+      _owner->GetStringAttribute(ax::mojom::StringAttribute::kAriaValueText));
 }
 
 // LINT.IfChange
@@ -2769,6 +2814,16 @@ bool ui::IsNSRange(id value) {
   // TODO(aboxhall): expose NSAccessibilityServesAsTitleForUIElementsAttribute
   // for elements which are referred to by labelledby or are labels
 
+  // Advertise the dump-test projection attribute only when test
+  // infrastructure has opted in AND the node actually has custom actions,
+  // so dump-test baselines stay focused on the nodes under test rather
+  // than emitting an empty AXCustomActionNamesForTesting=[] entry on
+  // every node in the tree.
+  if (ui::IsAXCustomActionNamesForTestingProjectionEnabled() && _owner &&
+      _owner->HasState(ax::mojom::State::kHasActions)) {
+    [ret addObject:kAXCustomActionNamesForTestingAttribute];
+  }
+
   [ret addObjectsFromArray:[super internalAccessibilityAttributeNames]];
   return ret;
 }
@@ -3049,6 +3104,42 @@ bool ui::IsNSRange(id value) {
   }
 
   return custom_actions.count > 0 ? custom_actions : nil;
+}
+
+// Projects the production -accessibilityCustomActions return value to a
+// flat NSArray<NSString*> of action names. Exists so dump tests can read
+// custom-action names through AXUIElementCopyAttributeValue, which cannot
+// marshal opaque NSAccessibilityCustomAction objects across processes.
+// See kAXCustomActionNamesForTestingAttribute for the surface-isolation
+// contract.
+//
+// Returns nil (rather than an empty array) when:
+//   - the test infrastructure has not called
+//     ui::EnableAXCustomActionNamesForTestingProjection() (i.e. the
+//     runtime opt-in is unset, which is the case in shipped Chrome and
+//     in any browsertest that has not explicitly opted in), so direct
+//     -accessibilityAttributeValue: queries by same-process callers
+//     see nothing, OR
+//   - the node has no custom actions.
+// The dump-test formatter's AXOptionalNSObject filter treats nil as
+// "not applicable" and omits it from baselines, in addition to the
+// enumeration gate.
+- (NSArray<NSString*>*)customActionNamesForTesting {
+  if (!ui::IsAXCustomActionNamesForTestingProjectionEnabled()) {
+    return nil;
+  }
+  NSArray<NSAccessibilityCustomAction*>* actions =
+      [self accessibilityCustomActions];
+  if (actions.count == 0) {
+    return nil;
+  }
+  NSMutableArray<NSString*>* names =
+      [NSMutableArray arrayWithCapacity:actions.count];
+  for (NSAccessibilityCustomAction* action in actions) {
+    CHECK(action.name);
+    [names addObject:action.name];
+  }
+  return names;
 }
 
 // Sets an override value for a specific accessibility attribute.

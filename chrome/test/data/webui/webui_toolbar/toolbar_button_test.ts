@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {isMac} from 'chrome://resources/js/platform.js';
 import {MenuSourceType} from 'chrome://resources/mojo/ui/base/mojom/menu_source_type.mojom-webui.js';
-import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {getClickSourceType, getContextMenuSourceType, PressHandler} from 'chrome://webui-toolbar.top-chrome/app.js';
 
 suite('ToolbarButtonTest', function() {
@@ -117,12 +118,13 @@ suite('ToolbarButtonTest', function() {
   // element with coordinates pointing to its center.
   function dispatchPointerEvent(
       handler: PressHandler, eventType: 'pointerdown'|'pointerup',
-      target: HTMLElement, pointerId: number) {
+      target: HTMLElement, pointerId: number, ctrlKey: boolean = false) {
     const event = new PointerEvent(eventType, {
       bubbles: true,
       cancelable: true,
       pointerId,
       button: 0,
+      ctrlKey,
       clientX: TARGET_MIDDLE,
       clientY: TARGET_MIDDLE,
     });
@@ -140,7 +142,7 @@ suite('ToolbarButtonTest', function() {
   let handler: PressHandler;
   let target: HTMLElement;
 
-  beforeEach(() => {
+  setup(() => {
     shortPressCount = 0;
     longPressCount = 0;
     handler = new PressHandler(
@@ -202,6 +204,74 @@ suite('ToolbarButtonTest', function() {
     dispatchPointerEvent(handler, 'pointerup', target, 1);
 
     assertEquals(0, shortPressCount);
+    assertEquals(0, longPressCount);
+  });
+
+  // Tests that on Mac, a Ctrl+LeftClick bypasses pointer capture and standard
+  // short press logic, delegating to the native contextmenu event instead.
+  test('PressHandlerMacCtrlLeftClick', function() {
+    if (!isMac) {
+      return;
+    }
+
+    let hasCapture = false;
+    target.setPointerCapture = (_id) => {
+      hasCapture = true;
+    };
+    target.hasPointerCapture = (_id) => hasCapture;
+
+    dispatchPointerEvent(handler, 'pointerdown', target, 1, /*ctrlKey=*/ true);
+
+    // On Mac, pointer capture should be bypassed.
+    assertFalse(hasCapture);
+
+    // Simulate the native contextmenu event that fires immediately after.
+    const contextMenuEvent = new PointerEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      ctrlKey: true,
+      clientX: TARGET_MIDDLE,
+      clientY: TARGET_MIDDLE,
+    });
+    Object.defineProperty(
+        contextMenuEvent, 'currentTarget', {value: target, writable: false});
+    handler.onContextmenu(contextMenuEvent);
+
+    // Long press should be triggered by contextmenu.
+    assertEquals(0, shortPressCount);
+    assertEquals(1, longPressCount);
+
+    dispatchPointerEvent(handler, 'pointerup', target, 1, /*ctrlKey=*/ true);
+
+    // Short press should NOT be triggered.
+    assertEquals(0, shortPressCount);
+    assertEquals(1, longPressCount);
+  });
+
+  // Tests that on non-Mac platforms, a Ctrl+LeftClick is treated as a normal
+  // click that captures the pointer and triggers a short press (e.g., Hard
+  // Reload for reload button).
+  test('PressHandlerNonMacCtrlLeftClick', function() {
+    if (isMac) {
+      return;
+    }
+
+    let hasCapture = false;
+    target.setPointerCapture = (_id) => {
+      hasCapture = true;
+    };
+    target.hasPointerCapture = (_id) => hasCapture;
+
+    dispatchPointerEvent(handler, 'pointerdown', target, 1, /*ctrlKey=*/ true);
+
+    // On non-Mac, it should be captured normally.
+    assertTrue(hasCapture);
+
+    dispatchPointerEvent(handler, 'pointerup', target, 1, /*ctrlKey=*/ true);
+
+    // Short press should be triggered.
+    assertEquals(1, shortPressCount);
     assertEquals(0, longPressCount);
   });
 });

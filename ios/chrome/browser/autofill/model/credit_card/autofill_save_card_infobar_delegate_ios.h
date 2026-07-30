@@ -50,8 +50,8 @@ class AutofillSaveCardInfoBarDelegateIOS
   // `on_confirmation_closed_callback` immediately.
   virtual void CreditCardUploadCompleted(
       bool card_saved,
-      std::optional<autofill::payments::PaymentsAutofillClient::
-                        OnConfirmationClosedCallback>
+      std::optional<
+          payments::PaymentsAutofillClient::OnConfirmationClosedCallback>
           on_confirmation_closed_callback);
 
   // Called after infobar, showing success confirmation is closed.

@@ -75,7 +75,7 @@ TEST_F(InsertParagraphSeparatorCommandTest, CrashWithCaptionBeforeBody) {
   GetDocument().documentElement()->insertBefore(caption, GetDocument().body());
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(EphemeralRange::RangeOfContents(*caption))
           .Build(),
       SetSelectionOptions());
@@ -87,7 +87,7 @@ TEST_F(InsertParagraphSeparatorCommandTest, CrashWithCaptionBeforeBody) {
   EXPECT_EQ(
       "<body><style><br>|*{max-width:inherit;display:initial;}</style></body>",
       SelectionSample::GetSelectionText(*GetDocument().documentElement(),
-                                        Selection().GetSelectionInDOMTree()));
+                                        Selection().GetSelectionInDomTree()));
 }
 
 // http://crbug.com/1345989

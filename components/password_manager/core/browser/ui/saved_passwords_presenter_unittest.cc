@@ -22,6 +22,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
 #include "components/affiliations/core/browser/fake_affiliation_service.h"
@@ -1123,6 +1124,19 @@ TEST_F(SavedPasswordsPresenterTest, DeleteAllDataWithPasskey) {
                        webauthn::PasskeyModel::ShadowedCredentials::kInclude)
           .empty());
   EXPECT_TRUE(GetAllLoginsSync(&store()).empty());
+}
+
+TEST_F(SavedPasswordsPresenterTest, DeleteAllDataWithPasskeyNotReady) {
+  // Password grouping is required for passkey support.
+  if (!IsGroupingEnabled()) {
+    return;
+  }
+
+  passkey_store().SetReady(false);
+
+  base::test::TestFuture<bool> future;
+  presenter().DeleteAllData(future.GetCallback());
+  EXPECT_FALSE(future.Get());
 }
 
 #endif

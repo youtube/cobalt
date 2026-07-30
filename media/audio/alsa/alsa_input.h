@@ -32,6 +32,8 @@ class AudioManagerBase;
 class MEDIA_EXPORT AlsaPcmInputStream
     : public AgcAudioStream<AudioInputStream> {
  public:
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
   // Pass this to the constructor if you want to attempt auto-selection
   // of the audio recording device.
   static const char kAutoSelectDevice[];
@@ -62,7 +64,7 @@ class MEDIA_EXPORT AlsaPcmInputStream
 
  private:
   // Logs the error and invokes any registered callbacks.
-  void HandleError(const char* method, int error);
+  void HandleError(const char* method, int error, Error error_code);
 
   // Reads one or more buffers of audio from the device, passes on to the
   // registered callback and schedules the next read.

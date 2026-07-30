@@ -111,9 +111,6 @@ class CONTENT_EXPORT BackForwardTransitionAnimationManagerAndroid
   // current animation.
   void OnAnimationStageChanged();
 
-  // Called upon ignoring an input event.
-  void MaybeRecordIgnoredInput(const blink::WebInputEvent& event);
-
   void OnPhysicalBackingSizeChanged();
 
   void OnBeforeUnloadDialogShown(int64_t navigation_id);

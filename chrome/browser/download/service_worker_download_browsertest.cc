@@ -580,20 +580,13 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerDownloadFeatureFlagOffBrowserTest,
 // bytes must equal the second-attempt body; never the first attempt's
 // partial bytes prepended to the second response.
 //
-// TODO(crbug.com/40410035): An SW-served download whose body stream errors
-// terminates as CANCELLED (terminal, non-resumable) instead of INTERRUPTED.
-// The premise is wrong for SW-served downloads: the abort is a transient
-// stream failure, not a user action. One option would be to make the
-// HandleRequestCompletionStatus mapping to distinguish SW-originated
-// aborts and sending ERR_FAILED instead of ERR_ABORT, so that
-// StreamWaiter::OnAborted advances the download to INTERRUPTED with
-// reason NETWORK_FAILED; the user-resume call below then drives the
-// restart-on-resume path under test here. The restart-on-resume
-// invariant itself is covered by the
-// DownloadItemTest.ResumeOfSWFetchedDownloadRestartsAndKeepsSW unit test.
-IN_PROC_BROWSER_TEST_F(
-    ServiceWorkerDownloadBrowserTest,
-    DISABLED_ResumeOfSWFetchedDownloadRestartsViaServiceWorker) {
+// The SW-served stream error maps to NETWORK_FAILED (not the terminal
+// USER_CANCELED), so the download interrupts and the user-resume call below
+// drives the restart-on-resume path. The restart-on-resume invariant itself is
+// covered by the DownloadItemTest.ResumeOfSWFetchedDownloadRestartsAndKeepsSW
+// unit test. (crbug.com/40410035)
+IN_PROC_BROWSER_TEST_F(ServiceWorkerDownloadBrowserTest,
+                       ResumeOfSWFetchedDownloadRestartsViaServiceWorker) {
   NavigateAndWaitForSWControl();
 
   std::unique_ptr<content::DownloadTestObserver> interrupt_observer(

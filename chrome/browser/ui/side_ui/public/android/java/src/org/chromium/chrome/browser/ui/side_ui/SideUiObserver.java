@@ -10,6 +10,7 @@ import android.transition.TransitionSet;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiShowability;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs;
 
 /** Observer for side UI changes. */
@@ -69,4 +70,11 @@ public interface SideUiObserver {
      * @param sideUiSpecs The new {@link SideUiSpecs}.
      */
     void onSideUiSpecsChanged(SideUiSpecs sideUiSpecs);
+
+    /**
+     * Called when {@link SideUiShowability} is updated.
+     *
+     * @param sideUiShowability The new {@link SideUiShowability}.
+     */
+    default void onShowableSideUisUpdated(SideUiShowability sideUiShowability) {}
 }

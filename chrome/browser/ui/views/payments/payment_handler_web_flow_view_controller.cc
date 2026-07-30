@@ -645,4 +645,11 @@ void PaymentHandlerWebFlowViewController::SetHeaderColorsAndOriginLabelText() {
   }
 }
 
+void PaymentHandlerWebFlowViewController::DidGetUserInteraction(
+    const blink::WebInputEvent& event) {
+  if (state()) {
+    state()->set_user_interaction_in_web_payment_app(true);
+  }
+}
+
 }  // namespace payments

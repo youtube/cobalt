@@ -31,8 +31,12 @@ public class BaseCarouselSuggestionView extends RecyclerView {
      * Constructs a new carousel suggestion view.
      *
      * @param context Current context.
+     * @param adapter Adapter to use for the RecyclerView which can be null if async view inflation
+     *     is enabled b/c the adapter creation will be delayed to when control is returned to the UI
+     *     thread during binding.
      */
-    public BaseCarouselSuggestionView(Context context, SimpleRecyclerViewAdapter adapter) {
+    public BaseCarouselSuggestionView(
+            Context context, @Nullable SimpleRecyclerViewAdapter adapter) {
         super(context);
 
         setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
@@ -48,7 +52,9 @@ public class BaseCarouselSuggestionView extends RecyclerView {
                         layoutManager, SelectionController.Mode.SATURATING_WITH_SENTINEL);
         addOnChildAttachStateChangeListener(mSelectionController);
 
-        setAdapter(adapter);
+        if (adapter != null) {
+            setAdapter(adapter);
+        }
     }
 
     @Override

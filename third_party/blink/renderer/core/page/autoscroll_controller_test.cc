@@ -422,11 +422,11 @@ TEST_F(AutoscrollControllerTest, TextSelectionAutoScroll) {
   WebElement element = GetDocument().getElementById(AtomicString("log"));
   EXPECT_EQ("pointerdown scroll", element.InnerHTML().Utf8());
 
-  ASSERT_TRUE(
-      GetDocument().GetFrame()->Selection().GetSelectionInDOMTree().IsRange());
-  Range* range = CreateRange(EphemeralRange(
-      GetDocument().GetFrame()->Selection().GetSelectionInDOMTree().Anchor(),
-      GetDocument().GetFrame()->Selection().GetSelectionInDOMTree().Focus()));
+  const auto selection =
+      GetDocument().GetFrame()->Selection().GetSelectionInDomTree();
+  ASSERT_TRUE(selection.IsRange());
+  Range* range =
+      CreateRange(EphemeralRange(selection.Anchor(), selection.Focus()));
   ASSERT_TRUE(range);
   EXPECT_GT(range->GetText().length(), 0u);
 }

@@ -5,6 +5,8 @@
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 
 #include <memory>
+#include <optional>
+
 #include "base/memory/scoped_refptr.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,6 +35,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_recorder.h"
 #include "third_party/blink/renderer/platform/testing/fake_display_item_client.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d.h"
@@ -52,7 +55,7 @@ class FrameSelectionTest : public EditingTestBase {
   PaintChunk::Id root_paint_chunk_id_;
 
  protected:
-  VisibleSelection VisibleSelectionInDOMTree() const {
+  VisibleSelection VisibleSelectionInDomTree() const {
     return Selection().ComputeVisibleSelectionInDomTree();
   }
   VisibleSelectionInFlatTree GetVisibleSelectionInFlatTree() const {
@@ -81,7 +84,7 @@ class FrameSelectionTest : public EditingTestBase {
     ASSERT_LE(selection_index,
               static_cast<size_t>(std::numeric_limits<int>::max()));
     Selection().SetSelection(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position(text, static_cast<int>(selection_index)))
             .Build(),
         SetSelectionOptions());
@@ -99,7 +102,7 @@ class FrameSelectionTest : public EditingTestBase {
                                   const Position& extent,
                                   TextGranularity granularity) {
     Selection().MoveRangeSelectionInternal(
-        SelectionInDOMTree::Builder().SetBaseAndExtent(base, extent).Build(),
+        SelectionInDomTree::Builder().SetBaseAndExtent(base, extent).Build(),
         granularity);
   }
 
@@ -115,7 +118,7 @@ Text* FrameSelectionTest::AppendTextNode(const String& data) {
 
 bool FrameSelectionTest::SelectWordAroundPosition(const Position& position) {
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(position).Build(),
+      SelectionInDomTree::Builder().Collapse(position).Build(),
       SetSelectionOptions());
   return Selection().SelectWordAroundCaret();
 }
@@ -136,7 +139,7 @@ TEST_F(FrameSelectionTest, FirstEphemeralRangeOf) {
   SetBodyContent("<div id=sample>0123456789</div>abc");
   Element* const sample = GetDocument().getElementById(AtomicString("sample"));
   Node* const text = sample->firstChild();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SetBaseAndExtent(EphemeralRange(
                                    Position(text, 3), Position(text, 6)))
                                .Build(),
@@ -155,7 +158,7 @@ TEST_F(FrameSelectionTest, SetValidSelection) {
   Text* text = AppendTextNode("Hello, World!");
   UpdateAllLifecyclePhasesForTest();
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 0), Position(text, 5))
           .Build(),
       SetSelectionOptions());
@@ -516,7 +519,7 @@ TEST_F(FrameSelectionTest, ModifyExtendWithFlatTree) {
   // Select "two" for selection in DOM tree
   // Select "twoone" for selection in Flat tree
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(ToPositionInDomTree(PositionInFlatTree(host, 0)))
           .Extend(
               ToPositionInDomTree(PositionInFlatTree(GetDocument().body(), 2)))
@@ -525,8 +528,8 @@ TEST_F(FrameSelectionTest, ModifyExtendWithFlatTree) {
   Selection().Modify(SelectionModifyAlteration::kExtend,
                      SelectionModifyDirection::kForward, TextGranularity::kWord,
                      SetSelectionBy::kSystem);
-  EXPECT_EQ(Position(two, 0), VisibleSelectionInDOMTree().Start());
-  EXPECT_EQ(Position(two, 3), VisibleSelectionInDOMTree().End());
+  EXPECT_EQ(Position(two, 0), VisibleSelectionInDomTree().Start());
+  EXPECT_EQ(Position(two, 3), VisibleSelectionInDomTree().End());
   EXPECT_EQ(PositionInFlatTree(two, 0),
             GetVisibleSelectionInFlatTree().Start());
   EXPECT_EQ(PositionInFlatTree(two, 3), GetVisibleSelectionInFlatTree().End());
@@ -537,7 +540,7 @@ TEST_F(FrameSelectionTest, ModifyWithUserTriggered) {
   Element* sample = GetDocument().getElementById(AtomicString("sample"));
   const Position end_of_text(sample->firstChild(), 3);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(end_of_text).Build(),
+      SelectionInDomTree::Builder().Collapse(end_of_text).Build(),
       SetSelectionOptions());
 
   EXPECT_FALSE(Selection().Modify(
@@ -563,7 +566,7 @@ TEST_F(FrameSelectionTest, MoveRangeSelectionTest) {
 
   // Itinitializes with "Foo B|a>r Baz," (| means start and > means end).
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 5), Position(text, 6))
           .Build(),
       SetSelectionOptions());
@@ -613,11 +616,11 @@ TEST_F(FrameSelectionTest, SelectAllWithInputElement) {
   Element* const input = QuerySelector("input");
   Node* const last_child = GetDocument().body()->lastChild();
   Selection().SelectAll();
-  const SelectionInDOMTree& result_in_dom_tree =
+  const SelectionInDomTree& result_in_dom_tree =
       Selection().ComputeVisibleSelectionInDomTree().AsSelection();
   const SelectionInFlatTree& result_in_flat_tree =
       Selection().ComputeVisibleSelectionInFlatTree().AsSelection();
-  EXPECT_EQ(SelectionInDOMTree::Builder(result_in_dom_tree)
+  EXPECT_EQ(SelectionInDomTree::Builder(result_in_dom_tree)
                 .Collapse(Position::BeforeNode(*input))
                 .Extend(Position(last_child, 3))
                 .Build(),
@@ -645,7 +648,7 @@ TEST_F(FrameSelectionTest, SelectAllPreservesHandle) {
   Element* sample = GetDocument().getElementById(AtomicString("sample"));
   const Position end_of_text(sample->firstChild(), 3);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(end_of_text).Build(),
+      SelectionInDomTree::Builder().Collapse(end_of_text).Build(),
       SetSelectionOptions());
   EXPECT_FALSE(Selection().IsHandleVisible());
   Selection().SelectAll();
@@ -655,7 +658,7 @@ TEST_F(FrameSelectionTest, SelectAllPreservesHandle) {
          "after it.";
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(end_of_text).Build(),
+      SelectionInDomTree::Builder().Collapse(end_of_text).Build(),
       SetSelectionOptions::Builder()
           .SetShouldCloseTyping(true)
           .SetShouldClearTypingStyle(true)
@@ -674,7 +677,7 @@ TEST_F(FrameSelectionTest, BoldCommandPreservesHandle) {
   Element* sample = GetDocument().getElementById(AtomicString("sample"));
   const Position end_of_text(sample->firstChild(), 3);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(end_of_text).Build(),
+      SelectionInDomTree::Builder().Collapse(end_of_text).Build(),
       SetSelectionOptions());
   EXPECT_FALSE(Selection().IsHandleVisible());
   Selection().SelectAll();
@@ -685,7 +688,7 @@ TEST_F(FrameSelectionTest, BoldCommandPreservesHandle) {
          "be present after it.";
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(end_of_text).Build(),
+      SelectionInDomTree::Builder().Collapse(end_of_text).Build(),
       SetSelectionOptions::Builder()
           .SetShouldCloseTyping(true)
           .SetShouldClearTypingStyle(true)
@@ -703,7 +706,7 @@ TEST_F(FrameSelectionTest, BoldCommandPreservesHandle) {
 TEST_F(FrameSelectionTest, SelectionOnRangeHidesHandles) {
   Text* text = AppendTextNode("Hello, World!");
   UpdateAllLifecyclePhasesForTest();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SetBaseAndExtent(EphemeralRange(
                                    Position(text, 0), Position(text, 12)))
                                .Build(),
@@ -713,7 +716,7 @@ TEST_F(FrameSelectionTest, SelectionOnRangeHidesHandles) {
       << "After SetSelection on Range, handles shouldn't be present.";
 
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text, 0), Position(text, 5))
           .Build(),
       SetSelectionOptions::Builder()
@@ -722,7 +725,7 @@ TEST_F(FrameSelectionTest, SelectionOnRangeHidesHandles) {
           .SetShouldShowHandle(true)
           .Build());
 
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SetBaseAndExtent(EphemeralRange(
                                    Position(text, 0), Position(text, 12)))
                                .Build(),
@@ -739,7 +742,7 @@ TEST_F(FrameSelectionTest, SelectInvalidPositionInFlatTreeDoesntCrash) {
   Element* body = GetDocument().body();
   Element* select = QuerySelector("select");
   Node* foo = body->firstChild();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(body, 0))
                                // SELECT@AfterAnchor is invalid in flat tree.
                                .Extend(Position::AfterNode(*select))
@@ -801,7 +804,7 @@ TEST_F(FrameSelectionTest, RangeInShadowTree) {
 
   Node* text_node = shadow_root->firstChild();
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text_node, 0), Position(text_node, 3))
           .Build(),
       SetSelectionOptions());
@@ -1280,7 +1283,7 @@ TEST_F(FrameSelectionTest, RangeContainsFocus) {
   Element* const start = GetDocument().getElementById(AtomicString("start"));
   Element* const end = GetDocument().getElementById(AtomicString("end"));
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(start, 0), Position(end, 1))
           .Build(),
       SetSelectionOptions());
@@ -1322,7 +1325,7 @@ TEST_F(FrameSelectionTest, RangeOutsideFocus) {
   Element* const start = GetDocument().getElementById(AtomicString("start"));
   Element* const end = GetDocument().getElementById(AtomicString("end"));
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(start, 0), Position(end, 1))
           .Build(),
       SetSelectionOptions());
@@ -1350,7 +1353,7 @@ TEST_F(FrameSelectionTest, InconsistentVisibleSelectionNoCrash) {
   const Position& start = Position::BeforeNode(*anchor);
   const Position& end = Position::AfterNode(*anchor);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(start).Extend(end).Build(),
+      SelectionInDomTree::Builder().Collapse(start).Extend(end).Build(),
       SetSelectionOptions());
 
   // Shouldn't crash inside.
@@ -1461,7 +1464,7 @@ TEST_F(FrameSelectionTest, HasVisibleText) {
   Selection().SetSelection(
       SetSelectionTextToBody("<div contenteditable>^foo|</div>"),
       SetSelectionOptions());
-  EXPECT_FALSE(VisibleSelectionInDOMTree().IsNone());
+  EXPECT_FALSE(VisibleSelectionInDomTree().IsNone());
   EXPECT_TRUE(Selection().HasVisibleText());
   EXPECT_EQ_SELECTED_TEXT("foo");
 }
@@ -1470,22 +1473,22 @@ TEST_F(FrameSelectionTest, HasVisibleTextWithInput) {
   // File
   Selection().SetSelection(SetSelectionTextToBody("^<input type=file>|"),
                            SetSelectionOptions());
-  EXPECT_FALSE(VisibleSelectionInDOMTree().IsNone());
+  EXPECT_FALSE(VisibleSelectionInDomTree().IsNone());
   EXPECT_FALSE(Selection().HasVisibleText());
   // Checkbox
   Selection().SetSelection(SetSelectionTextToBody("^<input type=checkbox>|"),
                            SetSelectionOptions());
-  EXPECT_FALSE(VisibleSelectionInDOMTree().IsNone());
+  EXPECT_FALSE(VisibleSelectionInDomTree().IsNone());
   EXPECT_FALSE(Selection().HasVisibleText());
   // Radio
   Selection().SetSelection(SetSelectionTextToBody("^<input type=radio>|"),
                            SetSelectionOptions());
-  EXPECT_FALSE(VisibleSelectionInDOMTree().IsNone());
+  EXPECT_FALSE(VisibleSelectionInDomTree().IsNone());
   EXPECT_FALSE(Selection().HasVisibleText());
   // Date
   Selection().SetSelection(SetSelectionTextToBody("^<input type=date>|"),
                            SetSelectionOptions());
-  EXPECT_FALSE(VisibleSelectionInDOMTree().IsNone());
+  EXPECT_FALSE(VisibleSelectionInDomTree().IsNone());
   EXPECT_FALSE(Selection().HasVisibleText());
 }
 
@@ -1496,7 +1499,7 @@ TEST_F(FrameSelectionTest, HasVisibleTextInShadowTree) {
 
   Node* text_node = shadow_root->firstChild();
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(text_node, 0), Position(text_node, 3))
           .Build(),
       SetSelectionOptions());
@@ -1521,8 +1524,8 @@ TEST_F(FrameSelectionTest, PositionDisconnectedInFlatTree) {
     bool flat_base_is_connected = ToPositionInFlatTree(base).IsConnected();
     EXPECT_EQ(base.AnchorNode() == host, flat_base_is_connected);
     for (const Position& extent : positions) {
-      const SelectionInDOMTree& selection =
-          SelectionInDOMTree::Builder().SetBaseAndExtent(base, extent).Build();
+      const SelectionInDomTree& selection =
+          SelectionInDomTree::Builder().SetBaseAndExtent(base, extent).Build();
       Selection().SetSelection(selection, SetSelectionOptions());
       EXPECT_TRUE(extent.IsConnected());
       bool flat_extent_is_connected =
@@ -1546,7 +1549,7 @@ TEST_F(FrameSelectionTest, PaintCaretRecordsSelectionWithNoSelectionHandles) {
 
   Selection().SetCaretEnabled(true);
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(text, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(text, 0)).Build(),
       SetSelectionOptions());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(Selection().ComputeVisibleSelectionInDomTree().IsCaret());
@@ -1570,6 +1573,82 @@ TEST_F(FrameSelectionTest, PaintCaretRecordsSelectionWithNoSelectionHandles) {
   EXPECT_EQ(gfx::SelectionBound::HIDDEN, selection_data->start->type);
   EXPECT_TRUE(selection_data->end.has_value());
   EXPECT_EQ(gfx::SelectionBound::HIDDEN, selection_data->end->type);
+}
+
+// ===========================================================================
+// Bidi state persistence in FrameSelection::Modify()
+// Tests the affinity override branch that adjusts selection affinity
+// based on bidi level transitions for correct caret rendering at bidi
+// boundaries.
+// ===========================================================================
+
+class FrameSelectionBidiTest : public FrameSelectionTest {
+ protected:
+  FrameSelectionBidiTest() = default;
+
+ private:
+  ScopedBidiCaretAffinityForTest scoped_bidi_caret_affinity_{true};
+  ScopedBidiVisualOrderCaretMovementForTest scoped_feature_{true};
+};
+
+TEST_F(FrameSelectionBidiTest, ModifyOverridesAffinityAtBidiBoundary) {
+  // Tests the branch in FrameSelection::Modify() that overrides affinity
+  // based on bidi level transitions. The code under test:
+  //   - Level transition (entering/exiting bidi run) → kDownstream
+  //   - Same level, LTR (even) → kUpstream
+  //   - Same level, RTL (odd) → kDownstream
+  //
+  // Hebrew text followed by "abc" in an LTR paragraph.
+  // Visual order: [ג ב א] [a b c]
+  // Moving right from the start visually traverses through the RTL run
+  // then into the LTR run, crossing a bidi boundary.
+  SetBodyContent(
+      "<p>"
+      "\xD7\x90\xD7\x91\xD7\x92"  // אבג (Hebrew, RTL)
+      "abc</p>");
+  Node* text_node = GetDocument().body()->firstChild()->firstChild();
+  Selection().SetSelection(
+      SelectionInDomTree::Builder().Collapse(Position(text_node, 0)).Build(),
+      SetSelectionOptions());
+  UpdateAllLifecyclePhasesForTest();
+
+  // Move right through the text, recording bidi levels and affinities.
+  // We expect to find both same-level moves and a level transition.
+  bool found_same_level_move = false;
+  bool found_level_transition = false;
+  std::optional<UBiDiLevel> prev_level;
+
+  for (int i = 0; i < 10; ++i) {
+    Selection().Modify(SelectionModifyAlteration::kMove,
+                       SelectionModifyDirection::kRight,
+                       TextGranularity::kCharacter, SetSelectionBy::kUser);
+    auto level = Selection().CaretBidiLevel();
+    if (!level.has_value()) {
+      prev_level = level;
+      continue;
+    }
+
+    TextAffinity affinity = Selection().GetSelectionInDomTree().Affinity();
+    if (prev_level.has_value() && *level == *prev_level) {
+      // Same level: LTR (even) → kUpstream, RTL (odd) → kDownstream.
+      found_same_level_move = true;
+      if (!(*level & 1)) {
+        EXPECT_EQ(TextAffinity::kUpstream, affinity)
+            << "Same LTR level should use kUpstream";
+      } else {
+        EXPECT_EQ(TextAffinity::kDownstream, affinity)
+            << "Same RTL level should use kDownstream";
+      }
+    } else if (prev_level.has_value()) {
+      // Level changed: expect kDownstream.
+      found_level_transition = true;
+      EXPECT_EQ(TextAffinity::kDownstream, affinity)
+          << "Level transition should use kDownstream";
+    }
+    prev_level = level;
+  }
+  EXPECT_TRUE(found_same_level_move || found_level_transition)
+      << "Should have observed at least one bidi-aware affinity override";
 }
 
 }  // namespace blink

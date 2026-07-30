@@ -126,9 +126,9 @@ void OnDeviceSpeechRecognitionEngine::OnResponse(
 
 void OnDeviceSpeechRecognitionEngine::AudioChunksEnded() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
-  core_.Reset();
-  asr_stream_.reset();
-  asr_stream_responder_.reset();
+  if (delegate_) {
+    delegate_->OnSpeechRecognitionEngineResults({});
+  }
 }
 
 int OnDeviceSpeechRecognitionEngine::GetDesiredAudioChunkDurationMs() const {

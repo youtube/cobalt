@@ -13,7 +13,7 @@ namespace blink {
 class SelectionTest : public EditingTestBase {};
 
 TEST_F(SelectionTest, defaultConstructor) {
-  SelectionInDOMTree selection;
+  SelectionInDomTree selection;
 
   EXPECT_EQ(TextAffinity::kDownstream, selection.Affinity());
   EXPECT_TRUE(selection.IsAnchorFirst());
@@ -29,10 +29,10 @@ TEST_F(SelectionTest, IsAnchorFirst) {
   Element* sample = GetDocument().getElementById(AtomicString("sample"));
   Position base(Position(sample->firstChild(), 4));
   Position extent(Position(sample->firstChild(), 2));
-  SelectionInDOMTree::Builder builder;
+  SelectionInDomTree::Builder builder;
   builder.Collapse(base);
   builder.Extend(extent);
-  const SelectionInDOMTree& selection = builder.Build();
+  const SelectionInDomTree& selection = builder.Build();
 
   EXPECT_EQ(TextAffinity::kDownstream, selection.Affinity());
   EXPECT_FALSE(selection.IsAnchorFirst());
@@ -46,9 +46,9 @@ TEST_F(SelectionTest, caret) {
 
   Element* sample = GetDocument().getElementById(AtomicString("sample"));
   Position position(Position(sample->firstChild(), 2));
-  SelectionInDOMTree::Builder builder;
+  SelectionInDomTree::Builder builder;
   builder.Collapse(position);
-  const SelectionInDOMTree& selection = builder.Build();
+  const SelectionInDomTree& selection = builder.Build();
 
   EXPECT_EQ(TextAffinity::kDownstream, selection.Affinity());
   EXPECT_TRUE(selection.IsAnchorFirst());
@@ -63,10 +63,10 @@ TEST_F(SelectionTest, range) {
   Element* sample = GetDocument().getElementById(AtomicString("sample"));
   Position base(Position(sample->firstChild(), 2));
   Position extent(Position(sample->firstChild(), 4));
-  SelectionInDOMTree::Builder builder;
+  SelectionInDomTree::Builder builder;
   builder.Collapse(base);
   builder.Extend(extent);
-  const SelectionInDOMTree& selection = builder.Build();
+  const SelectionInDomTree& selection = builder.Build();
 
   EXPECT_EQ(TextAffinity::kDownstream, selection.Affinity());
   EXPECT_TRUE(selection.IsAnchorFirst());
@@ -82,12 +82,12 @@ TEST_F(SelectionTest, SetAsBacwardAndForward) {
   Position start(Position(sample->firstChild(), 2));
   Position end(Position(sample->firstChild(), 4));
   EphemeralRange range(start, end);
-  const SelectionInDOMTree& backward_selection =
-      SelectionInDOMTree::Builder().SetAsBackwardSelection(range).Build();
-  const SelectionInDOMTree& forward_selection =
-      SelectionInDOMTree::Builder().SetAsForwardSelection(range).Build();
-  const SelectionInDOMTree& collapsed_selection =
-      SelectionInDOMTree::Builder()
+  const SelectionInDomTree& backward_selection =
+      SelectionInDomTree::Builder().SetAsBackwardSelection(range).Build();
+  const SelectionInDomTree& forward_selection =
+      SelectionInDomTree::Builder().SetAsForwardSelection(range).Build();
+  const SelectionInDomTree& collapsed_selection =
+      SelectionInDomTree::Builder()
           .SetAsForwardSelection(EphemeralRange(start))
           .Build();
 
@@ -137,11 +137,11 @@ TEST_F(SelectionTest, EquivalentPositions) {
     const Position& end = reversed ? after_first : before_last;
     EphemeralRange range(start, end);
 
-    const SelectionInDOMTree& selection =
-        SelectionInDOMTree::Builder().Collapse(start).Extend(end).Build();
+    const SelectionInDomTree& selection =
+        SelectionInDomTree::Builder().Collapse(start).Extend(end).Build();
     EXPECT_EQ(
         selection,
-        SelectionInDOMTree::Builder().SetAsForwardSelection(range).Build());
+        SelectionInDomTree::Builder().SetAsForwardSelection(range).Build());
 
     EXPECT_TRUE(selection.IsCaret());
     EXPECT_EQ(range, selection.ComputeRange());

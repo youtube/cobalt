@@ -24,6 +24,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "content/browser/speech/network_speech_recognition_engine_impl.h"
+#include "content/browser/speech/speech_recognition_dispatcher_host.h"
 #include "content/browser/speech/speech_recognition_manager_impl.h"
 #include "content/browser/speech/speech_recognizer_impl.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -187,6 +188,103 @@ std::string MakeGoodResponse() {
   msg_string.insert(0u, base::as_string_view(msg_size_bytes));
   return msg_string;
 }
+
+class MockSpeechRecognitionSessionClient
+    : public media::mojom::SpeechRecognitionSessionClient {
+ public:
+  MockSpeechRecognitionSessionClient() = default;
+  ~MockSpeechRecognitionSessionClient() override = default;
+
+  void ResultRetrieved(std::vector<media::mojom::WebSpeechRecognitionResultPtr>
+                           results) override {}
+
+  void ErrorOccurred(media::mojom::SpeechRecognitionErrorPtr error) override {
+    event_occurred_ = true;
+    if (event_closure_) {
+      std::move(event_closure_).Run();
+    }
+  }
+
+  void Started() override {
+    started_occurred_ = true;
+    event_occurred_ = true;
+    if (started_closure_) {
+      std::move(started_closure_).Run();
+    }
+    if (event_closure_) {
+      std::move(event_closure_).Run();
+    }
+  }
+
+  void AudioStarted() override {}
+  void SoundStarted() override {}
+  void SoundEnded() override {}
+  void AudioEnded() override {}
+
+  void Ended() override {
+    ended_occurred_ = true;
+    event_occurred_ = true;
+    if (ended_closure_) {
+      std::move(ended_closure_).Run();
+    }
+    if (event_closure_) {
+      std::move(event_closure_).Run();
+    }
+  }
+
+  void WaitForStarted() {
+    if (started_occurred_) {
+      return;
+    }
+    base::RunLoop run_loop;
+    started_closure_ = run_loop.QuitClosure();
+    run_loop.Run();
+  }
+
+  void WaitForEnded() {
+    if (ended_occurred_) {
+      return;
+    }
+    base::RunLoop run_loop;
+    ended_closure_ = run_loop.QuitClosure();
+    run_loop.Run();
+  }
+
+  void WaitForEvent() {
+    if (event_occurred_) {
+      return;
+    }
+    base::RunLoop run_loop;
+    event_closure_ = run_loop.QuitClosure();
+    run_loop.Run();
+  }
+
+  void OnDisconnected() {
+    event_occurred_ = true;
+    if (event_closure_) {
+      std::move(event_closure_).Run();
+    }
+  }
+
+  mojo::PendingRemote<media::mojom::SpeechRecognitionSessionClient>
+  BindNewPipeAndPassRemote() {
+    auto remote = receiver_.BindNewPipeAndPassRemote();
+    receiver_.set_disconnect_handler(
+        base::BindOnce(&MockSpeechRecognitionSessionClient::OnDisconnected,
+                       base::Unretained(this)));
+    return remote;
+  }
+
+ private:
+  mojo::Receiver<media::mojom::SpeechRecognitionSessionClient> receiver_{this};
+  base::OnceClosure started_closure_;
+  base::OnceClosure ended_closure_;
+  base::OnceClosure event_closure_;
+
+  bool started_occurred_ = false;
+  bool ended_occurred_ = false;
+  bool event_occurred_ = false;
+};
 
 }  // namespace
 
@@ -437,6 +535,94 @@ IN_PROC_BROWSER_TEST_F(SpeechRecognitionBrowserTest,
   EXPECT_EQ(0, SpeechRecognitionManagerImpl::GetSessionTrackerCountForTesting(
                    global_id));
 }
+
+#if BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(SpeechRecognitionBrowserTest,
+                       CompromisedRendererVisibilityBypass) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/empty.html");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  mojo::Remote<media::mojom::SpeechRecognizer> speech_recognizer;
+  content::GetIOThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &SpeechRecognitionDispatcherHost::Create,
+          shell()->web_contents()->GetPrimaryMainFrame()->GetGlobalId(),
+          speech_recognizer.BindNewPipeAndPassReceiver()));
+
+  MockSpeechRecognitionSessionClient client;
+  media::mojom::StartSpeechRecognitionRequestParamsPtr params =
+      media::mojom::StartSpeechRecognitionRequestParams::New();
+  params->client = client.BindNewPipeAndPassRemote();
+  mojo::Remote<media::mojom::SpeechRecognitionSession> session_remote;
+  params->session_receiver = session_remote.BindNewPipeAndPassReceiver();
+
+  speech_recognizer->Start(std::move(params));
+
+  // Wait for the session to be fully started and tracked by the manager.
+  client.WaitForStarted();
+
+  // Verify the session is tracked.
+  EXPECT_EQ(1,
+            SpeechRecognitionManagerImpl::GetSessionTrackerCountForTesting(
+                shell()->web_contents()->GetPrimaryMainFrame()->GetGlobalId()));
+
+  // Hide the WebContents to simulate the user switching tabs or backgrounding
+  // Chrome.
+  shell()->web_contents()->WasHidden();
+
+  // Wait for the browser process to abort the session and signal the client.
+  client.WaitForEvent();
+
+  // Without the fix, the session tracker count would NOT be 0 because
+  // SpeechRecognitionManagerImpl did not observe visibility changes.
+  // The test asserts it is 0 to ensure the secure behavior is enforced.
+  EXPECT_EQ(0,
+            SpeechRecognitionManagerImpl::GetSessionTrackerCountForTesting(
+                shell()->web_contents()->GetPrimaryMainFrame()->GetGlobalId()));
+}
+
+IN_PROC_BROWSER_TEST_F(SpeechRecognitionBrowserTest,
+                       CompromisedRendererStartWhileHiddenBypass) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/empty.html");
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  // Hide the WebContents to simulate the user switching tabs or backgrounding
+  // Chrome.
+  shell()->web_contents()->WasHidden();
+
+  mojo::Remote<media::mojom::SpeechRecognizer> speech_recognizer;
+  content::GetIOThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &SpeechRecognitionDispatcherHost::Create,
+          shell()->web_contents()->GetPrimaryMainFrame()->GetGlobalId(),
+          speech_recognizer.BindNewPipeAndPassReceiver()));
+
+  MockSpeechRecognitionSessionClient client;
+  media::mojom::StartSpeechRecognitionRequestParamsPtr params =
+      media::mojom::StartSpeechRecognitionRequestParams::New();
+  params->client = client.BindNewPipeAndPassRemote();
+  mojo::Remote<media::mojom::SpeechRecognitionSession> session_remote;
+  params->session_receiver = session_remote.BindNewPipeAndPassReceiver();
+
+  speech_recognizer->Start(std::move(params));
+
+  // Wait for the session to either start (vulnerable) or error out/end
+  // (secure).
+  client.WaitForEvent();
+
+  // Without the fix, the session tracker count would NOT be 0
+  // even though the page is hidden, because SpeechRecognitionManagerImpl
+  // did not observe visibility changes during Start.
+  // The test asserts it is 0 to ensure the secure behavior is enforced.
+  EXPECT_EQ(0,
+            SpeechRecognitionManagerImpl::GetSessionTrackerCountForTesting(
+                shell()->web_contents()->GetPrimaryMainFrame()->GetGlobalId()));
+}
+#endif
 
 #if !BUILDFLAG(IS_FUCHSIA)
 IN_PROC_BROWSER_TEST_F(SpeechRecognitionBrowserTest,

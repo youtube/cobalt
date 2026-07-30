@@ -28,6 +28,7 @@ suite('OverflowMenuTest', () => {
       isSidePanelPinned: false,
       enablePinButton: false,
       isAiPage: false,
+      isUserFeedbackAllowed: true,
     });
 
     overflowMenu = document.createElement('contextual-tasks-overflow-menu');
@@ -106,6 +107,41 @@ suite('OverflowMenuTest', () => {
 
       helpButton.click();
       await proxy.handler.whenCalled('openFeedbackUi');
+    });
+  });
+
+  suite('FeedbackDisabled', () => {
+    setup(async () => {
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      loadTimeData.resetForTesting({
+        isSmallDeviceFormFactor: false,
+        isSidePanelPinned: false,
+        enablePinButton: false,
+        isAiPage: false,
+        isUserFeedbackAllowed: false,
+      });
+      overflowMenu = document.createElement('contextual-tasks-overflow-menu');
+      document.body.appendChild(overflowMenu);
+      await microtasksFinished();
+    });
+
+    test('hides feedback button', () => {
+      const buttons = overflowMenu.shadowRoot.querySelectorAll('button');
+      assertEquals(2, buttons.length);
+      const feedbackIcon = overflowMenu.shadowRoot.querySelector(
+          'button cr-icon[icon="contextual_tasks:feedback"]');
+      assertFalse(!!feedbackIcon);
+    });
+
+    test('hides help button on small form factor', async () => {
+      overflowMenu.isSmallDeviceFormFactor = true;
+      await microtasksFinished();
+
+      const buttons = overflowMenu.shadowRoot.querySelectorAll('button');
+      assertEquals(2, buttons.length);
+      const feedbackIcon = overflowMenu.shadowRoot.querySelector(
+          'button cr-icon[icon="contextual_tasks:feedback"]');
+      assertFalse(!!feedbackIcon);
     });
   });
 });

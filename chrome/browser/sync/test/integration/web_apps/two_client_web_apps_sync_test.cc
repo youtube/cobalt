@@ -15,7 +15,6 @@
 #include "chrome/browser/sync/test/integration/web_apps/web_apps_sync_test_base.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -354,20 +353,25 @@ IN_PROC_BROWSER_TEST_P(TwoClientWebAppsSyncTest, SyncFaviconOnly) {
         browser,
         embedded_test_server()->GetURL("/web_apps/favicon_only.html")));
 #if BUILDFLAG(IS_CHROMEOS)
-    web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
-    web_app::test::ScopedAutoCheckChromeOsOpenInWindow auto_check;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+    base::AutoReset<web_app::CreateShortcutDialogCheckState> auto_check =
+        web_app::SetCreateShortcutDialogCheckStateForTesting(
+            web_app::CreateShortcutDialogCheckState::kChecked);
     WebAppTestInstallObserver installObserver(sourceProfile);
     installObserver.BeginListening();
     chrome::ExecuteCommand(browser, IDC_CREATE_SHORTCUT);
     app_id = installObserver.Wait();
 #else
     // Install as DIY App.
-    SetAutoAcceptDiyAppsInstallDialogForTesting(/*auto_accept=*/true);
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_diy =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
     WebAppTestInstallObserver installObserver(sourceProfile);
     installObserver.BeginListening();
     CHECK(chrome::ExecuteCommand(browser, IDC_INSTALL_PWA));
     app_id = installObserver.Wait();
-    SetAutoAcceptDiyAppsInstallDialogForTesting(/*auto_accept=*/false);
 #endif  // BUILDFLAG(IS_CHROMEOS)
     chrome::CloseWindow(browser);
   }

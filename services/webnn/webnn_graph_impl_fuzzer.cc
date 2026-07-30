@@ -248,6 +248,19 @@ struct ExpandParams {
   bool is_input_constant;
 };
 
+struct GatherParams {
+  OperandDataType input_data_type;
+  OperandDataType indices_data_type;
+  uint32_t input_rank;
+  std::array<uint32_t, 8> input_dims;
+  uint32_t indices_rank;
+  std::array<uint32_t, 8> indices_dims;
+  uint32_t axis;
+  int64_t indices_fill_value;
+  bool is_input_constant;
+  bool is_indices_constant;
+};
+
 struct GatherNDParams {
   OperandDataType input_data_type;
   OperandDataType indices_data_type;
@@ -838,6 +851,23 @@ auto AnyExpandParams() {
       fuzztest::ArrayOf<8>(any_input_dim),  // input_dims
       fuzztest::ArrayOf<8>(AnyDimSize()),   // output_dims
       fuzztest::Arbitrary<bool>()           // is_input_constant
+  );
+}
+
+auto AnyGatherParams() {
+  const auto& limits = GetContextPropertiesForTesting().data_type_limits;
+  return fuzztest::StructOf<GatherParams>(
+      AnyOperandDataTypeFor(limits.gather_input.data_types),
+      AnyOperandDataTypeFor(limits.gather_indices.data_types),
+      AnyTensorRank(),                     // input_rank
+      fuzztest::ArrayOf<8>(AnyDimSize()),  // input_dims
+      AnyTensorRankIncludeZero(),          // indices_rank
+      fuzztest::ArrayOf<8>(AnyDimSize()),  // indices_dims
+      fuzztest::InRange<uint32_t>(0, 7),   // axis
+      fuzztest::OneOf(fuzztest::InRange<int64_t>(-10, 10),
+                      fuzztest::Arbitrary<int64_t>()),  // indices_fill_value
+      fuzztest::Arbitrary<bool>(),                      // is_input_constant
+      fuzztest::Arbitrary<bool>()                       // is_indices_constant
   );
 }
 
@@ -1436,6 +1466,47 @@ std::optional<ElementWiseBinaryDescriptors> SetUpElementWiseBinaryDescriptors(
       .lhs_desc = std::move(lhs_desc),
       .rhs_desc = std::move(rhs_desc),
       .output_desc = std::move(output_desc),
+  };
+}
+
+struct GatherDescriptors {
+  OperandDescriptor input_desc;
+  OperandDescriptor indices_desc;
+  OperandDescriptor output_desc;
+  uint32_t axis;
+};
+
+// Helper to set up GatherDescriptors. Returns nullopt if any validation fails.
+std::optional<GatherDescriptors> SetUpGatherDescriptors(
+    const ContextProperties& context_properties,
+    GatherParams& params) {
+  std::vector<uint32_t> input_dims(
+      params.input_dims.begin(), params.input_dims.begin() + params.input_rank);
+
+  std::vector<uint32_t> indices_dims(
+      params.indices_dims.begin(),
+      params.indices_dims.begin() + params.indices_rank);
+
+  params.axis = params.axis % params.input_rank;
+
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto input_desc,
+      OperandDescriptor::Create(context_properties, params.input_data_type,
+                                input_dims, ""));
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto indices_desc,
+      OperandDescriptor::Create(context_properties, params.indices_data_type,
+                                indices_dims, ""));
+  ASSIGN_OR_RETURN_NULLOPT(
+      auto output_desc,
+      ValidateGatherAndInferOutput(context_properties, input_desc, indices_desc,
+                                   params.axis, ""));
+
+  return GatherDescriptors{
+      .input_desc = std::move(input_desc),
+      .indices_desc = std::move(indices_desc),
+      .output_desc = std::move(output_desc),
+      .axis = params.axis,
   };
 }
 
@@ -2101,6 +2172,7 @@ class WebNNGraphImplFuzzerImpl
                         uint8_t seed_for_zero_point);
   void ElementWiseBinary(ElementWiseBinaryParams params, uint8_t seed_for_data);
   void Expand(ExpandParams params, uint8_t seed_for_data);
+  void Gather(GatherParams params, uint8_t seed_for_data);
   void GatherND(GatherNDParams params, uint8_t seed_for_data);
   void Gemm(GemmParams params, uint8_t seed_for_data);
   void Lstm(LstmParams params, uint8_t seed_for_data);
@@ -2130,6 +2202,12 @@ class WebNNGraphImplFuzzerImpl
                             uint8_t seed_for_input,
                             float seed_for_scale,
                             uint8_t seed_for_zero_point);
+  void DQGatherQ(GatherParams gather_params,
+                 QuantizationParams quantization_params,
+                 uint32_t channel_axis,
+                 uint8_t seed_for_input,
+                 float seed_for_scale,
+                 uint8_t seed_for_zero_point);
   void DQGemmQ(GemmParams gemm_params,
                QuantizationParams quantization_params,
                uint8_t seed_for_data);
@@ -2497,6 +2575,47 @@ void WebNNGraphImplFuzzerImpl<BaseFixture>::Expand(ExpandParams params,
                                             output_desc.data_type());
 
   builder.BuildExpand(input_id, output_id);
+
+  if (!builder.IsValidGraphForTesting(this->context_properties())) {
+    return;
+  }
+  BuildAndCompute(this->context_, std::move(remote), builder.TakeGraphInfo(),
+                  std::move(named_inputs));
+
+  GetGlobalFuzzEnvironment().GetWebNNTestEnvironment().RunUntilIdle();
+}
+
+template <typename BaseFixture>
+void WebNNGraphImplFuzzerImpl<BaseFixture>::Gather(GatherParams params,
+                                                   uint8_t seed_for_data) {
+  ASSIGN_OR_RETURN_VOID(
+      auto gather_descs,
+      SetUpGatherDescriptors(this->context_properties(), params));
+
+  mojo::Remote<mojom::WebNNGraphBuilder> remote =
+      this->BindNewGraphBuilderRemote();
+  GraphInfoBuilder builder(remote);
+
+  std::vector<uint8_t> input_data(gather_descs.input_desc.PackedByteLength(),
+                                  seed_for_data);
+
+  std::vector<uint8_t> indices_data = CreateBufferAsIndicesType(
+      gather_descs.indices_desc.PackedByteLength(), params.indices_data_type,
+      params.indices_fill_value);
+
+  base::flat_map<std::string, base::span<const uint8_t>> named_inputs;
+  OperandId input_id =
+      BuildInputOrConstant(builder, params.is_input_constant, "input",
+                           gather_descs.input_desc, input_data, named_inputs);
+  OperandId indices_id = BuildInputOrConstant(
+      builder, params.is_indices_constant, "indices", gather_descs.indices_desc,
+      indices_data, named_inputs);
+
+  OperandId output_id =
+      builder.BuildOutput("output", gather_descs.output_desc.shape(),
+                          gather_descs.output_desc.data_type());
+
+  builder.BuildGather(input_id, indices_id, output_id, gather_descs.axis);
 
   if (!builder.IsValidGraphForTesting(this->context_properties())) {
     return;
@@ -4001,6 +4120,153 @@ void WebNNGraphImplFuzzerImpl<BaseFixture>::DQElementWiseBinaryQ(
 }
 
 template <typename BaseFixture>
+void WebNNGraphImplFuzzerImpl<BaseFixture>::DQGatherQ(
+    GatherParams gather_params,
+    QuantizationParams quantization_params,
+    uint32_t channel_axis,
+    uint8_t seed_for_input,
+    float seed_for_scale,
+    uint8_t seed_for_zero_point) {
+  ASSIGN_OR_RETURN_VOID(
+      auto gather_descs,
+      SetUpGatherDescriptors(this->context_properties(), gather_params));
+
+  // Use the same quantization params for both input and output to exercise the
+  // fusiable path for TFLite backend:
+  // https://source.chromium.org/chromium/chromium/src/+/main:services/webnn/tflite/graph_builder_tflite.cc;l=2122;drc=ce3629f6f1cdbdb670dbf759e6b7c89c4a92a8fb
+  // TODO(crbug.com/498987226): Remove this restriction to increase test
+  // coverage.
+  // Fall back to per-tensor when:
+  //   - Output is scalar.
+  //   - The quantization axis coincides with the gather axis, because Gather
+  //     replaces that dimension with the indices shape, making the scale
+  //     shapes incompatible.
+  // Otherwise, compute the output channel axis from the input channel axis:
+  //   - If input_channel_axis < gather_axis: unchanged.
+  //   - If input_channel_axis > gather_axis: shifted by (indices_rank - 1)
+  //     because the gather axis (1 dim) is replaced by indices_rank dims.
+  OperandDataType quantized_type = quantization_params.quantized_type;
+  uint32_t input_channel_axis = channel_axis % gather_params.input_rank;
+  uint32_t output_channel_axis = 0;
+
+  if (gather_descs.output_desc.shape().empty()) {
+    quantization_params.quantization_kind = QuantizationKind::kPerTensor;
+  } else if (input_channel_axis == gather_descs.axis) {
+    // The quantization axis is replaced by the indices shape in Gather,
+    // so the scale shape would differ between input and output.
+    quantization_params.quantization_kind = QuantizationKind::kPerTensor;
+  } else if (input_channel_axis < gather_descs.axis) {
+    output_channel_axis = input_channel_axis;
+  } else {
+    output_channel_axis = input_channel_axis + gather_params.indices_rank - 1;
+  }
+
+  auto input_scale_shape = ComputeQuantizationScaleShape(
+      gather_descs.input_desc.shape(), quantization_params, input_channel_axis);
+
+  ASSIGN_OR_RETURN_VOID(
+      auto input_dq_desc,
+      OperandDescriptor::Create(this->context_properties(), quantized_type,
+                                gather_descs.input_desc.shape(), ""));
+  ASSIGN_OR_RETURN_VOID(auto input_scale_desc,
+                        OperandDescriptor::Create(this->context_properties(),
+                                                  gather_params.input_data_type,
+                                                  input_scale_shape, ""));
+  ASSIGN_OR_RETURN_VOID(
+      auto input_zero_desc,
+      OperandDescriptor::Create(this->context_properties(), quantized_type,
+                                input_scale_shape, ""));
+
+  ASSIGN_OR_RETURN_VOID(auto input_desc_result,
+                        ValidateDequantizeLinearAndInferOutput(
+                            this->context_properties(), input_dq_desc,
+                            input_scale_desc, input_zero_desc, ""));
+
+  auto output_scale_shape =
+      ComputeQuantizationScaleShape(gather_descs.output_desc.shape(),
+                                    quantization_params, output_channel_axis);
+
+  ASSIGN_OR_RETURN_VOID(auto output_scale_desc,
+                        OperandDescriptor::Create(this->context_properties(),
+                                                  gather_params.input_data_type,
+                                                  output_scale_shape, ""));
+  ASSIGN_OR_RETURN_VOID(
+      auto output_zero_desc,
+      OperandDescriptor::Create(this->context_properties(), quantized_type,
+                                output_scale_shape, ""));
+
+  ASSIGN_OR_RETURN_VOID(
+      auto quantized_output_desc,
+      ValidateQuantizeLinearAndInferOutput(
+          this->context_properties(), gather_descs.output_desc,
+          output_scale_desc, output_zero_desc, ""));
+
+  mojo::Remote<mojom::WebNNGraphBuilder> remote =
+      this->BindNewGraphBuilderRemote();
+  GraphInfoBuilder builder(remote);
+
+  base::flat_map<std::string, base::span<const uint8_t>> named_inputs;
+
+  std::vector<uint8_t> input_dq_data(input_dq_desc.PackedByteLength(),
+                                     seed_for_input);
+  std::vector<float> input_scale_data(input_scale_desc.NumberOfElements(),
+                                      seed_for_scale);
+  std::vector<uint8_t> input_zero_data(input_zero_desc.PackedByteLength(),
+                                       seed_for_zero_point);
+
+  OperandId input_dq_id =
+      BuildInputOrConstant(builder, gather_params.is_input_constant, "input",
+                           input_dq_desc, input_dq_data, named_inputs);
+
+  OperandId input_scale_id =
+      BuildFloatConstant(builder, input_scale_desc, input_scale_data);
+  OperandId input_zero_id = builder.BuildConstant(
+      input_zero_desc.shape(), input_zero_desc.data_type(), input_zero_data);
+
+  OperandId gather_input_id = builder.BuildIntermediateOperand(
+      gather_descs.input_desc.shape(), gather_descs.input_desc.data_type());
+
+  builder.BuildDequantizeLinear(input_dq_id, input_scale_id, input_zero_id,
+                                gather_input_id);
+
+  std::vector<uint8_t> indices_data = CreateBufferAsIndicesType(
+      gather_descs.indices_desc.PackedByteLength(),
+      gather_params.indices_data_type, gather_params.indices_fill_value);
+
+  OperandId indices_id = BuildInputOrConstant(
+      builder, gather_params.is_indices_constant, "indices",
+      gather_descs.indices_desc, indices_data, named_inputs);
+
+  OperandId gather_output_id = builder.BuildIntermediateOperand(
+      gather_descs.output_desc.shape(), gather_descs.output_desc.data_type());
+
+  builder.BuildGather(gather_input_id, indices_id, gather_output_id,
+                      gather_descs.axis);
+
+  // Reuse input scale/zero data for output since they should have the same
+  // values.
+  OperandId output_scale_id =
+      BuildFloatConstant(builder, output_scale_desc, input_scale_data);
+  OperandId output_zero_id = builder.BuildConstant(
+      output_zero_desc.shape(), output_zero_desc.data_type(), input_zero_data);
+
+  OperandId quantize_output_id =
+      builder.BuildOutput("output", quantized_output_desc.shape(),
+                          quantized_output_desc.data_type());
+  builder.BuildQuantizeLinear(gather_output_id, output_scale_id, output_zero_id,
+                              quantize_output_id);
+
+  if (!builder.IsValidGraphForTesting(this->context_properties())) {
+    return;
+  }
+
+  BuildAndCompute(this->context_, std::move(remote), builder.TakeGraphInfo(),
+                  std::move(named_inputs));
+
+  GetGlobalFuzzEnvironment().GetWebNNTestEnvironment().RunUntilIdle();
+}
+
+template <typename BaseFixture>
 void WebNNGraphImplFuzzerImpl<BaseFixture>::DQGemmQ(
     GemmParams gemm_params,
     QuantizationParams quantization_params,
@@ -5078,6 +5344,23 @@ WEBNN_FUZZ_TEST_F(Expand,
                                    /*seed_for_data=*/1}}));
 
 WEBNN_FUZZ_TEST_F(
+    Gather,
+    .WithDomains(AnyGatherParams(), fuzztest::Arbitrary<uint8_t>())
+        .WithSeeds({{GatherParams{
+                         /*input_data_type=*/OperandDataType::kFloat32,
+                         /*indices_data_type=*/OperandDataType::kInt32,
+                         /*input_rank=*/3,
+                         /*input_dims=*/{2, 3, 4, 1, 1, 1, 1, 1},
+                         /*indices_rank=*/2,
+                         /*indices_dims=*/{2, 3, 1, 1, 1, 1, 1, 1},
+                         /*axis=*/1,
+                         /*indices_fill_value=*/0,
+                         /*is_input_constant=*/false,
+                         /*is_indices_constant=*/true,
+                     },
+                     /*seed_for_data=*/5}}));
+
+WEBNN_FUZZ_TEST_F(
     GatherND,
     .WithDomains(AnyGatherNDParams(), fuzztest::Arbitrary<uint8_t>())
         .WithSeeds({{GatherNDParams{
@@ -5383,6 +5666,36 @@ WEBNN_FUZZ_TEST_F(
                          /*is_rhs_constant=*/false,
                      },
                      /*quantized_type=*/OperandDataType::kUint8,
+                     /*seed_for_input=*/2,
+                     /*seed_for_scale=*/0.25f,
+                     /*seed_for_zero_point=*/0}}));
+
+WEBNN_FUZZ_TEST_F(
+    DQGatherQ,
+    .WithDomains(AnyGatherParams(),
+                 AnyQuantizationParams(),
+                 /*channel_axis=*/fuzztest::InRange<uint32_t>(0, 7),
+                 /*seed_for_input=*/fuzztest::Arbitrary<uint8_t>(),
+                 /*seed_for_scale=*/
+                 fuzztest::ElementOf({0.125f, 0.25f, 0.5f, 1.0f, 2.0f}),
+                 /*seed_for_zero_point=*/fuzztest::Arbitrary<uint8_t>())
+        .WithSeeds({{GatherParams{
+                         /*input_data_type=*/OperandDataType::kFloat32,
+                         /*indices_data_type=*/OperandDataType::kInt32,
+                         /*input_rank=*/3,
+                         /*input_dims=*/{2, 3, 4, 1, 1, 1, 1, 1},
+                         /*indices_rank=*/2,
+                         /*indices_dims=*/{2, 3, 1, 1, 1, 1, 1, 1},
+                         /*axis=*/1,
+                         /*indices_fill_value=*/0,
+                         /*is_input_constant=*/false,
+                         /*is_indices_constant=*/true,
+                     },
+                     QuantizationParams{
+                         /*quantized_type=*/OperandDataType::kUint8,
+                         QuantizationKind::kPerBlock,
+                         /*channel_block_size=*/2},
+                     /*channel_axis=*/2,
                      /*seed_for_input=*/2,
                      /*seed_for_scale=*/0.25f,
                      /*seed_for_zero_point=*/0}}));

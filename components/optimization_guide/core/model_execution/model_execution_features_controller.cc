@@ -38,8 +38,8 @@ bool CanUseModelExecutionFeaturesFromAccountInfo(
     // Disable the capability check and allow all model execution features.
     return true;
   }
-  return account_info.capabilities.can_use_model_execution_features() !=
-         signin::Tribool::kFalse;
+  return account_info.GetAccountCapabilities()
+             .can_use_model_execution_features() != signin::Tribool::kFalse;
 }
 
 bool CanUseModelExecutionFeatures(signin::IdentityManager* identity_manager) {

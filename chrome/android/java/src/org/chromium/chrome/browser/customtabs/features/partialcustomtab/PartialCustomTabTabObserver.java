@@ -53,7 +53,8 @@ public class PartialCustomTabTabObserver extends EmptyTabObserver {
     @SuppressWarnings("NullAway")
     private void updateImmWrapper(Tab tab) {
         WebContents webContents = tab.getWebContents();
-        assert webContents != null;
+        // WebContents can be null or already destroyed when this is invoked.
+        if (webContents == null || webContents.isDestroyed()) return;
 
         ImeAdapter imeAdapter = assertNonNull(ImeAdapter.fromWebContents(webContents));
 

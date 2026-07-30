@@ -46,6 +46,7 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_data.h"
@@ -56,6 +57,7 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
+#import "ui/base/page_transition_types.h"
 
 @interface InternalFakeSceneController : SceneController
 // Browser and ProfileIOS used to mock the currentInterface.
@@ -78,8 +80,7 @@
 
 - (void)dismissModalsAndMaybeOpenSelectedTabInMode:
             (ApplicationModeForTabOpening)targetMode
-                                 withUrlLoadParams:
-                                     (const UrlLoadParams&)urlLoadParams
+                                 withUrlLoadParams:(UrlLoadParams)urlLoadParams
                                     dismissOmnibox:(BOOL)dismissOmnibox
                                         completion:(ProceduralBlock)completion {
   _applicationMode = targetMode;
@@ -250,6 +251,31 @@ class SceneControllerTest : public PlatformTest {
 // fresh open in new window coming from ios dock. 'Dock' is considered the
 // default when the new window opening request is external to chrome and
 // unknown.
+
+// Tests that `UpdateParamsForDinoGame` correctly updates the page transition
+// type to PAGE_TRANSITION_AUTO_BOOKMARK for dino game URLs (chrome://dino),
+// while leaving other URLs unaffected.
+TEST_F(SceneControllerTest, TestUpdateParamsForDinoGame) {
+  UrlLoadParams params = UrlLoadParams::InNewTab(GURL("chrome://dino"));
+  params.from_widget_or_siri = true;
+  params = UpdateParamsForDinoGame(params);
+  EXPECT_TRUE(ui::PageTransitionCoreTypeIs(params.web_params.transition_type,
+                                           ui::PAGE_TRANSITION_AUTO_BOOKMARK));
+
+  UrlLoadParams normal_params =
+      UrlLoadParams::InNewTab(GURL("https://google.com"));
+  normal_params.from_widget_or_siri = true;
+  normal_params = UpdateParamsForDinoGame(normal_params);
+  EXPECT_TRUE(ui::PageTransitionCoreTypeIs(
+      normal_params.web_params.transition_type, ui::PAGE_TRANSITION_LINK));
+
+  UrlLoadParams not_allowed_params =
+      UrlLoadParams::InNewTab(GURL("chrome://dino"));
+  not_allowed_params.from_widget_or_siri = false;
+  not_allowed_params = UpdateParamsForDinoGame(not_allowed_params);
+  EXPECT_TRUE(ui::PageTransitionCoreTypeIs(
+      not_allowed_params.web_params.transition_type, ui::PAGE_TRANSITION_LINK));
+}
 
 // Tests that scene controller correctly handles an external intent to
 // OpenIncognitoSearch.

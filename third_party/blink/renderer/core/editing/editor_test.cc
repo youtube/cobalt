@@ -45,7 +45,7 @@ class EditorTest : public EditingTestBase {
 };
 
 TEST_F(EditorTest, CanCopyCrossingShadowBoundary) {
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<p><template data-mode=open>^abc</template></p><b>|</b>");
   Selection().SetSelection(selection, SetSelectionOptions());
   EXPECT_TRUE(GetDocument().GetFrame()->GetEditor().CanCopy());
@@ -201,7 +201,7 @@ TEST_F(EditorTest, UndoWithDisconnectedInput) {
 
 // http://crbug.com/873037
 TEST_F(EditorTest, UndoWithInvalidSelection) {
-  const SelectionInDOMTree selection = SetSelectionTextToBody(
+  const SelectionInDomTree selection = SetSelectionTextToBody(
       "<div contenteditable><div></div><b>^abc|</b></div>");
   Selection().SetSelection(selection, SetSelectionOptions());
   auto& abc = To<Text>(*selection.Anchor().ComputeContainerNode());

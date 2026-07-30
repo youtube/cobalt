@@ -3,7 +3,6 @@ include_rules = [
   # refactor chromeos codes in //chrome to break these dependencies; see
   # b/332804822. Whenever possible, avoid adding new //chrome dependencies to
   # this list.
-  "+chrome/browser/browser_features.h",
   "+chrome/browser/chrome_content_browser_client_parts.h",
   "+chrome/browser/chromeos/arc",
   "+chrome/browser/profiles/profile.h",

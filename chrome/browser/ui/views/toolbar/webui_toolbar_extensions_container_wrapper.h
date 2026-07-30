@@ -1,0 +1,74 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_UI_VIEWS_TOOLBAR_WEBUI_TOOLBAR_EXTENSIONS_CONTAINER_WRAPPER_H_
+#define CHROME_BROWSER_UI_VIEWS_TOOLBAR_WEBUI_TOOLBAR_EXTENSIONS_CONTAINER_WRAPPER_H_
+
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container_observer.h"
+#include "components/browser_apis/ui_controllers/toolbar/extensions_bar.mojom.h"
+
+class BrowserWindowInterface;
+class ExtensionsContainer;
+class WebUIToolbarControlDelegate;
+class WebUIToolbarExtensionsContainer;
+
+namespace content {
+class WebContents;
+}
+
+namespace ui {
+template <typename T>
+class ScopedUnownedUserData;
+}
+
+// A wrapper class for WebUIToolbarExtensionsContainer to manage its lifecycle
+// and initialization. It implements WebUIToolbarExtensionsContainer::Observer
+// to cache extensions state and notify the delegate.
+class WebUIToolbarExtensionsContainerWrapper
+    : public WebUIToolbarExtensionsContainerObserver {
+ public:
+  explicit WebUIToolbarExtensionsContainerWrapper(
+      WebUIToolbarControlDelegate* delegate);
+  WebUIToolbarExtensionsContainerWrapper(
+      const WebUIToolbarExtensionsContainerWrapper&) = delete;
+  WebUIToolbarExtensionsContainerWrapper& operator=(
+      const WebUIToolbarExtensionsContainerWrapper&) = delete;
+  ~WebUIToolbarExtensionsContainerWrapper() override;
+
+  void Init(content::WebContents* web_contents);
+  void OnThemeChanged();
+
+  // WebUIToolbarExtensionsContainer::Observer:
+  void OnActionsAddedOrUpdated(
+      std::vector<toolbar_ui_api::mojom::IconUpdatePtr> icons,
+      std::vector<extensions_bar::mojom::ExtensionActionInfoPtr> actions)
+      override;
+  void OnActionRemoved(std::vector<toolbar_ui_api::mojom::IconUpdatePtr> icons,
+                       const std::string& id) override;
+  void OnActionPoppedOut(base::OnceClosure callback) override;
+
+ private:
+  void OnActiveTabChanged(BrowserWindowInterface* browser_interface);
+  void SendExtensionsState();
+
+  const raw_ptr<WebUIToolbarControlDelegate> delegate_;
+
+  std::unique_ptr<WebUIToolbarExtensionsContainer> extensions_container_;
+  std::unique_ptr<ui::ScopedUnownedUserData<ExtensionsContainer>>
+      scoped_extensions_container_user_data_;
+  base::CallbackListSubscription active_tab_subscription_;
+
+  // Current state of extensions UI. Map from extension ID to extension state.
+  std::map<std::string, extensions_bar::mojom::ExtensionActionInfoPtr>
+      cached_actions_;
+};
+
+#endif  // CHROME_BROWSER_UI_VIEWS_TOOLBAR_WEBUI_TOOLBAR_EXTENSIONS_CONTAINER_WRAPPER_H_

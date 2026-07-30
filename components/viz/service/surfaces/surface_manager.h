@@ -324,7 +324,7 @@ class VIZ_SERVICE_EXPORT SurfaceManager {
   base::ObserverList<
       SurfaceObserver,
       /*check_empty=*/false,
-      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>::Unchecked
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
       observer_list_;
   SEQUENCE_CHECKER(sequence_checker_);
 

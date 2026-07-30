@@ -59,8 +59,7 @@ IOSSendTabToSelfInfoBarDelegate::IOSSendTabToSelfInfoBarDelegate(
     const SendTabToSelfEntry* entry,
     SendTabToSelfModel* model,
     id<SceneCommands> scene_handler)
-    : entry_(entry),
-      model_(model),
+    : model_(model),
       scene_handler_(scene_handler),
       guid_(entry->GetGUID()),
       weak_ptr_factory_(this) {
@@ -125,17 +124,19 @@ std::u16string IOSSendTabToSelfInfoBarDelegate::GetMessageText() const {
 
 bool IOSSendTabToSelfInfoBarDelegate::Accept() {
   send_tab_to_self::RecordNotificationOpened();
-  model_->MarkEntryOpened(entry_->GetGUID());
-
-  [scene_handler_
-      openURLInNewTab:send_tab_to_self::CreateOpenNewTabCommand(entry_)];
+  const SendTabToSelfEntry* entry = model_->GetEntryByGUID(guid_);
+  if (entry) {
+    model_->MarkEntryOpened(guid_);
+    [scene_handler_
+        openURLInNewTab:send_tab_to_self::CreateOpenNewTabCommand(entry)];
+  }
 
   SendConclusionNotification();
   return true;
 }
 
 bool IOSSendTabToSelfInfoBarDelegate::Cancel() {
-  model_->DismissEntry(entry_->GetGUID());
+  model_->DismissEntry(guid_);
   SendConclusionNotification();
   return true;
 }

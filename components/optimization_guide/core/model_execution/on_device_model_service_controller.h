@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -123,7 +124,8 @@ class OnDeviceModelServiceController final {
     return safety_client_;
   }
 
-  std::vector<mojom::BrokerModelInfoPtr> GetBrokerModels() const;
+  std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
+  GetBrokerModels() const;
 
  private:
   // A set of (references to) compatible, versioned dependencies that implement

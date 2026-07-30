@@ -43,7 +43,7 @@ class AutofillSaveUpdateAddressProfileDelegateIOSTest : public testing::Test {
     profile_ = std::make_unique<AutofillProfile>(test::GetFullProfile());
     if (is_account_profile) {
       test_api(*profile_).set_record_type(
-          autofill::AutofillProfile::RecordType::kAccount);
+          AutofillProfile::RecordType::kAccount);
     }
     return std::make_unique<AutofillSaveUpdateAddressProfileDelegateIOS>(
         *profile_, original_profile, email,
@@ -226,7 +226,7 @@ TEST_P(DelegateStringsTest, TestStrings) {
   original_profile.SetInfo(NAME_FULL, u"John Doe", "en-US");
   if (is_home_work_profile()) {
     test_api(original_profile)
-        .set_record_type(autofill::AutofillProfile::RecordType::kAccountHome);
+        .set_record_type(AutofillProfile::RecordType::kAccountHome);
   }
 
   delegate_ = CreateAutofillSaveUpdateAddressProfileDelegate(

@@ -263,6 +263,34 @@ void InsertOrReplaceWithHigherLevelH265Format(
 }
 #endif
 
+// Advertise H.264 Constrained Baseline Profile (CBP) support if available.
+// A CBP format is generated for each supported H.264 Baseline profile.
+void AddH264ConstrainedBaselineProfileToSupportedFormats(
+    SupportedFormats* supported_formats) {
+  if (!IsH264ConstrainedBaselineProfileAvailableForAcceleratedEncoder()) {
+    return;
+  }
+  const size_t initial_size = supported_formats->sdp_formats.size();
+  for (size_t i = 0; i < initial_size; ++i) {
+    if (supported_formats->profiles[i] ==
+        media::VideoCodecProfile::H264PROFILE_BASELINE) {
+      std::optional<webrtc::SdpVideoFormat> cbp_format =
+          webrtc::CreateH264ConstrainedBaselineProfile(
+              supported_formats->sdp_formats[i]);
+      if (cbp_format &&
+          !cbp_format->IsCodecInList(supported_formats->sdp_formats)) {
+        const auto min_resolution = supported_formats->min_resolutions[i];
+        const auto max_resolution = supported_formats->max_resolutions[i];
+        supported_formats->sdp_formats.push_back(std::move(*cbp_format));
+        supported_formats->profiles.push_back(
+            media::VideoCodecProfile::H264PROFILE_BASELINE);
+        supported_formats->min_resolutions.push_back(min_resolution);
+        supported_formats->max_resolutions.push_back(max_resolution);
+      }
+    }
+  }
+}
+
 SupportedFormats GetSupportedFormatsInternal(
     media::GpuVideoAcceleratorFactories* gpu_factories,
     const std::vector<media::VideoCodecProfile>& disabled_profiles) {
@@ -302,6 +330,21 @@ SupportedFormats GetSupportedFormatsInternal(
             profile.min_resolution);
         supported_formats.max_resolutions[index].SetToMax(
             profile.max_resolution);
+
+        // VEA capability buckets are fragmented (e.g., separate buckets for
+        // 180p, 720p, 1080p). When deduplicating H.264 formats, ensure we
+        // advertise the highest supported level in the SDP parameters.
+        if (format->name == webrtc::kH264CodecName) {
+          auto existing_profile_level = webrtc::ParseSdpForH264ProfileLevelId(
+              supported_formats.sdp_formats[index].parameters);
+          auto new_profile_level =
+              webrtc::ParseSdpForH264ProfileLevelId(format->parameters);
+          if (existing_profile_level && new_profile_level &&
+              new_profile_level->level > existing_profile_level->level) {
+            supported_formats.sdp_formats[index].parameters =
+                format->parameters;
+          }
+        }
         continue;
       }
       // Supported H.265 formats must be added to the end of supported codecs.
@@ -320,20 +363,10 @@ SupportedFormats GetSupportedFormatsInternal(
       supported_formats.sdp_formats.push_back(std::move(*format));
       supported_formats.min_resolutions.push_back(profile.min_resolution);
       supported_formats.max_resolutions.push_back(profile.max_resolution);
-
-      const bool kShouldAddH264Cbp =
-          IsH264ConstrainedBaselineProfileAvailableForAcceleratedEncoder() &&
-          profile.profile == media::VideoCodecProfile::H264PROFILE_BASELINE;
-
-      if (kShouldAddH264Cbp) {
-        supported_formats.profiles.push_back(profile.profile);
-        webrtc::AddH264ConstrainedBaselineProfileToSupportedFormats(
-            &supported_formats.sdp_formats);
-        supported_formats.min_resolutions.push_back(profile.min_resolution);
-        supported_formats.max_resolutions.push_back(profile.max_resolution);
-      }
     }
   }
+
+  AddH264ConstrainedBaselineProfileToSupportedFormats(&supported_formats);
 
   supported_formats.profiles.insert(supported_formats.profiles.end(),
                                     low_priority_formats.profiles.begin(),

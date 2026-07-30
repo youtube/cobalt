@@ -96,9 +96,7 @@ public class ChromeTabbedOnDragListener implements OnDragListener {
                 boolean isMultiTabDrop =
                         clipDescription.hasMimeType(MimeTypeUtils.CHROME_MIMETYPE_MULTI_TAB);
                 if (mLayoutStateProviderSupplier.get() == null
-                        || mLayoutStateProviderSupplier
-                                .get()
-                                .isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+                        || mLayoutStateProviderSupplier.get().isLayoutVisible(LayoutType.HUB)) {
                     DragDropMetricUtils.recordDragDropResult(
                             DragDropResult.IGNORED_TAB_SWITCHER, isTabGroupDrop, isMultiTabDrop);
                     return false;

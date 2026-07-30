@@ -404,9 +404,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 - (void)showMultimodalMenu {
-  if (@available(iOS 17.4, *)) {
-    [_plusButton performPrimaryAction];
-  }
+  [_plusButton performPrimaryAction];
 }
 
 #pragma mark - ComposeboxInputItemCellDelegate
@@ -1422,15 +1420,38 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                       [weakSelf handleDeepSearchTappedFromToolMenu];
                     }];
 
-  UIMenu* attachmentMenu =
-      [UIMenu menuWithTitle:@""
-                      image:nil
-                 identifier:nil
-                    options:UIMenuOptionsDisplayInline
-                   children:@[
-                     attachCurrentTabAction, selectTabsAction, cameraAction,
-                     galleryAction, fileAction
-                   ]];
+  NSMutableArray<UIMenuElement*>* attachmentMenuElements =
+      [[NSMutableArray alloc] init];
+  [attachmentMenuElements addObjectsFromArray:@[
+    attachCurrentTabAction, selectTabsAction, cameraAction, galleryAction,
+    fileAction
+  ]];
+
+  if (IsComposeboxDriveOptionEnabled()) {
+    UIImage* driveSymbol =
+        DefaultSymbolWithPointSize(kFolderSymbol, kSymbolActionPointSize);
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
+    driveSymbol =
+        CustomSymbolWithPointSize(kGoogleDriveSymbol, kSymbolActionPointSize);
+#endif
+    UIAction* driveAction = [self
+        actionWithTitle:l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_DRIVE_ACTION)
+                  image:driveSymbol
+                 hidden:[_state isAttachmentHidden:kFile]
+               disabled:[_state isAttachmentDisabled:kFile]
+               selected:NO
+                handler:^{
+                  [weakSelf.delegate
+                      composeboxViewControllerDidTapDriveButton:weakSelf];
+                }];
+    [attachmentMenuElements addObject:driveAction];
+  }
+
+  UIMenu* attachmentMenu = [UIMenu menuWithTitle:@""
+                                           image:nil
+                                      identifier:nil
+                                         options:UIMenuOptionsDisplayInline
+                                        children:attachmentMenuElements];
 
   NSString* toolsSectionTitle = [_state.strings toolsSectionHeader];
   UIMenu* modeMenu = [UIMenu

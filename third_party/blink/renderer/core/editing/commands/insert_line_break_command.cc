@@ -169,7 +169,7 @@ void InsertLineBreakCommand::DoApply(EditingState* editing_state) {
     }
 
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position::BeforeNode(*node_to_insert))
             .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -204,7 +204,7 @@ void InsertLineBreakCommand::DoApply(EditingState* editing_state) {
     }
 
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position::InParentAfterNode(*node_to_insert))
             .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -222,7 +222,7 @@ void InsertLineBreakCommand::DoApply(EditingState* editing_state) {
     if (editing_state->IsAborted())
       return;
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position::InParentAfterNode(*node_to_insert))
             .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -262,9 +262,7 @@ void InsertLineBreakCommand::DoApply(EditingState* editing_state) {
     }
 
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
-            .Collapse(ending_position)
-            .Build()));
+        SelectionInDomTree::Builder().Collapse(ending_position).Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
       SetEndingDomSelection(SelectionForUndoStep::From(
           SelectionInDomTree::Builder().Collapse(ending_position).Build()));
@@ -303,7 +301,7 @@ void InsertLineBreakCommand::DoApply(EditingState* editing_state) {
       end_pos = EndingVisibleSelection().End();
     }
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder().Collapse(end_pos).Build()));
+        SelectionInDomTree::Builder().Collapse(end_pos).Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
       SetEndingDomSelection(SelectionForUndoStep::From(
           SelectionInDomTree::Builder().Collapse(end_pos).Build()));

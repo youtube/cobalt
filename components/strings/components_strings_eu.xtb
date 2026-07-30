@@ -269,6 +269,7 @@ Bestela, pribatutasun-ezarpenek blokeatu egingo dute baimen hori. Baimen honekin
 <translation id="1407135791313364759">Ireki guztiak</translation>
 <translation id="1408696301184924537">Hurrengoan IBAN hau automatikoki betetzeko, gorde ezazu Google-ko kontuan</translation>
 <translation id="1408787208417187241">Hiru grapa goian</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> taldeko <ph name="NUM_MATCHES_IN_GROUP" /> elementutatik <ph name="MATCH_POSITION" />garrena.</translation>
 <translation id="1410365862999780287">Gailu hau erabiltzen duten beste pertsonek ez dituzte ikusiko zure jarduerak; beraz, modu pribatuagoan arakatu ahal izango duzu. Bisitatzen dituzun webguneek ez dituzte aldatuko zure datuak biltzeko modua eta erabiltzen dituzten zerbitzuak, Google barne. Deskargak, laster-markak eta irakurketa-zerrendako elementuak gorde egingo dira.</translation>
 <translation id="1410941016594047814">Invite gutun-azala</translation>
 <translation id="1413235258620101697">Txartel honen CVCa enkriptatuko da, eta Google Diru-zorroa zerbitzuan gordeko, bizkorrago ordaintzeko</translation>
@@ -660,6 +661,7 @@ Bestela, pribatutasun-ezarpenek blokeatu egingo dute baimen hori. Baimen honekin
 <translation id="2045871135676061132">Gutun-azal pertsonala</translation>
 <translation id="2046951263634619614">Liburu-saltzaileak</translation>
 <translation id="2048261947532620704">Orria itzultzen</translation>
+<translation id="2055016614992422886">Elkarrizketa</translation>
 <translation id="2059166748188874810">Udalerria</translation>
 <translation id="2059202684901022309">55,88 × 86,36 cm (22 × 34 in)</translation>
 <translation id="2064568741209980952">Kredituak eta maileguak</translation>
@@ -3552,6 +3554,7 @@ Geroago ordaintzeko aukerak ezkutatzeko, joan <ph name="BEGIN_LINK" />Ordainketa
 <translation id="6550245281449521513">Ezin da blokeatu sagua</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" /> Berria</translation>
 <translation id="6552566579578780089">Ordainketak</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> taldeko <ph name="NUM_MATCHES_IN_GROUP" /> elementutatik <ph name="MATCH_POSITION" />garrena.</translation>
 <translation id="6554732001434021288">Duela <ph name="NUM_DAYS" /> egun bisitatu zenuen azkenengoz</translation>
 <translation id="6556866813142980365">Berregin</translation>
 <translation id="6557715786897013164">35,56 × 43,18 cm (14 × 17 in)</translation>

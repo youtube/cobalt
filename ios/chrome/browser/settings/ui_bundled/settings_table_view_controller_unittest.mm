@@ -53,6 +53,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/voice/model/voice_search_prefs.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -77,12 +78,8 @@ class SettingsTableViewControllerTest
         "us");
 
     TestProfileIOS::Builder builder;
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindOnce(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.AddTestingFactory(
         ios::TemplateURLServiceFactory::GetInstance(),
         ios::TemplateURLServiceFactory::GetDefaultFactory());

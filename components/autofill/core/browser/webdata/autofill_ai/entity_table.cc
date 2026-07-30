@@ -125,14 +125,13 @@ bool EntityTable::CreateTablesIfNecessary() {
   };
   auto create_entities_metadata_table = [&] {
     return CreateTableIfNotExists(
-        db(), /*table_name=*/autofill::entities_metadata::kTableName,
+        db(), /*table_name=*/entities_metadata::kTableName,
         /*column_names_and_types=*/
-        {{autofill::entities_metadata::kEntityGuid,
-          "TEXT NOT NULL PRIMARY KEY"},
+        {{entities_metadata::kEntityGuid, "TEXT NOT NULL PRIMARY KEY"},
          // TODO(crbug.com/450685388): Make all columns not null.
-         {autofill::entities_metadata::kUseCount, "INTEGER DEFAULT 0"},
-         {autofill::entities_metadata::kUseDate, "INTEGER DEFAULT 0"},
-         {autofill::entities_metadata::kDateModified, "INTEGER NOT NULL"}});
+         {entities_metadata::kUseCount, "INTEGER DEFAULT 0"},
+         {entities_metadata::kUseDate, "INTEGER DEFAULT 0"},
+         {entities_metadata::kDateModified, "INTEGER NOT NULL"}});
   };
   return create_attributes_table() && create_entities_table() &&
          create_entities_metadata_table();
@@ -233,11 +232,11 @@ bool EntityTable::MigrateToVersion147AddEntitiesMetadataTable() {
               {entities_metadata::kUseDate, "INTEGER DEFAULT 0"},
               {entities_metadata::kDateModified, "INTEGER NOT NULL"}}) &&
          db()->Execute(base::StrCat(
-             {"INSERT INTO ", autofill::entities_metadata::kTableName,
-              " SELECT ", autofill::entities::kGuid, ", ",
-              entities_metadata::kUseCount, ", ", entities_metadata::kUseDate,
-              ", ", entities_metadata::kDateModified, " FROM ",
-              autofill::entities::kTableName})) &&
+             {"INSERT INTO ", entities_metadata::kTableName, " SELECT ",
+              entities::kGuid, ", ", entities_metadata::kUseCount, ", ",
+              entities_metadata::kUseDate, ", ",
+              entities_metadata::kDateModified, " FROM ",
+              entities::kTableName})) &&
          sql::DropColumn(*db(), entities::kTableName,
                          entities_metadata::kUseCount) &&
          sql::DropColumn(*db(), entities::kTableName,
@@ -367,9 +366,8 @@ bool EntityTable::RemoveEntityInstance(const EntityInstance::EntityId& guid) {
                                   attributes::kEntityGuid, *guid) &&
          sql::DeleteWhereColumnEq(*db(), entities::kTableName, entities::kGuid,
                                   *guid) &&
-         sql::DeleteWhereColumnEq(
-             *db(), autofill::entities_metadata::kTableName,
-             autofill::entities_metadata::kEntityGuid, *guid) &&
+         sql::DeleteWhereColumnEq(*db(), entities_metadata::kTableName,
+                                  entities_metadata::kEntityGuid, *guid) &&
          transaction.Commit();
 }
 
@@ -474,12 +472,10 @@ EntityTable::LoadMetadata() const {
   std::map<EntityInstance::EntityId, EntityInstance::EntityMetadata>
       metadata_records;
   sql::Statement s;
-  sql::CachedSelectBuilder(SQL_FROM_HERE, *db(), s,
-                           autofill::entities_metadata::kTableName,
-                           {autofill::entities_metadata::kEntityGuid,
-                            autofill::entities_metadata::kUseCount,
-                            autofill::entities_metadata::kUseDate,
-                            autofill::entities_metadata::kDateModified});
+  sql::CachedSelectBuilder(
+      SQL_FROM_HERE, *db(), s, entities_metadata::kTableName,
+      {entities_metadata::kEntityGuid, entities_metadata::kUseCount,
+       entities_metadata::kUseDate, entities_metadata::kDateModified});
 
   while (s.Step()) {
     EntityInstance::EntityId entity_guid(s.ColumnString(0));

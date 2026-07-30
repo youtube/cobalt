@@ -163,7 +163,7 @@ class TaskPerfTest : public ThreadPerfTest {
 // This tries to test the 'best-case' as well as the 'worst-case' task posting
 // performance. The best-case keeps one thread alive such that it never yeilds,
 // while the worse-case forces a context switch for every task. Four threads are
-// used to ensure the threads do yeild (with just two it might be possible for
+// used to ensure the threads do yield (with just two it might be possible for
 // both threads to stay awake if they can signal each other fast enough).
 TEST_F(TaskPerfTest, TaskPingPong) {
   RunPingPongTest(std::string(kStoryBaseTask) + kStorySuffixOneThread, 1);

@@ -171,40 +171,26 @@ void MaybeRecordAddressDeletedMetric(content::WebContents* web_contents,
 
 }  // namespace
 
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
-// static
-base::WeakPtr<AutofillSuggestionController>
-AutofillSuggestionController::GetOrCreate(
-    base::WeakPtr<AutofillSuggestionController> previous,
+
+bool AutofillPopupControllerImpl::MayRecycle(
     base::WeakPtr<AutofillSuggestionDelegate> delegate,
     content::WebContents* web_contents,
-    PopupControllerCommon controller_common,
-    int32_t form_control_ax_id,
-    AutofillSuggestionTriggerSource trigger_source) {
-  // All controllers on Desktop derive from `AutofillPopupControllerImpl`.
-  if (AutofillPopupControllerImpl* previous_impl =
-          static_cast<AutofillPopupControllerImpl*>(previous.get());
-      previous_impl && previous_impl->delegate_.get() == delegate.get() &&
-      previous_impl->container_view() == web_contents->GetNativeView() &&
-      previous_impl->GetSuggestionTriggerSource() == trigger_source) {
-    if (previous_impl->self_deletion_weak_ptr_factory_.HasWeakPtrs()) {
-      previous_impl->self_deletion_weak_ptr_factory_.InvalidateWeakPtrs();
-    }
-    previous_impl->controller_common_ = std::move(controller_common);
-    previous_impl->form_control_ax_id_ = form_control_ax_id;
-    previous_impl->ClearState();
-    return previous_impl->GetWeakPtr();
-  }
-
-  if (previous) {
-    previous->Hide(SuggestionHidingReason::kViewDestroyed);
-  }
-  auto* controller = new AutofillPopupControllerImpl(
-      delegate, web_contents, std::move(controller_common), form_control_ax_id,
-      /*parent=*/std::nullopt);
-  return controller->GetWeakPtr();
+    AutofillSuggestionTriggerSource trigger_source) const {
+  return delegate_.get() == delegate.get() &&
+         container_view() == web_contents->GetNativeView() &&
+         GetSuggestionTriggerSource() == trigger_source;
 }
-#endif
+
+void AutofillPopupControllerImpl::Recycle(
+    PopupControllerCommon controller_common,
+    int32_t form_control_ax_id) {
+  if (self_deletion_weak_ptr_factory_.HasWeakPtrs()) {
+    self_deletion_weak_ptr_factory_.InvalidateWeakPtrs();
+  }
+  controller_common_ = std::move(controller_common);
+  form_control_ax_id_ = form_control_ax_id;
+  ClearState();
+}
 
 AutofillPopupControllerImpl::AutofillPopupControllerImpl(
     base::WeakPtr<AutofillSuggestionDelegate> delegate,
@@ -266,17 +252,29 @@ void AutofillPopupControllerImpl::Show(
 
   // The focused frame may be a different frame than the one the delegate is
   // associated with. This happens in two scenarios:
-  // - With frame-transcending forms: the focused frame is subframe, whose
+  // - With frame-transcending forms: the focused frame is a subframe whose
   //   form has been flattened into an ancestor form.
-  // - With race conditions: while Autofill parsed the form, the focused may
+  // - With race conditions: while Autofill parsed the form, the focus may
   //   have moved to another frame.
   // We support the case where the focused frame is a descendant of the
   // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
   // event.
   content::RenderFrameHost* rfh = web_contents_->GetFocusedFrame();
-  if (!should_ignore_focus_loss &&
-      (!rfh || !delegate_ ||
-       !IsAncestorOf(GetRenderFrameHost(*delegate_), rfh))) {
+  const bool focus_is_in_descendant =
+      rfh && delegate_ && IsAncestorOf(GetRenderFrameHost(*delegate_), rfh);
+
+  // If the focused frame is null or not a descendant of the delegate's frame,
+  // we either hide the popup, or fall back to the delegate's frame if focus
+  // loss should be ignored (e.g. when typing in a popup search bar).
+  if (!focus_is_in_descendant) {
+    if (!should_ignore_focus_loss) {
+      Hide(SuggestionHidingReason::kNoFrameHasFocus);
+      return;
+    }
+    rfh = delegate_ ? GetRenderFrameHost(*delegate_) : nullptr;
+  }
+
+  if (!rfh) {
     Hide(SuggestionHidingReason::kNoFrameHasFocus);
     return;
   }
@@ -314,6 +312,7 @@ void AutofillPopupControllerImpl::Show(
     OnSuggestionsChanged();
   } else {
     bool has_parent = parent_controller_ && parent_controller_->get();
+    is_tabbed_popup_ = controller_common_.show_tabbed_popup;
     auto tabbed_pane_config =
         controller_common_.show_tabbed_popup
             ? std::make_optional<AutofillPopupView::TabbedPaneConfig>(
@@ -349,7 +348,7 @@ void AutofillPopupControllerImpl::Show(
     // TODO(crbug.com/41486228): Consider not to recycle views or controllers
     // and only permit a single call to `Show`.
     key_press_observer_.Reset();
-    key_press_observer_.Observe(web_contents_->GetFocusedFrame());
+    key_press_observer_.Observe(rfh);
 
     if (non_filtered_suggestions_.size() == 1 &&
         non_filtered_suggestions_[0].type ==
@@ -445,6 +444,7 @@ bool AutofillPopupControllerImpl::HasCreditCardSuggestions() const {
 void AutofillPopupControllerImpl::ViewDestroyed() {
   // The view has already been destroyed so clear the reference to it.
   view_ = nullptr;
+  is_tabbed_popup_ = false;
   Hide(SuggestionHidingReason::kViewDestroyed);
 }
 
@@ -707,8 +707,18 @@ AutofillPopupControllerImpl::GetWeakPtr() {
 }
 
 void AutofillPopupControllerImpl::ClearState() {
-  // Don't clear view_, because otherwise the popup will have to get
-  // regenerated and this will cause flickering.
+  // If the tabbed state changed since the last `Show()`, then `view_` is
+  // cleared to trigger popup regeneration. Otherwise, don't clear `view_` to
+  // avoid unnecessary flickering from popup regeneration.
+  if (is_tabbed_popup_ != controller_common_.show_tabbed_popup) {
+    if (view_) {
+      base::WeakPtr<AutofillPopupView> view = std::move(view_);
+      view->Hide();
+    }
+    view_ = nullptr;
+    is_tabbed_popup_ = false;
+  }
+
   filtered_suggestions_.clear();
   non_filtered_suggestions_.clear();
   any_suggestion_selected_ = false;
@@ -729,6 +739,7 @@ void AutofillPopupControllerImpl::HideViewAndDie() {
     FireControlsChangedEvent(false);
     view_->Hide();
     view_ = nullptr;
+    is_tabbed_popup_ = false;
   }
 
   if (self_deletion_weak_ptr_factory_.HasWeakPtrs()) {
@@ -865,7 +876,7 @@ void AutofillPopupControllerImpl::SelectSuggestion(int index) {
     return;
   }
 
-  const autofill::Suggestion& suggestion = GetSuggestionAt(index);
+  const Suggestion& suggestion = GetSuggestionAt(index);
   if (!suggestion.IsAcceptable()) {
     UnselectSuggestion();
     return;
@@ -923,14 +934,6 @@ bool AutofillPopupControllerImpl::
     ShouldIgnoreMouseObservedOutsideItemBoundsCheck() const {
   return should_ignore_mouse_observed_outside_item_bounds_check_ ||
          !IsRootPopup();
-}
-
-void AutofillPopupControllerImpl::PerformButtonActionForSuggestion(
-    int index,
-    const SuggestionButtonAction& button_action) {
-  CHECK_LE(base::checked_cast<size_t>(index), GetSuggestions().size());
-  delegate_->DidPerformButtonActionForSuggestion(GetSuggestions()[index],
-                                                 button_action);
 }
 
 const std::vector<

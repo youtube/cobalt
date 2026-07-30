@@ -193,7 +193,7 @@ public class ContentViewFocusTest {
         TouchCommon.singleClickView(
                 mActivityTestRule.getActivity().findViewById(R.id.tab_switcher_button));
         LayoutTestUtils.waitForLayout(
-                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.TAB_SWITCHER);
+                mActivityTestRule.getActivity().getLayoutManager(), LayoutType.HUB);
 
         // Make sure the view loses focus. It is immediately given focus back
         // because it's the only focusable view.

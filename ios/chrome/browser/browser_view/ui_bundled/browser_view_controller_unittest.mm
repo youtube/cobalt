@@ -57,11 +57,11 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
@@ -246,9 +246,9 @@ class BrowserViewControllerTest : public BlockCleanupTest {
     [dispatcher startDispatchingToTarget:page_action_menu_handler
                              forProtocol:@protocol(PageActionMenuCommands)];
 
-    id bwg_handler = OCMProtocolMock(@protocol(BWGCommands));
-    [dispatcher startDispatchingToTarget:bwg_handler
-                             forProtocol:@protocol(BWGCommands)];
+    id gemini_handler = OCMProtocolMock(@protocol(GeminiCommands));
+    [dispatcher startDispatchingToTarget:gemini_handler
+                             forProtocol:@protocol(GeminiCommands)];
 
     // Set up Applicationhander and SettingsHandler mocks.
     mock_application_handler_ = OCMProtocolMock(@protocol(SceneCommands));

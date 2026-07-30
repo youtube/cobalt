@@ -177,7 +177,7 @@
                                      OverscrollActionsControllerDelegate,
                                      ProfileStateObserver,
                                      SceneStateObserver,
-                                     TabGridStateObserver,
+                                     TabGridStateObserving,
                                      FamilyLinkUserCapabilitiesObserving,
                                      NewTabPageShortcutsHandler,
                                      SafariDataImportChildCoordinatorDelegate> {
@@ -581,7 +581,6 @@
   [self restoreNTPScrollPosition];
   [self updateNTPIsVisible:YES];
   [self updateStartForVisibilityChange:YES];
-  [self.toolbarDelegate didNavigateToNTPOnActiveWebState];
 }
 
 - (void)didNavigateAwayFromNTP {
@@ -759,7 +758,8 @@
   headerView.delegate = self.NTPViewController;
   self.NTPViewController.headerView = headerView;
   headerView.layoutGuideCenter = LayoutGuideCenterForBrowser(self.browser);
-  headerView.toolbarDelegate = self.toolbarDelegate;
+  headerView.scribbleForwardingTarget =
+      [self.toolbarDelegate fakeboxScribbleForwardingTarget];
   headerView.mutator = self.NTPMediator;
   [headerView setupSubviews];
   headerView.searchEngineLogoView = _searchEngineLogoMediator.view;
@@ -1252,6 +1252,10 @@
 - (void)feedDidScroll {
   feature_engagement::TrackerFactory::GetForProfile(self.profile)
       ->NotifyEvent(feature_engagement::events::kIOSScrolledOnFeed);
+}
+
+- (void)didUpdateNTPTabOmniboxScrollProgress:(CGFloat)progress {
+  [self.toolbarDelegate setScrollProgressForTabletOmnibox:progress];
 }
 
 #pragma mark - NewTabPageDelegate
@@ -1910,6 +1914,7 @@
 #pragma mark - NewTabPageShortcutsHandler
 
 - (void)openLensViewFinder {
+  RecordHomeAction(IOSHomeActionType::kLens, [self isStartSurface]);
   [self.NTPMetricsRecorder recordLensTapped];
   feature_engagement::TrackerFactory::GetForProfile(self.profile)
       ->NotifyEvent(feature_engagement::events::kIOSLensButtonUsed);
@@ -1926,6 +1931,7 @@
 }
 
 - (void)openAIM {
+  RecordHomeAction(IOSHomeActionType::kQuickActionAIM, [self isStartSurface]);
   [self.NTPMetricsRecorder recordAIMButtonTapped];
   if (!IsDisableComposeboxFromAIMNTPEnabled() && !IsComposeboxAIMDisabled() &&
       _aimEligibilityService->IsFuseboxEligible() &&
@@ -1943,6 +1949,7 @@
 }
 
 - (void)loadVoiceSearchFromView:(UIView*)voiceSearchSourceView {
+  RecordHomeAction(IOSHomeActionType::kVoiceSearch, [self isStartSurface]);
   [self.NTPMetricsRecorder recordVoiceSearchTapped];
   [self dismissCustomizationMenu];
 
@@ -1957,6 +1964,8 @@
 }
 
 - (void)openIncognitoSearch {
+  RecordHomeAction(IOSHomeActionType::kQuickActionIncognito,
+                   [self isStartSurface]);
   [self.NTPMetricsRecorder recordIncognitoTapped];
   [self dismissCustomizationMenu];
 
@@ -1968,6 +1977,7 @@
 }
 
 - (void)openMultimodalActionsMenu {
+  RecordHomeAction(IOSHomeActionType::kPlusButton, [self isStartSurface]);
   [self.NTPMetricsRecorder recordPlusButtonTapped];
   [self dismissCustomizationMenu];
 
@@ -1981,7 +1991,7 @@
                       BrowserCoordinatorCommands) showMultimodalActionsMenu];
 }
 
-#pragma mark - TabGridStateObserver
+#pragma mark - TabGridStateObserving
 
 - (void)willEnterTabGrid {
   [self clearPresentedState];

@@ -7,7 +7,7 @@ import {FakeNetworkHealthProvider} from 'chrome://diagnostics/fake_network_healt
 import type {Network, NetworkListObserverRemote, NetworkStateObserverRemote} from 'chrome://diagnostics/network_health_provider.mojom-webui.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
-import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('fakeNetworkHealthProviderTestSuite', function() {
   let provider: FakeNetworkHealthProvider|null = null;

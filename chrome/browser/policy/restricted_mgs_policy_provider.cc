@@ -8,7 +8,7 @@
 
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/webui/certificates_handler.h"
+#include "chrome/browser/ui/webui/certificate_manager/certificate_manager_utils.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/components/mgs/managed_guest_session_utils.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"

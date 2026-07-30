@@ -117,19 +117,11 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="2236949375853147973">Aktiviteti im</translation>
 <translation id="2238130810669087193">Për të marrë adresat etj. në të gjitha pajisjet e tua, identifikohu në Chromium. Kjo adresë do të ruhet në "Llogarinë tënde të Google" pasi të identifikohesh.</translation>
 <translation id="2241627712206172106">Nëse e ndan një kompjuter, miqtë dhe familja mund të shfletojnë veçmas dhe ta konfigurojnë Chromium pikërisht ashtu si dëshirojnë.</translation>
+<translation id="22571759390241347">"Aftësitë" në Chromium</translation>
 <translation id="2283803047247799269">Kërko në këtë skedë me "Kërkimin e imazheve"</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium rekomandon vendosjen në pauzë të skedës që ngadalëson shfletuesin}other{Chromium rekomandon vendosjen në pauzë të skedave që ngadalësojnë shfletuesin}}</translation>
 <translation id="2307973900865360088">Mbaje në "Stacion"</translation>
 <translation id="2313870531055795960">Kontrollon URL-të kundrejt një liste sajtesh të pasigurta të ruajtur në Chromium. Nëse një sajt përpiqet të vjedhë fjalëkalimin tënd ose kur shkarkon një skedar të dëmshëm, Chromium mund t'i dërgojë gjithashtu URL-të, duke përfshirë pjesë të përmbajtjes së faqes, te "Shfletimi i sigurt".</translation>
-<translation id="2332076562712130931">Ky veprim:
-        <ph name="LINE_BREAKS" />
-          • Do të rivendosë disa cilësime të Chromium dhe shkurtoret e Chromium
-          <ph name="LINE_BREAK" />
-          • Do të çaktivizojë shtesat
-          <ph name="LINE_BREAK" />
-          • Do të fshijë kukit dhe të dhënat e tjera të përkohshme të sajtit
-          <ph name="LINE_BREAKS" />
-          Faqeshënuesit, historiku dhe fjalëkalimet e ruajtura nuk do të preken.</translation>
 <translation id="2343156876103232566">Për të dërguar një numër nga këtu te telefoni yt Android, identifikohu në Chromium në të dyja pajisjet.</translation>
 <translation id="2356070529366658676">Pyet</translation>
 <translation id="2359808026110333948">Vazhdo</translation>
@@ -191,6 +183,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="3003694935412297923">Të gjitha detyrat</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium duhet të verifikojë që je ti përpara se të mund të ruhen disa të dhëna në "Llogarinë tënde të Google" dhe të përdoren në të gjitha pajisjet e tua. Nëse del tani, këto të dhëna (1 artikull) do të fshihen.}other{Chromium duhet të verifikojë që je ti përpara se të mund të ruhen disa të dhëna në "Llogarinë tënde të Google" dhe të përdoren në të gjitha pajisjet e tua. Nëse del tani, këto të dhëna ({count} artikuj) do të fshihen.}}</translation>
 <translation id="3013473503895162900">Hap <ph name="URL" /> në një skedë të re në Chromium.</translation>
+<translation id="302551344979399011">Novacionet e IA-së, si p.sh. aftësitë, ruhen në "Llogarinë tënde të Google" dhe menaxhohen veçmas nga sinkronizimi i Chromium</translation>
 <translation id="3032787606318309379">Po shton në Chromium...</translation>
 <translation id="3038232873781883849">Në pritje të instalimit...</translation>
 <translation id="3045032126857188731">Gjuha e përkthyer: <ph name="LANGUAGE" /></translation>
@@ -382,6 +375,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="5289287148052354622">Merr aplikacionin e Chromium</translation>
 <translation id="5294316920224716406">Kur shfleton në "Modalitetin 'e fshehtë'", Chromium do të të paralajmërojë para se të ngarkojë një sajt duke përdorur një lidhje të pasigurt</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
+<translation id="5324450571874973775">Përdori ato bashkë me veçoritë e tjera të Gemini në Chromium</translation>
 <translation id="5346389065299425353">Thelloje kërkimin duke shtuar disa skeda, skedarë dhe vegla</translation>
 <translation id="5348677704241861105">Merr një përmbledhje të shpejtë të këtij dokumenti dhe bëj pyetje me Gemini në Chromium</translation>
 <translation id="5352264705793813212">Chromium gjeti disa rekomandime për sigurinë për t'u rishikuar nga ti</translation>
@@ -671,6 +665,7 @@ Chromium nuk është në gjendje të rikuperojë cilësimet e tua.</translation>
 <translation id="8318772038038596122">Organizata jote e mbyll Chromium kur ai nuk përdoret për <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Ruaje si imazh</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> ka përdorur më parë Chromium</translation>
+<translation id="8351551329754447960">Aktivizo "Aftësitë" në Chromium</translation>
 <translation id="8359544530202147897">Përditëso Chromium për të vazhduar të përdorësh të dhënat e Chromium në "Llogarinë tënde të Google" <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Për të marrë përditësimet e ardhshme të Chromium, do të të duhet Windows 10 ose një version i mëvonshëm. Ky kompjuter përdor Windows 8.</translation>
 <translation id="8362914115861174987">Përkthe në</translation>

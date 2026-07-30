@@ -37,11 +37,39 @@ std::vector<BrowserWindowInterface*> GetAllBrowserWindowInterfaces();
 //         // do something with |browser_window|
 //         return true;
 //       });
+//
+// UNSAFE FOR "FIRST-MATCH" CONSUMERS: This helper iterates from the most
+// recently activated browser to the least recently activated one. Activation
+// order is runtime state that changes whenever the user focuses a window, so it
+// is not an intrinsic property of the windows and is not stable over time. Do
+// NOT use this helper to select a single window by terminating on the first
+// match (e.g. returning false on the first window that satisfies a predicate)
+// and treating it as "the" window: the result then depends on activation
+// history, which leads to flaky, hard-to-reproduce behavior.
+//
+// Prefer a deterministic approach when you need to select a specific window:
+//   * Use the BrowserCollection::ForEach() API (e.g. via
+//     GlobalBrowserCollection::GetInstance()) and apply explicit selection
+//     criteria based on intrinsic, order-independent properties (e.g. the
+//     associated profile or session ID). When order matters, request a stable
+//     order such as BrowserCollection::Order::kCreation, or
+//   * If you only care whether a *particular* browser is active, check that
+//     directly via `browser->GetWindow()->IsActive()`, or
+//   * If you genuinely want the most recently active browser, use
+//     GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser() in
+//     chrome/browser/ui/browser_window/public/global_browser_collection.h,
+//     which states that intent explicitly.
+// Relying on activation order is appropriate only when the operation is applied
+// to every window and the order is purely a presentation/iteration detail.
 void ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
     base::FunctionRef<bool(BrowserWindowInterface*)> on_browser);
 
 // Note here that any windows added during iteration may not remain in
 // activation order.
+//
+// The "UNSAFE FOR FIRST-MATCH CONSUMERS" guidance documented above on
+// ForEachCurrentBrowserWindowInterfaceOrderedByActivation() applies equally
+// here: do not rely on activation order to select a single window.
 void ForEachCurrentAndNewBrowserWindowInterfaceOrderedByActivation(
     base::FunctionRef<bool(BrowserWindowInterface*)> on_browser);
 

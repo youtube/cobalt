@@ -19,6 +19,7 @@
 #include "components/omnibox/browser/autocomplete_match_classification.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
+#include "components/omnibox/browser/provider_state_service.h"
 #include "components/omnibox/browser/suggestion_group_util.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/sessions/core/serialized_navigation_entry.h"
@@ -128,23 +129,65 @@ void CrossDeviceTabProvider::Start(const AutocompleteInput& input,
     return;
   }
 
-  const base::TimeDelta age = base::Time::Now() - most_recent_tab->timestamp;
-  if (age >
-      base::Minutes(omnibox::kOmniboxCrossDeviceTabZeroSuggestMaxAge.Get())) {
-    return;
-  }
-
   const sessions::SerializedNavigationEntry& most_recent_navigation =
       most_recent_tab->navigations.at(
           most_recent_tab->normalized_navigation_index());
 
   const GURL& url = most_recent_navigation.virtual_url();
-  // TODO(crbug.com/508162292): Investigate if ShouldSyncURL() should be used
+  // TODO(crbug.com/508162292): Investigate if `ShouldSyncURL()` should be used
   // here.
   if (!url.is_valid()) {
     return;
   }
 
+  if (!IsRecentEnoughRemoteTimestampToSuggestRemoteTab(
+          most_recent_tab->timestamp)) {
+    return;
+  }
+
   matches_.push_back(
       CreateCrossDeviceTabMatch(/*provider=*/this, most_recent_navigation));
+}
+
+bool CrossDeviceTabProvider::IsVeryRecentRemoteTimestamp(
+    base::Time timestamp) const {
+  const base::TimeDelta age = base::Time::Now() - timestamp;
+  return age <=
+         base::Minutes(
+             omnibox::kOmniboxCrossDeviceTabZeroSuggestMaxAgeMinutes.Get());
+}
+
+bool CrossDeviceTabProvider::
+    IsModeratelyRecentRemoteTimestampWithRecentLocalSessionStart(
+        base::Time timestamp) const {
+  const base::TimeDelta age = base::Time::Now() - timestamp;
+
+  ProviderStateService* provider_state_service =
+      client_->GetProviderStateService();
+  // `GetSessionSyncService()` being non-null guarantees `ProviderStateService`
+  // is non-null too.
+  CHECK(provider_state_service);
+
+  // TODO(crbug.com/508162292): Revisit if a more sophisticated approach for
+  //   "activation" could be implemented (e.g. time since last system resume).
+  const base::TimeDelta profile_uptime =
+      provider_state_service->profile_uptime_timer.Elapsed();
+
+  return age <=
+             base::Minutes(
+                 omnibox::
+                     kOmniboxCrossDeviceTabZeroSuggestDelayedContinuationMaxAgeMinutes
+                         .Get()) &&
+         profile_uptime <=
+             base::Minutes(
+                 omnibox::
+                     kOmniboxCrossDeviceTabZeroSuggestMaxDelayedContinuationUptimeMinutes
+                         .Get());
+}
+
+bool CrossDeviceTabProvider::IsRecentEnoughRemoteTimestampToSuggestRemoteTab(
+    base::Time timestamp) const {
+  return IsVeryRecentRemoteTimestamp(timestamp) ||
+         IsModeratelyRecentRemoteTimestampWithRecentLocalSessionStart(
+             timestamp);
 }

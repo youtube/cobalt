@@ -14,9 +14,11 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "components/exo/seat_observer.h"
+#include "components/exo/surface_observer.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/base/ime/autocorrect_info.h"
 #include "ui/base/ime/composition_text.h"
+#include "ui/base/ime/input_method_observer.h"
 #include "ui/base/ime/surrounding_text_tracker.h"
 #include "ui/base/ime/text_input_client.h"
 #include "ui/base/ime/text_input_flags.h"
@@ -41,7 +43,9 @@ class Seat;
 class TextInput : public ui::TextInputClient,
                   public ui::VirtualKeyboardControllerObserver,
                   public ash::input_method::InputMethodManager::Observer,
-                  public SeatObserver {
+                  public SeatObserver,
+                  public SurfaceObserver,
+                  public ui::InputMethodObserver {
  public:
   class Delegate {
    public:
@@ -270,6 +274,16 @@ class TextInput : public ui::TextInputClient,
                         Surface* lost_focus,
                         bool has_focused_surface) override;
 
+  // SurfaceObserver:
+  void OnSurfaceDestroying(Surface* surface) override;
+
+  // ui::InputMethodObserver:
+  void OnFocus() override {}
+  void OnBlur() override {}
+  void OnCaretBoundsChanged(const ui::TextInputClient* client) override {}
+  void OnTextInputStateChanged(const ui::TextInputClient* client) override {}
+  void OnInputMethodDestroyed(const ui::InputMethod* input_method) override;
+
  private:
   void AttachInputMethod();
   void DetachInputMethod();
@@ -290,14 +304,14 @@ class TextInput : public ui::TextInputClient,
   // |surface_| and |seat_| are non-null if and only if the TextInput is in a
   // pending or active state, in which case the TextInput will be observing the
   // Seat.
-  raw_ptr<Surface, DanglingUntriaged> surface_ = nullptr;
-  raw_ptr<Seat, DanglingUntriaged> seat_ = nullptr;
+  raw_ptr<Surface> surface_ = nullptr;
+  base::WeakPtr<Seat> seat_ = nullptr;
 
   // If the TextInput is active (associated window has focus) and the
   // InputMethod is available, this is set and the TextInput will be its
   // focused client. Otherwise, it is null and the TextInput is not attached
   // to any InputMethod, so the TextInputClient overrides will not be called.
-  raw_ptr<ui::InputMethod, DanglingUntriaged> input_method_ = nullptr;
+  raw_ptr<ui::InputMethod> input_method_ = nullptr;
 
   base::ScopedObservation<ash::input_method::InputMethodManager,
                           ash::input_method::InputMethodManager::Observer>

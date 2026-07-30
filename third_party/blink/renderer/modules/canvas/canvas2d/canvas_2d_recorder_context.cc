@@ -2165,7 +2165,7 @@ void Canvas2DRecorderContext::DrawImageInternal(
     HTMLVideoElement* video = static_cast<HTMLVideoElement*>(image_source);
     video->PaintCurrentFrame(
         c, gfx::Rect(video->videoWidth(), video->videoHeight()), image_flags,
-        /*force_pixel_readback*/ false);
+        /*acquire_texture_backing*/ false);
   } else if (image_source->IsVideoFrame()) {
     VideoFrame* frame = static_cast<VideoFrame*>(image_source);
     auto media_frame = frame->frame();

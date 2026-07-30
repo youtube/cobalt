@@ -25,6 +25,5 @@ include_rules = [
   "+chrome/browser/ui/ash/system_web_apps",
   "+chrome/browser/ui/views/frame",
   "+chrome/browser/ui/webui/ash/settings",
-  "+chrome/common",
   "+chrome/test",
 ]

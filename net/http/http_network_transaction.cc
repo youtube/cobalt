@@ -109,6 +109,11 @@ const size_t kMaxRetryAttempts = 2;
 // after which we give up and crash early.
 const size_t kMaxRetryAttemptsOnConnectionErrors = 50;
 
+// The threshold of connection error retry attempts at which we switch to
+// asynchronous retry.
+const size_t kAsyncRetryThresholdOnConnectionErrors =
+    kMaxRetryAttemptsOnConnectionErrors / 2;
+
 // Max number of calls to RestartWith* allowed for a single connection. A single
 // HttpNetworkTransaction should not signal very many restartable errors, but it
 // may occur due to a bug (e.g. https://crbug.com/823387 or
@@ -340,6 +345,13 @@ HttpNetworkTransaction::HttpNetworkTransaction(RequestPriority priority,
       priority_(priority) {}
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
+  if (retry_attempts_on_connection_errors_ > 0) {
+    base::UmaHistogramExactLinear(
+        "Net.NetworkTransaction.RetryAttemptsOnConnectionErrors",
+        retry_attempts_on_connection_errors_,
+        kMaxRetryAttemptsOnConnectionErrors + 1);
+  }
+
 #if BUILDFLAG(ENABLE_REPORTING)
   // If no error or success report has been generated yet at this point, then
   // this network transaction was prematurely cancelled.
@@ -2120,12 +2132,22 @@ int HttpNetworkTransaction::HandleIOError(int error) {
         if (base::FeatureList::IsEnabled(
                 features::kAsyncRetryOnTooManyConnectionErrors) &&
             // For performance reasons, we initially retry synchronously.
-            // However, after a threshold of attempts
-            // (= kMaxRetryAttemptsOnConnectionErrors / 2), we switch to
-            // asynchronous retry to break potential priority starvation loops
-            // as described above.
+            // However, after a threshold of attempts, we switch to asynchronous
+            // retry to break potential priority starvation loops as described
+            // above.
             retry_attempts_on_connection_errors_ >=
-                kMaxRetryAttemptsOnConnectionErrors / 2) {
+                kAsyncRetryThresholdOnConnectionErrors) {
+          base::UmaHistogramBoolean(
+              "Net.NetworkTransaction.AsyncRetryOnTooManyConnectionErrors."
+              "Every",
+              true);
+          if (retry_attempts_on_connection_errors_ ==
+              kAsyncRetryThresholdOnConnectionErrors) {
+            base::UmaHistogramBoolean(
+                "Net.NetworkTransaction.AsyncRetryOnTooManyConnectionErrors."
+                "First",
+                true);
+          }
           // Use WeakPtr to prevent a potential dangling pointer crash. See
           // http://crbug.com/506964502 for more details.
           base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -2430,13 +2452,14 @@ bool HttpNetworkTransaction::ContentEncodingsValid() const {
 
 void HttpNetworkTransaction::RecordStreamRequestResult(int result) {
   // Only record the first time the stream request completes.
-  if (num_restarts_ > 0) {
+  if (num_restarts_ > 0 || retry_attempts_ > 0 ||
+      retry_attempts_on_connection_errors_ > 0) {
     return;
   }
 
   base::TimeDelta elapsed = base::TimeTicks::Now() - start_timeticks_;
   base::UmaHistogramTimes(
-      base::StrCat({"Net.NetworkTransaction.StreamRequestCompleteTime3.",
+      base::StrCat({"Net.NetworkTransaction.StreamRequestCompleteTime4.",
                     IsGoogleHostWithAlpnH3(url_.host()) ? "GoogleHost." : "",
                     result == OK ? "Success" : "Failure"}),
       elapsed);
@@ -2445,7 +2468,7 @@ void HttpNetworkTransaction::RecordStreamRequestResult(int result) {
     CHECK(stream_);
     base::UmaHistogramEnumeration(
         base::StrCat({
-            "Net.NetworkTransaction.NegotiatedProtocol2",
+            "Net.NetworkTransaction.NegotiatedProtocol3",
             IsGoogleHostWithAlpnH3(url_.host()) ? ".GoogleHost" : "",
         }),
         negotiated_protocol_);
@@ -2454,7 +2477,7 @@ void HttpNetworkTransaction::RecordStreamRequestResult(int result) {
     int get_endpoint_result = stream_->GetRemoteEndpoint(&endpoint);
     if (get_endpoint_result == OK) {
       base::UmaHistogramEnumeration(
-          "Net.NetworkTransaction.StreamAddressFamily2", endpoint.GetFamily(),
+          "Net.NetworkTransaction.StreamAddressFamily3", endpoint.GetFamily(),
           static_cast<AddressFamily>(ADDRESS_FAMILY_LAST + 1));
     }
 
@@ -2464,8 +2487,8 @@ void HttpNetworkTransaction::RecordStreamRequestResult(int result) {
         create_stream_end_time_ - create_stream_start_time_;
 
     const std::string_view histogram_base_name =
-        ForWebSocketHandshake() ? "CreateWebSocketStreamTime3"
-                                : "CreateHttpStreamTime3";
+        ForWebSocketHandshake() ? "CreateWebSocketStreamTime4"
+                                : "CreateHttpStreamTime4";
     const std::string_view host_suffix =
         IsGoogleHostWithAlpnH3(url_.host()) ? ".GoogleHost" : "";
     const std::string_view protocol_suffix =
@@ -2484,7 +2507,7 @@ void HttpNetworkTransaction::RecordStreamRequestResult(int result) {
     if (stream_request_completion_details_->session_source.has_value()) {
       base::UmaHistogramEnumeration(
           base::StrCat(
-              {"Net.NetworkTransaction.SessionSource3.", protocol_suffix}),
+              {"Net.NetworkTransaction.SessionSource4.", protocol_suffix}),
           *stream_request_completion_details_->session_source);
     }
 
@@ -2505,12 +2528,12 @@ void HttpNetworkTransaction::RecordStreamRequestResult(int result) {
       };
       base::UmaHistogramTimes(
           base::StrCat({"Net.NetworkTransaction.", protocol_suffix,
-                        "StreamCreationTime2.",
+                        "StreamCreationTime3.",
                         is_existing() ? "Existing" : "New"}),
           create_time);
     }
   } else {
-    base::UmaHistogramSparse("Net.NetworkTransaction.StreamRequestErrorCode3",
+    base::UmaHistogramSparse("Net.NetworkTransaction.StreamRequestErrorCode4",
                              -result);
   }
 }

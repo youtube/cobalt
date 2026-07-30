@@ -63,8 +63,8 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
         .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled_}"
         ?multi-line-enabled="${this.multiLineEnabled_}">
     </ntp-searchbox>
+    <div id="dialogAnchor"></div>
     ${this.showComposebox_ ? html`
-      <div id="dialogAnchor"></div>
       <dialog id="composeboxDialog">
         ${this.useNtpComposeboxFork_ ? html`
           <ntp-composebox id="composebox"
@@ -78,10 +78,14 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
               @close-composebox="${this.onCloseComposebox_}"
               @voice-search-action="${this.onComposeVoiceSearchAction_}"
               .submitButtonIconType="${SubmitButtonIconType.FORWARD}"
-              .clearAllInputsWhenSubmittingQuery="${true}">
+              .clearAllInputsWhenSubmittingQuery="${true}"
+              .closeOnEscape="${false}"
+              .energyEffectEnabled="${this.energyEffectEnabled_}"
+              .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled_}">
           </ntp-composebox>
         ` : html`
           <cr-composebox id="composebox"
+              entrypoint-name="Realbox"
               ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
               ?searchbox-next-enabled="${this.ntpRealboxNextEnabled_}"
               .submitButtonIconType="${this.ntpRealboxNextEnabled_ ? SubmitButtonIconType.FORWARD : SubmitButtonIconType.UPWARD}"
@@ -112,9 +116,8 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
       </ntp-lens-upload-dialog>
     ` : ''}
   </div>
-  ${this.lazyRender_
-    && this.ntpNextFeaturesEnabled_
-    && (!this.ntpNextDisablementEnabled_ || this.isActionChipsVisible_) ? html`
+  ${this.lazyRender_ && this.ntpNextFeaturesEnabled_
+  && this.isActionChipsVisible_ ? html`
     <ntp-action-chips
         ?show-background="${this.showActionChipsBackground_()}"
         @action-chip-click="${this.onActionChipClick_}"
@@ -212,7 +215,25 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
   ` : ''}
   <div id="contentBottomSpacer"></div>
 </div>
-${this.showVoiceSearchOverlay_ ? html`
+${this.voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled_ ? html`
+  <dialog id="voiceSearchDialog" tabindex="-1" autofocus
+      @close="${this.onVoiceSearchOverlayClose}"
+      @click="${this.onVoiceSearchDialogClick_}">
+    <div id="voiceSearchCardContainer">
+      ${this.showVoiceSearchOverlay_ ? html`
+        <cr-composebox-voice-search id="voiceSearch"
+            @voice-search-cancel="${this.onVoiceSearchCancel_}"
+            @voice-search-final-result="${this.onVoiceSearchFinalResult_}"
+            @voice-search-error="${this.onVoiceSearchError}"
+            .autosubmitEnabled="${true}"
+            .liveTranscriptEnabled="${true}"
+            .submitStopButtonsEnabled="${false}">
+        </cr-composebox-voice-search>
+      ` : ''}
+    </div>
+  </dialog>
+` : ''}
+${this.showVoiceSearchOverlay_ && !this.voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled_ ? html`
   <ntp-voice-search-overlay @close="${this.onVoiceSearchOverlayClose}">
   </ntp-voice-search-overlay>
 ` : ''}

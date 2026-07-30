@@ -31,7 +31,6 @@ from core import results_merger
 from core import upload_results_to_perf_dashboard
 import cross_device_test_config
 import json_util
-import six
 
 logging.basicConfig(
     level=logging.INFO,
@@ -123,7 +122,7 @@ def _upload_perf_results(json_to_upload, name, configuration_name,
       _GetMachineGroup(build_properties),
   ]
   buildbucket = build_properties.get('buildbucket', {})
-  if isinstance(buildbucket, six.string_types):
+  if isinstance(buildbucket, str):
     buildbucket = json.loads(buildbucket)
 
   if 'build' in buildbucket:

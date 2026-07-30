@@ -170,7 +170,8 @@ class CORE_EXPORT Event : public ScriptWrappable, public DOMOriginUtils {
   // is dangerous.
   virtual void DoneDispatchingEventAtCurrentTarget() {}
 
-  void SetRelatedTargetIfExists(EventTarget* related_target);
+  virtual EventTarget* relatedTarget() const { return nullptr; }
+  virtual void SetRelatedTarget(EventTarget*) {}
 
   // This is the element that caused the event to be triggered, without
   // any retargeting. For example, for a command event it's the element with the

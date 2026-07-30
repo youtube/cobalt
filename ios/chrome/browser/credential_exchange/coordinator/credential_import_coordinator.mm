@@ -267,10 +267,9 @@
       break;
     }
     case CredentialImportStage::kImporting:
-      NOTREACHED(base::NotFatalUntil::M153)
-          << "Primary action button should be disabled";
-      // This code should not be reached, but in case it is, ensure that the
-      // further stages can proceed. Clean up when cleaning up not fatal until.
+      // In case of a double tap in `kNotStarted`, the button might not be
+      // disabled fast enough. Ignore it here and reset the boolean, so the next
+      // step can proceed.
       _primaryActionInProgress = NO;
       break;
     case CredentialImportStage::kImported: {

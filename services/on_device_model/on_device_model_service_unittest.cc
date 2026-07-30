@@ -706,58 +706,7 @@ TEST_F(OnDeviceModelServiceTest, AppendWithImages) {
                           "bleu[Bitmap of size 63x42]cheese"));
 }
 
-TEST_F(OnDeviceModelServiceTest, ClassifyTextSafety) {
-  FakeFile ts_data("fake_ts_data");
-  FakeFile ts_sp_model("fake_ts_sp_model");
-  TextSafetyLoaderParams params;
-  params.ts_paths.emplace();
-  params.ts_paths->data = ts_data.Path();
-  params.ts_paths->sp_model = ts_sp_model.Path();
-  mojo::Remote<mojom::TextSafetyModel> model;
-  service()->LoadTextSafetyModel(LoadTextSafetyParams(params),
-                                 model.BindNewPipeAndPassReceiver());
-  mojo::Remote<mojom::TextSafetySession> session;
-  model->StartSession(session.BindNewPipeAndPassReceiver());
-  base::test::TestFuture<mojom::SafetyInfoPtr> future1;
-  base::test::TestFuture<mojom::SafetyInfoPtr> future2;
-  session->ClassifyTextSafety("unsafe text", future1.GetCallback());
-  session->ClassifyTextSafety("reasonable text", future2.GetCallback());
-  auto resp1 = future1.Take();
-  auto resp2 = future2.Take();
 
-  ASSERT_TRUE(resp1);
-  EXPECT_THAT(resp1->class_scores, ElementsAre(0.8, 0.8));
-  ASSERT_TRUE(resp2);
-  EXPECT_THAT(resp2->class_scores, ElementsAre(0.2, 0.2));
-}
-
-TEST_F(OnDeviceModelServiceTest, CloneTextSafety) {
-  FakeFile ts_data("fake_ts_data");
-  FakeFile ts_sp_model("fake_ts_sp_model");
-  TextSafetyLoaderParams params;
-  params.ts_paths.emplace();
-  params.ts_paths->data = ts_data.Path();
-  params.ts_paths->sp_model = ts_sp_model.Path();
-  mojo::Remote<mojom::TextSafetyModel> model;
-  service()->LoadTextSafetyModel(LoadTextSafetyParams(params),
-                                 model.BindNewPipeAndPassReceiver());
-
-  mojo::Remote<mojom::TextSafetySession> session;
-  model->StartSession(session.BindNewPipeAndPassReceiver());
-  {
-    base::test::TestFuture<mojom::SafetyInfoPtr> future;
-    session->ClassifyTextSafety("unsafe text", future.GetCallback());
-    EXPECT_THAT(future.Take()->class_scores, ElementsAre(0.8, 0.8));
-  }
-
-  mojo::Remote<mojom::TextSafetySession> clone;
-  session->Clone(clone.BindNewPipeAndPassReceiver());
-  {
-    base::test::TestFuture<mojom::SafetyInfoPtr> future;
-    clone->ClassifyTextSafety("unsafe text", future.GetCallback());
-    EXPECT_THAT(future.Take()->class_scores, ElementsAre(0.8, 0.8));
-  }
-}
 
 TEST_F(OnDeviceModelServiceTest, GpuBlocked) {
   // The fake implementation of ChromeML always blocks GPU by default.

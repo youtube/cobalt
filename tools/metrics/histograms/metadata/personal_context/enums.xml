@@ -25,6 +25,23 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(ContextMemoryExecutionError) -->
+
+<enum name="ContextMemoryExecutionError">
+  <summary>The execution errors for personal context memory requests.</summary>
+  <int value="0" label="Unknown"/>
+  <int value="1" label="InvalidRequest"/>
+  <int value="2" label="RequestThrottled"/>
+  <int value="3" label="PermissionDenied"/>
+  <int value="4" label="GenericFailure"/>
+  <int value="5" label="RetryableError"/>
+  <int value="6" label="NonRetryableError"/>
+  <int value="7" label="Cancelled"/>
+  <int value="8" label="ResponseParseError"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/personal_context/core/context_memory_error.h:ExecutionError) -->
+
 <!-- LINT.IfChange(PersonalContextNoticeInteractions) -->
 
 <enum name="PersonalContextNoticeInteractions">

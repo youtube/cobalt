@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/gtest_prod_util.h"
 #include "base/values.h"
@@ -23,9 +24,11 @@ class GetDetailsForPixAccountLinkingRequest
  public:
   GetDetailsForPixAccountLinkingRequest(
       const int64_t billing_customer_number,
+      const std::vector<uint8_t>& client_token,
       base::OnceCallback<
           void(autofill::payments::PaymentsAutofillClient::PaymentsRpcResult,
-               bool)> response_callback,
+               bool,
+               const std::vector<uint8_t>&)> response_callback,
       const std::string& app_locale,
       const bool full_sync_enabled);
   GetDetailsForPixAccountLinkingRequest(
@@ -57,8 +60,11 @@ class GetDetailsForPixAccountLinkingRequest
                            ParseResponse_Error);
   // Request properties
   const int64_t billing_customer_number_;
-  base::OnceCallback<
-      void(autofill::payments::PaymentsAutofillClient::PaymentsRpcResult, bool)>
+  const std::vector<uint8_t> client_token_;
+  base::OnceCallback<void(
+      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult,
+      bool,
+      const std::vector<uint8_t>&)>
       response_callback_;
   const std::string app_locale_;
   const bool full_sync_enabled_;

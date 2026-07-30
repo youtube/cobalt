@@ -565,6 +565,7 @@ if (is_win || is_mac || is_linux) {
     visibility = [
       "//chrome/browser",
       "//chrome/browser/ui",
+      "//chrome/browser/ui/webui/help:*",
       "//chrome/browser/ui/webui/updater:*",
       "//chrome/browser/updater:*",
       "//chrome/enterprise_companion:*",
@@ -1262,7 +1263,10 @@ if (is_win || is_mac || is_linux) {
     }
 
     if (is_posix) {
-      sources += [ "util/posix_util_unittest.cc" ]
+      sources += [
+        "activity_impl_posix_unittest.cc",
+        "util/posix_util_unittest.cc",
+      ]
 
       deps += [ "//chrome/updater/mojom" ]
     }

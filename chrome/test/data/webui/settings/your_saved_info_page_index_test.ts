@@ -27,7 +27,10 @@ suite('YourSavedInfoPageIndex', function() {
 
     // routes.YOUR_SAVED_INFO does not exist if enableYourSavedInfoSettingsPage
     // is false
-    loadTimeData.overrideValues({enableYourSavedInfoSettingsPage: true});
+    loadTimeData.overrideValues({
+      enableYourSavedInfoSettingsPage: true,
+      showSuggestionsFromGeminiSettings: true,
+    });
     resetRouterForTesting();
 
     index = document.createElement('settings-your-saved-info-page-index');
@@ -76,6 +79,28 @@ suite('YourSavedInfoPageIndex', function() {
     await microtasksFinished();
     assertActiveView('passkeys');
     // </if>
+
+    Router.getInstance().navigateTo(routes.SUGGESTIONS_FROM_GEMINI);
+    await microtasksFinished();
+    assertActiveView('suggestionsFromGemini');
+  });
+
+  test('GeminiRouteDisabled', async function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    loadTimeData.overrideValues({
+      enableYourSavedInfoSettingsPage: true,
+      showSuggestionsFromGeminiSettings: false,
+    });
+    resetRouterForTesting();
+
+    index = document.createElement('settings-your-saved-info-page-index');
+    index.prefs = settingsPrefs.prefs!;
+    document.body.appendChild(index);
+    await flushTasks();
+
+    assertEquals(undefined, routes.SUGGESTIONS_FROM_GEMINI);
+    const subpage = index.$.viewManager.querySelector('#suggestionsFromGemini');
+    assertFalse(!!subpage);
   });
 
   // Minimal (non-exhaustive) tests to ensure SearchableViewContainerMixin is
@@ -84,6 +109,7 @@ suite('YourSavedInfoPageIndex', function() {
     // Test that the child views are properly annotated.
     const childViewsId = [
       'payments',
+      'suggestionsFromGemini',
     ];
     for (const id of childViewsId) {
       assertTrue(!!index.$.viewManager.querySelector(

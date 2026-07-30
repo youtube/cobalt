@@ -39,6 +39,7 @@ class CORE_EXPORT RemoteFrameOwner final
   void DispatchLoad() override;
   void NaturalSizingInfoChanged() override;
   void ClearLastNaturalSizingInfo() override;
+  void ClearAllNaturalSizingInfo() override;
   void SetNeedsOcclusionTracking(bool) override;
 
   AtomicString BrowsingContextContainerName() const override {

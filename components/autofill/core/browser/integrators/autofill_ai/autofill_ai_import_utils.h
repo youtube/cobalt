@@ -38,7 +38,7 @@ std::vector<EntityInstance> GetPossibleEntitiesFromSubmittedForm(
 // For example, if the attribute value is "2025-01-31" and the currently set ICU
 // locale is "en_US", the returned string is "Jan 31, 2025".
 std::optional<std::u16string> MaybeGetLocalizedDate(
-    const autofill::AttributeInstance& attribute);
+    const AttributeInstance& attribute);
 
 }  // namespace autofill
 

@@ -27,7 +27,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_SELECTION_MODIFIER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_SELECTION_MODIFIER_H_
 
+#include <unicode/ubidi.h>
+
+#include <optional>
+
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/editing/position_with_affinity.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
@@ -47,15 +52,28 @@ class CORE_EXPORT SelectionModifier {
  public:
   // |frame| is used for providing settings.
   SelectionModifier(const LocalFrame& /* frame */,
-                    const SelectionInDOMTree&,
+                    const SelectionInDomTree&,
                     LayoutUnit);
-  SelectionModifier(const LocalFrame&, const SelectionInDOMTree&);
+  SelectionModifier(const LocalFrame&, const SelectionInDomTree&);
   SelectionModifier(const SelectionModifier&) = delete;
   SelectionModifier& operator=(const SelectionModifier&) = delete;
 
   LayoutUnit XPosForVerticalArrowNavigation() const {
     return x_pos_for_vertical_arrow_navigation_;
   }
+
+  // Bidi embedding level of the caret's current fragment, used to
+  // disambiguate caret position at bidi boundaries across keystrokes.
+  std::optional<UBiDiLevel> CaretBidiLevel() const { return caret_bidi_level_; }
+  void SetCaretBidiLevel(std::optional<UBiDiLevel> level) {
+    caret_bidi_level_ = level;
+  }
+
+  // Whether the previous visual caret movement placed the caret at a bidi
+  // boundary entry point. When true, the next boundary crossing is an EXIT
+  // and should skip the shared-x entry point to produce visible movement.
+  bool EnteredBidiRun() const { return entered_bidi_run_; }
+  void SetEnteredBidiRun(bool value) { entered_bidi_run_ = value; }
 
   // TODO(editing-dev): We should rename |Selection()| to
   // |ComputeVisibleSelectionDeprecated()| and introduce |GetSelection()|
@@ -83,6 +101,7 @@ class CORE_EXPORT SelectionModifier {
       SelectionModifyDirection) const;
   TextDirection DirectionOfEnclosingBlock() const;
   TextDirection LineDirectionOfFocus() const;
+  TextDirection TextDirectionOfFocus() const;
   VisiblePositionInFlatTree PositionForPlatform(bool is_get_start) const;
   VisiblePositionInFlatTree StartForPlatform() const;
   VisiblePositionInFlatTree EndForPlatform() const;
@@ -130,7 +149,14 @@ class CORE_EXPORT SelectionModifier {
   // |current_selection_| holds initial value and result of |Modify()|.
   SelectionInFlatTree current_selection_;
   LayoutUnit x_pos_for_vertical_arrow_navigation_;
+  std::optional<UBiDiLevel> caret_bidi_level_;
+  bool entered_bidi_run_ = false;
   bool selection_is_directional_ = false;
+  // Raw position from visual caret movement, bypassing VisiblePosition
+  // canonicalization. When set (IsNotNull), Modify() uses this directly
+  // instead of calling position.ToPositionWithAffinity() on the
+  // VisiblePosition, which would re-canonicalize and destroy bidi precision.
+  PositionInFlatTreeWithAffinity raw_visual_position_;
 };
 
 LayoutUnit NoXPosForVerticalArrowNavigation();

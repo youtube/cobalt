@@ -835,6 +835,27 @@ TEST_F(DataTypeWorkerTest,
   EXPECT_EQ(status_controller()->get_updated_types(), DataTypeSet());
 }
 
+TEST_F(DataTypeWorkerTest, ReceiveUpdates_ShouldDropUncommittedVersion) {
+  NormalInitialize();
+
+  sync_pb::SyncEntity entity;
+  entity.set_id_string("SomeID");
+  entity.set_folder(false);
+  entity.set_version(kUncommittedVersion);
+  entity.set_client_tag_hash(GeneratePreferenceTagHash(kTag1).value());
+  entity.set_deleted(false);
+  *entity.mutable_specifics() = GenerateSpecifics(kTag1, kValue1);
+
+  worker()->ProcessGetUpdatesResponse(server()->GetProgress(),
+                                      server()->GetContext(), {&entity},
+                                      status_controller());
+  worker()->ApplyUpdates(status_controller(), /*cycle_done=*/true);
+
+  // The update should have been dropped.
+  ASSERT_EQ(1U, processor()->GetNumUpdateResponses());
+  EXPECT_EQ(0U, processor()->GetNthUpdateResponse(0).size());
+}
+
 TEST_F(DataTypeWorkerTest, ReceiveUpdates_NoDuplicateHash) {
   NormalInitialize();
 

@@ -200,8 +200,15 @@ constexpr PatternRpIdPair kValidRelyingPartyTestCases[] = {
     {"http://localhost/", "localhost"},
 
     // Sanity check empty domain parts.
+    // URLPattern trims all trailing dots from hosts for matching (both from the
+    // pattern and from the evaluated host). Thus, patterns or hosts with any
+    // number of trailing dots are canonicalized to the version without trailing
+    // dots and match.
     {"https://google.com./", "google.com"},
     {"https://google.com./", "google.com."},
+    {"https://google.com/", "google.com."},
+    {"https://google.com/", "google.com.."},
+    {"https://google.com../", "google.com"},
 };
 
 constexpr PatternRpIdPair kInvalidRelyingPartyTestCases[] = {
@@ -240,12 +247,7 @@ constexpr PatternRpIdPair kInvalidRelyingPartyTestCases[] = {
     {"https://not-google.com/", "google.com)"},
     {"https://evil.appspot.com/", "appspot.com"},
     {"https://evil.co.uk/", "co.uk"},
-    // TODO(nsatragno): URLPattern erroneously trims trailing dots. Fix
-    // CanonicalizeHostForMatching and uncomment this line.
-    // {"https://google.com/", "google.com."},
-    {"https://google.com/", "google.com.."},
     {"https://google.com/", ".google.com"},
-    {"https://google.com../", "google.com"},
     {"https://.com/", "com."},
     {"https://.co.uk/", "co.uk."},
     {"https://1.2.3/", "1.2.3"},

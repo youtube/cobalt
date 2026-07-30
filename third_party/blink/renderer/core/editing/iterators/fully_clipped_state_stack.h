@@ -29,8 +29,6 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
 extern template class CORE_EXTERN_TEMPLATE_EXPORT
     FullyClippedStateStackAlgorithm<EditingInFlatTreeStrategy>;
 
-using FullyClippedStateStack = FullyClippedStateStackAlgorithm<EditingStrategy>;
-
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_ITERATORS_FULLY_CLIPPED_STATE_STACK_H_

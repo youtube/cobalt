@@ -1744,6 +1744,18 @@ class OmniboxViewAiModeTest : public OmniboxViewTest {
 
 IN_PROC_BROWSER_TEST_F(OmniboxViewAiModeTest,
                        OpenAiModeTriggersContextualization) {
+  // Re-add google keyword; otherwise AI flow will hit a `CHECK()`.
+  Profile* profile = browser()->profile();
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile);
+  TemplateURLData data;
+  data.SetShortName(u"google");
+  data.SetKeyword(u"google");
+  data.SetURL("http://google.com/search?q={searchTerms}");
+  TemplateURL* template_url =
+      template_url_service->Add(std::make_unique<TemplateURL>(data));
+  template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
+
   OmniboxView* omnibox_view = nullptr;
   ASSERT_NO_FATAL_FAILURE(GetOmniboxView(&omnibox_view));
 

@@ -101,6 +101,11 @@ void RemoveWord(PlatformSpellChecker* spell_checker_instance,
       ->RemoveWordForAllLanguages(word);
 }
 
+bool IsUserAddedWord(PlatformSpellChecker* spell_checker_instance,
+                     const std::u16string& word) {
+  return false;
+}
+
 void IgnoreWord(PlatformSpellChecker* spell_checker_instance,
                 const std::u16string& word) {
   if (!spell_checker_instance) {

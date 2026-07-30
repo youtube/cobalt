@@ -98,7 +98,7 @@ public class TabStateThemeResourceProviderTest {
     public void testLayoutTransitionDisablesOverlay() {
         createProvider();
         doReturn(LayoutType.BROWSING).when(mLayoutManager).getActiveLayoutType();
-        doReturn(LayoutType.TAB_SWITCHER).when(mLayoutManager).getNextLayoutType(); // Transitioning
+        doReturn(LayoutType.HUB).when(mLayoutManager).getNextLayoutType(); // Transitioning
         mActivityTabProvider.setForTesting(mIncognitoTab);
 
         assertFalse(
@@ -110,7 +110,7 @@ public class TabStateThemeResourceProviderTest {
     public void testNonBrowsingLayoutDisablesOverlay() {
 
         createProvider();
-        doReturn(LayoutType.TAB_SWITCHER).when(mLayoutManager).getActiveLayoutType();
+        doReturn(LayoutType.HUB).when(mLayoutManager).getActiveLayoutType();
         mActivityTabProvider.setForTesting(mIncognitoTab);
 
         assertFalse(
@@ -138,7 +138,7 @@ public class TabStateThemeResourceProviderTest {
     @Test
     public void testFinishedShowingLayoutUpdatesOverlay() {
         createProvider();
-        doReturn(LayoutType.TAB_SWITCHER).when(mLayoutManager).getActiveLayoutType();
+        doReturn(LayoutType.HUB).when(mLayoutManager).getActiveLayoutType();
         mActivityTabProvider.setForTesting(mIncognitoTab);
         assertFalse(
                 "Overlay should be disabled for non-browsing layouts.",

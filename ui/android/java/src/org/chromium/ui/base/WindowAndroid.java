@@ -13,7 +13,6 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PendingIntent;
-import android.app.UiModeManager;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.Intent;
@@ -50,6 +49,7 @@ import org.chromium.base.ActivityState;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.PackageManagerUtils;
@@ -66,7 +66,6 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayAndroid.DisplayAndroidObserver;
@@ -271,7 +270,7 @@ public class WindowAndroid
     private final ObserverList<SelectionHandlesObserver> mSelectionHandlesObservers =
             new ObserverList<>();
 
-    private final boolean mAllowChangeRefreshRate;
+    private boolean mAllowChangeRefreshRate;
 
     /** Gets the view for readback. */
     public @Nullable View getReadbackView() {
@@ -396,9 +395,9 @@ public class WindowAndroid
             context.registerComponentCallbacks(mComponentCallbacks);
         }
 
-        // Disable refresh rate change on TV platforms, as it may cause black screen flicker due to
-        // display mode changes.
-        mAllowChangeRefreshRate = !isTv(context);
+        // Disable refresh rate change on TV platforms and external displays, as it may cause black
+        // screen flicker/blanking due to display mode changes.
+        mAllowChangeRefreshRate = computeAllowChangeRefreshRate(context);
 
         // Multiple refresh rate support is only available on M+.
         recomputeSupportedRefreshRates();
@@ -593,11 +592,14 @@ public class WindowAndroid
         }
     }
 
-    private static boolean isTv(Context context) {
-        UiModeManager uiModeManager =
-                (UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
-        return uiModeManager != null
-                && uiModeManager.getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION;
+    private static boolean isInternalDisplay(Context context) {
+        // TODO(b/521980379): Evaluate migrating to DisplayAndroid#isInternal for external display
+        // check.
+        return DisplayUtil.isContextInDefaultDisplay(context);
+    }
+
+    private static boolean computeAllowChangeRefreshRate(Context context) {
+        return !DeviceInfo.isTV() && isInternalDisplay(context);
     }
 
     @CalledByNativeForTesting
@@ -1435,6 +1437,10 @@ public class WindowAndroid
                 onAdaptiveRefreshRateInfoChanged(mDisplayAndroid.getAdaptiveRefreshRateInfo());
                 onRefreshRateChanged(mDisplayAndroid.getRefreshRate());
             }
+            mAllowChangeRefreshRate = computeAllowChangeRefreshRate(context);
+            if (!mAllowChangeRefreshRate) {
+                doSetPreferredRefreshRate(0);
+            }
             recomputeSupportedRefreshRates();
         }
     }
@@ -1531,13 +1537,13 @@ public class WindowAndroid
 
     @SuppressLint("NewApi")
     @CalledByNative
-    private void setPreferredRefreshRate(float preferredRefreshRate) {
+    /* package */ void setPreferredRefreshRate(float preferredRefreshRate) {
         mRefreshRate = preferredRefreshRate;
         if (mHasFocus) doSetPreferredRefreshRate(preferredRefreshRate);
     }
 
     private void doSetPreferredRefreshRate(float preferredRefreshRate) {
-        if (mSupportedRefreshRateModes == null || !mAllowChangeRefreshRate) return;
+        if (!mAllowChangeRefreshRate && preferredRefreshRate != 0) return;
 
         int preferredModeId = getPreferredModeId(preferredRefreshRate);
         Window window = getWindow();
@@ -1551,9 +1557,8 @@ public class WindowAndroid
 
     @SuppressLint("NewApi")
     // mSupportedRefreshRateModes should only be set if Display.Mode is available.
-    @RequiresNonNull("mSupportedRefreshRateModes")
     private int getPreferredModeId(float preferredRefreshRate) {
-        if (preferredRefreshRate == 0) return 0;
+        if (preferredRefreshRate == 0 || mSupportedRefreshRateModes == null) return 0;
 
         Display.Mode preferredMode = null;
         float preferredModeDelta = Float.MAX_VALUE;

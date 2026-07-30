@@ -56,10 +56,7 @@ source_set("test_support") {
   ]
 
   if (is_win || is_mac || is_linux || is_chromeos) {
-    sources += [
-      "sounds/test_data.cc",
-      "sounds/test_data.h",
-    ]
+    sources += [ "sounds/test_data.h" ]
   }
 
   public_deps = [

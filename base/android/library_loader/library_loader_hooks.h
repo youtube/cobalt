@@ -62,7 +62,7 @@ BASE_EXPORT void SetLibraryLoadedHook(LibraryLoadedHook* func);
 // created.
 BASE_EXPORT void LibraryLoaderExitHook();
 
-// Initialize AtExitManager, this must be done at the begining of loading
+// Initialize AtExitManager, this must be done at the beginning of loading
 // shared library.
 void InitAtExitManager();
 

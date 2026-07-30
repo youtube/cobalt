@@ -23,10 +23,14 @@ function onNewWindow(e: Event) {
   newWindowEvent.stopPropagation();
 }
 
+// LINT.IfChange(GlicExperimentalTriggeringErrorType)
 enum FailureType {
-  OFFLINE,
-  GENERIC_ERROR,
+  GENERIC_ERROR = 0,
+  OFFLINE = 1,
+  COOKIE_SYNC_FAILED = 2,
+  MAX_VALUE = COOKIE_SYNC_FAILED,
 }
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicExperimentalTriggeringErrorType)
 
 const TRANSITION_DURATION_MS = 250;
 // Setup target height and width custom properties immediately at load to
@@ -129,6 +133,9 @@ function init() {
 
   function showFailureState(type: FailureType) {
     document.body.style.minHeight = '';
+    chrome.histograms.recordEnumerationValue(
+        'Glic.ExperimentalTriggering.OptIn.ErrorShown', type,
+        FailureType.MAX_VALUE + 1);
     if (type === FailureType.OFFLINE) {
       errorIcon.setAttribute('icon', 'glic:offline');
       errorHeadline.textContent = loadTimeData.getString('offlineNoticeHeader');
@@ -237,7 +244,7 @@ function init() {
         showFailureState(FailureType.OFFLINE);
         return;
       }
-      showFailureState(FailureType.GENERIC_ERROR);
+      showFailureState(FailureType.COOKIE_SYNC_FAILED);
       return;
     }
 

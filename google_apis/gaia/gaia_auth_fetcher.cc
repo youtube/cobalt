@@ -550,6 +550,21 @@ void GaiaAuthFetcher::StartOAuthMultilogin(
       break;
   }
 
+  constexpr std::string_view kYoutubeCookieBindingModeParameter =
+      "yt_cookie_binding";
+  switch (cookie_binding_params.youtube_mode) {
+    case gaia::MultiloginCookieBindingParams::Mode::kDisabled:
+      break;
+    case gaia::MultiloginCookieBindingParams::Mode::kEnabledUnenforced:
+      url = net::AppendQueryParameter(url, kYoutubeCookieBindingModeParameter,
+                                      "1");
+      break;
+    case gaia::MultiloginCookieBindingParams::Mode::kEnabledEnforced:
+      url = net::AppendQueryParameter(url, kYoutubeCookieBindingModeParameter,
+                                      "2");
+      break;
+  }
+
   oauth_multilogin_cookie_decryptor_ = std::move(cookie_decryptor);
   standard_device_bound_session_credentials_ =
       cookie_binding_params.standard_device_bound_session_credentials;

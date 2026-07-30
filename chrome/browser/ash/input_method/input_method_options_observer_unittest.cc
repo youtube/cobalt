@@ -7,7 +7,6 @@
 #include "ash/constants/ash_pref_names.h"
 #include "base/functional/callback.h"
 #include "base/test/bind.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/test/browser_task_environment.h"
@@ -63,8 +62,9 @@ TEST_F(InputMethodOptionsObserverTest,
       [&](const std::string& pref_path) { num_calls_received++; }));
 
   // Update some random preferences that should not be observed.
-  pref_service->Set(::prefs::kLabsAdvancedFilesystemEnabled, base::Value(true));
-  pref_service->Set(::prefs::kLabsAdvancedFilesystemEnabled,
+  pref_service->Set(ash::prefs::kLabsAdvancedFilesystemEnabled,
+                    base::Value(true));
+  pref_service->Set(ash::prefs::kLabsAdvancedFilesystemEnabled,
                     base::Value(false));
   pref_service->Set(ash::prefs::kShowMobileDataNotification, base::Value(true));
   pref_service->Set(ash::prefs::kShowMobileDataNotification,

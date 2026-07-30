@@ -25,6 +25,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "components/optimization_guide/content/browser/mock_media_transcript_provider.h"
 #include "components/optimization_guide/content/browser/no_response_ai_page_content_agent.h"
+#include "components/optimization_guide/content/browser/page_content_test_utils.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/ukm/test_ukm_recorder.h"
@@ -82,24 +83,6 @@ void AssertHasText(const optimization_guide::proto::ContentNode& node,
   EXPECT_EQ(node.children_nodes().size(), 1);
   const auto& text_node = node.children_nodes().at(0);
   AssertIsTextNode(text_node, text);
-}
-
-const optimization_guide::proto::ContentNode* FindFirstNodeWithAttributeType(
-    const optimization_guide::proto::ContentNode& root,
-    optimization_guide::proto::ContentAttributeType attribute_type) {
-  std::vector<const optimization_guide::proto::ContentNode*> nodes_to_visit;
-  nodes_to_visit.push_back(&root);
-  while (!nodes_to_visit.empty()) {
-    const auto* current = nodes_to_visit.back();
-    nodes_to_visit.pop_back();
-    if (current->content_attributes().attribute_type() == attribute_type) {
-      return current;
-    }
-    for (const auto& child : current->children_nodes()) {
-      nodes_to_visit.push_back(&child);
-    }
-  }
-  return nullptr;
 }
 
 const optimization_guide::proto::ContentNode* FindFirstInteractiveNode(

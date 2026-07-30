@@ -407,7 +407,6 @@ class CONTENT_EXPORT RenderWidgetHostImpl
   bool IsInitializedAndNotDead() override;
   void OnInputEventPreDispatch(const blink::WebInputEvent& event) override;
   void OnInvalidInputEventSource() override;
-  void OnInputIgnored(const blink::WebInputEvent& event) override;
   input::StylusInterface* GetStylusInterface() override;
   void OnInputEventAckTimeout(base::TimeTicks ack_timeout_ts) override;
   void RendererIsResponsive() override;

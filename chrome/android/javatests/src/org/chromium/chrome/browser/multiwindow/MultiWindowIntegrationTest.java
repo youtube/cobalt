@@ -174,7 +174,7 @@ public class MultiWindowIntegrationTest {
         waitForTabs("CTA2", cta2, 1, blankTab);
 
         // Once all the tabs from one activity have been removed, the tab switcher should be shown.
-        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.TAB_SWITCHER);
+        LayoutTestUtils.waitForLayout(cta.getLayoutManager(), LayoutType.HUB);
 
         // The activity should also remain alive.
         Assert.assertFalse("The original activity should not be finishing!", cta.isFinishing());

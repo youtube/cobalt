@@ -17,13 +17,11 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/hash/hash.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/strings/string_number_conversions.h"
@@ -54,14 +52,6 @@ namespace {
 
 // Some extensions we'll tack on to copies of the Preferences files.
 const base::FilePath::CharType kBadExtension[] = FILE_PATH_LITERAL("bad");
-
-// Report a key that triggers a write into the Preferences files.
-void ReportKeyChangedToUMA(std::string_view key) {
-  // Truncate the sign bit. Even if the type is unsigned, UMA displays 32-bit
-  // negative numbers.
-  const uint32_t hash = base::PersistentHash(key) & 0x7FFFFFFF;
-  UMA_HISTOGRAM_SPARSE("Prefs.JSonStore.SetValueKey", hash);
-}
 
 bool BackupPrefsFile(const base::FilePath& path) {
   const base::FilePath bad = path.ReplaceExtension(kBadExtension);
@@ -233,7 +223,6 @@ void JsonPrefStore::SetValue(std::string_view key,
   if (!old_value || value != *old_value) {
     prefs_.SetByDottedPath(key, std::move(value));
     ReportValueChanged(key, flags);
-    ReportKeyChangedToUMA(key);
   }
 }
 
@@ -246,7 +235,6 @@ void JsonPrefStore::SetValueSilently(std::string_view key,
   if (!old_value || value != *old_value) {
     prefs_.SetByDottedPath(key, std::move(value));
     ScheduleWrite(flags);
-    ReportKeyChangedToUMA(key);
   }
 }
 

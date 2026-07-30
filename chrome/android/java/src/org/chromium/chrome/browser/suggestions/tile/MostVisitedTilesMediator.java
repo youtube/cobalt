@@ -54,7 +54,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
     private final View mMvTilesContainerLayout;
     private final MostVisitedTilesLayout mMvTilesLayout;
     private final PropertyModel mModel;
-    private final boolean mIsTablet;
+    private final boolean mIsLff;
     private final int mTileViewLandscapePadding;
     private final int mTileViewPortraitEdgePadding;
     private final @Nullable Runnable mSnapshotTileGridChangedRunnable;
@@ -78,7 +78,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
             View mvTilesContainerLayout,
             TileRenderer renderer,
             PropertyModel propertyModel,
-            boolean isTablet,
+            boolean isLff,
             @Nullable Runnable snapshotTileGridChangedRunnable,
             @Nullable Runnable tileCountChangedRunnable) {
         mContext = context;
@@ -86,7 +86,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
         mUiConfig = uiConfig;
         mRenderer = renderer;
         mModel = propertyModel;
-        mIsTablet = isTablet;
+        mIsLff = isLff;
         mSnapshotTileGridChangedRunnable = snapshotTileGridChangedRunnable;
         mTileCountChangedRunnable = tileCountChangedRunnable;
         mMvTilesContainerLayout = mvTilesContainerLayout;
@@ -227,21 +227,21 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
     }
 
     /**
-     * Updates the width of the MV tiles container. If on a tablet and the content fits, it uses
-     * WRAP_CONTENT to center the tiles. Otherwise, it applies the provided totalWidth. Also updates
-     * the lateral margins.
+     * Updates the width of the MV tiles container. If on a large form factor (LFF) device and the
+     * content fits, it uses WRAP_CONTENT to center the tiles. Otherwise, it applies the provided
+     * totalWidth. Also updates the lateral margins.
      *
      * @param totalWidth The total width to apply or check against. If null, the applied width falls
      *     back to MATCH_PARENT.
      */
     void updateMvtWidth(@Nullable Integer totalWidth) {
-        if (mIsTablet && totalWidth != null) {
-            mMvtContentFits = mMvTilesLayout.contentFitsOnTablet(totalWidth);
+        if (mIsLff && totalWidth != null) {
+            mMvtContentFits = mMvTilesLayout.contentFitsOnLff(totalWidth);
         }
 
         MarginLayoutParams marginLayoutParams =
                 (MarginLayoutParams) mMvTilesContainerLayout.getLayoutParams();
-        if (mIsTablet && mMvtContentFits) {
+        if (mIsLff && mMvtContentFits) {
             marginLayoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
         } else if (totalWidth != null) {
             marginLayoutParams.width = totalWidth;
@@ -250,7 +250,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
         }
 
         int lateralPaddingId =
-                NtpCustomizationUtils.isInNarrowWindowOnTablet(mIsTablet, mUiConfig)
+                NtpCustomizationUtils.isInNarrowWindowOnLff(mIsLff, mUiConfig)
                         ? R.dimen.ntp_search_box_lateral_margin_narrow_window_tablet
                         : R.dimen.mvt_container_lateral_margin;
         int lateralPaddingsForNtp = mResources.getDimensionPixelSize(lateralPaddingId);
@@ -262,13 +262,10 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
      * Updates the margins for the most visited tiles layout based on what is shown above it.
      *
      * @param shouldShowLogo Whether the logo is shown.
-     * @param isWhiteBackgroundOnSearchBoxApplied Whether a white background is applied to the fake
-     *     search box.
-     * @param isTablet Whether the device is a tablet.
+     * @param isLff Whether the device is a large form factor device.
      */
-    void updateTilesLayoutMargins(boolean shouldShowLogo, boolean isTablet) {
-        NewTabPageUtils.updateTilesLayoutTopMargin(
-                mMvTilesContainerLayout, shouldShowLogo, isTablet);
+    void updateTilesLayoutMargins(boolean shouldShowLogo, boolean isLff) {
+        NewTabPageUtils.updateTilesLayoutTopMargin(mMvTilesContainerLayout, shouldShowLogo, isLff);
     }
 
     public void onSwitchToForeground() {
@@ -301,7 +298,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
                 || mTileViewPortraitIntervalPadding != 0) {
             return;
         }
-        if (!mIsTablet) {
+        if (!mIsLff) {
             boolean isSmallDevice = mUiConfig.getCurrentDisplayStyle().isSmall();
             int screenWidth = mResources.getDisplayMetrics().widthPixels - mLateralMarginSum;
             int tileViewWidth =
@@ -327,7 +324,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
         // Skip if no children (tile or otherwise).
         if (mMvTilesLayout.getChildCount() < 1) return;
 
-        if (mIsTablet) {
+        if (mIsLff) {
             mModel.set(HORIZONTAL_EDGE_PADDINGS, mTileViewEdgePaddingForTablet);
             mModel.set(HORIZONTAL_INTERVAL_PADDINGS, mTileViewIntervalPaddingForTablet);
             return;

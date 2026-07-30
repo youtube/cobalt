@@ -11,7 +11,7 @@ import type {CrInputElement} from 'chrome://resources/ash/common/cr_elements/cr_
 import {getDeepActiveElement} from 'chrome://resources/ash/common/util.js';
 import {AudioOutputCapability, DeviceConnectionState, DeviceType} from 'chrome://resources/mojo/chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom-webui.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/chromeos/test_util.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -71,7 +71,7 @@ suite('CrComponentsBluetoothPairingRequestCodePageTest', function() {
         assertTrue(!!input);
         // input uses ! flag because the compilar currently fails when
         // running test locally.
-        assertEquals(input!.maxlength, 6);
+        assertEquals(input.maxlength, 6);
 
         const message =
             bluetoothPairingRequestCodePage.shadowRoot!.querySelector(
@@ -82,14 +82,14 @@ suite('CrComponentsBluetoothPairingRequestCodePageTest', function() {
         assertEquals(
             bluetoothPairingRequestCodePage.i18n(
                 'bluetoothEnterPin', deviceName),
-            message!.textContent.trim());
+            message.textContent.trim());
 
         // Test button states.
         assertEquals(ButtonState.DISABLED, getPairButtonState());
 
         // input uses ! flag because the compilar currently fails when
         // running test locally.
-        input!.value = '12345';
+        input.value = '12345';
         await flushAsync();
         assertEquals(ButtonState.ENABLED, getPairButtonState());
       });
@@ -121,13 +121,13 @@ suite('CrComponentsBluetoothPairingRequestCodePageTest', function() {
         assertTrue(!!input);
 
         const pin = '12345';
-        input!.value = pin;
+        input.value = pin;
         await flushAsync();
 
         assertTrue(!!basePage);
         // basePage uses ! flag because the compilar currently fails when
         // running test locally.
-        basePage!.dispatchEvent(new CustomEvent('pair'));
+        basePage.dispatchEvent(new CustomEvent('pair'));
         const requestCodeEvent = await requestCodePromise;
         assertEquals(requestCodeEvent.detail.code, pin);
       });

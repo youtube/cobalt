@@ -37,7 +37,7 @@
 #include "content/shell/common/shell_switches.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
-#include "net/base/net_module.h"
+#include "net/base/module/net_module.h"
 #include "net/grit/net_resources.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"

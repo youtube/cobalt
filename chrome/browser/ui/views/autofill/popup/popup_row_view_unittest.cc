@@ -455,6 +455,17 @@ TEST_F(PopupRowViewTest,
   generator().ClickLeftButton();
 }
 
+TEST_F(PopupRowViewTest, DatalistEntriesDoNotIgnoreInitialHoverClick) {
+  ShowView(/*line_number=*/0, /*has_control=*/false,
+           /*is_acceptable=*/true, SuggestionType::kDatalistEntry);
+
+  generator().MoveMouseTo(
+      row_view().GetContentView().GetBoundsInScreen().CenterPoint());
+  Paint();
+  EXPECT_CALL(controller(), AcceptSuggestion);
+  generator().ClickLeftButton();
+}
+
 TEST_F(PopupRowViewTest, NoCrashOnMouseAcceptingWithInvalidatedController) {
   EXPECT_CALL(controller(), ShouldIgnoreMouseObservedOutsideItemBoundsCheck())
       .WillOnce(Return(true));

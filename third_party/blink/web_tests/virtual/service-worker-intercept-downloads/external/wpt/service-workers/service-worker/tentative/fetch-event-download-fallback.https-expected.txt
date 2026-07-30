@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] Download FetchEvent without respondWith() falls back without navigating the page.
+  assert_unreached: unregister and register should not fail: Failed to register a ServiceWorker for scope ('https://web-platform.test:8444/service-workers/service-worker/tentative/resources/') with script ('https://web-platform.test:8444/service-workers/service-worker/tentative/resources/fetch-event-download-worker.js'): A bad HTTP response code (404) was received when fetching the script. Reached unreachable code
+Harness: the test ran to completion.
+

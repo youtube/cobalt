@@ -3068,20 +3068,6 @@ targets.tests.gpu_telemetry_test(
 )
 
 targets.tests.gpu_telemetry_test(
-    name = "webgl_conformance_d3d9_passthrough_tests",
-    telemetry_test_name = "webgl1_conformance",
-    mixins = [
-        "has_native_resultdb_integration",
-        "gpu_force_command_decoder_passthrough",
-        "gpu_force_angle_d3d9",
-        "gpu_force_high_performance_gpu",
-        "gpu_integration_test_webgl1_args",
-        "gpu_integration_test_common_args",
-    ],
-    module_scheme = "flat",
-)
-
-targets.tests.gpu_telemetry_test(
     name = "webgl_conformance_gl_passthrough_ganesh_tests",
     telemetry_test_name = "webgl1_conformance",
     mixins = [

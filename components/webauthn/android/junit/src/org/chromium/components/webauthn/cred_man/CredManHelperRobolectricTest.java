@@ -150,6 +150,7 @@ public class CredManHelperRobolectricTest {
         when(mAuthenticationContextProviderMock.getIntentSender()).thenReturn(null);
         when(mAuthenticationContextProviderMock.getContext()).thenReturn(mContext);
         when(mAuthenticationContextProviderMock.getRenderFrameHost()).thenReturn(mFrameHost);
+        when(mBrowserBridge.isInitialized()).thenReturn(true);
         mCredManHelper =
                 new CredManHelper(
                         mAuthenticationContextProviderMock,
@@ -362,6 +363,7 @@ public class CredManHelperRobolectricTest {
 
         verify(mGetCredentialResponseCallback).call(any());
         verify(mBrowserBridge, times(1)).onCredManUiClosed(any(), anyBoolean());
+        verify(mBrowserBridge, times(1)).cleanupRequest(any());
         verify(mMetricsHelper, times(1))
                 .reportGetCredentialMetrics(eq(CredManGetRequestEnum.SENT_REQUEST), anyInt());
         verify(mMetricsHelper, times(1))
@@ -418,6 +420,7 @@ public class CredManHelperRobolectricTest {
         shadowCredentialManager.getGetCredentialCallback().onError(exception);
         verify(noCredentialsFallback, times(1)).run();
         verify(mBrowserBridge, times(1)).onCredManUiClosed(any(), anyBoolean());
+        verify(mBrowserBridge, never()).cleanupRequest(any());
     }
 
     @Test
@@ -441,6 +444,7 @@ public class CredManHelperRobolectricTest {
                 new GetCredentialException(GetCredentialException.TYPE_NO_CREDENTIAL, "Message");
         shadowCredentialManager.getGetCredentialCallback().onError(exception);
         verify(mGetCredentialResponseCallback).call(any());
+        verify(mBrowserBridge, times(1)).cleanupRequest(any());
     }
 
     @Test
@@ -466,6 +470,7 @@ public class CredManHelperRobolectricTest {
 
         verify(mGetCredentialResponseCallback).call(any());
         verify(mBrowserBridge, times(1)).onCredManUiClosed(any(), anyBoolean());
+        verify(mBrowserBridge, times(1)).cleanupRequest(any());
         verify(mMetricsHelper, times(1))
                 .reportGetCredentialMetrics(eq(CredManGetRequestEnum.CANCELLED), anyInt());
     }
@@ -493,6 +498,7 @@ public class CredManHelperRobolectricTest {
 
         verify(mGetCredentialResponseCallback).call(any());
         verify(mBrowserBridge, times(1)).onCredManUiClosed(any(), anyBoolean());
+        verify(mBrowserBridge, times(1)).cleanupRequest(any());
         verify(mMetricsHelper, times(1))
                 .reportGetCredentialMetrics(eq(CredManGetRequestEnum.FAILURE), anyInt());
     }
@@ -837,6 +843,7 @@ public class CredManHelperRobolectricTest {
 
         verify(mBrowserBridge, never()).onCredManUiClosed(any(), anyBoolean());
         verify(mBrowserBridge, never()).onPasswordCredentialReceived(any(), any(), any());
+        verify(mBrowserBridge, times(1)).cleanupRequest(any());
 
         ArgumentCaptor<org.chromium.blink.mojom.GetCredentialResponse> responseCaptor =
                 ArgumentCaptor.forClass(org.chromium.blink.mojom.GetCredentialResponse.class);

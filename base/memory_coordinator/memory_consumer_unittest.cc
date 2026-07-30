@@ -6,6 +6,8 @@
 
 #include "base/memory_coordinator/mock_memory_consumer.h"
 #include "base/memory_coordinator/test_memory_consumer_registry.h"
+#include "base/test/gtest_util.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -77,5 +79,115 @@ TEST(MemoryConsumerTest, ScaleByMemoryLimit) {
   EXPECT_EQ(ScaleByMemoryLimit(100u, consumer.memory_limit()), 200u);
   EXPECT_EQ(ScaleByMemoryLimit<int8_t>(100, consumer.memory_limit()), 127);
 }
+
+#if !BUILDFLAG(IS_IOS)
+TEST(MemoryConsumerTest, RegistrationWithoutRegistryAllowedInTests) {
+  MockMemoryConsumer consumer;
+  // This would have crashed previously because the global registry is not
+  // initialized and the check is enabled by default.
+  MemoryConsumerRegistration registration("consumer", {}, &consumer);
+  // Expecting no crash in test environment.
+}
+#endif
+
+class MockPassiveMemoryConsumer : public PassiveMemoryConsumer {
+ public:
+  MockPassiveMemoryConsumer() = default;
+  ~MockPassiveMemoryConsumer() override = default;
+};
+
+TEST(MemoryConsumerTraitsTest, ActiveConsumerWithActiveTraits) {
+  TestMemoryConsumerRegistry test_registry;
+  MockMemoryConsumer consumer;
+  constexpr MemoryConsumerTraits kActiveTraits(
+      MemoryConsumerTraits::EstimatedMemoryUsage::kSmall,
+      MemoryConsumerTraits::ReleaseMemoryCost::kFreesPagesWithoutTraversal,
+      MemoryConsumerTraits::InformationRetention::kLossless,
+      MemoryConsumerTraits::ExecutionType::kSynchronous);
+  MemoryConsumerRegistration registration("consumer", kActiveTraits, &consumer);
+}
+
+TEST(MemoryConsumerTraitsTest, PassiveConsumerWithPassiveTraits) {
+  TestMemoryConsumerRegistry test_registry;
+  MockPassiveMemoryConsumer consumer;
+  constexpr MemoryConsumerTraits kPassiveTraits(
+      MemoryConsumerTraits::ConsumerType::kPassive);
+  MemoryConsumerRegistration registration("consumer", kPassiveTraits,
+                                          &consumer);
+}
+
+TEST(MemoryConsumerTraitsTest, PassiveConsumerTraitsValidation) {
+  // 1. Default passive traits
+  constexpr MemoryConsumerTraits kDefaultPassive(
+      MemoryConsumerTraits::ConsumerType::kPassive);
+  EXPECT_EQ(kDefaultPassive.consumer_type,
+            MemoryConsumerTraits::ConsumerType::kPassive);
+  EXPECT_EQ(kDefaultPassive.supports_memory_limit,
+            MemoryConsumerTraits::SupportsMemoryLimit::kYes);
+  EXPECT_EQ(kDefaultPassive.in_process, MemoryConsumerTraits::InProcess::kNA);
+  EXPECT_EQ(kDefaultPassive.release_gc_references,
+            MemoryConsumerTraits::ReleaseGCReferences::kNo);
+
+  // Non-customizable traits for passive should have default passive values
+  EXPECT_EQ(kDefaultPassive.estimated_memory_usage,
+            MemoryConsumerTraits::EstimatedMemoryUsage::kNA);
+  EXPECT_EQ(kDefaultPassive.release_memory_cost,
+            MemoryConsumerTraits::ReleaseMemoryCost::kNA);
+  EXPECT_EQ(kDefaultPassive.information_retention,
+            MemoryConsumerTraits::InformationRetention::kNA);
+  EXPECT_EQ(kDefaultPassive.execution_type,
+            MemoryConsumerTraits::ExecutionType::kSynchronous);
+  EXPECT_EQ(kDefaultPassive.recreate_memory_cost,
+            MemoryConsumerTraits::RecreateMemoryCost::kNA);
+  EXPECT_EQ(kDefaultPassive.garbage_collects_v8_heap,
+            MemoryConsumerTraits::GarbageCollectsV8Heap::kNo);
+  EXPECT_EQ(kDefaultPassive.is_stateful,
+            MemoryConsumerTraits::IsStateful::kYes);
+
+  // 2. Custom passive traits
+  constexpr MemoryConsumerTraits kCustomPassive(
+      MemoryConsumerTraits::ConsumerType::kPassive,
+      MemoryConsumerTraits::SupportsMemoryLimit::kNo,
+      MemoryConsumerTraits::InProcess::kYes,
+      MemoryConsumerTraits::ReleaseGCReferences::kYes);
+  EXPECT_EQ(kCustomPassive.consumer_type,
+            MemoryConsumerTraits::ConsumerType::kPassive);
+  EXPECT_EQ(kCustomPassive.supports_memory_limit,
+            MemoryConsumerTraits::SupportsMemoryLimit::kNo);
+  EXPECT_EQ(kCustomPassive.in_process, MemoryConsumerTraits::InProcess::kYes);
+  EXPECT_EQ(kCustomPassive.release_gc_references,
+            MemoryConsumerTraits::ReleaseGCReferences::kYes);
+
+  // Non-customizable traits should still be default passive values
+  EXPECT_EQ(kCustomPassive.estimated_memory_usage,
+            MemoryConsumerTraits::EstimatedMemoryUsage::kNA);
+  EXPECT_EQ(kCustomPassive.release_memory_cost,
+            MemoryConsumerTraits::ReleaseMemoryCost::kNA);
+  EXPECT_EQ(kCustomPassive.information_retention,
+            MemoryConsumerTraits::InformationRetention::kNA);
+  EXPECT_EQ(kCustomPassive.execution_type,
+            MemoryConsumerTraits::ExecutionType::kSynchronous);
+  EXPECT_EQ(kCustomPassive.recreate_memory_cost,
+            MemoryConsumerTraits::RecreateMemoryCost::kNA);
+  EXPECT_EQ(kCustomPassive.garbage_collects_v8_heap,
+            MemoryConsumerTraits::GarbageCollectsV8Heap::kNo);
+  EXPECT_EQ(kCustomPassive.is_stateful, MemoryConsumerTraits::IsStateful::kYes);
+}
+
+#if defined(GTEST_HAS_DEATH_TEST)
+TEST(MemoryConsumerTraitsTest, ActiveConsumerWithPassiveTraitsFails) {
+  TestMemoryConsumerRegistry test_registry;
+  MockMemoryConsumer consumer;
+  constexpr MemoryConsumerTraits kPassiveTraits(
+      MemoryConsumerTraits::ConsumerType::kPassive);
+  EXPECT_CHECK_DEATH_WITH(
+      {
+        MemoryConsumerRegistration registration("consumer", kPassiveTraits,
+                                                &consumer);
+      },
+      "Active MemoryConsumer registered with Passive traits");
+}
+
+#endif
 
 }  // namespace base

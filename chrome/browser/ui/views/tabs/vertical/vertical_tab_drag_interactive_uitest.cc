@@ -153,8 +153,6 @@ DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<PinnedURLs>,
                                     kPinnedTabOrderPoller);
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<int>,
                                     kScrollOffsetPoller);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
-                                    kLatestBrowserVisiblePoller);
 
 class VerticalTabDragTest
     : public VerticalTabsInteractiveTestMixin<InteractiveBrowserTest> {
@@ -314,23 +312,17 @@ class VerticalTabDragTest
   }
 
   auto WaitForDetachedWindowVisible() {
-    return Steps(
-        PollState(kLatestBrowserVisiblePoller,
-                  base::BindRepeating(
-                      [](VerticalTabDragTest* test) {
-                        if (GlobalBrowserCollection::GetInstance()->IsEmpty()) {
-                          return false;
-                        }
-                        BrowserWindowInterface& latest =
-                            test->GetLatestBrowser();
-                        BrowserView* browser_view =
-                            BrowserView::GetBrowserViewForNativeWindow(
-                                latest.GetWindow()->GetNativeWindow());
-                        return browser_view && browser_view->GetWidget() &&
-                               browser_view->GetWidget()->IsVisible();
-                      },
-                      base::Unretained(this))),
-        WaitForState(kLatestBrowserVisiblePoller, true));
+    return Do([&]() {
+      BrowserWindowInterface& latest = GetLatestBrowser();
+      BrowserView* browser_view =
+          BrowserView::GetBrowserViewForBrowser(static_cast<Browser*>(&latest));
+      views::Widget* widget = browser_view->GetWidget();
+      if (!widget->IsVisible() && widget->IsMoveLoopSupported()) {
+        base::RunLoop run_loop;
+        WidgetVisibilityWaiter waiter(widget, run_loop);
+        run_loop.Run();
+      }
+    });
   }
 
   auto MoveMouseOutOfTabstrip() {
@@ -1040,9 +1032,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragToDetachIntoNewWindow) {
       PollState(kDragStatePoller, GetDragActive()),
       NameTabViewAt("Tab to drag", 1), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      ReleaseMouse(), WaitForState(kDragStatePoller, false),
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), ReleaseMouse(),
+      WaitForState(kDragStatePoller, false),
       CheckResult(
           [this]() { return GetLatestBrowser().GetTabStripModel()->count(); },
           1),
@@ -1060,6 +1052,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragToDetachIntoNewWindow) {
 
 IN_PROC_BROWSER_TEST_F(VerticalTabDragTest,
                        DragToDetachIntoNewWindowWithVerticalTabsState) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
   const int kInitialWidth = 250;
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
@@ -1073,10 +1069,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest,
       PollState(kDragStatePoller, GetDragActive()),
       NameTabViewAt("Tab to drag", 1), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      ReleaseMouse(), WaitForState(kDragStatePoller, false),
-      Do([this, kInitialWidth]() {
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), ReleaseMouse(),
+      WaitForState(kDragStatePoller, false), Do([this, kInitialWidth]() {
         BrowserWindowInterface& new_browser = GetLatestBrowser();
         auto* controller =
             tabs::VerticalTabStripStateController::From(&new_browser);
@@ -1098,9 +1093,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragToDetachThenCancel) {
       PollState(kDragStatePoller, GetDragActive()),
       NameTabViewAt("Tab to drag", 1), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      PressEscAsync(), WaitForState(kBrowserCountPoller, 1u),
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), PressEscAsync(),
+      WaitForState(kBrowserCountPoller, 1u),
       WaitForState(kDragStatePoller, false),
       CheckResult([this]() { return browser()->GetTabStripModel()->count(); },
                   3),
@@ -1112,6 +1107,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragToDetachThenCancel) {
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragToDetachThenReattach) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
@@ -1119,9 +1118,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragToDetachThenReattach) {
       PollState(kDragStatePoller, GetDragActive()),
       NameTabViewAt("Tab to drag", 2), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      NameTabViewAt("Target tab", 1),
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), NameTabViewAt("Target tab", 1),
       MoveMouseTo("Target tab", base::BindOnce([](ui::TrackedElement* el) {
                     return views::test::InteractiveViewsTestApi::AsView(el)
                                ->GetBoundsInScreen()
@@ -1152,9 +1150,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DetachMultipleTabs) {
           true),
       NameTabViewAt("Tab to drag", 1), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      ReleaseMouse(), WaitForState(kDragStatePoller, false),
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), ReleaseMouse(),
+      WaitForState(kDragStatePoller, false),
       CheckResult(
           [this]() { return GetLatestBrowser().GetTabStripModel()->count(); },
           2),
@@ -1179,6 +1177,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DetachMultipleTabs) {
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DetachPinnedTab) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
@@ -1186,9 +1188,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DetachPinnedTab) {
       PollState(kDragStatePoller, GetDragActive()), PinTabAt(0), PinTabAt(1),
       NameTabViewAt("Tab to drag", 1), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      ReleaseMouse(), WaitForState(kDragStatePoller, false),
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), ReleaseMouse(),
+      WaitForState(kDragStatePoller, false),
       CheckResult(
           [this]() {
             return GetLatestBrowser()
@@ -1219,9 +1221,9 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DetachTabPreservesActiveTab) {
           [this]() { return browser()->tab_strip_model()->active_index(); }, 0),
       NameTabViewAt("Tab to drag", 2), MoveMouseTo("Tab to drag"),
       ClickMouse(ui_controls::MouseButton::LEFT, /*release=*/false),
-      MoveMouseOutOfTabstrip(),
-      WaitForState(kBrowserCountPoller, 2u), WaitForDetachedWindowVisible(),
-      ReleaseMouse(), WaitForState(kDragStatePoller, false),
+      MoveMouseOutOfTabstrip(), WaitForState(kBrowserCountPoller, 2u),
+      WaitForDetachedWindowVisible(), ReleaseMouse(),
+      WaitForState(kDragStatePoller, false),
       CheckResult(
           [this]() { return browser()->tab_strip_model()->active_index(); }, 0),
       CheckResult([this]() { return browser()->GetTabStripModel()->count(); },
@@ -1320,6 +1322,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest,
                        MAYBE_DragToDetachIntoNewWindowWithVerticalTabsState) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
   const int kInitialWidth = 250;
   vertical_tab_strip_state_controller()->RequestCollapse(true);
   vertical_tab_strip_state_controller()->SetUncollapsedWidth(kInitialWidth);
@@ -1381,6 +1387,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest,
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest,
                        MAYBE_DragToDetachThenReattach) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
@@ -1444,6 +1454,10 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest, MAYBE_DetachMultipleTabs) {
 #define MAYBE_DetachPinnedTab DISABLED_DetachPinnedTab
 #endif
 IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest, MAYBE_DetachPinnedTab) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
   RunTestSequence(
       AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
       AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),

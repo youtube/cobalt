@@ -29,7 +29,6 @@ import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.PackageUtils;
 import org.chromium.base.SelectionActionMenuClientWrapper.DefaultItem;
 import org.chromium.base.SelectionActionMenuClientWrapper.MenuType;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.autofill.AutofillSelectionActionMenuDelegate;
@@ -88,13 +87,6 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
         // We can not access this resource as regular resource since it is an extended resource.
         // Hence, we are using API that uses reflection.
         SCAN_TEXT_ID = Resources.getSystem().getIdentifier("writing_toolkit", "id", "android");
-    }
-
-    public SamsungSelectionActionMenuDelegate() {
-        RecordHistogram.recordEnumeratedHistogram(
-                AwSelectionActionMenuDelegate.TEXT_SELECTION_MENU_ORDERING_HISTOGRAM_NAME,
-                AwSelectionActionMenuDelegate.TextSelectionMenuOrdering.SAMSUNG_MENU_ORDER,
-                AwSelectionActionMenuDelegate.TextSelectionMenuOrdering.COUNT);
     }
 
     @Override

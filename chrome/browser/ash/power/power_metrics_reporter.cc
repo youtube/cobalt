@@ -4,9 +4,9 @@
 
 #include "chrome/browser/ash/power/power_metrics_reporter.h"
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/dbus/power_manager/suspend.pb.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -23,7 +23,8 @@ constexpr base::TimeDelta kCheckDailyEventInternal = base::Seconds(60);
 // static
 void PowerMetricsReporter::RegisterLocalStatePrefs(
     PrefRegistrySimple* registry) {
-  metrics::DailyEvent::RegisterPref(registry, prefs::kPowerMetricsDailySample);
+  metrics::DailyEvent::RegisterPref(registry,
+                                    ash::prefs::kPowerMetricsDailySample);
 }
 
 PowerMetricsReporter::PowerMetricsReporter(
@@ -31,10 +32,10 @@ PowerMetricsReporter::PowerMetricsReporter(
     PrefService* local_state_pref_service)
     : power_manager_client_(power_manager_client),
       pref_service_(local_state_pref_service),
-      daily_event_(
-          std::make_unique<metrics::DailyEvent>(pref_service_,
-                                                prefs::kPowerMetricsDailySample,
-                                                std::string())) {
+      daily_event_(std::make_unique<metrics::DailyEvent>(
+          pref_service_,
+          ash::prefs::kPowerMetricsDailySample,
+          std::string())) {
   power_manager_client_->AddObserver(this);
 
   daily_event_->CheckInterval();

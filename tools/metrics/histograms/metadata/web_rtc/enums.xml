@@ -217,6 +217,13 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="IPv6 BestConnection."/>
 </enum>
 
+<enum name="PeerConnectionCryptexUsage">
+  <int value="0" label="Cryptex was disabled"/>
+  <int value="1" label="Cryptex was offered but not negotiated"/>
+  <int value="2" label="Cryptex was offered and negotiated"/>
+  <int value="3" label="Cryptex was required to negotiate"/>
+</enum>
+
 <enum name="PeerConnectionProvisionalAnswer">
   <int value="0" label="Not used"/>
   <int value="1" label="Local"/>
@@ -370,6 +377,7 @@ chromium-metrics-reviews@google.com.
   <int value="25" label="Error MKI present in packet is invalid"/>
   <int value="26" label="Packet index is too old to consider"/>
   <int value="27" label="Packet index advanced, reset needed"/>
+  <int value="28" label="Cryptex error"/>
 </enum>
 
 <enum name="ThermalState">

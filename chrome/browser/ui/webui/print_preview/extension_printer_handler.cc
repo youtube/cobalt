@@ -160,7 +160,7 @@ void ExtensionPrinterHandler::Reset() {
 void ExtensionPrinterHandler::StartGetPrinters(
     AddedPrintersCallback callback,
     GetPrintersDoneCallback done_callback) {
-  // Assume that there can only be one printer enumeration occuring at once.
+  // Assume that there can only be one printer enumeration occurring at once.
   DCHECK_EQ(pending_enumeration_count_, 0);
   pending_enumeration_count_ = 1;
   done_callback_ = std::move(done_callback);

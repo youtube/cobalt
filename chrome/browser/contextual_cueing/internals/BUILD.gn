@@ -1,0 +1,19 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(!is_android)
+
+source_set("internals") {
+  sources = [
+    "contextual_cueing_internals_ui.cc",
+    "contextual_cueing_internals_ui.h",
+  ]
+  public_deps = [ "//content/public/browser" ]
+  deps = [
+    "//chrome/browser/contextual_cueing",
+    "//chrome/browser/resources/contextual_cueing/internals:resources",
+    "//chrome/common",
+    "//ui/webui",
+  ]
+}

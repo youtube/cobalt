@@ -9,3 +9,27 @@ test_class_name_check_test_nocompile_sources = [
 ]
 
 no_android_log_test_nocompile_sources = [ "../src/org/chromium/tools/errorprone/plugin/NoAndroidLogNoCompileSources.java" ]
+
+callback_bind_check_test_1_nocompile_sources = [
+  "../src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTest1.java",
+]
+
+callback_bind_check_test_2_nocompile_sources = [
+  "../src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTest2.java",
+]
+
+callback_bind_check_test_3_nocompile_sources = [
+  "../src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTest3.java",
+]
+
+callback_bind_check_test_4_nocompile_sources = [
+  "../src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTest4.java",
+]
+
+callback_bind_check_test_5_nocompile_sources = [
+  "../src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTest5.java",
+]
+
+callback_bind_check_test_6_nocompile_sources = [
+  "../src/org/chromium/tools/errorprone/plugin/CallbackBindCheckTest6.java",
+]

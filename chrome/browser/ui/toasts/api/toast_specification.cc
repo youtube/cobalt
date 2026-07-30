@@ -52,6 +52,12 @@ ToastSpecification::Builder& ToastSpecification::Builder::AddGlobalScoped() {
 }
 
 ToastSpecification::Builder&
+ToastSpecification::Builder::SetPersistOnNavigation() {
+  toast_specification_->SetPersistOnNavigation();
+  return *this;
+}
+
+ToastSpecification::Builder&
 ToastSpecification::Builder::SetToastAsActionable() {
   toast_specification_->SetToastAsActionable();
   return *this;
@@ -114,6 +120,10 @@ void ToastSpecification::AddMenu() {
 
 void ToastSpecification::AddGlobalScope() {
   is_global_scope_ = true;
+}
+
+void ToastSpecification::SetPersistOnNavigation() {
+  persist_on_navigation_ = true;
 }
 
 void ToastSpecification::SetToastAsActionable() {

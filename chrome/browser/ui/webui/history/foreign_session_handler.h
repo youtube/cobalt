@@ -72,6 +72,7 @@ class ForeignSessionHandler : public history::mojom::ForeignSessionPageHandler {
   ForeignSessionHandler(
       mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler>
           pending_page_handler,
+      mojo::PendingRemote<history::mojom::ForeignSessionPage> pending_page,
       Profile* profile,
       content::WebContents* web_contents,
       RestoreForeignSessionTabCallback restore_tab_callback,
@@ -84,8 +85,6 @@ class ForeignSessionHandler : public history::mojom::ForeignSessionPageHandler {
   ~ForeignSessionHandler() override;
 
   // history::mojom::ForeignSessionPageHandler implementation.
-  void SetPage(mojo::PendingRemote<history::mojom::ForeignSessionPage>
-                   pending_page) override;
   void GetForeignSessions(GetForeignSessionsCallback callback) override;
   void OpenForeignSessionAllTabs(const std::string& session_tag) override;
   void OpenForeignSessionTab(const std::string& session_tag,
@@ -94,6 +93,7 @@ class ForeignSessionHandler : public history::mojom::ForeignSessionPageHandler {
   void DeleteForeignSession(const std::string& session_tag) override;
   void SetForeignSessionCollapsed(const std::string& session_tag,
                                   bool collapsed) override;
+  void ShowUi() override;
 
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 

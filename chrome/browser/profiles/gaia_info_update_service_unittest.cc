@@ -77,7 +77,7 @@ AccountInfo GetValidAccountInfo(std::string email,
           .SetHostedDomain(hosted_domain)
           .SetAvatarUrl("https://example.com")
           .Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_enterprise_features(!hosted_domain.empty());
   return account_info;
 }
@@ -443,7 +443,7 @@ class GAIAInfoUpdateServiceWithGlicEnablingTest
                 signin::ConsentLevel::kSignin));
     CHECK(!primary_account_info.IsEmpty());
 
-    AccountCapabilitiesTestMutator mutator(&primary_account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&primary_account_info);
     glic::SetGlicCapability(mutator, true);
 
     signin::UpdateAccountInfoForAccount(identity_manager(),

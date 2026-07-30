@@ -10,10 +10,12 @@
 #include "third_party/blink/public/mojom/payments/payment_request.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_entity_logo.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_secure_payment_confirmation_request.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/modules/credentialmanagement/credential_utils.h"
 #include "third_party/blink/renderer/modules/payments/secure_payment_confirmation_type_converter.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -50,6 +52,30 @@ bool IsValidDomain(const String& rp_id) {
   return url.IsValid() && url.Host() == rp_id &&
          !url::HostIsIPAddress(url.Host().Utf8());
 }
+
+// Returns true if the given origin is allowed to claim the relying party ID
+// on the renderer side.
+//
+// Note that this is a best-effort check because:
+// 1) The renderer process does not have access to the Public Suffix List (PSL).
+//    For example, if the origin host is "foo.co.uk" and the rp_id is "co.uk",
+//    this check will return true (a false positive first-party classification,
+//    leading to a false negative where the third-party extension restriction is
+//    bypassed).
+// 2) The renderer process is untrusted and can be compromised.
+//
+// The browser process performs the authoritative security validation (via
+// `webauthn::OriginIsAllowedToClaimRelyingPartyId`) which correctly handles
+// public suffixes and rejects invalid registrations securely.
+bool IsOriginAllowedToClaimRelyingPartyId(const SecurityOrigin* origin,
+                                          const String& rp_id) {
+  if (!origin) {
+    return false;
+  }
+  String host = origin->Host();
+  return host == rp_id || host.EndsWithIgnoringAsciiCase(String("." + rp_id));
+}
+
 }  // namespace
 
 // static
@@ -187,8 +213,35 @@ SecurePaymentConfirmationHelper::ParseSecurePaymentConfirmationData(
     }
   }
 
-  return mojo::ConvertTo<
+  auto mojo_request = mojo::ConvertTo<
       payments::mojom::blink::SecurePaymentConfirmationRequestPtr>(request);
+
+  // Disallow all WebAuthn extensions for third-party SPC requests. Comparing
+  // against the parsed mojo message allows us to be sure that any future
+  // extensions added to the Mojo struct are automatically rejected by default.
+  //
+  // TODO(crbug.com/499003233): Update this to support allowed assertion-time
+  // extensions if any are added in the future.
+  if (mojo_request->extensions &&
+      blink::RuntimeEnabledFeatures::
+          SecurePaymentConfirmationExtensionsDisallowForThirdPartiesEnabled(
+              &execution_context)) {
+    bool is_third_party = !IsOriginAllowedToClaimRelyingPartyId(
+        execution_context.GetSecurityOrigin(), mojo_request->rp_id);
+
+    if (is_third_party) {
+      auto empty_extensions =
+          blink::mojom::blink::AuthenticationExtensionsClientInputs::New();
+      if (!mojo_request->extensions.Equals(empty_extensions)) {
+        exception_state.ThrowTypeError(
+            "The \"secure-payment-confirmation\" method does not support the "
+            "provided WebAuthn extension(s).");
+        return nullptr;
+      }
+    }
+  }
+
+  return mojo_request;
 }
 
 }  // namespace blink

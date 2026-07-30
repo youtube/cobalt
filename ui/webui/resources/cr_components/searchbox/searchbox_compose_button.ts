@@ -56,6 +56,9 @@ export class SearchboxComposeButtonElement extends
         type: String,
         reflect: true,
       },
+      arrowIcon_: {
+        type: String,
+      },
       showAnimation_: {
         type: Boolean,
         reflect: true,
@@ -80,6 +83,9 @@ export class SearchboxComposeButtonElement extends
 
   protected accessor composeIcon_: string =
       '//resources/cr_components/searchbox/icons/search_spark.svg';
+
+  protected accessor arrowIcon_: string =
+      '//resources/cr_components/searchbox/icons/arrow_forward.svg';
 
   protected accessor showAnimation_: boolean = false;
 

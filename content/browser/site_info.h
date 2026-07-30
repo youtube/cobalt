@@ -21,6 +21,7 @@ namespace content {
 
 class BrowserContext;
 class IsolationContext;
+class OriginAgentClusterIsolationState;
 class StoragePartitionConfig;
 struct UrlInfo;
 
@@ -438,9 +439,8 @@ class CONTENT_EXPORT SiteInfo : public SecurityPrincipal {
   static AgentClusterKey GetAgentClusterKeyForNonOpaqueOrigin(
       const IsolationContext& isolation_context,
       const UrlInfo& url_info,
-      const url::Origin origin,
-      AgentClusterKey::OACStatus oac_status,
-      bool requires_origin_keyed_process,
+      const url::Origin& origin,
+      const OriginAgentClusterIsolationState& oac_isolation_state,
       bool is_origin_isolated_sandboxed_data_iframe);
   static AgentClusterKey GetAgentClusterKeyForSchemeOnlyOrigin(
       const UrlInfo& url_info,

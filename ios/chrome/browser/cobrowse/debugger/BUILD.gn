@@ -8,14 +8,25 @@ source_set("debugger") {
     "aim_srp_debugger_breadcrumbs_view_controller.mm",
     "aim_srp_debugger_event.h",
     "aim_srp_debugger_event.mm",
+    "aim_srp_debugger_full_url_cell.h",
+    "aim_srp_debugger_full_url_cell.mm",
+    "aim_srp_debugger_url_component_cell.h",
+    "aim_srp_debugger_url_component_cell.mm",
+    "aim_srp_debugger_url_param_cell.h",
+    "aim_srp_debugger_url_param_cell.mm",
+    "aim_srp_debugger_url_view_controller.h",
+    "aim_srp_debugger_url_view_controller.mm",
     "aim_srp_message_logger.h",
     "aim_srp_message_logger.mm",
   ]
   deps = [
     "//base",
+    "//ios/chrome/browser/cobrowse/ui:constants",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/common/ui/colors",
+    "//ios/chrome/common/ui/util",
     "//third_party/lens_server_proto:lens_overlay_proto",
+    "//url",
   ]
 }
 

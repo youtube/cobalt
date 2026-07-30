@@ -187,7 +187,6 @@ class AccountMenuViewControllerTest : public PlatformTest {
   NSIndexPath* path_for_sign_out_ = [NSIndexPath indexPathForRow:0 inSection:1];
   NSIndexPath* path_for_add_account_ = [NSIndexPath indexPathForRow:1
                                                           inSection:0];
-  raw_ptr<AuthenticationService, DanglingUntriaged> authentication_service_;
   raw_ptr<FakeSystemIdentityManager> fake_system_identity_manager_;
   base::UserActionTester user_actions_;
 
@@ -247,6 +246,7 @@ class AccountMenuViewControllerTest : public PlatformTest {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
+  raw_ptr<AuthenticationService> authentication_service_;
 };
 
 // Test the view controller when it starts.

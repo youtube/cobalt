@@ -18,6 +18,10 @@ build_webui("build") {
     "bookmark_bar.ts",
     "bookmark.html.ts",
     "bookmark.ts",
+    "bookmarks/bookmark_tree_node.html.ts",
+    "bookmarks/bookmark_tree_node.ts",
+    "bookmarks/bookmarks.html.ts",
+    "bookmarks/bookmarks.ts",
     "content_region.ts",
     "extension.html.ts",
     "extension.ts",
@@ -45,6 +49,8 @@ build_webui("build") {
   css_files = [
     "app.css",
     "bookmark.css",
+    "bookmarks/bookmark_tree_node.css",
+    "bookmarks/bookmarks.css",
     "content_region.css",
     "extension.css",
     "extensions_bar.css",
@@ -62,7 +68,7 @@ build_webui("build") {
     "$root_gen_dir/components/tabs/public/mojom/tabs.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui_browser/bookmark_bar.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui_browser/browser.mojom-webui.ts",
-    "$root_gen_dir/components/browser_apis/ui_controllers/toolbar/extensions_bar.mojom-webui.ts",
+    "$root_gen_dir/components/browser_apis/bookmarks/bookmarks_api.mojom-webui.ts",
     "$root_gen_dir/components/browser_apis/tab_strip/node_id_converter.ts",
     "$root_gen_dir/components/browser_apis/tab_strip/tab_strip_api_types.mojom-converters.ts",
     "$root_gen_dir/components/browser_apis/tab_strip/tab_strip_api_types.mojom-webui.ts",
@@ -72,6 +78,7 @@ build_webui("build") {
 
   mojo_files_deps = [
     "//chrome/browser/ui/webui_browser:browser_mojo_bindings_ts__generator",
+    "//components/browser_apis/bookmarks:mojom_ts__generator",
     "//components/browser_apis/tab_drag:mojom_ts__generator",
     "//components/browser_apis/tab_strip:mojom_ts__copy_converters",
     "//components/browser_apis/tab_strip:mojom_ts__generator",
@@ -85,6 +92,7 @@ build_webui("build") {
   ts_definitions = [ "chrome_browser.d.ts" ]
 
   ts_deps = [
+    "../webui_toolbar_shared:build_ts",
     "//components/browser_apis/tab_strip/resources:build_ts",
     "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/cr_components/color_change_listener:build_ts",
@@ -94,8 +102,12 @@ build_webui("build") {
     "//ui/webui/resources/mojo:build_ts",
   ]
 
-  ts_path_mappings =
-      [ "/tab_strip_api/*|" + rebase_path(
+  ts_path_mappings = [
+    "/tab_strip_api/*|" + rebase_path(
             "$root_gen_dir/components/browser_apis/tab_strip/resources/tsc/*",
-            target_gen_dir) ]
+            target_gen_dir),
+    "/shared/*|" + rebase_path(
+            "$root_gen_dir/chrome/browser/resources/webui_toolbar_shared/tsc/*",
+            target_gen_dir),
+  ]
 }

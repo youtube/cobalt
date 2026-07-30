@@ -5,7 +5,9 @@
 #import "content/browser/web_contents/web_drag_dest_mac.h"
 
 #include <AppKit/AppKit.h>
+#import <Carbon/Carbon.h>
 
+#include "base/apple/bridging.h"
 #include "base/apple/scoped_nsautorelease_pool.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -102,6 +104,55 @@ TEST_F(WebDragDestTest, UTTypeImageFallback) {
   EXPECT_EQ(std::string(data.file_contents.begin(), data.file_contents.end()),
             image_bytes);
   EXPECT_EQ(data.file_contents_filename_extension, "jpeg");
+}
+
+TEST_F(WebDragDestTest, FileURLAndFilePromiseContentDoNotDuplicate) {
+  scoped_refptr<ui::UniquePasteboard> pboard = new ui::UniquePasteboard;
+
+  // Build a single pasteboard item that advertises both a real file URL and
+  // file-promise content. This mirrors a screenshot dragged from macOS's
+  // Screenshot tool before it has been saved to disk: the same file is
+  // represented two ways on one pasteboard item.
+  NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
+  NSURL* file_url = [NSURL fileURLWithPath:@"/tmp/screenshot.png"];
+  [item setString:file_url.absoluteString forType:NSPasteboardTypeFileURL];
+  [item
+      setString:@"public.png"
+        forType:base::apple::CFToNSPtrCast(kPasteboardTypeFilePromiseContent)];
+  std::string image_bytes = "fake image data";
+  NSData* raw_data = [NSData dataWithBytes:image_bytes.data()
+                                    length:image_bytes.size()];
+  [item setData:raw_data forType:@"public.png"];
+  [pboard->get() writeObjects:@[ item ]];
+
+  content::DropData data =
+      content::PopulateDropDataFromPasteboard(pboard->get());
+
+  EXPECT_EQ(data.filenames.size(), 1u);
+  EXPECT_TRUE(data.file_contents.empty());
+}
+
+TEST_F(WebDragDestTest, FilePromiseContentWithoutFileURL) {
+  scoped_refptr<ui::UniquePasteboard> pboard = new ui::UniquePasteboard;
+
+  // A promise-only item (no backing file URL on disk), e.g. a JS File object
+  // dragged from web content.
+  NSPasteboardItem* item = [[NSPasteboardItem alloc] init];
+  [item
+      setString:@"public.png"
+        forType:base::apple::CFToNSPtrCast(kPasteboardTypeFilePromiseContent)];
+  std::string image_bytes = "fake image data";
+  NSData* raw_data = [NSData dataWithBytes:image_bytes.data()
+                                    length:image_bytes.size()];
+  [item setData:raw_data forType:@"public.png"];
+  [pboard->get() writeObjects:@[ item ]];
+
+  content::DropData data =
+      content::PopulateDropDataFromPasteboard(pboard->get());
+
+  EXPECT_TRUE(data.filenames.empty());
+  EXPECT_EQ(std::string(data.file_contents.begin(), data.file_contents.end()),
+            image_bytes);
 }
 
 TEST_F(WebDragDestTest, FilePermissions) {

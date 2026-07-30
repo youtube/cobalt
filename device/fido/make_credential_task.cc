@@ -390,8 +390,7 @@ void MakeCredentialTask::HandleResponseToDummyTouch(
 void MakeCredentialTask::MaybeSetPRFParameters(
     CtapMakeCredentialRequest& request) {
   if (!request.prf_input || !request.pin_protocol ||
-      !request.pin_key_agreement ||
-      !base::FeatureList::IsEnabled(device::kWebAuthnHmacSecretMcExtension)) {
+      !request.pin_key_agreement) {
     return;
   }
 

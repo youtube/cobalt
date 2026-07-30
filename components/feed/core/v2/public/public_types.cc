@@ -28,44 +28,6 @@ std::ostream& operator<<(std::ostream& os, const AccountInfo& o) {
   return os << o.gaia << ":" << o.email;
 }
 
-WebFeedMetadata::WebFeedMetadata() = default;
-WebFeedMetadata::WebFeedMetadata(const WebFeedMetadata&) = default;
-WebFeedMetadata::WebFeedMetadata(WebFeedMetadata&&) = default;
-WebFeedMetadata::~WebFeedMetadata() = default;
-WebFeedMetadata& WebFeedMetadata::operator=(const WebFeedMetadata&) = default;
-WebFeedMetadata& WebFeedMetadata::operator=(WebFeedMetadata&&) = default;
-
-WebFeedPageInformation::WebFeedPageInformation() = default;
-WebFeedPageInformation::~WebFeedPageInformation() = default;
-WebFeedPageInformation::WebFeedPageInformation(const WebFeedPageInformation&) =
-    default;
-WebFeedPageInformation::WebFeedPageInformation(WebFeedPageInformation&&) =
-    default;
-WebFeedPageInformation& WebFeedPageInformation::operator=(
-    const WebFeedPageInformation&) = default;
-WebFeedPageInformation& WebFeedPageInformation::operator=(
-    WebFeedPageInformation&&) = default;
-void WebFeedPageInformation::SetUrl(const GURL& url) {
-  GURL::Replacements clear_ref;
-  clear_ref.ClearRef();
-  url_ = url.ReplaceComponents(clear_ref);
-}
-void WebFeedPageInformation::SetCanonicalUrl(const GURL& url) {
-  GURL::Replacements clear_ref;
-  clear_ref.ClearRef();
-  canonical_url_ = url.ReplaceComponents(clear_ref);
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         const WebFeedPageInformation& value) {
-  os << "{ " << value.url() << " ";
-  if (value.canonical_url().is_valid()) {
-    os << "canonical=" << value.canonical_url() << ' ';
-  }
-  os << "}";
-  return os;
-}
-
 // operator<< functions below are for test purposes, and shouldn't be called
 // from production code to avoid a binary size impact.
 
@@ -78,87 +40,6 @@ std::ostream& operator<<(std::ostream& os, const NetworkResponseInfo& o) {
             << " base_request_url=" << o.base_request_url
             << " response_body_bytes=" << o.response_body_bytes
             << " account_info=" << o.account_info << "}";
-}
-
-std::ostream& operator<<(std::ostream& out, WebFeedSubscriptionStatus value) {
-  switch (value) {
-    case WebFeedSubscriptionStatus::kUnknown:
-      return out << "kUnknown";
-    case WebFeedSubscriptionStatus::kSubscribed:
-      return out << "kSubscribed";
-    case WebFeedSubscriptionStatus::kNotSubscribed:
-      return out << "kNotSubscribed";
-    case WebFeedSubscriptionStatus::kSubscribeInProgress:
-      return out << "kSubscribeInProgress";
-    case WebFeedSubscriptionStatus::kUnsubscribeInProgress:
-      return out << "kUnsubscribeInProgress";
-  }
-}
-
-std::ostream& operator<<(std::ostream& out,
-                         WebFeedSubscriptionRequestStatus value) {
-  switch (value) {
-    case WebFeedSubscriptionRequestStatus::kUnknown:
-      return out << "kUnknown";
-    case WebFeedSubscriptionRequestStatus::kSuccess:
-      return out << "kSuccess";
-    case WebFeedSubscriptionRequestStatus::kFailedOffline:
-      return out << "kFailedOffline";
-    case WebFeedSubscriptionRequestStatus::kFailedTooManySubscriptions:
-      return out << "kFailedTooManySubscriptions";
-    case WebFeedSubscriptionRequestStatus::kFailedUnknownError:
-      return out << "kFailedUnknownError";
-    case WebFeedSubscriptionRequestStatus::
-        kAbortWebFeedSubscriptionPendingClearAll:
-      return out << "kAbortWebFeedSubscriptionPendingClearAll";
-  }
-}
-
-std::ostream& operator<<(std::ostream& out, WebFeedQueryRequestStatus value) {
-  switch (value) {
-    case WebFeedQueryRequestStatus::kUnknown:
-      return out << "kUnknown";
-    case WebFeedQueryRequestStatus::kSuccess:
-      return out << "kSuccess";
-    case WebFeedQueryRequestStatus::kFailedOffline:
-      return out << "kFailedOffline";
-    case WebFeedQueryRequestStatus::kFailedUnknownError:
-      return out << "kFailedUnknownError";
-    case WebFeedQueryRequestStatus::kFailedInvalidUrl:
-      return out << "kFailedInvalidUrl";
-    case WebFeedQueryRequestStatus::kAbortWebFeedQueryPendingClearAll:
-      return out << "kAbortWebFeedQueryPendingClearAll";
-  }
-}
-
-std::ostream& operator<<(std::ostream& out, WebFeedAvailabilityStatus value) {
-  switch (value) {
-    case WebFeedAvailabilityStatus::kStateUnspecified:
-      return out << "kStateUnspecified";
-    case WebFeedAvailabilityStatus::kInactive:
-      return out << "kInactive";
-    case WebFeedAvailabilityStatus::kActive:
-      return out << "kActive";
-    case WebFeedAvailabilityStatus::kWaitingForContent:
-      return out << "kWaitingForContent";
-  }
-}
-
-std::ostream& operator<<(std::ostream& out, const WebFeedMetadata& value) {
-  out << "WebFeedMetadata{";
-  if (!value.web_feed_id.empty())
-    out << " id=" << value.web_feed_id;
-  if (value.availability_status != WebFeedAvailabilityStatus::kStateUnspecified)
-    out << " availability_status=" << value.availability_status;
-  if (value.is_recommended)
-    out << " is_recommended";
-  if (!value.title.empty())
-    out << " title=" + value.title;
-  if (!value.publisher_url.is_empty())
-    out << " publisher_url=" << value.publisher_url;
-  if (value.subscription_status != WebFeedSubscriptionStatus::kUnknown)
-    out << " status=" << value.subscription_status;
-  return out << " }";
 }
 
 }  // namespace feed

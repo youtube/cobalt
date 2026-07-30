@@ -248,6 +248,10 @@ public final class ChromePreferenceKeys {
     public static final String NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_SHOWN_TIMESTAMP_MS =
             "Chrome.NtpCustomization.ThemeTipBottomSheetShownTimestampMs";
 
+    /** The file path of the customized NTP background image. */
+    public static final String NTP_CUSTOMIZATION_BACKGROUND_IMAGE_FILE_PATH =
+            "Chrome.NtpCustomization.BackgroundImageFilePath";
+
     /** Whether the customized NTP theme snackbar has been shown. */
     public static final String NTP_CUSTOMIZATION_THEME_IS_SNACKBAR_SHOWN =
             "Chrome.NtpCustomization.ThemeIsSnackbarShown";
@@ -399,6 +403,10 @@ public final class ChromePreferenceKeys {
     /** Indicates whether a chrome page URL has been overridden by an extension. */
     public static final KeyPrefix EXTENSIONS_CHROME_PAGE_URL_OVERRIDE_ENABLED =
             new KeyPrefix("Chrome.ExtensionsUrlOverrides.Page.*");
+
+    /** Indicates the previous widescreen state of the feed. */
+    public static final String FEED_PREVIOUS_WIDESCREEN_STATE =
+            "Chrome.Feed.PreviousWidescreenState";
 
     public static final String FIRST_RUN_FLOW_COMPLETE = "first_run_flow";
     // BACKUP_FLOW_SIGNIN_ACCOUNT_NAME used to be employed for the FRE too, thus the "first_run_"
@@ -1208,6 +1216,7 @@ public final class ChromePreferenceKeys {
                 NTP_CUSTOMIZATION_BACKGROUND_INFO,
                 NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED,
                 NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_SHOWN_TIMESTAMP_MS,
+                NTP_CUSTOMIZATION_BACKGROUND_IMAGE_FILE_PATH,
                 NTP_CUSTOMIZATION_THEME_IS_SNACKBAR_SHOWN,
                 NTP_CUSTOMIZATION_LAST_APPLY_THEME_TIMESTAMP_MS,
                 NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP,
@@ -1238,6 +1247,7 @@ public final class ChromePreferenceKeys {
                 EDUCATIONAL_TIP_LAST_DEFAULT_BROWSER_PROMO_TIMESTAMP,
                 EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS,
                 EXTENSIONS_CHROME_PAGE_URL_OVERRIDE_ENABLED.pattern(),
+                FEED_PREVIOUS_WIDESCREEN_STATE,
                 FIRST_RUN_SKIPPED_BY_POLICY,
                 FIRST_CTA_START_TIMESTAMP,
                 FLAGS_LAST_CACHED_MINIMAL_BROWSER_FLAGS_TIME_MILLIS,

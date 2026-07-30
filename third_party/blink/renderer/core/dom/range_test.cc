@@ -282,7 +282,7 @@ TEST_F(RangeTest, BoundingRectMustIndependentFromSelection) {
   const gfx::RectF rect_before = range->BoundingRect();
   EXPECT_GT(rect_before.width(), 0);
   EXPECT_GT(rect_before.height(), 0);
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .SetBaseAndExtent(EphemeralRange(range))
                                .Build(),
                            SetSelectionOptions());

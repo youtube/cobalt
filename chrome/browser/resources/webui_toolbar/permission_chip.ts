@@ -6,13 +6,13 @@ import {TrackedElementManager} from '//resources/js/tracked_element/tracked_elem
 import {ensureTransitionEndEvent} from '//resources/js/util.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {LhsChipIdentifier, PermissionAction, PermissionChipTheme, PermissionPromptStyle} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import type {PermissionChipState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 import {getCss} from './permission_chip.css.js';
 import {getHtml} from './permission_chip.html.js';
 import {BUTTON_LEFT} from './toolbar_button.js';
-import {LhsChipIdentifier, PermissionAction, PermissionChipTheme, PermissionPromptStyle} from './toolbar_ui_api_data_model.mojom-webui.js';
-import type {PermissionChipState} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 export class PermissionChipElement extends CrLitElement {
   static get is() {

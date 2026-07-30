@@ -63,7 +63,8 @@ class HlsNetworkAccessImplUnittest : public testing::Test {
       init = base::MakeRefCounted<hls::MediaSegment::InitializationSegment>(
           GURL("https://foo.com"), ByteRangeFromTuple(init_br));
     }
-    auto manifest_uri = GURL("https://example.com");
+    auto manifest_uri = GURL("https://example.com/manifest.m3u8");
+    auto resource_uri = GURL("https://example.com/content.mp4");
     if (key_location.has_value()) {
       auto key_uri = GURL(*key_location);
       enc_data = base::MakeRefCounted<hls::MediaSegment::EncryptionData>(
@@ -74,9 +75,9 @@ class HlsNetworkAccessImplUnittest : public testing::Test {
               : hls::MediaSegment::EncryptionData::KeyLocation::kUnsafeOrigin);
     }
     return base::MakeRefCounted<hls::MediaSegment>(
-        base::Seconds(1), 0, 0, manifest_uri, std::move(init),
-        std::move(enc_data), ByteRangeFromTuple(byte_range), std::nullopt,
-        false, false, init_mode == InitMode::kPresent, false);
+        base::Seconds(1), 0, 0, resource_uri, url::Origin::Create(manifest_uri),
+        std::move(init), std::move(enc_data), ByteRangeFromTuple(byte_range),
+        std::nullopt, false, false, init_mode == InitMode::kPresent, false);
   }
 
  protected:
@@ -321,7 +322,8 @@ TEST_F(HlsNetworkAccessImplUnittest, TestSegmentWithCORSKey) {
                              "https://example.net/enc.key");
 
   // This actually has to be 16 non-zero bytes.
-  auto* ds_for_keyfetch = factory_->PregenerateNextMock();
+  auto* ds_for_keyfetch =
+      factory_->PregenerateNextMock("https://example.net/enc.key");
   EXPECT_CALL(*ds_for_keyfetch, Initialize)
       .WillOnce(base::test::RunOnceCallback<0>(true));
   EXPECT_CALL(*ds_for_keyfetch, Read(0, SpanSizeEq(16384), _))
@@ -359,8 +361,10 @@ TEST_F(HlsNetworkAccessImplUnittest, TestSegmentWithRedirectionKey) {
   auto segment = MakeSegment(std::nullopt, std::nullopt, InitMode::kAbsent,
                              "https://example.com/enc.key");
 
-  // This actually has to be 16 non-zero bytes.
-  auto* ds_for_keyfetch = factory_->PregenerateNextMock();
+  // This actually has to be 16 non-zero bytes. Note that it also redirects to
+  // an off-host key service.
+  auto* ds_for_keyfetch =
+      factory_->PregenerateNextMock("https://crypto-r-us.net/enc.key");
   EXPECT_CALL(*ds_for_keyfetch, Initialize)
       .WillOnce(base::test::RunOnceCallback<0>(true));
   EXPECT_CALL(*ds_for_keyfetch, Read(0, SpanSizeEq(16384), _))
@@ -368,8 +372,6 @@ TEST_F(HlsNetworkAccessImplUnittest, TestSegmentWithRedirectionKey) {
         std::ranges::fill(data.first<16>(), 'x');
         std::move(cb).Run(16);
       });
-  EXPECT_CALL(*ds_for_keyfetch, DidRedirect())
-      .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(*ds_for_keyfetch, Read(16, SpanSizeEq(16384), _))
       .WillOnce(base::test::RunOnceCallback<2>(0));
   EXPECT_CALL(*ds_for_keyfetch, WouldTaintOrigin())
@@ -434,7 +436,7 @@ TEST_F(HlsNetworkAccessImplUnittest, TestReadKeyDisallowsGzip) {
                                     DataSource::CacheMode::kHitCache,
                                     DataSource::EncodingMode::kIdentity))
       .Times(1);
-  EXPECT_CALL(*factory_, MockCreate(GURL("https://example.com/"),
+  EXPECT_CALL(*factory_, MockCreate(GURL("https://example.com/content.mp4"),
                                     DataSource::CacheMode::kHitCache,
                                     DataSource::EncodingMode::kIdentity))
       .Times(1);

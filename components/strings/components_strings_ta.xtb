@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">எல்லாவற்றையும் திற</translation>
 <translation id="1408696301184924537">இந்த IBAN அடுத்த முறை தானாக நிரப்பப்பட இதை உங்கள் Google கணக்கில் சேமியுங்கள்</translation>
 <translation id="1408787208417187241">டிரிப்பில் ஸ்டேப்பில் டாப்</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> குழுவில் <ph name="MATCH_POSITION" />/<ph name="NUM_MATCHES_IN_GROUP" /> நிலையில் உள்ளது.</translation>
 <translation id="1410365862999780287">இந்தச் சாதனத்தைப் பயன்படுத்தும் பிறர், உங்கள் செயல்பாட்டைப் பார்க்க முடியாது என்பதால் நீங்கள் மிகவும் தனிப்பட்ட முறையில் தேடலாம். Google உட்பட, நீங்கள் பார்வையிடும் இணையதளங்கள் தரவை எப்படிச் சேகரிக்கின்றன என்பதையும் அவை பயன்படுத்தும் சேவைகளையும் இது மாற்றாது. பதிவிறக்கங்கள், புக்மார்க்குகள் மற்றும் வாசிப்புப் பட்டியலில் உள்ளவை சேமிக்கப்படும்.</translation>
 <translation id="1410941016594047814">என்வெலப் இன்வைட்</translation>
 <translation id="1413235258620101697">விரைவான செக்-அவுட்டிற்காக இந்தக் கார்டின் CVC என்க்ரிப்ஷன் செய்யப்பட்டு Google Walletடில் சேமிக்கப்படும்</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">கிடைக்கக்கூடிய கார்டு பலன்களையும் ரிவார்டுகளையும் செக்-அவுட்டில் காட்டும். வழங்குநர் விதிமுறைகள் பொருந்தும்.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">"<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" கீகள் இருக்கும் அதே அகராதியில் "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" கீகளை அமைக்க முடியாது</translation>
+<translation id="1449251255954293933">Google Walletடில் குறைதீர்வு எண்ணைச் சேமியுங்கள்</translation>
 <translation id="1455413310270022028">எரேஸர்</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{0 கருத்துகளைக் காட்டு}=1{1 கருத்தைக் காட்டு}other{எல்லா # கருத்துகளையும் காட்டு}}</translation>
 <translation id="1458059624921545588">மக்கள் மற்றும் சமுதாயம்</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">என்வெலப் பர்சனல்</translation>
 <translation id="2046951263634619614">புத்தக ரீடெய்லர்கள்</translation>
 <translation id="2048261947532620704">பக்கம் மொழிபெயர்க்கப்படுகிறது</translation>
+<translation id="2055016614992422886">உரையாடல்</translation>
 <translation id="2059166748188874810">நகராட்சி</translation>
 <translation id="2059202684901022309">22 x 34 இன்ச்</translation>
 <translation id="2064568741209980952">கடன் வழங்குதல்</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">வாடகைக் கார்கள்</translation>
 <translation id="278436560439594386">வீட்டு உபயோகப் பொருட்கள்</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">கடவுச்சொற்கள் · கடவுச்சாவிகள்</translation>
 <translation id="2784949926578158345">இணைப்பு மீட்டமைக்கப்பட்டது.</translation>
 <translation id="2786008859124691917">சைக்கிள்கள் &amp; துணைக்கருவிகள்</translation>
 <translation id="2792012897584536778">இந்தச் சாதனத்தின் நிர்வாகிகள் பாதுகாப்புச் சான்றிதழ்களை அமைத்துள்ளனர். இவற்றின் மூலம் நீங்கள் சென்ற இணையதளங்களின் உள்ளடக்கத்தை அவர்கள் பார்க்கக்கூடும்.</translation>
@@ -2301,6 +2305,7 @@
 <translation id="46128681529823442">சாக்கர் உபகரணங்கள்</translation>
 <translation id="4612904677925722054">இந்தத் தளத்தில் பெரியவர்களுக்கான உள்ளடக்கம் இருக்கக்கூடும். நீங்கள் இந்த இணையதளத்தைப் பார்க்க உங்கள் பெற்றோர் அல்லது காப்பாளர் அனுமதிக்க வேண்டும்.</translation>
 <translation id="4619564267100705184">இது நீங்கள்தான் என உறுதிசெய்யுங்கள்</translation>
+<translation id="4619669610757527494">Google Walletடில் ஓட்டுநர் உரிமத்தைச் சேமியுங்கள்</translation>
 <translation id="4622292761762557753">பரவாயில்லை மாற்று</translation>
 <translation id="4622647778991854660">அறிவிப்பு மையத்தில் அறிவிப்புகளை இயக்கும். <ph name="LINK" /> திறக்கும்.</translation>
 <translation id="4623894491222334521">அடையாள ஆவணங்கள்</translation>
@@ -2830,6 +2835,7 @@
 <translation id="543656192084990644">மோஷன் சென்சார்கள் அனுமதிக்கப்படவில்லை</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, முன்பு: <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">பின்னோக்கிய வரிசையில் மேல் நோக்கிய பாணி</translation>
+<translation id="5447103258548475868">Google Walletடில் பாஸ்போர்ட்டைச் சேமியுங்கள்</translation>
 <translation id="5447235695608032700">உங்களைப் பற்றி <ph name="SITE" /> சேமித்துள்ள தகவல்களைப் பயன்படுத்த அனுமதிக்கும்</translation>
 <translation id="5447973833955560753">கடவுச்சொல்லை மீட்டெடுத்தல்</translation>
 <translation id="5451331376824595378">பாதுகாப்பு தொடர்பான செயல்பாடுகளை Chrome கொடியிடும்போது அவை தொடர்பான தரவு உங்கள் நிர்வாகியுடன் பகிரப்படும். Chrome பிரவுசரில் நீங்கள் பார்க்கும் பக்கங்களின் URLகள், நீங்கள் தரவை நகலெடுத்தப் பக்கங்களின் URLகள், ஃபைல் பெயர்கள் அல்லது தரவுத்தகவல், IP முகவரிகள், பிரவுசர் அல்லது பக்கங்களின் சிதைவு விவரங்கள், இணையம் சார்ந்த ஆப்ஸிலும் சாதனத்திலும் Chromeமிலும் உள்நுழைய நீங்கள் பயன்படுத்தும் பயனர்பெயர் ஆகியவை இதில் அடங்கலாம்.</translation>
@@ -3012,6 +3018,7 @@
 <translation id="5718601519531438273">பாஸ்போர்ட்டுகள், ஓட்டுநர் உரிமங்கள் போன்ற தகவல்கள் அடங்கும்</translation>
 <translation id="5720705177508910913">நடப்புப் பயனர்</translation>
 <translation id="5720895412771013401">டெஸ்க்டாப் கம்ப்யூட்டர்கள்</translation>
+<translation id="5721147290164931316">மொபைல் மூலம் உள்நுழைய ஸ்கேன் செய்யுங்கள்</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} மற்றும் 1 தளம்}other{{website_1}, {website_2} மற்றும் {more_count} தளங்கள்}}</translation>
 <translation id="572328651809341494">சமீபத்திய தாவல்கள்</translation>
 <translation id="5723873695528696965">உங்கள் MIDI சாதனங்களைக் கட்டுப்படுத்துதல், மீண்டும் புரோகிராம் செய்தல்</translation>
@@ -3552,6 +3559,7 @@
 <translation id="6550245281449521513">மவுஸை லாக் செய்ய முடியாது</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, புதிது</translation>
 <translation id="6552566579578780089">பேமெண்ட்டுகள்</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> குழுவில் <ph name="MATCH_POSITION" />/<ph name="NUM_MATCHES_IN_GROUP" /> நிலையில் உள்ளது.</translation>
 <translation id="6554732001434021288">கடைசியாகப் பார்த்தது: <ph name="NUM_DAYS" /> நாட்களுக்கு முன்</translation>
 <translation id="6556866813142980365">மீண்டும் செய்</translation>
 <translation id="6557715786897013164">14 x 17 இன்ச்</translation>
@@ -4229,6 +4237,7 @@
 <translation id="7599089013883397081">பதிவிறக்குவதற்கான நேரம் முடிந்தது</translation>
 <translation id="7602868996817972616">இந்தப் பக்கம் பற்றி Googleளிடம் கேளுங்கள்</translation>
 <translation id="7606123685356405076">Gemini 3 மாடல்கள்</translation>
+<translation id="760632772920590778">Google Walletடில் வாகனத் தகவலைச் சேமியுங்கள்</translation>
 <translation id="7610193165460212391"><ph name="VALUE" /> என்ற மதிப்பு வரம்பை மீறியுள்ளது.</translation>
 <translation id="761261689936461781">அடர்த்தியானது</translation>
 <translation id="7613889955535752492">காலாவதியாவது: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4257,7 +4266,9 @@
 <translation id="7646681339175747202">நீங்கள் தற்போது பயன்படுத்திய கடவுச்சொல் தரவு மீறலுக்கு உட்பட்டிருப்பதாகக் கண்டறியப்பட்டுள்ளது. கடவுச்சொல்லை இப்போதே மாற்றுமாறு Google Password Manager பரிந்துரைக்கிறது.</translation>
 <translation id="7647206758853451655">அச்சின் தரம்</translation>
 <translation id="7648133459447652947">உங்கள் கர்சரைக் காட்ட ஆப்ஸிற்கிடையே மாறவும், பக்கத்தை ரெஃப்ரெஷ் செய்யவும் அல்லது பின் செல்லவும்</translation>
+<translation id="764847582138410250">மொபைல் மூலம் உள்நுழைய ஸ்கேன் செய்யுங்கள்</translation>
 <translation id="7648527891719919697"><ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android அமைப்புகளில்<ph name="END_ANDROID_SETTINGS_LINK" /> நீங்கள் மேம்பட்ட பாதுகாப்பை ஆன் செய்திருப்பதால் இந்தத் தளம் தடுக்கப்பட்டே இருக்கும். <ph name="BEGIN_LEARN_MORE_LINK" />இந்த எச்சரிக்கை குறித்து மேலும் தெரிந்துகொள்ளுங்கள்<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Google Walletடில் தெரிந்த பயணி எண்ணைச் சேமியுங்கள்</translation>
 <translation id="7648992873808071793">இந்தச் சாதனத்தில் ஃபைல்களைச் சேமிக்கும்</translation>
 <translation id="7649070708921625228">உதவி</translation>
 <translation id="7650141368285545431">மற்றொரு சாதனத்தில் உள்ள கடவுச்சாவியைப் பயன்படுத்து</translation>
@@ -4350,6 +4361,7 @@
 <translation id="7773005668374414287">அதே வரிசையில் மேல் நோக்கிய பாணி</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" />க்கான அணுகலை ரத்துசெய்யும்</translation>
 <translation id="7781829728241885113">நேற்று</translation>
+<translation id="7782228658217918863">Google Walletடில் அடையாள அட்டையைச் சேமியுங்கள்</translation>
 <translation id="7782465647372057580">கணக்குத் தகவல் என்க்ரிப்ட் செய்யப்பட்டு தனிப்பட்டதாகவே வைத்திருக்கப்படும்</translation>
 <translation id="7785471469930192436">இதுவரை தேடியவற்றை நீக்க உங்கள் தேடல் இன்ஜினின் வழிமுறைகளைப் பாருங்கள் (நீக்க அனுமதித்தால்)</translation>
 <translation id="7785790577395078482">இந்த டேப்லெட்</translation>

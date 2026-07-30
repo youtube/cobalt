@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/optional_util.h"
@@ -71,10 +72,15 @@ constexpr char kExampleUrl[] = "https://example.com";
 
 constexpr char kRuleName1[] = "rule #1";
 constexpr char kRuleId1[] = "testid1";
-const DlpRulesManager::RuleMetadata kRuleMetadata1(kRuleName1, kRuleId1);
 
 constexpr char kRuleName2[] = "rule #2";
 constexpr char kRuleId2[] = "testid2";
+
+const DlpRulesManager::RuleMetadata& GetRuleMetadata1() {
+  static const base::NoDestructor<DlpRulesManager::RuleMetadata> val(kRuleName1,
+                                                                     kRuleId1);
+  return *val;
+}
 
 class FakeClipboardNotifier : public DlpClipboardNotifier {
  public:
@@ -427,10 +433,10 @@ IN_PROC_BROWSER_TEST_F(DataTransferDlpBrowserTest, WarnDestination) {
     ui::DataTransferEndpoint default_endpoint(ui::EndpointType::kDefault);
     auto data_src =
         std::make_unique<ui::DataTransferEndpoint>((GURL(kMailUrl)));
-    auto reporting_cb =
-        base::BindOnce(&FakeDlpController::ReportWarningProceededEvent,
-                       base::Unretained(dlp_controller_.get()), data_src.get(),
-                       &default_endpoint, kMailUrl, "*", kRuleMetadata1, true);
+    auto reporting_cb = base::BindOnce(
+        &FakeDlpController::ReportWarningProceededEvent,
+        base::Unretained(dlp_controller_.get()), data_src.get(),
+        &default_endpoint, kMailUrl, "*", GetRuleMetadata1(), true);
     auto data = std::make_unique<ui::ClipboardData>();
     data->set_text(base::UTF16ToUTF8(std::u16string(kClipboardText116)));
     helper_.ProceedPressed(std::move(data), default_endpoint,

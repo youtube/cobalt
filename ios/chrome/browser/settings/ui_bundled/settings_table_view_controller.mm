@@ -110,6 +110,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/settings_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/table_cell_catalog_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/tabs/tabs_settings_coordinator.h"
+#import "ios/chrome/browser/settings/ui_bundled/view_controller_catalog_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/voice_search_table_view_controller.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -634,6 +635,8 @@ struct EnhancedSafeBrowsingActivePromoData
         toSectionWithIdentifier:SettingsSectionIdentifierDebug];
     [model addItem:[self buttonCatalogDetailItem]
         toSectionWithIdentifier:SettingsSectionIdentifierDebug];
+    [model addItem:[self viewControllerCatalogDetailItem]
+        toSectionWithIdentifier:SettingsSectionIdentifierDebug];
   }
 
   if (experimental_flags::ShouldShowBackendPromoDebugTools()) {
@@ -1153,6 +1156,15 @@ struct EnhancedSafeBrowsingActivePromoData
           accessibilityIdentifier:nil];
 }
 
+- (TableViewDetailIconItem*)viewControllerCatalogDetailItem {
+  return [self detailItemWithType:SettingsItemTypeViewControllerCatalog
+                             text:@"ViewController Catalog"
+                       detailText:nil
+                           symbol:DefaultSettingsRootSymbol(kCartSymbol)
+            symbolBackgroundColor:[UIColor colorNamed:kGrey400Color]
+          accessibilityIdentifier:nil];
+}
+
 #pragma mark Item Constructors
 
 - (TableViewDetailIconItem*)detailItemWithType:(NSInteger)type
@@ -1395,6 +1407,11 @@ struct EnhancedSafeBrowsingActivePromoData
     case SettingsItemTypeButtonCatalog:
       [self.navigationController
           pushViewController:[[ButtonCatalogViewController alloc] init]
+                    animated:YES];
+      break;
+    case SettingsItemTypeViewControllerCatalog:
+      [self.navigationController
+          pushViewController:[[ViewControllerCatalogViewController alloc] init]
                     animated:YES];
       break;
     case SettingsItemTypeBWGSettings:

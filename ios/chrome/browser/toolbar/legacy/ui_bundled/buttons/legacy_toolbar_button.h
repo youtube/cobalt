@@ -10,7 +10,7 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_component_options.h"
 
-@protocol BWGCommands;
+@protocol GeminiCommands;
 @class LayoutGuideCenter;
 @class ToolbarConfiguration;
 
@@ -45,7 +45,7 @@ using ToolbarButtonImageLoader = UIImage* (^)(void);
 // Whether this button has blue dot promo.
 @property(nonatomic, assign) BOOL hasBlueDot;
 // Dispatcher for Gemini commands.
-@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 // String used for voiceover for the blue dot on the icon. Assumes if there is a
 // blue dot on the toolbar button then it always has the same meaning.
 @property(nonatomic, copy) NSString* blueDotAccessibilityLabel;

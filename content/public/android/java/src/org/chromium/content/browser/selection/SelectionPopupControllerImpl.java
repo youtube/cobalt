@@ -174,6 +174,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
 
     // Can be null temporarily when switching between WindowAndroid.
     private @Nullable View mView;
+    private @Nullable ViewAndroidDelegate mLastViewDelegate;
     private @Nullable ActionMode mActionMode;
 
     // Supplier of whether action bar is showing now.
@@ -344,6 +345,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         if (viewDelegate != null) {
             mView = viewDelegate.getContainerView();
             viewDelegate.addObserver(this);
+            mLastViewDelegate = viewDelegate;
         }
 
         // The menu items are allowed by default.
@@ -405,6 +407,20 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         if (containerView != null) containerView.setClickable(true);
         mView = containerView;
         mMagnifierAnimator = null;
+    }
+
+    private void ensureView() {
+        ViewAndroidDelegate viewDelegate = mWebContents.getViewAndroidDelegate();
+        if (viewDelegate != null) {
+            if (mLastViewDelegate != viewDelegate) {
+                if (mLastViewDelegate != null) {
+                    mLastViewDelegate.removeObserver(this);
+                }
+                viewDelegate.addObserver(this);
+                mLastViewDelegate = viewDelegate;
+            }
+            mView = viewDelegate.getContainerView();
+        }
     }
 
     // ImeEventObserver
@@ -500,6 +516,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
      * used to invoke text selection menu).
      */
     private boolean shouldUseDropdownMenu() {
+        ensureView();
         return mView != null
                 && mDropdownMenuDelegate != null
                 && mMenuSourceType == MenuSourceType.MOUSE
@@ -536,6 +553,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             int sourceType,
             RenderFrameHost renderFrameHost,
             MenuModelBridge menuModelBridge) {
+        ensureView();
         mShowMenuStartTimeMs = SystemClock.elapsedRealtime();
         mMenuModelBridge = menuModelBridge;
         RecordHistogram.recordEnumeratedHistogram(
@@ -667,6 +685,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
      * <p>If the action mode cannot be created the selection is cleared.
      */
     public void showActionModeOrClearOnFailure() {
+        ensureView();
         if (!isActionModeSupported()
                 || mView == null
                 || !mView.isAttachedToWindow()
@@ -740,6 +759,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
 
     @VisibleForTesting
     protected void createAndShowDropdownMenu() {
+        ensureView();
         assert mContext != null;
         assert mView != null;
         assert mDropdownMenuDelegate != null;

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import './pinned_toolbar_action_icons.html.js';
 // <if expr="_google_chrome">
 import './internal/icons.html.js';
 
@@ -12,16 +11,16 @@ import './internal/icons.html.js';
 import {assertNotReachedCase} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {IconTable} from '/shared/icon_table.js';
+import {PinnedToolbarAction} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import type {PinnedToolbarActionState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
 import {ContextMenuType} from './browser_proxy.js';
-import {IconTable} from './icon_table.js';
-import {getCss} from './pinned_toolbar_action.css.js';
 import {getHtml} from './pinned_toolbar_action.html.js';
+import {getCss} from './toolbar_button.css.js';
 import {getContextMenuPosition, getContextMenuSourceType, HelpBubbleAnchorMixin, setHasHelpBubble} from './toolbar_button.js';
-import {PinnedToolbarAction} from './toolbar_ui_api_data_model.mojom-webui.js';
-import type {PinnedToolbarActionState} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 const PinnedToolbarActionElementBase = HelpBubbleAnchorMixin(CrLitElement);
 

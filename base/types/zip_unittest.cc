@@ -7,6 +7,7 @@
 #include <array>
 #include <iostream>
 #include <iterator>
+#include <list>
 #include <ranges>
 #include <vector>
 
@@ -246,6 +247,29 @@ TEST(ZipTest, SentinelEquality) {
   std::advance(it, 3);
   EXPECT_TRUE(end == it);
   EXPECT_FALSE(end != it);
+}
+
+TEST(ZipTest, SizeEmptyRange) {
+  std::list<int> a;
+
+  const auto z = zip(a);
+  EXPECT_EQ(z.size(), 0);
+}
+
+TEST(ZipTest, SizeSingleRange) {
+  std::vector<int> a = {8, 9};
+
+  const auto z = zip(a);
+  EXPECT_EQ(z.size(), a.size());
+}
+
+TEST(ZipTest, SizeMultipleRanges) {
+  std::vector<int> a = {1, 2, 3};
+  std::list<bool> b = {true};
+  std::array<std::string, 4> c = {"1", "2", "3", "4"};
+
+  const auto z = zip(a, b, c);
+  EXPECT_EQ(z.size(), b.size());
 }
 
 }  // namespace base

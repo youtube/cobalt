@@ -32,6 +32,7 @@ import androidx.recyclerview.widget.RecyclerView.OnScrollListener;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CommandLine;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TraceEvent;
@@ -46,7 +47,6 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
-import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
 import org.chromium.chrome.browser.ntp.NewTabPageLayout;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager.HomepageStateListener;
@@ -58,6 +58,8 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBa
 import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageCoordinator;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
+import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -97,9 +99,7 @@ public class FeedSurfaceCoordinator
         implements FeedSurfaceProvider,
                 FeedBubbleDelegate,
                 SwipeRefreshLayout.OnRefreshListener,
-                SurfaceCoordinator,
-                FeedContentFirstLoadWatcher {
-
+                SurfaceCoordinator {
     protected final Activity mActivity;
     private final SnackbarManager mSnackbarManager;
     private final @Nullable View mNtpHeader;
@@ -372,7 +372,6 @@ public class FeedSurfaceCoordinator
      * @param profile The current user profile.
      * @param bottomSheetController The bottom sheet controller.
      * @param shareDelegateSupplier The supplier for the share delegate used to share articles.
-     * @param launchOrigin The origin of what launched the feed.
      * @param privacyPreferencesManager Manages the privacy preferences.
      * @param toolbarSupplier Supplies the {@link Toolbar}.
      * @param embeddingSurfaceCreatedTimeNs Timestamp of creation of the UI surface.
@@ -396,7 +395,6 @@ public class FeedSurfaceCoordinator
             BottomSheetController bottomSheetController,
             Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
             @Nullable ScrollableContainerDelegate externalScrollableContainerDelegate,
-            @NewTabPageLaunchOrigin int launchOrigin,
             PrivacyPreferencesManagerImpl privacyPreferencesManager,
             Supplier<Toolbar> toolbarSupplier,
             long embeddingSurfaceCreatedTimeNs,
@@ -634,10 +632,6 @@ public class FeedSurfaceCoordinator
         }
     }
 
-    // TODO(crbug.com/407797637): Removes the FeedContentFirstLoadWatcher interface.
-    @Override
-    public void nonNativeContentLoaded(@StreamKind int kind) {}
-
     @Override
     @SuppressWarnings("NullAway")
     public void destroy() {
@@ -835,6 +829,15 @@ public class FeedSurfaceCoordinator
             observer.surfaceOpened();
         }
         mMediator.onSurfaceOpened();
+
+        // Reload the feed for the first time when a user enrolls into the widescreen experiment
+        // (or unenrolled from the experiment). If the cache is not invalidated upon enrollment, the
+        // user will see cached non-widescreen cards forced into a single column layout, resulting
+        // in disproportionately large, square-shaped cards being displayed, until the feed is
+        // refreshed.
+        if (hasWideScreenChanged()) {
+            manualRefresh();
+        }
     }
 
     /** Hides the feed. */
@@ -950,6 +953,29 @@ public class FeedSurfaceCoordinator
     }
 
     /**
+     * Checks if the widescreen experiment flag state has changed since the last feed load. Updates
+     * the shared preference to the current state if a change is detected.
+     */
+    private boolean hasWideScreenChanged() {
+        boolean currWideScreenValue =
+                DeviceInfo.isFoldable()
+                        && ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.WIDE_SCREEN_FEED_FOR_FOLDABLES);
+        boolean prevWideScreenValue =
+                ChromeSharedPreferences.getInstance()
+                        .readBoolean(ChromePreferenceKeys.FEED_PREVIOUS_WIDESCREEN_STATE, false);
+
+        if (currWideScreenValue != prevWideScreenValue) {
+            ChromeSharedPreferences.getInstance()
+                    .writeBoolean(
+                            ChromePreferenceKeys.FEED_PREVIOUS_WIDESCREEN_STATE,
+                            currWideScreenValue);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * @return The {@link RecyclerView} associated with this feed.
      */
     public RecyclerView getRecyclerView() {
@@ -1036,7 +1062,6 @@ public class FeedSurfaceCoordinator
                 mShareSupplier,
                 kind,
                 mActionDelegate,
-                /* feedContentFirstLoadWatcher= */ this,
                 streamsMediator,
                 new FeedSurfaceRendererBridge.Factory() {});
     }

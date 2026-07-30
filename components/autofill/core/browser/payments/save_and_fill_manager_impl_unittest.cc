@@ -31,7 +31,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill::payments {
-
 namespace {
 
 using ::base::test::RunOnceCallback;
@@ -76,7 +75,7 @@ constexpr char kInvalidLegalMessageLines[] =
 
 class TestPaymentsAutofillClientMock : public TestPaymentsAutofillClient {
  public:
-  explicit TestPaymentsAutofillClientMock(autofill::AutofillClient* client)
+  explicit TestPaymentsAutofillClientMock(AutofillClient* client)
       : TestPaymentsAutofillClient(client) {}
 
   ~TestPaymentsAutofillClientMock() override = default;
@@ -114,8 +113,32 @@ class MockPaymentsDataManager : public TestPaymentsDataManager {
               (int64_t instrument_id, const std::u16string& cvc),
               (override));
 };
+
+UserProvidedCardSaveAndFillDetails CreateUserProvidedCardDetails(
+    std::u16string card_number,
+    std::u16string cardholder_name,
+    std::u16string expiration_date_month,
+    std::u16string expiration_date_year,
+    std::optional<std::u16string> security_code,
+    std::optional<std::u16string> nickname = std::nullopt) {
+  UserProvidedCardSaveAndFillDetails user_provided_card_details;
+  user_provided_card_details.card_number = std::move(card_number);
+  user_provided_card_details.cardholder_name = std::move(cardholder_name);
+  user_provided_card_details.expiration_date_month =
+      std::move(expiration_date_month);
+  user_provided_card_details.expiration_date_year =
+      std::move(expiration_date_year);
+  user_provided_card_details.security_code = std::move(security_code);
+#if BUILDFLAG(IS_IOS)
+  user_provided_card_details.nickname = nickname;
+#endif
+  return user_provided_card_details;
+}
+
 }  // namespace
 
+// This is outside of the anonymous namespace because it is a friend of of
+// SaveAndFillManagerImpl.
 class SaveAndFillManagerImplTest : public testing::Test {
  public:
   SaveAndFillManagerImplTest() {
@@ -230,27 +253,6 @@ class SaveAndFillManagerImplTest : public testing::Test {
   TestAutofillClient autofill_client_;
   std::unique_ptr<SaveAndFillManagerImpl> save_and_fill_manager_impl_;
 };
-
-UserProvidedCardSaveAndFillDetails CreateUserProvidedCardDetails(
-    std::u16string card_number,
-    std::u16string cardholder_name,
-    std::u16string expiration_date_month,
-    std::u16string expiration_date_year,
-    std::optional<std::u16string> security_code,
-    std::optional<std::u16string> nickname = std::nullopt) {
-  UserProvidedCardSaveAndFillDetails user_provided_card_details;
-  user_provided_card_details.card_number = std::move(card_number);
-  user_provided_card_details.cardholder_name = std::move(cardholder_name);
-  user_provided_card_details.expiration_date_month =
-      std::move(expiration_date_month);
-  user_provided_card_details.expiration_date_year =
-      std::move(expiration_date_year);
-  user_provided_card_details.security_code = std::move(security_code);
-#if BUILDFLAG(IS_IOS)
-  user_provided_card_details.nickname = nickname;
-#endif
-  return user_provided_card_details;
-}
 
 TEST_F(SaveAndFillManagerImplTest, OfferLocalSaveAndFill_ShowsLocalDialog) {
   EXPECT_CALL(payments_autofill_client(),
@@ -406,7 +408,7 @@ TEST_F(SaveAndFillManagerImplTest,
 
   EXPECT_EQ(details.upload_card_source, UploadCardSource::kUpstreamSaveAndFill);
   EXPECT_EQ(details.billing_customer_number,
-            payments::GetBillingCustomerId(payments_data_manager()));
+            GetBillingCustomerId(payments_data_manager()));
   EXPECT_EQ(details.app_locale, autofill_client().GetAppLocale());
   EXPECT_THAT(
       details.client_behavior_signals,

@@ -422,6 +422,12 @@ TEST_F(FormFieldParserTest, ParseFormRequires3DistinctFieldTypes) {
 }
 
 TEST_F(FormFieldParserTest, ParseStandaloneZipDisabledForUS) {
+  // TODO(crbug.com/501037715): When cleaning up this flag, remove this test
+  // and rename the ParseStandaloneZipEnabledForBR test to make it clear that
+  // the behavior is not country specific.
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(
+      features::kAutofillSupportStandaloneZipCodeGlobally);
   AddTextFormFieldData("zip", "ZIP", ADDRESS_HOME_ZIP);
   EXPECT_EQ(0, ParseFormFields(GeoIpCountryCode("US")));
 }

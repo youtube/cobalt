@@ -303,7 +303,7 @@ TEST_F(WebDataServiceAutofillTest, ProfileRemove) {
 // Tests that if a profile is hidden in autofill, it is removed from the local
 // database.
 TEST_F(WebDataServiceAutofillTest, ProfileHideInAutofill) {
-  AutofillProfile profile = autofill::test::GetFullProfile();
+  AutofillProfile profile = test::GetFullProfile();
   test_api(profile).set_record_type(AutofillProfile::RecordType::kAccount);
 
   // Add a profile.

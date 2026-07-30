@@ -11,11 +11,16 @@
 
 #include "android_webview/browser/content_restriction/aw_content_restriction_blocked_navigation_tracker.h"
 #include "android_webview/browser/content_restriction/aw_content_restriction_manager_client.h"
+#include "base/check.h"
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/data_element.h"
@@ -24,21 +29,26 @@ namespace android_webview {
 namespace {
 
 void WriteDataElementBytesToPipe(
-    int write_fd,
+    scoped_refptr<base::RefCountedData<base::ScopedFD>> write_fd_wrapper,
     const network::DataElementBytes* bytes,
-    scoped_refptr<network::ResourceRequestBody> request_body) {
-  base::ScopedFD fd(write_fd);
+    scoped_refptr<network::ResourceRequestBody> request_body,
+    scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner) {
+  DCHECK(sequenced_task_runner->RunsTasksInCurrentSequence());
+  DCHECK(write_fd_wrapper);
   DCHECK(bytes);
-  if (!base::WriteFileDescriptor(fd.get(), bytes->AsStringView())) {
+  if (!base::WriteFileDescriptor(write_fd_wrapper->data.get(),
+                                 bytes->AsStringView())) {
     LOG(ERROR) << "Failed to write data element bytes to pipe";
   }
 }
 
 void WriteDataElementFileToPipe(
-    int write_fd,
+    scoped_refptr<base::RefCountedData<base::ScopedFD>> write_fd_wrapper,
     const network::DataElementFile* file_element,
-    scoped_refptr<network::ResourceRequestBody> request_body) {
-  base::ScopedFD fd(write_fd);
+    scoped_refptr<network::ResourceRequestBody> request_body,
+    scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner) {
+  DCHECK(sequenced_task_runner->RunsTasksInCurrentSequence());
+  DCHECK(write_fd_wrapper);
   DCHECK(file_element);
   base::File file(file_element->path(),
                   base::File::FLAG_OPEN | base::File::FLAG_READ);
@@ -75,21 +85,24 @@ void WriteDataElementFileToPipe(
       return;
     }
     if (!base::WriteFileDescriptor(
-            fd.get(), std::string_view(reinterpret_cast<const char*>(buffer),
-                                       read_result.value()))) {
+            write_fd_wrapper->data.get(),
+            std::string_view(reinterpret_cast<const char*>(buffer),
+                             read_result.value()))) {
       return;
     }
     total_read += read_result.value();
   }
 }
 
-void WriteRequestBodyToPipe(
+}  // namespace
+
+void AwContentRestrictionURLLoaderThrottle::WriteRequestBodyToPipe(
     int write_fd,
     scoped_refptr<network::ResourceRequestBody> request_body) {
-  if (!request_body) {
-    close(write_fd);
-    return;
-  }
+  scoped_refptr<base::RefCountedData<base::ScopedFD>> write_fd_wrapper =
+      base::MakeRefCounted<base::RefCountedData<base::ScopedFD>>(
+          base::ScopedFD(write_fd));
+  CHECK(request_body);
 
   DCHECK(request_body->elements());
   for (const network::DataElement& element : *request_body->elements()) {
@@ -97,25 +110,24 @@ void WriteRequestBodyToPipe(
       case network::DataElement::Tag::kBytes: {
         // Pass the `request_body` to guarantee safe memory access
         // until the request body is fully written to the pipe.
-        base::ThreadPool::PostTask(
-            FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-            base::BindOnce(&WriteDataElementBytesToPipe, write_fd,
+        sequenced_task_runner_->PostTask(
+            FROM_HERE,
+            base::BindOnce(&WriteDataElementBytesToPipe, write_fd_wrapper,
                            &element.As<network::DataElementBytes>(),
-                           request_body));
+                           request_body, sequenced_task_runner_));
         break;
       }
       case network::DataElement::Tag::kFile: {
         // Pass the `request_body` to guarantee safe memory access
         // until file contents are fully written to the pipe.
-        base::ThreadPool::PostTask(
-            FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-            base::BindOnce(&WriteDataElementFileToPipe, write_fd,
+        sequenced_task_runner_->PostTask(
+            FROM_HERE,
+            base::BindOnce(&WriteDataElementFileToPipe, write_fd_wrapper,
                            &element.As<network::DataElementFile>(),
-                           request_body));
+                           request_body, sequenced_task_runner_));
         break;
       }
       default: {
-        close(write_fd);
         NOTREACHED()
             << "Unsupported request body data type for content restriction: "
             << static_cast<int>(element.type());
@@ -124,15 +136,15 @@ void WriteRequestBodyToPipe(
   }
 }
 
-}  // namespace
-
 AwContentRestrictionURLLoaderThrottle::AwContentRestrictionURLLoaderThrottle(
     AwContentRestrictionManagerClient* client,
     AwContentRestrictionBlockedNavigationTracker* tracker,
     std::optional<int64_t> navigation_id)
     : content_restriction_manager_client_(client),
       tracker_(tracker),
-      navigation_id_(navigation_id) {}
+      navigation_id_(navigation_id),
+      sequenced_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::TaskPriority::BEST_EFFORT})) {}
 
 AwContentRestrictionURLLoaderThrottle::
     ~AwContentRestrictionURLLoaderThrottle() = default;
@@ -154,6 +166,9 @@ void AwContentRestrictionURLLoaderThrottle::WillStartRequest(
       }
     }
 
+    // Kick off request classification after writing into the pipe. This
+    // will offer filtering apps additional time for processing with the payload
+    // data that has been already written into the pipe.
     content_restriction_manager_client_->RequestContentClassification(
         navigation_id, *request,
         base::BindOnce(

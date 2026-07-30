@@ -1,7 +1,6 @@
 include_rules = [
   "-components/feed/core/v2/stream_model",
   "-components/feed/core/v2/tasks",
-  "-components/feed/core/v2/web_feed_subscriptions",
   "+components/search_engines",
   "+components/supervised_user",
   "+components/sync_preferences",
@@ -16,8 +15,5 @@ specific_include_rules = {
   ],
   "stream_model\\.(h|cc)": [
     "+components/feed/core/v2/stream_model",
-  ],
-  "web_feed_subscription_coordinator\\.(h|cc)": [
-    "+components/feed/core/v2/web_feed_subscriptions",
   ],
 }

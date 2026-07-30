@@ -67,7 +67,6 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetSelect.h"
-#include "tools/clang/raw_ptr_plugin/RawPtrManualPathsToIgnore.h"
 
 using namespace clang::ast_matchers;
 
@@ -168,7 +167,7 @@ struct Node {
   // {is_field\,is_excluded\,has_auto_type\,r:::<file
   // path>:::<offset>:::<length>:::<replacement
   // text>\,include-user-header:::<file path>:::-1:::-1:::<include text>}
-  // where is_field,is_excluded, and has_auto_type are booleans represendted as
+  // where is_field,is_excluded, and has_auto_type are booleans represented as
   // 0 or 1.
   std::string ToString() const {
     return llvm::formatv("{{{0:d}\\,{1:d}\\,{2:d}\\,{3}\\,{4}}", is_field,
@@ -217,8 +216,7 @@ class LocalVisitor
  public:
   void visitMatch(
       const clang::ast_matchers::BoundNodes& BoundNodesView) override {
-    if (const auto* ptr =
-            BoundNodesView.getNodeAs<clang::FunctionDecl>("fct_decl")) {
+    if (BoundNodesView.getNodeAs<clang::FunctionDecl>("fct_decl")) {
       fct_decl_ = BoundNodesView.getNodeAs<clang::FunctionDecl>("fct_decl");
       is_lambda_ = false;
     } else {
@@ -356,7 +354,10 @@ static std::string GenerateNewType(const clang::ASTContext& ast_context,
 
   // Convert pointee type to string.
   clang::PrintingPolicy printing_policy(ast_context.getLangOpts());
-  printing_policy.SuppressScope = 1;  // s/blink::Pointee/Pointee/
+  // We want to preserve namespaces/scopes (e.g. keep `blink::Pointee` instead
+  // of suppressing it to `Pointee`). This avoids compile errors in the
+  // rewritten code if the reference is in a different namespace scope.
+  printing_policy.SuppressScope = 0;
   std::string pointee_type_as_string =
       pointee_type.getAsString(printing_policy);
   result += llvm::formatv("raw_ptr<{0}>", pointee_type_as_string);
@@ -450,15 +451,13 @@ class PotentialNodes : public MatchFinder::MatchCallback {
       lhs.replacement = p.first;
       lhs.include_directive = p.second;
 
-      if (const clang::FieldDecl* field_decl =
-              result.Nodes.getNodeAs<clang::FieldDecl>("lhs_field")) {
+      if (result.Nodes.getNodeAs<clang::FieldDecl>("lhs_field")) {
         lhs.is_field = true;
       }
 
       // To make sure we add all field decls to the graph.(Specifically those
       // not connected to other nodes)
-      if (const clang::FieldDecl* field_decl =
-              result.Nodes.getNodeAs<clang::FieldDecl>("field_decl")) {
+      if (result.Nodes.getNodeAs<clang::FieldDecl>("field_decl")) {
         lhs.is_field = true;
         output_helper_.AddSingleNode(lhs);
         return;
@@ -468,8 +467,7 @@ class PotentialNodes : public MatchFinder::MatchCallback {
       // that reason, fields annotated with RAW_PTR_EXCLUSION are added as
       // single nodes to the list, this is then used as a starting point to
       // propagate the exclusion to all neighboring nodes.
-      if (const clang::FieldDecl* field_decl =
-              result.Nodes.getNodeAs<clang::FieldDecl>("excluded_field_decl")) {
+      if (result.Nodes.getNodeAs<clang::FieldDecl>("excluded_field_decl")) {
         lhs.is_field = true;
         lhs.is_excluded = true;
         output_helper_.AddSingleNode(lhs);
@@ -489,8 +487,7 @@ class PotentialNodes : public MatchFinder::MatchCallback {
     }
 
     Node rhs;
-    if (const clang::FieldDecl* field_decl =
-            result.Nodes.getNodeAs<clang::FieldDecl>("rhs_field")) {
+    if (result.Nodes.getNodeAs<clang::FieldDecl>("rhs_field")) {
       rhs.is_field = true;
     }
 
@@ -723,8 +720,7 @@ class AffectedPtrExprRewriter : public MatchFinder::MatchCallback {
     }
 
     Node rhs;
-    if (const clang::FieldDecl* field_decl =
-            result.Nodes.getNodeAs<clang::FieldDecl>("rhs_field")) {
+    if (result.Nodes.getNodeAs<clang::FieldDecl>("rhs_field")) {
       rhs.is_field = true;
     }
 
@@ -814,7 +810,7 @@ AST_MATCHER_P(clang::Expr,
   auto search_calls = callExpr(callee(functionDecl(matchesName("find"))),
                                hasArgument(0, expr().bind("expr")));
 
-  auto unary_op = unaryOperator(has(expr().bind("expr")));
+  auto unary_op = unaryOperator(hasUnaryOperand(expr().bind("expr")));
 
   auto reversed_expr = callExpr(callee(functionDecl(hasName("base::Reversed"))),
                                 hasArgument(0, expr().bind("expr")));
@@ -834,11 +830,24 @@ AST_MATCHER_P(clang::Expr,
       has(expr(unless(declRefExpr(to(cxxMethodDecl(hasName("operator*"))))))
               .bind("expr")));
 
+  auto loop_var_second = memberExpr(
+      member(hasName("second")),
+      hasObjectExpression(declRefExpr(to(varDecl(hasParent(declStmt(
+          hasParent(cxxForRangeStmt(hasRangeInit(expr().bind("expr")))))))))));
+
   auto second_member =
       memberExpr(member(hasName("second")), has(expr().bind("expr")));
 
-  auto items = {iterator,        search_calls,  unary_op,     reversed_expr,
-                bracket_op_call, arrow_op_call, star_op_call, second_member};
+  auto cxx_construct =
+      cxxConstructExpr(argumentCountIs(1), hasArgument(0, expr().bind("expr")));
+
+  auto cxx_bind_temp = cxxBindTemporaryExpr(has(expr().bind("expr")));
+
+  auto paren_expr = parenExpr(has(expr().bind("expr")));
+
+  auto items = {iterator,        search_calls,  unary_op,      reversed_expr,
+                bracket_op_call, arrow_op_call, star_op_call,  loop_var_second,
+                second_member,   cxx_construct, cxx_bind_temp, paren_expr};
   clang::ast_matchers::internal::BoundNodesTreeBuilder matches;
   const clang::Expr* n = nullptr;
   std::any_of(items.begin(), items.end(), [&](auto& item) {
@@ -854,6 +863,36 @@ AST_MATCHER_P(clang::Expr,
     return matcher.matches(*n, Finder, Builder);
   }
   return InnerMatcher.matches(Node, Finder, Builder);
+}
+
+AST_MATCHER_P(clang::FieldDecl,
+              hasExplicitFieldTypeLoc,
+              clang::ast_matchers::internal::Matcher<clang::TypeLoc>,
+              InnerMatcher) {
+  const clang::FieldDecl* explicit_field_decl =
+      raw_ptr_plugin::GetExplicitDecl(&Node);
+  if (!explicit_field_decl) {
+    return false;
+  }
+  if (auto* tsi = explicit_field_decl->getTypeSourceInfo()) {
+    return InnerMatcher.matches(tsi->getTypeLoc(), Finder, Builder);
+  }
+  return false;
+}
+
+AST_MATCHER_P(clang::ParmVarDecl,
+              hasExplicitParmVarTypeLoc,
+              clang::ast_matchers::internal::Matcher<clang::TypeLoc>,
+              InnerMatcher) {
+  const clang::ParmVarDecl* explicit_param =
+      raw_ptr_plugin::GetExplicitDecl(&Node);
+  if (!explicit_param) {
+    return false;
+  }
+  if (auto* tsi = explicit_param->getTypeSourceInfo()) {
+    return InnerMatcher.matches(tsi->getTypeLoc(), Finder, Builder);
+  }
+  return false;
 }
 
 class DeclVisitor
@@ -895,6 +934,30 @@ AST_MATCHER_P(clang::TypedefNameDecl,
   return InnerMatcher.matches(Node, Finder, Builder);
 }
 
+AST_MATCHER_P(clang::TypedefNameDecl,
+              typedefHasTypeLoc,
+              clang::ast_matchers::internal::Matcher<clang::TypeLoc>,
+              InnerMatcher) {
+  if (clang::TypeSourceInfo* TInfo = Node.getTypeSourceInfo()) {
+    clang::TypeLoc TLoc = TInfo->getTypeLoc();
+    while (auto QLoc = TLoc.getAs<clang::QualifiedTypeLoc>()) {
+      TLoc = QLoc.getUnqualifiedLoc();
+    }
+    return InnerMatcher.matches(TLoc, Finder, Builder);
+  }
+  return false;
+}
+
+using TypeLocMatcher = clang::ast_matchers::internal::Matcher<clang::TypeLoc>;
+
+TypeLocMatcher underlyingTypeLoc(TypeLocMatcher inner_matcher) {
+  auto typedef_matcher = loc(qualType(hasDeclaration(
+      typedefNameDecl(type_def_name_decl(typedefHasTypeLoc(inner_matcher))))));
+  return anyOf(inner_matcher,
+               qualifiedTypeLoc(hasUnqualifiedLoc(inner_matcher)),
+               typedef_matcher);
+}
+
 class ContainerRewriter {
  public:
   explicit ContainerRewriter(
@@ -923,9 +986,24 @@ class ContainerRewriter {
     // TODO: handle rewriting maps.
     auto excluded_containers = matchesName("map");
 
+    // Standard library containers inside uninstantiated/dependent template
+    // definitions (e.g., inside template classes or functions before they are
+    // instantiated) might fail to match method-based AST matchers (like
+    // `container_methods`) due to standard library implementation complexities
+    // (such as inheriting methods from hidden base classes).
+    // Explicitly listing standard containers here guarantees that they are
+    // correctly matched and rewritten in templated code.
+    auto std_containers = classTemplateDecl(hasAnyName(
+        "::std::vector", "::std::list", "::std::deque", "::std::set",
+        "::std::multiset", "::std::unordered_set", "::std::unordered_multiset",
+        "::std::stack", "::std::queue", "::std::priority_queue"));
+
     auto supported_containers = anyOf(
         hasDeclaration(classTemplateSpecializationDecl(
             container_methods, unless(excluded_containers))),
+        hasDeclaration(classTemplateDecl(has(
+            cxxRecordDecl(container_methods, unless(excluded_containers))))),
+        hasDeclaration(std_containers),
         hasDeclaration(typeAliasTemplateDecl(has(typeAliasDecl(
             hasType(qualType(hasDeclaration(classTemplateDecl(has(cxxRecordDecl(
                 container_methods, unless(excluded_containers))))))))))));
@@ -972,42 +1050,35 @@ class ContainerRewriter {
               allOf(raw_ptr_plugin::isInMacroLocation(),
                     unless(raw_ptr_plugin::isRawPtrExclusionAnnotated())));
 
-    // Supports typedefs as well.
-    auto lhs_type_loc =
-        anyOf(hasDescendant(loc(qualType(hasDeclaration(typedefNameDecl(
-                  type_def_name_decl(hasDescendant(lhs_location))))))),
-              hasDescendant(lhs_location));
+    TypeLocMatcher lhs_type_loc =
+        anyOf(underlyingTypeLoc(lhs_location),
+              hasDescendant(underlyingTypeLoc(lhs_location)));
 
     // Supports typedefs as well.
-    auto rhs_type_loc =
-        anyOf(hasDescendant(loc(qualType(hasDeclaration(typedefNameDecl(
-                  type_def_name_decl(hasDescendant(rhs_location))))))),
-              hasDescendant(rhs_location));
+    TypeLocMatcher rhs_type_loc =
+        anyOf(underlyingTypeLoc(rhs_location),
+              hasDescendant(underlyingTypeLoc(rhs_location)));
 
-    auto lhs_field =
-        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
-                  unless(field_exclusions))
-            .bind("lhs_field");
-    auto rhs_field =
-        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(rhs_type_loc),
-                  unless(field_exclusions))
-            .bind("rhs_field");
+    auto lhs_field = fieldDecl(hasExplicitFieldTypeLoc(lhs_type_loc),
+                               unless(field_exclusions))
+                         .bind("lhs_field");
+    auto rhs_field = fieldDecl(hasExplicitFieldTypeLoc(rhs_type_loc),
+                               unless(field_exclusions))
+                         .bind("rhs_field");
 
     auto lhs_var = anyOf(
         varDecl(hasDescendant(loc(qualType(autoType())).bind("lhs_auto_loc"))),
-        varDecl(lhs_type_loc).bind("lhs_var"));
+        varDecl(hasDescendant(lhs_type_loc)).bind("lhs_var"));
 
     auto rhs_var = anyOf(
         varDecl(hasDescendant(loc(qualType(autoType())).bind("rhs_auto_loc"))),
-        varDecl(rhs_type_loc).bind("rhs_var"));
+        varDecl(hasDescendant(rhs_type_loc)).bind("rhs_var"));
 
     auto lhs_param =
-        parmVarDecl(raw_ptr_plugin::hasExplicitParmVarDecl(lhs_type_loc))
-            .bind("lhs_param");
+        parmVarDecl(hasExplicitParmVarTypeLoc(lhs_type_loc)).bind("lhs_param");
 
     auto rhs_param =
-        parmVarDecl(raw_ptr_plugin::hasExplicitParmVarDecl(rhs_type_loc))
-            .bind("rhs_param");
+        parmVarDecl(hasExplicitParmVarTypeLoc(rhs_type_loc)).bind("rhs_param");
 
     auto rhs_call_expr =
         callExpr(callee(functionDecl(hasReturnTypeLoc(rhs_type_loc))));
@@ -1026,7 +1097,7 @@ class ContainerRewriter {
     // To make sure we add all field decls to the graph.(Specifically those not
     // connected to other nodes)
     auto field_decl =
-        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
+        fieldDecl(hasExplicitFieldTypeLoc(lhs_type_loc),
                   unless(anyOf(field_exclusions,
                                raw_ptr_plugin::isRawPtrExclusionAnnotated())))
             .bind("field_decl");
@@ -1040,7 +1111,7 @@ class ContainerRewriter {
     // used as a starting point to propagate the exclusion before running dfs on
     // the graph.
     auto excluded_field_decl =
-        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
+        fieldDecl(hasExplicitFieldTypeLoc(lhs_type_loc),
                   anyOf(raw_ptr_plugin::isRawPtrExclusionAnnotated(),
                         isInLocationListedInFilterFile(paths_to_exclude)))
             .bind("excluded_field_decl");
@@ -1056,19 +1127,21 @@ class ContainerRewriter {
     auto lhs_move_call =
         callExpr(callee(functionDecl(ref_cref_move)), hasArgument(0, lhs_expr));
 
-    auto rhs_cxx_temp_expr = cxxTemporaryObjectExpr(rhs_type_loc);
+    auto rhs_cxx_temp_expr =
+        cxxTemporaryObjectExpr(hasDescendant(rhs_type_loc));
 
-    auto lhs_cxx_temp_expr = cxxTemporaryObjectExpr(lhs_type_loc);
+    auto lhs_cxx_temp_expr =
+        cxxTemporaryObjectExpr(hasDescendant(lhs_type_loc));
 
     // This represents the forms under which an expr could appear on the right
     // hand side of an assignment operation, var construction, or an expr passed
     // as callExpr argument. Examples: rhs_expr, &rhs_expr, *rhs_expr,
     // fct_call(),*fct_call(), &fct_call(), std::move(), .begin();
-    auto rhs_expr_variations =
-        expr_variations(anyOf(rhs_expr, rhs_move_call, rhs_cxx_temp_expr));
+    auto rhs_expr_variations = ignoringImplicit(
+        expr_variations(anyOf(rhs_expr, rhs_move_call, rhs_cxx_temp_expr)));
 
-    auto lhs_expr_variations =
-        expr_variations(anyOf(lhs_expr, lhs_move_call, lhs_cxx_temp_expr));
+    auto lhs_expr_variations = ignoringImplicit(
+        expr_variations(anyOf(lhs_expr, lhs_move_call, lhs_cxx_temp_expr)));
 
     // rewrite affected expressions
     {
@@ -1089,7 +1162,8 @@ class ContainerRewriter {
       auto auto_star_in_range_stmt = traverse(
           clang::TK_IgnoreUnlessSpelledInSource,
           cxxForRangeStmt(
-              has(varDecl(hasDescendant(loc(qualType(pointsTo(autoType())))
+              hasLoopVariable(
+                  varDecl(hasDescendant(loc(qualType(pointsTo(autoType())))
                                             .bind("autoLoc")))
                       .bind("autoVarDecl")),
               has(expr(
@@ -1248,7 +1322,7 @@ class ContainerRewriter {
     // cxxOpCallExprs excluded here since operator= can be invoked as a call
     // expr for classes/structs.
     auto call_expr = traverse(
-        clang::TK_IgnoreUnlessSpelledInSource,
+        clang::TK_AsIs,
         callExpr(forEachArgumentWithParam(
                      expr(anyOf(rhs_expr_variations,
                                 conditionalOperator(

@@ -125,6 +125,7 @@ constexpr auto kAtomsToCache = std::to_array<const char* const>({
     "_NET_WM_CM_S0",
     "_NET_WM_DESKTOP",
     "_NET_WM_ICON",
+    "_NET_WM_ICON_NAME",
     "_NET_WM_MOVERESIZE",
     "_NET_WM_NAME",
     "_NET_WM_OPAQUE_REGION",

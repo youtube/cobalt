@@ -60,7 +60,7 @@ float SyntheticGestureTargetIOS::GetMinScalingSpanInDips() const {
 RenderWidgetHostViewIOS* SyntheticGestureTargetIOS::GetView() const {
   auto* view =
       static_cast<RenderWidgetHostViewIOS*>(render_widget_host()->GetView());
-  DCHECK(view);
+  CHECK(view, base::NotFatalUntil::M152);
   return view;
 }
 

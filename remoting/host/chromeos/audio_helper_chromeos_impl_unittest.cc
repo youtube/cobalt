@@ -33,6 +33,8 @@
 
 namespace remoting {
 
+using Error = media::AudioInputStream::AudioInputCallback::Error;
+
 namespace {
 
 constexpr int kSampleRate = 48000;
@@ -71,7 +73,7 @@ class FakeAudioInputStream : public media::AudioInputStream {
     callback_->OnData(audio_bus, capture_time, volume, {});
   }
 
-  void SimulateError() { callback_->OnError(); }
+  void SimulateError() { callback_->OnError(Error::kRuntimeError); }
 
   OpenOutcome Open() override { return open_outcome_; }
 

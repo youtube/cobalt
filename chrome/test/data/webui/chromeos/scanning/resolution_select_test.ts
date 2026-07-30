@@ -9,7 +9,7 @@ import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict
 import {assert} from 'chrome://resources/js/assert.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {ResolutionSelectElement} from 'chrome://scanning/resolution_select.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {changeSelectedIndex, changeSelectedValue} from './scanning_app_test_utils.js';
 

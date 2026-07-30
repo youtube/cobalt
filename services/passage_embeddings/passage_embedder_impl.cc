@@ -6,51 +6,74 @@
 
 #include <utility>
 
+#include "base/check.h"
 #include "base/files/file.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
-#include "services/passage_embeddings/passage_embedder.h"
+#include "services/passage_embeddings/passage_embedder_executor.h"
 #include "services/passage_embeddings/passage_embeddings_op_resolver.h"
 #include "third_party/sentencepiece/src/src/sentencepiece_model.pb.h"
+#include "third_party/sentencepiece/src/src/sentencepiece_processor.h"
+#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/core/tflite_engine.h"
 
 namespace {
 // Records duration and trace event for embeddings generation.
 void RecordEmbeddingsDurationMetrics(
     bool is_passive,
+    bool execute_for_gemma,
+    uint32_t signature_length,
     base::TimeTicks start_time,
     base::TimeDelta elapsed_time,
     std::optional<base::TimeDelta> elapsed_thread_time) {
-  const auto trace_track =
+  const perfetto::Track trace_track =
       perfetto::Track(base::trace_event::GetNextGlobalTraceId());
 
-  if (is_passive) {
-    TRACE_EVENT_BEGIN("loading", "PassageEmbeddingsGeneration", trace_track,
+  if (execute_for_gemma) {
+    TRACE_EVENT_BEGIN("loading", "SemanticEmbeddingsGeneration", trace_track,
                       start_time);
+    std::string signature_str = "." + base::NumberToString(signature_length);
     if (elapsed_thread_time.has_value()) {
       base::UmaHistogramMediumTimes(
-          "History.Embeddings.Embedder."
-          "PassageEmbeddingsGenerationThreadDuration",
+          "AI.SemanticEmbedder.PassageEmbeddingsGenerationThreadDuration" +
+              signature_str,
           *elapsed_thread_time);
     }
     base::UmaHistogramMediumTimes(
-        "History.Embeddings.Embedder.PassageEmbeddingsGenerationDuration",
+        "AI.SemanticEmbedder.PassageEmbeddingsGenerationDuration" +
+            signature_str,
         elapsed_time);
   } else {
-    TRACE_EVENT_BEGIN("loading", "QueryEmbeddingsGeneration", trace_track,
-                      start_time);
-    if (elapsed_thread_time.has_value()) {
+    if (is_passive) {
+      TRACE_EVENT_BEGIN("loading", "PassageEmbeddingsGeneration", trace_track,
+                        start_time);
+      if (elapsed_thread_time.has_value()) {
+        base::UmaHistogramMediumTimes(
+            "History.Embeddings.Embedder."
+            "PassageEmbeddingsGenerationThreadDuration",
+            *elapsed_thread_time);
+      }
       base::UmaHistogramMediumTimes(
-          "History.Embeddings.Embedder.QueryEmbeddingsGenerationThreadDuration",
-          *elapsed_thread_time);
+          "History.Embeddings.Embedder.PassageEmbeddingsGenerationDuration",
+          elapsed_time);
+    } else {
+      TRACE_EVENT_BEGIN("loading", "QueryEmbeddingsGeneration", trace_track,
+                        start_time);
+      if (elapsed_thread_time.has_value()) {
+        base::UmaHistogramMediumTimes(
+            "History.Embeddings.Embedder."
+            "QueryEmbeddingsGenerationThreadDuration",
+            *elapsed_thread_time);
+      }
+      base::UmaHistogramMediumTimes(
+          "History.Embeddings.Embedder.QueryEmbeddingsGenerationDuration",
+          elapsed_time);
     }
-    base::UmaHistogramMediumTimes(
-        "History.Embeddings.Embedder.QueryEmbeddingsGenerationDuration",
-        elapsed_time);
   }
 
   TRACE_EVENT_END("loading", trace_track, start_time + elapsed_time);
@@ -61,7 +84,8 @@ namespace passage_embeddings {
 
 PassageEmbedderImpl::PassageEmbedderImpl(
     mojom::PassageEmbedderParamsPtr embedder_params)
-    : embeddings_cache_(embedder_params->embedder_cache_size),
+    : execute_for_gemma_(embedder_params->execute_for_gemma),
+      embeddings_cache_(embedder_params->embedder_cache_size),
       user_initiated_priority_num_threads_(
           embedder_params->user_initiated_priority_num_threads),
       urgent_priority_num_threads_(
@@ -82,13 +106,17 @@ bool PassageEmbedderImpl::LoadModels(base::File embeddings_model_file,
   base::ElapsedTimer sp_timer;
   bool sp_load_success = LoadSentencePieceModelFile(std::move(sp_file));
   base::UmaHistogramBoolean(
-      "History.Embeddings.Embedder.SentencePieceModelLoadSucceeded",
+      execute_for_gemma_
+          ? "AI.SemanticEmbedder.SentencePieceModelLoadSucceeded"
+          : "History.Embeddings.Embedder.SentencePieceModelLoadSucceeded",
       sp_load_success);
   if (!sp_load_success) {
     return false;
   }
   base::UmaHistogramMediumTimes(
-      "History.Embeddings.Embedder.SentencePieceModelLoadDuration",
+      execute_for_gemma_
+          ? "AI.SemanticEmbedder.SentencePieceModelLoadDuration"
+          : "History.Embeddings.Embedder.SentencePieceModelLoadDuration",
       sp_timer.Elapsed());
 
   embeddings_input_window_size_ = embeddings_input_window_size;
@@ -103,8 +131,9 @@ bool PassageEmbedderImpl::LoadSentencePieceModelFile(base::File sp_file) {
     return false;
   }
 
-  auto model_proto = std::make_unique<sentencepiece::ModelProto>();
-  model_proto->ParseFromArray(sp_model.data(), sp_model.length());
+  std::unique_ptr<sentencepiece::ModelProto> model_proto =
+      std::make_unique<sentencepiece::ModelProto>();
+  model_proto->ParseFromArray(sp_model.bytes().data(), sp_model.bytes().size());
   sp_processor_ = std::make_unique<sentencepiece::SentencePieceProcessor>();
   if (!(sp_processor_->Load(std::move(model_proto)).ok())) {
     sp_processor_.reset();
@@ -115,12 +144,18 @@ bool PassageEmbedderImpl::LoadSentencePieceModelFile(base::File sp_file) {
 
 bool PassageEmbedderImpl::BuildExecutionTask() {
   CHECK_NE(current_priority_, mojom::PassagePriority::kUnknown);
+  executor_.reset();
 
-  loaded_model_.reset();
+  std::unique_ptr<tflite::OpResolver> op_resolver;
+  if (execute_for_gemma_) {
+    op_resolver = std::make_unique<GemmaOpResolver>();
+  } else {
+    op_resolver = std::make_unique<HistoryOpResolver>(allow_gpu_execution_);
+  }
 
-  // Build a new task from the model bytes and the task priority.
-  auto tflite_engine = std::make_unique<tflite::task::core::TfLiteEngine>(
-      std::make_unique<PassageEmbeddingsOpResolver>(allow_gpu_execution_));
+  std::unique_ptr<tflite::task::core::TfLiteEngine> tflite_engine =
+      std::make_unique<tflite::task::core::TfLiteEngine>(
+          std::move(op_resolver));
 
   base::ElapsedTimer embeddings_timer;
 #if BUILDFLAG(IS_WIN)
@@ -131,13 +166,17 @@ bool PassageEmbedderImpl::BuildExecutionTask() {
       embeddings_model_file_.GetPlatformFile());
 #endif
   base::UmaHistogramBoolean(
-      "History.Embeddings.Embedder.EmbeddingsModelLoadSucceeded",
+      execute_for_gemma_
+          ? "AI.SemanticEmbedder.EmbeddingsModelLoadSucceeded"
+          : "History.Embeddings.Embedder.EmbeddingsModelLoadSucceeded",
       model_load_status.ok());
   if (!model_load_status.ok()) {
     return false;
   }
   base::UmaHistogramMediumTimes(
-      "History.Embeddings.Embedder.EmbeddingsModelLoadDuration",
+      execute_for_gemma_
+          ? "AI.SemanticEmbedder.EmbeddingsModelLoadDuration"
+          : "History.Embeddings.Embedder.EmbeddingsModelLoadDuration",
       embeddings_timer.Elapsed());
 
   int num_threads;
@@ -160,23 +199,30 @@ bool PassageEmbedderImpl::BuildExecutionTask() {
     return false;
   }
 
-  loaded_model_ =
-      std::make_unique<PassageEmbedderExecutionTask>(std::move(tflite_engine));
-
+  if (execute_for_gemma_) {
+    executor_ = std::make_unique<GemmaModelExecutor>(
+        sp_processor_->bos_id(), sp_processor_->eos_id(),
+        sp_processor_->pad_id(), std::move(tflite_engine));
+  } else {
+    executor_ = std::make_unique<HistoryModelExecutor>(
+        embeddings_input_window_size_, sp_processor_->eos_id(),
+        std::move(tflite_engine));
+  }
   return true;
 }
 
 void PassageEmbedderImpl::UnloadModelFiles() {
   sp_processor_.reset();
-  loaded_model_.reset();
+  executor_.reset();
   embeddings_model_file_.Close();
 }
 
-std::optional<OutputType> PassageEmbedderImpl::Execute(InputType input) {
-  if (!loaded_model_) {
+std::optional<EmbedderExecutionResult> PassageEmbedderImpl::Execute(
+    const std::vector<int>& input) {
+  if (!executor_) {
     return std::nullopt;
   }
-  return loaded_model_->Execute(input);
+  return executor_->Execute(input);
 }
 
 std::vector<mojom::PassageEmbeddingsResultPtr>
@@ -191,16 +237,22 @@ PassageEmbedderImpl::GenerateEmbeddings(const std::vector<std::string>& inputs,
   // Rebuild the execution task if necessary.
   if (current_priority_ != priority) {
     current_priority_ = priority;
-    BuildExecutionTask();
+    if (!BuildExecutionTask()) {
+      current_priority_ = mojom::PassagePriority::kUnknown;
+      return results;
+    }
   }
 
   for (const std::string& input : inputs) {
     mojom::PassageEmbeddingsResultPtr result =
         mojom::PassageEmbeddingsResult::New();
 
-    auto cache_value = embeddings_cache_.Get(input);
+    base::LRUCache<std::string, std::vector<float>>::iterator cache_value =
+        embeddings_cache_.Get(input);
     bool cache_hit = cache_value != embeddings_cache_.end();
-    base::UmaHistogramBoolean(kCacheHitMetricName, cache_hit);
+    if (!execute_for_gemma_) {
+      base::UmaHistogramBoolean(kCacheHitMetricName, cache_hit);
+    }
     if (cache_hit) {
       result->embeddings = cache_value->second;
       results.push_back(std::move(result));
@@ -209,26 +261,32 @@ PassageEmbedderImpl::GenerateEmbeddings(const std::vector<std::string>& inputs,
 
     std::vector<int> tokenized;
     base::ElapsedTimer tokenize_timer;
-    auto status = sp_processor_->Encode(input, &tokenized);
+    absl::Status status = sp_processor_->Encode(input, &tokenized);
     base::UmaHistogramBoolean(
-        "History.Embeddings.Embedder.TokenizationSucceeded", status.ok());
+        execute_for_gemma_
+            ? "AI.SemanticEmbedder.TokenizationSucceeded"
+            : "History.Embeddings.Embedder.TokenizationSucceeded",
+        status.ok());
     if (!status.ok()) {
       return {};
     }
     base::UmaHistogramCounts1000(
-        "History.Embeddings.Embedder.PassageTokenCount", tokenized.size());
-    if (tokenized.size() < embeddings_input_window_size_) {
-      tokenized.push_back(sp_processor_->eos_id());
+        execute_for_gemma_ ? "AI.SemanticEmbedder.PassageTokenCount"
+                           : "History.Embeddings.Embedder.PassageTokenCount",
+        tokenized.size());
+    if (!execute_for_gemma_) {
+      base::UmaHistogramBoolean(
+          "History.Embeddings.Embedder.InputTruncated",
+          tokenized.size() > embeddings_input_window_size_);
     }
-    base::UmaHistogramBoolean("History.Embeddings.Embedder.InputTruncated",
-                              tokenized.size() > embeddings_input_window_size_);
-    tokenized.resize(embeddings_input_window_size_);
     base::TimeDelta tokenize_elapsed = tokenize_timer.Elapsed();
     base::UmaHistogramMediumTimes(
-        "History.Embeddings.Embedder.TokenizationDuration", tokenize_elapsed);
+        execute_for_gemma_ ? "AI.SemanticEmbedder.TokenizationDuration"
+                           : "History.Embeddings.Embedder.TokenizationDuration",
+        tokenize_elapsed);
 
-    const auto tokenize_start_time = tokenize_timer.start_time();
-    const auto trace_track =
+    const base::TimeTicks tokenize_start_time = tokenize_timer.start_time();
+    const perfetto::Track trace_track =
         perfetto::Track(base::trace_event::GetNextGlobalTraceId());
     TRACE_EVENT_BEGIN("loading", "PassageTokenization", trace_track,
                       tokenize_start_time);
@@ -237,23 +295,27 @@ PassageEmbedderImpl::GenerateEmbeddings(const std::vector<std::string>& inputs,
 
     base::ElapsedThreadTimer execute_thread_timer;
     base::ElapsedTimer execute_timer;
-    std::optional<std::vector<float>> embeddings = Execute(tokenized);
+    std::optional<EmbedderExecutionResult> execution_result =
+        Execute(tokenized);
     base::UmaHistogramBoolean(
-        "History.Embeddings.Embedder.EmbeddingsGenerationSucceeded",
-        !!embeddings);
-    if (!embeddings) {
+        execute_for_gemma_
+            ? "AI.SemanticEmbedder.EmbeddingsGenerationSucceeded"
+            : "History.Embeddings.Embedder.EmbeddingsGenerationSucceeded",
+        !!execution_result);
+    if (!execution_result) {
       return {};
     }
 
     RecordEmbeddingsDurationMetrics(
-        priority == mojom::PassagePriority::kPassive,
-        execute_timer.start_time(), execute_timer.Elapsed(),
+        priority == mojom::PassagePriority::kPassive, execute_for_gemma_,
+        execution_result->signature_length, execute_timer.start_time(),
+        execute_timer.Elapsed(),
         execute_thread_timer.is_supported()
             ? std::optional<base::TimeDelta>(execute_thread_timer.Elapsed())
             : std::nullopt);
 
-    result->embeddings = *embeddings;
-    embeddings_cache_.Put({input, *embeddings});
+    embeddings_cache_.Put(input, execution_result->embeddings);
+    result->embeddings = std::move(execution_result->embeddings);
 
     results.push_back(std::move(result));
   }

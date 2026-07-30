@@ -138,6 +138,15 @@ void XRWebGLTextureArraySwapChain::OnFrameEnd() {
     gl->Disable(GL_RASTERIZER_DISCARD);
   }
 
+  // Ensure pages that set WEBGL_polygon_mode don't interfere with rendering.
+  GLenum polygon_mode = GL_FILL_ANGLE;
+  if (context()->ExtensionsUtil()->IsExtensionEnabled("WEBGL_polygon_mode")) {
+    GLint value = 0;
+    gl->GetIntegerv(GL_POLYGON_MODE_ANGLE, &value);
+    polygon_mode = static_cast<GLenum>(value);
+    gl->PolygonModeANGLE(GL_FRONT_AND_BACK, GL_FILL_ANGLE);
+  }
+
   gl->ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   gl->DepthMask(GL_FALSE);
   gl->BindVertexArrayOES(vao_);
@@ -169,6 +178,9 @@ void XRWebGLTextureArraySwapChain::OnFrameEnd() {
   }
   if (dither_enabled) {
     gl->Enable(GL_DITHER);
+  }
+  if (polygon_mode != GL_FILL_ANGLE) {
+    gl->PolygonModeANGLE(GL_FRONT_AND_BACK, polygon_mode);
   }
 
   // WebGLRenderingContextBase inherits from DrawingBuffer::Client, but makes
@@ -228,7 +240,7 @@ GLuint XRWebGLTextureArraySwapChain::GetCopyProgram() {
     )";
 
     const GLchar* vert_shader_data = vert_source.c_str();
-    const GLint vert_shader_length = vert_source.length();
+    const GLint vert_shader_length = static_cast<GLint>(vert_source.length());
 
     GLuint vs = gl->CreateShader(GL_VERTEX_SHADER);
     gl->ShaderSource(vs, 1, &vert_shader_data, &vert_shader_length);
@@ -250,7 +262,7 @@ GLuint XRWebGLTextureArraySwapChain::GetCopyProgram() {
     )";
 
     const GLchar* frag_shader_data = frag_source.c_str();
-    const GLint frag_shader_length = frag_source.length();
+    const GLint frag_shader_length = static_cast<GLint>(frag_source.length());
 
     GLuint fs = gl->CreateShader(GL_FRAGMENT_SHADER);
     gl->ShaderSource(fs, 1, &frag_shader_data, &frag_shader_length);

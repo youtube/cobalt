@@ -1,0 +1,5 @@
+This is a testharness.js-based test.
+[FAIL] readyState equals 'complete' for documents created via createHTMLDocument()
+  assert_equals: expected "complete" but got "loading"
+Harness: the test ran to completion.
+

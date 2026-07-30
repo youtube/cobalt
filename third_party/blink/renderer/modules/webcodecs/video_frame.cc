@@ -1069,10 +1069,11 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
     }
 
     for (wtf_size_t i = 0; i < media::VideoFrame::NumPlanes(media_fmt); i++) {
-      libyuv::CopyPlane(src_frame->visible_data(i), src_frame->stride(i),
-                        frame->GetWritableVisibleData(i), frame->stride(i),
-                        /*width=*/src_frame->GetVisibleRowBytes(i),
-                        /*height=*/src_frame->GetVisibleRows(i));
+      libyuv::CopyPlane(
+          src_frame->visible_data(i), static_cast<int>(src_frame->stride(i)),
+          frame->GetWritableVisibleData(i), static_cast<int>(frame->stride(i)),
+          /*width=*/src_frame->GetVisibleRowBytes(i),
+          /*height=*/src_frame->GetVisibleRows(i));
     }
   }
 

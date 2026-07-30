@@ -356,7 +356,7 @@ CSSPseudoElement* CSSPseudoElementsCacheData::GetCSSPseudoElement(
 
 void CSSPseudoElementsCacheData::Trace(Visitor* v) const {
   v->Trace(pseudo_elements_map_);
-  ElementRareDataField::Trace(v);
+  NodeRareDataField::Trace(v);
 }
 
 }  // namespace blink

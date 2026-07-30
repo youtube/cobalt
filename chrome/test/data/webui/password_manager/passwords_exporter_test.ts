@@ -84,7 +84,7 @@ suite('PasswordExporterTest', function() {
         successToast.querySelector<CrButtonElement>('#openInShellButton');
     assertTrue(!!openInShellButton);
     openInShellButton.click();
-    await passwordManager.whenCalled('showExportedFileInShell');
+    await passwordManager.whenCalled('showLastExportedFileInShell');
   });
 
   // The error view is shown when an error occurs.

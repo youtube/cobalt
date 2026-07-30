@@ -228,6 +228,8 @@ source_set("unit_tests") {
     "//net",
     "//remoting/base:authorization",
     "//remoting/client/common",
+    "//remoting/proto",
+    "//remoting/protocol",
     "//services/network:test_support",
     "//services/network/public/cpp/",
     "//testing/gmock",

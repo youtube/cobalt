@@ -4,6 +4,10 @@
 
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "base/notimplemented.h"
 #include "build/branding_buildflags.h"
 #include "build/buildflag.h"
@@ -365,6 +369,7 @@ void WebUILocationBar::UpdateLhsChipsState(bool icon_known) {
     ui::ImageModel maybe_new_icon =
         UpdateLocationIcon(mojo_security_level, is_text_dangerous);
     if (!maybe_new_icon.IsEmpty()) {
+      bool icon_handled = false;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       if (auto maybe_resource_id =
               location_bar::MaybeGetGradientGoogleSuperGIcon(maybe_new_icon)) {
@@ -378,9 +383,10 @@ void WebUILocationBar::UpdateLhsChipsState(bool icon_known) {
         }
         // Google logo icons aren't clickable.
         is_clickable = false;
-      } else
+        icon_handled = true;
+      }
 #endif
-      {
+      if (!icon_handled) {
         location_icon_ =
             toolbar_delegate_->GetIconTable().RegisterImageModelTryReuse(
                 maybe_new_icon, location_icon_);
@@ -647,6 +653,12 @@ void WebUILocationBar::OnLhsChipDrag(
   GetLocationBarWidget()->RunDragDropLoop(toolbar_delegate_->GetView(),
                                           std::move(data), widget_point,
                                           allowed_operations, source);
+}
+
+void WebUILocationBar::AnnounceAlert(const std::u16string& announcement) {
+  if (toolbar_delegate_) {
+    toolbar_delegate_->AnnounceAlert(announcement);
+  }
 }
 
 bool WebUILocationBar::ShouldHideContentSettingImage() {

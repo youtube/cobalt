@@ -228,9 +228,6 @@ class SystemWebAppDelegate {
   //   3. Default color.
   virtual bool UseSystemThemeColor() const;
 
-  // Returns whether theme changes should be animated.
-  virtual bool ShouldAnimateThemeChanges() const;
-
   // TODO(crbug.com/1308961): Migrate to use PWA pinned home tab when ready.
   // Returns whether the specified tab should be pinned.
   virtual bool ShouldPinTab(GURL url) const;

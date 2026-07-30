@@ -163,8 +163,7 @@ SupportedCodecs GetDolbyVisionCodecs(
 }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
 
-SupportedCodecs GetSupportedCodecs(const media::CdmCapability& capability,
-                                   bool requires_clear_lead_support = true) {
+SupportedCodecs GetSupportedCodecs(const media::CdmCapability& capability) {
   SupportedCodecs supported_codecs = media::EME_CODEC_NONE;
 
   for (const auto& codec : capability.audio_codecs) {
@@ -212,7 +211,7 @@ SupportedCodecs GetSupportedCodecs(const media::CdmCapability& capability,
   // For compatibility with older CDMs different profiles are only used
   // with some video codecs.
   for (const auto& [codec, video_codec_info] : capability.video_codecs) {
-    if (requires_clear_lead_support && !video_codec_info.supports_clear_lead) {
+    if (!video_codec_info.supports_clear_lead) {
       continue;
     }
     switch (codec) {
@@ -317,11 +316,6 @@ void AddWidevine(const media::KeySystemCapability& capability,
   // Codecs and encryption schemes.
   SupportedCodecs codecs = media::EME_CODEC_NONE;
   SupportedCodecs hw_secure_codecs = media::EME_CODEC_NONE;
-#if BUILDFLAG(IS_WIN)
-  // The experimental key system has a different set of hardware codecs, where
-  // these hardware codecs do not require clear lead support.
-  SupportedCodecs hw_secure_codecs_experimental = media::EME_CODEC_NONE;
-#endif
   base::flat_set<::media::EncryptionScheme> encryption_schemes;
   base::flat_set<::media::EncryptionScheme> hw_secure_encryption_schemes;
   base::flat_set<CdmSessionType> session_types;
@@ -347,15 +341,6 @@ void AddWidevine(const media::KeySystemCapability& capability,
     const auto& hw_secure_capability =
         capability.hw_cdm_capability_or_status.value();
     hw_secure_codecs = GetSupportedCodecs(hw_secure_capability);
-
-#if BUILDFLAG(IS_WIN)
-    // For the experimental Widevine key system, we do not have to filter the
-    // hardware secure codecs by whether they support clear lead or not.
-    hw_secure_codecs_experimental =
-        GetSupportedCodecs(hw_secure_capability,
-                           /*requires_clear_lead_support=*/false);
-#endif  // BUILDFLAG(IS_WIN)
-
     hw_secure_encryption_schemes = hw_secure_capability.encryption_schemes;
     hw_secure_session_types = UpdatePersistentLicenseSupport(
         can_persist_data, hw_secure_capability.session_types);
@@ -381,10 +366,6 @@ void AddWidevine(const media::KeySystemCapability& capability,
   using Robustness = WidevineKeySystemInfo::Robustness;
   auto max_audio_robustness = Robustness::SW_SECURE_CRYPTO;
   auto max_video_robustness = Robustness::SW_SECURE_DECODE;
-#if BUILDFLAG(IS_WIN)
-  auto max_experimental_audio_robustness = Robustness::SW_SECURE_CRYPTO;
-  auto max_experimental_video_robustness = Robustness::SW_SECURE_DECODE;
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   // On ChromeOS, we support HW_SECURE_ALL even without hardware secure codecs.
@@ -395,12 +376,6 @@ void AddWidevine(const media::KeySystemCapability& capability,
   // On Android we support hardware secure if possible.
   max_audio_robustness = Robustness::HW_SECURE_CRYPTO;
   max_video_robustness = Robustness::HW_SECURE_ALL;
-#elif BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(
-          media::kHardwareSecureDecryptionExperiment)) {
-    max_experimental_audio_robustness = Robustness::HW_SECURE_CRYPTO;
-    max_experimental_video_robustness = Robustness::HW_SECURE_ALL;
-  }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Others.
@@ -421,26 +396,6 @@ void AddWidevine(const media::KeySystemCapability& capability,
       hw_secure_encryption_schemes, hw_secure_session_types,
       max_audio_robustness, max_video_robustness, persistent_state_support,
       distinctive_identifier_support));
-
-#if BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(
-          media::kHardwareSecureDecryptionExperiment)) {
-    // Register another WidevineKeySystemInfo on Windows only for
-    // `kWidevineExperimentKeySystem`. The default WidevineKeySystemInfo
-    // above requires clear lead to be supported. This is not required for
-    // the experimental key system because content providers using the
-    // experimental key system would not serve clear lead content.
-    auto experimental_key_system_info = std::make_unique<WidevineKeySystemInfo>(
-        codecs, encryption_schemes, session_types,
-        hw_secure_codecs_experimental, hw_secure_encryption_schemes,
-        hw_secure_session_types, max_experimental_audio_robustness,
-        max_experimental_video_robustness, persistent_state_support,
-        distinctive_identifier_support);
-    experimental_key_system_info->set_experimental();
-
-    key_systems->emplace_back(std::move(experimental_key_system_info));
-  }
-#endif  // BUILDFLAG(IS_WIN)
 }
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
 
@@ -494,10 +449,8 @@ void AddPlayReady(const media::KeySystemCapability& capability,
   const auto& hw_secure_capability =
       capability.hw_cdm_capability_or_status.value();
   // For the default PlayReady key system, we support a codec only when it
-  // supports clear lead, unless `force_support_clear_lead` is set to true.
-  hw_secure_codecs = GetSupportedCodecs(
-      hw_secure_capability,
-      !media::kHardwareSecureDecryptionForceSupportClearLead.Get());
+  // supports clear lead.
+  hw_secure_codecs = GetSupportedCodecs(hw_secure_capability);
   hw_secure_encryption_schemes =
       capability.hw_cdm_capability_or_status->encryption_schemes;
   if (!capability.hw_cdm_capability_or_status->session_types.contains(

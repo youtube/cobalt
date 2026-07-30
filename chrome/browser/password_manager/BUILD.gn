@@ -59,10 +59,7 @@ source_set("password_manager") {
       "Security.framework",
       "Foundation.framework",
     ]
-    deps += [
-      "//chrome/app:branded_strings",
-      "//chrome/app:generated_resources",
-    ]
+    deps += [ "//chrome/app:branded_strings" ]
     public += [ "password_manager_util_mac.h" ]
     sources += [ "password_manager_util_mac.mm" ]
   }
@@ -249,7 +246,6 @@ source_set("impl") {
       "web_app_profile_switcher.cc",
     ]
     deps += [
-      "//chrome/browser/password_manager/actor_login:service_impl",
       "//chrome/browser/password_manager/password_change",
       "//chrome/browser/ui/passwords",
       "//chrome/browser/ui/passwords:impl",
@@ -257,6 +253,7 @@ source_set("impl") {
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/web_applications",
       "//chrome/browser/web_applications",
+      "//components/password_manager/core/browser/actor_login:actor_login_service_impl",
     ]
   }
 

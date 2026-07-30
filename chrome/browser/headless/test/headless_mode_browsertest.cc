@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
@@ -34,6 +35,7 @@
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/common/chrome_paths_internal.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/headless/clipboard/headless_clipboard.h"
 #include "components/infobars/content/content_infobar_manager.h"
@@ -144,7 +146,7 @@ namespace {
 // Miscellaneous tests -------------------------------------------------------
 
 IN_PROC_BROWSER_TEST_F(HeadlessModeBrowserTest, BrowserWindowIsActive) {
-  EXPECT_TRUE(browser()->window()->IsActive());
+  EXPECT_TRUE(browser()->GetWindow()->IsActive());
 }
 
 // Infobar tests -------------------------------------------------------------
@@ -445,6 +447,31 @@ IN_PROC_BROWSER_TEST_F(HeadlessModeBrowserTest, HeadlessBubbleSize) {
   gfx::Rect bounds = test::GetPlatformWindowExpectedBounds(bubble_widget);
   EXPECT_FALSE(bounds.IsEmpty());
 }
+
+// On Windows user data dir is created before chrome.dll is loaded in
+// chrome_elf, see chrome/install_static/user_data_dir.h/cc, so the following
+// test does not apply.
+#if !BUILDFLAG(IS_WIN)
+IN_PROC_BROWSER_TEST_F(HeadlessModeBrowserTest, CreateUniqueUserDataDir) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::test::ScopedCommandLine scoped_command_line;
+  base::CommandLine* command_line = scoped_command_line.GetProcessCommandLine();
+  command_line->RemoveSwitch(::switches::kUserDataDir);
+
+  auto handle_expected = headless::InitHeadlessMode();
+  EXPECT_TRUE(handle_expected.has_value());
+
+  base::FilePath user_data_dir =
+      command_line->GetSwitchValuePath(::switches::kUserDataDir);
+  EXPECT_FALSE(user_data_dir.empty());
+
+  base::FilePath default_user_data_dir;
+  ASSERT_TRUE(chrome::GetDefaultUserDataDirectory(&default_user_data_dir));
+  base::FilePath expected_parent(default_user_data_dir.value() +
+                                 FILE_PATH_LITERAL("-headless"));
+  EXPECT_EQ(user_data_dir.DirName(), expected_parent);
+}
+#endif  // !BUILDFLAG(IS_WIN)
 
 }  // namespace
 

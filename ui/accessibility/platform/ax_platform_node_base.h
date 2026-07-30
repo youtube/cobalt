@@ -5,6 +5,7 @@
 #ifndef UI_ACCESSIBILITY_PLATFORM_AX_PLATFORM_NODE_BASE_H_
 #define UI_ACCESSIBILITY_PLATFORM_AX_PLATFORM_NODE_BASE_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -168,6 +169,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) AXPlatformNodeBase : public AXPlatformNode {
       ax::mojom::StringAttribute attribute) const;
   bool GetStringAttribute(ax::mojom::StringAttribute attribute,
                           std::string* value) const;
+  std::optional<std::string> GetAriaValueTextOrValue() const;
   std::u16string GetString16Attribute(
       ax::mojom::StringAttribute attribute) const;
   bool GetString16Attribute(ax::mojom::StringAttribute attribute,

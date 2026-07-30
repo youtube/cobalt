@@ -83,26 +83,26 @@ class MockHistoryService : public history::HistoryService {
 
   MOCK_METHOD(base::CancelableTaskTracker::TaskId,
               ReserveNextClusterIdWithVisit,
-              (const history::ClusterVisit&,
+              (history::ClusterVisit,
                ClusterIdCallback callback,
                base::CancelableTaskTracker* tracker),
               (override));
   MOCK_METHOD(base::CancelableTaskTracker::TaskId,
               AddVisitsToCluster,
               (history::ClusterId,
-               const std::vector<history::ClusterVisit>&,
+               std::vector<history::ClusterVisit>,
                base::OnceClosure callback,
                base::CancelableTaskTracker*),
               (override));
   MOCK_METHOD(base::CancelableTaskTracker::TaskId,
               UpdateClusterVisit,
-              (const history::ClusterVisit&,
+              (history::ClusterVisit,
                base::OnceClosure callback,
                base::CancelableTaskTracker*),
               (override));
 
   base::CancelableTaskTracker::TaskId CaptureClusterIdCallback(
-      const history::ClusterVisit& cluster_visit,
+      history::ClusterVisit cluster_visit,
       ClusterIdCallback callback,
       base::CancelableTaskTracker* tracker) {
     cluster_id_callback_ = std::move(callback);
@@ -116,7 +116,7 @@ class MockHistoryService : public history::HistoryService {
 
   base::CancelableTaskTracker::TaskId RunAddVisitsToClusterCallback(
       history::ClusterId cluster_id,
-      const std::vector<history::ClusterVisit>& cluster_visits,
+      std::vector<history::ClusterVisit> cluster_visits,
       base::OnceClosure callback,
       base::CancelableTaskTracker* tracker) {
     std::move(callback).Run();
@@ -124,7 +124,7 @@ class MockHistoryService : public history::HistoryService {
   }
 
   base::CancelableTaskTracker::TaskId RunUpdateClusterVisitCallback(
-      const history::ClusterVisit& cluster_visit,
+      history::ClusterVisit cluster_visit,
       base::OnceClosure callback,
       base::CancelableTaskTracker* tracker) {
     std::move(callback).Run();

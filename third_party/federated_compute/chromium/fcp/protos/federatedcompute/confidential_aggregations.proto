@@ -1,0 +1,100 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.internal.federatedcompute.v1;
+
+import "google/rpc/status.proto";
+import "fcp/protos/federatedcompute/common.proto";
+
+option java_package = "com.google.internal.federatedcompute.v1";
+option java_multiple_files = true;
+
+message StartConfidentialAggregationDataUploadRequest {
+  // The id of the aggregation session this client participates in. This value
+  // was returned by the server when the client was assigned a task.
+  //
+  // Note that HTTP clients set this value in the request URL instead of the
+  // request body.
+  string aggregation_id = 1;
+      ;
+
+  // The authorization token returned by the server when the client was assigned
+  // a task.
+  //
+  // Note that HTTP clients set this value in the request URL instead of the
+  // request body.
+  string authorization_token = 2;
+      ;
+}
+
+message StartConfidentialAggregationDataUploadResponse {
+  // Information to construct the URI to use for continuing the aggregation
+  // protocol after the data is uploaded.
+  ForwardingInfo aggregation_protocol_forwarding_info = 1;
+
+  // Information about where to upload aggregation result data.
+  ByteStreamResource resource = 2;
+
+  // Unique token that the client must include in the subsequent protocol
+  // requests.
+  string client_token = 3;
+
+  // A resource for a ConfidentialEncryptionConfig message specifying how result
+  // data should be encrypted.
+  Resource encryption_config = 4;
+}
+
+message SubmitConfidentialAggregationResultRequest {
+  // The id of the aggregation session this client participates in. This value
+  // was returned by the server when the client was assigned a task.
+  //
+  // Note that HTTP clients set this value in the request URL instead of the
+  // request body.
+  string aggregation_id = 1;
+      ;
+
+  // The client token returned by the server when the client was assigned a
+  // task.
+  //
+  // Note that HTTP clients set this value in the request URL instead of the
+  // request body.
+  string client_token = 2;
+      ;
+
+  // Name of the resource to which the aggregration result was uploaded.
+  string resource_name = 3;
+}
+
+message AbortConfidentialAggregationRequest {
+  // The id of the aggregation session this client participates in. This value
+  // was returned by the server when the client was assigned a task.
+  //
+  // Note that HTTP clients set this value in the request URL instead of the
+  // request body.
+  string aggregation_id = 1;
+      ;
+
+  // The client token returned by the server when the client was assigned a
+  // task.
+  //
+  // Note that HTTP clients set this value in the request URL instead of the
+  // request body.
+  string client_token = 2;
+      ;
+
+  // Status code and optional message for why the aggregation was aborted.
+  google.rpc.Status status = 3;
+}

@@ -461,8 +461,8 @@ TEST_F(CellularMetricsLoggerTest, CellularUsageCountTest) {
 
   InitEthernet();
   InitCellular();
-  static const base::Value kTestOnlineStateValue(shill::kStateOnline);
-  static const base::Value kTestIdleStateValue(shill::kStateIdle);
+  const base::Value kTestOnlineStateValue(shill::kStateOnline);
+  const base::Value kTestIdleStateValue(shill::kStateIdle);
 
   AddESimProfile(hermes::profile::State::kActive, kTestESimCellularServicePath);
 
@@ -639,8 +639,8 @@ TEST_F(CellularMetricsLoggerTest, CellularUsageCountDongleTest) {
   InitMetricsLogger();
 
   InitEthernet();
-  static const base::Value kTestOnlineStateValue(shill::kStateOnline);
-  static const base::Value kTestIdleStateValue(shill::kStateIdle);
+  const base::Value kTestOnlineStateValue(shill::kStateOnline);
+  const base::Value kTestIdleStateValue(shill::kStateIdle);
 
   // Should not log state if no cellular devices are available.
   task_environment_.FastForwardBy(

@@ -239,11 +239,6 @@ class VIZ_SERVICE_EXPORT FrameSinkVideoCapturerImpl final
   // to the frame sink manager.
   void ResolveTarget();
 
-  // If the target is resolved, returns true.
-  // Otherwise, makes one attempt to resolve the target, and returns
-  // true iff the attempt was successful.
-  bool TryResolveTarget();
-
   // Helper method that actually implements the refresh logic. `event` is used
   // to determine if the refresh is urgent for scheduling purposes.
   void RefreshInternal(media::VideoCaptureOracle::Event event);

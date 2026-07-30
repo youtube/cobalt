@@ -16,6 +16,7 @@ static_library("arc_overview_tracing") {
   ]
 
   deps = [
+    "//ash/constants",
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser:resources",
@@ -24,8 +25,9 @@ static_library("arc_overview_tracing") {
     "//chrome/browser/ash/arc/tracing",
     "//chrome/browser/ash/file_manager",
     "//chrome/browser/profiles:profile",
-    "//chrome/common",
+    "//content/public/common",
     "//services/network/public/mojom:url_loader_base",
+    "//ui/aura",
     "//ui/base",
     "//ui/events",
     "//ui/events:event_constants",

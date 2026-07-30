@@ -252,6 +252,14 @@ class GlicBrowserTestMixin : public T {
                                             nullptr);
   }
 
+  [[nodiscard]] TestResult<> WaitForInstanceAwakened(
+      GlicInstance* instance = nullptr) {
+    auto* instance_impl = GetInstanceImpl(instance);
+    return RunUntilEqual<bool>(
+        [&]() { return instance_impl->IsHibernated(); }, false,
+        "WaitForInstanceAwakened: instance did not wake up");
+  }
+
   void RegisterConversation(GlicInstance* instance,
                             const std::string& conversation_id) {
     CHECK(instance);
@@ -636,9 +644,6 @@ class GlicBrowserTestMixin : public T {
 
   GURL GetGuestURL() { return glic_test_environment_.GetGuestURL(); }
 
-  void SetGlicFreUrlOverride(const GURL& url) {
-    glic_test_environment_.SetGlicFreUrlOverride(url);
-  }
 
   [[nodiscard]] TestResult<void> WaitForGlicClient(
       GlicInstance* instance = nullptr) {

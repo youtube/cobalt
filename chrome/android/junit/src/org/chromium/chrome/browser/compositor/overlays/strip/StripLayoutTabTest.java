@@ -276,7 +276,16 @@ public class StripLayoutTabTest {
         // Case 1: Actuation vs. Recording Media (Recording Media should win)
         StripLayoutTab tabWithRecording =
                 new StripLayoutTab(
-                        mContext, 0, null, null, null, null, false, false, MediaState.RECORDING);
+                        mContext,
+                        0,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false,
+                        MediaState.RECORDING);
         tabWithRecording.setTabIndicatorStatus(TabIndicatorStatus.DYNAMIC);
 
         assertTrue(
@@ -298,7 +307,16 @@ public class StripLayoutTabTest {
         // Case 2: Actuation vs. Audible Media (Actuation should win)
         StripLayoutTab tabWithAudio =
                 new StripLayoutTab(
-                        mContext, 0, null, null, null, null, false, false, MediaState.AUDIBLE);
+                        mContext,
+                        0,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        false,
+                        MediaState.AUDIBLE);
         tabWithAudio.setTabIndicatorStatus(TabIndicatorStatus.DYNAMIC);
 
         assertTrue(
@@ -320,6 +338,6 @@ public class StripLayoutTabTest {
 
     private StripLayoutTab createStripLayoutTab(boolean incognito) {
         return new StripLayoutTab(
-                mContext, 0, null, null, null, null, incognito, false, MediaState.NONE);
+                mContext, 0, null, null, null, null, null, incognito, false, MediaState.NONE);
     }
 }

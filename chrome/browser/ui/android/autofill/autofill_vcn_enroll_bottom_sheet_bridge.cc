@@ -56,8 +56,7 @@ bool AutofillVCNEnrollBottomSheetBridge::RequestShowContent(
   int network_icon_resource_id = 0;
   GURL issuer_icon_url;
   if (base::FeatureList::IsEnabled(
-          autofill::features::
-              kAutofillEnableVirtualCardJavaPaymentsDataManager)) {
+          features::kAutofillEnableVirtualCardJavaPaymentsDataManager)) {
     network_icon_resource_id = ResourceMapper::MapToJavaDrawableId(
         delegate_->GetNetworkIconResourceId());
     issuer_icon_url = delegate_->GetIssuerIconUrl();

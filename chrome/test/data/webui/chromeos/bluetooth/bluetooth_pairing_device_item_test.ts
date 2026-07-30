@@ -9,7 +9,7 @@ import type {SettingsBluetoothPairingDeviceItemElement} from 'chrome://resources
 import {DeviceItemState} from 'chrome://resources/ash/common/bluetooth/bluetooth_types.js';
 import {AudioOutputCapability, DeviceConnectionState, DeviceType} from 'chrome://resources/mojo/chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom-webui.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/chromeos/test_util.js';
 
 import {createDefaultBluetoothDevice} from './fake_bluetooth_config.js';
@@ -49,7 +49,7 @@ suite('CrComponentsBluetoothPairingDeviceItemTest', function() {
     assertTrue(!!deviceName);
     // deviceName uses ! flag because the compilar currently fails when
     // running test locally.
-    assertEquals('BeatsX', deviceName!.textContent.trim());
+    assertEquals('BeatsX', deviceName.textContent.trim());
   });
 
   test('pair-device is fired on click or enter', async function() {
@@ -74,13 +74,13 @@ suite('CrComponentsBluetoothPairingDeviceItemTest', function() {
     assertTrue(!!container);
     // container uses ! flag because the compilar currently fails when
     // running test locally.
-    container!.click();
+    container.click();
     await pairToDevicePromise;
 
     // Simulate pressing enter on the item.
     pairToDevicePromise =
         eventToPromise('pair-device', bluetoothPairingDeviceItem);
-    container!.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Enter'}));
+    container.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Enter'}));
     await pairToDevicePromise;
   });
 

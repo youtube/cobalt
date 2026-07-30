@@ -10,7 +10,6 @@
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
-#include "base/files/memory_mapped_file.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notimplemented.h"
@@ -58,38 +57,29 @@ class TsModel final : public mojom::TextSafetyModel,
   mojom::LanguageDetectionResultPtr DetectLanguage(std::string_view text);
 
  private:
-  explicit TsModel(const ChromeML& chrome_ml);
+  TsModel();
   bool InitLanguageDetection(mojom::LanguageModelAssetsPtr assets);
-  bool InitTextSafetyModel(mojom::TextSafetyModelAssetsPtr assets);
 
-  const raw_ref<const ChromeML> chrome_ml_;
-  ChromeMLTSModel model_ = 0;
   std::unique_ptr<translate::LanguageDetectionModel> language_detector_;
-  base::MemoryMappedFile data_;
-  base::MemoryMappedFile sp_model_;
   mojo::ReceiverSet<mojom::TextSafetySession> sessions_;
 };
 
-TsModel::TsModel(const ChromeML& chrome_ml) : chrome_ml_(chrome_ml) {}
+TsModel::TsModel() = default;
 
-TsModel::~TsModel() {
-  if (model_ != 0) {
-    chrome_ml_->TSDestroyModel(model_);
-  }
-}
+TsModel::~TsModel() = default;
 
 // static
 std::unique_ptr<TsModel> TsModel::Create(
     const ChromeML& chrome_ml,
     mojom::TextSafetyModelParamsPtr params) {
   TRACE_EVENT("optimization_guide", "TsModel::Create");
-  auto ts_model = base::WrapUnique(new TsModel(chrome_ml));
+  auto ts_model = base::WrapUnique(new TsModel());
   if (params->language_assets &&
       !ts_model->InitLanguageDetection(std::move(params->language_assets))) {
     return {};
   }
-  if (params->safety_assets && !ts_model->InitTextSafetyModel(std::move(
-                                   params->safety_assets->get_ts_assets()))) {
+  if (params->safety_assets) {
+    // TS safety model is no longer supported.
     return {};
   }
   return ts_model;
@@ -104,20 +94,6 @@ bool TsModel::InitLanguageDetection(mojom::LanguageModelAssetsPtr assets) {
   language_detector_ = std::make_unique<translate::LanguageDetectionModel>(
       std::move(tflite_model));
   return language_detector_->IsAvailable();
-}
-
-bool TsModel::InitTextSafetyModel(mojom::TextSafetyModelAssetsPtr assets) {
-  TRACE_EVENT("optimization_guide", "TsModel::InitTextSafetyModel");
-  if (!data_.Initialize(std::move(assets->data)) ||
-      !sp_model_.Initialize(std::move(assets->sp_model))) {
-    return false;
-  }
-  ChromeMLTSModelDescriptor desc = {
-      .model = {.data = data_.data(), .size = data_.length()},
-      .sp_model = {.data = sp_model_.data(), .size = sp_model_.length()},
-  };
-  model_ = chrome_ml_->TSCreateModel(&desc);
-  return bool(model_);
 }
 
 void TsModel::StartSession(
@@ -144,30 +120,7 @@ void TsModel::Clone(mojo::PendingReceiver<mojom::TextSafetySession> session) {
 
 mojom::SafetyInfoPtr TsModel::ClassifyTextSafety(const std::string& text) {
   TRACE_EVENT("optimization_guide", "TsModel::ClassifyTextSafety");
-  if (!model_) {
-    return nullptr;
-  }
-
-  // First query the API to see how much storage we need for class scores.
-  size_t num_scores = 0;
-  if (chrome_ml_->TSClassifyTextSafety(model_, text.c_str(), nullptr,
-                                       &num_scores) !=
-      ChromeMLSafetyResult::kInsufficientStorage) {
-    return nullptr;
-  }
-
-  auto safety_info = mojom::SafetyInfo::New();
-  safety_info->class_scores.resize(num_scores);
-  const auto result = chrome_ml_->TSClassifyTextSafety(
-      model_, text.c_str(), safety_info->class_scores.data(), &num_scores);
-  if (result != ChromeMLSafetyResult::kOk) {
-    return nullptr;
-  }
-  CHECK_EQ(num_scores, safety_info->class_scores.size());
-  if (language_detector_) {
-    safety_info->language = DetectLanguage(text);
-  }
-  return safety_info;
+  return nullptr;
 }
 
 mojom::LanguageDetectionResultPtr TsModel::DetectLanguage(

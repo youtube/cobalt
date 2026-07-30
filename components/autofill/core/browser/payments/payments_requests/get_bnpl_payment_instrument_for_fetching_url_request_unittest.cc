@@ -9,17 +9,15 @@
 #include "base/test/values_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace autofill::payments {
 namespace {
+
 using base::MockCallback;
 using base::test::IsJson;
 using testing::Field;
 using Dict = base::DictValue;
 using base::OnceCallback;
-using PaymentsRpcResult =
-    autofill::payments::PaymentsAutofillClient::PaymentsRpcResult;
-}  // namespace
-
-namespace autofill::payments {
+using PaymentsRpcResult = PaymentsAutofillClient::PaymentsRpcResult;
 
 class GetBnplPaymentInstrumentForFetchingUrlRequestTest : public testing::Test {
  public:
@@ -79,7 +77,7 @@ TEST_F(GetBnplPaymentInstrumentForFetchingUrlRequestTest, GetRequestContent) {
           .Set("context",
                Dict()
                    .Set("billable_service",
-                        payments::kUnmaskPaymentMethodBillableServiceNumber)
+                        kUnmaskPaymentMethodBillableServiceNumber)
                    .Set("customer_context",
                         PaymentsRequest::BuildCustomerContextDictionary(
                             request_details_.billing_customer_number)))
@@ -242,4 +240,5 @@ TEST_F(GetBnplPaymentInstrumentForFetchingUrlRequestTest, RespondToDelegate) {
   request_->RespondToDelegate(PaymentsRpcResult::kSuccess);
 }
 
+}  // namespace
 }  // namespace autofill::payments

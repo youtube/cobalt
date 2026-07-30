@@ -28,21 +28,17 @@ SwizzleScreenCaptureKit() {
     return nullptr;
   }
 
-  if (@available(macOS 13.0, *)) {
-    // ScreenCaptureKit internally performs a TCC permission check before
-    // attempting any operations. This requires access to the TCC daemon,
-    // which we would like to avoid granting to helper processes due to
-    // security concerns. Skipping this preliminary check is acceptable, as
-    // permissions are afterward externally checked by system services. To
-    // do this, we swizzle the private API +[SCStreamManager
-    // requestUserPermissionForScreenCapture], always returning to the
-    // caller that the process has permissions.
-    return std::make_unique<base::apple::ScopedObjCClassSwizzler>(
-        NSClassFromString(@"SCStreamManager"), [SCStreamManagerSwizzler class],
-        @selector(requestUserPermissionForScreenCapture));
-  }
-
-  return nullptr;
+  // ScreenCaptureKit internally performs a TCC permission check before
+  // attempting any operations. This requires access to the TCC daemon,
+  // which we would like to avoid granting to helper processes due to
+  // security concerns. Skipping this preliminary check is acceptable, as
+  // permissions are afterward externally checked by system services. To
+  // do this, we swizzle the private API +[SCStreamManager
+  // requestUserPermissionForScreenCapture], always returning to the
+  // caller that the process has permissions.
+  return std::make_unique<base::apple::ScopedObjCClassSwizzler>(
+      NSClassFromString(@"SCStreamManager"), [SCStreamManagerSwizzler class],
+      @selector(requestUserPermissionForScreenCapture));
 }
 
 }  // namespace media

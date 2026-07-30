@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tabmodel.TabGroupMergeNotificationType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -204,7 +205,7 @@ public class SelectableTabListEditorTest {
                                     currentTabModelSupplier,
                                     cta.getTabContentManager(),
                                     mSetRecyclerViewPosition,
-                                    TabListCoordinator.TabListMode.GRID,
+                                    TabListMode.GRID,
                                     /* displayGroups= */ true,
                                     mSnackbarManager,
                                     /* bottomSheetController= */ null,
@@ -246,7 +247,7 @@ public class SelectableTabListEditorTest {
             if (mActivityTestRule
                     .getActivity()
                     .getLayoutManager()
-                    .isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+                    .isLayoutVisible(LayoutType.HUB)) {
                 TabUiTestHelper.leaveTabSwitcher(mActivityTestRule.getActivity());
             }
         }

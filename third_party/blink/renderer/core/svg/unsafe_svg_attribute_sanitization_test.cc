@@ -76,7 +76,7 @@ void PasteAndVerifySanitization(const char* html_to_paste,
   body->Focus();
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   frame.Selection().SetSelection(
-      SelectionInDOMTree::Builder().SelectAllChildren(*body).Build(),
+      SelectionInDomTree::Builder().SelectAllChildren(*body).Build(),
       SetSelectionOptions());
   EXPECT_TRUE(frame.Selection().ComputeVisibleSelectionInDomTree().IsCaret());
   EXPECT_TRUE(

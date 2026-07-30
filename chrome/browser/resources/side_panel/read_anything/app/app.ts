@@ -232,7 +232,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
       }
 
       const selection = this.getSelection();
-      this.selectionController_.onSelectionChange(selection);
+      this.selectionController_.onSelectionChange(selection, this.$.container);
       const position = this.selectionController_.hasSelection() ?
           this.selectionController_.getCurrentSelectionStart() :
           null;

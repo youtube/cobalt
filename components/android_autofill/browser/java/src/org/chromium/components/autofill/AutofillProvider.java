@@ -800,6 +800,19 @@ public class AutofillProvider {
         return mDatalistPopup;
     }
 
+    private int getToolbarOffset() {
+        return mWebContents != null
+                ? RenderCoordinates.fromWebContents(mWebContents).getContentOffsetYPixInt()
+                : 0;
+    }
+
+    private int[] getWebContentScreenLocation() {
+        int[] location = new int[2];
+        mContainerView.getLocationOnScreen(location);
+        location[1] += getToolbarOffset();
+        return location;
+    }
+
     /**
      * Calculates the visible bounds of the container view in screen coordinates.
      *
@@ -815,7 +828,14 @@ public class AutofillProvider {
             mContainerView.getLocationOnScreen(screenLocation);
             int offsetX = screenLocation[0] - windowLocation[0];
             int offsetY = screenLocation[1] - windowLocation[1];
+            // Translate the rect from window coordinates to screen coordinates.
             rect.offset(offsetX, offsetY);
+            // In Chrome, the omnibox toolbar sits on top of `mContainerView`, obscuring the top
+            // content. We must add the toolbar offset to `rect.top` to exclude this obscured area
+            // from the visible bounds. We cannot use `getWebContentScreenLocation()` to translate
+            // the whole rect because that would incorrectly offset rect.bottom (which is not
+            // obscured by the top toolbar).
+            rect.top += getToolbarOffset();
         }
         return rect;
     }
@@ -844,26 +864,27 @@ public class AutofillProvider {
         return clampedBounds.intersect(visibleBounds) ? clampedBounds : null;
     }
 
-    private Rect transformToWindowBounds(RectF rect) {
-        // Refer to crbug.com/1085294 for the reason of offset.
-        // The current version of Mockito didn't support mock static method, adding extra method so
-        // the transform can be tested.
-        return transformToWindowBoundsWithOffsetY(
-                rect, RenderCoordinates.fromWebContents(mWebContents).getContentOffsetYPixInt());
-    }
-
+    /**
+     * Transforms the given bounds from web viewport coordinates (in DP) to absolute screen
+     * coordinates (in physical pixels).
+     *
+     * <p>This method accounts for the device's DIP scale and offsets the Y coordinate to account
+     * for the space occupied by the browser controls (e.g., the top omnibox toolbar in Chrome).
+     *
+     * @param rect the bounds in web viewport DP coordinates to transform.
+     * @return the transformed bounds in absolute screen physical pixels.
+     */
     @VisibleForTesting
-    public Rect transformToWindowBoundsWithOffsetY(RectF rect, int offsetY) {
+    Rect transformToWindowBounds(RectF rect) {
         // Convert bounds to device pixel.
+        // Refer to crbug.com/1085294 for the reason for the Y offset.
         WindowAndroid windowAndroid = mWebContents.getTopLevelNativeWindow();
         DisplayAndroid displayAndroid = windowAndroid.getDisplay();
         float dipScale = displayAndroid.getDipScale();
         RectF bounds = new RectF(rect);
         Matrix matrix = new Matrix();
         matrix.setScale(dipScale, dipScale);
-        int[] location = new int[2];
-        mContainerView.getLocationOnScreen(location);
-        location[1] += offsetY;
+        int[] location = getWebContentScreenLocation();
         matrix.postTranslate(location[0], location[1]);
         matrix.mapRect(bounds);
         return new Rect(

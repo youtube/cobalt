@@ -9,9 +9,11 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "media/base/media_export.h"
+#include "media/formats/hls/security_metadata.h"
 #include "media/formats/hls/tags.h"
 #include "media/formats/hls/types.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace media::hls {
 
@@ -93,6 +95,10 @@ class MEDIA_EXPORT MediaSegment : public base::RefCounted<MediaSegment> {
     // When `uri_` is fetched, import the raw data.
     void ImportKey(std::string_view key_content);
 
+    // The security metadata for the request that gave us this key.
+    void ImportKeySecurity(hls::SecurityMetadata metadata);
+    const std::optional<hls::SecurityMetadata>& GetSecurityMetadata() const;
+
    private:
     friend class base::RefCounted<EncryptionData>;
     ~EncryptionData();
@@ -105,12 +111,16 @@ class MEDIA_EXPORT MediaSegment : public base::RefCounted<MediaSegment> {
 
     // Used for clear key AES128 and AES256 full segment encryption.
     std::vector<uint8_t> key_;
+
+    // Not all security keys come from web requests, so this isn't required.
+    std::optional<hls::SecurityMetadata> security_metadata_;
   };
 
   MediaSegment(base::TimeDelta duration,
                types::DecimalInteger media_sequence_number,
                types::DecimalInteger discontinuity_sequence_number,
                GURL uri,
+               url::Origin manifest_origin,
                scoped_refptr<InitializationSegment> initialization_segment,
                scoped_refptr<EncryptionData> encryption_data,
                std::optional<types::ByteRange> byte_range,
@@ -141,6 +151,10 @@ class MEDIA_EXPORT MediaSegment : public base::RefCounted<MediaSegment> {
   // the playlist URI. This is guaranteed to be valid and non-empty, unless
   // `gap` is true, in which case this URI should not be used.
   const GURL& GetUri() const { return uri_; }
+
+  // Get the origin of this manifest from which this segment was parsed.
+  // This is required to ensure that we aren't fetching disallowed resources.
+  const url::Origin& GetManifestOrigin() const { return manifest_origin_; }
 
   // Returns the initialization segment for this media segment, which may be
   // null if this segment has none. Subsequent media segments may also share the
@@ -196,6 +210,7 @@ class MEDIA_EXPORT MediaSegment : public base::RefCounted<MediaSegment> {
   types::DecimalInteger media_sequence_number_;
   types::DecimalInteger discontinuity_sequence_number_;
   GURL uri_;
+  url::Origin manifest_origin_;
   scoped_refptr<InitializationSegment> initialization_segment_;
 
   scoped_refptr<EncryptionData> encryption_data_;

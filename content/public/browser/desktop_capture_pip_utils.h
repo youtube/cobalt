@@ -8,8 +8,10 @@
 #include <optional>
 
 #include "base/observer_list_types.h"
+#include "base/unguessable_token.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/desktop_media_id.h"
+#include "content/public/browser/global_routing_id.h"
 
 namespace content::desktop_capture {
 
@@ -47,6 +49,19 @@ CONTENT_EXPORT void AddPipExclusionObserver(
 // Must only be called on the UI thread.
 CONTENT_EXPORT void RemovePipExclusionObserver(
     PipScreenCaptureExclusionObserver* observer);
+
+// Registers a desktop media picker dialog as an active capture session. This
+// ensures that a potential document Picture-in-Picture window is excluded
+// from the picker's screen thumbnails and previews.
+// Returns a session ID that must be used to unregister the picker.
+// Must only be called on the UI thread.
+CONTENT_EXPORT base::UnguessableToken RegisterDesktopMediaPickerAsCapture(
+    const GlobalRenderFrameHostId& render_frame_host_id);
+
+// Unregisters a desktop media picker dialog.
+// Must only be called on the UI thread.
+CONTENT_EXPORT void UnregisterDesktopMediaPickerAsCapture(
+    const base::UnguessableToken& session_id);
 
 }  // namespace content::desktop_capture
 

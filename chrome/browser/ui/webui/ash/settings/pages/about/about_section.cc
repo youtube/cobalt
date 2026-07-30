@@ -6,6 +6,7 @@
 
 #include <array>
 
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/chrome_pref_names.h"
 #include "ash/constants/chrome_url_constants.h"
 #include "ash/constants/chrome_webui_url_constants.h"
@@ -32,7 +33,6 @@
 #include "chrome/browser/ui/webui/management/management_ui.h"
 #include "chrome/browser/ui/webui/settings/about_handler.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/dbus/constants/dbus_switches.h"
@@ -220,7 +220,7 @@ AboutSection::AboutSection(Profile* profile,
                           base::Unretained(this)));
   UpdateReportIssueSearchTags();
 
-  pref_change_registrar_.Add(prefs::kConsumerAutoUpdateToggle,
+  pref_change_registrar_.Add(ash::prefs::kConsumerAutoUpdateToggle,
                              base::DoNothingAs<void()>());
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
@@ -546,7 +546,7 @@ bool AboutSection::ShouldShowAUToggle(user_manager::User* active_user) {
       identity_manager->FindExtendedAccountInfoByGaiaId(account_id.GetGaiaId());
   // If the user falls under New Deal..
   // Show toggle based on user's capabilities.
-  return account_info.capabilities.can_toggle_auto_updates() ==
+  return account_info.GetAccountCapabilities().can_toggle_auto_updates() ==
          signin::Tribool::kTrue;
 }
 

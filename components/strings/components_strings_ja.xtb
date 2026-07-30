@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">すべて開く</translation>
 <translation id="1408696301184924537">Google アカウントに保存すると、次回からこの IBAN を自動入力できます</translation>
 <translation id="1408787208417187241">3 か所のステープル（上）</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />、<ph name="SUGGESTION_DESCRIPTION" />。<ph name="SUGGESTION_TYPE" />。<ph name="GROUP_HEADER" /> グループの <ph name="NUM_MATCHES_IN_GROUP" /> 件中 <ph name="MATCH_POSITION" /> 件目。</translation>
 <translation id="1410365862999780287">あなたのアクティビティはこのデバイスを使用する他のユーザーに表示されないため、プライバシーを守りながらブラウジングできます。アクセスしたウェブサイトと、そのウェブサイトが使用するサービス（Google を含む）のデータ収集方法は変更されません。ダウンロードしたファイル、ブックマーク、リーディング リストは保存されます。</translation>
 <translation id="1410941016594047814">Invite 封筒</translation>
 <translation id="1413235258620101697">すばやく決済できるように、このカードの CVC は暗号化されて、Google ウォレットに保存されます</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">購入手続きの際に、ご利用いただけるカードの特典とメリットを表示します。カード発行会社の利用規約が適用されます。</translation>
 <translation id="1447067628680007684">（x86_64）</translation>
 <translation id="1448166547804028941">キー「<ph name="DATA_CONTROLS_FIRST_KEY_SET" />」は「<ph name="DATA_CONTROLS_SECOND_KEY_SET" />」キーと同じ辞書に設定できません</translation>
+<translation id="1449251255954293933">Google ウォレットに Redress 番号を保存</translation>
 <translation id="1455413310270022028">消しゴム</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{0 件のレビューを表示}=1{1 件のレビューを表示}other{全 # 件のレビューを表示}}</translation>
 <translation id="1458059624921545588">人々、社会</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">6 3/4 封筒</translation>
 <translation id="2046951263634619614">書籍販売</translation>
 <translation id="2048261947532620704">ページを翻訳しています</translation>
+<translation id="2055016614992422886">会話</translation>
 <translation id="2059166748188874810">市区町村</translation>
 <translation id="2059202684901022309">22x34 インチ</translation>
 <translation id="2064568741209980952">クレジット、貸付</translation>
@@ -1098,7 +1101,7 @@
 <translation id="2688186765492306706">500x760 mm</translation>
 <translation id="2688969097326701645">はい、続行します</translation>
 <translation id="2690699652723742414">過去 30 日間</translation>
-<translation id="2691385045260836588">機種</translation>
+<translation id="2691385045260836588">車種</translation>
 <translation id="2691924980723297736">安全性に関する警告</translation>
 <translation id="2696385693639654606">Chrome Enterprise Core を使用すると、ブラウザ ポリシー、アプリ、拡張機能をクラウドから管理できます</translation>
 <translation id="2697248912349197812"><ph name="KEYWORD_SHORT_NAME" /> に質問</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">レンタカー</translation>
 <translation id="278436560439594386">生活家電用品</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">パスワード · パスキー</translation>
 <translation id="2784949926578158345">接続がリセットされました。</translation>
 <translation id="2786008859124691917">自転車、パーツ</translation>
 <translation id="2792012897584536778">このデバイスの管理者が設定したセキュリティ証明書により、アクセス先のウェブサイトのコンテンツを管理者が把握できるようになっている可能性があります。</translation>
@@ -1655,7 +1659,7 @@
 <translation id="3587725436724465984">お客様の組織では、<ph name="BEGIN_BOLD" /><ph name="DOMAIN" /><ph name="END_BOLD" /> がポリシーに違反している可能性のあるサイトとして判別されています。<ph name="BEGIN_LEARN_MORE_LINK" />この警告の詳細<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="3587738293690942763">中</translation>
 <translation id="3589519427766620380">Google レンズでこのページについて質問する</translation>
-<translation id="3596918995172292499">ナンバー プレート発行元の州</translation>
+<translation id="3596918995172292499">プレートの地名</translation>
 <translation id="3600246354004376029"><ph name="TITLE" />、<ph name="DOMAIN" />、<ph name="TIME" /></translation>
 <translation id="3600492954573979888">[Google のプライバシー設定を管理] ボタンです。実行すると Google アカウントのプライバシー設定に移動できます</translation>
 <translation id="3603507503523709">アプリケーションは管理者によってブロックされています</translation>
@@ -2305,6 +2309,7 @@
 <translation id="46128681529823442">サッカー用品</translation>
 <translation id="4612904677925722054">このサイトには成人向けコンテンツが含まれている可能性があります。このウェブサイトへのアクセスを保護者に許可してもらう必要があります。</translation>
 <translation id="4619564267100705184">本人確認</translation>
+<translation id="4619669610757527494">Google ウォレットに運転免許証を保存</translation>
 <translation id="4622292761762557753">このまま転送</translation>
 <translation id="4622647778991854660">通知センターで通知を有効にします。<ph name="LINK" /> を開きます。</translation>
 <translation id="4623894491222334521">ID ドキュメント</translation>
@@ -2834,6 +2839,7 @@
 <translation id="543656192084990644">モーション センサーの使用を許可しませんでした</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />、元の値は <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">逆の順序（上向き）</translation>
+<translation id="5447103258548475868">Google ウォレットにパスポートを保存</translation>
 <translation id="5447235695608032700"><ph name="SITE" /> があなたに関する保存済みの情報を使用することを許可する</translation>
 <translation id="5447973833955560753">再設定用のパスワード</translation>
 <translation id="5451331376824595378">セキュリティ イベントが Chrome によって報告されると、そのイベントに関するデータが管理者に送信されます。送信されるデータには、Chrome でアクセスしたページの URL、データをコピーしたページの URL、ファイルの名前やメタデータ、IP アドレス、ブラウザやタブの障害のほか、ウェブベースのアプリケーションやデバイス、Chrome へのログインに使用したユーザー名が含まれる可能性があります。</translation>
@@ -3016,6 +3022,7 @@
 <translation id="5718601519531438273">パスポートや運転免許証などの情報が含まれます</translation>
 <translation id="5720705177508910913">現在のユーザー</translation>
 <translation id="5720895412771013401">デスクトップ パソコン</translation>
+<translation id="5721147290164931316">スキャンしてスマートフォンでログイン</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}、{website_2}}=3{{website_1}、{website_2}、他 1 個}other{{website_1}、{website_2}、他 {more_count} 個}}</translation>
 <translation id="572328651809341494">最近使ったタブ</translation>
 <translation id="5723873695528696965">MIDI デバイスの操作と再プログラム</translation>
@@ -3153,7 +3160,7 @@
 <translation id="5950901984834744590">かみそり、シェーバー</translation>
 <translation id="5951495562196540101">一般ユーザー向けアカウントでは登録できません（ライセンス パッケージが利用可能です）。</translation>
 <translation id="5952076224478208938">メーカー</translation>
-<translation id="5952196777020238475">ライセンス番号</translation>
+<translation id="5952196777020238475">免許証番号</translation>
 <translation id="5953516610448771166">このメディアでは自動字幕起こしを使用できません。字幕を使用するには、このサイトで <ph name="CONTENT_SETTINGS" /> をブロックしてください。</translation>
 <translation id="5960795367348889467">認証</translation>
 <translation id="5963413905009737549">セクション</translation>
@@ -3557,6 +3564,7 @@
 <translation id="6550245281449521513">マウスのロックは許可されていません</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />、新しい値</translation>
 <translation id="6552566579578780089">支払い</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />、<ph name="SUGGESTION_TYPE" />。<ph name="GROUP_HEADER" /> グループの <ph name="NUM_MATCHES_IN_GROUP" /> 件中 <ph name="MATCH_POSITION" /> 件目。</translation>
 <translation id="6554732001434021288">最終アクセス日: <ph name="NUM_DAYS" /> 日前</translation>
 <translation id="6556866813142980365">やり直す</translation>
 <translation id="6557715786897013164">14x17 インチ</translation>
@@ -4234,6 +4242,7 @@
 <translation id="7599089013883397081">ダウンロードがタイムアウトしました</translation>
 <translation id="7602868996817972616">このページについて Google に質問</translation>
 <translation id="7606123685356405076">Gemini 3 モデル</translation>
+<translation id="760632772920590778">Google ウォレットに車両情報を保存</translation>
 <translation id="7610193165460212391">値（<ph name="VALUE" />）が範囲外です。</translation>
 <translation id="761261689936461781">太い</translation>
 <translation id="7613889955535752492">有効期限: <ph name="EXPIRATION_MONTH" /> / <ph name="EXPIRATION_YEAR" /></translation>
@@ -4262,7 +4271,9 @@
 <translation id="7646681339175747202">たった今使用したパスワードがデータ侵害で検出されました。Google パスワード マネージャーでは、パスワードを今すぐ変更することをおすすめします。</translation>
 <translation id="7647206758853451655">印刷画質</translation>
 <translation id="7648133459447652947">カーソルを表示するには、アプリを切り替えるか、ページを再読み込みするか、前に戻ります</translation>
+<translation id="764847582138410250">スキャンしてスマートフォンでログイン</translation>
 <translation id="7648527891719919697"><ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android の設定<ph name="END_ANDROID_SETTINGS_LINK" />で高度な保護機能を有効にしているため、このサイトはブロックされたままになります。<ph name="BEGIN_LEARN_MORE_LINK" />この警告の詳細<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Google ウォレットに Known Traveler 番号を保存</translation>
 <translation id="7648992873808071793">このデバイスのファイルの保存</translation>
 <translation id="7649070708921625228">ヘルプ</translation>
 <translation id="7650141368285545431">別のデバイスのパスキーを使用</translation>
@@ -4355,6 +4366,7 @@
 <translation id="7773005668374414287">同じ順序（上向き）</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" /> へのアクセス権を取り消します</translation>
 <translation id="7781829728241885113">昨日</translation>
+<translation id="7782228658217918863">Google ウォレットに ID カードを保存</translation>
 <translation id="7782465647372057580">アカウント情報は暗号化され、機密性が保たれます</translation>
 <translation id="7785471469930192436">検索履歴を削除する場合は、お使いの検索エンジンの手順をご確認ください（該当する場合）</translation>
 <translation id="7785790577395078482">このタブレット</translation>

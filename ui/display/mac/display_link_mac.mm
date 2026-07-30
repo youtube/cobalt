@@ -58,17 +58,6 @@ scoped_refptr<DisplayLinkMac> DisplayLinkMac::GetForDisplay(
 
   scoped_refptr<DisplayLinkMac> display_link;
   if (SupportsDisplayLinkMacInBrowser()) {
-    if (CADisplayLinkMac::IsValidInGpuProcess(display_id)) {
-      // Start with CADisplayLinkMac in the GPU process.
-      display_link = CADisplayLinkMac::GetForDisplay(display_id,
-                                                     /*in_gpu_process=*/true);
-      if (display_link) {
-        return display_link;
-      }
-      // Fallback to ExternalDisplayLinkMac (CADisplayLinkMac in the Browser
-      // process) if failed.
-    }
-
     display_link = ExternalDisplayLinkMac::GetForDisplay(display_id);
     if (display_link) {
       return display_link;
@@ -101,10 +90,6 @@ std::unique_ptr<PresentationCallbackMac>
 DisplayLinkMac::RegisterPresentationCallback(
     PresentationCallbackMac::Callback callback) {
   NOTREACHED();
-}
-
-bool DisplayLinkMac::NotifyEventAndCheckValidity() {
-  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

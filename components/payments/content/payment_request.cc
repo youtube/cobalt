@@ -77,7 +77,8 @@ mojom::PaymentAddressPtr RedactShippingAddress(
 SecurePaymentConfirmationRequestValidationError
 ValidateSecurePaymentConfirmationRequest(
     const std::vector<mojom::PaymentMethodDataPtr>& method_data,
-    const mojom::PaymentOptionsPtr& options) {
+    const mojom::PaymentOptionsPtr& options,
+    const url::Origin& initiator_origin) {
   CHECK_GT(method_data.size(), 0u);
 
   if (!base::FeatureList::IsEnabled(::features::kSecurePaymentConfirmation)) {
@@ -116,7 +117,7 @@ ValidateSecurePaymentConfirmationRequest(
   }
 
   return IsValidSecurePaymentConfirmationRequest(
-      method_data_entry->secure_payment_confirmation);
+      method_data_entry->secure_payment_confirmation, initiator_origin);
 }
 
 // Helper to map JourneyLogger::AbortReason to aborted PaymentRequestOutcomes.
@@ -274,14 +275,30 @@ void PaymentRequest::Init(
                datum->supported_method == methods::kSecurePaymentConfirmation;
       })) {
     SecurePaymentConfirmationRequestValidationError validation_result =
-        ValidateSecurePaymentConfirmationRequest(method_data, options);
+        ValidateSecurePaymentConfirmationRequest(method_data, options,
+                                                 frame_security_origin_);
     if (validation_result !=
         SecurePaymentConfirmationRequestValidationError::kOk) {
       std::string error_message =
           SecurePaymentConfirmationRequestValidationErrorToString(
               validation_result);
       log_.Error(error_message);
-      mojo::ReportBadMessage(error_message);
+
+      // The renderer cannot check whether WebAuthn extensions are allowed or
+      // not, as it doesn't know whether the page origin can claim the
+      // relying party ID. For that case we return an error.
+      //
+      // All other failures indicate an invalid request. In that case we
+      // report it as a bad message and mojo will kill the renderer.
+      if (validation_result == SecurePaymentConfirmationRequestValidationError::
+                                   kWebAuthnExtensionsNotSupported) {
+        client_->OnError(mojom::PaymentErrorReason::NOT_SUPPORTED,
+                         error_message);
+      } else {
+        mojo::ReportBadMessage("Invalid SecurePaymentConfirmationRequest: " +
+                               error_message);
+      }
+
       ResetAndDeleteThis();
       return;
     }

@@ -10,7 +10,6 @@
 #include "base/cancelable_callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/views/frame/browser_frame_header_chromeos.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
@@ -205,9 +204,6 @@ class BrowserFrameViewChromeOS
   // Called any time the frame color may have changed.
   void OnUpdateFrameColor();
 
-  // Called any time the theme has changed and may need to be animated.
-  void MaybeAnimateThemeChanged();
-
   // Returns whether the associated window is currently floated or not.
   bool IsFloated() const;
 
@@ -244,12 +240,6 @@ class BrowserFrameViewChromeOS
   std::optional<display::ScopedDisplayObserver> display_observer_;
 
   gfx::Size last_minimum_size_;
-
-  // Callback to invoke to animate back in the layer associated with the
-  // `contents_web_view()` native view following a theme changed event.
-  base::CancelableOnceCallback<void(bool)> theme_changed_animation_callback_;
-
-  base::WeakPtrFactory<BrowserFrameViewChromeOS> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_CHROMEOS_H_

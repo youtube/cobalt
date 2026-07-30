@@ -50,7 +50,7 @@ export class CatalogAttributesRowElement extends CrLitElement {
       ShoppingServiceBrowserProxyImpl.getInstance();
 
   protected onJackpotClick_() {
-    this.shoppingApi_.openUrlInNewTab(this.priceInsightsInfo.jackpot);
+    this.shoppingApi_.handler.openUrlInNewTab(this.priceInsightsInfo.jackpot);
     chrome.metricsPrivate.recordEnumerationValue(
         'Commerce.PriceInsights.BuyingOptionsClicked',
         this.priceInsightsInfo.bucket,

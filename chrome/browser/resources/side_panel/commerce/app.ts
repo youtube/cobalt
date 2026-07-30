@@ -75,16 +75,17 @@ export class ShoppingInsightsAppElement extends CrLitElement {
   }
 
   private async fetchData_() {
-    const {productInfo} = await this.shoppingApi_.getProductInfoForCurrentUrl();
+    const {productInfo} =
+        await this.shoppingApi_.handler.getProductInfoForCurrentUrl();
     this.productInfo = productInfo;
 
     const {priceInsightsInfo} =
-        await this.shoppingApi_.getPriceInsightsInfoForCurrentUrl();
+        await this.shoppingApi_.handler.getPriceInsightsInfoForCurrentUrl();
     this.priceInsightsInfo = priceInsightsInfo;
 
-    const {eligible} = await this.shoppingApi_.isShoppingListEligible();
+    const {eligible} = await this.shoppingApi_.handler.isShoppingListEligible();
     const {tracked} =
-        await this.shoppingApi_.getPriceTrackingStatusForCurrentUrl();
+        await this.shoppingApi_.handler.getPriceTrackingStatusForCurrentUrl();
     this.isProductTracked_ = tracked;
     this.isProductTrackable_ =
         eligible && (priceInsightsInfo.clusterId !== BigInt(0));

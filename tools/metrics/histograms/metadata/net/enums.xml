@@ -3370,6 +3370,19 @@ Called by update_net_trust_anchors.py.-->
 
 <!-- LINT.ThenChange(//net/socket/socket_pool_additional_capacity.cc:SocketPoolAdditionalCapacityError) -->
 
+<!-- LINT.IfChange(SpareKeyPoolRetrievalResult) -->
+
+<enum name="SpareKeyPoolRetrievalResult">
+  <int value="0" label="Hit"/>
+  <int value="1" label="MissNotInitialized"/>
+  <int value="2" label="MissFailedToCreateSpareKey"/>
+  <int value="3" label="MissNoKeyForAlgorithm"/>
+  <int value="4" label="MissDidNotReplenishFromLastUse"/>
+  <int value="5" label="AlgorithmNotSupported"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/unexportable_keys/unexportable_key_service_impl.h:SpareKeyPoolRetrievalResult) -->
+
 <enum name="SpdyFrameFlowControlState">
   <int value="0" label="Send not stalled"/>
   <int value="1" label="Send stalled by stream"/>

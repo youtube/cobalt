@@ -35,6 +35,8 @@ class AudioManagerAndroid;
 // methods should be called on the Audio Manager thread.
 class OpenSLESInputStream : public AudioInputStream {
  public:
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
   static const int kMaxNumOfBuffersInQueue = 2;
 
   OpenSLESInputStream(AudioManagerAndroid* manager,
@@ -74,7 +76,7 @@ class OpenSLESInputStream : public AudioInputStream {
 
   // If OpenSLES reports an error this function handles it and passes it to
   // the attached AudioInputCallback::OnError().
-  void HandleError(SLresult error);
+  void HandleError(SLresult error, Error error_code);
 
   base::ThreadChecker thread_checker_;
 

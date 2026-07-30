@@ -70,3 +70,7 @@ TESTHARNESS-IN-OTHER-TYPE: geolocation-api/clear-watch-invalid-id-crash.https.ht
 TESTHARNESS-IN-OTHER-TYPE: geolocation-api/remove-remote-context-in-error-callback-crash.https.html
 HTML INVALID SYNTAX: webxr/events_deviceconnect.https.html
 HTML INVALID SYNTAX: webxr/xr_view_projection_detached.https.html
+
+# HTML-in-Canvas video tests use pixel readback
+CONTENT-VISUAL: webgl/draw-element-image/wegl-video-worker.html
+CONTENT-VISUAL: webgl/draw-element-image/wegl-video.html

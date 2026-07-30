@@ -94,6 +94,22 @@ void AddNativeChromeColorMixer(ui::ColorProvider* provider,
       ui::kColorNativeTabForegroundInactiveFrameActive};
   mixer[kColorTabForegroundInactiveFrameInactive] = {
       ui::kColorNativeTabForegroundInactiveFrameInactive};
+  mixer[kColorTabBackgroundInactiveHoverFrameActive] = {
+      ui::kColorSysStateHeaderHover};
+  mixer[kColorTabBackgroundInactiveHoverFrameInactive] = {
+      ui::kColorSysStateHeaderHoverInactive};
+  mixer[kColorTabBackgroundSelectedFrameActive] = {ui::GetResultingPaintColor(
+      ui::SetAlpha(ui::kColorAccent, 0x80),
+      kColorTabBackgroundInactiveFrameActive)};
+  mixer[kColorTabBackgroundSelectedFrameInactive] = {ui::GetResultingPaintColor(
+      ui::SetAlpha(ui::kColorAccent, 0x80),
+      kColorTabBackgroundInactiveFrameInactive)};
+  mixer[kColorTabBackgroundSelectedHoverFrameActive] = {
+      ui::GetResultingPaintColor(ui::kColorSysStateHoverDimBlendProtection,
+                                 kColorTabBackgroundSelectedFrameActive)};
+  mixer[kColorTabBackgroundSelectedHoverFrameInactive] = {
+      ui::GetResultingPaintColor(ui::kColorSysStateHoverDimBlendProtection,
+                                 kColorTabBackgroundSelectedFrameInactive)};
   mixer[kColorTabStrokeFrameActive] = {kColorToolbarTopSeparatorFrameActive};
   mixer[kColorTabStrokeFrameInactive] = {
       kColorToolbarTopSeparatorFrameInactive};

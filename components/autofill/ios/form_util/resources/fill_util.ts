@@ -25,7 +25,7 @@ function isFeatureEnabled(featureName: string): boolean {
  */
 // TODO(crbug.com/520101866): Use call arguments to avoid placeholder
 // replacement in java_script_feature.mm.
-function isAutofillOptimizationFormSearchEnabled(): boolean {
+export function isAutofillOptimizationFormSearchEnabled(): boolean {
   return (window as any).gCrWebPlaceholderAutofillOptimizationFormSearch;
 }
 
@@ -638,32 +638,59 @@ export function valueForElement(
  * be "Billing Address".
  */
 function coalesceTextByIdList(
-  element: Element|null, attribute: string): string {
-  if (!element) {
-    return '';
-  }
+    element: Element|null, attribute: string): string {
+  if (isAutofillOptimizationFormSearchEnabled()) {
+    if (!element) {
+      return '';
+    }
 
-  const ids = element.getAttribute(attribute);
-  if (!ids) {
-    return '';
-  }
+    const idsAttr = element.getAttribute(attribute);
+    if (!idsAttr) {
+      return '';
+    }
 
-  return ids.trim()
-      .split(/\s+/)
-      .map(function(i) {
-        return document.getElementById(i);
-      })
-      .filter(function(e) {
-        return e !== null;
-      })
-      .map(function(n) {
-        return findChildText(n!);
-      })
-      .filter(function(s) {
-        return s.length > 0;
-      })
-      .join(' ')
-      .trim();
+    const ids = idsAttr.trim().split(/\s+/);
+    const resultStrings: string[] = [];
+    for (const id of ids) {
+      if (!id) {
+        continue;
+      }
+      const el = document.getElementById(id);
+      if (el) {
+        const text = findChildText(el);
+        if (text.length > 0) {
+          resultStrings.push(text);
+        }
+      }
+    }
+    return resultStrings.join(' ');
+  } else {
+    if (!element) {
+      return '';
+    }
+
+    const ids = element.getAttribute(attribute);
+    if (!ids) {
+      return '';
+    }
+
+    return ids.trim()
+        .split(/\s+/)
+        .map(function(i) {
+          return document.getElementById(i);
+        })
+        .filter(function(e) {
+          return e !== null;
+        })
+        .map(function(n) {
+          return findChildText(n!);
+        })
+        .filter(function(s) {
+          return s.length > 0;
+        })
+        .join(' ')
+        .trim();
+  }
 }
 
 /**

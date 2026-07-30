@@ -11,8 +11,6 @@
 
 class Browser;
 
-/// TODO(crbug.com/495442055): Remove the App Bar on iPad.
-
 // Coordinator for the app bar, the bar at the bottom of the screen on narrow
 // form factors.
 @interface AppBarCoordinator : RootCoordinator

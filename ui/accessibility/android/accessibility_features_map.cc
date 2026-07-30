@@ -17,6 +17,7 @@ namespace {
 const base::Feature* const kFeaturesExposedToJava[] = {
   &features::kAccessibilityHandleOccludingViews,
   &features::kAccessibilityTextFormatting,
+  &features::kReadAloudNative,
 };
 
 // static

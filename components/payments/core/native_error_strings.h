@@ -330,6 +330,10 @@ extern const char kSpcEnabledMustNotBeNull[];
 // Used when an internal validation error occurs.
 extern const char kInternalError[];
 
+// Used when a SecurePaymentConfirmationRequest includes one or more disallowed
+// WebAuthn extensions.
+extern const char kWebAuthnExtensionsNotSupported[];
+
 }  // namespace errors
 }  // namespace payments
 

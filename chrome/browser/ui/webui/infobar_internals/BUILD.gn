@@ -55,6 +55,7 @@ source_set("impl") {
     "//chrome/browser:buildflags",
     "//chrome/browser:global_features",
     "//chrome/browser/devtools",
+    "//chrome/browser/infobars",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/infobar_internals:resources",
     "//chrome/browser/ui",

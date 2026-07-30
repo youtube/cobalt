@@ -158,6 +158,7 @@
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "net/base/url_util.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -193,7 +194,7 @@ using testing::UnorderedElementsAre;
 void MakeHistorySyncOptinUiAvailable(signin::IdentityManager& identity_manager,
                                      AccountInfo& account_info,
                                      bool eligible = true) {
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
           eligible);
   signin::UpdateAccountInfoForAccount(&identity_manager, account_info);
@@ -296,7 +297,7 @@ AccountInfo FillAccountInfo(
                                  .SetAvatarUrl("https://get-avatar.com/foo")
                                  .Build();
   bool is_managed = hosted_domain != kNoHostedDomainFound;
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_is_subject_to_enterprise_features(is_managed);
   mutator.set_is_subject_to_account_level_enterprise_policies(is_managed);
   return account_info;
@@ -546,9 +547,12 @@ void WaitForBrowserUrl(const GURL& url, content::WebContents* target) {
 }
 
 GURL GetManagedUserProfileNoticeUrl() {
-  return base::FeatureList::IsEnabled(switches::kFirstRunDesktopRefresh)
-             ? GURL(chrome::kChromeUIManagedUserProfileNoticeRefreshURL)
-             : GURL(chrome::kChromeUIManagedUserProfileNoticeUrl);
+  if (base::FeatureList::IsEnabled(switches::kFirstRunDesktopRefresh)) {
+    const ManagedUserProfileNoticeUI::ScreenType default_type =
+        ManagedUserProfileNoticeUI::ScreenType::kProfilePicker;
+    return ManagedUserProfileNoticeUI::GetURLForType(default_type);
+  }
+  return GURL(chrome::kChromeUIManagedUserProfileNoticeUrl);
 }
 
 // Browser extra part used to be notified early enough to track the
@@ -825,7 +829,7 @@ class ProfilePickerCreationFlowBrowserTest
     if (is_supervised_profile) {
       supervised_user::EnableParentalControls(
           *profile_being_created->GetPrefs());
-      AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+      AccountCapabilitiesTestMutator mutator(&account_info);
       mutator.set_is_subject_to_parental_controls(true);
     }
 
@@ -1021,6 +1025,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ShowPicker) {
 }
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ShowChoice) {
+  base::HistogramTester histogram_tester;
   ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
       ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
   EXPECT_TRUE(ProfilePicker::IsOpen());
@@ -1031,15 +1036,21 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ShowChoice) {
   EXPECT_NE(delegate->GetWindowTitle(), delegate->GetAccessibleWindowTitle());
   WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
   EXPECT_NE(delegate->GetWindowTitle(), delegate->GetAccessibleWindowTitle());
+  histogram_tester.ExpectUniqueSample(
+      "Signin.SignIn.Offered", signin_metrics::AccessPoint::kUserManager, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        ShowChoiceWithInitialEmail) {
+  base::HistogramTester histogram_tester;
   constexpr char kEmail[] = "test@gmail.com";
   ProfilePicker::Show(ProfilePicker::Params::FromStartupWithEmail(kEmail));
   EXPECT_TRUE(ProfilePicker::IsOpen());
   WaitForPickerWidgetCreated();
   WaitForLoadStop(GetSigninChromeSyncDiceUrl(kEmail));
+  histogram_tester.ExpectUniqueSample(
+      "Signin.SignIn.Offered",
+      signin_metrics::AccessPoint::kUserManagerWithPrefilledEmail, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
@@ -2796,11 +2807,12 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   EXPECT_EQ(new_browser->GetProfile()->GetPath(), other_path);
   WaitForPickerClosed();
 
-  // When InitialWebUI is enabled, the browser window is intentionally hidden
-  // initially, which causes FirstWebContentsFinishReason to be
-  // kAbandonNoInitiallyVisibleContent and prevents
-  // FirstWebContentsNonEmptyPaint from being recorded.
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+  if (base::FeatureList::IsEnabled(features::kWebUIReloadButton) &&
+      features::kWebUIReloadButtonDeferBrowserViewShow.Get()) {
+    // When kWebUIReloadButtonDeferBrowserViewShow is enabled, the browser
+    // window is intentionally hidden initially, which causes
+    // FirstWebContentsFinishReason to be kAbandonNoInitiallyVisibleContent and
+    // prevents FirstWebContentsNonEmptyPaint from being recorded.
     histogram_tester.ExpectTotalCount(
         "ProfilePicker.FirstProfileTime.FirstWebContentsNonEmptyPaint", 0);
     histogram_tester.ExpectUniqueSample(

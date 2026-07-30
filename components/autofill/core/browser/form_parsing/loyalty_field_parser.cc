@@ -32,8 +32,8 @@ LoyaltyFieldParser::LoyaltyFieldParser(FieldAndMatchInfo match)
 
 void LoyaltyFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
-  AddClassification(match_, LOYALTY_MEMBERSHIP_ID, kBaseLoyaltyCardParserScore,
-                    field_candidates);
+  AddClassification(match_, LOYALTY_MEMBERSHIP_ID,
+                    HeuristicParser::kLoyaltyCard, field_candidates);
 }
 
 }  // namespace autofill

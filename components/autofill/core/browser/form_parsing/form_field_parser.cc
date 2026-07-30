@@ -634,7 +634,7 @@ bool FormFieldParser::ParseEmptyLabel(ParsingContext& context,
 void FormFieldParser::AddClassification(
     const std::optional<FieldAndMatchInfo>& match,
     FieldType type,
-    float parser_score,
+    HeuristicParser parser_type,
     FieldCandidatesMap& field_candidates) {
   // Several fields are optional.
   if (!match.has_value()) {
@@ -644,14 +644,13 @@ void FormFieldParser::AddClassification(
   // When `kAutofillBetterLocalHeuristicPlaceholderSupport` is enabled,
   // different parsers might derive conflicting classifications based on
   // different labels. In this case, the higher quality label match should win.
-  // Conceptually, this is achieved by having a composite score of the form
-  // (`is_name_or_high_quality_label_match`, `parser_score`). Practically, since
-  // all parser scores are less than 2, adding 2 suffices.
-  CHECK_LT(parser_score, 2);
-  float score = match->match_info.matched_attribute ==
-                        MatchInfo::MatchAttribute::kLowQualityLabel
-                    ? parser_score
-                    : parser_score + 2;
+  // This is achieved by having a composite priority of the form
+  // (`is_name_or_high_quality_label_match`, `parser_type`).
+  const FieldCandidatePriority priority{
+      /*is_name_or_high_quality_label_match=*/
+      match->match_info.matched_attribute !=
+          MatchInfo::MatchAttribute::kLowQualityLabel,
+      /*parser_type=*/parser_type};
 
   FieldCandidates& candidates = field_candidates[match->field->global_id()];
   candidates.AddFieldCandidate(
@@ -665,7 +664,7 @@ void FormFieldParser::AddClassification(
             return MatchAttribute::kLabel;
         }
       }(),
-      score);
+      priority);
 }
 
 std::optional<FormFieldParser::MatchInfo> FormFieldParser::Match(

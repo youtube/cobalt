@@ -55,8 +55,7 @@ WalletPassAccessManagerFactory::BuildServiceInstanceForBrowserContext(
   EntityDataManager* data_manager =
       AutofillEntityDataManagerFactory::GetForProfile(profile);
 
-  if (base::FeatureList::IsEnabled(
-          autofill::features::debug::kFakeWalletApiResponses)) {
+  if (base::FeatureList::IsEnabled(features::debug::kFakeWalletApiResponses)) {
     return std::make_unique<FakeWalletPassAccessManager>(data_manager);
   }
 

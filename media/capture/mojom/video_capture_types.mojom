@@ -260,6 +260,7 @@ enum VideoCaptureError {
   kScreenCaptureKitResetStreamError,
   kWinMediaFoundationCameraBusy,
   kWebRtcStartCaptureFailed,
+  kDesktopCaptureDeviceGpuAdapterChanged,
 };
 
 enum VideoCaptureFrameDropReason {

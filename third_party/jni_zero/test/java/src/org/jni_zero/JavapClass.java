@@ -42,4 +42,6 @@ public class JavapClass<T> {
     <T2 extends Runnable> Class objTest(T thing, T2[] other) {
         return null;
     }
+
+    public native boolean nativeMethod(int a, String b);
 }

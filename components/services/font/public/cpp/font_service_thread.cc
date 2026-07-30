@@ -88,8 +88,8 @@ bool FontServiceThread::FallbackFontForCharacter(
 bool FontServiceThread::FontRenderStyleForStrike(
     std::string family,
     uint32_t size,
-    bool is_italic,
     bool is_bold,
+    bool is_italic,
     float device_scale_factor,
     font_service::mojom::FontRenderStylePtr* out_font_render_style) {
   DCHECK(!task_runner_->RunsTasksInCurrentSequence());
@@ -98,7 +98,7 @@ bool FontServiceThread::FontRenderStyleForStrike(
   task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&FontServiceThread::FontRenderStyleForStrikeImpl, this,
-                     &done_event, family, size, is_italic, is_bold,
+                     &done_event, family, size, is_bold, is_italic,
                      device_scale_factor, &out_valid, out_font_render_style));
   done_event.Wait();
   return out_valid;
@@ -311,8 +311,8 @@ void FontServiceThread::FontRenderStyleForStrikeImpl(
     base::WaitableEvent* done_event,
     std::string family,
     uint32_t size,
-    bool is_italic,
     bool is_bold,
+    bool is_italic,
     float device_scale_factor,
     bool* out_valid,
     mojom::FontRenderStylePtr* out_font_render_style) {
@@ -326,7 +326,7 @@ void FontServiceThread::FontRenderStyleForStrikeImpl(
 
   pending_waitable_events_.insert(done_event);
   font_service_->FontRenderStyleForStrike(
-      std::move(family), size, is_italic, is_bold, device_scale_factor,
+      std::move(family), size, is_bold, is_italic, device_scale_factor,
       base::BindOnce(&FontServiceThread::OnFontRenderStyleForStrikeComplete,
                      this, done_event, out_valid, out_font_render_style));
 }

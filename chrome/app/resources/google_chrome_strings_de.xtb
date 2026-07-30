@@ -148,6 +148,7 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="2580411288591421699">Die Google Chrome-Version kann nicht installiert werden, da sie aktuell ausgeführt wird. Schließe Google Chrome und versuche es noch einmal.</translation>
 <translation id="2586406160782125153">Dadurch werden deine Browserdaten von diesem Gerät gelöscht. Wenn du deine Daten später abrufen möchtest, melde dich als <ph name="USER_EMAIL" /> in Chrome an.</translation>
 <translation id="259935314519650377">Die heruntergeladene Installationsdatei konnte nicht im Cache gespeichert werden. Fehler: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
+<translation id="2608461706055011366">Mit Gemini in Chrome einen schnellen Überblick über dieses Dokument erhalten und Fragen dazu stellen</translation>
 <translation id="2620436844016719705">System</translation>
 <translation id="263447411082773721">Passwörter, Lesezeichen und Verlauf werden auf allen Geräten synchronisiert. Wenn du deinen Standardbrowser auf Chrome aktualisierst, kannst du ganz einfach auf die vertrauten Funktionen zugreifen. Chrome wird für den Schnellzugriff an die Taskleiste angepinnt.</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
@@ -396,6 +397,7 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="5234764350956374838">Schließen</translation>
 <translation id="5239627039202700673">Du kannst Chrome jederzeit nutzen, wenn du in Nachrichten, Dokumenten und anderen Apps auf Links tippst</translation>
 <translation id="5251420635869119124">Gastnutzer können Chrome verwenden, ohne Daten zu hinterlassen.</translation>
+<translation id="5271833978500241046">Skills zusammen mit anderen Gemini-Funktionen in Chrome verwenden</translation>
 <translation id="5286907366254680517">Erkannt</translation>
 <translation id="5320351714793324716">Wenn du Cookies erlaubst, kann Chrome diese beim Vorabladen verwenden</translation>
 <translation id="5321325624576443340">Google Lens ist nicht verfügbar. Versuch es später noch einmal.</translation>
@@ -432,15 +434,6 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="569897634095159764">Internetverbindung kann nicht hergestellt werden. Für den Proxyserver ist eine Authentifizierung erforderlich.</translation>
 <translation id="5709557627224531708">Chrome als Standardbrowser festlegen</translation>
 <translation id="5719246646468301581">Zusatzbedingungen für Google Chrome und ChromeOS</translation>
-<translation id="5719324992913248873">Durch diese Aktion geschieht Folgendes:
-          <ph name="LINE_BREAKS" />
-           • Einige Chrome-Einstellungen und -Verknüpfungen werden zurückgesetzt.
-           <ph name="LINE_BREAK" />
-           • Erweiterungen werden deaktiviert.
-           <ph name="LINE_BREAK" />
-           • Cookies und andere vorübergehende Websitedaten werden gelöscht.
-            <ph name="LINE_BREAKS" />
-Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den Verlauf aus.</translation>
 <translation id="5736850870166430177">Wenn eine Website versucht, dein Passwort zu stehlen, oder wenn du eine schädliche Datei herunterlädst, kann Chrome auch URLs, einschließlich Teile von Seiteninhalten, an Safe Browsing senden</translation>
 <translation id="5756509061973259733">Ein Chrome-Profil mit diesem Konto ist auf diesem Gerät bereits vorhanden</translation>
 <translation id="5759947850379142561">Wähle einen beliebigen Text oder ein beliebiges Bild für die Suche mit Google Lens aus oder drücke die Esc-Taste, um Google Lens zu beenden</translation>
@@ -638,6 +631,7 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7627609214560473136">Erlaube Chrome zum Schutz deiner Daten, Berechtigungen von Websites zu entfernen, die du in letzter Zeit nicht besucht hast.</translation>
 <translation id="7629695634924605473">Chrome wird dich informieren, sollten deine Passwörter nicht mehr sicher sein</translation>
+<translation id="7629898584100520089">KI-Innovationen wie Skills werden in deinem Google-Konto gespeichert und getrennt von der Chrome-Synchronisierung verwaltet</translation>
 <translation id="7641148173327520642">Dein Systemadministrator hat Google Chrome so konfiguriert, dass <ph name="ALTERNATIVE_BROWSER_NAME" /> für den Zugriff auf <ph name="TARGET_URL_HOSTNAME" /> geöffnet wird.</translation>
 <translation id="7649070708921625228">Hilfe</translation>
 <translation id="7651907282515937834">Logo von Chrome Enterprise</translation>
@@ -749,6 +743,7 @@ Du kannst erst neue Lesezeichen in deinem Konto speichern, wenn du einige gelös
 <translation id="8624541899164515475">Einstellungen, werden in neuem Tab geöffnet.</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome wird in einer Minute neu gestartet}other{Chrome wird in # Minuten neu gestartet}}</translation>
 <translation id="8637932705841171563">Wenn du dein Fenster teilen möchtest, musst du in den Systemeinstellungen die Bildschirmaufzeichnung für Chrome zulassen</translation>
+<translation id="8642497536370021917">Damit du Chrome-Daten in deinem Google-Konto jederzeit verwenden und speichern kannst, bestätige deine Identität</translation>
 <translation id="8656634243791296665">Gemini in Chrome Dev öffnen</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">Die Erweiterung legt auch die Seite fest, die beim Start von Chrome angezeigt wird.</translation>

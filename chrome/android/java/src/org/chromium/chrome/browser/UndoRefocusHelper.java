@@ -233,7 +233,7 @@ public class UndoRefocusHelper {
         mLayoutManagerObservableSupplier.addSyncObserverAndPostIfNonNull(
                 mLayoutManagerSupplierCallback);
         @Nullable LayoutManagerImpl layoutManager = mLayoutManagerObservableSupplier.get();
-        if (layoutManager != null && layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+        if (layoutManager != null && layoutManager.isLayoutVisible(LayoutType.HUB)) {
             mTabSwitcherActive = true;
         }
     }
@@ -244,7 +244,7 @@ public class UndoRefocusHelper {
                 new LayoutStateObserver() {
                     @Override
                     public void onFinishedShowing(int layoutType) {
-                        if (layoutType != LayoutType.TAB_SWITCHER) {
+                        if (layoutType != LayoutType.HUB) {
                             return;
                         }
                         mTabSwitcherActive = true;
@@ -252,7 +252,7 @@ public class UndoRefocusHelper {
 
                     @Override
                     public void onFinishedHiding(int layoutType) {
-                        if (layoutType != LayoutType.TAB_SWITCHER) {
+                        if (layoutType != LayoutType.HUB) {
                             return;
                         }
                         mTabSwitcherActive = false;

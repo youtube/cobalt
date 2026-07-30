@@ -204,6 +204,9 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest,
       CreateSecurePaymentConfirmationRequest();
   auto mock_delegate = std::make_unique<MockPaymentAppFactoryDelegate>(
       web_contents_, std::move(method_data));
+  url::Origin caller_origin = url::Origin::Create(GURL("https://site.example"));
+  EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreationError(_, _)).Times(0);
   secure_payment_confirmation_app_factory_->Create(mock_delegate->GetWeakPtr());
@@ -222,7 +225,7 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest,
       CreateMockDelegate(std::move(method_data));
   url::Origin caller_origin = url::Origin::Create(GURL("https://rp.example"));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   EXPECT_CALL(*mock_credential_finder_, GetMatchingCredentials)
       .WillOnce(RunOnceCallback<5>(GetMatchingCredentialsIsUnsupported()));
@@ -255,7 +258,7 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest,
   std::unique_ptr<MockPaymentAppFactoryDelegate> mock_delegate =
       CreateMockDelegate(std::move(method_data));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   std::unique_ptr<PaymentApp> secure_payment_confirmation_app;
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreated(_))
@@ -296,7 +299,7 @@ TEST_F(
   std::unique_ptr<MockPaymentAppFactoryDelegate> mock_delegate =
       CreateMockDelegate(std::move(method_data));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreated(_)).Times(0);
   EXPECT_CALL(*mock_delegate, OnDoneCreatingPaymentApps());
@@ -332,7 +335,7 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest,
   std::unique_ptr<MockPaymentAppFactoryDelegate> mock_delegate =
       CreateMockDelegate(std::move(method_data));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   // Ensure that the SecurePaymentConfirmationAppFactory extracts and passes in
   // the correct set of credentials, relying party id, and caller origin. The
@@ -357,6 +360,8 @@ class SecurePaymentConfirmationAppFactoryPaymentEntitiesLogosTest
       GURL("https://payment-entity-2.example/icon.png");
   const GURL kPaymentEntity3LogoUrl =
       GURL("https://payment-entity-3.example/icon.png");
+  const GURL kPaymentEntity4LogoUrl =
+      GURL("https://payment-entity-4.example/icon.png");
 
   SecurePaymentConfirmationAppFactoryPaymentEntitiesLogosTest() = default;
 
@@ -410,13 +415,15 @@ TEST_F(SecurePaymentConfirmationAppFactoryPaymentEntitiesLogosTest,
       kPaymentEntity2LogoUrl, "Payment Entity 2"));
   spc_request->payment_entities_logos.push_back(mojom::PaymentEntityLogo::New(
       kPaymentEntity3LogoUrl, "Payment Entity 3"));
+  spc_request->payment_entities_logos.push_back(mojom::PaymentEntityLogo::New(
+      kPaymentEntity4LogoUrl, "Payment Entity 4"));
   method_data->secure_payment_confirmation = std::move(spc_request);
 
   std::unique_ptr<MockPaymentAppFactoryDelegate> mock_delegate =
       CreateMockDelegate(std::move(method_data));
   url::Origin caller_origin = url::Origin::Create(GURL("https://rp.example"));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   std::unique_ptr<PaymentApp> created_payment_app;
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreated(_))
@@ -432,9 +439,9 @@ TEST_F(SecurePaymentConfirmationAppFactoryPaymentEntitiesLogosTest,
   FakeImageDownloaded(kPaymentEntity2LogoUrl, /*succeeded=*/true,
                       /*height=*/60);
 
-  // Even though the third entity logo was not downloaded (and was not attempted
-  // to be downloaded), the first two should be sufficient and the payment app
-  // should be created.
+  // Even though the third and fourth entity logos were not downloaded (and were
+  // not attempted to be downloaded), the first two should be sufficient and the
+  // payment app should be created.
   ASSERT_TRUE(created_payment_app);
   EXPECT_THAT(
       created_payment_app->GetPaymentEntitiesLogos(),
@@ -468,7 +475,7 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest,
   std::unique_ptr<MockPaymentAppFactoryDelegate> mock_delegate =
       CreateMockDelegate(std::move(method_data));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
   std::unique_ptr<PaymentApp> secure_payment_confirmation_app;
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreated(_))
       .WillOnce(MoveArg<0>(&secure_payment_confirmation_app));
@@ -513,6 +520,9 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest,
 
   auto mock_delegate = std::make_unique<MockPaymentAppFactoryDelegate>(
       web_contents_, std::move(method_data));
+  url::Origin caller_origin = url::Origin::Create(GURL("https://site.example"));
+  EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   scoped_refptr<MockWebPaymentsWebDataService> mock_service =
       base::MakeRefCounted<MockWebPaymentsWebDataService>();
@@ -551,7 +561,7 @@ TEST_F(SecurePaymentConfirmationAppFactoryTest, Fallback_NoCredentials) {
       CreateMockDelegate(std::move(method_data));
   url::Origin caller_origin = url::Origin::Create(GURL("https://site.example"));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
   std::unique_ptr<PaymentApp> secure_payment_confirmation_app;
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreated(_))
       .WillOnce(MoveArg<0>(&secure_payment_confirmation_app));
@@ -593,7 +603,7 @@ TEST_F(
   std::unique_ptr<MockPaymentAppFactoryDelegate> mock_delegate =
       CreateMockDelegate(std::move(method_data));
   EXPECT_CALL(*mock_delegate, GetFrameSecurityOrigin())
-      .WillOnce(ReturnRef(caller_origin));
+      .WillRepeatedly(ReturnRef(caller_origin));
 
   EXPECT_CALL(*mock_delegate, OnPaymentAppCreated(_)).Times(0);
   EXPECT_CALL(*mock_delegate, OnDoneCreatingPaymentApps());

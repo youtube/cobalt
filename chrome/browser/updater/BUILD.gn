@@ -13,7 +13,11 @@ source_set("updater") {
     "//chrome/updater/mojom",
   ]
 
-  friend = [ "//chrome/test:unit_tests" ]
+  friend = [
+    ":test_support",
+    ":unit_tests",
+    "//chrome/browser/metrics:unit_tests",
+  ]
 
   if (enable_updater && (is_mac || is_win)) {
     sources = [
@@ -91,5 +95,40 @@ source_set("updater") {
   } else {
     sources = [ "updater_no_updater.cc" ]
     deps = [ "//components/version_info" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  if (enable_updater && (is_win || is_mac)) {
+    sources = [ "browser_updater_client_unittest.cc" ]
+    deps = [
+      ":test_support",
+      ":updater",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/updater:public_sources",
+      "//chrome/updater:public_util",
+      "//testing/gtest",
+    ]
+    if (is_mac) {
+      deps += [ "//chrome/updater:browser_sources" ]
+    }
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  if (enable_updater && (is_win || is_mac)) {
+    sources = [
+      "browser_updater_client_testutils.cc",
+      "browser_updater_client_testutils.h",
+    ]
+    deps = [
+      ":updater",
+      "//base",
+      "//chrome/updater:public_sources",
+      "//chrome/updater:public_util",
+    ]
   }
 }

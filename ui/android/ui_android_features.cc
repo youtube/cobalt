@@ -22,6 +22,13 @@ BASE_FEATURE(kBlockMouseEventsOnView, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCheckIntentCallerPermission, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kClipboardConfusedDeputyDefenseText,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kClipboardConfusedDeputyDefenseImages,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kClipboardConfusedDeputyDefenseFiles,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kDeprecatedExternalPickerFunction,
              base::FEATURE_DISABLED_BY_DEFAULT);
 

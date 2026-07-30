@@ -86,8 +86,7 @@
 
 - (void)dismissModalsAndMaybeOpenSelectedTabInMode:
             (ApplicationModeForTabOpening)targetMode
-                                 withUrlLoadParams:
-                                     (const UrlLoadParams&)urlLoadParams
+                                 withUrlLoadParams:(UrlLoadParams)urlLoadParams
                                     dismissOmnibox:(BOOL)dismissOmnibox
                                         completion:(ProceduralBlock)completion {
   _urlLoadParams = urlLoadParams;

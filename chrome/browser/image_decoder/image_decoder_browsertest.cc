@@ -7,7 +7,6 @@
 #include "base/compiler_specific.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/browser/browser_child_process_observer.h"
 #include "content/public/browser/browser_thread.h"

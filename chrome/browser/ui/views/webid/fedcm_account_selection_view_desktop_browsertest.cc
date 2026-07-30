@@ -248,7 +248,7 @@ IN_PROC_BROWSER_TEST_F(FedCmAccountSelectionViewBrowserTest,
 IN_PROC_BROWSER_TEST_F(FedCmAccountSelectionViewBrowserTest, ClosedBrowser) {
   PreShow();
   ui_test_utils::BrowserDestroyedObserver observer(browser());
-  browser()->window()->Close();
+  browser()->GetWindow()->Close();
   observer.Wait();
 
   // Invoking this after browser is closed should not cause a crash.
@@ -524,7 +524,7 @@ IN_PROC_BROWSER_TEST_F(FedCmActorBrowserTest,
 
   // Enter fullscreen mode.
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
-  ASSERT_TRUE(browser()->window()->IsFullscreen());
+  ASSERT_TRUE(browser()->GetWindow()->IsFullscreen());
 
   // Now call ShowModalDialog. It should not be withheld because we are in
   // fullscreen.

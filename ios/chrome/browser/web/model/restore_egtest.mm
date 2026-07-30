@@ -358,7 +358,7 @@ std::unique_ptr<net::test_server::HttpResponse> CountResponse(
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_disabled.push_back(
+  config.features_enabled.push_back(
       web::features::kForceSynthesizedRestoreSession);
   return config;
 }

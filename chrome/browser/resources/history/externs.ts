@@ -6,6 +6,10 @@ import type {HistorySignInState, SyncState} from './constants.js';
 
 /**
  * @fileoverview Externs for objects sent from C++ to chrome://history.
+ *
+ * TODO(crbug.com/495832119): Remove this file, after updating consumers to use
+ * the corresponding mojo-generated types (from foreign_sessions.mojom-webui.js)
+ * instead.
  */
 
 /**
@@ -17,6 +21,7 @@ export interface ForeignSessionTab {
   remoteIconUrlForUma: string;
   sessionId: number;
   timestamp: number;
+  timestampDisplayStr: string;
   title: string;
   url: string;
   windowId: number;

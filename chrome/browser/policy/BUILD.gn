@@ -673,12 +673,14 @@ source_set("policy") {
     "cloud/user_fm_registration_token_uploader.h",
     "cloud/user_fm_registration_token_uploader_factory.h",
     "configuration_policy_handler_list_factory.h",
+    "default_sensors_setting_policy_handler.h",
     "developer_tools_policy_checker.h",
     "developer_tools_policy_checker_factory.h",
     "developer_tools_policy_handler.h",
     "device_management_service_configuration.h",
     "dm_token_utils.h",
     "homepage_location_policy_handler.h",
+    "isolate_origins_policy_handler.h",
     "javascript_policy_handler.h",
     "local_network_access_ip_address_space_overrides_policy_handler.h",
     "messaging_layer/public/report_client.h",
@@ -818,10 +820,6 @@ source_set("policy") {
 
   if (is_win) {
     public += [ "browser_dm_token_storage_win.h" ]
-
-    if (is_chrome_branded) {
-      public += [ "status_provider/updater_status_and_value_provider.h" ]
-    }
   }
 
   if (is_mac) {
@@ -882,12 +880,14 @@ source_set("impl") {
     "cloud/user_fm_registration_token_uploader.cc",
     "cloud/user_fm_registration_token_uploader_factory.cc",
     "configuration_policy_handler_list_factory.cc",
+    "default_sensors_setting_policy_handler.cc",
     "developer_tools_policy_checker.cc",
     "developer_tools_policy_checker_factory.cc",
     "developer_tools_policy_handler.cc",
     "device_management_service_configuration.cc",
     "dm_token_utils.cc",
     "homepage_location_policy_handler.cc",
+    "isolate_origins_policy_handler.cc",
     "javascript_policy_handler.cc",
     "local_network_access_ip_address_space_overrides_policy_handler.cc",
     "messaging_layer/public/report_client.cc",
@@ -998,6 +998,7 @@ source_set("impl") {
     "//components/unified_consent",
     "//components/user_manager",
     "//components/variations/service",
+    "//services/device/public/cpp:device_features",
   ]
 
   if (enable_extensions_core) {
@@ -1013,7 +1014,11 @@ source_set("impl") {
     ]
   }
 
-  if (enterprise_client_certificates) {
+  # These targets back browser (machine) scope provisioning via Chrome Browser
+  # Cloud Management (BrowserDMTokenStorage / BrowserCloudManagementDelegate),
+  # which does not exist on ChromeOS even though enterprise_client_certificates
+  # is enabled there.
+  if (enterprise_client_certificates && !is_chromeos) {
     deps += [
       "//chrome/browser/enterprise/connectors/device_trust/key_management/browser",
       "//components/enterprise/client_certificates/core:management_delegate",
@@ -1123,6 +1128,7 @@ source_set("impl") {
       "//chrome/browser/ash/wallpaper_handlers",
       "//chrome/browser/chromeos/reporting",
       "//chrome/browser/nearby_sharing/common",
+      "//chrome/browser/ui/webui/certificate_manager",
       "//chromeos/ash/components/demo_mode",
       "//chromeos/ash/components/install_attributes",
       "//chromeos/ash/components/policy/policy_blocklist_service",
@@ -1154,15 +1160,28 @@ source_set("impl") {
       "//chrome/browser/google",
       "//chrome/credential_provider/common:common_constants",
     ]
-
-    if (is_chrome_branded) {
-      sources += [ "status_provider/updater_status_and_value_provider.cc" ]
-    }
   }
 
   if (is_mac) {
     sources += [ "browser_dm_token_storage_mac.mm" ]
     deps += [ "//chrome/browser:app_controller_mac" ]
+  }
+
+  if (is_win || is_mac) {
+    sources += [
+      "status_provider/updater_status_and_value_provider.cc",
+      "status_provider/updater_status_and_value_provider.h",
+    ]
+    deps += [
+      "//chrome/browser/google",
+      "//chrome/browser/updater",
+    ]
+    if (is_win) {
+      sources += [ "status_provider/updater_status_and_value_provider_win.cc" ]
+    }
+    if (is_mac) {
+      sources += [ "status_provider/updater_status_and_value_provider_mac.cc" ]
+    }
   }
 
   if (is_linux || is_win || is_mac || is_chromeos) {

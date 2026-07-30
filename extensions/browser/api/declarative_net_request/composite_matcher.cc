@@ -134,7 +134,7 @@ void CompositeMatcher::RemoveRulesetsWithIDs(const std::set<RulesetID>& ids) {
 std::set<RulesetID> CompositeMatcher::ComputeStaticRulesetIDs() const {
   std::set<RulesetID> result;
   for (const std::unique_ptr<RulesetMatcher>& matcher : matchers_) {
-    if (matcher->id() == kDynamicRulesetID) {
+    if (!IsRulesetStatic(matcher->id())) {
       continue;
     }
 

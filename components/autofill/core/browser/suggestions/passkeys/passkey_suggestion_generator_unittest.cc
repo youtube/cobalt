@@ -49,7 +49,7 @@ class PasskeySuggestionGeneratorTest : public testing::Test {
 
  private:
   base::test::SingleThreadTaskEnvironment task_environment_;
-  autofill::test::AutofillUnitTestEnvironment test_environment_;
+  test::AutofillUnitTestEnvironment test_environment_;
   TestAutofillClient test_autofill_client_;
   std::unique_ptr<PasskeySuggestionGenerator> generator_;
   FormData form_;

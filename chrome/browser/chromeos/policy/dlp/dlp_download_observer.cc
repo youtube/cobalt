@@ -53,10 +53,7 @@ void DlpDownloadObserver::Shutdown() {
 }
 
 void DlpDownloadObserver::OnDownloadCreated(download::DownloadItem* item) {
-  chromeos::DlpClient* dlp_client = chromeos::DlpClient::Get();
-  if (!dlp_client || !dlp_client->IsAlive()) {
-    return;
-  }
+  // SECURITY: Attach unconditionally so OnDownloadUpdated() always fires.
   item->AddObserver(this);
 }
 

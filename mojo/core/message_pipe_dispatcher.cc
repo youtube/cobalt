@@ -409,10 +409,8 @@ MojoResult MessagePipeDispatcher::CloseNoLock() {
     base::AutoUnlock unlock(signal_lock_);
     node_controller_->ClosePort(port_);
 
-#if BUILDFLAG(MOJO_TRACE_ENABLED)
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("mojom"), "MessagePipe closing",
                 perfetto::Flow::ProcessScoped(pipe_id_ + endpoint_));
-#endif
   }
 
   return MOJO_RESULT_OK;
@@ -458,7 +456,6 @@ HandleSignalsState MessagePipeDispatcher::GetHandleSignalsStateNoLock() const {
   }
   rv.satisfiable_signals |=
       MOJO_HANDLE_SIGNAL_PEER_CLOSED | MOJO_HANDLE_SIGNAL_QUOTA_EXCEEDED;
-#if BUILDFLAG(MOJO_TRACE_ENABLED)
   const bool was_peer_closed =
       last_known_satisfied_signals_ & MOJO_HANDLE_SIGNAL_PEER_CLOSED;
   const bool is_peer_closed =
@@ -468,7 +465,6 @@ HandleSignalsState MessagePipeDispatcher::GetHandleSignalsStateNoLock() const {
         TRACE_DISABLED_BY_DEFAULT("mojom"), "MessagePipe peer closed",
         perfetto::TerminatingFlow::ProcessScoped(pipe_id_ + (1 - endpoint_)));
   }
-#endif
   last_known_satisfied_signals_ = rv.satisfied_signals;
 
   return rv;

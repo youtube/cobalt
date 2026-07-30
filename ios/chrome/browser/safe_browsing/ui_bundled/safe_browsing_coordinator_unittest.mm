@@ -26,6 +26,7 @@
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/components/security_interstitials/safe_browsing/fake_safe_browsing_client.h"
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_query_manager.h"
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_tab_helper.h"
@@ -78,10 +79,7 @@ class SafeBrowsingCoordinatorTest : public PlatformTest {
         base::BindRepeating(&BuildMockTailoredSecurityService));
     test_profile_builder.AddTestingFactory(
         SyncServiceFactory::GetInstance(),
-        base::BindRepeating(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+        base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(test_profile_builder).Build();
 
     client_ = std::make_unique<FakeSafeBrowsingClient>(profile_->GetPrefs());

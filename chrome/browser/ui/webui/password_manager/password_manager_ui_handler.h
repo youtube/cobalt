@@ -18,6 +18,19 @@ namespace content {
 class WebContents;
 }
 
+// This class acts as the IPC proxy between the Password Manager
+// WebUI (Renderer process) and the Browser process.
+//
+// Rules:
+// 1. Unpack Mojo requests, delegate to backend components, and pack Mojo
+//    responses.
+// 2. Do not implement core logic, conditional flows, or direct system
+//    interactions here.
+// 3. TODO(crbug.com/432409279): Currently, most operations are delegated to
+//    PasswordsPrivateDelegate as part of the migration from the legacy
+//    extensions API. In the future, the backend logic should be broken down
+//    and delegated to cohesive domain services instead.
+
 class PasswordManagerUIHandler : public password_manager::mojom::PageHandler {
  public:
   PasswordManagerUIHandler(
@@ -72,6 +85,16 @@ class PasswordManagerUIHandler : public password_manager::mojom::PageHandler {
 
   void GetPasswordManagerActionableError(
       GetPasswordManagerActionableErrorCallback callback) override;
+
+  void ShowLastExportedFileInShell() override;
+
+  void DisconnectCloudAuthenticator(
+      DisconnectCloudAuthenticatorCallback callback) override;
+
+  void IsConnectedToCloudAuthenticator(
+      IsConnectedToCloudAuthenticatorCallback callback) override;
+
+  void UndoRemoveSavedPasswordOrException() override;
 
  private:
   password_manager::SavedPasswordsPresenter* GetSavedPasswordsPresenter();

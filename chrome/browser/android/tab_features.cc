@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/public/widget/glic_side_panel_coordinator_android.h"
 #include "chrome/browser/glic/public/widget/glic_side_panel_coordinator_desktop_android.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_helper.h"
 #include "chrome/browser/net/qwac_web_contents_observer.h"
 #include "chrome/browser/preloading/new_tab_page_preload/new_tab_page_preload_pipeline_manager.h"
 #include "chrome/browser/profiles/profile.h"
@@ -124,6 +125,8 @@ TabFeatures::TabFeatures(content::WebContents* web_contents, Profile* profile) {
         GetUserDataFactory()
             .CreateInstance<glic::GlicSidePanelCoordinatorAndroid>(*tab, tab);
   }
+
+  glic::ContextualCueingHelper::MaybeCreateForWebContents(web_contents);
 }
 
 TabFeatures::~TabFeatures() = default;

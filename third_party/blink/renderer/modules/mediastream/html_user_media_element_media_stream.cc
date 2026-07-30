@@ -32,19 +32,12 @@ MediaStream* HTMLUserMediaElementMediaStream::stream(
   return From(element).GetMediaStream();
 }
 
-// static
-DOMException* HTMLUserMediaElementMediaStream::error(
-    HTMLUserMediaElement& element) {
-  return From(element).error_.Get();
-}
-
 HTMLUserMediaElementMediaStream::HTMLUserMediaElementMediaStream(
     HTMLUserMediaElement& element)
     : Supplement<HTMLUserMediaElement>(element) {}
 
 void HTMLUserMediaElementMediaStream::Trace(Visitor* visitor) const {
   visitor->Trace(media_stream_);
-  visitor->Trace(error_);
   Supplement<HTMLUserMediaElement>::Trace(visitor);
 }
 

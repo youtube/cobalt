@@ -1,0 +1,22 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module network.mojom;
+
+import "url/mojom/origin.mojom";
+
+// Represents the parsed value of an HTTP response header whose grammar is
+// either the token `*` (a wildcard) or a single serialized origin. Several
+// `Allow-...-From`-style opt-in headers share this grammar (e.g.
+// `Allow-CSP-From`), so this type is intentionally header-agnostic.
+union OriginOrWildcardHeaderValue {
+  // Set to true if the header value is just `*`.
+  bool allow_star;
+
+  // The parsed origin contained in the header value.
+  url.mojom.Origin origin;
+
+  // If the header value is invalid, an error message will be stored here.
+  string error_message;
+};

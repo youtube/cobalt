@@ -28,58 +28,71 @@ struct ScoredPassage {
 };
 
 struct TabSimilarityScores {
- TabSimilarityScores();
- ~TabSimilarityScores();
- TabSimilarityScores(const TabSimilarityScores&);
- TabSimilarityScores& operator=(const TabSimilarityScores&);
+  TabSimilarityScores();
+  ~TabSimilarityScores();
+  TabSimilarityScores(const TabSimilarityScores&);
+  TabSimilarityScores& operator=(const TabSimilarityScores&);
 
- ScoredPassage best;
- ScoredPassage worst = {1.0f, ""};
+  ScoredPassage best;
+  ScoredPassage worst = {1.0f, ""};
 };
 
 struct QueryStateSignals {
- QueryStateSignals();
- QueryStateSignals(const QueryStateSignals&) = delete;
- QueryStateSignals& operator=(const QueryStateSignals&) = delete;
- QueryStateSignals(QueryStateSignals&&);
- QueryStateSignals& operator=(QueryStateSignals&&);
- ~QueryStateSignals();
+  QueryStateSignals();
+  QueryStateSignals(const QueryStateSignals&) = delete;
+  QueryStateSignals& operator=(const QueryStateSignals&) = delete;
+  QueryStateSignals(QueryStateSignals&&);
+  QueryStateSignals& operator=(QueryStateSignals&&);
+  ~QueryStateSignals();
 
- int query_word_count = 0;
- float query_active_tab_title_similarity = 0.0f;
- std::vector<ScoredPassage> query_active_tab_passage_similarities;
+  int query_word_count = 0;
+  float query_active_tab_title_similarity = 0.0f;
+  std::vector<ScoredPassage> query_active_tab_passage_similarities;
+
+  // Multi-turn embeddings.
+  std::vector<float> query_embedding;
+  std::vector<std::vector<float>> conversation_thread_queries_embeddings;
+  std::vector<std::vector<float>> conversation_thread_titles_embeddings;
+  std::vector<float> context_tab_title_embedding;
+  std::vector<std::vector<float>> context_tab_passages_embeddings;
 };
 
 struct TabSignals {
- TabSignals();
- TabSignals(const TabSignals&) = delete;
- TabSignals& operator=(const TabSignals&) = delete;
- TabSignals(TabSignals&&);
- TabSignals& operator=(TabSignals&&);
- ~TabSignals();
+  TabSignals();
+  TabSignals(const TabSignals&) = delete;
+  TabSignals& operator=(const TabSignals&) = delete;
+  TabSignals(TabSignals&&);
+  TabSignals& operator=(TabSignals&&);
+  ~TabSignals();
 
- base::WeakPtr<content::WebContents> web_contents;
+  base::WeakPtr<content::WebContents> web_contents;
 
- // TODO(b/462793437): Remove embedding_score once the migration to
- // query_candidate_tab_similarity vector is complete.
- std::optional<float> embedding_score;
+  // TODO(b/462793437): Remove embedding_score once the migration to
+  // query_candidate_tab_similarity vector (title + passages) is complete.
+  std::optional<float> embedding_score;
 
- // Lexical signals.
- int num_query_title_matching_words = 0;
+  // Lexical signals.
+  int num_query_title_matching_words = 0;
 
- // Similarity scores for the query and the candidate tab (title + passages).
- float query_candidate_tab_title_similarity = 0.0f;
- std::vector<ScoredPassage> query_candidate_tab_passage_similarities;
+  // Similarity scores for the query and the candidate tab (title + passages).
+  // TODO(b/503189770): Remove these precomputed similarity scores once the
+  // migration to sending raw embeddings directly to the model is complete.
+  // (Represents similarity against 1 title + N passages).
+  float query_candidate_tab_title_similarity = 0.0f;
+  std::vector<ScoredPassage> query_candidate_tab_passage_similarities;
+  // Used for debugging/logging.
+  std::optional<TabSimilarityScores> similarity_scores;
 
- // Used for debugging/logging.
- std::optional<TabSimilarityScores> similarity_scores;
+  // Similarity between the active tab title and the candidate tab title.
+  float active_title_candidate_title_similarity = 0.0f;
 
- // Similarity between the active tab title and the candidate tab title.
- float active_title_candidate_title_similarity = 0.0f;
+  // Dynamic (engagement) signals.
+  std::optional<base::TimeDelta> duration_since_last_active;
+  std::optional<base::TimeDelta> duration_of_last_visit;
 
- // Dynamic (engagement) signals.
- std::optional<base::TimeDelta> duration_since_last_active;
- std::optional<base::TimeDelta> duration_of_last_visit;
+  // Multi-turn embeddings.
+  std::vector<float> candidate_title_embedding;
+  std::vector<std::vector<float>> candidate_passages_embeddings;
 };
 
 // Gets the score for a tab based only on the static signals.

@@ -450,9 +450,9 @@ BASE_FEATURE(kFedCmWellKnownEndpointValidation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables subdomain-first discovery for the FedCM well-known file. Fetches
-// https://web-identity.<eTLD+1>/.well-known/web-identity first and falls back
-// to the apex URL on failure (network error, malformed JSON, or provider_urls
-// length > 1).
+// https://web-identity.well-known.<eTLD+1>/.well-known/web-identity first and
+// falls back to the apex URL on failure (network error, malformed JSON, or
+// provider_urls length > 1).
 BASE_FEATURE(kFedCmWebIdentitySubdomain, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables bypassing the well-known file enforcement.
@@ -461,6 +461,9 @@ BASE_FEATURE(kFedCmWithoutWellKnownEnforcement,
 
 // Enables usage of the FedCM IdP-Initiation API.
 BASE_FEATURE(kFedCmNavigationInterception, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables browser to connect FedCM requests to Native Identity Providers.
+BASE_FEATURE(kFedCmNativeIdPs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables browser-side focus verification when crossing fenced boundaries.
 BASE_FEATURE(kFencedFramesEnforceFocus, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -544,11 +547,14 @@ BASE_FEATURE(kInitialWebUI, base::FEATURE_DISABLED_BY_DEFAULT);
 // If enabled, the initial WebUI will not share processes with other WebUIs,
 // including non-initial topchrome WebUIs. Process sharing will still happen
 // between initial WebUIs.
+// NOTE: This is explicitly not enabled by default, and exists only as a
+// pre-emptive killswitch if other topchrome WebUIs are incompatible with the
+// optimizations done for the initial WebUI.
 BASE_FEATURE_PARAM(bool,
                    kInitialWebUIUseSeparateProcess,
                    &features::kInitialWebUI,
                    "use_separate_process",
-                   true);
+                   false);
 
 // If enabled, the initial WebUI GPU stream is set to UI priority.
 BASE_FEATURE_PARAM(bool,
@@ -751,9 +757,14 @@ BASE_FEATURE(kOverscrollHistoryNavigation, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether web apps can run periodic tasks upon network connectivity.
 BASE_FEATURE(kPeriodicBackgroundSync, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, activation beacon is sent when a prefetched page is activated.
+// The activation beacon is a beacon that echoes back a server specified token
+// to the server when a prefetched page is activated.
+BASE_FEATURE(kPrefetchActivationBeacon, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Allow starting prefetch request from off the main thread. Please see
 // crbug.com/452389538 for more details.
-BASE_FEATURE(kPrefetchOffTheMainThread, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kPrefetchOffTheMainThread, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<bool>
     kPrefetchOffTheMainThreadUpdateMissingHeaderCache{
         &kPrefetchOffTheMainThread, "update_missing_header_cache", true};
@@ -785,6 +796,11 @@ BASE_FEATURE_PARAM(bool,
                    &features::kPrerender2ReuseHost,
                    "reuse_search_host",
                    false);
+
+// If enabled, activation beacon is sent when a prerendered page is activated.
+// The activation beacon is a beacon that echoes back a server specified token
+// to the server when a prerendered page is activated.
+BASE_FEATURE(kPrerenderActivationBeacon, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, the feature allows user to see a preview of their handwriting
 // gestures (Select and Delete gestures).
@@ -982,12 +998,6 @@ BASE_FEATURE(kOptimizeWebRequestProxyForServiceWorkerAutoPreload,
 // the service worker's fetch event handler to provide a response.
 BASE_FEATURE(kServiceWorkerInterceptDownloads,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
-// prioritize the response processing for the network request over the
-// processing for the fetch handler.
-BASE_FEATURE(kServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 // Run video capture service in the Browser process as opposed to a dedicated

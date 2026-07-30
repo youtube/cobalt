@@ -55,7 +55,9 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT MappableBuffer {
 
   // Returns a pointer to the memory address of a plane. Buffer must have been
   // successfully mapped using a call to Map() before calling this function.
-  virtual void* memory(size_t plane) = 0;
+  // NB the length of the span may be larger than the requested plane; it may
+  // point to the end of the entire valid mapping.
+  virtual base::span<uint8_t> memory(size_t plane) = 0;
 
   // Unmaps the buffer. It's illegal to use any pointer returned by memory()
   // after this has been called.

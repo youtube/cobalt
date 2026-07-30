@@ -7,6 +7,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 
 namespace finds::features {
 
@@ -80,6 +81,11 @@ extern const base::FeatureParam<bool> kEnableOmniboxRecentSearchSuggestionOptIn;
 // omnibox before triggering the opt-in promo.
 extern const base::FeatureParam<int>
     kOmniboxRecentSearchSuggestionCountThreshold;
+
+// The timeout for an individual model execution request. This override is
+// needed for requests to finish before erroring out (accounts for the time it
+// takes to finish text generation, finds feature orchestrator post processing).
+extern const base::FeatureParam<base::TimeDelta> kModelExecutionRequestTimeout;
 
 }  // namespace finds::features
 

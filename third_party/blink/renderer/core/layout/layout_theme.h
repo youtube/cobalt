@@ -102,7 +102,7 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   virtual void SetSelectionColors(Color active_background_color,
                                   Color active_foreground_color,
                                   Color inactive_background_color,
-                                  Color inactive_foreground_color) {}
+                                  Color inactive_foreground_color);
 
   // List box selection colors
   Color ActiveListBoxSelectionBackgroundColor(
@@ -135,12 +135,9 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   virtual Color FocusRingColor(mojom::blink::ColorScheme color_scheme) const;
   virtual Color PlatformFocusRingColor() const { return Color(0, 0, 0); }
   void SetCustomFocusRingColor(const Color&);
-  static Color TapHighlightColor();
+  virtual Color TapHighlightColor() const { return kDefaultTapHighlightColor; }
 
-  virtual Color PlatformTapHighlightColor() const {
-    return LayoutTheme::kDefaultTapHighlightColor;
-  }
-  virtual Color PlatformDefaultCompositionBackgroundColor() const {
+  static Color PlatformDefaultCompositionBackgroundColor() {
     return kDefaultCompositionBackgroundColor;
   }
   void PlatformColorsDidChange();
@@ -209,6 +206,15 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
       const ui::ColorProvider* color_provider) const;
 
  protected:
+  static Color active_selection_background_color_;
+  static Color active_selection_foreground_color_;
+  static Color inactive_selection_background_color_;
+  static Color inactive_selection_foreground_color_;
+  static Color active_list_box_selection_background_color_dark_mode_;
+  static Color active_list_box_selection_foreground_color_dark_mode_;
+  static Color inactive_list_box_selection_background_color_dark_mode_;
+  static Color inactive_list_box_selection_foreground_color_dark_mode_;
+
   // The platform selection color.
   virtual Color PlatformActiveSelectionBackgroundColor(
       mojom::blink::ColorScheme color_scheme) const;
@@ -236,7 +242,6 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   virtual void AdjustInnerSpinButtonStyle(ComputedStyleBuilder&) const;
 
   virtual void AdjustMenuListStyle(ComputedStyleBuilder&) const;
-  virtual void AdjustMenuListButtonStyle(ComputedStyleBuilder&) const;
   virtual void AdjustSliderThumbStyle(ComputedStyleBuilder&) const;
   virtual void AdjustSearchFieldCancelButtonStyle(ComputedStyleBuilder&) const;
 
@@ -273,7 +278,7 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   // This color is expected to be drawn on a semi-transparent overlay,
   // making it more transparent than its alpha value indicates.
   static constexpr Color kDefaultTapHighlightColor =
-      Color::FromRGBA32(0x66000000);
+      Color::FromRGBA32(0x2e000000);  // 18% black.
 
   static constexpr Color kDefaultCompositionBackgroundColor =
       Color::FromRGBA32(0xFFFFDD55);

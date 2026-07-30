@@ -76,9 +76,6 @@ std::string SerializedOfflineBadgeContent();
 
 feedwire::ThereAndBackAgainData MakeThereAndBackAgainData(int64_t id);
 
-std::string DatastoreEntryToString(std::string_view key,
-                                   std::string_view value);
-
 class TestReliabilityLoggingBridge : public ReliabilityLoggingBridge {
  public:
   TestReliabilityLoggingBridge();
@@ -96,8 +93,6 @@ class TestReliabilityLoggingBridge : public ReliabilityLoggingBridge {
                            base::TimeTicks timestamp) override;
   void LogActionsUploadRequestStart(NetworkRequestId id,
                                     base::TimeTicks timestamp) override;
-  void LogWebFeedRequestStart(NetworkRequestId id,
-                              base::TimeTicks timestamp) override;
   void LogRequestSent(NetworkRequestId id, base::TimeTicks timestamp) override;
   void LogResponseReceived(NetworkRequestId id,
                            int64_t server_receive_timestamp_ns,
@@ -434,6 +429,8 @@ class TestMetricsReporter : public MetricsReporter {
 // GetCountry() is overridden to return one of the launch counties.
 class FeedApiTest : public testing::Test, public FeedStream::Delegate {
  public:
+  static constexpr char kFeedbackAllowedPref[] = "feedback_allowed";
+
   FeedApiTest();
   ~FeedApiTest() override;
   void SetUp() override;

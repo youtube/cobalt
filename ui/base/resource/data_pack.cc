@@ -122,8 +122,7 @@ class DataPack::MemoryMappedDataSource : public DataPack::DataSource {
   ~MemoryMappedDataSource() override {}
 
   // DataPack::DataSource:
-  size_t GetLength() const override { return mmap_->length(); }
-  const uint8_t* GetData() const override { return mmap_->data(); }
+  base::span<const uint8_t> bytes() const override { return mmap_->bytes(); }
 
  private:
   std::unique_ptr<base::MemoryMappedFile> mmap_;
@@ -140,9 +139,8 @@ class DataPack::StringDataSource : public DataPack::DataSource {
   ~StringDataSource() override {}
 
   // DataPack::DataSource:
-  size_t GetLength() const override { return data_.size(); }
-  const uint8_t* GetData() const override {
-    return reinterpret_cast<const uint8_t*>(data_.c_str());
+  base::span<const uint8_t> bytes() const override {
+    return base::as_byte_span(data_);
   }
 
  private:
@@ -160,8 +158,7 @@ class DataPack::BufferDataSource : public DataPack::DataSource {
   ~BufferDataSource() override {}
 
   // DataPack::DataSource:
-  size_t GetLength() const override { return buffer_.size(); }
-  const uint8_t* GetData() const override { return buffer_.data(); }
+  base::span<const uint8_t> bytes() const override { return buffer_; }
 
  private:
   base::raw_span<const uint8_t> buffer_;
@@ -259,8 +256,7 @@ DataPack::LoadFromPathInternal(const base::FilePath& path) {
     return base::unexpected(ErrorState{FailureReason::kMapFile, error});
   }
   if (net::GZipHeader::HasGZipHeader(mmap->bytes())) {
-    std::string_view compressed(reinterpret_cast<char*>(mmap->data()),
-                                mmap->length());
+    std::string_view compressed = base::as_string_view(mmap->bytes());
     std::string data;
     if (!compression::GzipUncompress(compressed, &data)) {
       const auto error = GetLastErrorOrErrno();

@@ -287,6 +287,12 @@ class WizardControllerTestBase : public ::testing::Test {
     TestingBrowserProcess::GetGlobal()
         ->platform_part()
         ->InitializeTimezoneResolverManager();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->InitializeDeviceRestrictionScheduleController();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->InitializeDeviceDisablingManager();
 
     wallpaper_controller_client_ = std::make_unique<
         WallpaperControllerClientImpl>(
@@ -317,6 +323,14 @@ class WizardControllerTestBase : public ::testing::Test {
   void TearDown() override {
     // PostMainMessageLoopRun:
     DeviceSettingsService::Get()->StopProcessing();
+
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->ShutdownDeviceDisablingManager();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->ShutdownDeviceRestrictionScheduleController();
+
     auth_events_recorder_.reset();
     kiosk_chrome_app_manager_.reset();
     wallpaper_controller_client_.reset();

@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">Адхіліць</translation>
 <translation id="5239627039202700673">Выкарыстоўвайце Chrome кожны раз, калі націскаеце на спасылкі ў паведамленнях, дакументах або іншых праграмах</translation>
 <translation id="5251420635869119124">Госці могуць выкарыстоўваць Chrome, не пакідаючы нічога пасля сябе.</translation>
+<translation id="5271833978500241046">Выкарыстоўвайце навыкі разам з іншымі функцыямі Gemini ў Chrome</translation>
 <translation id="5286907366254680517">Выяўлена</translation>
 <translation id="5320351714793324716">Калі вы дазволіце прымяняць файлы cookie, Chrome зможа выкарыстоўваць іх падчас перадзагрузкі</translation>
 <translation id="5321325624576443340">Google Аб’ектыў недаступны. Паўтарыце спробу пазней.</translation>
@@ -441,15 +442,6 @@
 <translation id="569897634095159764">Не ўдалося падключыцца да інтэрнэту. Проксі-сервер патрабуе прайсці аўтэнтыфікацыю.</translation>
 <translation id="5709557627224531708">Зрабіць Chrome стандартным браўзерам</translation>
 <translation id="5719246646468301581">Дадатковыя ўмовы выкарыстання Google Chrome і ChromeOS</translation>
-<translation id="5719324992913248873">У выніку гэтага дзеяння будуць:
-        <ph name="LINE_BREAKS" />
-          • скінуты некаторыя налады і спалучэнні клавіш Chrome;
-          <ph name="LINE_BREAK" />
-          • адключаны пашырэнні;
-          <ph name="LINE_BREAK" />
-          • выдалены файлы cookie і іншыя часовыя даныя сайтаў.
-          <ph name="LINE_BREAKS" />
-          Гэта дзеянне не закране закладкі, гісторыю і захаваныя паролі.</translation>
 <translation id="5736850870166430177">Пры спробе сайта выкрасці пароль або пры спампоўванні шкоднага файла браўзер Chrome можа таксама адпраўляць у Бяспечны прагляд URL-адрасы, уключаючы фрагменты змесціва старонкі</translation>
 <translation id="5756509061973259733">Профіль Chrome з такім уліковым запісам ужо існуе на гэтай прыладзе</translation>
 <translation id="5759947850379142561">Выберыце тэкст або відарыс для пошуку з дапамогай Google Аб’ектыва або націсніце Escape, каб закрыць яго</translation>
@@ -647,6 +639,7 @@
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
 <translation id="7627609214560473136">Каб абараніць свае даныя, дазвольце Chrome адклікаць дазволы ў сайтаў, якія вы не наведвалі ў апошні час.</translation>
 <translation id="7629695634924605473">Chrome апавяшчае вас у выпадку ўзлому вашых пароляў</translation>
+<translation id="7629898584100520089">Інавацыі AI, такія як навыкі, захоўваюцца ў вашым Уліковым запісе Google і наладжваюцца асобна ад сінхранізацыі Chrome</translation>
 <translation id="7641148173327520642">Ваш сістэмны адміністратар наладзіў Google Chrome так, каб для доступу да <ph name="TARGET_URL_HOSTNAME" /> адкрываць <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Даведка</translation>
 <translation id="7651907282515937834">Лагатып Chrome Enterprise</translation>

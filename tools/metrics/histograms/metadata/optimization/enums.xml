@@ -36,6 +36,22 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/optimization_guide/content/browser/page_content_proto_provider.cc:AIPageContentExtractionConcurrency) -->
 
+<!-- LINT.IfChange(AIPageContentGetImageBytesStatus) -->
+
+<enum name="AIPageContentGetImageBytesStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="Node not found"/>
+  <int value="2" label="Target frame not found"/>
+  <int value="3" label="Agent frame not found"/>
+  <int value="4" label="Cross-tree query"/>
+  <int value="5" label="Not an image node"/>
+  <int value="6" label="Image resource error"/>
+  <int value="7" label="No resource buffer"/>
+  <int value="8" label="BigBuffer copy failed"/>
+</enum>
+
+<!-- LINT.ThenChange(//third_party/blink/renderer/modules/content_extraction/ai_page_content_agent.cc:GetImageBytesStatus) -->
+
 <enum name="AIPageContentMode">
   <int value="0" label="Default"/>
   <int value="1" label="ActionableElements"/>

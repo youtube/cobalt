@@ -102,6 +102,7 @@ PageActionPixelIconsHiddenTest.*
 PageActionPixelShowIconTest.*
 PageActionPixelShowChipTest.*
 PageActionPixelTestShowChipReduced.*
+PageActionAnchoredMessagePixelTest.*
 PageInfoBubbleViewAboutThisSiteDialogBrowserTest.*
 PageInfoBubbleViewDialogBrowserTest.*
 PageInfoBubbleViewPrivacySandboxDialogBrowserTest.*

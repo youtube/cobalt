@@ -402,8 +402,8 @@ void ConsolidatedConsentScreen::OnOwnershipStatusCheckDone(
     // since OnMetricsModeChanged() will not be called.
     bool is_enabled = false;
     if (metrics_service_ &&
-        metrics_service_->GetCurrentUserMetricsConsent().has_value()) {
-      is_enabled = *metrics_service_->GetCurrentUserMetricsConsent();
+        metrics_service_->GetCurrentUserMetricsChoice().has_value()) {
+      is_enabled = *metrics_service_->GetCurrentUserMetricsChoice();
     } else {
       is_enabled = StatsReportingController::Get()->IsEnabled();
     }
@@ -494,7 +494,7 @@ void ConsolidatedConsentScreen::RecordConsents(
 
 void ConsolidatedConsentScreen::ReportUsageOptIn(bool is_enabled) {
   DCHECK(is_owner_.has_value());
-  // Attempt to disable pre-consent metrics if present.
+  // Attempt to disable pre-choice metrics if present.
   if (metrics::CrOSPreChoiceMetricsManager::Get()) {
     metrics::CrOSPreChoiceMetricsManager::Get()->Disable();
   }
@@ -508,7 +508,7 @@ void ConsolidatedConsentScreen::ReportUsageOptIn(bool is_enabled) {
   // If user is not eligible for per-user, this will no-op. See details at
   // chrome/browser/metrics/per_user_state_manager_chromeos.h.
   CHECK(metrics_service_);
-  metrics_service_->UpdateCurrentUserMetricsConsent(is_enabled);
+  metrics_service_->UpdateCurrentUserMetricsChoice(is_enabled);
 }
 
 void ConsolidatedConsentScreen::NotifyConsolidatedConsentAcceptForTesting() {

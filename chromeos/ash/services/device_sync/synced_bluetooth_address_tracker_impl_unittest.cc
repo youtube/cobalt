@@ -60,15 +60,8 @@ class DeviceSyncSyncedBluetoothAddressTrackerImplTest : public testing::Test {
 
   void Initialize(bool is_flag_enabled,
                   const std::string& initial_bluetooth_pref_value) {
-    static const std::vector<base::test::FeatureRef> kPhoneHubFeatureVector{
-        features::kPhoneHub};
-    static const std::vector<base::test::FeatureRef> kNoFeaturesVector;
-
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/is_flag_enabled ? kPhoneHubFeatureVector
-                                             : kNoFeaturesVector,
-        /*disabled_features=*/is_flag_enabled ? kNoFeaturesVector
-                                              : kPhoneHubFeatureVector);
+    scoped_feature_list_.InitWithFeatureState(features::kPhoneHub,
+                                              is_flag_enabled);
 
     pref_service_.SetString(
         prefs::kCryptAuthBluetoothAddressProvidedDuringLastSync,

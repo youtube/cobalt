@@ -15,6 +15,7 @@
 #include "components/history/core/browser/history_types.h"
 #include "components/safe_browsing/content/browser/web_ui/safe_browsing_ui.h"
 #include "components/safe_browsing/content/browser/web_ui/web_ui_content_info_singleton.h"
+#include "components/safe_browsing/core/common/features.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "extensions/common/constants.h"
 #include "url/origin.h"
@@ -30,7 +31,10 @@ namespace {
 
 // The minimum amount of time ago that a site must have been visited in order to
 // be considered familiar.
-const base::TimeDelta kMinAgeOfInitialVisitForFamiliarity = base::Hours(24);
+base::TimeDelta GetMinAgeOfInitialVisitForFamiliarity() {
+  return safe_browsing::
+      kMigrateToBlockV8OptimizerOnUnfamiliarSitesMinAgeOfInitialVisit.Get();
+}
 
 std::set<GURL>& GetFamiliarUrlsForTesting() {
   static base::NoDestructor<std::set<GURL>> familiar_urls_for_testing;
@@ -130,7 +134,9 @@ void SiteFamiliarityFetcher::Start(const GURL& url,
       site_engagement::SiteEngagementService::Get(profile_);
   has_engagement_score_higher_than_threshold_ =
       site_engagement_service->GetScore(fetch_url_) >=
-      kMinSiteEngagementScoreForFamiliarity;
+      safe_browsing::
+          kMigrateToBlockV8OptimizerOnUnfamiliarSitesMinSiteEngagementScore
+              .Get();
 
   if (has_engagement_score_higher_than_threshold_) {
     CRSBLOG << "SiteFamiliarityFetcher::Start [URL]: " << fetch_url_
@@ -144,7 +150,7 @@ void SiteFamiliarityFetcher::Start(const GURL& url,
                                            ServiceAccessType::EXPLICIT_ACCESS);
   history_service->GetLastVisitToOrigin(
       url::Origin::Create(fetch_url_), base::Time(),
-      base::Time::Now() - kMinAgeOfInitialVisitForFamiliarity,
+      base::Time::Now() - GetMinAgeOfInitialVisitForFamiliarity(),
       history::VisitQuery404sPolicy::kInclude404s,
       base::BindOnce(&SiteFamiliarityFetcher::OnFetchedHistory,
                      weak_factory_.GetWeakPtr()),
@@ -177,9 +183,7 @@ void SiteFamiliarityFetcher::OnFetchedHistory(
     history::HistoryLastVisitResult last_visit_result) {
   fetched_history_ = true;
   has_record_older_than_threshold_ =
-      last_visit_result.success && !last_visit_result.last_visit.is_null() &&
-      (last_visit_result.last_visit <
-       (base::Time::Now() - kMinAgeOfInitialVisitForFamiliarity));
+      last_visit_result.success && !last_visit_result.last_visit.is_null();
   RunCallbackIfFinished();
 }
 

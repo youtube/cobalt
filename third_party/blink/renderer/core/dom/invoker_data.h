@@ -8,7 +8,7 @@
 #include "base/check_op.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/html/closewatcher/close_watcher.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html_element_type_helpers.h"
@@ -22,7 +22,7 @@ namespace blink {
 //   - elements with the popovertarget attribute
 //   - elements with the interestfor attribute
 class InvokerData final : public GarbageCollected<InvokerData>,
-                          public ElementRareDataField {
+                          public NodeRareDataField {
  public:
   InvokerData() = default;
   InvokerData(const InvokerData&) = delete;
@@ -73,7 +73,7 @@ class InvokerData final : public GarbageCollected<InvokerData>,
   void Trace(Visitor* visitor) const override {
     visitor->Trace(invoked_popover_);
     visitor->Trace(active_interest_target_);
-    ElementRareDataField::Trace(visitor);
+    NodeRareDataField::Trace(visitor);
   }
 
  private:

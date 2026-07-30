@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -49,37 +50,55 @@ namespace policy {
 
 namespace {
 
-const DlpContentRestrictionSet kEmptyRestrictionSet;
-const DlpContentRestrictionSet kScreenshotRestricted(
-    DlpContentRestriction::kScreenshot,
-    DlpRulesManager::Level::kBlock);
-const DlpContentRestrictionSet kScreenshotWarned(
-    DlpContentRestriction::kScreenshot,
-    DlpRulesManager::Level::kWarn);
-const DlpContentRestrictionSet kScreenshotReported(
-    DlpContentRestriction::kScreenshot,
-    DlpRulesManager::Level::kReport);
-const DlpContentRestrictionSet kPrintAllowed(DlpContentRestriction::kPrint,
-                                             DlpRulesManager::Level::kAllow);
-const DlpContentRestrictionSet kPrintRestricted(DlpContentRestriction::kPrint,
-                                                DlpRulesManager::Level::kBlock);
-const DlpContentRestrictionSet kPrintReported(DlpContentRestriction::kPrint,
-                                              DlpRulesManager::Level::kReport);
-const DlpContentRestrictionSet kPrintWarned(DlpContentRestriction::kPrint,
-                                            DlpRulesManager::Level::kWarn);
-const DlpContentRestrictionSet kScreenShareWarned(
-    DlpContentRestriction::kScreenShare,
-    DlpRulesManager::Level::kWarn);
-
 constexpr char kPrintBlockedNotificationId[] = "print_dlp_blocked";
 
 constexpr char kExampleUrl[] = "https://example.com";
 constexpr char kLabel[] = "label";
-const std::u16string kApplicationTitle = u"example.com";
+constexpr char16_t kApplicationTitle[] = u"example.com";
 
 constexpr char kRuleName[] = "rule #1";
 constexpr char kRuleId[] = "testid1";
-const DlpRulesManager::RuleMetadata kRuleMetadata(kRuleName, kRuleId);
+
+const DlpContentRestrictionSet& GetScreenshotRestricted() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenshot, DlpRulesManager::Level::kBlock);
+  return *val;
+}
+const DlpContentRestrictionSet& GetScreenshotWarned() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenshot, DlpRulesManager::Level::kWarn);
+  return *val;
+}
+const DlpContentRestrictionSet& GetScreenshotReported() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenshot, DlpRulesManager::Level::kReport);
+  return *val;
+}
+const DlpContentRestrictionSet& GetPrintRestricted() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kPrint, DlpRulesManager::Level::kBlock);
+  return *val;
+}
+const DlpContentRestrictionSet& GetPrintReported() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kPrint, DlpRulesManager::Level::kReport);
+  return *val;
+}
+const DlpContentRestrictionSet& GetPrintWarned() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kPrint, DlpRulesManager::Level::kWarn);
+  return *val;
+}
+const DlpContentRestrictionSet& GetScreenShareWarned() {
+  static const base::NoDestructor<DlpContentRestrictionSet> val(
+      DlpContentRestriction::kScreenShare, DlpRulesManager::Level::kWarn);
+  return *val;
+}
+const DlpRulesManager::RuleMetadata& GetRuleMetadata() {
+  static const base::NoDestructor<DlpRulesManager::RuleMetadata> val(kRuleName,
+                                                                     kRuleId);
+  return *val;
+}
 }  // namespace
 
 class DlpContentManagerBrowserTest : public InProcessBrowserTest {
@@ -113,8 +132,9 @@ class DlpContentManagerBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(DlpRulesManagerFactory::GetForPrimaryProfile());
 
     EXPECT_CALL(*mock_rules_manager_, GetSourceUrlPattern)
-        .WillRepeatedly(testing::DoAll(testing::SetArgPointee<3>(kRuleMetadata),
-                                       testing::Return("example.com")));
+        .WillRepeatedly(
+            testing::DoAll(testing::SetArgPointee<3>(GetRuleMetadata()),
+                           testing::Return("example.com")));
     EXPECT_CALL(*mock_rules_manager_, IsRestricted)
         .WillRepeatedly(testing::Return(DlpRulesManager::Level::kAllow));
   }
@@ -192,7 +212,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerBrowserTest, ScreenshotsRestricted) {
   CheckEvents(DlpRulesManager::Restriction::kScreenshot,
               DlpRulesManager::Level::kBlock, 0u);
 
-  helper_->ChangeConfidentiality(web_contents, kScreenshotRestricted);
+  helper_->ChangeConfidentiality(web_contents, GetScreenshotRestricted());
   EXPECT_TRUE(manager->IsScreenshotApiRestricted(web_contents));
   histogram_tester_.ExpectBucketCount(
       data_controls::GetDlpHistogramPrefix() +
@@ -257,7 +277,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerBrowserTest, ScreenshotsWarned) {
   CheckEvents(DlpRulesManager::Restriction::kScreenshot,
               DlpRulesManager::Level::kWarn, 0u);
 
-  helper_->ChangeConfidentiality(web_contents, kScreenshotWarned);
+  helper_->ChangeConfidentiality(web_contents, GetScreenshotWarned());
   EXPECT_TRUE(manager->IsScreenshotApiRestricted(web_contents));
   CheckEvents(DlpRulesManager::Restriction::kScreenshot,
               DlpRulesManager::Level::kWarn, 1u);
@@ -290,7 +310,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerBrowserTest, ScreenshotsReported) {
   CheckEvents(DlpRulesManager::Restriction::kScreenshot,
               DlpRulesManager::Level::kReport, 0u);
 
-  helper_->ChangeConfidentiality(web_contents, kScreenshotReported);
+  helper_->ChangeConfidentiality(web_contents, GetScreenshotReported());
   EXPECT_FALSE(manager->IsScreenshotApiRestricted(web_contents));
   CheckEvents(DlpRulesManager::Restriction::kScreenshot,
               DlpRulesManager::Level::kReport, 1u);
@@ -538,7 +558,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerReportingBrowserTest,
                                                          cb.Get());
 
   // Set up printing restriction.
-  helper_->ChangeConfidentiality(web_contents, kPrintRestricted);
+  helper_->ChangeConfidentiality(web_contents, GetPrintRestricted());
   helper_->GetContentManager()->CheckPrintingRestriction(web_contents, rfh_id,
                                                          cb.Get());
 
@@ -575,7 +595,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerReportingBrowserTest,
   NotificationDisplayServiceTester display_service_tester(browser()->profile());
 
   // Set up printing restriction.
-  helper_->ChangeConfidentiality(web_contents, kPrintReported);
+  helper_->ChangeConfidentiality(web_contents, GetPrintReported());
   // Printing should be reported, but still allowed whether we call
   // CheckPrintingRestriction() directly or indirectly.
   base::MockCallback<WarningCallback> cb;
@@ -606,7 +626,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerReportingBrowserTest, PrintingWarned) {
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Set up printing restriction.
-  helper_->ChangeConfidentiality(web_contents, kPrintWarned);
+  helper_->ChangeConfidentiality(web_contents, GetPrintWarned());
 
   base::test::TestFuture<void> record_check_future;
   SetAddRecordCheck(
@@ -704,7 +724,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerReportingBrowserTest,
                                 stop_cb.Get(), state_change_cb.Get(),
                                 source_cb.Get());
 
-  helper_->ChangeConfidentiality(web_contents, kScreenShareWarned);
+  helper_->ChangeConfidentiality(web_contents, GetScreenShareWarned());
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 1);
   CheckEvents(DlpRulesManager::Restriction::kScreenShare,
               DlpRulesManager::Level::kWarn, 1u);
@@ -724,7 +744,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerReportingBrowserTest,
 
   // The contents should already be cached as allowed by the user, so this
   // should not trigger a new warning.
-  helper_->ChangeConfidentiality(web_contents, kScreenShareWarned);
+  helper_->ChangeConfidentiality(web_contents, GetScreenShareWarned());
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 0);
   EXPECT_EQ(events_.size(), 2u);
 }

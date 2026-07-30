@@ -56,6 +56,7 @@ import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.Page
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
+import org.chromium.components.omnibox.DocumentType;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
@@ -82,6 +83,7 @@ public class BasicSuggestionProcessorUnitTest {
     private static final @DrawableRes int ICON_MAGNIFIER = R.drawable.ic_suggestion_magnifier;
     private static final @DrawableRes int ICON_TRENDS = R.drawable.trending_up_black_24dp;
     private static final @DrawableRes int ICON_VOICE = R.drawable.ic_mic_white_24dp;
+    private static final @DrawableRes int ICON_DRIVE_LOGO = R.drawable.ic_drive_logo_24dp;
     private static final @DrawableRes int ICON_FAVICON = 0; // Favicons do not come from resources.
 
     private static final Map<Integer, String> ICON_TYPE_NAMES;
@@ -93,6 +95,7 @@ public class BasicSuggestionProcessorUnitTest {
         map.put(ICON_GLOBE, "GLOBE");
         map.put(ICON_MAGNIFIER, "MAGNIFIER");
         map.put(ICON_VOICE, "VOICE");
+        map.put(ICON_DRIVE_LOGO, "DRIVE_LOGO");
         map.put(ICON_FAVICON, "FAVICON");
         ICON_TYPE_NAMES = map;
     }
@@ -257,7 +260,7 @@ public class BasicSuggestionProcessorUnitTest {
             {OmniboxSuggestionType.SEARCH_OTHER_ENGINE, ICON_MAGNIFIER},
             {OmniboxSuggestionType.NAVSUGGEST_PERSONALIZED, ICON_MAGNIFIER},
             {OmniboxSuggestionType.VOICE_SUGGEST, ICON_VOICE},
-            {OmniboxSuggestionType.DOCUMENT_SUGGESTION, ICON_MAGNIFIER},
+            {OmniboxSuggestionType.DOCUMENT_SUGGESTION, ICON_DRIVE_LOGO},
         };
 
         mProcessor.onNativeInitialized();
@@ -288,7 +291,7 @@ public class BasicSuggestionProcessorUnitTest {
             {OmniboxSuggestionType.SEARCH_OTHER_ENGINE, ICON_GLOBE},
             {OmniboxSuggestionType.NAVSUGGEST_PERSONALIZED, ICON_GLOBE},
             {OmniboxSuggestionType.VOICE_SUGGEST, ICON_GLOBE},
-            {OmniboxSuggestionType.DOCUMENT_SUGGESTION, ICON_GLOBE},
+            {OmniboxSuggestionType.DOCUMENT_SUGGESTION, ICON_DRIVE_LOGO},
         };
 
         mProcessor.onNativeInitialized();
@@ -319,7 +322,7 @@ public class BasicSuggestionProcessorUnitTest {
             {OmniboxSuggestionType.SEARCH_OTHER_ENGINE, ICON_BOOKMARK},
             {OmniboxSuggestionType.NAVSUGGEST_PERSONALIZED, ICON_BOOKMARK},
             {OmniboxSuggestionType.VOICE_SUGGEST, ICON_BOOKMARK},
-            {OmniboxSuggestionType.DOCUMENT_SUGGESTION, ICON_BOOKMARK},
+            {OmniboxSuggestionType.DOCUMENT_SUGGESTION, ICON_DRIVE_LOGO},
         };
 
         mIsBookmarked.mState = true;
@@ -467,6 +470,38 @@ public class BasicSuggestionProcessorUnitTest {
         createUrlSuggestion(OmniboxSuggestionType.URL_WHAT_YOU_TYPED, "");
 
         verify(mImageSupplier, never()).fetchFavicon(any(), any());
+    }
+
+    @Test
+    @SmallTest
+    public void suggestionIcons_documentSuggestionBrandingIcons() {
+        mProcessor.onNativeInitialized();
+        int[][] testCases = {
+            {DocumentType.DRIVE_DOCS, R.drawable.ic_drive_docs_24dp},
+            {DocumentType.DRIVE_FORMS, R.drawable.ic_drive_forms_24dp},
+            {DocumentType.DRIVE_SHEETS, R.drawable.ic_drive_sheets_24dp},
+            {DocumentType.DRIVE_SLIDES, R.drawable.ic_drive_slides_24dp},
+            {DocumentType.DRIVE_IMAGE, R.drawable.ic_drive_image_colored_24dp},
+            {DocumentType.DRIVE_PDF, R.drawable.ic_attach_pdf_24dp},
+            {DocumentType.DRIVE_VIDEO, R.drawable.ic_drive_video_colored_24dp},
+            {DocumentType.DRIVE_FOLDER, R.drawable.ic_drive_folder_colored_24dp},
+            {DocumentType.DRIVE_OTHER, R.drawable.ic_drive_logo_24dp},
+            {DocumentType.NONE, R.drawable.ic_drive_logo_24dp},
+        };
+
+        for (int[] testCase : testCases) {
+            mSuggestion =
+                    createSuggestionBuilder(OmniboxSuggestionType.DOCUMENT_SUGGESTION, "Doc")
+                            .setDocumentType(testCase[0])
+                            .build();
+            mModel = mProcessor.createModel();
+            mProcessor.populateModel(mInput, mSuggestion, mModel, 0);
+
+            OmniboxDrawableState sds = mModel.get(BaseSuggestionViewProperties.ICON);
+            @DrawableRes int actualIconRes = shadowOf(sds.drawable).getCreatedFromResId();
+            assertEquals(testCase[1], actualIconRes);
+            assertFalse(sds.allowTint);
+        }
     }
 
     @Test

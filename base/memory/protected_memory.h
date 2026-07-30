@@ -471,7 +471,7 @@ class AutoWritableMemory : public AutoWritableMemoryBase {
 
     if (WriterData::writers == 0) {
       // Lock the whole section of protected memory and set _all_ instances of
-      // ProtectedMemory to non-writeable.
+      // ProtectedMemory to non-writable.
       CHECK(SetProtectedSectionReadOnly());
       CheckObjectReadOnly(
           *static_cast<const char*>(internal::kProtectedMemoryStart));

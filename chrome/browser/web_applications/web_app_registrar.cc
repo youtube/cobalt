@@ -344,7 +344,7 @@ void WebAppRegistrar::NotifyWebAppFileHandlerApprovalStateChanged(
 }
 
 void WebAppRegistrar::NotifyWebAppsWillBeUpdatedFromSync(
-    const std::vector<const WebApp*>& new_apps_state) {
+    base::span<const WebApp* const> new_apps_state) {
   DVLOG(1) << "NotifyWebAppsWillBeUpdatedFromSync";
   for (WebAppRegistrarObserver& observer : observers_) {
     observer.OnWebAppsWillBeUpdatedFromSync(new_apps_state);
@@ -1295,6 +1295,24 @@ bool WebAppRegistrar::CanCaptureLinksInScope(
   return true;
 }
 
+bool WebAppRegistrar::AppScopesMatchForUserLinkCapturing(
+    const webapps::AppId& app_id1,
+    const webapps::AppId& app_id2) const {
+  if (!AppMatches(app_id1, WebAppFilter::InstalledInChrome()) ||
+      !AppMatches(app_id2, WebAppFilter::InstalledInChrome())) {
+    return false;
+  }
+
+  const GURL& app_scope1 = GetAppScope(app_id1);
+  const GURL& app_scope2 = GetAppScope(app_id2);
+  if (!IsValidScopeForLinkCapturing(app_scope1) ||
+      !IsValidScopeForLinkCapturing(app_scope2)) {
+    return false;
+  }
+
+  return app_scope1 == app_scope2;
+}
+
 #if !BUILDFLAG(IS_CHROMEOS)
 bool WebAppRegistrar::CapturesLinksInScope(const webapps::AppId& app_id) const {
   if (!CanCaptureLinksInScope(app_id)) {
@@ -1447,24 +1465,6 @@ std::vector<webapps::AppId> WebAppRegistrar::GetOverlappingAppsMatchingScope(
     all_apps_with_supported_links.push_back(id);
   }
   return all_apps_with_supported_links;
-}
-
-bool WebAppRegistrar::AppScopesMatchForUserLinkCapturing(
-    const webapps::AppId& app_id1,
-    const webapps::AppId& app_id2) const {
-  if (!AppMatches(app_id1, WebAppFilter::InstalledInChrome()) ||
-      !AppMatches(app_id2, WebAppFilter::InstalledInChrome())) {
-    return false;
-  }
-
-  const GURL& app_scope1 = GetAppScope(app_id1);
-  const GURL& app_scope2 = GetAppScope(app_id2);
-  if (!IsValidScopeForLinkCapturing(app_scope1) ||
-      !IsValidScopeForLinkCapturing(app_scope2)) {
-    return false;
-  }
-
-  return app_scope1 == app_scope2;
 }
 #endif
 

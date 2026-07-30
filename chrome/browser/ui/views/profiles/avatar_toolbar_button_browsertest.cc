@@ -420,7 +420,7 @@ class AvatarToolbarButtonInterfaceBaseBrowserTest {
                        .SetLocale("en")
                        .Build();
 
-    AccountCapabilitiesTestMutator(&account_info.capabilities)
+    AccountCapabilitiesTestMutator(&account_info)
         .set_is_subject_to_account_level_enterprise_policies(false);
 
     // Make sure account is valid so that all changes are persisted properly.

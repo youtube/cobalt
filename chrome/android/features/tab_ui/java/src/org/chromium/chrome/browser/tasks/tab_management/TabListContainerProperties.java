@@ -15,6 +15,7 @@ import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
@@ -38,7 +39,7 @@ class TabListContainerProperties {
     public static final PropertyModel.WritableObjectPropertyKey<Integer> INITIAL_SCROLL_INDEX =
             new PropertyModel.WritableObjectPropertyKey<>(true);
 
-    /** Same as {@link TabListCoordinator.TabListMode}. */
+    /** Same as {@link TabListMode}. */
     public static final PropertyModel.WritableIntPropertyKey MODE =
             new PropertyModel.WritableIntPropertyKey();
 

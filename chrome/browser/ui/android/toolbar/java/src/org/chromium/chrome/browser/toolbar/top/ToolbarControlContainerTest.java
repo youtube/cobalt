@@ -404,10 +404,7 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    @DisableFeatures({
-        ChromeFeatureList.TOOLBAR_STALE_CAPTURE_BUG_FIX,
-        ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS
-    })
+    @DisableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testIsDirty_InMotion() {
         makeAndInitAdapter();
         mockIsReadyDifference(ToolbarSnapshotDifference.URL_TEXT);
@@ -426,7 +423,6 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TOOLBAR_STALE_CAPTURE_BUG_FIX)
     public void testIsDirty_InMotion2() {
         makeAndInitAdapter();
         mockIsReadyDifference(ToolbarSnapshotDifference.URL_TEXT);
@@ -460,10 +456,7 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    @DisableFeatures({
-        ChromeFeatureList.RECORD_SUPPRESSION_METRICS,
-        ChromeFeatureList.TOOLBAR_STALE_CAPTURE_BUG_FIX
-    })
+    @DisableFeatures(ChromeFeatureList.RECORD_SUPPRESSION_METRICS)
     public void testIsDirty_InMotion2_NoMetrics() {
         assertFalse(ToolbarFeatures.shouldRecordSuppressionMetrics());
 
@@ -485,7 +478,6 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TOOLBAR_STALE_CAPTURE_BUG_FIX)
     public void testIsDirty_InMotion3() {
         makeAndInitAdapter();
         when(mToolbar.isReadyForTextureCapture())
@@ -515,7 +507,6 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TOOLBAR_STALE_CAPTURE_BUG_FIX)
     public void testInMotion_viewNotVisible() {
         makeAndInitAdapter();
         mockIsReadyDifference(ToolbarSnapshotDifference.URL_TEXT);
@@ -599,10 +590,7 @@ public class ToolbarControlContainerTest {
     }
 
     @Test
-    @DisableFeatures({
-        ChromeFeatureList.TOOLBAR_STALE_CAPTURE_BUG_FIX,
-        ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS
-    })
+    @DisableFeatures(ChromeFeatureList.TOOLBAR_CAPTURE_FIX_FOR_SPAS)
     public void testIsDirty_InMotionAndToolbarSwipe() {
         makeAndInitAdapter();
         verifyRequestsOnInMotionChange(true, false);

@@ -29,7 +29,7 @@ class BrowserViewLayoutImpl : public BrowserViewLayout {
   ~BrowserViewLayoutImpl() override;
 
   // BrowserViewLayout:
-  void Layout(views::View* host) override;
+  void Layout(views::View* host) final;
 
  protected:
   using WindowState = BrowserViewLayoutDelegate::WindowState;
@@ -163,6 +163,11 @@ class BrowserViewLayoutImpl : public BrowserViewLayout {
   virtual void DoPostLayoutCleanup();
 
  private:
+  // Called when the layout params are updated mid-layout (typically in
+  // fullscreen after a size change in the top container overlay).
+  virtual void OnLayoutParamsChanged(const BrowserLayoutParams& old_params,
+                                     const BrowserLayoutParams& new_params);
+
   // Retrieve dimensions of modal dialogs.
 
   // Gets the top of the dialog anchoring area, in local coordinates.

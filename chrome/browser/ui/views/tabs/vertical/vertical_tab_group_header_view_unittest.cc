@@ -32,7 +32,10 @@ class MockDelegate : public VerticalTabGroupHeaderView::Delegate {
               ToggleCollapsedState,
               (ToggleTabGroupCollapsedStateOrigin),
               (override));
-  MOCK_METHOD(views::Widget*, ShowGroupEditorBubble, (bool), (override));
+  MOCK_METHOD(std::unique_ptr<views::Widget>,
+              ShowGroupEditorBubble,
+              (bool),
+              (override));
   MOCK_METHOD(std::u16string, GetGroupContentString, (), (const, override));
   MOCK_METHOD(bool, IsValid, (), (const, override));
   MOCK_METHOD(void, InitHeaderDrag, (const ui::LocatedEvent&), (override));
@@ -79,13 +82,8 @@ class VerticalTabGroupHeaderViewTest
  private:
   base::test::ScopedFeatureList feature_list_;
 };
-// TODO(crbug.com/501977260): Re-enable this test on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_TooltipText DISABLED_TooltipText
-#else
-#define MAYBE_TooltipText TooltipText
-#endif
-TEST_P(VerticalTabGroupHeaderViewTest, MAYBE_TooltipText) {
+
+TEST_P(VerticalTabGroupHeaderViewTest, TooltipText) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -131,13 +129,7 @@ TEST_P(VerticalTabGroupHeaderViewTest, MAYBE_TooltipText) {
   EXPECT_EQ(header->GetTooltipText(), expected_tooltip);
 }
 
-// TODO(crbug.com/501977260): Re-enable this test on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_ShowHoverCardOnMouseEnter DISABLED_ShowHoverCardOnMouseEnter
-#else
-#define MAYBE_ShowHoverCardOnMouseEnter ShowHoverCardOnMouseEnter
-#endif
-TEST_P(VerticalTabGroupHeaderViewTest, MAYBE_ShowHoverCardOnMouseEnter) {
+TEST_P(VerticalTabGroupHeaderViewTest, ShowHoverCardOnMouseEnter) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
@@ -159,16 +151,7 @@ TEST_P(VerticalTabGroupHeaderViewTest, MAYBE_ShowHoverCardOnMouseEnter) {
   generator.MoveMouseTo(header->GetBoundsInScreen().CenterPoint());
 }
 
-// TODO(crbug.com/501977260): Re-enable this test on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_EditorBubbleButtonVisibilityOnHover \
-  DISABLED_EditorBubbleButtonVisibilityOnHover
-#else
-#define MAYBE_EditorBubbleButtonVisibilityOnHover \
-  EditorBubbleButtonVisibilityOnHover
-#endif
-TEST_P(VerticalTabGroupHeaderViewTest,
-       MAYBE_EditorBubbleButtonVisibilityOnHover) {
+TEST_P(VerticalTabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
   MockDelegate delegate;
   tab_groups::TabGroupVisualData visual_data(
       u"Group Title", tab_groups::TabGroupColorId::kBlue, false);

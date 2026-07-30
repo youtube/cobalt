@@ -4362,7 +4362,7 @@ TEST_P(CompositingSimTest, CanvasDrawElementLayersWithAnonymousCaret) {
 
   // Place caret in the text node, which will be in an anonymous block
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(target->firstChild(), 0))
           .Build(),
       SetSelectionOptions());

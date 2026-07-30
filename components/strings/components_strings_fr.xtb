@@ -269,6 +269,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="1407135791313364759">Tout ouvrir</translation>
 <translation id="1408696301184924537">Pour que cet IBAN soit renseigné automatiquement la prochaine fois, enregistrez-le dans votre compte Google</translation>
 <translation id="1408787208417187241">Triple agrafe en haut</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> sur <ph name="NUM_MATCHES_IN_GROUP" /> dans le groupe <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Vous pouvez naviguer plus confidentiellement, car les autres utilisateurs de cet appareil ne voient pas votre activité. Cela ne change pas la façon dont les sites Web et les services qu'ils utilisent, y compris Google, collectent les données. Les téléchargements, favoris et éléments de la liste de lecture sont enregistrés.</translation>
 <translation id="1410941016594047814">Enveloppe d'invitation</translation>
 <translation id="1413235258620101697">Le code CVC de cette carte sera chiffré et enregistré dans Google Wallet pour accélérer le paiement</translation>
@@ -300,6 +301,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="1445896388055045436">Affichez les avantages et récompenses disponibles pour votre carte lors du paiement. Les conditions d'utilisation de l'émetteur s'appliquent.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Les clés "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" ne peuvent pas être définies dans le même dictionnaire que les clés "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />"</translation>
+<translation id="1449251255954293933">Enregistrez le numéro de recours dans Google Wallet</translation>
 <translation id="1455413310270022028">Gomme</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Afficher 0 avis}=1{Afficher 1 avis}one{Afficher # avis}other{Afficher les # avis}}</translation>
 <translation id="1458059624921545588">Individus et société</translation>
@@ -660,6 +662,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="2045871135676061132">Enveloppe personnelle</translation>
 <translation id="2046951263634619614">Librairies</translation>
 <translation id="2048261947532620704">Traduction de la page</translation>
+<translation id="2055016614992422886">Conversation</translation>
 <translation id="2059166748188874810">Municipalité</translation>
 <translation id="2059202684901022309">22 x 34 pouces</translation>
 <translation id="2064568741209980952">Crédit et prêt</translation>
@@ -1122,7 +1125,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="2719233594187778789">URL non unique ignorée : <ph name="URL_NAME" /></translation>
 <translation id="2721148159707890343">Demande réussie.</translation>
 <translation id="2722622039067384533">Meubles de salon</translation>
-<translation id="2723284907371508295">Bouton "Plus d'onglets provenant d'autres appareils", appuyez sur Entrée pour voir plus d'onglets provenant d'autres appareils</translation>
+<translation id="2723284907371508295">Bouton Plus d'onglets provenant d'autres appareils, appuyez sur Entrée pour voir plus d'onglets provenant d'autres appareils</translation>
 <translation id="2723669454293168317">Effectuez un contrôle de sécurité dans les paramètres de Chrome</translation>
 <translation id="2726001110728089263">Bac latéral</translation>
 <translation id="272616190148046464">Toutes vos cartes de fidélité</translation>
@@ -1155,6 +1158,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="2782088940970074970">Location de voitures</translation>
 <translation id="278436560439594386">Appareils ménagers</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Mots de passe · Clés d'accès</translation>
 <translation id="2784949926578158345">La connexion a été réinitialisée.</translation>
 <translation id="2786008859124691917">Vélos et accessoires</translation>
 <translation id="2792012897584536778">Les administrateurs de cet appareil ont configuré des certificats de sécurité grâce auxquels ils ont la possibilité d'afficher le contenu des sites Web que vous consultez.</translation>
@@ -2305,6 +2309,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="46128681529823442">Équipement de football</translation>
 <translation id="4612904677925722054">Ce site peut comporter du contenu réservé à un public averti. Un parent ou représentant légal doit autoriser ton accès à ce site Web.</translation>
 <translation id="4619564267100705184">Confirmer votre identité</translation>
+<translation id="4619669610757527494">Enregistrez le permis de conduire dans Google Wallet</translation>
 <translation id="4622292761762557753">Transférer quand même</translation>
 <translation id="4622647778991854660">Activer les notifications dans le centre de notifications. Ouvrir <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Pièces d'identité</translation>
@@ -2834,6 +2839,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="543656192084990644">Capteurs de mouvement non autorisés</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, avant <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Ordre inverse, face vers le haut</translation>
+<translation id="5447103258548475868">Enregistrez le passeport dans Google Wallet</translation>
 <translation id="5447235695608032700">Autoriser <ph name="SITE" /> à utiliser les informations qu'il a enregistrées vous concernant</translation>
 <translation id="5447973833955560753">Mot de passe de récupération</translation>
 <translation id="5451331376824595378">Lorsque Chrome signale des événements liés à la sécurité, votre administrateur reçoit des données sur ces événements (URL des pages que vous consultez dans Chrome ou depuis lesquelles vous copiez des données, métadonnées ou noms de fichiers, adresses IP, plantages d'un navigateur ou d'un onglet, nom d'utilisateur avec lequel vous vous connectez à des applis Web, à votre appareil et à Chrome, etc.).</translation>
@@ -3557,6 +3563,7 @@ Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LIN
 <translation id="6550245281449521513">Verrouillage de la souris non autorisé</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nouveau</translation>
 <translation id="6552566579578780089">Paiements</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> sur <ph name="NUM_MATCHES_IN_GROUP" /> dans le groupe <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Dernière visite : il y a <ph name="NUM_DAYS" /> jours</translation>
 <translation id="6556866813142980365">Rétablir</translation>
 <translation id="6557715786897013164">14 x 17 pouces</translation>
@@ -4235,6 +4242,7 @@ Informations supplémentaires :
 <translation id="7599089013883397081">Délai de téléchargement dépassé</translation>
 <translation id="7602868996817972616">Poser une question à Google concernant cette page</translation>
 <translation id="7606123685356405076">Modèles Gemini 3</translation>
+<translation id="760632772920590778">Enregistrez le véhicule dans Google Wallet</translation>
 <translation id="7610193165460212391">La valeur <ph name="VALUE" /> est hors limites.</translation>
 <translation id="761261689936461781">Épais</translation>
 <translation id="7613889955535752492">Date d'expiration : <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4264,6 +4272,7 @@ Informations supplémentaires :
 <translation id="7647206758853451655">Qualité d'impression</translation>
 <translation id="7648133459447652947">Pour afficher le curseur, changez d'appli, actualisez la page ou revenez en arrière</translation>
 <translation id="7648527891719919697">Ce site restera bloqué, car la Protection Avancée est activée dans les <ph name="BEGIN_ANDROID_SETTINGS_LINK" />paramètres Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />En savoir plus sur cet avertissement<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Enregistrez le Known Traveler Number dans Google Wallet</translation>
 <translation id="7648992873808071793">Stocker les fichiers sur cet appareil</translation>
 <translation id="7649070708921625228">Aide</translation>
 <translation id="7650141368285545431">Utiliser la clé d'accès d'un autre appareil</translation>
@@ -4356,6 +4365,7 @@ Informations supplémentaires :
 <translation id="7773005668374414287">Même ordre, face vers le haut</translation>
 <translation id="7779418012194492374">Révoquer l'accès de <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Hier</translation>
+<translation id="7782228658217918863">Enregistrez la carte d'identité dans Google Wallet</translation>
 <translation id="7782465647372057580">Les informations du compte sont chiffrées et restent privées</translation>
 <translation id="7785471469930192436">Lisez les instructions du moteur de recherche pour supprimer l'historique de vos recherches, si besoin</translation>
 <translation id="7785790577395078482">cette tablette</translation>

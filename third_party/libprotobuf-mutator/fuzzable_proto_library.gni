@@ -28,9 +28,9 @@ template("fuzzable_proto_library") {
            "proto_library_deps is deprecated and not supported with " +
                "use_experimental_fuzzable_proto = true. Use deps instead.")
 
-    # TODO(crbug.com/505034799): Support proto_in_dir and proto_out_dir.
-    assert(!defined(invoker.proto_in_dir) && !defined(invoker.proto_out_dir),
-           "proto_in_dir and proto_out_dir are not supported yet with " +
+    # TODO(crbug.com/505034799): Support proto_out_dir.
+    assert(!defined(invoker.proto_out_dir),
+           "proto_out_dir is not supported yet with " +
                "use_experimental_fuzzable_proto = true.")
 
     _prepend_fuzzable_target = "${target_name}_prepend_fuzzable"
@@ -62,21 +62,34 @@ template("fuzzable_proto_library") {
 
     _fuzzable_proto_target = "${target_name}_fuzzable__proto"
     proto_library(_fuzzable_proto_target) {
+      testonly = true
       sources = _prepended_protos
       proto_deps = [ ":$_prepend_fuzzable_target" ]
 
-      proto_in_dir = target_gen_dir
-      proto_out_dir = rebase_path(".", "//")
+      if (defined(invoker.proto_in_dir)) {
+        _src_relative_in_dir = rebase_path(invoker.proto_in_dir, "//")
+      } else {
+        _src_relative_in_dir = rebase_path(".", "//")
+      }
+      proto_in_dir = "$root_gen_dir/$_src_relative_in_dir"
+      proto_out_dir = _src_relative_in_dir
 
       forward_variables_from(invoker,
                              "*",
                              [
                                "sources",
+                               "deps",
                                "proto_in_dir",
                                "proto_out_dir",
                                "component_build_force_source_set",
                                "use_experimental_fuzzable_proto",
                              ])
+      if (defined(invoker.deps)) {
+        deps = []
+        foreach(dep, invoker.deps) {
+          deps += [ get_label_info(dep, "label_no_toolchain") + "_fuzzable" ]
+        }
+      }
       component_build_force_source_set = true
 
       # Override LITE_RUNTIME settings in the protobuf files and export symbols.
@@ -93,9 +106,11 @@ template("fuzzable_proto_library") {
 
     # These groups are required by proto_library template in proto_library.gni.
     group("${target_name}_fuzzable_input_group") {
+      testonly = true
       public_deps = [ ":${_fuzzable_proto_target}_input_group" ]
     }
     group("${target_name}_fuzzable_gen") {
+      testonly = true
       public_deps = [ ":${_fuzzable_proto_target}_gen" ]
     }
 

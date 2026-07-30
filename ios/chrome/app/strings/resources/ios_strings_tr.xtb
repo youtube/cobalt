@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">En son kapattığınız sekmeleri yeniden açmak için buraya geri gelebilirsiniz</translation>
 <translation id="1016495303386450659">Öğe güncellendi</translation>
+<translation id="1018804590490383958">Tara ve otomatik doldur</translation>
 <translation id="1019990162050689579">Gemini Uygulama Etkinliği</translation>
 <translation id="102916930470544692">Geçiş anahtarı</translation>
 <translation id="1030376737535466765">Şifre Yöneticisi'ni açın</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Tarayıcınızı güncelleyin</translation>
 <translation id="4021931095789478915">${url} URL'sini okuma listesine ekle</translation>
 <translation id="4028871427853484857">Hesaba kaydet…</translation>
+<translation id="4036529942385659684">Belirli bir süre işlem yapılmadığında başlangıç sayfasını göster</translation>
 <translation id="4038354071007134711">Bu cihazdaki hiçbir uygulama dosyayı açamıyor.</translation>
 <translation id="4042870976416480368">Sayfada Bul</translation>
 <translation id="4045441967987592849">Yeniden aç</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Grubu yönet</translation>
 <translation id="4172051516777682613">Her zaman göster</translation>
 <translation id="417273154673973994">{count,plural, =1{1 sekme grubu kapatıldı ve kaydedildi}other{{count} sekme grubu kapatıldı ve kaydedildi}}</translation>
-<translation id="417612446554534067">Cihazlarıma Gönder</translation>
 <translation id="4180726336228139707">Yalnızca bu cihazda</translation>
 <translation id="4181841719683918333">Diller</translation>
 <translation id="4183350924949589798">Daha fazla güvenlik mi istiyorsunuz?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Sekmeler ve oturumunuz kapatıldı</translation>
 <translation id="4911042367886397055">Tekrar hoş geldiniz <ph name="USER_NAME" />,</translation>
 <translation id="4913626501929406101">Şifrenizin kopyasını, aile grubunuzdaki kişilerle güvenli bir şekilde paylaşabilirsiniz. <ph name="BEGIN_LINK" />Daha fazla bilgi<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Lens</translation>
 <translation id="4917025507570489430"><ph name="USER_EMAIL" /> olarak oturum açtığınızda mevcut tarama verilerini kullanabilirsiniz. Kuruluşunuz bu verileri görüntüleyebilir.</translation>
 <translation id="4918086044614829423">Kabul et</translation>
 <translation id="4930714375720679147">Etkinleştir</translation>
@@ -1549,6 +1551,7 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Adres çubuğunun konumunu seçin</translation>
 <translation id="6307241780749477694">Bu cihazda tüm şifrelerinize erişebilmek için kimliğinizi doğrulayın</translation>
+<translation id="6307792728709337290">Bu satın alma işleminde ve Chrome'da yapılacak satın alma işlemlerinde kart bilgilerinizin otomatik olarak doldurulması için kartınızı Google Hesabınıza kaydedin.</translation>
 <translation id="6316141353357700666">Görüntülenen listeden kullanmak istediğiniz şifreyi seçin.</translation>
 <translation id="6321526113093607004">Yer İşaretlerine Ekle</translation>
 <translation id="6327249202318869726">Gemini, hesabınız için devre dışı bırakıldı. Daha fazla bilgi için yöneticinizle iletişime geçin.</translation>
@@ -2143,6 +2146,7 @@ Bilgisayarınızdan devam etmek için <ph name="OTHER_EMAIL" /> hesabına geçin
 <translation id="8263809106706527890">Varsayılan tarayıcı ayarlarınızda değişiklik yapılmış olabilir. Bunu ayarlardan kontrol edebilirsiniz.</translation>
 <translation id="8264966119170358612">Google harici bir veri ihlalinde bazı kayıtlı şifreleriniz sızdırılmış. <ph name="BEGIN_LINK" />Daha fazla bilgi<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">iPad sıfırlama işleminin bir parçası olarak <ph name="USER_NAME" /> hesabınızın oturumu kapatıldı. Yeniden oturum açmak için aşağıda "İlerle"ye dokunun.</translation>
+<translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Bilgileriniz <ph name="URL" /> adresinde doldurulacak</translation>
 <translation id="8275068909952022340">Diğer…</translation>
 <translation id="8281781826761538115">Varsayılan - <ph name="DEFAULT_LOCALE" /></translation>

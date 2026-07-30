@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -40,6 +41,7 @@ using ::base::test::TestFuture;
 using ::base::test::ValueIs;
 using ::testing::_;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::Optional;
@@ -49,6 +51,28 @@ using ::testing::UnorderedElementsAre;
 
 constexpr BackgroundTaskPriority kTestPriority =
     BackgroundTaskPriority::kBestEffort;
+
+constexpr auto kTestWrappedKey =
+    std::to_array<uint8_t>({0x11, 0x22, 0x33, 0x44});
+constexpr auto kTestSubjectPublicKeyInfo =
+    std::to_array<uint8_t>({0x55, 0x66, 0x77, 0x88, 0x99});
+constexpr auto kTestChallenge = std::to_array<uint8_t>({0x01, 0x02, 0x03});
+constexpr auto kTestWrappedAttestationKey =
+    std::to_array<uint8_t>({0xAA, 0xBB, 0xCC});
+constexpr auto kTestAttestationStatement = std::to_array<uint8_t>({0x11, 0x22});
+constexpr auto kTestAttestationSignature = std::to_array<uint8_t>({0x33, 0x44});
+
+constexpr std::array kTestAttestationAlgorithms = {
+    crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA1,
+    crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
+};
+constexpr std::array kTestAttestationAlgorithmsError = {
+    crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA1,
+};
+constexpr auto kTestAlgorithmECDSA =
+    crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256;
+constexpr auto kTestAlgorithmRSAPSS =
+    crypto::SignatureVerifier::SignatureAlgorithm::RSA_PSS_SHA256;
 
 TEST(UnexportableKeyServiceProxyTest, GenerateKeyReturnsError) {
   base::test::TaskEnvironment task_environment;
@@ -618,4 +642,200 @@ TEST(UnexportableKeyServiceProxyTest, DeleteAllKeysError) {
   const auto& result = future.Get();
   EXPECT_THAT(result, ErrorIs(expected_error));
 }
+
+TEST(UnexportableKeyServiceProxyTest, GenerateAttestationKeyReturnsError) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks.BindNewPipeAndPassReceiver();
+
+  auto mock = MockUnexportableKeyService();
+  ON_CALL(mock, GenerateAttestationKeySlowlyAsync)
+      .WillByDefault(
+          RunOnceCallback<2>(base::unexpected(ServiceError::kKeyNotFound)));
+  UnexportableKeyServiceProxyImpl impl(&mock, std::move(receiver));
+
+  TestFuture<ServiceErrorOr<mojom::NewAttestationKeyDataPtr>> future;
+  uks->GenerateAttestationKey(base::ToVector(kTestAttestationAlgorithmsError),
+                              kTestPriority, future.GetCallback());
+
+  EXPECT_THAT(future.Get(), ErrorIs(ServiceError::kKeyNotFound));
+}
+
+TEST(UnexportableKeyServiceProxyTest, GenerateAttestationKeySuccess) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks_remote;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks_remote.BindNewPipeAndPassReceiver();
+
+  MockUnexportableKeyService mock_uks;
+  UnexportableKeyServiceProxyImpl proxy_impl(&mock_uks, std::move(receiver));
+
+  const UnexportableAttestationKeyId kKeyId;
+
+  EXPECT_CALL(mock_uks, GenerateAttestationKeySlowlyAsync(
+                            ElementsAreArray(kTestAttestationAlgorithms),
+                            kTestPriority, _))
+      .WillOnce(RunOnceCallback<2>(kKeyId));
+
+  EXPECT_CALL(mock_uks, GetAlgorithm(kKeyId))
+      .WillOnce(Return(kTestAlgorithmECDSA));
+  EXPECT_CALL(mock_uks, GetWrappedKey(kKeyId))
+      .WillOnce(Return(base::ToVector(kTestWrappedKey)));
+  EXPECT_CALL(mock_uks, GetSubjectPublicKeyInfo(kKeyId))
+      .WillOnce(Return(base::ToVector(kTestSubjectPublicKeyInfo)));
+
+  TestFuture<ServiceErrorOr<mojom::NewAttestationKeyDataPtr>> future;
+  uks_remote->GenerateAttestationKey(base::ToVector(kTestAttestationAlgorithms),
+                                     kTestPriority, future.GetCallback());
+
+  ASSERT_OK_AND_ASSIGN(mojom::NewAttestationKeyDataPtr new_key_data,
+                       future.Take());
+  EXPECT_EQ(new_key_data->key_id, kKeyId);
+  EXPECT_EQ(new_key_data->metadata->algorithm, kTestAlgorithmECDSA);
+  EXPECT_EQ(new_key_data->metadata->wrapped_key,
+            base::ToVector(kTestWrappedKey));
+  EXPECT_EQ(new_key_data->metadata->subject_public_key_info,
+            base::ToVector(kTestSubjectPublicKeyInfo));
+}
+
+TEST(UnexportableKeyServiceProxyTest, FromWrappedAttestationKeyReturnsError) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks_remote;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks_remote.BindNewPipeAndPassReceiver();
+
+  MockUnexportableKeyService mock_uks;
+  UnexportableKeyServiceProxyImpl proxy_impl(&mock_uks, std::move(receiver));
+
+  EXPECT_CALL(mock_uks, FromWrappedAttestationKeySlowlyAsync(Eq(kTestChallenge),
+                                                             kTestPriority, _))
+      .WillOnce(
+          RunOnceCallback<2>(base::unexpected(ServiceError::kKeyNotFound)));
+
+  TestFuture<ServiceErrorOr<mojom::NewAttestationKeyDataPtr>> future;
+  uks_remote->FromWrappedAttestationKey(base::ToVector(kTestChallenge),
+                                        kTestPriority, future.GetCallback());
+
+  EXPECT_THAT(future.Get(), ErrorIs(ServiceError::kKeyNotFound));
+}
+
+TEST(UnexportableKeyServiceProxyTest, FromWrappedAttestationKeySuccess) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks_remote;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks_remote.BindNewPipeAndPassReceiver();
+
+  MockUnexportableKeyService mock_uks;
+  UnexportableKeyServiceProxyImpl proxy_impl(&mock_uks, std::move(receiver));
+
+  const UnexportableAttestationKeyId kKeyId;
+
+  EXPECT_CALL(mock_uks, FromWrappedAttestationKeySlowlyAsync(
+                            Eq(kTestWrappedAttestationKey), kTestPriority, _))
+      .WillOnce(RunOnceCallback<2>(kKeyId));
+
+  EXPECT_CALL(mock_uks, GetAlgorithm(kKeyId))
+      .WillOnce(Return(kTestAlgorithmRSAPSS));
+  EXPECT_CALL(mock_uks, GetWrappedKey(kKeyId))
+      .WillOnce(Return(base::ToVector(kTestWrappedKey)));
+  EXPECT_CALL(mock_uks, GetSubjectPublicKeyInfo(kKeyId))
+      .WillOnce(Return(base::ToVector(kTestSubjectPublicKeyInfo)));
+
+  TestFuture<ServiceErrorOr<mojom::NewAttestationKeyDataPtr>> future;
+  uks_remote->FromWrappedAttestationKey(
+      base::ToVector(kTestWrappedAttestationKey), kTestPriority,
+      future.GetCallback());
+
+  ASSERT_OK_AND_ASSIGN(mojom::NewAttestationKeyDataPtr new_key_data,
+                       future.Take());
+  EXPECT_EQ(new_key_data->key_id, kKeyId);
+  EXPECT_EQ(new_key_data->metadata->algorithm, kTestAlgorithmRSAPSS);
+  EXPECT_EQ(new_key_data->metadata->wrapped_key,
+            base::ToVector(kTestWrappedKey));
+  EXPECT_EQ(new_key_data->metadata->subject_public_key_info,
+            base::ToVector(kTestSubjectPublicKeyInfo));
+}
+
+TEST(UnexportableKeyServiceProxyTest, TooLongWrappedAttestationKey) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks_remote;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks_remote.BindNewPipeAndPassReceiver();
+
+  MockUnexportableKeyService mock_uks;
+  UnexportableKeyServiceProxyImpl proxy_impl(&mock_uks, std::move(receiver));
+
+  mojo::test::BadMessageObserver bad_message_observer;
+
+  base::test::TestFuture<ServiceErrorOr<mojom::NewAttestationKeyDataPtr>>
+      future;
+  uks_remote->FromWrappedAttestationKey(
+      std::vector<uint8_t>(kMaxWrappedKeySize + 1), kTestPriority,
+      future.GetCallback());
+
+  bad_message_observer.WaitForBadMessage();
+  EXPECT_TRUE(bad_message_observer.got_bad_message())
+      << "Expected mojo::ReportBadMessage to be called for a too-long wrapped "
+         "key.";
+}
+
+TEST(UnexportableKeyServiceProxyTest, CertifySuccess) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks_remote;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks_remote.BindNewPipeAndPassReceiver();
+
+  MockUnexportableKeyService mock_uks;
+  UnexportableKeyServiceProxyImpl proxy_impl(&mock_uks, std::move(receiver));
+  const UnexportableAttestationKeyId kAttestationKeyId;
+  const UnexportableSigningKeyId kSigningKeyId;
+  const crypto::AttestationStatement kExpectedStatement{
+      .format = crypto::AttestationStatement::Format::kTpm,
+      .statement = base::ToVector(kTestAttestationStatement),
+      .signature = base::ToVector(kTestAttestationSignature),
+  };
+
+  EXPECT_CALL(mock_uks,
+              CertifySlowlyAsync(kAttestationKeyId, kSigningKeyId,
+                                 Eq(kTestChallenge), kTestPriority, _))
+      .WillOnce(RunOnceCallback<4>(base::ok(kExpectedStatement)));
+
+  TestFuture<ServiceErrorOr<crypto::AttestationStatement>> future;
+  uks_remote->Certify(kAttestationKeyId, kSigningKeyId,
+                      base::ToVector(kTestChallenge), kTestPriority,
+                      future.GetCallback());
+
+  ASSERT_OK_AND_ASSIGN(const crypto::AttestationStatement& statement,
+                       future.Get());
+  EXPECT_EQ(statement.format, kExpectedStatement.format);
+  EXPECT_EQ(statement.statement, kExpectedStatement.statement);
+  EXPECT_EQ(statement.signature, kExpectedStatement.signature);
+}
+
+TEST(UnexportableKeyServiceProxyTest, CertifyError) {
+  base::test::TaskEnvironment task_environment;
+  mojo::Remote<mojom::UnexportableKeyService> uks_remote;
+  mojo::PendingReceiver<mojom::UnexportableKeyService> receiver =
+      uks_remote.BindNewPipeAndPassReceiver();
+
+  MockUnexportableKeyService mock_uks;
+  UnexportableKeyServiceProxyImpl proxy_impl(&mock_uks, std::move(receiver));
+  const UnexportableAttestationKeyId kAttestationKeyId;
+  const UnexportableSigningKeyId kSigningKeyId;
+  const ServiceError kExpectedError = ServiceError::kCryptoApiFailed;
+
+  EXPECT_CALL(mock_uks,
+              CertifySlowlyAsync(kAttestationKeyId, kSigningKeyId,
+                                 Eq(kTestChallenge), kTestPriority, _))
+      .WillOnce(RunOnceCallback<4>(base::unexpected(kExpectedError)));
+
+  TestFuture<ServiceErrorOr<crypto::AttestationStatement>> future;
+  uks_remote->Certify(kAttestationKeyId, kSigningKeyId,
+                      base::ToVector(kTestChallenge), kTestPriority,
+                      future.GetCallback());
+
+  EXPECT_THAT(future.Get(), ErrorIs(kExpectedError));
+}
+
 }  // namespace unexportable_keys

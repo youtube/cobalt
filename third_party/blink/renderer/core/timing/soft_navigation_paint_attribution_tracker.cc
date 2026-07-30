@@ -58,22 +58,16 @@ void SoftNavigationPaintAttributionTracker::MarkNodeAsDirectlyModified(
 
   // By marking the node in `marked_node_state_`, `context` will take ownership
   // of `node` and any of its descendants, which will happen during prepaint.
+  // That process handles updating the `propagated_node_state_` and resetting
+  // paint tracking if needed.
   marked_node_state_.Set(node,
                          MakeGarbageCollected<NodeState>(
                              context, current_modification_generation_id_));
-  propagated_node_state_.erase(node);
-
   context->AddModifiedNode(node);
+  // Ensure the change gets pushed down to all descendants, if modifying
+  // laid-out DOM.
   if (auto* object = node->GetLayoutObject()) {
-    // Ensure the change gets pushed down to all descendants, if modifying
-    // attached DOM.
     object->MarkSoftNavigationContextChanged();
-    // But only ask for repaints if the context changed. Note that the step
-    // above is still needed to propagate the modification id change.
-    if (!previous_node_state ||
-        previous_node_state->GetSoftNavigationContext() != context) {
-      NotifyPaintTimingDetectorOnContextChanged(*object);
-    }
   }
 }
 
@@ -100,31 +94,13 @@ void SoftNavigationPaintAttributionTracker::MarkNodeForPaintTrackingIfNeeded(
     return;
   }
 
-  // If `node` was directly modified, we don't need to duplicate the entry
-  // unless `inherited_state` is newer. That can happen if the `node` was
-  // modified directly (e.g. added) by a previous interaction and one of
-  // `node`'s text children was directly modified by a different interaction.
-  if (NodeState* marked_state = GetMarkedNodeState(node);
-      marked_state &&
-      marked_state->ModificationId() >= inherited_state->ModificationId()) {
-    // `previous_node_state` should have been cleared when the node was
-    // marked or pruned.
-    CHECK(!previous_node_state, base::NotFatalUntil::M154);
-    if (previous_node_state) {
-      propagated_node_state_.erase(node);
-    }
-    return;
-  }
-
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("loading"),
       "SoftNavigationPaintAttributionTracker::InitPaintTrackingForNode", "node",
       node->DebugName(), "context",
       inherited_state->GetSoftNavigationContext());
-  propagated_node_state_.Set(node,
-                             MakeGarbageCollected<NodeState>(
-                                 inherited_state->GetSoftNavigationContext(),
-                                 inherited_state->ModificationId()));
+  propagated_node_state_.Set(node, inherited_state);
+
   if (!previous_node_state || previous_node_state->GetSoftNavigationContext() !=
                                   inherited_state->GetSoftNavigationContext()) {
     NotifyPaintTimingDetectorOnContextChanged(*layout_object);
@@ -144,43 +120,51 @@ SoftNavigationPaintAttributionTracker::UpdateOnPrePaint(
   NodeState* inherited_state = context_container_root
                                    ? GetMarkedNodeState(context_container_root)
                                    : nullptr;
-  // For directly modified or appended text nodes, we need to "push up" the
-  // `node`'s state to the aggregator.
-  if (node && paint_timing::IsTextType(*node)) {
+
+  // By default, continue to inherit the context being propagated. This gets
+  // overridden below if a new container root is detected.
+  auto result = PrePaintUpdateResult::kPropagateAncestorNode;
+
+  // First, figure out what should be propagated, i.e. if `node` is a new
+  // container root, if it should inherit the `inherited_state`, or if
+  // `NodeState` for a text node needs to be pushed up.
+  if (node) {
     if (auto iter = marked_node_state_.find(node);
         iter != marked_node_state_.end()) {
       NodeState* node_state = iter->value;
       if (!inherited_state ||
-          (node_state->ModificationId() > inherited_state->ModificationId())) {
+          node_state->ModificationId() > inherited_state->ModificationId()) {
+        // `node` is a new container root. For text nodes, this pushes up the
+        // `node_state` to the aggregator; for other nodes, it gets propagated
+        // downwards.
         inherited_state = node_state;
+        // We only need to push this state up once for text since future
+        // modifications (from above or below) will overwrite if needed. And
+        // since text nodes are leaf nodes, propagation will stop after this so
+        // there is nothing to push down to.
+        if (paint_timing::IsTextType(*node)) {
+          marked_node_state_.erase(iter);
+        }
+        result = PrePaintUpdateResult::kPropagateCurrentNode;
+      } else {
+        // `node_state` is redundant or obsolete. Remove it and continue
+        // propagating `inherited_state`.
+        //
+        // Note: we could overwrite the existing state, but removing it has the
+        // advantage of pruning the set of redundant nodes, e.g. if a node and
+        // its parent container were both modified, it's safe to remove the
+        // child because we're tracking paints for the parent's whole subtree.
+        // If this is removing a text aggregation node or image, it'll get
+        // mapped in the `propagated_node_state_` if needed.
+        marked_node_state_.erase(iter);
       }
-      // We only need to push this state up once since future modifications
-      // (from above or below) will overwrite if needed.
-      marked_node_state_.erase(iter);
     }
   }
 
   // If nothing is being propagated, there's nothing to update or track for this
-  // node. Otherwise, we might need to start tracking node or update the cached
-  // state if the propagated context is from a more recent modification.
+  // node. Otherwise, we might need to start tracking `node` or update the
+  // cached state if the propagated context is from a more recent modification.
   if (inherited_state) {
-    // First, update the cached state if the inherited context is from a more
-    // recent modification. Doing this eagerly ensures there isn't any stale
-    // state for contentful nodes that can be directly marked (images).
-    //
-    // Note: we could overwrite the existing state, but removing it has the
-    // advantage of pruning the set of redundant nodes, e.g. if a node and its
-    // parent container were both modified, it's safe to remove the child
-    // because we're tracking paints for the parent's whole subtree. If this
-    // is removing a text aggregation node, it'll get re-added if needed when
-    // the state gets propagated to its children.
-    if (node) {
-      MaybePruneObsoleteNodeState(node, inherited_state, marked_node_state_);
-      MaybePruneObsoleteNodeState(node, inherited_state,
-                                  propagated_node_state_);
-    }
-
-    // Next, set up paint tracking for contentful nodes.
     if (!node) {
       // `node` will be null (anonymous) if `object` is for a pseudo element.
       // Pseudo elements with a "content" URL are not currently handled because
@@ -203,15 +187,7 @@ SoftNavigationPaintAttributionTracker::UpdateOnPrePaint(
     }
   }
 
-  // If `node` is container root that we're tracking, start propagating that to
-  // descendants; otherwise keep propagating the `context_container_root`.
-  //
-  // Note: `node` may be null here (anonymous objects), in which case we
-  // continue to propagate `context_container_root`.
-  if (node && GetMarkedNodeState(node)) {
-    return PrePaintUpdateResult::kPropagateCurrentNode;
-  }
-  return PrePaintUpdateResult::kPropagateAncestorNode;
+  return result;
 }
 
 void SoftNavigationPaintAttributionTracker::
@@ -230,21 +206,6 @@ SoftNavigationPaintAttributionTracker::NodeState::NodeState(
 void SoftNavigationPaintAttributionTracker::NodeState::Trace(
     Visitor* visitor) const {
   visitor->Trace(context_);
-}
-
-// static
-void SoftNavigationPaintAttributionTracker::MaybePruneObsoleteNodeState(
-    Node* node,
-    NodeState* inherited_state,
-    NodeStateMap& node_state_map) {
-  auto iter = node_state_map.find(node);
-  if (iter == node_state_map.end()) {
-    return;
-  }
-  NodeState* node_state = iter->value;
-  if (node_state->ModificationId() <= inherited_state->ModificationId()) {
-    node_state_map.erase(iter);
-  }
 }
 
 }  // namespace blink

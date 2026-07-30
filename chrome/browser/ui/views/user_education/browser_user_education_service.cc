@@ -33,6 +33,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/feature_first_run/autofill_ai_first_run_dialog.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -54,6 +55,7 @@
 #include "chrome/browser/ui/views/autofill/at_memory_promo_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_view_views.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
+#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_icon_view.h"
@@ -90,6 +92,8 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/bookmarks/common/bookmark_bar_visibility_state.h"
+#include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/compose/buildflags.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/contextual_tasks/public/features.h"
@@ -280,6 +284,31 @@ CreateNavigationAction(GURL target) {
         Navigate(&params);
       },
       std::move(target));
+}
+
+void NavigateToSettingsPage(ContextPtr ctx,
+                            user_education::FeaturePromoHandle promo_handle) {
+  BrowserWindowInterface* const browser = GetBrowser(ctx);
+  TabStripModel* const tab_strip_model = browser->GetTabStripModel();
+  if (!tab_strip_model) {
+    return;
+  }
+  content::WebContents* const web_contents =
+      tab_strip_model->GetActiveWebContents();
+  const webapps::AppId* app_id =
+      web_app::WebAppTabHelper::GetAppId(web_contents);
+  if (!app_id) {
+    return;
+  }
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  const GURL final_url(chrome::kChromeUIWebAppSettingsURL + *app_id);
+  if (web_contents) {
+    NavigateParams params(browser->GetProfile(), final_url,
+                          ui::PAGE_TRANSITION_LINK);
+    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    Navigate(&params);
+  }
+#endif
 }
 
 }  // namespace
@@ -1615,6 +1644,33 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(108, "agale@chromium.org",
                        "Triggered when Battery Saver Mode is active.")));
 
+  // kIPHBookmarkBarSimplifiedFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForCustomAction(
+          feature_engagement::kIPHBookmarkBarSimplifiedFeature,
+          kBrowserDialogAnchorElementId,
+          IDS_BOOKMARK_BAR_HIDDEN_INACTIVITY_PROMO_LABEL,
+          IDS_PROMO_UNDO_BUTTON,
+          base::BindRepeating(
+              [](ContextPtr ctx,
+                 user_education::FeaturePromoHandle promo_handle) {
+                Browser* const browser = GetBrowser(ctx);
+                if (!browser) {
+                  return;
+                }
+                base::RecordAction(
+                    base::UserMetricsAction("BookmarkBar_Simplified_IPH_Undo"));
+                browser->profile()->GetPrefs()->SetInteger(
+                    bookmarks::prefs::kBookmarkBarVisibilityState,
+                    static_cast<int>(
+                        bookmarks::BookmarkBarVisibilityState::kOnlyShowOnNtp));
+              }))
+          .SetCustomActionIsDefault(false)
+          .SetBubbleArrow(HelpBubbleArrow::kTopCenter)
+          .SetMetadata(150, "jennserrano@google.com",
+                       "Triggered when the bookmark bar is auto-hidden after "
+                       "inactivity.")));
+
   // kIPHMemorySaverModeFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForCustomAction(
@@ -1735,39 +1791,15 @@ void MaybeRegisterChromeFeaturePromos(
                        "Triggered to inform users of the availability of the "
                        "new translate screen feature on the Lens Overlay.")));
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
   // kIPHDesktopPWAsLinkCapturingLaunch:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForCustomAction(
           feature_engagement::kIPHDesktopPWAsLinkCapturingLaunch,
           kToolbarAppMenuButtonElementId, IDS_DESKTOP_PWA_LINK_CAPTURING_TEXT,
           IDS_DESKTOP_PWA_LINK_CAPTURING_SETTINGS,
-          base::BindRepeating(
-              [](ContextPtr ctx,
-                 user_education::FeaturePromoHandle promo_handle) {
-                auto* const browser = GetBrowser(ctx);
-                TabStripModel* const tab_strip_model =
-                    browser->tab_strip_model();
-                if (!tab_strip_model) {
-                  return;
-                }
-                content::WebContents* const web_contents =
-                    tab_strip_model->GetActiveWebContents();
-                const webapps::AppId* app_id =
-                    web_app::WebAppTabHelper::GetAppId(web_contents);
-                if (!app_id) {
-                  return;
-                }
-                const GURL final_url(chrome::kChromeUIWebAppSettingsURL +
-                                     *app_id);
-                if (web_contents) {
-                  NavigateParams params(browser->profile(), final_url,
-                                        ui::PAGE_TRANSITION_LINK);
-                  params.disposition =
-                      WindowOpenDisposition::NEW_FOREGROUND_TAB;
-                  Navigate(&params);
-                }
-              }))
+          base::BindRepeating(&NavigateToSettingsPage))
           .SetBubbleArrow(HelpBubbleArrow::kTopRight)
           .SetPromoSubtype(
               FeaturePromoSpecification::PromoSubtype::kKeyedNotice)
@@ -1781,32 +1813,7 @@ void MaybeRegisterChromeFeaturePromos(
           feature_engagement::kIPHDesktopPWAsLinkCapturingLaunchAppInTab,
           kLocationIconElementId, IDS_DESKTOP_PWA_LINK_CAPTURING_TEXT,
           IDS_DESKTOP_PWA_LINK_CAPTURING_SETTINGS,
-          base::BindRepeating(
-              [](ContextPtr ctx,
-                 user_education::FeaturePromoHandle promo_handle) {
-                auto* const browser = GetBrowser(ctx);
-                TabStripModel* const tab_strip_model =
-                    browser->tab_strip_model();
-                if (!tab_strip_model) {
-                  return;
-                }
-                content::WebContents* const web_contents =
-                    tab_strip_model->GetActiveWebContents();
-                const webapps::AppId* app_id =
-                    web_app::WebAppTabHelper::GetAppId(web_contents);
-                if (!app_id) {
-                  return;
-                }
-                const GURL final_url(chrome::kChromeUIWebAppSettingsURL +
-                                     *app_id);
-                if (web_contents) {
-                  NavigateParams params(browser->profile(), final_url,
-                                        ui::PAGE_TRANSITION_LINK);
-                  params.disposition =
-                      WindowOpenDisposition::NEW_FOREGROUND_TAB;
-                  Navigate(&params);
-                }
-              }))
+          base::BindRepeating(&NavigateToSettingsPage))
           .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
           .SetPromoSubtype(
               FeaturePromoSpecification::PromoSubtype::kKeyedNotice)
@@ -2359,6 +2366,43 @@ void MaybeRegisterChromeTutorials(
 
     tutorial_registry.AddTutorial(kVerticalTabsTutorialId,
                                   std::move(vertical_tabs_tutorial));
+  }
+
+  {  // Contextual Tasks tutorial
+    auto contextual_tasks_tutorial =
+        TutorialDescription::Create<kContextualTasksTutorialMetricPrefix>(
+
+            // Bubble step - overflow menu button
+            BubbleStep(kContextualTasksWebUIOverflowMenuElementId)
+                .SetBubbleBodyText(IDS_TUTORIAL_CONTEXTUAL_TASKS_STEP1)
+                .SetBubbleArrow(HelpBubbleArrow::kTopRight)
+                .InAnyContext(),
+
+            // Bubble step - pin button
+            BubbleStep(kContextualTasksWebUIOverflowMenuPinButtonElementId)
+                .SetBubbleBodyText(IDS_TUTORIAL_CONTEXTUAL_TASKS_STEP2)
+                .SetBubbleArrow(HelpBubbleArrow::kRightCenter)
+                .InAnyContext(),
+
+            // Hidden step - wait for pin button to be hidden?
+            HiddenStep::WaitForHidden(
+                kContextualTasksWebUIOverflowMenuPinButtonElementId),
+
+            // Completion of the tutorial after side panel appears.
+            BubbleStep(
+                kPinnedToolbarActionShowSidePanelContextualTasksElementId)
+                .SetBubbleTitleText(IDS_TUTORIAL_GENERIC_SUCCESS_TITLE)
+                .SetBubbleBodyText(IDS_TUTORIAL_CONTEXTUAL_TASKS_STEP3)
+                .SetBubbleArrow(HelpBubbleArrow::kTopRight)
+                .InAnyContext());
+
+    contextual_tasks_tutorial.metadata.additional_description =
+        "Tutorial for pinning Google Search AI Mode.";
+    contextual_tasks_tutorial.metadata.launch_milestone = 147;
+    contextual_tasks_tutorial.metadata.owners = "dianaou@google.com";
+
+    tutorial_registry.AddTutorial(kContextualTasksTutorialId,
+                                  std::move(contextual_tasks_tutorial));
   }
 }
 

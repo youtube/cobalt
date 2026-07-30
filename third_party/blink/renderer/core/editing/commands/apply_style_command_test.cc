@@ -42,7 +42,7 @@ TEST_F(ApplyStyleCommandTest, RemoveRedundantBlocksWithStarEditableStyle) {
 
   LocalFrame* frame = GetDocument().GetFrame();
   frame->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(li, PositionAnchorType::kBeforeAnchor))
           .Build(),
       SetSelectionOptions());
@@ -215,7 +215,7 @@ TEST_F(ApplyStyleCommandTest, ItalicCrossingIgnoredContentBoundary) {
   EXPECT_TRUE(EditingIgnoresContent(*select));
   EXPECT_FALSE(EditingIgnoresContent(*option));
 
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(body, 0))
                                .Extend(Position(option, 0))
                                .Build(),
@@ -243,7 +243,7 @@ TEST_F(ApplyStyleCommandTest, RemoveEmptyItalic) {
   Element* div = QuerySelector("div");
   Element* i = QuerySelector("i");
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(i, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(i, 0)).Build(),
       SetSelectionOptions());
   auto* command = MakeGarbageCollected<ApplyStyleCommand>(
       GetDocument(), MakeGarbageCollected<EditingStyle>(div),

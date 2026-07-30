@@ -26,6 +26,5 @@ include_rules = [
   "+chrome/browser/ui/browser_window/public",
   "+chrome/browser/ui/chrome_pages.h",
   "+chrome/browser/web_applications/test",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]

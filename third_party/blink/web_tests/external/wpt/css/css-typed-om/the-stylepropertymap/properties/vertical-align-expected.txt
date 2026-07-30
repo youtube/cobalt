@@ -1,0 +1,35 @@
+This is a testharness.js-based test.
+[FAIL] 'vertical-align' does not support 'baseline'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'sub'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'super'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'text-top'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'text-bottom'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'middle'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'top'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support 'bottom'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSKeywordValue]"
+[FAIL] 'vertical-align' does not support '0px'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+[FAIL] 'vertical-align' does not support '-3.14em'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+[FAIL] 'vertical-align' does not support '3.14cm'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+[FAIL] 'vertical-align' does not support 'calc(0px + 0em)'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSMathSum]"
+[FAIL] 'vertical-align' does not support '0%'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+[FAIL] 'vertical-align' does not support '-3.14%'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+[FAIL] 'vertical-align' does not support '3.14%'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+[FAIL] 'vertical-align' does not support 'calc(0% + 0%)'
+  assert_class_string: Unsupported value must be a CSSStyleValue and not one of its subclasses expected "[object CSSStyleValue]" but got "[object CSSUnitValue]"
+Harness: the test ran to completion.
+

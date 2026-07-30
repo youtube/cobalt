@@ -35,6 +35,10 @@
 #include "components/user_manager/scoped_user_manager.h"
 #endif
 
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/profiles/profile_load_tracker_win.h"
+#endif
+
 class ExtensionSpecialStoragePolicy;
 class HostContentSettingsMap;
 class TestingPrefStore;
@@ -242,6 +246,10 @@ class TestingProfile : public Profile {
 
     TestingProfile* BuildIncognito(TestingProfile* original_profile);
 
+#if BUILDFLAG(IS_WIN)
+    Builder& EnableProfileLoadTracker();
+#endif
+
     const base::FilePath& GetPath() const { return path_; }
 
    private:
@@ -273,6 +281,9 @@ class TestingProfile : public Profile {
     std::string profile_name_{kDefaultProfileUserName};
     std::optional<bool> override_policy_connector_is_managed_;
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+#if BUILDFLAG(IS_WIN)
+    bool profile_load_tracker_enabled_ = false;
+#endif
   };
 
   // Multi-profile aware constructor that takes the path to a directory managed
@@ -317,7 +328,12 @@ class TestingProfile : public Profile {
       const std::string& profile_name,
       std::optional<bool> override_policy_connector_is_managed,
       const OTRProfileID* otr_profile_id,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory
+#if BUILDFLAG(IS_WIN)
+      ,
+      bool profile_load_tracker_enabled = false
+#endif
+  );
 
   ~TestingProfile() override;
 
@@ -454,6 +470,10 @@ class TestingProfile : public Profile {
     permission_controller_delegate_ = std::move(delegate);
   }
 
+#if BUILDFLAG(IS_WIN)
+  void AckCrashForTracking() override;
+#endif
+
  private:
   // Called when profile is deleted.
   ProfileDestructionCallback profile_destruction_callback_;
@@ -556,6 +576,11 @@ class TestingProfile : public Profile {
   std::unique_ptr<policy::PolicyService> policy_service_;
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+
+#if BUILDFLAG(IS_WIN)
+  bool profile_load_tracker_enabled_ = false;
+  std::unique_ptr<ProfileLoadTracker> profile_load_tracker_;
+#endif
 
   base::WeakPtrFactory<TestingProfile> weak_factory_{this};
 };

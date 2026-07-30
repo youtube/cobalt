@@ -5,8 +5,10 @@
 package org.chromium.chrome.browser.tasks.tab_management.vertical_tabs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -36,6 +38,7 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -46,12 +49,15 @@ import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
+import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.util.TextResolver;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link TabVerticalViewBinder}. */
 // TODO(crbug.com/515147675): Create an instrumented RenderTest class once Pinned Tabs and
@@ -217,6 +223,64 @@ public class TabVerticalViewBinderUnitTest {
         hoverExitEvent.setSource(InputDevice.SOURCE_MOUSE);
         mItemView.dispatchGenericMotionEvent(hoverExitEvent);
         assertEquals(View.VISIBLE, mCloseButton.getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    public void testTabHoverBackground() {
+        mModel.set(TabProperties.IS_SELECTED, false);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+
+        ColorStateList bgTint = mItemView.getBackgroundTintList();
+        assertNotNull(bgTint);
+        assertEquals(Color.TRANSPARENT, bgTint.getDefaultColor());
+
+        MotionEvent hoverEnterEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 0f, 0f, 0);
+        hoverEnterEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mItemView.dispatchGenericMotionEvent(hoverEnterEvent);
+
+        bgTint = mItemView.getBackgroundTintList();
+        assertNotNull(bgTint);
+        assertEquals(
+                TabUiThemeUtil.getHoveredTabContainerColor(
+                        mItemView.getContext(), /* isIncognito= */ false),
+                bgTint.getDefaultColor());
+
+        MotionEvent hoverExitEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_EXIT, 0f, 0f, 0);
+        hoverExitEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mItemView.dispatchGenericMotionEvent(hoverExitEvent);
+
+        bgTint = mItemView.getBackgroundTintList();
+        assertNotNull(bgTint);
+        assertEquals(Color.TRANSPARENT, bgTint.getDefaultColor());
+    }
+
+    @Test
+    @SmallTest
+    public void testTabHoverBackground_Selected() {
+        mModel.set(TabProperties.IS_SELECTED, true);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+
+        ColorStateList bgTintBefore = mItemView.getBackgroundTintList();
+        assertNotNull("Background tint should not be null when selected", bgTintBefore);
+
+        MotionEvent hoverEnterEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 0f, 0f, 0);
+        hoverEnterEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mItemView.dispatchGenericMotionEvent(hoverEnterEvent);
+
+        ColorStateList bgTintAfter = mItemView.getBackgroundTintList();
+        assertEquals(bgTintBefore, bgTintAfter);
+
+        MotionEvent hoverExitEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_EXIT, 0f, 0f, 0);
+        hoverExitEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mItemView.dispatchGenericMotionEvent(hoverExitEvent);
+
+        bgTintAfter = mItemView.getBackgroundTintList();
+        assertEquals(bgTintBefore, bgTintAfter);
     }
 
     @Test
@@ -406,18 +470,28 @@ public class TabVerticalViewBinderUnitTest {
                                 .inflate(R.layout.vertical_tab_group_header, null, false);
         ImageView expandChevron = headerView.findViewById(R.id.expand_chevron);
 
-        // 0. Test Default/Null State (should point up - 180 degrees as false = expanded)
+        // Test Detached / Recycled State (should snap instantly)
+        assertFalse(headerView.isAttachedToWindow());
+        mModel.set(TabProperties.IS_COLLAPSED, false);
         TabVerticalViewBinder.bindTabGroupHeader(mModel, headerView, TabProperties.IS_COLLAPSED);
         assertEquals(180f, expandChevron.getRotation(), 0.0f);
 
-        // 1. Test Collapsed State (should point down - 0 degrees)
+        // Toggling to Collapsed while detached (should instantly snap to 0 degrees)
         mModel.set(TabProperties.IS_COLLAPSED, true);
         TabVerticalViewBinder.bindTabGroupHeader(mModel, headerView, TabProperties.IS_COLLAPSED);
         assertEquals(0f, expandChevron.getRotation(), 0.0f);
 
-        // 2. Test Expanded/Not-Collapsed State (should point up - 180 degrees)
+        // Test Attached / Clicked State (should animate)
+        activity.setContentView(headerView);
+        assertTrue(headerView.isAttachedToWindow());
+
+        // Toggling back to Expanded while attached (should animate to 180 degrees)
         mModel.set(TabProperties.IS_COLLAPSED, false);
         TabVerticalViewBinder.bindTabGroupHeader(mModel, headerView, TabProperties.IS_COLLAPSED);
+
+        assertEquals(0f, expandChevron.getRotation(), 0.0f);
+        ShadowLooper.idleMainLooper(
+                TabVerticalViewBinder.CHEVRON_ANIMATION_DURATION_MS, TimeUnit.MILLISECONDS);
         assertEquals(180f, expandChevron.getRotation(), 0.0f);
     }
 
@@ -443,5 +517,55 @@ public class TabVerticalViewBinderUnitTest {
         mModel.set(TabProperties.TAB_GROUP_ID, null);
         TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.TAB_GROUP_ID);
         assertEquals(0, lp.getMarginStart());
+    }
+
+    @Test
+    @SmallTest
+    public void testBindLoadingState_WithFavicon() {
+        View spinner = mItemView.findViewById(R.id.tab_loading_spinner);
+        assertNotNull(spinner);
+
+        TabFaviconFetcher mockFetcher1 = mock(TabFaviconFetcher.class);
+        mModel.set(TabProperties.FAVICON_FETCHER, mockFetcher1);
+
+        // 1. Loading
+        mModel.set(TabProperties.IS_LOADING, true);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_LOADING);
+        assertEquals(View.VISIBLE, spinner.getVisibility());
+        assertEquals(View.INVISIBLE, mFaviconView.getVisibility());
+
+        // 2. Favicon fetcher updated while loading (should not break INVISIBLE state)
+        TabFaviconFetcher mockFetcher2 = mock(TabFaviconFetcher.class);
+        mModel.set(TabProperties.FAVICON_FETCHER, mockFetcher2);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.FAVICON_FETCHER);
+        assertEquals(View.VISIBLE, spinner.getVisibility());
+        assertEquals(View.INVISIBLE, mFaviconView.getVisibility());
+
+        // 3. Not Loading
+        mModel.set(TabProperties.IS_LOADING, false);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_LOADING);
+        assertEquals(View.GONE, spinner.getVisibility());
+        assertEquals(View.VISIBLE, mFaviconView.getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    public void testBindLoadingState_WithoutFavicon() {
+        View spinner = mItemView.findViewById(R.id.tab_loading_spinner);
+        assertNotNull(spinner);
+
+        mModel.set(TabProperties.FAVICON_FETCHER, null);
+
+        // 1. Loading
+        mModel.set(TabProperties.IS_LOADING, true);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_LOADING);
+        assertEquals(View.VISIBLE, spinner.getVisibility());
+        assertEquals(View.GONE, mFaviconView.getVisibility());
+
+        // 2. Not Loading
+        mModel.set(TabProperties.IS_LOADING, false);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_LOADING);
+        assertEquals(View.GONE, spinner.getVisibility());
+        assertEquals(View.GONE, mFaviconView.getVisibility());
     }
 }

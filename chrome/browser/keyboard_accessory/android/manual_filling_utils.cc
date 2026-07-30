@@ -12,11 +12,9 @@ namespace autofill {
 AccessorySheetData CreateAccessorySheetData(
     AccessoryTabType type,
     std::u16string user_info_title,
-    std::u16string plus_address_title,
     std::vector<UserInfo> user_info,
     std::vector<FooterCommand> footer_commands) {
-  AccessorySheetData data(type, std::move(user_info_title),
-                          std::move(plus_address_title));
+  AccessorySheetData data(type, std::move(user_info_title));
   for (UserInfo& user_info_item : std::move(user_info)) {
     data.add_user_info(std::move(user_info_item));
   }

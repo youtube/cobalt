@@ -525,7 +525,8 @@ class CORE_EXPORT CSSAnimations final {
 
     void MaybeDispatch(Document::ListenerType,
                        const AtomicString& event_name,
-                       const AnimationTimeDelta& elapsed_time);
+                       const AnimationTimeDelta& elapsed_time,
+                       Animation* animation);
     Member<Element> animation_target_;
     const AtomicString name_;
     Timing::Phase previous_phase_;
@@ -551,7 +552,8 @@ class CORE_EXPORT CSSAnimations final {
 
    private:
     void EnqueueEvent(const AtomicString& type,
-                      const AnimationTimeDelta& elapsed_time);
+                      const AnimationTimeDelta& elapsed_time,
+                      Animation* animation);
 
     const Element& TransitionTarget() const { return *transition_target_; }
     EventTarget* GetEventTarget() const;

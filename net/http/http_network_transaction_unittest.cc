@@ -194,11 +194,11 @@ const char kAlternativeServiceHttpHeader[] =
     "Alt-Svc: h2=\"mail.example.org:443\"\r\n";
 
 constexpr char kStreamRequestSuccessHistogram[] =
-    "Net.NetworkTransaction.StreamRequestCompleteTime3.Success";
+    "Net.NetworkTransaction.StreamRequestCompleteTime4.Success";
 constexpr char kStreamRequestFailureHistogram[] =
-    "Net.NetworkTransaction.StreamRequestCompleteTime3.Failure";
+    "Net.NetworkTransaction.StreamRequestCompleteTime4.Failure";
 constexpr char kStreamRequestH3SuccessHistogram[] =
-    "Net.NetworkTransaction.StreamRequestCompleteTime3.GoogleHost.Success";
+    "Net.NetworkTransaction.StreamRequestCompleteTime4.GoogleHost.Success";
 
 int GetIdleSocketCountInTransportSocketPool(HttpNetworkSession* session) {
   if (base::FeatureList::IsEnabled(features::kHappyEyeballsV3)) {
@@ -13688,7 +13688,10 @@ TEST_P(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
     EXPECT_EQ(kExpectedResponseData[i], response_data);
   }
 
-  histogram_tester_.ExpectTotalCount(kStreamRequestH3SuccessHistogram, 3);
+  // We expect 2 completions: 1 for transaction 1 (GET) and 1 for the first
+  // attempt of transaction 2 (POST). The second attempt of transaction 2
+  // (the retry) is skipped from metrics logging as it is a retry.
+  histogram_tester_.ExpectTotalCount(kStreamRequestH3SuccessHistogram, 2);
 }
 
 // Test the request-challenge-retry sequence for basic auth when there is

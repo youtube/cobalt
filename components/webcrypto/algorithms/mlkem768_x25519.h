@@ -73,6 +73,14 @@ class MlKem768X25519Implementation : public AlgorithmImplementation {
   Status ExportKeyRawSeed(const blink::WebCryptoKey& key,
                           std::vector<uint8_t>* buffer) const;
 
+  Status ImportKeyJwk(base::span<const uint8_t> key_data,
+                      const blink::WebCryptoAlgorithm& algorithm,
+                      bool extractable,
+                      blink::WebCryptoKeyUsageMask usages,
+                      blink::WebCryptoKey* key) const;
+  Status ExportKeyJwk(const blink::WebCryptoKey& key,
+                      std::vector<uint8_t>* buffer) const;
+
   const blink::WebCryptoKeyUsageMask all_public_key_usages_ =
       blink::kWebCryptoKeyUsageEncapsulateKey |
       blink::kWebCryptoKeyUsageEncapsulateBits;

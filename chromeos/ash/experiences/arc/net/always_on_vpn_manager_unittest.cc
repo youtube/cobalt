@@ -20,7 +20,6 @@
 namespace {
 
 constexpr const char kVpnPackage[] = "com.android.vpn";
-const base::Value kVpnPackageValue(kVpnPackage);
 
 void OnGetProperties(bool* success_out,
                      std::string* package_name_out,
@@ -80,7 +79,7 @@ TEST_F(AlwaysOnVpnManagerTest, SetPackageWhileLockdownUnset) {
 
   EXPECT_EQ(std::string(), GetAlwaysOnPackageName());
 
-  pref_service()->Set(arc::prefs::kAlwaysOnVpnPackage, kVpnPackageValue);
+  pref_service()->SetString(arc::prefs::kAlwaysOnVpnPackage, kVpnPackage);
 
   EXPECT_EQ(std::string(), GetAlwaysOnPackageName());
 }
@@ -93,7 +92,7 @@ TEST_F(AlwaysOnVpnManagerTest, SetPackageWhileLockdownTrue) {
 
   EXPECT_EQ(std::string(), GetAlwaysOnPackageName());
 
-  pref_service()->Set(arc::prefs::kAlwaysOnVpnPackage, kVpnPackageValue);
+  pref_service()->SetString(arc::prefs::kAlwaysOnVpnPackage, kVpnPackage);
 
   EXPECT_EQ(kVpnPackage, GetAlwaysOnPackageName());
 
@@ -105,7 +104,7 @@ TEST_F(AlwaysOnVpnManagerTest, SetPackageWhileLockdownTrue) {
 
 TEST_F(AlwaysOnVpnManagerTest, SetPackageThatsAlreadySetAtBoot) {
   pref_service()->Set(arc::prefs::kAlwaysOnVpnLockdown, base::Value(true));
-  pref_service()->Set(arc::prefs::kAlwaysOnVpnPackage, kVpnPackageValue);
+  pref_service()->SetString(arc::prefs::kAlwaysOnVpnPackage, kVpnPackage);
 
   auto always_on_manager = std::make_unique<AlwaysOnVpnManager>(
       pref_service(), /*delay_lockdown_until_vpn_connected=*/false);
@@ -114,7 +113,7 @@ TEST_F(AlwaysOnVpnManagerTest, SetPackageThatsAlreadySetAtBoot) {
 }
 
 TEST_F(AlwaysOnVpnManagerTest, SetLockdown) {
-  pref_service()->Set(arc::prefs::kAlwaysOnVpnPackage, kVpnPackageValue);
+  pref_service()->SetString(arc::prefs::kAlwaysOnVpnPackage, kVpnPackage);
 
   auto always_on_manager = std::make_unique<AlwaysOnVpnManager>(
       pref_service(), /*delay_lockdown_until_vpn_connected=*/false);
@@ -136,7 +135,7 @@ TEST_F(AlwaysOnVpnManagerTest, EnforceAlwaysOnVpnPreConnectUrlAllowlist) {
       pref_service(), /*delay_lockdown_until_vpn_connected=*/false);
 
   pref_service()->Set(arc::prefs::kAlwaysOnVpnLockdown, base::Value(true));
-  pref_service()->Set(arc::prefs::kAlwaysOnVpnPackage, kVpnPackageValue);
+  pref_service()->SetString(arc::prefs::kAlwaysOnVpnPackage, kVpnPackage);
   EXPECT_EQ(kVpnPackage, GetAlwaysOnPackageName());
 
   always_on_manager->SetDelayLockdownUntilVpnConnectedState(/*enabled=*/true);

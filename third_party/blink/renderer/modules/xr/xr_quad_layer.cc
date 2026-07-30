@@ -13,11 +13,12 @@
 
 namespace blink {
 
-XRQuadLayer::XRQuadLayer(const XRQuadLayerInit* init,
+XRQuadLayer::XRQuadLayer(XRSession* session,
+                         const XRQuadLayerInit* init,
                          V8XRLayerLayout::Enum final_layout,
                          XRGraphicsBinding* binding,
                          XRLayerDrawingContext* drawing_context)
-    : XRShapedLayer(init, final_layout, binding, drawing_context),
+    : XRShapedLayer(session, init, final_layout, binding, drawing_context),
       width_(init->width()),
       height_(init->height()) {
   if (init->hasTransform()) {

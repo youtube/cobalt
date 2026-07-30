@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/mailbox_texture_backing.h"
 
+#include "cc/paint/texture_backing.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/mailbox_ref.h"
@@ -49,6 +50,14 @@ const SkImageInfo& MailboxTextureBacking::GetSkImageInfo() {
 
 gpu::Mailbox MailboxTextureBacking::GetMailbox() const {
   return shared_image_->mailbox();
+}
+
+void MailboxTextureBacking::Bind(scoped_refptr<cc::TextureBackingContext>) {
+  // TODO(paint-dev): Do we need to support this for html-in-canvas?
+}
+
+void MailboxTextureBacking::Unbind() {
+  // TODO(paint-dev): Do we need to support this for html-in-canvas?
 }
 
 sk_sp<SkImage> MailboxTextureBacking::GetSkImageViaReadback() {

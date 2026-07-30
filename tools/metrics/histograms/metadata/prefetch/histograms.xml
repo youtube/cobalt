@@ -167,7 +167,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToHeaderDeterminedSuccessfully.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-13">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -184,7 +184,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToInitialEligibility.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-13">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -201,7 +201,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToPrefetchCompletedSuccessfully.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-13">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -218,7 +218,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToPrefetchStarted.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-13">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>
@@ -236,7 +236,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prefetch.PrefetchContainer.AddedToURLRequestStarted.{TriggerTypeAndEagerness}"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-13">
   <owner>taiyo@chromium.org</owner>
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>

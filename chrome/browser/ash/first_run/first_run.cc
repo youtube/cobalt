@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/first_run/first_run.h"
 
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/webui/help_app_ui/help_app_prefs.h"
 #include "base/command_line.h"
@@ -20,7 +21,6 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
@@ -104,7 +104,7 @@ class AppLauncher final : public ProfileObserver {
     params.url = GURL("chrome://help-app?launchSource=first-run");
     params.launch_source = apps::LaunchSource::kFromFirstRun;
     LaunchSystemWebAppAsync(profile_, SystemWebAppType::HELP, params);
-    profile_->GetPrefs()->SetBoolean(prefs::kFirstRunTutorialShown, true);
+    profile_->GetPrefs()->SetBoolean(ash::prefs::kFirstRunTutorialShown, true);
     delete this;
   }
   raw_ptr<Profile> profile_;
@@ -117,7 +117,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // This preference used to be syncable, change it to non-syncable so new
   // users will always see the welcome app on a new device.
   // See crbug.com/41337695
-  registry->RegisterBooleanPref(prefs::kFirstRunTutorialShown, false);
+  registry->RegisterBooleanPref(ash::prefs::kFirstRunTutorialShown, false);
 }
 
 bool ShouldLaunchHelpApp(Profile* profile) {
@@ -162,8 +162,9 @@ bool ShouldLaunchHelpApp(Profile* profile) {
   if (!user_manager->IsCurrentUserNew())
     return false;
 
-  if (profile->GetPrefs()->GetBoolean(prefs::kFirstRunTutorialShown))
+  if (profile->GetPrefs()->GetBoolean(ash::prefs::kFirstRunTutorialShown)) {
     return false;
+  }
 
   if (user_manager->IsCurrentUserNonCryptohomeDataEphemeral())
     return false;

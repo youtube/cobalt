@@ -444,7 +444,7 @@ class ContextualCueingServiceTestZeroStateSuggestions : public testing::Test {
   void SetAccountCapability(bool can_use_model_execution) {
     AccountInfo account_info = identity_test_env_.MakePrimaryAccountAvailable(
         "test@example.com", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(can_use_model_execution);
     identity_test_env_.UpdateAccountInfoForAccount(account_info);
   }

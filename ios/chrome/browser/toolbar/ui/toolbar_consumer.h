@@ -40,8 +40,8 @@ typedef NS_ENUM(NSUInteger, ToolbarButtonType) {
 // Sets whether the toolbar is visible.
 - (void)setVisible:(BOOL)visible;
 
-// Sets whether the current page is the NTP.
-- (void)setNTPVisible:(BOOL)ntpVisible;
+// Sets whether the current page is the NTP and if it is the Start Surface.
+- (void)setNTPVisible:(BOOL)ntpVisible isStartSurface:(BOOL)isStartSurface;
 
 // Sets the context menu for the Toolbar button with `buttonType`.
 - (void)setMenu:(UIMenu*)menu forButtonType:(ToolbarButtonType)buttonType;

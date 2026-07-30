@@ -623,6 +623,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
 
     @After
     public void tearDown() {
+        mCoordinator.hideSheet();
         PrefChangeRegistrarJni.setInstanceForTesting(null);
         UserPrefsJni.setInstanceForTesting(null);
         BNPL_SUGGESTION.getPaymentsPayload().setExtractedAmount(null);

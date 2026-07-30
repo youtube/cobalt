@@ -4,15 +4,17 @@
 
 import {assert, assertNotReachedCase} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
+import {isMac} from 'chrome://resources/js/platform.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {TextAnnotation, TextAttributes, TextBoxRect} from '../constants.js';
 import {TextTypeface} from '../constants.js';
-import {colorsEqual, convertRotatedCoordinates, Ink2Manager, MIN_TEXTBOX_SIZE_PX, stylesEqual} from '../ink2_manager.js';
+import {colorsEqual, Ink2Manager, MIN_TEXTBOX_SIZE_PX, stylesEqual} from '../ink2_manager.js';
 import type {TextBoxInit, ViewportParams} from '../ink2_manager.js';
+import {convertRotatedCoordinates} from '../ink_text_annotation_utils.js';
 import {PdfViewerPrivateProxyImpl} from '../pdf_viewer_private_proxy.js';
-import {colorToHex} from '../pdf_viewer_utils.js';
+import {colorToHex, hasCtrlModifier} from '../pdf_viewer_utils.js';
 
 import {getCss} from './ink_text_box.css.js';
 import {getHtml} from './ink_text_box.html.js';
@@ -29,6 +31,8 @@ export enum TextBoxState {
   NEW = 1,  // Box initialized with an annotation, but user has not made edits.
   EDITED = 2,  // User has edited the annotation (position, text, style).
 }
+
+const KEYBOARD_RESIZE_STEP_PX = 10;
 
 function getStyleForTypeface(typeface: TextTypeface): string {
   switch (typeface) {
@@ -144,15 +148,11 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     const changedPrivateProperties =
         changedProperties as Map<PropertyKey, unknown>;
     if (changedPrivateProperties.has('minHeight_')) {
-      this.height_ = Math.min(
-          this.pageHeight_ + this.pageY_ - this.locationY_,
-          Math.max(this.height_, this.minHeight_));
+      this.height_ = this.getClampedHeight_(this.height_);
     }
 
     if (changedPrivateProperties.has('minWidth_')) {
-      this.width_ = Math.min(
-          this.pageWidth_ + this.pageX_ - this.locationX_,
-          Math.max(this.width_, this.minWidth_));
+      this.width_ = this.getClampedWidth_(this.width_);
     }
 
     if (changedPrivateProperties.has('state_')) {
@@ -332,6 +332,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
                   width: this.width_,
                 },
                 textOrientation: this.textOrientation_,
+                viewportOrientation: this.viewportRotations_,
               };
 
               const result =
@@ -464,10 +465,19 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
       return;
     }
 
-    // Ignore all other keys except arrows. Also ignore if the user is already
-    // dragging with the pointer.
-    if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key) ||
-        this.pointerStart_ !== null) {
+    // Ignore if the user is already dragging with the pointer.
+    if (this.pointerStart_ !== null) {
+      return;
+    }
+
+    if (this.handleResizeShortcut_(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // Ignore all other keys except arrows.
+    if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       return;
     }
 
@@ -478,9 +488,9 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     this.currentArrowKey_ = e.key;
 
     if (this.keyDownCount_ === -1) {
-      this.dragTarget_ = target;
-      this.eventTracker_.add(target, 'keyup', () => this.onHandleKeyUp_());
-      this.eventTracker_.add(target, 'focusout', () => this.onHandleKeyUp_());
+      this.dragTarget_ = this;
+      this.eventTracker_.add(this, 'keyup', () => this.onHandleKeyUp_());
+      this.eventTracker_.add(this, 'focusout', () => this.onHandleKeyUp_());
       this.keyDownCount_ = 0;
       this.startPosition_ = {
         locationX: this.locationX_,
@@ -509,7 +519,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
       default:
         break;
     }
-    this.onMove_(target, moveX, moveY);
+    this.onMove_(this, moveX, moveY);
   }
 
   private onHandleKeyUp_() {
@@ -577,12 +587,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
       this.locationX_ = this.startPosition_.locationX + deltaX;
       this.width_ = this.startPosition_.width - deltaX;
     } else if (target.classList.contains('right')) {
-      const maxDeltaX = this.pageX_ + this.pageWidth_ -
-          (this.startPosition_.locationX + this.startPosition_.width);
-      const deltaX = Math.min(
-          maxDeltaX,
-          Math.max(moveX, -1 * this.startPosition_.width + this.minWidth_));
-      this.width_ = this.startPosition_.width + deltaX;
+      this.width_ = this.getClampedWidth_(this.startPosition_.width + moveX);
     }
     if (target.classList.contains('top')) {
       const deltaY = Math.max(
@@ -591,12 +596,7 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
       this.locationY_ = this.startPosition_.locationY + deltaY;
       this.height_ = this.startPosition_.height - deltaY;
     } else if (target.classList.contains('bottom')) {
-      const maxDeltaY = this.pageHeight_ + this.pageY_ -
-          (this.startPosition_.locationY + this.startPosition_.height);
-      const deltaY = Math.min(
-          maxDeltaY,
-          Math.max(moveY, -1 * this.startPosition_.height + this.minHeight_));
-      this.height_ = this.startPosition_.height + deltaY;
+      this.height_ = this.getClampedHeight_(this.startPosition_.height + moveY);
     }
   }
 
@@ -634,6 +634,92 @@ export class InkTextBoxElement extends InkTextBoxElementBase {
     if (this.state_ !== TextBoxState.INACTIVE) {
       this.updateMinimumSize_();
     }
+  }
+
+  private handleResizeShortcut_(e: KeyboardEvent): boolean {
+    if (this.state_ === TextBoxState.INACTIVE) {
+      return false;
+    }
+
+    const mainModifier = hasCtrlModifier(e);
+    const secondModifier = isMac ? e.ctrlKey : e.altKey;
+
+    if (!mainModifier || !secondModifier || e.shiftKey) {
+      return false;
+    }
+
+    switch (e.key.toLowerCase()) {
+      case 'b':
+        this.resizeBy_(KEYBOARD_RESIZE_STEP_PX, 0);
+        return true;
+      case 'w':
+        this.resizeBy_(-KEYBOARD_RESIZE_STEP_PX, 0);
+        return true;
+      case 'i':
+        this.resizeBy_(0, KEYBOARD_RESIZE_STEP_PX);
+        return true;
+      case '9':
+        this.resizeBy_(0, -KEYBOARD_RESIZE_STEP_PX);
+        return true;
+      case 'k':
+        this.resizeProportionally_(1.1);
+        return true;
+      case 'j':
+        this.resizeProportionally_(0.9);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Changes the size of the textbox by deltaX px horizontally and deltaY px
+   * vertically.
+   */
+  private resizeBy_(deltaX: number, deltaY: number) {
+    const newWidth = this.getClampedWidth_(this.width_ + deltaX);
+    const newHeight = this.getClampedHeight_(this.height_ + deltaY);
+
+    if (newWidth !== this.width_ || newHeight !== this.height_) {
+      this.width_ = newWidth;
+      this.height_ = newHeight;
+      this.textBoxEdited_();
+    }
+  }
+
+  private resizeProportionally_(scale: number) {
+    const clampedScale = scale > 1 ?
+        Math.min(
+            scale, this.getMaxWidth_() / this.width_,
+            this.getMaxHeight_() / this.height_) :
+        Math.max(
+            scale, this.minWidth_ / this.width_,
+            this.minHeight_ / this.height_);
+
+    const newWidth = Math.round(this.width_ * clampedScale);
+    const newHeight = Math.round(this.height_ * clampedScale);
+
+    if (newWidth !== this.width_ || newHeight !== this.height_) {
+      this.width_ = newWidth;
+      this.height_ = newHeight;
+      this.textBoxEdited_();
+    }
+  }
+
+  private getMaxWidth_(): number {
+    return this.pageWidth_ + this.pageX_ - this.locationX_;
+  }
+
+  private getMaxHeight_(): number {
+    return this.pageHeight_ + this.pageY_ - this.locationY_;
+  }
+
+  private getClampedWidth_(width: number): number {
+    return Math.min(this.getMaxWidth_(), Math.max(this.minWidth_, width));
+  }
+
+  private getClampedHeight_(height: number): number {
+    return Math.min(this.getMaxHeight_(), Math.max(this.minHeight_, height));
   }
 }
 

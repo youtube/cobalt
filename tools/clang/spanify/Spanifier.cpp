@@ -525,6 +525,11 @@ void EmitEdge(const std::string& lhs, const std::string& rhs) {
   Emit(llvm::formatv("e {0} {1}\n", lhs, rhs));
 }
 
+// Emits an exclusion edge to prevent a node entirely from being rewritten.
+void EmitExclusion(const std::string& node) {
+  EmitEdge(node, "global_exclude");
+}
+
 // Emits a source node.
 //
 // A source node is a node that triggers the rewrite. All rewrites will start
@@ -672,6 +677,23 @@ clang::SourceRange GetExprRange(const clang::Expr& expr,
             ToSpellingLoc(call_expr->getRParenLoc()).getLocWithOffset(1)};
   }
 
+  if (const auto* cast_expr = clang::dyn_cast<clang::ImplicitCastExpr>(&expr)) {
+    // Unwrap implicit casts to find the range of the underlying expression.
+    //
+    // This prevents assertion crashes (`begin_location == end_location`) that
+    // are triggered when a multi-token expression falls back to the default
+    // single-token check.
+    //
+    // For example, in:
+    //   a += b + get_offset();
+    // where `a` is a pointer and `b` is a short, the RHS `b + get_offset()`
+    // is wrapped in an ImplicitCastExpr (IntegralCast to ptrdiff_t).
+    // Unwrapping it allows us to visit the BinaryOperator `b + get_offset()`
+    // and correctly resolve its range:
+    //   `b + get_offset()`
+    return GetExprRange(*cast_expr->getSubExpr(), source_manager, lang_opts);
+  }
+
   if (auto* binary_op = clang::dyn_cast<clang::BinaryOperator>(&expr)) {
     // Disclaimer: This doesn't support edge cases like following.
     //     #define MY_MACRO(arg) arg
@@ -815,6 +837,37 @@ clang::TypeLoc UnwrapTypedefTypeLoc(clang::TypeLoc type_loc) {
   return type_loc;
 }
 
+bool isConstToken(const clang::Token& tok) {
+  const bool is_const_keyword = tok.is(clang::tok::kw_const);
+  const bool is_raw_identifier_and_const =
+      tok.is(clang::tok::raw_identifier) && tok.getRawIdentifier() == "const";
+  return is_const_keyword || is_raw_identifier_and_const;
+}
+
+bool HasConstNode(const clang::TypeLoc* type_loc,
+                  const clang::SourceManager& source_manager,
+                  const clang::LangOptions& lang_opts) {
+  clang::Token tok;
+  if (!clang::Lexer::getRawToken(type_loc->getBeginLoc(), &tok, source_manager,
+                                 lang_opts, /*KeepWhitespace=*/false)) {
+    if (isConstToken(tok)) {
+      return true;
+    }
+  }
+
+  auto get_next_tok = [&](clang::SourceLocation loc) {
+    return clang::Lexer::findNextToken(loc, source_manager, lang_opts);
+  };
+  for (auto maybe_tok = get_next_tok(type_loc->getBeginLoc());
+       maybe_tok && maybe_tok->getLocation() < type_loc->getEndLoc();
+       maybe_tok = get_next_tok(maybe_tok->getLocation())) {
+    if (isConstToken(*maybe_tok)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::string getNodeFromPointerTypeLoc(const clang::PointerTypeLoc* type_loc,
                                       const MatchFinder::MatchResult& result) {
   const clang::SourceManager& source_manager = *result.SourceManager;
@@ -831,22 +884,34 @@ std::string getNodeFromPointerTypeLoc(const clang::PointerTypeLoc* type_loc,
   // *  `QualifiedTypeLoc` deliberately does not provide source locations
   //    for qualifiers [1].
   //
-  // As a best effort, if we bound `qualified_type_loc`, we abuse the
-  // Lexer to back up one token behind `type_loc`. Take a deep breath
-  // and hope that it's the `const` qualifier.
+  // As a best effort, if the type is const-qualified:
+  // 1. We first check if the `const` keyword is already within the source
+  //    range of `type_loc` (e.g. `const int*` or `int const*`). If it is, the
+  //    range is already correct and we can return it as is.
+  // 2. Otherwise, we abuse the Lexer to back up one token behind `type_loc`.
+  //    Take a deep breath and hope that it's the `const` qualifier. If so, we
+  //    extend the range to include it.
   //
   // [1]
   // https://github.com/llvm/llvm-project/blob/6cf656eca717890a43975c026d0ae34c16c6c455/clang/include/clang/AST/TypeLoc.h#L288
   clang::SourceRange replacement_range = [type_loc, &result, &source_manager,
                                           &lang_opts]() {
-    const auto* qualified_type_loc =
-        result.Nodes.getNodeAs<clang::QualifiedTypeLoc>("qualified_type_loc");
+    const auto qualified_type_loc =
+        type_loc->getPointeeLoc().getAs<clang::QualifiedTypeLoc>();
     clang::SourceRange result = {type_loc->getBeginLoc(),
                                  type_loc->getEndLoc().getLocWithOffset(1)};
-    if (!qualified_type_loc ||
-        !qualified_type_loc->getType().isConstQualified()) {
+    if (qualified_type_loc.isNull() ||
+        !qualified_type_loc.getType().isConstQualified()) {
       return result;
     }
+
+    // If `const` is found within the source range of `type_loc` (e.g.
+    // `const int*` or `int const*`), the default range already includes
+    // the qualifier, so we can return the result as is.
+    if (HasConstNode(type_loc, source_manager, lang_opts)) {
+      return result;
+    }
+
     std::optional<clang::Token> previous_token =
         clang::Lexer::findPreviousToken(type_loc->getBeginLoc(), source_manager,
                                         lang_opts, /*IncludeComments=*/false);
@@ -855,15 +920,15 @@ std::string getNodeFromPointerTypeLoc(const clang::PointerTypeLoc* type_loc,
     if (!previous_token.has_value()) {
       return result;
     }
-    std::string_view hopefully_const_qualifier = clang::Lexer::getSourceText(
-        clang::CharSourceRange::getCharRange(
-            {previous_token->getLocation(), previous_token->getEndLoc()}),
-        source_manager, lang_opts);
-    if (hopefully_const_qualifier != "const") {
+    if (!isConstToken(*previous_token)) {
+      std::string_view actual_previous_qualifier = clang::Lexer::getSourceText(
+          clang::CharSourceRange::getCharRange(
+              {previous_token->getLocation(), previous_token->getEndLoc()}),
+          source_manager, lang_opts);
       // A patch hitting this will likely fail to compile.
       llvm::errs() << "WARNING: `getNodeFromPointerTypeLoc()` expected "
                       "`const`, but got: "
-                   << hopefully_const_qualifier << " instead.\n";
+                   << actual_previous_qualifier << " instead.\n";
       return result;
     }
 
@@ -883,6 +948,17 @@ std::string getNodeFromPointerTypeLoc(const clang::PointerTypeLoc* type_loc,
       "{0}<{1}>", GetProject()->GetSpanRelativePath(result), initial_text);
 
   const std::string key = NodeKey(type_loc, source_manager);
+  const clang::QualType& qual_type = type_loc->getType();
+  // TODO(https://crbug.com/501280389): The tool currently cannot correctly
+  // strip trailing array dimensions when rewriting pointer-to-array
+  // declarations (e.g. producing syntax errors like `std::span<int[20]>
+  // p)[20]`). Exclude these declarations until declarator rewriting fully
+  // supports them.
+  if (qual_type->isPointerType() &&
+      qual_type->getPointeeType()->isArrayType()) {
+    EmitExclusion(key);
+    return key;
+  }
   EmitReplacement(key,
                   GetReplacementDirective(replacement_range, replacement_text,
                                           source_manager));
@@ -1002,6 +1078,16 @@ std::string getNodeFromDecl(const clang::DeclaratorDecl* decl,
   // See test: 'tests/chrome/span-template-original.cc' for an example.
   const std::string key =
       NodeKeyFromRange(replacement_range, source_manager, type);
+  // TODO(https://crbug.com/501280389): The tool currently cannot correctly
+  // strip trailing array dimensions when rewriting pointer-to-array
+  // declarations (e.g. producing syntax errors like `std::span<int[20]>
+  // p)[20]`). Exclude these declarations until declarator rewriting fully
+  // supports them.
+  if (qual_type->isPointerType() &&
+      qual_type->getPointeeType()->isArrayType()) {
+    EmitExclusion(key);
+    return key;
+  }
   EmitReplacement(key,
                   GetReplacementDirective(replacement_range, replacement_text,
                                           source_manager));

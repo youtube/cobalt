@@ -316,7 +316,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
                     public void onStartedShowing(@LayoutType int layoutType) {
                         if (layoutType == LayoutType.BROWSING) {
                             setClickable(false);
-                        } else if (layoutType == LayoutType.TAB_SWITCHER) {
+                        } else if (layoutType == LayoutType.HUB) {
                             updateTabSwitcherButtonRipple();
                         }
                     }

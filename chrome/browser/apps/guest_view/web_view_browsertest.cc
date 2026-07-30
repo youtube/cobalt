@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -42,6 +43,7 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/bluetooth/web_bluetooth_test_utils.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
@@ -90,7 +92,9 @@
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/guest_view_manager_factory.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
+#include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_link_manager.h"
+#include "components/omnibox/browser/mock_aim_eligibility_service.h"
 #include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/graph/frame_node.h"
 #include "components/performance_manager/public/performance_manager.h"
@@ -1451,12 +1455,70 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, Shim_TestAllowTransparencyAttribute) {
   TestHelper("testAllowTransparencyAttribute", "web_view/shim", NO_TEST_SERVER);
 }
 
-IN_PROC_BROWSER_TEST_P(WebViewDPITest, Shim_TestAutosizeHeight) {
-  TestHelper("testAutosizeHeight", "web_view/shim", NO_TEST_SERVER);
-}
+constexpr char kAutoSizeUsesScrollWidthForOverflow[] =
+    "AutoSizeUsesScrollWidthForOverflow";
 
-IN_PROC_BROWSER_TEST_P(WebViewSizeTest, Shim_TestAutosizeHeight) {
-  TestHelper("testAutosizeHeight", "web_view/shim", NO_TEST_SERVER);
+class WebViewSizeTestAutosizeHeight
+    : public WebViewTestBase,
+      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+ public:
+  WebViewSizeTestAutosizeHeight() {
+    scoped_feature_list_.InitWithFeatureState(features::kGuestViewMPArch,
+                                              guest_view_mparch_enabled());
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    WebViewTestBase::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(
+        auto_size_uses_scroll_width_for_overflow_enabled()
+            ? ::switches::kEnableBlinkFeatures
+            : ::switches::kDisableBlinkFeatures,
+        kAutoSizeUsesScrollWidthForOverflow);
+    if (use_device_scale_factor()) {
+      command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor,
+                                      base::NumberToString(2.0f));
+    }
+  }
+
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    const auto [mparch_enabled, auto_size_enabled, use_device_scale_factor] =
+        info.param;
+    return base::StringPrintf(
+        "%s_%s_%s", mparch_enabled ? "MPArch" : "InnerWebContents",
+        auto_size_enabled ? "AutoSizeUsesScrollWidthForOverflowEnabled"
+                          : "AutoSizeUsesScrollWidthForOverflowDisabled",
+        use_device_scale_factor ? "DPI" : "DefaultDPI");
+  }
+
+ protected:
+  bool guest_view_mparch_enabled() const { return std::get<0>(GetParam()); }
+
+  bool auto_size_uses_scroll_width_for_overflow_enabled() const {
+    return std::get<1>(GetParam());
+  }
+
+  bool use_device_scale_factor() const { return std::get<2>(GetParam()); }
+
+  const char* test_name() const {
+    return auto_size_uses_scroll_width_for_overflow_enabled()
+               ? "testAutosizeHeightFeatureEnabled"
+               : "testAutosizeHeightFeatureDisabled";
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         WebViewSizeTestAutosizeHeight,
+                         testing::Combine(testing::Bool(),
+                                          testing::Bool(),
+                                          testing::Bool()),
+                         WebViewSizeTestAutosizeHeight::DescribeParams);
+
+IN_PROC_BROWSER_TEST_P(WebViewSizeTestAutosizeHeight, Shim_TestAutosizeHeight) {
+  TestHelper(test_name(), "web_view/shim", NO_TEST_SERVER);
 }
 
 IN_PROC_BROWSER_TEST_P(WebViewDPITest, Shim_TestAutosizeBeforeNavigation) {
@@ -8441,6 +8503,31 @@ class ContextualTasksChannelWebViewTest : public WebViewChannelTest {
     ContextMenuContentTypeWebView::SetChannelForTesting(std::nullopt);
   }
 
+  void SetUpInProcessBrowserTestFixture() override {
+    WebViewChannelTest::SetUpInProcessBrowserTestFixture();
+    create_services_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(
+                base::BindRepeating(&ContextualTasksChannelWebViewTest::
+                                        OnWillCreateBrowserContextServices,
+                                    base::Unretained(this)));
+  }
+
+  virtual void OnWillCreateBrowserContextServices(
+      content::BrowserContext* context) {
+    AimEligibilityServiceFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating([](content::BrowserContext* context)
+                                         -> std::unique_ptr<KeyedService> {
+          auto service =
+              std::make_unique<testing::NiceMock<MockAimEligibilityService>>(
+                  *Profile::FromBrowserContext(context)->GetPrefs(), nullptr,
+                  nullptr, nullptr);
+          ON_CALL(*service, IsAimEligible())
+              .WillByDefault(testing::Return(true));
+          return service;
+        }));
+  }
+
  protected:
   std::optional<version_info::Channel> GetOptionalChannelParam() {
     version_info::Channel channel = GetChannelParam();
@@ -8453,6 +8540,7 @@ class ContextualTasksChannelWebViewTest : public WebViewChannelTest {
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  base::CallbackListSubscription create_services_subscription_;
 };
 
 INSTANTIATE_TEST_SUITE_P(

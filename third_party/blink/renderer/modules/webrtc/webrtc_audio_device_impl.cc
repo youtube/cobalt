@@ -220,7 +220,7 @@ int32_t WebRtcAudioDeviceImpl::Terminate() {
   scoped_refptr<blink::WebRtcAudioRenderer> renderer_to_disconnect;
   {
     base::AutoLock auto_lock(lock_);
-    renderer_to_disconnect = renderer_;
+    renderer_to_disconnect = std::move(renderer_);
     capturers_.clear();
   }
 

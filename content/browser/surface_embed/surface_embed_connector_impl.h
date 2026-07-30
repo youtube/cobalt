@@ -98,7 +98,6 @@ class CONTENT_EXPORT SurfaceEmbedConnectorImpl
   const viz::LocalSurfaceId& GetLocalSurfaceId() override;
   const blink::mojom::ViewportIntersectionState& GetIntersectionState()
       override;
-  uint32_t GetCaptureSequenceNumber() override;
   const gfx::Rect& GetRectInParentViewInDip() override;
   const gfx::Size& GetLocalFrameSizeInDip() override;
   const gfx::Size& GetLocalFrameSizeInPixels() override;
@@ -193,8 +192,6 @@ class CONTENT_EXPORT SurfaceEmbedConnectorImpl
   // process which is set through CSS or scrolling.
   blink::mojom::FrameVisibility visibility_ =
       blink::mojom::FrameVisibility::kRenderedInViewport;
-
-  uint32_t capture_sequence_number_ = 0u;
 
   display::ScreenInfos screen_infos_;
   blink::mojom::ViewportIntersectionState intersection_state_;

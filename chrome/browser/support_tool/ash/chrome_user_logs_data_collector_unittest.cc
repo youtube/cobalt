@@ -19,10 +19,11 @@
 #include "base/test/test_file_util.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/support_tool/data_collector.h"
 #include "chrome/test/base/fake_profile_manager.h"
 #include "chrome/test/base/testing_browser_process.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/browser_context_helper/fake_browser_context_helper_delegate.h"
 #include "components/account_id/account_id.h"
 #include "components/feedback/redaction_tool/pii_types.h"
 #include "components/feedback/redaction_tool/redaction_tool.h"
@@ -96,6 +97,9 @@ class ChromeUserLogsDataCollectorTest : public ::testing::Test {
   }
 
   void SetUp() override {
+    browser_context_helper_ = std::make_unique<ash::BrowserContextHelper>(
+        std::make_unique<ash::FakeBrowserContextHelperDelegate>());
+
     // Allow blocking for testing in this scope for temporary directory
     // creation.
     base::ScopedAllowBlockingForTesting allow_blocking;
@@ -108,6 +112,7 @@ class ChromeUserLogsDataCollectorTest : public ::testing::Test {
 
   void TearDown() override {
     TestingBrowserProcess::GetGlobal()->SetProfileManager(nullptr);
+    browser_context_helper_.reset();
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(temp_dir_.Delete());
   }
@@ -120,7 +125,8 @@ class ChromeUserLogsDataCollectorTest : public ::testing::Test {
   void WriteFakeLogFiles() {
     base::ScopedAllowBlockingForTesting allow_blocking;
     base::FilePath fake_user_profile_dir =
-        ash::ProfileHelper::Get()->GetProfilePathByUserIdHash(fake_user_hash_);
+        ash::BrowserContextHelper::Get()->GetBrowserContextPathByUserIdHash(
+            fake_user_hash_);
     // Create the directory where logs should reside.
     ASSERT_TRUE(base::CreateDirectory(
         fake_user_profile_dir.Append(FILE_PATH_LITERAL("log"))));
@@ -149,6 +155,7 @@ class ChromeUserLogsDataCollectorTest : public ::testing::Test {
 
   content::BrowserTaskEnvironment task_environment_;
   std::string fake_user_hash_;
+  std::unique_ptr<ash::BrowserContextHelper> browser_context_helper_;
   TestingPrefServiceSimple local_state_;
   user_manager::TypedScopedUserManager<user_manager::FakeUserManager>
       fake_user_manager_;

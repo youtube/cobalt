@@ -39,9 +39,7 @@ class LayoutThemeMobile : public LayoutThemeDefault {
 
   String ExtraFullscreenStyleSheet() override;
 
-  Color PlatformTapHighlightColor() const override {
-    return LayoutThemeMobile::kDefaultTapHighlightColor;
-  }
+  Color TapHighlightColor() const override { return kDefaultTapHighlightColor; }
 
   Color PlatformActiveSelectionForegroundColor(
       mojom::blink::ColorScheme color_scheme) const override;

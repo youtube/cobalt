@@ -67,7 +67,7 @@ bool WindowEventContext::HandleLocalEvents(Event& event) {
   event.SetTarget(Target());
   event.SetCurrentTarget(Window());
   if (RelatedTarget())
-    event.SetRelatedTargetIfExists(RelatedTarget());
+    event.SetRelatedTarget(RelatedTarget());
   window_->FireEventListeners(event);
   return true;
 }

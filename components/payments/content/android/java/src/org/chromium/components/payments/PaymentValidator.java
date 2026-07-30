@@ -5,12 +5,14 @@
 package org.chromium.components.payments;
 
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.payments.mojom.PaymentDetails;
 import org.chromium.payments.mojom.PaymentValidationErrors;
 import org.chromium.payments.mojom.SecurePaymentConfirmationRequest;
+import org.chromium.url.Origin;
 
 import java.nio.ByteBuffer;
 
@@ -33,12 +35,14 @@ public class PaymentValidator {
     }
 
     public static @SecurePaymentConfirmationRequestValidationError int
-            validateSecurePaymentConfirmationRequest(SecurePaymentConfirmationRequest request) {
-        if (request == null) {
+            validateSecurePaymentConfirmationRequest(
+                    SecurePaymentConfirmationRequest request, Origin initiatorOrigin) {
+        if (request == null || initiatorOrigin == null) {
             return SecurePaymentConfirmationRequestValidationError.INTERNAL_ERROR;
         }
         return PaymentValidatorJni.get()
-                .validateSecurePaymentConfirmationRequestAndroid(request.serialize());
+                .validateSecurePaymentConfirmationRequestAndroid(
+                        request.serialize(), initiatorOrigin);
     }
 
     @NativeMethods
@@ -48,6 +52,7 @@ public class PaymentValidator {
         boolean validatePaymentValidationErrorsAndroid(ByteBuffer buffer);
 
         @SecurePaymentConfirmationRequestValidationError
-        int validateSecurePaymentConfirmationRequestAndroid(ByteBuffer buffer);
+        int validateSecurePaymentConfirmationRequestAndroid(
+                ByteBuffer buffer, @JniType("url::Origin") Origin initiatorOrigin);
     }
 }

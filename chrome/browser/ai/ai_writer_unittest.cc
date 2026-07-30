@@ -37,6 +37,7 @@
 #include "services/on_device_model/public/cpp/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom.h"
 
@@ -162,6 +163,11 @@ CreateWriterConfig() {
 }
 
 class AIWriterTest : public AITestUtils::AITestBase {
+ public:
+  AIWriterTest() {
+    scoped_feature_list_.InitAndEnableFeature(blink::features::kAIWriterAPI);
+  }
+
  protected:
   optimization_guide::proto::OnDeviceModelExecutionFeatureConfig CreateConfig()
       override {
@@ -224,6 +230,9 @@ class AIWriterTest : public AITestUtils::AITestBase {
     auto result = writer_client.result().Take();
     EXPECT_OK(result);
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(AIWriterTest, CanCreateDefaultOptions) {
@@ -780,7 +789,8 @@ class AIWriterManifestTest : public AITestUtils::AITestManifestBase {
  protected:
   AIWriterManifestTest() {
     scoped_feature_list_.InitWithFeatures(
-        {optimization_guide::kOptimizationGuideManifestBroker,
+        {blink::features::kAIWriterAPI,
+         optimization_guide::kOptimizationGuideManifestBroker,
          on_device_model::features::kOnDeviceModelLitertLmBackend},
         {});
   }

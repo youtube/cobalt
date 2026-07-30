@@ -161,6 +161,137 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_NoTokens) {
   EXPECT_EQ(future.Get(), "");
 }
 
+// Tests that `RetrieveOtp` fails gracefully when the tab is null.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_TabNull) {
+  base::test::TestFuture<std::string> future;
+  service().RetrieveOtp(tabs::TabHandle(), {}, future.GetCallback());
+  EXPECT_EQ(future.Get(), "");
+}
+
+// Tests that `RetrieveOtp` fails gracefully when the OTP service is null.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_ServiceNull) {
+  OneTimeTokenServiceFactory::GetInstance()->SetTestingFactory(
+      profile(), base::BindRepeating(
+                     [](content::BrowserContext* context)
+                         -> std::unique_ptr<KeyedService> { return nullptr; }));
+
+  base::test::TestFuture<std::string> future;
+  service().RetrieveOtp(tab().GetHandle(), {}, future.GetCallback());
+  EXPECT_EQ(future.Get(), "");
+}
+
+// Tests that multiple sequential `RetrieveOtp` calls supersede previous ones,
+// running previous callbacks with an empty string.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_Superseded) {
+  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
+      .WillRepeatedly(Return(std::vector<one_time_tokens::OneTimeToken>{}));
+
+  base::test::TestFuture<std::string> future1;
+  base::test::TestFuture<std::string> future2;
+
+  service().RetrieveOtp(tab().GetHandle(), {}, future1.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), {}, future2.GetCallback());
+
+  EXPECT_EQ(future1.Get(), "");
+}
+
+// Tests that `FillOtp` fails gracefully when the tab is null.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_TabNull) {
+  base::test::TestFuture<bool> future;
+  service().FillOtp(tabs::TabHandle(), {test::MakeFieldGlobalId()}, "123456",
+                    future.GetCallback());
+  EXPECT_FALSE(future.Get());
+}
+
+// Tests that `FillOtp` fails gracefully when the AutofillManager is not
+// available for the given tab.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_AutofillManagerNull) {
+  // Create a separate profile and WebContents that doesn't have the
+  // AutofillClient injected by the test base.
+  TestingProfile other_profile;
+  std::unique_ptr<content::WebContents> other_web_contents =
+      content::WebContentsTester::CreateTestWebContents(&other_profile, nullptr);
+
+  tabs::MockTabInterface other_tab;
+  EXPECT_CALL(other_tab, GetContents())
+      .WillRepeatedly(testing::Return(other_web_contents.get()));
+
+  base::test::TestFuture<bool> future;
+  service().FillOtp(other_tab.GetHandle(), {test::MakeFieldGlobalId()}, "123456",
+                    future.GetCallback());
+
+  EXPECT_FALSE(future.Get());
+}
+
+// Tests that `FillOtp` correctly triggers the filling operation in the
+// `AutofillManager` for a given OTP value and trigger field.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_Success) {
+  FormData form = SeeForm({.fields = {{.server_type = ONE_TIME_CODE}}});
+  FieldGlobalId field_id = form.fields()[0].global_id();
+  const std::string kOtp = "123456";
+
+  base::test::TestFuture<bool> future;
+  service().FillOtp(tab().GetHandle(), {field_id}, kOtp, future.GetCallback());
+
+  // Wait for the asynchronous filling operation to complete and verify success.
+  EXPECT_TRUE(future.Get());
+
+  // Verify that the manager was instructed to fill the correct value into the
+  // field.
+  EXPECT_THAT(last_filled_values(),
+              testing::Contains(testing::Pair(field_id, u"123456")));
+}
+
+// Tests that concurrent calls to `FillOtp` are handled gracefully and the
+// second call is ignored.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_ConcurrentCalls) {
+  FormData form = SeeForm({.fields = {{.server_type = ONE_TIME_CODE}}});
+  FieldGlobalId field_id = form.fields()[0].global_id();
+
+  base::test::TestFuture<bool> future1;
+  service().FillOtp(tab().GetHandle(), {field_id}, "123456",
+                    future1.GetCallback());
+
+  base::test::TestFuture<bool> future2;
+  service().FillOtp(tab().GetHandle(), {field_id}, "654321",
+                    future2.GetCallback());
+
+  EXPECT_FALSE(future2.Get());
+  EXPECT_TRUE(future1.Get());
+}
+
+// Tests that `FillOtp` fails gracefully when the trigger field IDs list is
+// empty.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_EmptyTriggerFields) {
+  base::test::TestFuture<bool> future;
+  service().FillOtp(tab().GetHandle(), {}, "123456", future.GetCallback());
+
+  EXPECT_FALSE(future.Get());
+}
+
+// Tests that `FillOtp` fails gracefully when the trigger field is not found in
+// the autofill manager's cache.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_FieldNotInCache) {
+  base::test::TestFuture<bool> future;
+  service().FillOtp(tab().GetHandle(), {test::MakeFieldGlobalId()}, "123456",
+                    future.GetCallback());
+
+  EXPECT_FALSE(future.Get());
+}
+
+// Tests that `FillOtp` fails gracefully when the form does not contain any
+// valid OTP fields, resulting in empty fill data.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_EmptyFillData) {
+  FormData form = SeeForm({.fields = {{.server_type = NAME_FIRST}}});
+  FieldGlobalId field_id = form.fields()[0].global_id();
+
+  base::test::TestFuture<bool> future;
+  service().FillOtp(tab().GetHandle(), {field_id}, "123456",
+                    future.GetCallback());
+
+  EXPECT_FALSE(future.Get());
+}
+
 }  // namespace
 
 }  // namespace autofill

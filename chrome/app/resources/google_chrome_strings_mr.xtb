@@ -401,6 +401,7 @@
 <translation id="5234764350956374838">डिसमिस करा</translation>
 <translation id="5239627039202700673">तुम्ही मेसेज, दस्तऐवज आणि इतर अ‍ॅप्समधील लिंकवर क्लिक करता, तेव्हा Chrome कधीही वापरा</translation>
 <translation id="5251420635869119124">अतिथी कोणतीही गोष्ट मागे न सोडता Chrome वापरू शकतात.</translation>
+<translation id="5271833978500241046">Chrome मधील Gemini च्या इतर वैशिष्ट्यांसोबत ती वापरा</translation>
 <translation id="5286907366254680517">डिटेक्ट केली</translation>
 <translation id="5320351714793324716">तुम्ही कुकीना अनुमती दिल्यास, Chrome प्रीलोड करताना त्यांचा वापर करू शकते</translation>
 <translation id="5321325624576443340">Google Lens उपलब्‍ध नाही. नंतर पुन्हा प्रयत्न करा.</translation>
@@ -439,15 +440,6 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="569897634095159764">इंटरनेटशी कनेक्ट करता आले नाही. प्रॉक्सी सर्व्हरसाठी ऑथेंटिकेशन आवश्यक आहे.</translation>
 <translation id="5709557627224531708">Chrome ला तुमचा डीफॉल्ट ब्राउझर म्हणून सेट करा</translation>
 <translation id="5719246646468301581">Google Chrome आणि ChromeOS अतिरिक्त सेवा अटी</translation>
-<translation id="5719324992913248873">या कृतीमुळे:
-        <ph name="LINE_BREAKS" />
-          • काही Chrome सेटिंग्ज आणि Chrome शॉर्टकट रीसेट होतील
-        <ph name="LINE_BREAK" />
-          • एक्स्टेंशन बंद होतील
-        <ph name="LINE_BREAK" />
-          • कुकी आणि इतर तात्पुरता साइट डेटा हटवला जाईल
-          <ph name="LINE_BREAKS" />
-          बुकमार्क, इतिहास आणि सेव्ह केलेल्या पासवर्डवर परिणाम होणार नाही.</translation>
 <translation id="5736850870166430177">साइटने तुमचा पासवर्ड चोरण्याचा प्रयत्न केल्यास किंवा तुम्ही हानिकारक फाइल डाउनलोड केल्यास, Chrome कदाचित पेज आशयाच्या भागांसह URLs देखील सुरक्षित ब्राउझिंग ला पाठवेल</translation>
 <translation id="5756509061973259733">या खात्यासह असलेली Chrome प्रोफाइल आधीपासून या डिव्हाइसवर अस्तित्वात आहे</translation>
 <translation id="5759947850379142561">Google Lens वापरून शोधण्यासाठी कोणताही मजकूर किंवा इमेज निवडा अथवा Google Lens मधून बाहेर पडण्यासाठी एस्केप प्रेस करा</translation>
@@ -644,6 +636,7 @@ Google Chrome तुमची सेटिंग्ज पुन्हा मि
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">तुमचा डेटाचे संरक्षण करण्यासाठी, तुम्ही अलीकडील भेट न दिलेल्या साइटवरील परवानग्या Chrome ला काढून टाकू द्या.</translation>
 <translation id="7629695634924605473">तुमचे पासवर्ड कधीही धोक्यात असल्यास, Chrome तुम्हाला कळवते</translation>
+<translation id="7629898584100520089">कौशल्यांसारखे AI प्रयोग तुमच्या Google खाते मध्ये सेव्ह केले जातात आणि Chrome सिंकपासून स्वतंत्रपणे व्यवस्थापित केले जातात</translation>
 <translation id="7641148173327520642">तुमच्या सिस्टीम अ‍ॅडमिनिस्ट्रेटरने <ph name="TARGET_URL_HOSTNAME" /> अ‍ॅक्सेस करण्यासाठी <ph name="ALTERNATIVE_BROWSER_NAME" /> उघडण्याकरिता Google Chrome कॉन्फिगर केले आहे.</translation>
 <translation id="7649070708921625228">मदत</translation>
 <translation id="7651907282515937834">Chrome एंटरप्राइझ लोगो</translation>

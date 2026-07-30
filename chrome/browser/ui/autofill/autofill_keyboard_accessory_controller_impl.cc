@@ -22,6 +22,7 @@
 #include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/autofill/at_memory_suggestion_controller.h"
 #include "chrome/browser/ui/autofill/autofill_keyboard_accessory_view.h"
 #include "chrome/browser/ui/autofill/autofill_popup_view.h"
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_utils.h"
@@ -244,36 +245,24 @@ std::u16string GetAccountEmail(content::WebContents* web_contents) {
 
 }  // namespace
 
-// static
-base::WeakPtr<AutofillSuggestionController>
-AutofillSuggestionController::GetOrCreate(
-    base::WeakPtr<AutofillSuggestionController> previous,
+
+bool AutofillKeyboardAccessoryControllerImpl::MayRecycle(
     base::WeakPtr<AutofillSuggestionDelegate> delegate,
     content::WebContents* web_contents,
-    PopupControllerCommon controller_common,
-    int32_t form_control_ax_id,
-    AutofillSuggestionTriggerSource trigger_source) {
-  // All controllers on Android derive from
-  // `AutofillKeyboardAccessoryControllerImpl`.
-  if (AutofillKeyboardAccessoryControllerImpl* previous_impl =
-          static_cast<AutofillKeyboardAccessoryControllerImpl*>(previous.get());
-      previous_impl && previous_impl->delegate_.get() == delegate.get() &&
-      previous_impl->container_view() == web_contents->GetNativeView() &&
-      previous_impl->GetSuggestionTriggerSource() == trigger_source) {
-    if (previous_impl->self_deletion_weak_ptr_factory_.HasWeakPtrs()) {
-      previous_impl->self_deletion_weak_ptr_factory_.InvalidateWeakPtrs();
-    }
-    previous_impl->controller_common_ = std::move(controller_common);
-    previous_impl->suggestions_.clear();
-    return previous_impl->GetWeakPtr();
-  }
+    AutofillSuggestionTriggerSource trigger_source) const {
+  return delegate_.get() == delegate.get() &&
+         container_view() == web_contents->GetNativeView() &&
+         GetSuggestionTriggerSource() == trigger_source;
+}
 
-  if (previous) {
-    previous->Hide(SuggestionHidingReason::kViewDestroyed);
+void AutofillKeyboardAccessoryControllerImpl::Recycle(
+    PopupControllerCommon controller_common,
+    int32_t form_control_ax_id) {
+  if (self_deletion_weak_ptr_factory_.HasWeakPtrs()) {
+    self_deletion_weak_ptr_factory_.InvalidateWeakPtrs();
   }
-  auto* controller = new AutofillKeyboardAccessoryControllerImpl(
-      delegate, web_contents, std::move(controller_common));
-  return controller->GetWeakPtr();
+  controller_common_ = std::move(controller_common);
+  suggestions_.clear();
 }
 
 AutofillKeyboardAccessoryControllerImpl::
@@ -290,14 +279,6 @@ AutofillKeyboardAccessoryControllerImpl::
 
 void AutofillKeyboardAccessoryControllerImpl::Hide(
     SuggestionHidingReason reason) {
-  // Ignore kEndEditing for @memory sources because showing the bottom sheet
-  // causes focus loss on the text field, which triggers kEndEditing. This
-  // keeps the sheet open.
-  if (IsAtMemoryTriggerSource(trigger_source_) &&
-      reason == SuggestionHidingReason::kEndEditing) {
-    return;
-  }
-
   // For tests, keep open when hiding is due to external stimuli.
   if (keep_popup_open_for_testing_ &&
       (reason == SuggestionHidingReason::kWidgetChanged ||
@@ -411,7 +392,7 @@ void AutofillKeyboardAccessoryControllerImpl::OnSuggestionsChanged() {
 
 void AutofillKeyboardAccessoryControllerImpl::AcceptSuggestion(
     int index,
-    autofill::AutofillMetrics::SuggestionAcceptedMethod accept_method) {
+    AutofillMetrics::SuggestionAcceptedMethod accept_method) {
   // Ignore clicks immediately after the popup was shown. This is to prevent
   // users accidentally accepting suggestions (crbug.com/40058217).
   if (!barrier_for_accepting_.value() && !disable_threshold_for_testing_) {
@@ -580,7 +561,7 @@ const Suggestion& AutofillKeyboardAccessoryControllerImpl::GetSuggestionAt(
 
 FillingProduct AutofillKeyboardAccessoryControllerImpl::GetMainFillingProduct()
     const {
-  return delegate_->GetMainFillingProduct();
+  return suggestions_filling_product_;
 }
 
 AutofillSuggestionTriggerSource
@@ -623,17 +604,6 @@ void AutofillKeyboardAccessoryControllerImpl::Show(
 
   if (IsPointerLocked(web_contents_.get())) {
     Hide(SuggestionHidingReason::kMouseLocked);
-    return;
-  }
-
-  if (IsAtMemoryTriggerSource(trigger_source)) {
-    trigger_source_ = trigger_source;
-    suggestions_filling_product_ = FillingProduct::kAtMemory;
-    if (auto* client =
-            ChromeAutofillClient::FromWebContents(web_contents_.get())) {
-      client->ShowAtMemoryBottomSheet(suggestions);
-    }
-    delegate_->OnSuggestionsShown(suggestions);
     return;
   }
 

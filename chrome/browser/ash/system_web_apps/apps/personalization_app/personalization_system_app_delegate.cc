@@ -105,7 +105,3 @@ bool PersonalizationSystemAppDelegate::ShouldShowInSearchAndShelf() const {
   // Search is implemented by //ash/webui/personalization_app/search.
   return false;
 }
-
-bool PersonalizationSystemAppDelegate::ShouldAnimateThemeChanges() const {
-  return false;
-}

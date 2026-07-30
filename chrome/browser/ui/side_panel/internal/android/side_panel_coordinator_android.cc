@@ -213,6 +213,13 @@ void SidePanelCoordinatorAndroid::Close(SidePanelEntryHideReason hide_reason,
 
 void SidePanelCoordinatorAndroid::OnTabReparented(tabs::TabInterface* tab) {
   SPLOG("OnTabReparented - tab: " << tab);
+
+  if (auto* registry = SidePanelRegistry::From(tab)) {
+    for (auto const& entry : registry->entries()) {
+      entry->ClearCachedView();
+    }
+  }
+
   // In multi-tab windows, when the active tab is reparented out, the source
   // window activates another tab first. This triggers
   // `SidePanelTabListObserverAndroid::OnActiveTabChanged()`, which already
@@ -289,6 +296,20 @@ void SidePanelCoordinatorAndroid::OnWindowResized(JNIEnv* env,
   }
 }
 
+void SidePanelCoordinatorAndroid::Init(JNIEnv* env) {
+  SPLOG("Init");
+  // During tab tear-off (multi-window), a new Activity is created and the
+  // reparented tab is added to the tab model before this coordinator and
+  // its observer are constructed. Consequently, the observer misses the
+  // initial active tab change event. We explicitly trigger it here during
+  // initialization to restore the side panel state for the active tab.
+  if (tabs::TabInterface* active_tab =
+          TabListInterface::From(browser())->GetActiveTab()) {
+    OnActiveTabChanged(/*old_contents=*/nullptr, active_tab->GetContents(),
+                       /*tab_removed_for_deletion=*/false);
+  }
+}
+
 void SidePanelCoordinatorAndroid::Toggle(SidePanelEntryKey key,
                                          SidePanelOpenTrigger open_trigger) {
   SPLOG("Toggle - key: " << key.ToString()
@@ -332,6 +353,15 @@ void SidePanelCoordinatorAndroid::DisableAnimationsForTesting() {  // IN-TEST
 void SidePanelCoordinatorAndroid::SetNoDelaysForTesting(  // IN-TEST
     bool no_delays_for_testing) {
   waiter()->SetNoDelaysForTesting(no_delays_for_testing);  // IN-TEST
+}
+
+SidePanelState SidePanelCoordinatorAndroid::GetStateForTesting() {  // IN-TEST
+  return state_;
+}
+
+int SidePanelCoordinatorAndroid::GetContainerWidthForTesting() {  // IN-TEST
+  return Java_SidePanelCoordinatorAndroidImpl_getContainerWidthForTesting(  // IN-TEST
+      AttachCurrentThread(), java_coordinator());
 }
 
 void SidePanelCoordinatorAndroid::Show(

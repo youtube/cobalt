@@ -329,6 +329,16 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="URL was classified as unsafe."/>
 </enum>
 
+<!-- LINT.IfChange(SafeBrowsingRtDnsResolutionResult) -->
+
+<enum name="SafeBrowsingDnsResolutionResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Timeout"/>
+  <int value="2" label="Error"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/realtime/url_lookup_service_base.h:DnsResolutionResult) -->
+
 <enum name="SafeBrowsingEnhancedProtegoPingType">
   <int value="0" label="UnknownType"/>
   <int value="1" label="None"/>
@@ -593,6 +603,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="HASH_PREFIX_MAP_GENERATION_FAILURE"/>
   <int value="9" label="MIGRATION_FAILURE"/>
   <int value="10" label="PRE_MMAP_MIGRATION_FILE_FORMAT_FAILURE"/>
+  <int value="11" label="V5_TO_V4_MIGRATION_FAILURE"/>
 </enum>
 
 <enum name="SafeBrowsingV4StoreWriteResult">
@@ -612,6 +623,52 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v4_store.h:ApplyUpdateType) -->
+
+<!-- LINT.IfChange(SafeBrowsingV5ApplyUpdateResult) -->
+
+<enum name="SafeBrowsingV5ApplyUpdateResult">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Success"/>
+  <int value="2" label="MmapFailure"/>
+  <int value="3" label="FileSizeNotMultipleOfPrefixSize"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/hash_prefix_list.h:V5ApplyUpdateResult) -->
+
+<!-- LINT.IfChange(SafeBrowsingV5StoreReadResult) -->
+
+<enum name="SafeBrowsingV5StoreReadResult">
+  <int value="0" label="ReadSuccess"/>
+  <int value="1" label="UnexpectedReadFailure"/>
+  <int value="2" label="FileOpenFailure"/>
+  <int value="3" label="FileEmptyFailure"/>
+  <int value="4" label="ProtoParsingFailure"/>
+  <int value="5" label="UnexpectedMagicNumberFailure"/>
+  <int value="6" label="FileVersionIncompatibleFailure"/>
+  <int value="7" label="HashPrefixInfoMissingFailure"/>
+  <int value="8" label="HashPrefixListGenerationFailure"/>
+  <int value="9" label="FileReadFailure"/>
+  <int value="10" label="V4ToV5MigrationFailure"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/sb_store.h:V5StoreReadResult) -->
+
+<!-- LINT.IfChange(V5ToV4MigrationResult) -->
+
+<enum name="SafeBrowsingV5ToV4MigrationResult">
+  <int value="0" label="DiskAlreadyV4"/>
+  <int value="1" label="V5ToV4MigrationSucceeded"/>
+  <int value="2" label="V5StoreNotFound"/>
+  <int value="3" label="ReadV5Failed"/>
+  <int value="4" label="PrefixSizeMismatchFailure"/>
+  <int value="5" label="HashFileMissingFailure"/>
+  <int value="6" label="RenameHashFileFailure"/>
+  <int value="7" label="WriteV4FileFailure"/>
+  <int value="8" label="RenameV4StoreFileFailure"/>
+  <int value="9" label="ProtoSerializationFailure"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v4_store.h:V5ToV4MigrationResult) -->
 
 <enum name="SafetyCheckWarningReason">
   <int value="1" label="Unpublished"/>
@@ -659,6 +716,19 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="FAILED_WRONG_SETTINGS_COUNT"/>
   <int value="8" label="SKIPPED_VERSION_CHECK_EQUAL"/>
 </enum>
+
+<!-- LINT.IfChange(SBHashPrefixWriteError) -->
+
+<enum name="SBHashPrefixWriteError">
+  <int value="0" label="Error writing file to disk"/>
+  <int value="1" label="File size not a multiple of prefix size"/>
+  <int value="2" label="File not found"/>
+  <int value="3" label="File size does not match metadata"/>
+  <int value="4" label="Failed to memory map file"/>
+  <int value="5" label="Memory mapped region has wrong size"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/hash_prefix_container.h:WriteError) -->
 
 <enum name="SBMetricsCollectorEventType">
   <int value="0" label="USER_STATE_DISABLED"/>
@@ -799,18 +869,24 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="UrtUnsafeAndHprtUnsafe"/>
 </enum>
 
-<!-- LINT.IfChange(V4HashPrefixMapWriteError) -->
+<!-- LINT.IfChange(V4ToV5MigrationResult) -->
 
-<enum name="V4HashPrefixMapWriteError">
-  <int value="0" label="Error writing file to disk"/>
-  <int value="1" label="File size not a multiple of prefix size"/>
-  <int value="2" label="File not found"/>
-  <int value="3" label="File size does not match metadata"/>
-  <int value="4" label="Failed to memory map file"/>
-  <int value="5" label="Memory mapped region has wrong size"/>
+<enum name="V4ToV5MigrationResult">
+  <int value="0" label="DiskAlreadyV5"/>
+  <int value="1" label="V4ToV5MigrationSucceeded"/>
+  <int value="2" label="V4StoreNotFound"/>
+  <int value="3" label="ReadV4Failed"/>
+  <int value="4" label="MultipleHashFilesFailure"/>
+  <int value="5" label="PrefixSizeMismatchFailure"/>
+  <int value="6" label="HashFileMissingFailure"/>
+  <int value="7" label="RenameHashFileFailure"/>
+  <int value="8" label="WriteV5FileFailure"/>
+  <int value="9" label="ProtoSerializationFailure"/>
+  <int value="10" label="ExtensionParsingFailure"/>
+  <int value="11" label="RenameV5StoreFileFailure"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/hash_prefix_map.cc:WriteError) -->
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_store.h:V4ToV5MigrationResult) -->
 
 <!-- LINT.IfChange(V5OperationResult) -->
 

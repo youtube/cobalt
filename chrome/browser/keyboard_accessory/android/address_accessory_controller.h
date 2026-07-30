@@ -9,8 +9,6 @@
 #include "chrome/browser/keyboard_accessory/android/accessory_controller.h"
 #include "content/public/browser/web_contents_user_data.h"
 
-class AffiliatedPlusProfilesProvider;
-
 namespace autofill {
 
 // Interface for address-specific keyboard accessory controller between the
@@ -36,11 +34,6 @@ class AddressAccessoryController : public AccessoryController {
   // |AddressAccessoryController::AllowedForWebContents(web_contents)|.
   static AddressAccessoryController* GetOrCreate(
       content::WebContents* web_contents);
-
-  // Adds a plus profiles provider to this controller that is used to generate
-  // the plus profiles section for the frontend.
-  virtual void RegisterPlusProfilesProvider(
-      base::WeakPtr<AffiliatedPlusProfilesProvider> provider) = 0;
 
   // Fetches suggestions and propagates them to the frontend.
   virtual void RefreshSuggestions() = 0;

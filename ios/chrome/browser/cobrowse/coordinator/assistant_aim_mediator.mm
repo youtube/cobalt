@@ -18,11 +18,13 @@
 #import "components/contextual_tasks/public/features.h"
 #import "components/google/core/common/google_util.h"
 #import "components/search_engines/util.h"
+#import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
 #import "ios/chrome/browser/cobrowse/debugger/aim_srp_message_logger.h"
 #import "ios/chrome/browser/cobrowse/model/aim_cobrowse_java_script_feature.h"
 #import "ios/chrome/browser/cobrowse/model/assistant_aim_tab_helper.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_consumer.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_history_item.h"
@@ -32,6 +34,8 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/system_identity.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/web/public/js_messaging/web_frame.h"
@@ -41,24 +45,29 @@
 #import "ios/web/public/web_client.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_delegate_bridge.h"
+#import "ios/web/public/web_state_observer_bridge.h"
 #import "net/base/apple/url_conversions.h"
 #import "third_party/lens_server_proto/aim_communication.pb.h"
+#import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
 
 @interface AssistantAIMMediator () <CRWWebStatePolicyDecider,
                                     CRWWebFramesManagerObserver,
-                                    CRWWebStateDelegate>
+                                    CRWWebStateDelegate,
+                                    CRWWebStateObserver>
 @end
 
 @implementation AssistantAIMMediator {
   std::unique_ptr<web::WebState> _webState;
   std::unique_ptr<web::WebStatePolicyDeciderBridge> _policyDeciderBridge;
   std::unique_ptr<web::WebStateDelegateBridge> _webStateDelegateBridge;
+  std::unique_ptr<web::WebStateObserverBridge> _webStateObserverBridge;
   __weak id<AssistantAIMConsumer> _consumer;
   CobrowseContext* _context;
   id<AssistantContainerCommands> _containerHandler;
   raw_ptr<contextual_tasks::ContextualTasksService> _contextualTasksService;
   raw_ptr<UrlLoadingBrowserAgent> _urlLoader;
+  raw_ptr<CobrowseBrowserAgent> _cobrowseBrowserAgent;
   // Bridge to observe WebFramesManager and detect when the main frame becomes
   // available.
   std::unique_ptr<web::WebFramesManagerObserverBridge>
@@ -70,17 +79,20 @@
   std::optional<std::vector<lens::FeatureCapability>> _capabilities;
   // Logger for AIM SRP messages.
   AimSRPMessageLogger* _logger;
+  // The authentication service.
+  raw_ptr<AuthenticationService> _authenticationService;
 }
 
 @synthesize consumer = _consumer;
 
 - (instancetype)initWithWebState:(std::unique_ptr<web::WebState>)webState
-                         context:(CobrowseContext*)context
+            cobrowseBrowserAgent:(CobrowseBrowserAgent*)cobrowseBrowserAgent
                 containerHandler:
                     (id<AssistantContainerCommands>)containerHandler
           contextualTasksService:
               (contextual_tasks::ContextualTasksService*)contextualTasksService
-                       URLLoader:(UrlLoadingBrowserAgent*)URLLoader {
+                       URLLoader:(UrlLoadingBrowserAgent*)URLLoader
+           authenticationService:(AuthenticationService*)authenticationService {
   self = [super init];
   if (self) {
     DCHECK(webState);
@@ -91,13 +103,26 @@
     _webState->SetUserAgentOverride(
         web::GetWebClient()->GetUserAgent(web::UserAgentType::MOBILE) + " " +
         contextual_tasks::GetContextualTasksUserAgentSuffix());
+    _webStateObserverBridge =
+        std::make_unique<web::WebStateObserverBridge>(self);
+    _webState->AddObserver(_webStateObserverBridge.get());
     _webStateDelegateBridge =
         std::make_unique<web::WebStateDelegateBridge>(self);
     _webState->SetDelegate(_webStateDelegateBridge.get());
-    _context = context;
+    _cobrowseBrowserAgent = cobrowseBrowserAgent;
+    if (_cobrowseBrowserAgent) {
+      _context = _cobrowseBrowserAgent->GetCobrowseContext();
+    }
+    if (!_context) {
+      _context = [CobrowseContext defaultContext];
+      if (_cobrowseBrowserAgent) {
+        _cobrowseBrowserAgent->SetCobrowseContext(_context);
+      }
+    }
     _containerHandler = containerHandler;
     _contextualTasksService = contextualTasksService;
     _urlLoader = URLLoader;
+    _authenticationService = authenticationService;
 
     _webFramesManagerObserverBridge =
         std::make_unique<web::WebFramesManagerObserverBridge>(self);
@@ -123,6 +148,21 @@
   return _logger.events;
 }
 
+- (GURL)loadedURL {
+  return _webState ? _webState->GetLastCommittedURL() : GURL();
+}
+
+- (void)loadURL:(const GURL&)url {
+  if (!experimental_flags::IsOmniboxDebuggingEnabled()) {
+    return;
+  }
+  if (!_webState) {
+    return;
+  }
+  web::NavigationManager::WebLoadParams params(url);
+  _webState->GetNavigationManager()->LoadURLWithParams(params);
+}
+
 - (void)setConsumer:(id<AssistantAIMConsumer>)consumer {
   if (_consumer == consumer) {
     return;
@@ -143,10 +183,16 @@
         ->RemoveObserver(_webFramesManagerObserverBridge.get());
     _webFramesManagerObserverBridge.reset();
   }
+  if (_webState) {
+    _webState->RemoveObserver(_webStateObserverBridge.get());
+  }
   _webState.reset();
   _urlLoader = nullptr;
+  _context = nil;
+  _cobrowseBrowserAgent = nullptr;
   _capabilities = std::nullopt;
   _logger = nil;
+  _authenticationService = nullptr;
 }
 
 #pragma mark - CRWWebStatePolicyDecider
@@ -301,6 +347,8 @@
     [_logger logClientToAimMessage:message];
   }
 
+  [self.consumer displayThread];
+
   // Execute the script in the page via the JavaScriptFeature.
   AimCobrowseJavaScriptFeature::GetInstance()->SendNativeToWeb(_webState.get(),
                                                                message);
@@ -324,6 +372,31 @@
 
 - (void)didSelectHistoryTaskWithId:(NSString*)taskId {
   [self loadHistoryThreadWithTaskId:taskId];
+}
+
+- (void)didTapStartNewThread {
+  _context = [CobrowseContext defaultContext];
+  if (_cobrowseBrowserAgent) {
+    _cobrowseBrowserAgent->SetCobrowseContext(_context);
+  }
+
+  NSString* greeting = l10n_util::GetNSString(
+      IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE_WITHOUT_NAME);
+
+  if (_authenticationService) {
+    id<SystemIdentity> identity = _authenticationService->GetPrimaryIdentity();
+    if (identity.userGivenName.length > 0) {
+      std::u16string userName =
+          base::SysNSStringToUTF16(identity.userGivenName);
+      std::u16string message = l10n_util::GetStringFUTF16(
+          IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE, {userName});
+      greeting = base::SysUTF16ToNSString(message);
+    }
+  }
+
+  [self.consumer setGreetingMessage:greeting];
+  [self loadAIMURL];
+  [self.delegate assistantAIMMediatorDidStartNewThread:self];
 }
 
 #pragma mark - CRWWebFramesManagerObserver
@@ -441,6 +514,27 @@
 
 - (const std::optional<std::vector<lens::FeatureCapability>>&)capabilities {
   return _capabilities;
+}
+
+#pragma mark - CRWWebStateObserver
+
+- (void)webState:(web::WebState*)webState
+    didFinishNavigation:(web::NavigationContext*)navigationContext {
+  CobrowseContext* context =
+      [[CobrowseContext alloc] initWithURL:webState->GetVisibleURL()];
+  if (context.searchQuery) {
+    [_consumer setHeaderTitle:context.searchQuery];
+  } else {
+    [_consumer setHeaderTitle:@""];
+  }
+}
+
+- (void)webStateDestroyed:(web::WebState*)webState {
+  if (_webState) {
+    _webState->RemoveObserver(_webStateObserverBridge.get());
+    _webState.reset();
+  }
+  _webStateObserverBridge.reset();
 }
 
 @end

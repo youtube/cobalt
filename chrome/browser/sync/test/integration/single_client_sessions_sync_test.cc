@@ -120,7 +120,7 @@ class IsIconURLSyncedChecker : public SingleClientStatusChangeChecker {
 
   // StatusChangeChecker implementation.
   bool IsExitConditionSatisfied(std::ostream* os) override {
-    *os << "Waiting for URLs to be commited to the server";
+    *os << "Waiting for URLs to be committed to the server";
     std::vector<sync_pb::SyncEntity> sessions =
         fake_server_->GetSyncEntitiesByDataType(syncer::SESSIONS);
     for (const sync_pb::SyncEntity& entity : sessions) {

@@ -8,9 +8,11 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
@@ -374,6 +376,147 @@ TEST_F(EventLoggerTest, PersistsLoggingCookieFromPostResponse) {
   run_loop.Run();
 
   EXPECT_EQ(persisted_data_->GetRemoteLoggingCookie(), logging_cookie);
+}
+
+namespace {
+
+class FakeNetworkFetcher : public update_client::NetworkFetcher {
+ public:
+  explicit FakeNetworkFetcher(base::OnceClosure on_post_request)
+      : on_post_request_(std::move(on_post_request)) {}
+  ~FakeNetworkFetcher() override = default;
+
+  void PostRequest(
+      const GURL& url,
+      const std::string& post_data,
+      const std::string& content_type,
+      const base::flat_map<std::string, std::string>& post_additional_headers,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      PostRequestCompleteCallback post_request_complete_callback) override {
+    response_started_callback_ = std::move(response_started_callback);
+    post_request_complete_callback_ = std::move(post_request_complete_callback);
+    if (on_post_request_) {
+      std::move(on_post_request_).Run();
+    }
+  }
+
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override {
+    return base::DoNothing();
+  }
+
+  const ResponseStartedCallback& response_started_callback() const {
+    return response_started_callback_;
+  }
+
+  PostRequestCompleteCallback TakeCompleteCallback() {
+    return std::move(post_request_complete_callback_);
+  }
+
+ private:
+  ResponseStartedCallback response_started_callback_;
+  PostRequestCompleteCallback post_request_complete_callback_;
+  base::OnceClosure on_post_request_;
+};
+
+class FakeNetworkFetcherFactory : public update_client::NetworkFetcherFactory {
+ public:
+  explicit FakeNetworkFetcherFactory(
+      std::unique_ptr<update_client::NetworkFetcher> fetcher)
+      : fetcher_(std::move(fetcher)) {}
+
+  std::unique_ptr<update_client::NetworkFetcher> Create() const override {
+    return std::move(fetcher_);
+  }
+
+ protected:
+  ~FakeNetworkFetcherFactory() override = default;
+
+ private:
+  mutable std::unique_ptr<update_client::NetworkFetcher> fetcher_;
+};
+
+class TestConfigurator : public Configurator {
+ public:
+  TestConfigurator(scoped_refptr<UpdaterPrefs> prefs,
+                   scoped_refptr<ExternalConstants> external_constants,
+                   UpdaterScope scope,
+                   scoped_refptr<update_client::NetworkFetcherFactory>
+                       network_fetcher_factory)
+      : Configurator(prefs, external_constants, scope),
+        network_fetcher_factory_(network_fetcher_factory) {}
+
+  scoped_refptr<update_client::NetworkFetcherFactory> GetNetworkFetcherFactory()
+      override {
+    return network_fetcher_factory_;
+  }
+
+ protected:
+  ~TestConfigurator() override = default;
+
+ private:
+  friend class base::RefCountedThreadSafe<TestConfigurator>;
+  scoped_refptr<update_client::NetworkFetcherFactory> network_fetcher_factory_;
+};
+
+}  // namespace
+
+TEST(EventLoggerOutOfOrderTest, CallbacksOutOfOrder) {
+  base::test::TaskEnvironment task_environment;
+  base::RunLoop post_request_run_loop;
+  base::RunLoop complete_run_loop;
+
+  auto fetcher =
+      std::make_unique<FakeNetworkFetcher>(post_request_run_loop.QuitClosure());
+  FakeNetworkFetcher* fetcher_ptr = fetcher.get();
+
+  auto pref = std::make_unique<TestingPrefServiceSimple>();
+  update_client::RegisterPrefs(pref->registry());
+  RegisterPersistedDataPrefs(pref->registry());
+  auto configurator = base::MakeRefCounted<TestConfigurator>(
+      base::MakeRefCounted<UpdaterPrefsImpl>(
+          /*prefs_dir=*/base::FilePath(), /*lock=*/nullptr, std::move(pref)),
+      CreateExternalConstants(), GetUpdaterScopeForTesting(),
+      base::MakeRefCounted<FakeNetworkFetcherFactory>(std::move(fetcher)));
+
+  auto delegate = std::make_unique<RemoteLoggingDelegate>(
+      GetUpdaterScopeForTesting(), GURL("https://example.com/event-logging"),
+      /*is_cloud_managed=*/false, configurator,
+      std::make_unique<base::SimpleTestClock>());
+
+  delegate->DoPostRequest(
+      "request body",
+      base::BindLambdaForTesting([&](std::optional<int> http_status,
+                                     std::optional<std::string> response_body) {
+        complete_run_loop.Quit();
+      }));
+
+  // Wait for PostRequest to be called on sequence.
+  post_request_run_loop.Run();
+
+  ASSERT_NE(fetcher_ptr, nullptr);
+  auto response_started = fetcher_ptr->response_started_callback();
+  auto complete = fetcher_ptr->TakeCompleteCallback();
+
+  ASSERT_FALSE(response_started.is_null());
+  ASSERT_FALSE(complete.is_null());
+
+  // Simulate out-of-order execution: complete first, releasing RefCountedData
+  // ownership in once callback.
+  std::move(complete).Run("response body", 0, "etag", "proof", "cookie", 0);
+
+  // Wait for the completion callback task to execute.
+  complete_run_loop.Run();
+
+  // Then start response. Under the old unique_ptr behavior, this would have
+  // dereferenced a dangling pointer and crashed.
+  response_started.Run(200, 100);
 }
 
 }  // namespace updater

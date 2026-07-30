@@ -18,8 +18,6 @@
 #include "chrome/browser/extensions/external_provider_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/global_error/global_error_waiter.h"
-#include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"

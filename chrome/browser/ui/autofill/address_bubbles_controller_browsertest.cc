@@ -18,6 +18,7 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/autofill/core/common/autofill_test_utils.h"
 #include "content/public/test/browser_test.h"
 
 namespace autofill {
@@ -30,11 +31,9 @@ class AddressBubblesControllerBrowserTest
     : public InProcessBrowserTest,
       public base::test::WithFeatureOverride {
  public:
-  AddressBubblesControllerBrowserTest(): base::test::WithFeatureOverride(
-            features::kAutofillShowBubblesBasedOnPriorities) {
-    scoped_features_.InitAndEnableFeature(
-        autofill::features::kAutofillAddressUserDeclinedSaveSurvey);
-  }
+  AddressBubblesControllerBrowserTest()
+      : base::test::WithFeatureOverride(
+            features::kAutofillShowBubblesBasedOnPriorities) {}
 
   AddressBubblesControllerBrowserTest(
       const AddressBubblesControllerBrowserTest&) = delete;
@@ -53,15 +52,18 @@ class AddressBubblesControllerBrowserTest
   bool IsBubbleManagerEnabled() const { return GetParam(); }
 
  protected:
-  base::test::ScopedFeatureList scoped_features_;
-
-  raw_ptr<content::WebContents> tab_web_contents() const {
+  content::WebContents* tab_web_contents() const {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
   AddressBubblesController* tab_controller() {
     return AddressBubblesController::FromWebContents(tab_web_contents());
   }
+
+ private:
+  test::AutofillBrowserTestEnvironment autofill_test_environment_;
+  base::test::ScopedFeatureList scoped_features_{
+      features::kAutofillAddressUserDeclinedSaveSurvey};
 };
 
 IN_PROC_BROWSER_TEST_P(AddressBubblesControllerBrowserTest,

@@ -39,6 +39,7 @@ source_set("unit_tests") {
     ":crash_handler",
     ":crash_proto",
     "//base/test:test_support",
+    "//components/crash/core/app",
     "//components/gwp_asan/client",
     "//components/gwp_asan/common",
     "//components/gwp_asan/common:crash_keys",
@@ -59,13 +60,8 @@ source_set("unit_tests") {
       "//third_party/crashpad/crashpad/minidump",
       "//third_party/crashpad/crashpad/tools:tool_support",
     ]
-
     if (is_android) {
-      metadata = {
-        shared_libraries = [ "$root_out_dir/libchrome_crashpad_handler.so" ]
-      }
-      deps +=
-          [ "//components/crash/core/app:chrome_crashpad_handler_named_as_so" ]
+      deps += [ "//components/crash/core/app" ]
     }
   }
 }

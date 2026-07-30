@@ -294,6 +294,8 @@ source_set("impl") {
     "//chrome/browser/sync:factories",
     "//chrome/browser/tracing",
     "//chrome/browser/translate",
+    "//chrome/browser/ui:browser_otr_state",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/upgrade_detector",
     "//components/activity_reporter",
@@ -525,6 +527,167 @@ source_set("test_support") {
 
   if (is_chromeos) {
     deps += [ "//chrome/browser/ash/settings" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "chrome_browser_main_extra_parts_metrics_unittest.cc",
+    "chrome_metrics_extensions_helper_unittest.cc",
+    "chrome_metrics_service_accessor_unittest.cc",
+    "chrome_metrics_service_client_unittest.cc",
+    "chrome_metrics_services_manager_client_unittest.cc",
+    "process_memory_metrics_emitter_unittest.cc",
+    "tab_footprint_aggregator_unittest.cc",
+    "tab_stats/tab_stats_data_store_unittest.cc",
+    "tab_stats/tab_stats_tracker_unittest.cc",
+    "variations/chrome_variations_service_client_unittest.cc",
+  ]
+
+  deps = [
+    ":metrics",
+    "//base/test:test_support",
+    "//chrome/browser/ui",
+    "//chrome/test:test_support",
+    "//components/metrics:test_support",
+    "//components/metrics/private_metrics:dwa_recorder",
+    "//components/performance_manager/test_support",
+    "//components/prefs:test_support",
+    "//components/services/paint_preview_compositor/public/mojom",
+    "//components/sync_preferences:test_support",
+    "//components/ukm",
+    "//components/ukm:test_support",
+    "//content/test:test_support",
+    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/actions:actions_headers",
+    "//ui/base:test_support",
+    "//ui/display:test_support",
+  ]
+
+  if (is_win) {
+    sources += [
+      "accessibility_state_provider_win_unittest.cc",
+      "antivirus_metrics_provider_win_unittest.cc",
+      "system_memory_list_metrics_provider_win_unittest.cc",
+      "system_pdh_metrics_provider_win_unittest.cc",
+      "tpm_metrics_provider_win_unittest.cc",
+    ]
+    deps += [
+      "//chrome/services/util_win:lib",
+      "//components/variations",
+      "//ui/accessibility",
+    ]
+  }
+
+  if (is_mac) {
+    sources += [ "google_update_metrics_provider_mac_unittest.cc" ]
+    deps += [
+      "//chrome/browser/updater",
+      "//chrome/browser/updater:test_support",
+      "//chrome/updater:public_sources",
+      "//chrome/updater:public_util",
+    ]
+  }
+
+  if (is_linux) {
+    sources += [ "pressure/pressure_metrics_unittest.cc" ]
+  }
+
+  if (is_android) {
+    sources += [ "chrome_android_metrics_provider_unittest.cc" ]
+    deps += [
+      "//chrome/browser/flags:flags_android",
+      "//chrome/browser/ui/android/tab_model:test_support",
+      "//services/metrics/public/cpp:test_support",
+    ]
+  } else {
+    sources += [
+      "desktop_session_duration/desktop_session_duration_tracker_unittest.cc",
+      "desktop_session_duration/touch_ui_controller_stats_tracker_unittest.cc",
+      "power/battery_discharge_reporter_unittest.cc",
+      "power/power_metrics_reporter_unittest.cc",
+      "power/power_metrics_unittest.cc",
+      "power/process_monitor_unittest.cc",
+      "usage_scenario/chrome_responsiveness_calculator_delegate_unittest.cc",
+      "usage_scenario/system_event_provider_unittest.cc",
+      "usage_scenario/tab_usage_scenario_tracker_unittest.cc",
+      "usage_scenario/usage_scenario_data_store_unittest.cc",
+      "usage_scenario/usage_scenario_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser/metrics/desktop_session_duration",
+      "//chrome/browser/resource_coordinator:test_support",
+      "//chrome/browser/ui:browser_actions",
+      "//chrome/browser/ui:test_support",
+      "//chrome/browser/ui/tabs",
+      "//chrome/browser/ui/tabs:features",
+      "//chrome/browser/ui/tabs:tab_enums",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/tabs:test_support",
+      "//chrome/browser/ui/user_education",
+      "//chrome/test:test_support_ui",
+    ]
+  }
+
+  if (is_chromeos) {
+    sources += [
+      "chrome_metrics_service_client_ash_unittest.cc",
+      "chromeos_metrics_provider_unittest.cc",
+      "per_user_state_manager_chromeos_unittest.cc",
+      "perf/metric_collector_unittest.cc",
+      "perf/metric_provider_unittest.cc",
+      "perf/perf_events_collector_unittest.cc",
+      "perf/perf_output_unittest.cc",
+      "perf/process_type_collector_unittest.cc",
+      "perf/profile_provider_chromeos_unittest.cc",
+      "perf/windowed_incognito_observer_unittest.cc",
+      "structured/arena_event_buffer_unittest.cc",
+      "structured/ash_structured_metrics_recorder_unittest.cc",
+      "structured/cros_events_processor_unittest.cc",
+      "structured/key_data_provider_ash_unittest.cc",
+      "structured/storage_manager_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser/ash/multidevice_setup",
+      "//chrome/browser/prefs",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui/browser_window/test:test_support",
+      "//chrome/browser/unified_consent",
+      "//chromeos/ash/components/login/login_state",
+      "//chromeos/ash/components/system",
+      "//chromeos/ash/services/multidevice_setup/public/cpp",
+      "//chromeos/ash/services/multidevice_setup/public/cpp:test_support",
+      "//chromeos/dbus/power",
+      "//chromeos/dbus/u2f",
+      "//components/metrics/structured:test_support",
+    ]
+  } else {
+    sources += [ "family_link_user_metrics_provider_unittest.cc" ]
+  }
+
+  if (enable_extensions_core) {
+    sources += [ "extensions_metrics_provider_unittest.cc" ]
+    deps += [
+      "//base",
+      "//chrome/browser/extensions",
+      "//chrome/browser/extensions:test_support",
+      "//chrome/browser/profiles:profile",
+      "//components/account_id",
+      "//components/metrics",
+      "//components/metrics:client_info",
+      "//components/user_manager",
+      "//extensions:test_support",
+      "//extensions/browser",
+      "//extensions/common",
+      "//third_party/metrics_proto",
+    ]
+    if (is_chromeos) {
+      deps += [ "//chrome/browser/ash/login/users:test_support" ]
+    }
   }
 }
 

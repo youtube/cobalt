@@ -22,8 +22,7 @@ namespace {
 scoped_refptr<os_crypt_async::Encryptor> GetInstanceSync(
     os_crypt_async::OSCryptAsync* factory) {
   base::test::TestFuture<scoped_refptr<os_crypt_async::Encryptor>> future;
-  factory->GetInstance(future.GetCallback(),
-                       os_crypt_async::Encryptor::Option::kNone);
+  factory->GetInstance(future.GetCallback());
   return future.Take();
 }
 

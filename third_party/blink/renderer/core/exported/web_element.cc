@@ -216,7 +216,7 @@ void WebElement::SelectText(bool select_all) {
       base = extent;
     }
     frame->Selection().SetSelection(
-        SelectionInDOMTree::Builder().SetBaseAndExtent(base, extent).Build(),
+        SelectionInDomTree::Builder().SetBaseAndExtent(base, extent).Build(),
         SetSelectionOptions());
   }
 }

@@ -269,6 +269,7 @@ De lo contrario, lo impedirá tu configuración de privacidad. Permitirá que el
 <translation id="1407135791313364759">Abrir todas</translation>
 <translation id="1408696301184924537">Para que el campo del IBAN se autocomplete la próxima vez, guárdalo en tu cuenta de Google</translation>
 <translation id="1408787208417187241">Grapado triple en la parte superior</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES_IN_GROUP" /> en el grupo <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Los demás usuarios de este dispositivo no verán tu actividad, por lo que podrás navegar de forma más privada. Esto no cambiará la forma de recoger datos empleada por los sitios web que visites y los servicios que utilicen, incluido Google. Se guardarán las descargas, los marcadores y los elementos de la lista de lectura.</translation>
 <translation id="1410941016594047814">Sobre Invite</translation>
 <translation id="1413235258620101697">El CVC de esta tarjeta se cifrará y se guardará en Google Wallet para tramitar las compras más rápido</translation>
@@ -660,6 +661,7 @@ De lo contrario, lo impedirá tu configuración de privacidad. Permitirá que el
 <translation id="2045871135676061132">Sobre personal</translation>
 <translation id="2046951263634619614">Librerías</translation>
 <translation id="2048261947532620704">Traduciendo página</translation>
+<translation id="2055016614992422886">Conversación</translation>
 <translation id="2059166748188874810">Municipio</translation>
 <translation id="2059202684901022309">22x34 pulgadas</translation>
 <translation id="2064568741209980952">Créditos y préstamos</translation>
@@ -3016,6 +3018,7 @@ Para ocultar las opciones de pago aplazado, ve a la <ph name="BEGIN_LINK" />conf
 <translation id="5718601519531438273">Incluye información como pasaportes y carnés de conducir</translation>
 <translation id="5720705177508910913">Usuario actual</translation>
 <translation id="5720895412771013401">Ordenadores</translation>
+<translation id="5721147290164931316">Escanea para iniciar sesión con tu teléfono</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1} y {website_2}}=3{{website_1}, {website_2} y 1 más}other{{website_1}, {website_2} y {more_count} más}}</translation>
 <translation id="572328651809341494">Pestañas recientes</translation>
 <translation id="5723873695528696965">Controlar y reprogramar tus dispositivos MIDI</translation>
@@ -3557,6 +3560,7 @@ Para ocultar las opciones de pago aplazado, ve a la <ph name="BEGIN_LINK" />conf
 <translation id="6550245281449521513">Bloqueo del ratón no permitido</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" /> (novedad)</translation>
 <translation id="6552566579578780089">Pagos</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> de <ph name="NUM_MATCHES_IN_GROUP" /> en el grupo <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Última visita: hace <ph name="NUM_DAYS" /> días</translation>
 <translation id="6556866813142980365">Rehacer</translation>
 <translation id="6557715786897013164">14x17 pulgadas</translation>
@@ -4262,6 +4266,7 @@ Más información:
 <translation id="7646681339175747202">La contraseña que acabas de usar se ha encontrado en una brecha de seguridad de datos. El Gestor de contraseñas de Google te recomienda que cambies tu contraseña ahora.</translation>
 <translation id="7647206758853451655">Calidad de impresión</translation>
 <translation id="7648133459447652947">Para mostrar el cursor, cambia de aplicación, vuelve a cargar la página o vuelve atrás</translation>
+<translation id="764847582138410250">Escanea para iniciar sesión con tu teléfono</translation>
 <translation id="7648527891719919697">Este sitio seguirá bloqueado porque tienes activada la Protección Avanzada en los <ph name="BEGIN_ANDROID_SETTINGS_LINK" />ajustes de Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Más información sobre esta advertencia<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648992873808071793">Almacenar archivos en este dispositivo</translation>
 <translation id="7649070708921625228">Ayuda</translation>

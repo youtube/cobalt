@@ -57,7 +57,7 @@ class MEDIA_EXPORT SineWaveAudioSource
     base::AutoLock auto_lock(lock_);
     return callbacks_;
   }
-  int pos_samples() {
+  size_t pos_samples() {
     base::AutoLock auto_lock(lock_);
     return pos_samples_;
   }

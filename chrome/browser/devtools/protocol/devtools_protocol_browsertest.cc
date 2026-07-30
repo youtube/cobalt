@@ -2465,8 +2465,6 @@ class IsolatedWebMulticastSocketsTest
             .AddPermissionsPolicyWildcard(
                 PermissionsPolicyFeature::kDirectSockets)
             .AddPermissionsPolicyWildcard(
-                PermissionsPolicyFeature::kDirectSocketsPrivate)
-            .AddPermissionsPolicyWildcard(
                 PermissionsPolicyFeature::kLocalNetwork)
             .AddPermissionsPolicyWildcard(
                 PermissionsPolicyFeature::kLoopbackNetwork)

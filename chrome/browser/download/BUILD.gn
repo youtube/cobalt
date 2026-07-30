@@ -331,6 +331,7 @@ source_set("impl") {
       "//chrome/browser/content_index",
       "//chrome/browser/ui/ash/system_web_apps",
       "//chrome/browser/ui/webui/ash/cloud_upload",
+      "//chromeos/ash/components/browser_context_helper",
       "//chromeos/ash/components/dbus/cros_disks",
       "//ui/chromeos/styles:cros_tokens_color_mappings_generator",
     ]
@@ -410,12 +411,24 @@ source_set("status_text_builder_utils") {
 source_set("test_support") {
   testonly = true
 
-  public = [ "download_test_file_activity_observer.h" ]
-  sources = [ "download_test_file_activity_observer.cc" ]
+  public = [
+    "download_test_file_activity_observer.h",
+    "mock_download_core_service.h",
+  ]
+  sources = [
+    "download_test_file_activity_observer.cc",
+    "mock_download_core_service.cc",
+  ]
 
-  public_deps = [ ":download" ]
+  public_deps = [
+    ":download",
+    "//testing/gmock",
+  ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//content/public/browser",
+  ]
 
   if (is_android) {
     public += [ "android/mock_download_controller.h" ]
@@ -429,7 +442,6 @@ source_set("test_support") {
     public_deps += [ "//chrome/test:test_support" ]
     deps += [
       "//chrome/browser/web_applications:web_applications_test_support",
-      "//content/public/browser",
       "//content/test:test_support",
     ]
   }

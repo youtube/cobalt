@@ -184,6 +184,7 @@ void PaintWorkletBasedClip(GraphicsContext& context,
   DCHECK(ClipPathClipper::HasCompositeClipPathAnimation(
       clip_path_owner,
       ClipPathClipper::CompositedStateResolutionType::kReadCache));
+  DCHECK(!dst_rect.IsEmpty());
 
   ClipPathPaintImageGenerator* generator =
       clip_path_owner.GetFrame()->GetClipPathPaintImageGenerator();

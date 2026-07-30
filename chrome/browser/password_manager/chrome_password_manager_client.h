@@ -51,7 +51,7 @@
 #include "chrome/browser/password_manager/android/generated_password_saved_message_delegate.h"
 #include "chrome/browser/password_manager/android/password_manager_error_message_delegate.h"
 #include "chrome/browser/password_manager/android/save_update_password_message_delegate.h"
-#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_password_manager_controller.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/password_manager/core/browser/credential_cache.h"
 #include "components/password_manager/core/browser/first_cct_page_load_passwords_ukm_recorder.h"
@@ -381,8 +381,8 @@ class ChromePasswordManagerClient
         render_frame_host);
   }
 #if BUILDFLAG(IS_ANDROID)
-  void SetTouchToFillControllerForTesting(
-      std::unique_ptr<TouchToFillController> controller) {
+  void SetTouchToFillPasswordManagerControllerForTesting(
+      std::unique_ptr<TouchToFillPasswordManagerController> controller) {
     touch_to_fill_controller_ = std::move(controller);
   }
 
@@ -429,7 +429,8 @@ class ChromePasswordManagerClient
   Profile* GetProfile() const;
 
 #if BUILDFLAG(IS_ANDROID)
-  TouchToFillController* GetOrCreateTouchToFillController();
+  TouchToFillPasswordManagerController*
+  GetOrCreateTouchToFillPasswordManagerController();
 
   void ContinueShowKeyboardReplacingSurface(
       base::WeakPtr<password_manager::PasswordManagerDriver> weak_driver,
@@ -526,16 +527,17 @@ class ChromePasswordManagerClient
   // Holds and facilitates a credential store for each origin in this tab.
   password_manager::CredentialCache credential_cache_;
 
-  // Controller for the Touch To Fill sheet. Created on demand during the first
-  // call to GetOrCreateTouchToFillController().
-  std::unique_ptr<TouchToFillController> touch_to_fill_controller_;
+  // Controller for the Touch To Fill passwords sheet. Created on demand during
+  // the first call to GetOrCreateTouchToFillPasswordManagerController().
+  std::unique_ptr<TouchToFillPasswordManagerController>
+      touch_to_fill_controller_;
 
   // Controller for Android Credential Manager API. Created on demand.
   std::unique_ptr<password_manager::CredManController> cred_man_controller_;
 
   // Controller for CredMan and TouchToFill visibility. Both
-  // `TouchToFillController` and `CredManController` share the same instance to
-  // control their visibility state.
+  // `TouchToFillPasswordManagerController` and `CredManController` share the
+  // same instance to control their visibility state.
   std::unique_ptr<
       password_manager::KeyboardReplacingSurfaceVisibilityController>
       keyboard_replacing_surface_visibility_controller_;

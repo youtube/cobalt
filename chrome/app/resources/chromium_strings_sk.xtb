@@ -117,19 +117,11 @@ Niektoré funkcie nemusia byť k dispozícii a zmeny vykonané v predvoľbách s
 <translation id="2236949375853147973">Moja aktivita</translation>
 <translation id="2238130810669087193">Ak chcete mať adresy a ďalší obsah k dispozícii vo všetkých svojich zariadeniach, prihláste sa do prehliadača Chromium. Táto adresa bude uložená do vášho účtu Google, keď sa prihlásite.</translation>
 <translation id="2241627712206172106">Ak počítač zdieľate s rodinou a priateľmi, môžu v prehliadači Chromium prehliadať oddelene a tiež si ho nastaviť podľa vlastných požiadaviek.</translation>
+<translation id="22571759390241347">Zručnosti v prehliadači Chromium</translation>
 <translation id="2283803047247799269">Prehľadať túto kartu pomocou vyhľadávania podľa obrázkov</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium odporúča pozastaviť kartu, ktorá spomaľuje váš prehliadač}few{Chromium odporúča pozastaviť karty, ktoré spomaľujú váš prehliadač}many{Chromium recommends pausing the tabs slowing your browser}other{Chromium odporúča pozastaviť karty, ktoré spomaľujú váš prehliadač}}</translation>
 <translation id="2307973900865360088">Ponechať v doku</translation>
 <translation id="2313870531055795960">Kontroluje webové adresy podľa zoznamu nebezpečných webov uloženého v prehliadači Chromium. Ak sa vám určitý web pokúsi ukradnúť heslo alebo stiahnete škodlivý súbor, Chromium môže tiež odoslať webové adresy vrátane častí obsahu stránky Bezpečnému prehliadaniu.</translation>
-<translation id="2332076562712130931">Táto akcia:
-          <ph name="LINE_BREAKS" />
-           • resetuje niektoré nastavenia a skratky prehliadača Chromium,
-           <ph name="LINE_BREAK" />
-           • deaktivuje rozšírenia,
-           <ph name="LINE_BREAK" />
-           • odstráni súbory cookie a ostatné dočasné dáta webov.
-            <ph name="LINE_BREAKS" />
-           Záložky, história a uložené heslá nebudú ovplyvnené.</translation>
 <translation id="2343156876103232566">Ak chcete odtiaľto odoslať číslo do svojho telefónu s Androidom, prihláste sa v oboch zariadeniach do prehliadača Chromium.</translation>
 <translation id="2356070529366658676">Opýtať sa</translation>
 <translation id="2359808026110333948">Pokračovať</translation>
@@ -191,6 +183,7 @@ Niektoré funkcie nemusia byť k dispozícii a zmeny vykonané v predvoľbách s
 <translation id="3003694935412297923">Všetky úlohy</translation>
 <translation id="3012615494352020668">{count,plural, =1{Než sa niektoré údaje uložia do vášho účtu Google a začnú používať vo všetkých zariadeniach, musí Chromium overiť vašu totožnosť. Ak sa odhlásite teraz, tieto údaje (1 položka) budú odstránené.}few{Než sa niektoré údaje uložia do vášho účtu Google a začnú používať vo všetkých zariadeniach, musí Chromium overiť vašu totožnosť. Ak sa odhlásite teraz, tieto údaje ({count} položky) budú odstránené.}many{Chromium needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data ({count} items) will be deleted.}other{Než sa niektoré údaje uložia do vášho účtu Google a začnú používať vo všetkých zariadeniach, musí Chromium overiť vašu totožnosť. Ak sa odhlásite teraz, tieto údaje ({count} položiek) budú odstránené.}}</translation>
 <translation id="3013473503895162900">Otvorte <ph name="URL" /> na novej karte v prehliadači Chromium.</translation>
+<translation id="302551344979399011">Inovácie umelej inteligencie, ako sú zručnosti, sa ukladajú do vášho účtu Google a spravujú sa oddelene od synchronizácie prehliadača Chromium</translation>
 <translation id="3032787606318309379">Pridáva sa do prehliadača Chromium...</translation>
 <translation id="3038232873781883849">Čaká sa na inštaláciu…</translation>
 <translation id="3045032126857188731">Preložený jazyk: <ph name="LANGUAGE" /></translation>
@@ -382,6 +375,7 @@ Niektoré funkcie nemusia byť k dispozícii a zmeny vykonané v predvoľbách s
 <translation id="5289287148052354622">Získať aplikáciu Chromium</translation>
 <translation id="5294316920224716406">Pri prehliadaní v režime inkognito vás bude Chromium pred načítaním webu používajúceho nezabezpečené pripojenie upozorňovať</translation>
 <translation id="5313228254328109263">Interná služba Chromium Updater</translation>
+<translation id="5324450571874973775">Používajte ich spolu s ďalšími funkciami Gemini v prehliadači Chromium</translation>
 <translation id="5346389065299425353">Pridajte viac kariet, súborov a nástrojov a spresnite si tak vyhľadávanie</translation>
 <translation id="5348677704241861105">Získajte rýchly prehľad o tomto dokumente a klaďte otázky pomocou Gemini v prehliadači Chromium</translation>
 <translation id="5352264705793813212">Prehliadač Chromium našiel niekoľko bezpečnostných odporúčaní, ktoré by ste si mali pozrieť</translation>
@@ -673,6 +667,7 @@ Prehliadač Chromium nedokáže obnoviť vaše nastavenia.</translation>
 <translation id="8318772038038596122">Ak sa prehliadač Chromium nebude používať <ph name="TIMEOUT_DURATION" />, vaša organizácia ho zavrie.</translation>
 <translation id="8321888067342493336">Uložiť ako obrázok</translation>
 <translation id="8340674089072921962">Účet <ph name="USER_EMAIL_ADDRESS" /> predtým používal Chromium</translation>
+<translation id="8351551329754447960">Zapnúť zručnosti v prehliadači Chromium</translation>
 <translation id="8359544530202147897">Aktualizujte Chromium, aby ste mohli naďalej používať údaje prehliadača Chromium vo svojom účte Google <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Ak chcete v budúcnosti dostávať aktualizácie prehliadača Chromium, budete potrebovať systém Windows 10 alebo novší. Tento počítač používa Windows 8.</translation>
 <translation id="8362914115861174987">Preklad do jazyka</translation>

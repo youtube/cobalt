@@ -53,9 +53,6 @@ struct PLATFORM_EXPORT FontFeatureRange : public FontFeatureValue {
   static void FromFontDescription(const FontDescription&,
                                   Vector<FontFeatureRange, InlineCapacity>&);
 
-  // True if the list is for the initial style.
-  static bool IsInitial(base::span<const FontFeatureRange>);
-
   // This struct has the same size and layout as `hb_feature_t`.
   static const hb_feature_t* ToHarfBuzzData(const FontFeatureRange* features) {
     return reinterpret_cast<const hb_feature_t*>(features);

@@ -64,6 +64,14 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
         }
     }
 
+    @Override
+    public void init() {
+        log(TAG, "init");
+        if (mNativeSidePanelCoordinatorAndroid != 0) {
+            SidePanelCoordinatorAndroidImplJni.get().init(mNativeSidePanelCoordinatorAndroid);
+        }
+    }
+
     @VisibleForTesting
     void createNativePtr(long nativeBrowserWindowPtr) {
         log(TAG, "createNativePtr", nativeBrowserWindowPtr);
@@ -131,6 +139,15 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
         mSidePanelContainerCoordinator.removeContentAndClose(
                 result -> notifyCloseAnimationFinished(null),
                 suppressAnimations || mDisableAnimationsForTesting);
+    }
+
+    @CalledByNativeForTesting
+    private int getContainerWidthForTesting() {
+        View view = mSidePanelContainerCoordinator.getViewForTesting(); // IN-TEST
+        if (view == null || !view.isAttachedToWindow()) {
+            return 0;
+        }
+        return view.getWidth();
     }
 
     private @Nullable Rect createRectFromCoordinates(int x, int y, int width, int height) {
@@ -202,5 +219,13 @@ public final class SidePanelCoordinatorAndroidImpl implements SidePanelCoordinat
          * @param canShowSidePanel Whether the side panel can be shown.
          */
         void onWindowResized(long nativeSidePanelCoordinatorAndroid, boolean canShowSidePanel);
+
+        /**
+         * Initializes the native coordinator and restores the active entry if one exists.
+         *
+         * @param nativeSidePanelCoordinatorAndroid The address of the native {@code
+         *     SidePanelCoordinatorAndroid}.
+         */
+        void init(long nativeSidePanelCoordinatorAndroid);
     }
 }

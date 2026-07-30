@@ -16,6 +16,7 @@
 #include <variant>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
@@ -308,6 +309,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
                               const std::string& http_method,
                               const net::NetworkIsolationKey& key,
                               bool include_credentials) override;
+#if BUILDFLAG(IS_ANDROID)
+  void SetHttpCacheMaxSize(base::ByteSize http_cache_max_size,
+                           bool force_initialization) override;
+#endif  // BUILDFLAG(IS_ANDROID)
   void ClearCorsPreflightCache(
       mojom::ClearDataFilterPtr filter,
       ClearCorsPreflightCacheCallback callback) override;
@@ -411,8 +416,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojo::PendingRemote<mojom::WebSocketAuthenticationHandler> auth_handler,
       mojo::PendingRemote<mojom::TrustedHeaderClient> header_client,
       const std::optional<base::UnguessableToken>& throttling_profile_id,
-      const std::optional<base::UnguessableToken>& network_restrictions_id)
-      override;
+      const base::UnguessableToken& network_restrictions_id) override;
   void CreateWebTransport(
       const GURL& url,
       const url::Origin& origin,
@@ -428,8 +432,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
           url_loader_network_observer,
       mojom::ClientSecurityStatePtr client_security_state,
-      const std::optional<base::UnguessableToken>& network_restrictions_id)
-      override;
+      const base::UnguessableToken& network_restrictions_id) override;
   void CreateNetLogExporter(
       mojo::PendingReceiver<mojom::NetLogExporter> receiver) override;
   void ResolveHost(
@@ -488,7 +491,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const GURL& url,
       mojom::CredentialsMode credentials_mode,
       const net::NetworkAnonymizationKey& network_anonymization_key,
-      const std::optional<base::UnguessableToken>& network_restrictions_id,
+      const base::UnguessableToken& network_restrictions_id,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
       const std::optional<net::ConnectionKeepAliveConfig>& keepalive_config,
       mojo::PendingRemote<mojom::ConnectionChangeObserverClient>

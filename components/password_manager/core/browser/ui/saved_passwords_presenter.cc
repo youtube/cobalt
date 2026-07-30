@@ -202,15 +202,22 @@ bool SavedPasswordsPresenter::RemoveBackupPassword(
 
 void SavedPasswordsPresenter::DeleteAllData(
     base::OnceCallback<void(bool)> success_callback) {
-  // Synchronosly remove all passkeys if they are available.
-  if (passkey_store_) {
-    passkey_store_->DeleteAllPasskeys();
-  }
+  const int stores_count =
+      3 - !profile_store_ - !account_store_ - !passkey_store_;
 
   const auto completion_barrier = base::BarrierCallback<bool>(
-      2 - !profile_store_ - !account_store_,
-      base::BindOnce(&MergeDeleteAllResultsFromPasswordStores)
-          .Then(std::move(success_callback)));
+      stores_count, base::BindOnce(&MergeDeleteAllResultsFromPasswordStores)
+                        .Then(std::move(success_callback)));
+
+  // Synchronously remove all passkeys if they are available and ready.
+  if (passkey_store_) {
+    if (passkey_store_->IsReady()) {
+      passkey_store_->DeleteAllPasskeys();
+      completion_barrier.Run(true);
+    } else {
+      completion_barrier.Run(false);
+    }
+  }
 
   if (account_store_) {
     account_store_->RemoveLoginsCreatedBetween(

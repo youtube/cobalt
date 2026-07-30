@@ -52,7 +52,7 @@ RequestId MultipleRequestPaymentsNetworkInterface::GetDetailsForCreateCard(
   }
   return IssueRequest(std::make_unique<GetDetailsForCreateCardRequest>(
       unique_country_code, details.client_behavior_signals, details.app_locale,
-      std::move(callback), payments::kUploadPaymentMethodBillableServiceNumber,
+      std::move(callback), kUploadPaymentMethodBillableServiceNumber,
       details.billing_customer_number, details.upload_card_source));
 }
 

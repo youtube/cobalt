@@ -31,7 +31,7 @@ PriceFieldParser::PriceFieldParser(FieldAndMatchInfo match)
 
 void PriceFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
-  AddClassification(match_, PRICE, kBasePriceParserScore, field_candidates);
+  AddClassification(match_, PRICE, HeuristicParser::kPrice, field_candidates);
 }
 
 }  // namespace autofill

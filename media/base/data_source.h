@@ -14,8 +14,6 @@
 
 namespace media {
 
-class CrossOriginDataSource;
-
 // Abstracting informational methods into DataSourceInfo allows
 // "meta-datasource" objects like HlsDataSourceProvider to query it's entire
 // set of dependent data sources when calculating the data here.
@@ -69,15 +67,6 @@ class MEDIA_EXPORT DataSource : public DataSourceInfo {
     NONE,
     METADATA,
     AUTO,
-  };
-
-  class MEDIA_EXPORT Factory {
-   public:
-    virtual ~Factory();
-    virtual void Create(const GURL& uri,
-                        CacheMode cache_mode,
-                        EncodingMode encoding_mode,
-                        DataSourceCb cb) = 0;
   };
 
   DataSource();
@@ -144,9 +133,6 @@ class MEDIA_EXPORT DataSource : public DataSourceInfo {
   // sources won't care too much about these events though.
   virtual void OnMediaPlaybackRateChanged(double playback_rate);
   virtual void OnMediaIsPlaying();
-
-  // Gets a CrossOriginDataSource version of |this|, or nullptr if it isn't one.
-  virtual CrossOriginDataSource* GetAsCrossOriginDataSource();
 };
 
 }  // namespace media

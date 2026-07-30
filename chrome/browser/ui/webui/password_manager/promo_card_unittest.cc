@@ -434,18 +434,13 @@ class PromoCardShortcutTest : public WebAppTest {
  public:
   void SetUp() override {
     WebAppTest::SetUp();
-
-    provider_ = web_app::FakeWebAppProvider::Get(profile());
-    provider_->Start();
+    provider()->Start();
   }
 
-  void TearDown() override { WebAppTest::TearDown(); }
-
   PrefService* pref_service() { return profile()->GetPrefs(); }
-  web_app::FakeWebAppProvider* provider() { return provider_; }
-
- private:
-  raw_ptr<web_app::FakeWebAppProvider, DanglingUntriaged> provider_;
+  web_app::FakeWebAppProvider* provider() {
+    return web_app::FakeWebAppProvider::Get(profile());
+  }
 };
 
 TEST_F(PromoCardShortcutTest, NoPromoIfShortcutInstalled) {

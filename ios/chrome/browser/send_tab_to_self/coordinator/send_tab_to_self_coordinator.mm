@@ -98,8 +98,8 @@ void DisplaySendToSelfSnackbar(id<SnackbarCommands> snackbar_handler,
 
 void DisplaySendToSelfSuccessSnackbar(id<SnackbarCommands> snackbar_handler,
                                       std::string_view device_name) {
-  CHECK(
-      base::FeatureList::IsEnabled(send_tab_to_self::kSendTabToSelfPostSendToast));
+  CHECK(base::FeatureList::IsEnabled(
+      send_tab_to_self::kSendTabToSelfPostSendToast));
   // `snackbar_handler` can be nil if the command dispatcher was already
   // destroyed or if no handler was registered for SnackbarCommands.
   if (!snackbar_handler) {
@@ -576,73 +576,80 @@ void OpenManageDevicesTab(CommandDispatcher* dispatcher) {
   }
   switch (*displayReason) {
     case send_tab_to_self::EntryPointDisplayReason::kInformNoTargetDevice:
-    case send_tab_to_self::EntryPointDisplayReason::kOfferFeature: {
-      ProfileIOS* profile = self.profile;
-      send_tab_to_self::SendTabToSelfSyncService* syncService =
-          SendTabToSelfSyncServiceFactory::GetForProfile(profile);
-      // This modal should not be launched in incognito mode where syncService
-      // is undefined.
-      DCHECK(syncService);
-      ChromeAccountManagerService* accountManagerService =
-          ChromeAccountManagerServiceFactory::GetForProfile(profile);
-      DCHECK(accountManagerService);
-      id<SystemIdentity> account =
-          AuthenticationServiceFactory::GetForProfile(profile)
-              ->GetPrimaryIdentity();
-      DCHECK(account) << "The user must be signed in to share a tab";
-      self.sendTabToSelfViewController =
-          [[SendTabToSelfTableViewController alloc]
-              initWithDeviceList:syncService->GetSendTabToSelfModel()
-                                     ->GetTargetDeviceInfoSortedList()
-                        delegate:self
-                   accountAvatar:GetApplicationContext()
-                                     ->GetIdentityAvatarProvider()
-                                     ->GetIdentityAvatar(
-                                         account,
-                                         IdentityAvatarSize::TableViewIcon)
-                    accountEmail:account.userEmail];
-      _navigationController = [[UINavigationController alloc]
-          initWithRootViewController:self.sendTabToSelfViewController];
-
-      _navigationController.transitioningDelegate = self;
-      _navigationController.modalPresentationStyle = UIModalPresentationCustom;
-      [self.baseViewController presentViewController:_navigationController
-                                            animated:YES
-                                          completion:nil];
+    case send_tab_to_self::EntryPointDisplayReason::kOfferFeature:
+      [self showSendTabToSelf];
       break;
-    }
-    case send_tab_to_self::EntryPointDisplayReason::kOfferSignIn: {
-      __weak __typeof(self) weakSelf = self;
-      SigninCoordinatorCompletionCallback completion =
-          ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
-            id<SystemIdentity> completionIdentity) {
-            BOOL succeeded = result == SigninCoordinatorResultSuccess;
-            [weakSelf onSigninCompleteWithCoordinator:coordinator
-                                            succeeded:succeeded];
-          };
-      ChangeProfileContinuationProvider provider = base::BindRepeating(
-          &CreateChangeProfileSendTabToOtherDevice, _url, self.title);
-      void (^prepareChangeProfile)() = ^() {
-        [weakSelf prepareForChangeProfile];
-      };
-
-      SigninContextStyle style = SigninContextStyle::kDefault;
-      signin_metrics::AccessPoint accessPoint =
-          signin_metrics::AccessPoint::kSendTabToSelfPromo;
-      _signinCoordinator = [SigninCoordinator
-          consistencyPromoSigninCoordinatorWithBaseViewController:
-              self.baseViewController
-                                                          browser:self.browser
-                                                     contextStyle:style
-                                                      accessPoint:accessPoint
-                                             prepareChangeProfile:
-                                                 prepareChangeProfile
-                                             continuationProvider:provider];
-      _signinCoordinator.signinCompletion = completion;
-      [_signinCoordinator start];
+    case send_tab_to_self::EntryPointDisplayReason::kOfferSignIn:
+      [self showSigninPromo];
       break;
-    }
   }
+}
+
+// Shows the send-tab-to-self sheet, either asking the user to pick a target
+// device, or informing them that there are no target devices.
+- (void)showSendTabToSelf {
+  ProfileIOS* profile = self.profile;
+  send_tab_to_self::SendTabToSelfSyncService* syncService =
+      SendTabToSelfSyncServiceFactory::GetForProfile(profile);
+  // This modal should not be launched in incognito mode where syncService
+  // is undefined.
+  DCHECK(syncService);
+  ChromeAccountManagerService* accountManagerService =
+      ChromeAccountManagerServiceFactory::GetForProfile(profile);
+  DCHECK(accountManagerService);
+  id<SystemIdentity> account =
+      AuthenticationServiceFactory::GetForProfile(profile)
+          ->GetPrimaryIdentity();
+  DCHECK(account) << "The user must be signed in to share a tab";
+
+  self.sendTabToSelfViewController = [[SendTabToSelfTableViewController alloc]
+      initWithDeviceList:syncService->GetSendTabToSelfModel()
+                             ->GetTargetDeviceInfoSortedList()
+                delegate:self
+           accountAvatar:GetApplicationContext()
+                             ->GetIdentityAvatarProvider()
+                             ->GetIdentityAvatar(
+                                 account, IdentityAvatarSize::TableViewIcon)
+            accountEmail:account.userEmail];
+  _navigationController = [[UINavigationController alloc]
+      initWithRootViewController:self.sendTabToSelfViewController];
+  _navigationController.transitioningDelegate = self;
+  _navigationController.modalPresentationStyle = UIModalPresentationCustom;
+  [self.baseViewController presentViewController:_navigationController
+                                        animated:YES
+                                      completion:nil];
+}
+
+// Shows a signin promo, for the case where the user is not signed in yet and
+// thus can't use send-tab-to-self until they sign in.
+- (void)showSigninPromo {
+  __weak __typeof(self) weakSelf = self;
+  SigninCoordinatorCompletionCallback completion = ^(
+      SigninCoordinator* coordinator, SigninCoordinatorResult result,
+      id<SystemIdentity> completionIdentity) {
+    BOOL succeeded = result == SigninCoordinatorResultSuccess;
+    [weakSelf onSigninCompleteWithCoordinator:coordinator succeeded:succeeded];
+  };
+  ChangeProfileContinuationProvider provider = base::BindRepeating(
+      &CreateChangeProfileSendTabToOtherDevice, _url, self.title);
+  void (^prepareChangeProfile)() = ^() {
+    [weakSelf prepareForChangeProfile];
+  };
+
+  SigninContextStyle style = SigninContextStyle::kDefault;
+  signin_metrics::AccessPoint accessPoint =
+      signin_metrics::AccessPoint::kSendTabToSelfPromo;
+  _signinCoordinator = [SigninCoordinator
+      consistencyPromoSigninCoordinatorWithBaseViewController:
+          self.baseViewController
+                                                      browser:self.browser
+                                                 contextStyle:style
+                                                  accessPoint:accessPoint
+                                         prepareChangeProfile:
+                                             prepareChangeProfile
+                                         continuationProvider:provider];
+  _signinCoordinator.signinCompletion = completion;
+  [_signinCoordinator start];
 }
 
 // Called when the sign-in flow is complete.

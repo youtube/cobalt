@@ -169,8 +169,9 @@ class HSTSPreloadDecoder : public extras::PreloadDecoder {
 
 bool DecodeHSTSPreload(std::string_view search_hostname, PreloadResult* out) {
 #if !BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
-  if (g_hsts_source == nullptr)
+  if (g_hsts_source == nullptr) {
     return false;
+  }
 #endif
   bool found = false;
 
@@ -203,8 +204,9 @@ bool DecodeHSTSPreload(std::string_view search_hostname, PreloadResult* out) {
                   << hostname;
     return false;
   }
-  if (found)
+  if (found) {
     *out = decoder.result();
+  }
   return found;
 }
 
@@ -360,20 +362,30 @@ void TransportSecurityState::UpdatePinList(
     base::Time update_time) {
   pinsets_ = pinsets;
   key_pins_list_last_update_time_ = update_time;
-  host_pins_.emplace();
-  std::map<std::string, PinSet const*> pinset_names_map;
-  for (const auto& pinset : pinsets_) {
-    pinset_names_map[pinset.name()] = &pinset;
-  }
+  auto pinset_names_map = base::MakeFlatMap<std::string_view, const PinSet*>(
+      pinsets_, /*comp=*/{},
+      [](const auto& pinset) -> std::pair<std::string_view, const PinSet*> {
+        return {pinset.name(), &pinset};
+      });
+
+  // host_pins_ is populated once here and only read afterward via find(), so
+  // flat_map (a sorted vector) is preferred over std::map for reduced
+  // per-entry allocation overhead and better cache locality on lookups.
+  // Duplicate hostnames do not occur in the component-delivered pin list.
+  std::vector<std::pair<std::string, std::pair<const PinSet*, bool>>> entries;
+  entries.reserve(host_pins.size());
   for (const auto& pin : host_pins) {
-    if (!pinset_names_map.contains(pin.pinset_name_)) {
+    auto it = pinset_names_map.find(pin.pinset_name_);
+    if (it == pinset_names_map.end()) {
       // This should never happen, but if the component is bad and missing an
       // entry, we will ignore that particular pin.
       continue;
     }
-    host_pins_.value()[pin.hostname_] =
-        std::pair(pinset_names_map[pin.pinset_name_], pin.include_subdomains_);
+    entries.emplace_back(
+        pin.hostname_,
+        std::pair(it->second, pin.include_subdomains_));
   }
+  host_pins_.emplace(std::move(entries));
 }
 
 void TransportSecurityState::AddHSTSInternal(
@@ -383,8 +395,9 @@ void TransportSecurityState::AddHSTSInternal(
     bool include_subdomains) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const std::vector<uint8_t> canonicalized_host = CanonicalizeHost(host);
-  if (canonicalized_host.empty())
+  if (canonicalized_host.empty()) {
     return;
+  }
 
   STSState sts_state;
   // No need to store |sts_state.domain| since it is redundant.
@@ -413,8 +426,9 @@ void TransportSecurityState::AddHPKPInternal(std::string_view host,
                                              const HashValueVector& hashes) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const std::vector<uint8_t> canonicalized_host = CanonicalizeHost(host);
-  if (canonicalized_host.empty())
+  if (canonicalized_host.empty()) {
     return;
+  }
 
   PKPState pkp_state;
   // No need to store |pkp_state.domain| since it is redundant.
@@ -454,8 +468,9 @@ TransportSecurityState::PKPStatus TransportSecurityState::CheckPins(
   }
 
   // Don't report violations for certificates that chain to local roots.
-  if (!is_issued_by_known_root && enable_pkp_bypass_for_local_trust_anchors_)
+  if (!is_issued_by_known_root && enable_pkp_bypass_for_local_trust_anchors_) {
     return PKPStatus::BYPASSED;
+  }
 
   return PKPStatus::VIOLATED;
 }
@@ -464,8 +479,9 @@ bool TransportSecurityState::DeleteDynamicDataForHost(std::string_view host) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const std::vector<uint8_t> canonicalized_host = CanonicalizeHost(host);
-  if (canonicalized_host.empty())
+  if (canonicalized_host.empty()) {
     return false;
+  }
 
   const HashedHost hashed_host = HashHost(canonicalized_host);
   bool deleted = false;
@@ -481,8 +497,9 @@ bool TransportSecurityState::DeleteDynamicDataForHost(std::string_view host) {
     deleted = true;
   }
 
-  if (deleted)
+  if (deleted) {
     DirtyNotify();
+  }
   return deleted;
 }
 
@@ -523,10 +540,11 @@ void TransportSecurityState::DeleteAllDynamicDataBetween(
     ++pkp_iterator;
   }
 
-  if (dirtied && delegate_)
+  if (dirtied && delegate_) {
     delegate_->WriteNow(this, std::move(callback));
-  else
+  } else {
     std::move(callback).Run();
+  }
 }
 
 TransportSecurityState::~TransportSecurityState() {
@@ -536,8 +554,9 @@ TransportSecurityState::~TransportSecurityState() {
 void TransportSecurityState::DirtyNotify() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (delegate_)
+  if (delegate_) {
     delegate_->StateIsDirty(this);
+  }
 }
 
 bool TransportSecurityState::AddHSTSHeader(std::string_view host,
@@ -614,8 +633,9 @@ bool TransportSecurityState::GetStaticSTSState(std::string_view host,
                                                STSState* sts_result) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (!IsBuildTimely())
+  if (!IsBuildTimely()) {
     return false;
+  }
 
   PreloadResult result;
   if (DecodeHSTSPreload(host, &result) &&
@@ -739,8 +759,9 @@ bool TransportSecurityState::GetDynamicSTSState(std::string_view host,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const std::vector<uint8_t> canonicalized_host = CanonicalizeHost(host);
-  if (canonicalized_host.empty())
+  if (canonicalized_host.empty()) {
     return false;
+  }
 
   base::Time current_time(base::Time::Now());
 
@@ -748,8 +769,9 @@ bool TransportSecurityState::GetDynamicSTSState(std::string_view host,
     base::span<const uint8_t> host_sub_chunk =
         base::span(canonicalized_host).subspan(i);
     auto j = enabled_sts_hosts_.find(HashHost(host_sub_chunk));
-    if (j == enabled_sts_hosts_.end())
+    if (j == enabled_sts_hosts_.end()) {
       continue;
+    }
 
     // If the entry is invalid, drop it.
     if (current_time > j->second.expiry) {
@@ -763,8 +785,9 @@ bool TransportSecurityState::GetDynamicSTSState(std::string_view host,
     if (i == 0 || j->second.include_subdomains) {
       std::optional<std::string> dotted_name =
           dns_names_util::NetworkToDottedName(host_sub_chunk);
-      if (!dotted_name)
+      if (!dotted_name) {
         return false;
+      }
 
       *result = j->second;
       result->domain = std::move(dotted_name).value();
@@ -780,8 +803,9 @@ bool TransportSecurityState::GetDynamicPKPState(std::string_view host,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const std::vector<uint8_t> canonicalized_host = CanonicalizeHost(host);
-  if (canonicalized_host.empty())
+  if (canonicalized_host.empty()) {
     return false;
+  }
 
   base::Time current_time(base::Time::Now());
 
@@ -789,8 +813,9 @@ bool TransportSecurityState::GetDynamicPKPState(std::string_view host,
     base::span<const uint8_t> host_sub_chunk =
         base::span(canonicalized_host).subspan(i);
     auto j = enabled_pkp_hosts_.find(HashHost(host_sub_chunk));
-    if (j == enabled_pkp_hosts_.end())
+    if (j == enabled_pkp_hosts_.end()) {
       continue;
+    }
 
     // If the entry is invalid, drop it.
     if (current_time > j->second.expiry) {
@@ -809,8 +834,9 @@ bool TransportSecurityState::GetDynamicPKPState(std::string_view host,
     if (i == 0 || j->second.include_subdomains) {
       std::optional<std::string> dotted_name =
           dns_names_util::NetworkToDottedName(host_sub_chunk);
-      if (!dotted_name)
+      if (!dotted_name) {
         return false;
+      }
 
       *result = j->second;
       result->domain = std::move(dotted_name).value();
@@ -884,8 +910,9 @@ bool TransportSecurityState::PKPState::CheckPublicKeyPins(
   }
 
   // If there are no pins, then any valid chain is acceptable.
-  if (spki_hashes.empty())
+  if (spki_hashes.empty()) {
     return true;
+  }
 
   if (HashesIntersect(spki_hashes, hashes)) {
     return true;

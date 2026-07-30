@@ -5,7 +5,10 @@
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/travel_info_mediator.h"
 
 #import "base/memory/raw_ptr.h"
+#import "base/test/ios/wait_util.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
+#import "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
@@ -14,6 +17,7 @@
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/travel_info_consumer.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -33,12 +37,8 @@ class TravelInfoMediatorTest : public PlatformTest {
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(ios::WebDataServiceFactory::GetInstance(),
                               ios::WebDataServiceFactory::GetDefaultFactory());
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindRepeating(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
 
     profile_ = std::move(builder).Build();
     autofill::EntityDataManager* entity_data_manager =
@@ -194,4 +194,32 @@ TEST_F(TravelInfoMediatorTest, DoesNotCrashOnSetConsumerAfterDisconnect) {
   [mediator_ disconnect];
 
   mediator_.consumer = consumer_;
+}
+
+// Tests that calling `didSelectDeleteEntityItems` removes the entity from the
+// data manager.
+TEST_F(TravelInfoMediatorTest, DidSelectDeleteEntityItemsRemovesEntity) {
+  autofill::EntityInstance instance =
+      autofill::test::GetFlightReservationEntityInstance();
+  autofill::EntityInstance::EntityId entity_id = instance.guid();
+  autofill::EntityDataManager* entity_data_manager =
+      IOSAutofillEntityDataManagerFactory::GetForProfile(profile_.get());
+  entity_data_manager->AddOrUpdateEntityInstance(instance);
+
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, true, ^{
+        return entity_data_manager->GetEntityInstance(entity_id).has_value();
+      }));
+
+  AutofillAIEntityItem* item =
+      [[AutofillAIEntityItem alloc] initWithType:kAutofillAIBaseItemTypeEntity];
+  item.guid = entity_id;
+  item.entityTypeName = instance.type().name();
+
+  [mediator_ didSelectDeleteEntityItems:@[ item ]];
+
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, true, ^{
+        return !entity_data_manager->GetEntityInstance(entity_id).has_value();
+      }));
 }

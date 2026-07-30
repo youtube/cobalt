@@ -59,6 +59,8 @@ std::string_view CallSiteToString(CallTimerState::CallSite call_site) {
       return "ExtractForms";
     case kExtractFormsAndNotifyPasswordAutofillAgent:
       return "ExtractFormsAndNotifyPasswordAutofillAgent";
+    case kFormWithEmailVerificationTokenSubmitted:
+      return "FormWithEmailVerificationTokenSubmitted";
   }
   NOTREACHED();
 }

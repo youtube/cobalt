@@ -6,8 +6,6 @@
 
 #include <utility>
 
-#include "base/base64.h"
-#include "base/hash/sha1.h"
 #include "base/memory/ptr_util.h"
 #include "base/not_fatal_until.h"
 #include "base/trace_event/memory_usage_estimator.h"
@@ -18,72 +16,45 @@
 #include "components/sync/protocol/collaboration_metadata.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
-#include "components/sync/protocol/proto_memory_estimations.h"
 #include "components/sync/protocol/unique_position.pb.h"
 #include "components/version_info/version_info.h"
-#include "google_apis/gaia/gaia_id.h"
 
 namespace syncer {
-
-namespace {
-
-bool MetadataIsValid(const sync_pb::EntityMetadata& metadata) {
-  return !metadata.client_tag_hash().empty() && metadata.has_creation_time() &&
-         metadata.sequence_number() >= metadata.acked_sequence_number();
-}
-
-std::string HashSpecifics(const sync_pb::EntitySpecifics& specifics) {
-  DCHECK_GT(specifics.ByteSizeLong(), 0u);
-  return base::Base64Encode(
-      base::SHA1HashString(specifics.SerializeAsString()));
-}
-
-}  // namespace
 
 std::unique_ptr<ProcessorEntity> ProcessorEntity::CreateNew(
     const std::string& storage_key,
     const ClientTagHash& client_tag_hash,
     const std::string& server_id,
     base::Time creation_time) {
-  // Initialize metadata.
-  sync_pb::EntityMetadata metadata;
-  metadata.set_client_tag_hash(client_tag_hash.value());
-  if (!server_id.empty()) {
-    metadata.set_server_id(server_id);
-  }
-  metadata.set_sequence_number(0);
-  metadata.set_acked_sequence_number(0);
-  metadata.set_server_version(kUncommittedVersion);
-  metadata.set_creation_time(TimeToProtoTime(creation_time));
-  CHECK(MetadataIsValid(metadata));
-
-  return base::WrapUnique(
-      new ProcessorEntity(storage_key, std::move(metadata)));
+  return base::WrapUnique(new ProcessorEntity(
+      storage_key, ProcessorEntityMetadata::CreateNew(
+                       client_tag_hash, server_id, creation_time)));
 }
 
 std::unique_ptr<ProcessorEntity> ProcessorEntity::CreateFromMetadata(
     const std::string& storage_key,
     sync_pb::EntityMetadata metadata) {
   DCHECK(!storage_key.empty());
-  if (!MetadataIsValid(metadata)) {
+  std::unique_ptr<ProcessorEntityMetadata> entity_metadata =
+      ProcessorEntityMetadata::FromProto(std::move(metadata));
+  if (!entity_metadata) {
     return nullptr;
   }
   return base::WrapUnique(
-      new ProcessorEntity(storage_key, std::move(metadata)));
+      new ProcessorEntity(storage_key, std::move(*entity_metadata)));
 }
 
 ProcessorEntity::ProcessorEntity(const std::string& storage_key,
-                                 sync_pb::EntityMetadata metadata)
+                                 ProcessorEntityMetadata metadata)
     : storage_key_(storage_key),
       metadata_(std::move(metadata)),
-      commit_requested_sequence_number_(metadata_.acked_sequence_number()) {
-  CHECK(MetadataIsValid(metadata_));
-}
+      commit_requested_sequence_number_(
+          metadata_.proto().acked_sequence_number()) {}
 
 ProcessorEntity::~ProcessorEntity() = default;
 
 ClientTagHash ProcessorEntity::GetClientTagHash() const {
-  return ClientTagHash::FromHashed(metadata_.client_tag_hash());
+  return metadata_.GetClientTagHash();
 }
 
 void ProcessorEntity::SetStorageKey(const std::string& storage_key) {
@@ -100,12 +71,12 @@ void ProcessorEntity::SetCommitData(std::unique_ptr<EntityData> data) {
   DCHECK(data);
   // Update data's fields from metadata.
   data->client_tag_hash =
-      ClientTagHash::FromHashed(metadata_.client_tag_hash());
-  if (!metadata_.server_id().empty()) {
-    data->id = metadata_.server_id();
+      ClientTagHash::FromHashed(metadata().client_tag_hash());
+  if (!metadata().server_id().empty()) {
+    data->id = metadata().server_id();
   }
-  data->creation_time = ProtoTimeToTime(metadata_.creation_time());
-  data->modification_time = ProtoTimeToTime(metadata_.modification_time());
+  data->creation_time = ProtoTimeToTime(metadata().creation_time());
+  data->modification_time = ProtoTimeToTime(metadata().modification_time());
 
   commit_data_ = std::move(data);
   // TODO(crbug.com/408182457): This DCHECK is sometimes violated for SESSIONS.
@@ -117,75 +88,60 @@ bool ProcessorEntity::HasCommitData() const {
 }
 
 bool ProcessorEntity::MatchesData(const EntityData& data) const {
-  if (metadata_.is_deleted()) {
-    return data.is_deleted();
-  }
-  if (data.is_deleted()) {
-    return false;
-  }
-  // Do not check for unique position changes explicitly because they are
-  // supposed to be in specifics.
-  return MatchesSpecificsHash(data.specifics);
+  return metadata_.MatchesData(data);
 }
 
 bool ProcessorEntity::MatchesOwnBaseData() const {
-  DCHECK(IsUnsynced());
-  if (metadata_.is_deleted()) {
-    return false;
-  }
-  DCHECK(!metadata_.specifics_hash().empty());
-  return metadata_.specifics_hash() == metadata_.base_specifics_hash();
+  return metadata_.MatchesOwnBaseData();
 }
 
 bool ProcessorEntity::MatchesBaseData(const EntityData& data) const {
-  DCHECK(IsUnsynced());
-  if (data.is_deleted() || metadata_.base_specifics_hash().empty()) {
-    return false;
-  }
-  return HashSpecifics(data.specifics) == metadata_.base_specifics_hash();
+  return metadata_.MatchesBaseData(data);
 }
 
 bool ProcessorEntity::IsUnsynced() const {
-  return metadata_.sequence_number() > metadata_.acked_sequence_number();
+  return metadata_.IsUnsynced();
 }
 
 bool ProcessorEntity::IsUnsyncedLocalCreation() const {
-  // `kUncommittedVersion` implies that the entity is unsynced but add this
-  // condition for clarity.
-  return metadata_.server_version() == kUncommittedVersion && IsUnsynced();
+  return metadata_.IsUnsyncedLocalCreation();
 }
 
 bool ProcessorEntity::RequiresCommitRequest() const {
-  return metadata_.sequence_number() > commit_requested_sequence_number_;
+  return metadata().sequence_number() > commit_requested_sequence_number_;
 }
 
 bool ProcessorEntity::RequiresCommitData() const {
-  return RequiresCommitRequest() && !HasCommitData() && !metadata_.is_deleted();
+  return RequiresCommitRequest() && !HasCommitData() &&
+         !metadata().is_deleted();
 }
 
 bool ProcessorEntity::CanClearMetadata() const {
-  return metadata_.is_deleted() && !IsUnsynced();
+  return metadata().is_deleted() && !IsUnsynced();
 }
 
 bool ProcessorEntity::IsVersionAlreadyKnown(int64_t update_version) const {
-  return metadata_.server_version() >= update_version;
+  return metadata_.IsVersionAlreadyKnown(update_version);
+}
+
+void ProcessorEntity::UpdateCommitDataAndSequenceAfterRemoteUpdate() {
+  // Either these already matched, acked was just bumped to squash a pending
+  // commit and this should follow, or the pending commit needs to be requeued.
+  commit_requested_sequence_number_ = metadata().acked_sequence_number();
+  // If local change was made while server assigned a new id to the entity,
+  // update id in cached commit data.
+  if (HasCommitData() && commit_data_->id != metadata().server_id()) {
+    DCHECK(commit_data_->id.empty());
+    commit_data_->id = metadata().server_id();
+  }
 }
 
 void ProcessorEntity::RecordIgnoredRemoteUpdate(
     const UpdateResponseData& update) {
-  DCHECK(metadata_.server_id().empty() ||
-         metadata_.server_id() == update.entity.id);
-  metadata_.set_server_id(update.entity.id);
-  metadata_.set_server_version(update.response_version);
-  // Either these already matched, acked was just bumped to squash a pending
-  // commit and this should follow, or the pending commit needs to be requeued.
-  commit_requested_sequence_number_ = metadata_.acked_sequence_number();
-  // If local change was made while server assigned a new id to the entity,
-  // update id in cached commit data.
-  if (HasCommitData() && commit_data_->id != metadata_.server_id()) {
-    DCHECK(commit_data_->id.empty());
-    commit_data_->id = metadata_.server_id();
-  }
+  DCHECK(metadata().server_id().empty() ||
+         metadata().server_id() == update.entity.id);
+  metadata_.RecordIgnoredRemoteUpdate(update);
+  UpdateCommitDataAndSequenceAfterRemoteUpdate();
 }
 
 void ProcessorEntity::RecordAcceptedRemoteUpdate(
@@ -193,35 +149,9 @@ void ProcessorEntity::RecordAcceptedRemoteUpdate(
     sync_pb::EntitySpecifics trimmed_specifics,
     std::optional<sync_pb::UniquePosition> unique_position) {
   DCHECK(!IsUnsynced());
-  RecordIgnoredRemoteUpdate(update);
-  metadata_.set_is_deleted(update.entity.is_deleted());
-  metadata_.set_modification_time(
-      TimeToProtoTime(update.entity.modification_time));
-  if (update.entity.collaboration_metadata.has_value()) {
-    metadata_.mutable_collaboration()->set_collaboration_id(
-        update.entity.collaboration_metadata->collaboration_id().value());
-    if (!update.entity.collaboration_metadata->created_by().empty()) {
-      metadata_.mutable_collaboration()
-          ->mutable_creation_attribution()
-          ->set_obfuscated_gaia_id(
-              update.entity.collaboration_metadata->created_by().ToString());
-    }
-    if (!update.entity.collaboration_metadata->last_updated_by().empty()) {
-      metadata_.mutable_collaboration()
-          ->mutable_last_update_attribution()
-          ->set_obfuscated_gaia_id(
-              update.entity.collaboration_metadata->last_updated_by()
-                  .ToString());
-    }
-  }
-  UpdateSpecificsHash(update.entity.specifics);
-  *metadata_.mutable_possibly_trimmed_base_specifics() =
-      std::move(trimmed_specifics);
-  if (unique_position) {
-    *metadata_.mutable_unique_position() = std::move(unique_position.value());
-  } else {
-    metadata_.clear_unique_position();
-  }
+  metadata_.RecordAcceptedRemoteUpdate(update, std::move(trimmed_specifics),
+                                       std::move(unique_position));
+  UpdateCommitDataAndSequenceAfterRemoteUpdate();
 }
 
 void ProcessorEntity::RecordForcedRemoteUpdate(
@@ -229,162 +159,104 @@ void ProcessorEntity::RecordForcedRemoteUpdate(
     sync_pb::EntitySpecifics trimmed_specifics,
     std::optional<sync_pb::UniquePosition> unique_position) {
   CHECK(IsUnsynced(), base::NotFatalUntil::M141);
-  // There was a conflict and the server just won it. Explicitly ack all
-  // pending commits so they are never enqueued again.
-  metadata_.set_acked_sequence_number(metadata_.sequence_number());
   commit_data_.reset();
-  RecordAcceptedRemoteUpdate(update, std::move(trimmed_specifics),
-                             std::move(unique_position));
+  metadata_.RecordForcedRemoteUpdate(update, std::move(trimmed_specifics),
+                                     std::move(unique_position));
+  UpdateCommitDataAndSequenceAfterRemoteUpdate();
+}
+
+void ProcessorEntity::OverrideServerMetadata(const std::string& server_id,
+                                             int64_t server_version) {
+  metadata_.OverrideServerMetadata(server_id, server_version);
+  if (commit_data_) {
+    commit_data_->id = server_id;
+  }
 }
 
 void ProcessorEntity::RecordLocalUpdate(
     std::unique_ptr<EntityData> data,
     sync_pb::EntitySpecifics trimmed_specifics,
     std::optional<sync_pb::UniquePosition> unique_position) {
-  DCHECK(!metadata_.client_tag_hash().empty());
-
-  // Update metadata fields from updated data.
-  base::Time modification_time = !data->modification_time.is_null()
-                                     ? data->modification_time
-                                     : base::Time::Now();
-
-  // IncrementSequenceNumber should be called before UpdateSpecificHash since
-  // it remembers specifics hash before the modifications.
-  IncrementSequenceNumber(modification_time);
-  UpdateSpecificsHash(data->specifics);
-  *metadata_.mutable_possibly_trimmed_base_specifics() =
-      std::move(trimmed_specifics);
-  if (!data->creation_time.is_null()) {
-    metadata_.set_creation_time(TimeToProtoTime(data->creation_time));
-  }
-
-  // Collaboration metadata is updated only on creation (i.e. for the first
-  // time). Only `last_updated` field can be changed on local updates.
-  if (!metadata_.has_collaboration() &&
-      data->collaboration_metadata.has_value()) {
-    metadata_.mutable_collaboration()->set_collaboration_id(
-        data->collaboration_metadata->collaboration_id().value());
-    metadata_.mutable_collaboration()
-        ->mutable_creation_attribution()
-        ->set_obfuscated_gaia_id(
-            data->collaboration_metadata->created_by().ToString());
-  }
-  if (data->collaboration_metadata.has_value()) {
-    metadata_.mutable_collaboration()
-        ->mutable_last_update_attribution()
-        ->set_obfuscated_gaia_id(
-            data->collaboration_metadata->last_updated_by().ToString());
-
-    // Collaboration ID must never change.
-    CHECK_EQ(metadata_.collaboration().collaboration_id(),
-             data->collaboration_metadata->collaboration_id().value());
-  }
-
-  metadata_.set_modification_time(TimeToProtoTime(modification_time));
-  metadata_.set_is_deleted(false);
-  if (unique_position) {
-    *metadata_.mutable_unique_position() = std::move(unique_position.value());
-  } else {
-    metadata_.clear_unique_position();
-  }
-
-  // SetCommitData will update data's fields from metadata.
+  DCHECK(!metadata().client_tag_hash().empty());
+  metadata_.RecordLocalUpdate(*data, std::move(trimmed_specifics),
+                              unique_position);
   SetCommitData(std::move(data));
 }
 
 bool ProcessorEntity::RecordLocalDeletion(const DeletionOrigin& origin) {
-  IncrementSequenceNumber(base::Time::Now());
-  metadata_.set_modification_time(TimeToProtoTime(base::Time::Now()));
-  metadata_.set_is_deleted(true);
-  metadata_.clear_specifics_hash();
-  metadata_.clear_possibly_trimmed_base_specifics();
-  metadata_.clear_unique_position();
-
-  if (origin.is_specified()) {
-    *metadata_.mutable_deletion_origin() =
-        origin.ToProto(version_info::GetVersionNumber());
-  }
-
-  metadata_.set_deleted_by_version(
-      std::string(version_info::GetVersionNumber()));
-
-  // Clear any cached pending commit data.
   commit_data_.reset();
+  metadata_.RecordLocalDeletion(origin);
   // Return true if server might know about this entity.
   // TODO(crbug.com/41329567): This check will prevent sending tombstone in
   // situation when it should have been sent under following conditions:
-  //  - Original centity was committed to server, but client crashed before
+  //  - Original entity was committed to server, but client crashed before
   //    receiving response.
   //  - Entity was deleted while client was offline.
   // Correct behavior is to send tombstone anyway, but the legacy Directory
   // implementation doesn't and it is unclear how server will react to such
   // tombstones. Change the behavior to always sending tombstone after
   // experimenting with server.
-  return (metadata_.server_version() != kUncommittedVersion) ||
+  return (metadata_.proto().server_version() != kUncommittedVersion) ||
          (commit_requested_sequence_number_ >
-          metadata_.acked_sequence_number());
+          metadata_.proto().acked_sequence_number());
 }
 
 void ProcessorEntity::InitializeCommitRequestData(CommitRequestData* request) {
-  if (!metadata_.is_deleted()) {
+  if (!metadata().is_deleted()) {
     DCHECK(HasCommitData());
     DCHECK_EQ(commit_data_->client_tag_hash.value(),
-              metadata_.client_tag_hash());
-    DCHECK_EQ(commit_data_->id, metadata_.server_id());
+              metadata().client_tag_hash());
+    DCHECK_EQ(commit_data_->id, metadata().server_id());
     request->entity = std::move(commit_data_);
   } else {
     // Make an EntityData with empty specifics to indicate deletion. This is
     // done lazily here to simplify loading a pending deletion on startup.
     auto data = std::make_unique<syncer::EntityData>();
     data->client_tag_hash =
-        ClientTagHash::FromHashed(metadata_.client_tag_hash());
-    data->id = metadata_.server_id();
-    data->creation_time = ProtoTimeToTime(metadata_.creation_time());
-    data->modification_time = ProtoTimeToTime(metadata_.modification_time());
-    if (metadata_.has_deletion_origin()) {
-      data->deletion_origin = metadata_.deletion_origin();
+        ClientTagHash::FromHashed(metadata().client_tag_hash());
+    data->id = metadata().server_id();
+    data->creation_time = ProtoTimeToTime(metadata().creation_time());
+    data->modification_time = ProtoTimeToTime(metadata().modification_time());
+    if (metadata().has_deletion_origin()) {
+      data->deletion_origin = metadata().deletion_origin();
     }
-    if (metadata_.has_collaboration()) {
+    if (metadata().has_collaboration()) {
       data->collaboration_metadata =
-          CollaborationMetadata::FromLocalProto(metadata_.collaboration());
+          CollaborationMetadata::FromLocalProto(metadata().collaboration());
     }
     request->entity = std::move(data);
   }
 
-  request->sequence_number = metadata_.sequence_number();
-  request->base_version = metadata_.server_version();
-  request->specifics_hash = metadata_.specifics_hash();
-  commit_requested_sequence_number_ = metadata_.sequence_number();
+  request->sequence_number = metadata().sequence_number();
+  request->base_version = metadata().server_version();
+  request->specifics_hash = metadata().specifics_hash();
+  commit_requested_sequence_number_ = metadata().sequence_number();
 }
 
 void ProcessorEntity::ReceiveCommitResponse(const CommitResponseData& data,
                                             bool commit_only) {
-  CHECK_EQ(metadata_.client_tag_hash(), data.client_tag_hash.value(),
+  CHECK_EQ(metadata().client_tag_hash(), data.client_tag_hash.value(),
            base::NotFatalUntil::M141);
-  CHECK_GT(data.sequence_number, metadata_.acked_sequence_number(),
+  CHECK_GT(data.sequence_number, metadata().acked_sequence_number(),
            base::NotFatalUntil::M141);
   // Version is not valid for commit only types, as it's stripped before being
   // sent to the server, so it cannot behave correctly.
   // Ignore the response if the server responds with an unexpected version.
-  if (!commit_only && data.response_version <= metadata_.server_version()) {
+  if (!commit_only && data.response_version <= metadata().server_version()) {
     return;
   }
 
   // The server can assign us a new ID in a commit response.
-  metadata_.set_server_id(data.id);
-  metadata_.set_acked_sequence_number(data.sequence_number);
-  metadata_.set_server_version(data.response_version);
+  metadata_.RecordCommitResponse(data);
   if (!IsUnsynced()) {
     // Clear pending commit data if there hasn't been another commit request
     // since the one that is currently getting acked.
     commit_data_.reset();
-    metadata_.clear_base_specifics_hash();
   } else {
-    metadata_.set_base_specifics_hash(data.specifics_hash);
     // If local change was made while server assigned a new id to the entity,
     // update id in cached commit data.
-    if (HasCommitData() && commit_data_->id != metadata_.server_id()) {
-      commit_data_->id = metadata_.server_id();
+    if (HasCommitData() && commit_data_->id != metadata().server_id()) {
+      commit_data_->id = metadata().server_id();
     }
   }
 }
@@ -392,42 +264,20 @@ void ProcessorEntity::ReceiveCommitResponse(const CommitResponseData& data,
 void ProcessorEntity::ClearTransientSyncState() {
   // If we have any unacknowledged commit requests outstanding, they've been
   // dropped and we should forget about them.
-  commit_requested_sequence_number_ = metadata_.acked_sequence_number();
+  commit_requested_sequence_number_ = metadata().acked_sequence_number();
 }
 
 void ProcessorEntity::IncrementSequenceNumber(base::Time modification_time) {
-  CHECK(metadata_.has_sequence_number(), base::NotFatalUntil::M141);
-  if (!IsUnsynced()) {
-    // Update the base specifics hash if this entity wasn't already out of sync.
-    metadata_.set_base_specifics_hash(metadata_.specifics_hash());
-  }
-  metadata_.set_sequence_number(metadata_.sequence_number() + 1);
-  CHECK(IsUnsynced(), base::NotFatalUntil::M141);
+  metadata_.IncrementSequenceNumber();
 }
 
 size_t ProcessorEntity::EstimateMemoryUsage() const {
   using base::trace_event::EstimateMemoryUsage;
-  size_t memory_usage = 0;
+  size_t memory_usage = metadata_.EstimateMemoryUsage();
   memory_usage += EstimateMemoryUsage(storage_key_);
-  memory_usage += EstimateMemoryUsage(metadata_);
   memory_usage += EstimateMemoryUsage(commit_data_);
   return memory_usage;
 }
 
-bool ProcessorEntity::MatchesSpecificsHash(
-    const sync_pb::EntitySpecifics& specifics) const {
-  DCHECK(!metadata_.is_deleted());
-  DCHECK_GT(specifics.ByteSizeLong(), 0u);
-  return HashSpecifics(specifics) == metadata_.specifics_hash();
-}
-
-void ProcessorEntity::UpdateSpecificsHash(
-    const sync_pb::EntitySpecifics& specifics) {
-  if (specifics.ByteSizeLong() > 0) {
-    *metadata_.mutable_specifics_hash() = HashSpecifics(specifics);
-  } else {
-    metadata_.clear_specifics_hash();
-  }
-}
 
 }  // namespace syncer

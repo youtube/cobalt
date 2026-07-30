@@ -49,7 +49,7 @@ BASE_DECLARE_FEATURE(kSendTabToSelfEnhancedDesktopUI);
 // sent.
 BASE_DECLARE_FEATURE(kSendTabToSelfPostSendToast);
 
-// If this feature is enabled, "Send to your devices" entry points will be added
+// If this feature is enabled, "Send to your device" entry points will be added
 // to the Omnibox context menu.
 BASE_DECLARE_FEATURE(kSendTabToSelfExtraEntryPoints);
 
@@ -57,6 +57,10 @@ BASE_DECLARE_FEATURE(kSendTabToSelfExtraEntryPoints);
 // If this feature is enabled, physical double-tap gestures will be detected
 // and used to trigger sending tabs to self on Android devices.
 BASE_DECLARE_FEATURE(kSendTabToSelfGesture);
+
+// If this feature is enabled, the target device picker on Android will use
+// an enhanced bottom sheet UI.
+BASE_DECLARE_FEATURE(kSendTabToSelfEnhancedBottomsheet);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)

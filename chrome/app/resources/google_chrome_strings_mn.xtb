@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">Хэрэгсэхгүй болго</translation>
 <translation id="5239627039202700673">Та мессеж, документ болон бусад аппын холбоосыг товших бүрдээ Chrome-г ашиглана уу</translation>
 <translation id="5251420635869119124">Зочид ч бусдаас хоцролгүй Chrome-ийг бүх талаар нь ашиглах боломжтой.</translation>
+<translation id="5271833978500241046">Тэдгээрийг Chrome дэх Gemini-н бусад онцлогийн хамт ашиглаарай</translation>
 <translation id="5286907366254680517">Илэрсэн</translation>
 <translation id="5320351714793324716">Та күүкиг зөвшөөрсөн тохиолдолд Chrome тэдгээрийг урьдчилан ачаалах үед ашиглаж магадгүй</translation>
 <translation id="5321325624576443340">Google Lens боломжгүй байна. Дараа дахин оролдоно уу.</translation>
@@ -441,15 +442,6 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="569897634095159764">Интернэтэд холбогдох боломжгүй байна. Прокси сервер баталгаажуулалт шаарддаг.</translation>
 <translation id="5709557627224531708">Chrome-г өгөгдмөл хөтчөөрөө тохируулна уу</translation>
 <translation id="5719246646468301581">Google Chrome, ChromeOS-н Үйлчилгээний нэмэлт нөхцөл</translation>
-<translation id="5719324992913248873">Энэ үйлдэл дараахыг хийнэ:
-        <ph name="LINE_BREAKS" />
-          • Chrome-н зарим тохиргоо, товчлолыг шинэчилнэ
-          <ph name="LINE_BREAK" />
-          • Өргөтгөлийг идэвхгүй болгоно
-          <ph name="LINE_BREAK" />
-          • Күүки болон сайтын түр зуурын бусад өгөгдлийг устгана
-          <ph name="LINE_BREAKS" />
-          Хавчуурга, түүх, хадгалсан нууц үгэнд нөлөөлөхгүй.</translation>
 <translation id="5736850870166430177">Хэрэв сайт таны нууц үгийг хулгайлахаар оролдох эсвэл таныг аюултай файл татах үед Chrome URL-г хуудасны бага зэрэг контентын хамт Аюулгүй үзэх рүү мөн илгээж болзошгүй</translation>
 <translation id="5756509061973259733">Энэ бүртгэлтэй Chrome-н профайл аль хэдийн энэ төхөөрөмж дээр байна</translation>
 <translation id="5759947850379142561">Google Lens-р хайхын тулд дурын текст, зураг сонгох эсвэл Google Lens-с гарахын тулд escape дээр дарна уу</translation>
@@ -647,6 +639,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Өгөгдлөө хамгаалахын тулд Chrome-д таны сүүлийн үед зочлоогүй сайтын зөвшөөрлийг хасахыг зөвшөөрнө үү.</translation>
 <translation id="7629695634924605473">Хэрэв таны нууц үг алдагдсан байвал Chrome танд мэдэгдэнэ</translation>
+<translation id="7629898584100520089">Ур чадвар зэрэг ХОУ-ы инновацыг таны Google Бүртгэлд хадгалж, Chrome Синкээс тусад нь удирддаг</translation>
 <translation id="7641148173327520642">Таны системийн админ Google Chrome-г <ph name="TARGET_URL_HOSTNAME" />-д хандахын тулд <ph name="ALTERNATIVE_BROWSER_NAME" />-г нээхээр тохируулсан байна.</translation>
 <translation id="7649070708921625228">Тусламж</translation>
 <translation id="7651907282515937834">Chrome-н байгууллагын лого</translation>

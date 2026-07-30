@@ -66,14 +66,12 @@ std::unique_ptr<PathPositionMapper> LayoutSVGTextPath::LayoutPath() const {
   NOT_DESTROYED();
   const auto& text_path_element = To<SVGTextPathElement>(*GetNode());
 
-  Path path;
-  if (RuntimeEnabledFeatures::SvgTextPathPathAttributeEnabled()) {
-    // Check if 'path' attribute is valid and its value is non-empty
-    path = text_path_element.path()->CurrentValue()->GetStylePath()->GetPath();
-    // The 'path' attribute defines path data inline, not in a separate
-    // element, so there's no element with a 'pathLength' attribute to
-    // provide an author path length. We use only the computed path length.
-  }
+  // Check if 'path' attribute is valid and its value is non-empty.
+  Path path =
+      text_path_element.path()->CurrentValue()->GetStylePath()->GetPath();
+  // The 'path' attribute defines path data inline, not in a separate
+  // element, so there's no element with a 'pathLength' attribute to
+  // provide an author path length. We use only the computed path length.
 
   float author_path_length = std::numeric_limits<float>::quiet_NaN();
   // If path attribute was not present or produced an empty/invalid path,

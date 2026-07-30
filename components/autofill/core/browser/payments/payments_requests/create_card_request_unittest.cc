@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill::payments {
-
 namespace {
 
 struct CreateCardOptions {
@@ -99,7 +98,7 @@ TEST(CreateCardRequestTest, GetRequestContent_ContainsExpectedData) {
           .Set("context",
                base::DictValue()
                    .Set("billable_service",
-                        payments::kUploadPaymentMethodBillableServiceNumber)
+                        kUploadPaymentMethodBillableServiceNumber)
                    .Set("customer_context",
                         PaymentsRequest::BuildCustomerContextDictionary(
                             111122223333))
@@ -193,5 +192,4 @@ TEST(CreateCardRequestTest, ParseResponse_MissingCardInfo) {
 }
 
 }  // namespace
-
 }  // namespace autofill::payments

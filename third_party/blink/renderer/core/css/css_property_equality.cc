@@ -616,6 +616,11 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.LightingColor() == b.LightingColor();
     case CSSPropertyID::kLineBreak:
       return a.GetLineBreak() == b.GetLineBreak();
+    case CSSPropertyID::kLineClamp:
+    case CSSPropertyID::kAlternativeWebkitLineClampLonghand:
+      return a.Continue() == b.Continue() && a.MaxLines() == b.MaxLines() &&
+             a.LineClampInternalBlockEllipsis() ==
+                 b.LineClampInternalBlockEllipsis();
     case CSSPropertyID::kLineHeight:
       return a.LineHeight() == b.LineHeight();
     case CSSPropertyID::kTabSize:
@@ -1444,7 +1449,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kGridLanes:
     case CSSPropertyID::kGridRow:
     case CSSPropertyID::kGridTemplate:
-    case CSSPropertyID::kLineClamp:
+    case CSSPropertyID::kAlternativeLineClampShorthand:
     case CSSPropertyID::kListStyle:
     case CSSPropertyID::kMargin:
     case CSSPropertyID::kMarker:
@@ -1494,7 +1499,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kWebkitColumnBreakAfter:
     case CSSPropertyID::kWebkitColumnBreakBefore:
     case CSSPropertyID::kWebkitColumnBreakInside:
-    case CSSPropertyID::kAlternativeWebkitLineClamp:
+    case CSSPropertyID::kAlternativeWebkitLineClampShorthand:
     case CSSPropertyID::kWebkitMaskBoxImage:
     case CSSPropertyID::kMaskPosition:
     case CSSPropertyID::kWebkitTextStroke:

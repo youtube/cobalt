@@ -7,13 +7,15 @@
 #import "base/functional/bind.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "components/metrics/profile_metrics_service.h"
+#import "components/password_manager/core/browser/mock_password_form_manager_for_ui.h"
+#import "components/password_manager/core/browser/password_form_metrics_recorder.h"
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/test/fake_infobar_password_modal_consumer.h"
 #import "ios/chrome/browser/overlays/model/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_response.h"
-#import "ios/chrome/browser/passwords/model/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
-#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/passwords/infobars/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -52,27 +54,36 @@ class PasswordInfobarModalOverlayMediatorTest : public PlatformTest {
 
   void InitInfobar(
       std::optional<std::string> account_to_store_password = std::nullopt) {
+    metrics_recorder_ =
+        base::MakeRefCounted<password_manager::PasswordFormMetricsRecorder>(
+            /*is_main_frame_secure=*/true, ukm::kInvalidSourceId,
+            /*pref_service=*/nullptr, &profile_metrics_service_);
     infobar_ = std::make_unique<InfoBarIOS>(
         InfobarType::kInfobarTypePasswordSave,
         MockIOSChromeSavePasswordInfoBarDelegate::Create(
             kUsername, kPassword, GURL(std::string("http://") + kUrlHost),
-            account_to_store_password));
+            account_to_store_password, metrics_recorder_.get()));
     request_ =
         OverlayRequest::CreateWithConfig<DefaultInfobarOverlayRequestConfig>(
             infobar_.get(), InfobarOverlayType::kModal);
     consumer_ = [[FakeInfobarPasswordModalConsumer alloc] init];
     mediator_ = [[PasswordInfobarModalOverlayMediator alloc]
-        initWithRequest:request_.get()];
+               initWithRequest:request_.get()
+        settingsCommandHandler:settings_commands_handler_];
     mediator_.delegate = delegate_;
     mediator_.consumer = consumer_;
   }
 
  protected:
+  metrics::ProfileMetricsService profile_metrics_service_;
+  scoped_refptr<password_manager::PasswordFormMetricsRecorder>
+      metrics_recorder_;
   std::unique_ptr<InfoBarIOS> infobar_;
   std::unique_ptr<OverlayRequest> request_;
   id<OverlayRequestMediatorDelegate> delegate_ = nil;
   PasswordInfobarModalOverlayMediator* mediator_ = nil;
   FakeInfobarPasswordModalConsumer* consumer_;
+  id settings_commands_handler_ = nil;
 };
 
 // Tests that a PasswordInfobarModalOverlayMediator correctly sets up its
@@ -123,9 +134,18 @@ TEST_F(PasswordInfobarModalOverlayMediatorTest, SetUpConsumerSavingLocally) {
 TEST_F(PasswordInfobarModalOverlayMediatorTest, UpdateCredentials) {
   InitInfobar();
 
-  EXPECT_CALL(mock_delegate(), UpdateCredentials(kUsername, kPassword));
+  NSString* kUpdatedUsername = @"updated_username";
+  NSString* kUpdatedPassword = @"updated_password";
+
+  EXPECT_CALL(
+      *mock_delegate().mock_form_manager(),
+      OnUpdateUsernameFromPrompt(base::SysNSStringToUTF16(kUpdatedUsername)));
+  EXPECT_CALL(
+      *mock_delegate().mock_form_manager(),
+      OnUpdatePasswordFromPrompt(base::SysNSStringToUTF16(kUpdatedPassword)));
   OCMExpect([delegate_ stopOverlayForMediator:mediator_]);
-  [mediator_ updateCredentialsWithUsername:kUsername password:kPassword];
+  [mediator_ updateCredentialsWithUsername:kUpdatedUsername
+                                  password:kUpdatedPassword];
 }
 
 // Tests that `-neverSaveCredentialsForCurrentSite` calls the `Cancel()`
@@ -141,16 +161,15 @@ TEST_F(PasswordInfobarModalOverlayMediatorTest, NeverSaveCredentials) {
 // Tests that `-presentPasswordSettings` calls the `Cancel()` delegate method
 // then stops the overlay.
 TEST_F(PasswordInfobarModalOverlayMediatorTest, PresentPasswordSettings) {
+  settings_commands_handler_ =
+      OCMStrictProtocolMock(@protocol(SettingsCommands));
   InitInfobar();
 
-  id commands_handler = OCMStrictProtocolMock(@protocol(SettingsCommands));
-  [mock_delegate().GetDispatcher()
-      startDispatchingToTarget:commands_handler
-                   forProtocol:@protocol(SettingsCommands)];
-  [[commands_handler expect] showSavedPasswordsSettingsFromViewController:nil];
+  [[settings_commands_handler_ expect]
+      showSavedPasswordsSettingsFromViewController:nil];
 
   OCMExpect([delegate_ stopOverlayForMediator:mediator_]);
 
   [mediator_ presentPasswordSettings];
-  [commands_handler verify];
+  [settings_commands_handler_ verify];
 }

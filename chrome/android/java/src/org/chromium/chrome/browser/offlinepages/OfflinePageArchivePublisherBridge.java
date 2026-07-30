@@ -65,7 +65,7 @@ public class OfflinePageArchivePublisherBridge {
      * @param path File system path for this download.
      * @param length Length in bytes of this downloaded item.
      * @param uri The origin of this download. Used in API 24+ only.
-     * @param referer Where this download was refered from. Used in API 24+ only.
+     * @param referer Where this download was referred from. Used in API 24+ only.
      * @return the download ID of this item as assigned by the download manager.
      */
     @CalledByNative

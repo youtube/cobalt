@@ -249,9 +249,7 @@ interface AccountManager {
   ShowReauthAccountDialog@4(string email) =>
     ([MinVersion=13]AccountUpsertionResult? result);
 
-  // Launches OS Settings > Accounts.
-  [MinVersion = 4]
-  ShowManageAccountsSettings@5();
+  // ShowManageAccountsSettings@5 was removed.
 
   // Returns a persistent error state for `account`. If `account` doesn't have
   // a persistent error or AccountManager doesn't have such an account -

@@ -339,6 +339,7 @@ public class ToolbarTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    @DisabledTest(message = "crbug.com/522971839")
     public void testMaybeShowUrlBarFocusIfHardwareKeyboardAvailable_newTabFromTabSwitcher() {
         // Simulate availability of a hardware keyboard.
         mActivity.getResources().getConfiguration().keyboard = Configuration.KEYBOARD_QWERTY;
@@ -581,7 +582,7 @@ public class ToolbarTest {
 
         // 4. Enter the tab switcher.
         LayoutTestUtils.startShowingAndWaitForLayout(
-                mActivity.getLayoutManager(), LayoutType.TAB_SWITCHER, false);
+                mActivity.getLayoutManager(), LayoutType.HUB, false);
 
         // 5. Verify accessibility order is reset upon entering tab switcher.
         verifyAccessibilityOrderIsReset(toolbarPhone, null);

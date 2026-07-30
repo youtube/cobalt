@@ -18,7 +18,8 @@ namespace private_ai {
 // sizes, latencies, and error codes.
 class ConnectionMetrics : public Connection {
  public:
-  explicit ConnectionMetrics(std::unique_ptr<Connection> inner_connection);
+  ConnectionMetrics(std::unique_ptr<Connection> inner_connection,
+                    proto::FeatureName feature_name);
   ~ConnectionMetrics() override;
 
   ConnectionMetrics(const ConnectionMetrics&) = delete;
@@ -37,6 +38,7 @@ class ConnectionMetrics : public Connection {
                   base::expected<proto::PrivateAiResponse, StatusCode> result);
 
   std::unique_ptr<Connection> inner_connection_;
+  const proto::FeatureName feature_name_;
 
   base::WeakPtrFactory<ConnectionMetrics> weak_factory_{this};
 };

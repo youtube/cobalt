@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">Отваряне на всички</translation>
 <translation id="1408696301184924537">За да се попълни автоматично този IBAN следващия път, запазете го в профила си в Google</translation>
 <translation id="1408787208417187241">Триточково телбодиране в горната част</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> от <ph name="NUM_MATCHES_IN_GROUP" /> в групата „<ph name="GROUP_HEADER" />“.</translation>
 <translation id="1410365862999780287">Другите хора, които използват това устройство, няма да виждат активността ви, за да можете да сърфирате частно. Това няма да промени начина, по който се събират данни от уебсайтовете, които посещавате, и използваните от тях услуги, включително Google. Изтеглянията, отметките и елементите в списъка за четене ще се запазват.</translation>
 <translation id="1410941016594047814">Плик за покана</translation>
 <translation id="1413235258620101697">Кодът за проверка на тази карта ще бъде шифрован и запазен в Google Wallet с цел по-бързо плащане</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">Показване на наличните предимства и награди за картата при плащане. В сила са условията на издателя.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Ключовете <ph name="DATA_CONTROLS_FIRST_KEY_SET" /> не могат да бъдат зададени в същия речник като <ph name="DATA_CONTROLS_SECOND_KEY_SET" /></translation>
+<translation id="1449251255954293933">Запазване на номера в програмата за обезщетения в Google Wallet</translation>
 <translation id="1455413310270022028">Гума</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Преглед на 0 отзива}=1{Преглед на 1 отзив}other{Преглед на всичките # отзива}}</translation>
 <translation id="1458059624921545588">Хора и общество</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">Плик за лична кореспонденция</translation>
 <translation id="2046951263634619614">Книжарници</translation>
 <translation id="2048261947532620704">Страницата се превежда</translation>
+<translation id="2055016614992422886">Разговор</translation>
 <translation id="2059166748188874810">Община</translation>
 <translation id="2059202684901022309">22 x 34 инча</translation>
 <translation id="2064568741209980952">Кредити и заеми</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">Коли под наем</translation>
 <translation id="278436560439594386">Домашни уреди</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Пароли · Ключове за достъп</translation>
 <translation id="2784949926578158345">Връзката бе възстановена.</translation>
 <translation id="2786008859124691917">Велосипеди и аксесоари</translation>
 <translation id="2792012897584536778">Администраторите на това устройство са настроили сертификати за сигурност, които може да им дадат възможност да виждат съдържанието на посещаваните от вас уебсайтове.</translation>
@@ -2305,6 +2309,7 @@
 <translation id="46128681529823442">Футболна екипировка</translation>
 <translation id="4612904677925722054">В този сайт може да има съдържание за възрастни. Родител или настойник трябва да разреши да го посетите.</translation>
 <translation id="4619564267100705184">Потвърдете, че сте вие</translation>
+<translation id="4619669610757527494">Запазване на шофьорската книжка в Google Wallet</translation>
 <translation id="4622292761762557753">Прехвърляне въпреки това</translation>
 <translation id="4622647778991854660">Активирайте известията от Notification Center. Отваряне на <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Документи за самоличност</translation>
@@ -2834,6 +2839,7 @@
 <translation id="543656192084990644">Използването на сензорите за движение не е разрешено</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, беше <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">В обратен ред с отпечатаната страна нагоре</translation>
+<translation id="5447103258548475868">Запазване на паспорта в Google Wallet</translation>
 <translation id="5447235695608032700">Разрешаване на <ph name="SITE" /> да използва запазената за вас информация</translation>
 <translation id="5447973833955560753">Парола за възстановяване</translation>
 <translation id="5451331376824595378">Когато Chrome открие събития, свързани със сигурността, данните за тях се изпращат до администратора ви. Те могат да включват URL адресите на посещаваните от вас страници в Chrome, URL адресите на страниците, от които сте копирали данни, имена или метаданни на файлове, сривовете на браузъра или разделите, както и потребителското име, с което влизате в уеб базирани приложения, на устройството си и в Chrome.</translation>
@@ -3016,6 +3022,7 @@
 <translation id="5718601519531438273">Включва различна информация, като например паспорти и шофьорски книжки</translation>
 <translation id="5720705177508910913">Текущият потребител</translation>
 <translation id="5720895412771013401">Настолни компютри</translation>
+<translation id="5721147290164931316">Сканирайте, за да влезете в профила си чрез телефона си</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} и още 1}other{{website_1}, {website_2} и още {more_count}}}</translation>
 <translation id="572328651809341494">Скорошни раздели</translation>
 <translation id="5723873695528696965">Контролиране и препрограмиране на MIDI устройствата ви</translation>
@@ -3557,6 +3564,7 @@
 <translation id="6550245281449521513">Заключването на мишката е забранено</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, ново</translation>
 <translation id="6552566579578780089">Плащания</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> от <ph name="NUM_MATCHES_IN_GROUP" /> в групата „<ph name="GROUP_HEADER" />“.</translation>
 <translation id="6554732001434021288">Последно посещение: преди <ph name="NUM_DAYS" /> дни</translation>
 <translation id="6556866813142980365">Възстановяване</translation>
 <translation id="6557715786897013164">14 x 17 инча</translation>
@@ -4234,6 +4242,7 @@
 <translation id="7599089013883397081">Времето за изчакване при изтегляне изтече</translation>
 <translation id="7602868996817972616">Попитайте Google за тази страница</translation>
 <translation id="7606123685356405076">Модели на Gemini 3</translation>
+<translation id="760632772920590778">Запазване на превозното средство в Google Wallet</translation>
 <translation id="7610193165460212391">Стойността е извън обхват <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Дебела</translation>
 <translation id="7613889955535752492">Валидна до: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4262,7 +4271,9 @@
 <translation id="7646681339175747202">Паролата, която току-що използвахте, е разкрита при нарушение на сигурността на данните. Google Мениджър на пароли ви препоръчва да я промените сега.</translation>
 <translation id="7647206758853451655">Качество на отпечатване</translation>
 <translation id="7648133459447652947">За да се покаже курсорът, превключете между приложенията, презаредете страницата или се върнете назад</translation>
+<translation id="764847582138410250">Сканирайте, за да влезете в профила си чрез телефона си</translation>
 <translation id="7648527891719919697">Този сайт ще остане блокиран, защото сте включили „Разширена защита“ от <ph name="BEGIN_ANDROID_SETTINGS_LINK" />настройките на Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Научете повече за това предупреждение<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Запазване на известния номер на пътника в Google Wallet</translation>
 <translation id="7648992873808071793">Да съхранява файлове на това устройство.</translation>
 <translation id="7649070708921625228">Помощ</translation>
 <translation id="7650141368285545431">Използване на ключ за достъп от друго устройство</translation>
@@ -4355,6 +4366,7 @@
 <translation id="7773005668374414287">В същия ред с отпечатаната страна нагоре</translation>
 <translation id="7779418012194492374">Отмяна на достъпа за <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Вчера</translation>
+<translation id="7782228658217918863">Запазване на документа за самоличност в Google Wallet</translation>
 <translation id="7782465647372057580">Информацията за профила е шифрована и се пази частна</translation>
 <translation id="7785471469930192436">Вижте инструкциите на търсещата си машина относно изтриването на историята на търсенията ви (ако е приложимо)</translation>
 <translation id="7785790577395078482">този таблет</translation>

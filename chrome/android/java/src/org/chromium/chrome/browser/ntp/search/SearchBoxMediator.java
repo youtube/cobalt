@@ -59,7 +59,7 @@ class SearchBoxMediator implements DestroyObserver {
             Context context,
             PropertyModel model,
             SearchBoxContainerView view,
-            boolean isTablet,
+            boolean isLff,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             NewTabPageManager newTabPageManager,
             boolean isIncognito,
@@ -77,7 +77,7 @@ class SearchBoxMediator implements DestroyObserver {
         PropertyModelChangeProcessor.create(mModel, mView, new SearchBoxViewBinder());
 
         mTransitionEndOffset =
-                !isTablet
+                !isLff
                         ? context.getResources()
                                 .getDimensionPixelSize(R.dimen.ntp_search_box_transition_end_offset)
                         : 0;
@@ -181,14 +181,13 @@ class SearchBoxMediator implements DestroyObserver {
      *
      * @param lensEntryPoint A {@link LensEntryPoint}.
      * @param isIncognito Whether the request is from a Incognito tab.
-     * @param isTablet Whether the request is from a tablet.
+     * @param isLff Whether the request is from a large form factor device.
      * @return Whether the Lens is currently enabled.
      */
-    boolean isLensEnabled(
-            @LensEntryPoint int lensEntryPoint, boolean isIncognito, boolean isTablet) {
+    boolean isLensEnabled(@LensEntryPoint int lensEntryPoint, boolean isIncognito, boolean isLff) {
         return LensController.getInstance()
                 .isLensEnabled(
-                        new LensQueryParams.Builder(lensEntryPoint, isIncognito, isTablet).build());
+                        new LensQueryParams.Builder(lensEntryPoint, isIncognito, isLff).build());
     }
 
     void setHeight(int height) {

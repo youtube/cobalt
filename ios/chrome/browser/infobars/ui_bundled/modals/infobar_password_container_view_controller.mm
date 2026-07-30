@@ -11,7 +11,7 @@
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_modal_constants.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_password_modal_delegate.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_password_table_view_controller.h"
-#import "ios/chrome/browser/passwords/model/ios_chrome_password_infobar_metrics_recorder.h"
+#import "ios/chrome/browser/passwords/infobars/public/ios_chrome_password_infobar_metrics_recorder.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/chrome_button.h"

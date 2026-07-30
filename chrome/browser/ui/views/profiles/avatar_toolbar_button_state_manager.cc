@@ -2029,6 +2029,41 @@ std::pair<ui::ImageModel, AvatarIconType> StateProvider::GetAvatarIcon(
           icon_type};
 }
 
+std::string StateProvider::GetAvatarIconUrl() const {
+  ProfileAttributesEntry* entry = GetProfileAttributesEntry(profile());
+  if (!entry) {
+    return std::string();
+  }
+
+  // If using GAIA picture, return that URL.
+  if (entry->IsUsingGAIAPicture()) {
+    std::string url = entry->GetLastDownloadedGAIAPictureUrlWithSize();
+    if (!url.empty()) {
+      return url;
+    }
+  }
+
+  // If not using GAIA picture but we have a GAIA account image URL (from test
+  // or Dice), use it.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(&profile());
+  if (identity_manager &&
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    AccountInfo info = identity_manager->FindExtendedAccountInfoByAccountId(
+        identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
+    if (!info.IsEmpty()) {
+      std::optional<std::string_view> url =
+          info.GetLastDownloadedAvatarUrlWithSize();
+      if (url.has_value() && !url->empty()) {
+        return std::string(*url);
+      }
+    }
+  }
+
+  // Fallback to theme icon.
+  return profiles::GetDefaultAvatarIconUrl(entry->GetAvatarIconIndex());
+}
+
 std::u16string StateProvider::GetAvatarTooltipText() const {
   return profiles::GetAvatarNameForProfile(profile().GetPath());
 }
@@ -2111,6 +2146,12 @@ void AvatarToolbarButtonStateManager::InitializeStates() {
 StateProvider* AvatarToolbarButtonStateManager::GetActiveStateProvider() const {
   return current_active_state_pair_ ? current_active_state_pair_->second.get()
                                     : nullptr;
+}
+
+::AvatarToolbarButtonState AvatarToolbarButtonStateManager::GetActiveState()
+    const {
+  return current_active_state_pair_ ? current_active_state_pair_->first
+                                    : ButtonState::kNormal;
 }
 
 base::ScopedClosureRunner AvatarToolbarButtonStateManager::SetExplicitState(

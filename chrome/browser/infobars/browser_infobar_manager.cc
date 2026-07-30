@@ -144,6 +144,7 @@ BrowserInfoBarManager* BrowserInfoBarManager::From(
 }
 
 void BrowserInfoBarManager::Register(InfoBarSpec spec) {
+  CHECK(!registered_specs_.contains(spec.identifier()));
   registered_specs_[spec.identifier()] = std::move(spec);
 }
 

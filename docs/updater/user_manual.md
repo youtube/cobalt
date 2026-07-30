@@ -51,6 +51,15 @@ UpdaterSetup.exe also provides UI and manages integration with the updater.
 UpdaterSetup.exe can also be used to install the updater alone, by running
 `UpdaterSetup.exe --install --system`. (For user installs, elide `--system`.)
 
+By default, if a silent install is triggered (e.g. by passing `--silent`
+on the command line) and elevation is required, the installer will fail
+silently with `UNEXPECTED_ELEVATION_LOOP_SILENT` to avoid rendering UAC
+prompts or blocking unattended installations. If prompting for UAC is
+permissible (for instance, allowing a non-elevated user to approve the
+UAC prompt for a silent install), the `--silent` parameter value can
+be set to `allow-uac` to explicitly allow elevation:
+`UpdaterSetup.exe --install --system --silent=allow-uac`.
+
 For security reasons, applications that install at system scope must install
 into `C:\Program Files` or a similar path that non-admins don't have write
 access to. System-scope installers are run with system privileges, and writing

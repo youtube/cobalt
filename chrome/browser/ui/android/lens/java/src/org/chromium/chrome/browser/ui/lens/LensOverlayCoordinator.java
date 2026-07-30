@@ -99,6 +99,7 @@ public class LensOverlayCoordinator implements UserData {
             setShowing(false);
             return false;
         }
+
         return true;
     }
 
@@ -171,7 +172,8 @@ public class LensOverlayCoordinator implements UserData {
     private void launchLensIntent(WindowAndroid window, Uri imageUri) {
         String pageUrl = mTab.getUrl() != null ? mTab.getUrl().getSpec() : "";
         LensIntentParams params =
-                new LensIntentParams.Builder(LensEntryPoint.CHROME_LENS_OVERLAY, mTab.isIncognito())
+                new LensIntentParams.Builder(
+                                LensEntryPoint.CONTEXT_MENU_SEARCH_MENU_ITEM, mTab.isIncognito())
                         .withImageUri(imageUri)
                         .withPageUrl(pageUrl)
                         .withSrcUrl("")

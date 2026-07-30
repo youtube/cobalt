@@ -716,12 +716,7 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
 }
 
 + (BOOL)savePassportEntity {
-  autofill::AutofillClient& client =
-      autofill::FakeCreditCardServer::GetAutofillClient();
-
-  autofill::EntityDataManager* entityDataManager =
-      client.GetEntityDataManager();
-
+  autofill::EntityDataManager* entityDataManager = [self entityDataManager];
   if (!entityDataManager) {
     return NO;
   }
@@ -752,12 +747,7 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
 }
 
 + (BOOL)saveVehicleEntity {
-  autofill::AutofillClient& client =
-      autofill::FakeCreditCardServer::GetAutofillClient();
-
-  autofill::EntityDataManager* entityDataManager =
-      client.GetEntityDataManager();
-
+  autofill::EntityDataManager* entityDataManager = [self entityDataManager];
   if (!entityDataManager) {
     return NO;
   }

@@ -10,14 +10,17 @@
 #import <vector>
 
 #import "base/barrier_closure.h"
+#import "base/files/file_path.h"
 #import "base/files/scoped_temp_dir.h"
 #import "base/functional/bind.h"
 #import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/bind.h"
 #import "base/test/scoped_feature_list.h"
+#import "base/test/test_future.h"
 #import "ios/chrome/browser/download/model/download_record.h"
 #import "ios/chrome/browser/download/model/download_record_observer.h"
+#import "ios/chrome/browser/download/model/download_record_query.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/web/public/test/fakes/fake_download_task.h"
@@ -477,4 +480,209 @@ TEST_F(DownloadRecordServiceImplTest, RecordDownloadTwiceWithSameTask) {
 
   EXPECT_EQ(1u, result.size());
   EXPECT_EQ(download_id, result[0].download_id);
+}
+
+// Sanity test for the pagination API: with one persisted record,
+// `GetDownloadsPageAsync` posts a non-empty vector to the calling
+// sequence asynchronously. Locks in the async contract; broader
+// coverage (cursor / filter / ordering) lands in a follow-up CL.
+TEST_F(DownloadRecordServiceImplTest, GetDownloadsPageAsync_AsyncRoundTrip) {
+  std::unique_ptr<web::FakeDownloadTask> task =
+      CreateFakeDownloadTask("page_async_1");
+  RecordDownloadAndValidate(task.get());
+
+  base::test::TestFuture<std::vector<DownloadRecord>> future;
+  DownloadRecordQuery query;
+  service_->GetDownloadsPageAsync(query, future.GetCallback());
+
+  // *Async contract: callback must NOT have fired synchronously.
+  EXPECT_FALSE(future.IsReady());
+
+  // Pumps the calling sequence until the posted callback runs.
+  std::vector<DownloadRecord> page = future.Get();
+  ASSERT_EQ(1u, page.size());
+  EXPECT_EQ("page_async_1", page[0].download_id);
+}
+
+// Mirrors `GetDownloadsPageAsync_AsyncRoundTrip` for the count API.
+TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_AsyncRoundTrip) {
+  std::unique_ptr<web::FakeDownloadTask> task =
+      CreateFakeDownloadTask("count_async_1");
+  RecordDownloadAndValidate(task.get());
+
+  base::test::TestFuture<size_t> future;
+  service_->GetDownloadsCountAsync(std::nullopt, future.GetCallback());
+
+  EXPECT_FALSE(future.IsReady());  // *Async contract.
+  EXPECT_EQ(size_t{1}, future.Get());
+}
+
+// =======================================================================
+// Pagination read API — focused coverage for GetDownloadsPageAsync /
+// GetDownloadsCountAsync as wired to the DB layer in the previous CL.
+// These exercise the DB-level keyset pagination semantics that the
+// service forwards verbatim.
+// =======================================================================
+
+// With no records in the DB, the page API returns an empty vector.
+TEST_F(DownloadRecordServiceImplTest, GetDownloadsPageAsync_EmptyDB) {
+  base::test::TestFuture<std::vector<DownloadRecord>> future;
+  DownloadRecordQuery query;
+  service_->GetDownloadsPageAsync(query, future.GetCallback());
+  EXPECT_TRUE(future.Get().empty());
+}
+
+// Page results are ordered DESC by (created_time, download_id), so the
+// most recently recorded download appears first.
+TEST_F(DownloadRecordServiceImplTest,
+       GetDownloadsPageAsync_OrderedByCreatedTimeDesc) {
+  std::unique_ptr<web::FakeDownloadTask> t1 = CreateFakeDownloadTask("id_1");
+  std::unique_ptr<web::FakeDownloadTask> t2 = CreateFakeDownloadTask("id_2");
+  std::unique_ptr<web::FakeDownloadTask> t3 = CreateFakeDownloadTask("id_3");
+  RecordDownloadAndValidate(t1.get());
+  RecordDownloadAndValidate(t2.get());
+  RecordDownloadAndValidate(t3.get());
+
+  base::test::TestFuture<std::vector<DownloadRecord>> future;
+  DownloadRecordQuery query;
+  service_->GetDownloadsPageAsync(query, future.GetCallback());
+  std::vector<DownloadRecord> page = future.Get();
+
+  ASSERT_EQ(3u, page.size());
+  // DESC ordering: created_time DESC (id_3 last inserted, so newest) with
+  // download_id DESC as the tiebreaker when timestamps collide. Either
+  // way the expected ordering is id_3, id_2, id_1.
+  EXPECT_EQ("id_3", page[0].download_id);
+  EXPECT_EQ("id_2", page[1].download_id);
+  EXPECT_EQ("id_1", page[2].download_id);
+}
+
+// A cursor pointing at row N returns only rows strictly past it (cursor
+// row itself is not duplicated on the next page).
+TEST_F(DownloadRecordServiceImplTest,
+       GetDownloadsPageAsync_CursorReturnsNextPage) {
+  std::unique_ptr<web::FakeDownloadTask> t1 = CreateFakeDownloadTask("id_1");
+  std::unique_ptr<web::FakeDownloadTask> t2 = CreateFakeDownloadTask("id_2");
+  std::unique_ptr<web::FakeDownloadTask> t3 = CreateFakeDownloadTask("id_3");
+  RecordDownloadAndValidate(t1.get());
+  RecordDownloadAndValidate(t2.get());
+  RecordDownloadAndValidate(t3.get());
+
+  // First page: fetch everything to get the front row's cursor coords.
+  base::test::TestFuture<std::vector<DownloadRecord>> first_future;
+  service_->GetDownloadsPageAsync(DownloadRecordQuery(),
+                                  first_future.GetCallback());
+  std::vector<DownloadRecord> first_page = first_future.Get();
+  ASSERT_EQ(3u, first_page.size());
+  const DownloadRecord& cursor_row = first_page[0];  // id_3
+
+  // Second page using the first row as the cursor — should return the
+  // remaining two rows, excluding the cursor row itself.
+  DownloadRecordQuery query;
+  query.cursor_created_time = cursor_row.created_time;
+  query.cursor_download_id = cursor_row.download_id;
+
+  base::test::TestFuture<std::vector<DownloadRecord>> second_future;
+  service_->GetDownloadsPageAsync(query, second_future.GetCallback());
+  std::vector<DownloadRecord> second_page = second_future.Get();
+
+  ASSERT_EQ(2u, second_page.size());
+  EXPECT_EQ("id_2", second_page[0].download_id);
+  EXPECT_EQ("id_1", second_page[1].download_id);
+}
+
+// A filter narrows results to matching MIME types only.
+TEST_F(DownloadRecordServiceImplTest,
+       GetDownloadsPageAsync_FilterTypeNarrowsResults) {
+  std::unique_ptr<web::FakeDownloadTask> pdf_task =
+      CreateFakeDownloadTask("pdf_doc", /*is_incognito=*/false,
+                             "https://example.com/file.pdf", "application/pdf");
+  std::unique_ptr<web::FakeDownloadTask> img_task =
+      CreateFakeDownloadTask("img_pic", /*is_incognito=*/false,
+                             "https://example.com/file.png", "image/png");
+  RecordDownloadAndValidate(pdf_task.get());
+  RecordDownloadAndValidate(img_task.get());
+
+  base::test::TestFuture<std::vector<DownloadRecord>> future;
+  DownloadRecordQuery query;
+  query.filter_type = DownloadFilterType::kPDF;
+  service_->GetDownloadsPageAsync(query, future.GetCallback());
+
+  std::vector<DownloadRecord> page = future.Get();
+  ASSERT_EQ(1u, page.size());
+  EXPECT_EQ("pdf_doc", page[0].download_id);
+}
+
+// A name_query case-insensitively substring-matches the file name.
+TEST_F(DownloadRecordServiceImplTest,
+       GetDownloadsPageAsync_NameQueryMatchesSubstring) {
+  std::unique_ptr<web::FakeDownloadTask> report = CreateFakeDownloadTask(
+      "report_doc", /*is_incognito=*/false,
+      "https://example.com/Quarterly_Report.pdf", "application/pdf");
+  report->SetGeneratedFileName(
+      base::FilePath(FILE_PATH_LITERAL("Quarterly_Report.pdf")));
+  std::unique_ptr<web::FakeDownloadTask> invoice = CreateFakeDownloadTask(
+      "invoice_doc", /*is_incognito=*/false,
+      "https://example.com/Invoice_2026.pdf", "application/pdf");
+  invoice->SetGeneratedFileName(
+      base::FilePath(FILE_PATH_LITERAL("Invoice_2026.pdf")));
+  RecordDownloadAndValidate(report.get());
+  RecordDownloadAndValidate(invoice.get());
+
+  base::test::TestFuture<std::vector<DownloadRecord>> future;
+  DownloadRecordQuery query;
+  query.name_query = "report";  // matches "Quarterly_Report.pdf"
+  service_->GetDownloadsPageAsync(query, future.GetCallback());
+
+  std::vector<DownloadRecord> page = future.Get();
+  ASSERT_EQ(1u, page.size());
+  EXPECT_EQ("report_doc", page[0].download_id);
+}
+
+// With no records in the DB, the count API returns 0.
+TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_EmptyDB) {
+  base::test::TestFuture<size_t> future;
+  service_->GetDownloadsCountAsync(std::nullopt, future.GetCallback());
+  EXPECT_EQ(size_t{0}, future.Get());
+}
+
+// Without a filter (or with kAll) the count returns every persisted row.
+TEST_F(DownloadRecordServiceImplTest, GetDownloadsCountAsync_AllReturnsTotal) {
+  std::unique_ptr<web::FakeDownloadTask> t1 = CreateFakeDownloadTask("id_1");
+  std::unique_ptr<web::FakeDownloadTask> t2 = CreateFakeDownloadTask("id_2");
+  std::unique_ptr<web::FakeDownloadTask> t3 = CreateFakeDownloadTask("id_3");
+  RecordDownloadAndValidate(t1.get());
+  RecordDownloadAndValidate(t2.get());
+  RecordDownloadAndValidate(t3.get());
+
+  base::test::TestFuture<size_t> future;
+  service_->GetDownloadsCountAsync(std::nullopt, future.GetCallback());
+  EXPECT_EQ(size_t{3}, future.Get());
+}
+
+// A filter narrows the count to matching MIME types only.
+TEST_F(DownloadRecordServiceImplTest,
+       GetDownloadsCountAsync_FilterNarrowsCount) {
+  std::unique_ptr<web::FakeDownloadTask> pdf1 =
+      CreateFakeDownloadTask("pdf_1", /*is_incognito=*/false,
+                             "https://example.com/a.pdf", "application/pdf");
+  std::unique_ptr<web::FakeDownloadTask> pdf2 =
+      CreateFakeDownloadTask("pdf_2", /*is_incognito=*/false,
+                             "https://example.com/b.pdf", "application/pdf");
+  std::unique_ptr<web::FakeDownloadTask> img =
+      CreateFakeDownloadTask("img_1", /*is_incognito=*/false,
+                             "https://example.com/c.png", "image/png");
+  RecordDownloadAndValidate(pdf1.get());
+  RecordDownloadAndValidate(pdf2.get());
+  RecordDownloadAndValidate(img.get());
+
+  base::test::TestFuture<size_t> pdf_future;
+  service_->GetDownloadsCountAsync(DownloadFilterType::kPDF,
+                                   pdf_future.GetCallback());
+  EXPECT_EQ(size_t{2}, pdf_future.Get());
+
+  base::test::TestFuture<size_t> img_future;
+  service_->GetDownloadsCountAsync(DownloadFilterType::kImage,
+                                   img_future.GetCallback());
+  EXPECT_EQ(size_t{1}, img_future.Get());
 }

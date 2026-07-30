@@ -1,0 +1,11 @@
+This is a testharness.js-based test.
+[FAIL] <video controls=""></video> has a shadow tree with no slots
+  assert_equals: child should be outside the flat tree expected 0 but got 487
+[FAIL] <video></video> has a shadow tree with no slots
+  assert_equals: child should be outside the flat tree expected 0 but got 487
+[FAIL] <audio></audio> has a shadow tree with no slots
+  assert_equals: child should be outside the flat tree expected 0 but got 487
+[FAIL] <audio controls=""></audio> has a shadow tree with no slots
+  assert_equals: child should be outside the flat tree expected 0 but got 487
+Harness: the test ran to completion.
+

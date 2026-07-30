@@ -34,8 +34,6 @@ const char* GetZeroStateSliceId(feedui::ZeroStateSlice::Type type) {
   switch (type) {
     case feedui::ZeroStateSlice::NO_CARDS_AVAILABLE:
       return "no-cards";
-    case feedui::ZeroStateSlice::NO_WEB_FEED_SUBSCRIPTIONS:
-      return "no-subscriptions";
     case feedui::ZeroStateSlice::CANT_REFRESH:  // fall-through
     default:
       return "cant-refresh";
@@ -187,8 +185,7 @@ feedui::ZeroStateSlice::Type GetZeroStateType(LoadStreamStatus status) {
     case LoadStreamStatus::kAccountTokenFetchTimedOut:
     case LoadStreamStatus::kNetworkFetchTimedOut:
       return feedui::ZeroStateSlice::CANT_REFRESH;
-    case LoadStreamStatus::kNotAWebFeedSubscriber:
-      return feedui::ZeroStateSlice::NO_WEB_FEED_SUBSCRIPTIONS;
+    case LoadStreamStatus::kNotAWebFeedSubscriber_DEPRECATED:
     case LoadStreamStatus::kNoStatus:
     case LoadStreamStatus::kLoadedFromStore:
     case LoadStreamStatus::kLoadedFromNetwork:

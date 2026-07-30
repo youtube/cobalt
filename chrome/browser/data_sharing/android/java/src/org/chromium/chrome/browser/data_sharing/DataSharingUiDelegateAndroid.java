@@ -11,6 +11,7 @@ import org.jni_zero.CalledByNative;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -117,5 +118,6 @@ public class DataSharingUiDelegateAndroid implements DataSharingUIDelegate {
     /* Sets UI delegate for testing, to be used when native needs a new delegate. */
     public static void setForTesting(DataSharingUIDelegate delegate) {
         sDelegateForTesting = delegate;
+        ResettersForTesting.register(() -> sDelegateForTesting = null);
     }
 }

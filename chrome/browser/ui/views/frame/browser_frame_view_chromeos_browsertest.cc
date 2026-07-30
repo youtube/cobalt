@@ -21,7 +21,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -373,7 +372,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
                              KeepAliveRestartOption::DISABLED);
 
   // Quit and restore.
-  browser()->window()->Minimize();
+  browser()->GetWindow()->Minimize();
   CloseBrowserSynchronously(browser());
 
   chrome::NewEmptyWindow(profile);
@@ -1858,9 +1857,7 @@ enum class ThemeChangeTestMode {
 // * whether theme changes should be animated.
 class BrowserFrameViewAshThemeChangeTest
     : public InProcessBrowserTest,
-      public testing::WithParamInterface<
-          std::tuple<ThemeChangeTestMode,
-                     /*should_animate_theme_changes=*/bool>> {
+      public testing::WithParamInterface<ThemeChangeTestMode> {
  public:
   BrowserFrameViewAshThemeChangeTest() {
     switch (GetThemeChangeTestMode()) {
@@ -1873,7 +1870,6 @@ class BrowserFrameViewAshThemeChangeTest
                 /*dark_mode_background_color=*/SK_ColorBLACK);
         auto* delegate = static_cast<ash::UnittestingSystemAppDelegate*>(
             system_web_app_installation_->GetDelegate());
-        delegate->SetShouldAnimateThemeChanges(ShouldAnimateThemeChanges());
         // When system colored SWAs were introduced for Jelly,
         // `UseSystemThemeColor()` overrode other styling information in the
         // manifest. This test now verifies behavior for SWAs that are opted out
@@ -1887,13 +1883,7 @@ class BrowserFrameViewAshThemeChangeTest
   }
 
   // Returns test mode given test parameterization.
-  ThemeChangeTestMode GetThemeChangeTestMode() const {
-    return std::get<0>(GetParam());
-  }
-
-  // Returns whether theme changes should be animated for the web app under test
-  // given test parameterization.
-  bool ShouldAnimateThemeChanges() const { return std::get<1>(GetParam()); }
+  ThemeChangeTestMode GetThemeChangeTestMode() const { return GetParam(); }
 
   // Toggles the color mode, triggering propagation of theme change events.
   void ToggleColorMode() {
@@ -1945,39 +1935,18 @@ class BrowserFrameViewAshThemeChangeTest
 INSTANTIATE_TEST_SUITE_P(
     Mode,
     BrowserFrameViewAshThemeChangeTest,
-    testing::Combine(testing::Values(ThemeChangeTestMode::kSWA,
-                                     ThemeChangeTestMode::kNonSWA),
-                     /*should_animate_theme_changes=*/testing::Bool()),
-    [](const testing::TestParamInfo<
-        std::tuple<ThemeChangeTestMode,
-                   /*should_animate_theme_changes=*/bool>>& info) {
-      ThemeChangeTestMode test_mode = std::get<0>(info.param);
-      bool should_animate_theme_changes = std::get<1>(info.param);
-
-      std::stringstream name;
+    testing::Values(ThemeChangeTestMode::kSWA, ThemeChangeTestMode::kNonSWA),
+    [](const testing::TestParamInfo<ThemeChangeTestMode>& info) {
+      ThemeChangeTestMode test_mode = info.param;
       switch (test_mode) {
         case ThemeChangeTestMode::kSWA:
-          name << "kSWA";
-          break;
+          return "kSWA";
         case ThemeChangeTestMode::kNonSWA:
-          name << "kNonSWA";
-          break;
+          return "kNonSWA";
       }
-
-      if (should_animate_theme_changes) {
-        name << "_ShouldAnimateThemeChanges";
-      }
-
-      return name.str();
     });
 
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshThemeChangeTest, ThemeChange) {
-  // Skip test parameterizations for non-system web apps that don't make sense.
-  if (GetThemeChangeTestMode() == ThemeChangeTestMode::kNonSWA &&
-      ShouldAnimateThemeChanges()) {
-    GTEST_SKIP();
-  }
-
   const webapps::AppId app_id = WaitForAppInstall();
 
   // Trigger the launch but do not wait for the web contents to load.
@@ -2032,14 +2001,10 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshThemeChangeTest, ThemeChange) {
   EXPECT_EQ(contents_web_view->layer()->background_color(),
             web_contents->GetBackgroundColor().value());
 
-  // If theme changes should be animated, the layer associated with the
-  // `contents_web_view` native view should be immediately hidden.
+  // Verify that the layer associated with the `contents_web_view` native view
+  // is not hidden.
   auto* layer = contents_web_view->holder()->native_view()->layer();
-  if (ShouldAnimateThemeChanges()) {
-    EXPECT_EQ(layer->GetTargetOpacity(), std::nextafter(0.f, 1.f));
-  } else {
-    EXPECT_EQ(layer->GetTargetOpacity(), 1.f);
-  }
+  EXPECT_EQ(layer->GetTargetOpacity(), 1.f);
 
   // Wait for the web contents background color to update and verify that the
   // background color still matches that resolved from the app controller.
@@ -2052,18 +2017,6 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshThemeChangeTest, ThemeChange) {
                   .value());
     EXPECT_EQ(contents_web_view->layer()->background_color(),
               web_contents->GetBackgroundColor().value());
-  }
-
-  // If theme changes should be animated, the layer associated with the
-  // `contents_web_view` native view should be animated back in only after a
-  // round trip through the renderer and compositor pipelines. This should
-  // ensure that the web contents has finished repainting theme changes.
-  if (ShouldAnimateThemeChanges()) {
-    base::test::TestFuture<bool> visual_state_change_future;
-    web_contents->GetRenderViewHost()->GetWidget()->InsertVisualStateCallback(
-        visual_state_change_future.GetCallback());
-    EXPECT_TRUE(visual_state_change_future.Wait());
-    EXPECT_EQ(layer->GetTargetOpacity(), 1.f);
   }
 }
 

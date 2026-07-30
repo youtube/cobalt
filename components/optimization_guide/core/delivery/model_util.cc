@@ -176,6 +176,8 @@ std::string_view GetStringNameForOptimizationTarget(
       return "SpeechRecognitionSmallExpertModel";
     case proto::OPTIMIZATION_TARGET_WEBRTC_NEURAL_RESIDUAL_ECHO_ESTIMATOR:
       return "WebRTCNeuralResidualEchoEstimator";
+    case proto::OPTIMIZATION_TARGET_WEBRTC_VOICE_ISOLATION_DENOISER:
+      return "WebRTCVoiceIsolationDenoiser";
     case proto::OPTIMIZATION_TARGET_MODEL_EXECUTION_FEATURE_CLASSIFIER:
       return "ModelExecutionFeatureClassifier";
     case proto::OPTIMIZATION_TARGET_CONTEXTUAL_TASKS_TAB_RELEVANCE:

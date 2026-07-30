@@ -68,6 +68,7 @@
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 
 namespace autofill {
@@ -478,6 +479,14 @@ class ContentAutofillDriverTestWithAddressForm
 
   FormData& address_form() { return address_form_; }
 
+  absl::flat_hash_map<FieldGlobalId, FieldType> field_type_map() {
+    absl::flat_hash_map<FieldGlobalId, FieldType> map;
+    for (const FormFieldData& field : address_form_.fields()) {
+      map.emplace(field.global_id(), UNKNOWN_TYPE);
+    }
+    return map;
+  }
+
  private:
   FormData address_form_;
 };
@@ -699,7 +708,7 @@ TEST_F(ContentAutofillDriverTestWithAddressForm,
   driver().browser_events().ApplyFormAction(
       mojom::FormActionType::kFill, mojom::ActionPersistence::kFill,
       address_form().fields(), FillId::Create(),
-      /*supports_refill=*/false, triggered_origin, {}, Section());
+      /*supports_refill=*/false, triggered_origin, field_type_map(), Section());
 
   run_loop.RunUntilIdle();
 
@@ -726,7 +735,7 @@ TEST_F(ContentAutofillDriverTestWithAddressForm,
   driver().browser_events().ApplyFormAction(
       mojom::FormActionType::kFill, mojom::ActionPersistence::kPreview,
       address_form().fields(), FillId::Create(),
-      /*supports_refill=*/false, triggered_origin, {}, Section());
+      /*supports_refill=*/false, triggered_origin, field_type_map(), Section());
 
   run_loop.RunUntilIdle();
 
@@ -1071,6 +1080,33 @@ TEST_F(ContentAutofillDriverTest, FormSignaturesPreservedDuringRouting) {
             base::NumberToString(expected_alternative_signature.value()));
   EXPECT_EQ(predictions->front().structural_form_signature,
             base::NumberToString(expected_structural_signature.value()));
+}
+
+// Tests that the policy-controlled feature "autofill" is force-enabled in the
+// main frame and same-origin descendants.
+TEST_F(ContentAutofillDriverTest, AutofillPolicyControlledFeature) {
+  auto create_rfh = [](content::RenderFrameHost* parent, std::string_view url) {
+    return content::NavigationSimulator::NavigateAndCommitFromDocument(
+        GURL(url), content::RenderFrameHostTester::For(parent)->AppendChild(
+                       std::string(url)));
+  };
+
+  content::RenderFrameHost* main = main_frame();
+  content::RenderFrameHost* same1 = create_rfh(main, "https://a.test/same1");
+  content::RenderFrameHost* cross1 = create_rfh(main, "https://b.test/cross1");
+  content::RenderFrameHost* same2 = create_rfh(cross1, "https://a.test/same2");
+  content::RenderFrameHost* cross2 = create_rfh(same1, "https://b.test/cross2");
+
+  ASSERT_EQ(main->GetLastCommittedOrigin(), same1->GetLastCommittedOrigin());
+  ASSERT_EQ(main->GetLastCommittedOrigin(), same2->GetLastCommittedOrigin());
+  ASSERT_NE(main->GetLastCommittedOrigin(), cross1->GetLastCommittedOrigin());
+  ASSERT_NE(main->GetLastCommittedOrigin(), cross2->GetLastCommittedOrigin());
+
+  EXPECT_TRUE(driver(main).IsPolicyControlledFeatureAutofillEnabled());
+  EXPECT_TRUE(driver(same1).IsPolicyControlledFeatureAutofillEnabled());
+  EXPECT_TRUE(driver(same2).IsPolicyControlledFeatureAutofillEnabled());
+  EXPECT_FALSE(driver(cross1).IsPolicyControlledFeatureAutofillEnabled());
+  EXPECT_FALSE(driver(cross2).IsPolicyControlledFeatureAutofillEnabled());
 }
 
 }  // namespace

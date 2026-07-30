@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <sstream>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -209,8 +210,10 @@ GlicInstance* GetInstanceById(Profile* profile, InstanceId id);
 // Signs in a primary account, accepts the FRE, and enables the relevant
 // capability for that profile. browser_tests and interactive_ui_tests should
 // use GlicTestEnvironment. These methods are for unit_tests.
-void ForceSigninAndGlicCapability(Profile* profile);
-void SigninWithPrimaryAccount(Profile* profile);
+void ForceSigninAndGlicCapability(Profile* profile,
+                                  std::string_view hosted_domain = "");
+void SigninWithPrimaryAccount(Profile* profile,
+                              std::string_view hosted_domain = "");
 void SetGlicCapability(Profile* profile, bool enabled);
 void SetGlicCapability(AccountCapabilitiesTestMutator& mutator, bool enabled);
 void SetFRECompletion(Profile* profile, prefs::FreStatus fre_status);

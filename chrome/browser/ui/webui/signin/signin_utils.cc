@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "content/public/browser/web_contents.h"
@@ -53,6 +54,26 @@ EnterpriseProfileCreationDialogParams::EnterpriseProfileCreationDialogParams(
       process_user_choice_callback(std::move(process_user_choice_callback)),
       done_callback(std::move(done_callback)),
       retry_callback(std::move(retry_callback)) {}
+
+EnterpriseProfileCreationDialogParams::EnterpriseProfileCreationDialogParams(
+    AccountInfo account_info,
+    SigninChoiceCallbackVariant process_user_choice_callback,
+    base::OnceClosure done_callback)
+    : account_info(account_info),
+      is_device_signals_disclaimer(true),
+      process_user_choice_callback(std::move(process_user_choice_callback)),
+      done_callback(std::move(done_callback)) {}
+
+// static
+std::unique_ptr<EnterpriseProfileCreationDialogParams>
+EnterpriseProfileCreationDialogParams::CreateForDeviceSignalsDisclaimer(
+    AccountInfo account_info,
+    SigninChoiceCallbackVariant process_user_choice_callback,
+    base::OnceClosure done_callback) {
+  return base::WrapUnique(new EnterpriseProfileCreationDialogParams(
+      account_info, std::move(process_user_choice_callback),
+      std::move(done_callback)));
+}
 
 EnterpriseProfileCreationDialogParams::
     ~EnterpriseProfileCreationDialogParams() = default;

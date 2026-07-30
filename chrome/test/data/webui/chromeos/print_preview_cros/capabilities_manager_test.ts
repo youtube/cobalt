@@ -13,7 +13,7 @@ import {FAKE_PRINT_SESSION_CONTEXT_SUCCESSFUL} from 'chrome://os-print/js/fakes/
 import {createCustomEvent} from 'chrome://os-print/js/utils/event_utils.js';
 import {getDestinationProvider} from 'chrome://os-print/js/utils/mojo_data_providers.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 

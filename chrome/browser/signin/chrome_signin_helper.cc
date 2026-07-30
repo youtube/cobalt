@@ -57,6 +57,7 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "base/check_deref.h"
+#include "chrome/browser/ash/account_manager/account_manager_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -334,16 +335,15 @@ void ProcessMirrorHeader(
     return;
   }
 
-  // TODO(b/365741912, b/365902693): Route Mirror add-account and
-  // manage-accounts UI through the future Ash-owned Account Manager UI
-  // coordinator.
-  crosapi::AccountManagerMojoService& account_manager_mojo_service =
-      CHECK_DEREF(
-          ash::AccountManagerFactory::Get()->GetAccountManagerMojoService(
-              profile->GetPath().value()));
-
   // 3. Displaying an account addition window.
   if (service_type == GAIA_SERVICE_TYPE_ADDSESSION) {
+    // TODO(b/365741912, b/365902693): Route Mirror add-account through the
+    // future Ash-owned Account Manager dialog coordinator.
+    crosapi::AccountManagerMojoService& account_manager_mojo_service =
+        CHECK_DEREF(
+            ash::AccountManagerFactory::Get()->GetAccountManagerMojoService(
+                profile->GetPath().value()));
+
     crosapi::mojom::AccountAdditionOptionsPtr options =
         crosapi::mojom::AccountAdditionOptions::New();
     options->is_available_in_arc = false;
@@ -355,7 +355,7 @@ void ProcessMirrorHeader(
   }
 
   // 4. Displaying the Account Manager for managing accounts.
-  account_manager_mojo_service.ShowManageAccountsSettings();
+  ash::OpenAccountManagerSettingsForActiveUser();
   return;
 
 #elif BUILDFLAG(IS_ANDROID)

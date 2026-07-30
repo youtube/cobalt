@@ -57,6 +57,12 @@ class InfoBarIOS : public infobars::InfoBar, public InfoBarControllerDelegate {
   // should be skipped but not the badge and subsequent modals.
   bool skip_banner() const { return skip_banner_; }
 
+  // Whether or not the presentation should be animated.
+  bool start_animated() const { return start_animated_; }
+  void set_start_animated(bool start_animated) {
+    start_animated_ = start_animated;
+  }
+
   // Whether or not the banner should be shown for a longer time and be
   // presented immediately.
   bool high_priority() const { return high_priority_; }
@@ -70,7 +76,6 @@ class InfoBarIOS : public infobars::InfoBar, public InfoBarControllerDelegate {
   // Returns a weak pointer to the infobar.
   base::WeakPtr<InfoBarIOS> GetWeakPtr();
 
- protected:
  private:
   // InfoBarControllerDelegate overrides:
   bool IsOwned() override;
@@ -80,6 +85,7 @@ class InfoBarIOS : public infobars::InfoBar, public InfoBarControllerDelegate {
   InfobarType infobar_type_;
   bool accepted_ = false;
   bool skip_banner_ = false;
+  bool start_animated_ = true;
   bool high_priority_ = false;
   bool removed_from_owner_ = false;
   base::WeakPtrFactory<InfoBarIOS> weak_factory_{this};

@@ -146,22 +146,14 @@ Color LayoutThemeMac::FocusRingColor(
     return Color::FromRGBA(0x10, 0x10, 0x10, 0xFF);
   }
 
-  if (HasCustomFocusRingColor() &&
-      (RuntimeEnabledFeatures::SystemDefaultAccentColorsEnabled() ||
-       !IsAccentColorCustomized(color_scheme))) {
+  if (HasCustomFocusRingColor()) {
     return GetCustomFocusRingColor(color_scheme);
   }
 
-  Color focus_ring;
-  if (RuntimeEnabledFeatures::SystemDefaultAccentColorsEnabled()) {
-    focus_ring =
-        Color::FromSkColor(color_scheme == mojom::blink::ColorScheme::kDark
-                               ? SkColorSetRGB(0x1A, 0xA9, 0xFF)
-                               : SkColorSetRGB(0x00, 0x67, 0xF4));
-  } else {
-    focus_ring =
-        GetSystemColor(MacSystemColorID::kKeyboardFocusIndicator, color_scheme);
-  }
+  Color focus_ring =
+      Color::FromSkColor(color_scheme == mojom::blink::ColorScheme::kDark
+                             ? SkColorSetRGB(0x1A, 0xA9, 0xFF)
+                             : SkColorSetRGB(0x00, 0x67, 0xF4));
   focus_ring.SetAlpha(166 / 255.0f);
   return focus_ring;
 }

@@ -326,6 +326,9 @@ class BrowserView : public BrowserWindow,
   // Accessor for the BrowserView's TabSearchBubbleHost instance.
   TabSearchBubbleHost* GetTabSearchBubbleHost();
 
+  // Setter for the BrowserView's TabSearchBubbleHost instance.
+  void UpdateTabSearchBubbleHost();
+
   // Accessor for the ExclusiveAccessBubble.
   ExclusiveAccessBubbleViews* GetExclusiveAccessBubble();
 
@@ -782,8 +785,8 @@ class BrowserView : public BrowserWindow,
   // It returns > 1 elements when there is a split view that is active.
   std::vector<ContentsWebView*> GetAllVisibleContentsWebViews();
 
-  bool should_show_window_controls_overlay_toggle() const {
-    return should_show_window_controls_overlay_toggle_;
+  bool is_window_controls_overlay_available() const {
+    return is_window_controls_overlay_available_;
   }
 
   void SetLoadingAnimationStateChangeClosureForTesting(
@@ -852,9 +855,6 @@ class BrowserView : public BrowserWindow,
 
   // Returns the state of the bookmark bar.
   BookmarkBar::State bookmark_bar_state() const;
-
-  // Setter for the BrowserView's TabSearchBubbleHost instance.
-  void UpdateTabSearchBubbleHost();
 
   // Display the current active split view as a series of multiple side-by-side
   // web contents.
@@ -1057,8 +1057,8 @@ class BrowserView : public BrowserWindow,
 
   void UpdateWindowControlsOverlayEnabled();
 
-  // Updates the visibility of the Window Controls Overlay toggle button.
-  void UpdateWindowControlsOverlayToggleVisible();
+  // Updates the Window Controls Overlay availability in this window.
+  void UpdateWindowControlsOverlayAvailable();
 
   // Updates the variable keeping track of the Window Management permission,
   // which together with `unframed_mode_enabled_` controls whether the title bar
@@ -1364,7 +1364,7 @@ class BrowserView : public BrowserWindow,
 #endif
 
   bool window_controls_overlay_enabled_ = false;
-  bool should_show_window_controls_overlay_toggle_ = false;
+  bool is_window_controls_overlay_available_ = false;
   bool unframed_mode_enabled_ = false;
   bool window_management_permission_granted_ = false;
 #if BUILDFLAG(IS_WIN)

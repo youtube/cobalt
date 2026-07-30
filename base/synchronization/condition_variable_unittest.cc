@@ -276,7 +276,7 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
     EXPECT_EQ(0, queue.GetNumberOfCompletedTasks());
 
     // Set up to make each task include getting help from another worker, so
-    // so that the work gets done in paralell.
+    // that the work gets done in parallel.
     queue.ResetHistory();
     queue.SetTaskCount(kTaskCount);
     queue.SetWorkTime(kThirtyMs);

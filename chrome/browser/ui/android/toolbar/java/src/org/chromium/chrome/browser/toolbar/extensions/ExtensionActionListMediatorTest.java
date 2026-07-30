@@ -378,6 +378,40 @@ public class ExtensionActionListMediatorTest {
     }
 
     @Test
+    public void testUpdateActionPropertiesForAll() {
+        mMediator.reconcileActionItems();
+
+        // The models should be updated.
+        assertEquals(2, mModels.size());
+        assertItemAt(0, ACTION1_ID, "title of action 1", ICON_RED);
+        assertItemAt(1, ACTION2_ID, "title of action 2", ICON_BLUE);
+
+        mActions.put(
+                ACTION1_ID,
+                new ActionData(
+                        ACTION1_ID,
+                        "new title of action 1",
+                        ICON_CYAN,
+                        new HoverCardState(
+                                SiteAccess.ALL_EXTENSIONS_ALLOWED, "", "", AdminPolicy.NONE, "")));
+        mActions.put(
+                ACTION2_ID,
+                new ActionData(
+                        ACTION2_ID,
+                        "new title of action 2",
+                        ICON_MAGENTA,
+                        new HoverCardState(
+                                SiteAccess.ALL_EXTENSIONS_ALLOWED, "", "", AdminPolicy.NONE, "")));
+
+        mMediator.updateActionPropertiesForAll(mWebContents);
+
+        // The models should have the updated items.
+        assertEquals(2, mModels.size());
+        assertItemAt(0, ACTION1_ID, "new title of action 1", ICON_CYAN);
+        assertItemAt(1, ACTION2_ID, "new title of action 2", ICON_MAGENTA);
+    }
+
+    @Test
     public void testFitActionsWithinWidth_HidesExtraItems() {
         mMediator.reconcileActionItems();
 

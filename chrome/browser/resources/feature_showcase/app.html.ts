@@ -51,6 +51,17 @@ export function getHtml(this: FeatureShowcaseAppElement) {
         </feature-showcase-stepper>
       </feature-showcase-password-manager-step>
   ` : ''}
+
+  ${this.hasStep_('google-lens') ? html`
+      <feature-showcase-google-lens-step id="google-lens" slot="view"
+          @step-completed="${this.onStepCompleted_}"
+          ?buttons-disabled="${this.areButtonsDisabled_}">
+        <feature-showcase-stepper slot="stepper"
+            .steps="${this.steps}"
+            .activeIndex="${this.activeStepIndex}">
+        </feature-showcase-stepper>
+      </feature-showcase-google-lens-step>
+  ` : ''}
 </cr-view-manager>
 <!--_html_template_end_-->`;
   // clang-format on

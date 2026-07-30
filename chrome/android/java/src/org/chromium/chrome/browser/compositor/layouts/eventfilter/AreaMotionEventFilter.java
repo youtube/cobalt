@@ -155,8 +155,13 @@ public class AreaMotionEventFilter extends MotionEventFilter {
             return false;
         }
 
+        int action = e.getActionMasked();
         // This filter is currently only interested in acting on mouse and trackpad events.
-        if (!MotionEventUtils.isPointerEvent(e)) {
+        boolean isPointer = MotionEventUtils.isPointerEvent(e);
+
+        if (!isPointer
+                && action != MotionEvent.ACTION_BUTTON_PRESS
+                && action != MotionEvent.ACTION_BUTTON_RELEASE) {
             return false;
         }
 
@@ -164,14 +169,23 @@ public class AreaMotionEventFilter extends MotionEventFilter {
         // to handle the event as needed (e.g. scroll the tab strip). For other actions generating
         // motion events, we will intercept them to prevent them from leaking to underlying layers,
         // e.g. preventing clicks from leaking through the tab strip to the web contents behind it.
-        int action = e.getActionMasked();
         if (action == MotionEvent.ACTION_SCROLL) {
             mHandler.onScroll(
                     e.getAxisValue(MotionEvent.AXIS_HSCROLL),
                     e.getAxisValue(MotionEvent.AXIS_VSCROLL));
             return true;
-        } else if (action == MotionEvent.ACTION_BUTTON_PRESS
-                || action == MotionEvent.ACTION_BUTTON_RELEASE) {
+        } else if (action == MotionEvent.ACTION_BUTTON_PRESS) {
+            if (MotionEventUtils.isSecondaryClick(e.getButtonState())) {
+                mHandler.click(
+                        e.getX() * mPxToDp,
+                        e.getY() * mPxToDp,
+                        e.getButtonState(),
+                        e.getMetaState());
+            }
+            // Intentionally return true to consume all button presses (including primary)
+            // to prevent them from leaking to underlying layers, matching original behavior.
+            return true;
+        } else if (action == MotionEvent.ACTION_BUTTON_RELEASE) {
             return true;
         }
         return false;

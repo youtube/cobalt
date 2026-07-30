@@ -8,6 +8,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
@@ -114,6 +115,7 @@ public class Fido2CredentialRequestRobolectricTest {
     @Mock WebauthnModeProvider mModeProviderMock;
     @Mock AuthenticationContextProvider mAuthenticationContextProviderMock;
     @Mock GmsCoreGetCredentialsHelper mGmsCoreGetCredentialsHelperMock;
+    private WebauthnRequestCallback mRequestCallbackForTesting;
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -201,8 +203,55 @@ public class Fido2CredentialRequestRobolectricTest {
                 /* overrideAndroidVersion= */ Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
                 /* overrideForcesGpm= */ true);
         mRequest.overrideBrowserBridgeForTesting(mBrowserBridgeMock);
+        Mockito.when(mBrowserBridgeMock.isInitialized()).thenReturn(true);
         mRequest.setCredManHelperForTesting(mCredManHelperMock);
         mRequest.setBarrierForTesting(mBarrierMock);
+        doAnswer(
+                        invocation -> {
+                            if (mRequestCallbackForTesting != null) {
+                                int status = AuthenticatorStatus.NOT_ALLOWED_ERROR;
+                                if (mRequestCallbackForTesting.getCallbackType()
+                                        == WebauthnRequestCallback.CallbackType.GET_CREDENTIAL) {
+                                    mRequestCallbackForTesting.onComplete(
+                                            WebauthnRequestResponse.forFailedGetCredential(
+                                                    status, new RequestMetrics.Builder().build()));
+                                } else if (mRequestCallbackForTesting.getCallbackType()
+                                        == WebauthnRequestCallback.CallbackType.MAKE_CREDENTIAL) {
+                                    mRequestCallbackForTesting.onComplete(
+                                            WebauthnRequestResponse.forFailedMakeCredential(
+                                                    status, new RequestMetrics.Builder().build()));
+                                } else {
+                                    mRequestCallbackForTesting.onComplete(
+                                            WebauthnRequestResponse.forReport(status));
+                                }
+                            }
+                            return null;
+                        })
+                .when(mBarrierMock)
+                .onFido2ApiCancelled();
+        doAnswer(
+                        invocation -> {
+                            if (mRequestCallbackForTesting != null) {
+                                int status = invocation.getArgument(0);
+                                if (mRequestCallbackForTesting.getCallbackType()
+                                        == WebauthnRequestCallback.CallbackType.GET_CREDENTIAL) {
+                                    mRequestCallbackForTesting.onComplete(
+                                            WebauthnRequestResponse.forFailedGetCredential(
+                                                    status, new RequestMetrics.Builder().build()));
+                                } else if (mRequestCallbackForTesting.getCallbackType()
+                                        == WebauthnRequestCallback.CallbackType.MAKE_CREDENTIAL) {
+                                    mRequestCallbackForTesting.onComplete(
+                                            WebauthnRequestResponse.forFailedMakeCredential(
+                                                    status, new RequestMetrics.Builder().build()));
+                                } else {
+                                    mRequestCallbackForTesting.onComplete(
+                                            WebauthnRequestResponse.forReport(status));
+                                }
+                            }
+                            return null;
+                        })
+                .when(mBarrierMock)
+                .onFido2ApiCancelled(anyInt());
         GmsCoreUtils.setGmsCoreVersionForTesting(2024000000);
     }
 
@@ -824,6 +873,7 @@ public class Fido2CredentialRequestRobolectricTest {
 
         CredManSupportProvider.setupForTesting(Build.VERSION_CODES.UPSIDE_DOWN_CAKE, true);
 
+        setUpGetCredentialCallback();
         mRequest.handleGetCredentialRequest(mRequestOptions, mOrigin, mOrigin, /* payment= */ null);
 
         ArgumentCaptor<GetCredentialOptions> optionsCaptor =
@@ -902,6 +952,7 @@ public class Fido2CredentialRequestRobolectricTest {
                             }
                         },
                         result -> mCallback.onRequestOutcome(result.getMakeCredentialOutcome()));
+        mRequestCallbackForTesting = callback;
         Mockito.when(mAuthenticationContextProviderMock.getRequestCallback()).thenReturn(callback);
     }
 
@@ -921,6 +972,7 @@ public class Fido2CredentialRequestRobolectricTest {
                             }
                         },
                         (result) -> mCallback.onRequestOutcome(result.getGetAssertionOutcome()));
+        mRequestCallbackForTesting = callback;
         Mockito.when(mAuthenticationContextProviderMock.getRequestCallback()).thenReturn(callback);
     }
 
@@ -928,6 +980,7 @@ public class Fido2CredentialRequestRobolectricTest {
         WebauthnRequestCallback callback =
                 WebauthnRequestCallback.forReport(
                         (status, unused) -> mCallback.onReportOutcome(status));
+        mRequestCallbackForTesting = callback;
         Mockito.when(mAuthenticationContextProviderMock.getRequestCallback()).thenReturn(callback);
     }
 

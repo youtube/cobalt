@@ -24,6 +24,8 @@ class TabRestoreServiceImplTest;
 
 namespace sessions {
 
+class CommandStorageManager;
+
 // Tab restore service that persists data on disk.
 class SESSIONS_EXPORT TabRestoreServiceImpl : public TabRestoreService {
  public:
@@ -71,6 +73,8 @@ class SESSIONS_EXPORT TabRestoreServiceImpl : public TabRestoreService {
   void Shutdown() override;
 
   void CreateRestoredEntryCommandForTest(SessionID id);
+
+  CommandStorageManager* command_storage_manager_for_testing();
 
  private:
   friend class ::TabRestoreServiceImplTest;

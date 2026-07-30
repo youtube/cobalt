@@ -29,6 +29,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/tab_list/mock_tab_list_interface.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_host_controller.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_sanitizer.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
+#include "chrome/browser/ui/webui/drive_picker_host/drive_disclaimer_controller.h"
 #include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_request.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
@@ -49,6 +51,8 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/footprints/public/fpop_service.h"
+#include "components/contextual_search/footprints/public/proto/footprints_oneplatform.pb.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
 #include "components/contextual_search/pref_names.h"
 #include "components/contextual_tasks/public/features.h"
@@ -130,7 +134,11 @@ class FakeContextualSearchboxHandler : public ContextualSearchboxHandler {
                                    web_contents,
                                    std::move(controller),
                                    std::move(get_session_callback)) {}
-  ~FakeContextualSearchboxHandler() override = default;
+  ~FakeContextualSearchboxHandler() override {
+#if !BUILDFLAG(IS_ANDROID)
+    OnDrivePickerDisconnected();
+#endif
+  }
 
   // searchbox::mojom::PageHandler
   void ExecuteAction(uint8_t line,
@@ -175,6 +183,15 @@ class FakeContextualSearchboxHandler : public ContextualSearchboxHandler {
     drive_picker_controller_ = std::move(controller);
   }
 
+  void SetDriveDisclaimerController(
+      std::unique_ptr<drive_picker::DriveDisclaimerController> controller) {
+    drive_disclaimer_controller_ = std::move(controller);
+  }
+
+  drive_picker::DriveDisclaimerController* drive_disclaimer_controller() {
+    return drive_disclaimer_controller_.get();
+  }
+
   bool IsDrivePickerReceiverBound() const {
     return drive_picker_result_handler_receiver_.is_bound();
   }
@@ -197,6 +214,28 @@ class MockDrivePickerHostController : public DrivePickerHostController {
               ShowDrivePickerHost,
               (std::unique_ptr<drive_picker_host::DrivePickerHostRequest>),
               (override));
+};
+
+class MockFpopService : public contextual_search::FpopService {
+ public:
+  MOCK_METHOD(
+      void,
+      GetFacs,
+      (const footprints::oneplatform::GetFacsRequest& request,
+       base::OnceCallback<void(
+           bool success,
+           const footprints::oneplatform::GetFacsResponse& response)> callback),
+      (override));
+  MOCK_METHOD(
+      void,
+      UpdateActivityControlsSettings,
+      (const footprints::oneplatform::UpdateActivityControlsSettingsRequest&
+           request,
+       base::OnceCallback<void(
+           bool success,
+           const footprints::oneplatform::
+               UpdateActivityControlsSettingsResponse& response)> callback),
+      (override));
 };
 
 class MockContextualTasksContextService
@@ -321,6 +360,24 @@ class ContextualSearchboxHandlerTest
   FakeContextualSearchboxHandler& handler() { return *handler_; }
   MockQueryController& query_controller() { return *query_controller_; }
 
+  void SetUpMockFpopService(bool accepted) {
+    auto mock_fpop_service = std::make_unique<MockFpopService>();
+    EXPECT_CALL(*mock_fpop_service, GetFacs(testing::_, testing::_))
+        .WillOnce([accepted](const auto& request, auto callback) {
+          footprints::oneplatform::GetFacsResponse response;
+          if (accepted) {
+            auto* setting = response.add_facs_setting();
+            setting->set_setting(
+                contextual_search::kPersonalContextSearchUsingWorkspace);
+            setting->set_data_recording_enabled(true);
+          }
+          std::move(callback).Run(true, response);
+        });
+    handler().SetDriveDisclaimerController(
+        std::make_unique<drive_picker::DriveDisclaimerController>(
+            std::move(mock_fpop_service)));
+  }
+
   MockContextualSearchMetricsRecorder* GetMetricsRecorderPtr() {
     if (handler_) {
       /* Cast since what we pass into the handler was a mock version to begin
@@ -361,6 +418,34 @@ class ContextualSearchboxHandlerTest
   raw_ptr<contextual_search::ContextualSearchService> service_;
   raw_ptr<MockContextualSearchMetricsRecorder> metrics_recorder_;
 };
+
+TEST_F(ContextualSearchboxHandlerTest,
+       DriveDisclaimerControllerDoesNotCrashForIncognito) {
+  // Use an incognito profile.
+  Profile* incognito_profile =
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  ASSERT_TRUE(incognito_profile->IsOffTheRecord());
+
+  // IdentityManager is null for incognito profiles in this test setup.
+  ASSERT_EQ(nullptr, IdentityManagerFactory::GetForProfile(incognito_profile));
+
+  // Feature is enabled by default in SetUp().
+
+  // Create a handler for the incognito profile.
+  testing::NiceMock<MockSearchboxPage> incognito_mock_searchbox_page;
+  auto incognito_handler = std::make_unique<FakeContextualSearchboxHandler>(
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      incognito_mock_searchbox_page.BindAndGetRemote(), incognito_profile,
+      web_contents(),
+      std::make_unique<OmniboxController>(
+          std::make_unique<TestOmniboxClient>()),
+      base::BindLambdaForTesting(
+          [&]() { return contextual_session_handle_.get(); }));
+
+  // Without the fix, the constructor above would have crashed.
+  // With the fix, the disclaimer controller should be null.
+  EXPECT_EQ(nullptr, incognito_handler->drive_disclaimer_controller());
+}
 
 TEST_F(ContextualSearchboxHandlerTest, SessionStarted) {
   SessionState state_arg = SessionState::kNone;
@@ -1073,6 +1158,46 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_DelayUpload) {
                                    SessionState::kNavigationOccurred));
 }
 
+TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_TabAttachmentCount) {
+  // Arrange
+  auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
+  ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
+
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
+      .Times(3);
+  EXPECT_CALL(*metrics_recorder_ptr,
+              NotifyQuerySubmitted(testing::_, testing::_, testing::_,
+                                   testing::_, testing::_))
+      .WillOnce(testing::Invoke(
+          metrics_recorder_ptr,
+          &MockContextualSearchMetricsRecorder::NotifyQuerySubmittedBase));
+
+  // Start the session.
+  EXPECT_CALL(query_controller(), InitializeIfNeeded)
+      .WillOnce(testing::Invoke(&query_controller(),
+                                &MockQueryController::InitializeIfNeededBase));
+
+  auto token_tab = base::UnguessableToken::Create();
+
+  auto& uploaded_tokens = handler()
+                              .GetContextualSessionHandle()
+                              ->GetUploadedContextTokensForTesting();
+  uploaded_tokens.push_back(token_tab);
+
+  query_controller().AddTabFileInfoForTesting(
+      token_tab, GURL("https://www.google.com"),
+      lens::MimeType::kAnnotatedPageContent);
+
+  handler().NotifySessionStarted();
+
+  // Act
+  SubmitQueryAndWaitForNavigation();
+
+  // Assert
+  histogram_tester().ExpectUniqueSample(
+      "ContextualSearch.Query.AttachmentCount.Tab.NewTabPage", 1, 1);
+}
+
 class SmartTabSharingTest : public ContextualSearchboxHandlerTestHarness {
  public:
   ~SmartTabSharingTest() override = default;
@@ -1451,19 +1576,18 @@ TEST_F(ContextualSearchboxHandlerTest, OnDriveUploadClicked_DoubleClick) {
   auto* mock_ptr = mock_drive_picker_controller.get();
   handler().SetDrivePickerController(std::move(mock_drive_picker_controller));
 
+  // Verify that the controller is only shown once even if clicked multiple
+  // times.
   EXPECT_CALL(*mock_ptr, ShowDrivePickerHost(testing::_)).Times(1);
 
   base::test::TestFuture<searchbox::mojom::DriveUploadResponsePtr> future;
   handler().OnDriveUploadClicked(future.GetCallback());
   EXPECT_TRUE(handler().IsDrivePickerReceiverBound());
 
-  // Second click should not call ShowDrivePickerHost and should run the new
-  // callback with an empty response if it replaces the old one, but wait, the
-  // current implementation CHECKS that it is null. So we should only test that
-  // we can't call it again while bound.
-  // To avoid the CHECK crash, we shouldn't call it again in the test if we
-  // expect it to fail, OR we should fix the implementation to handle it.
-  // Given the CHECK, we'll just verify it's bound.
+  // Subsequent clicks while the picker is active should be ignored.
+  base::test::TestFuture<searchbox::mojom::DriveUploadResponsePtr>
+      second_future;
+  handler().OnDriveUploadClicked(second_future.GetCallback());
 }
 
 TEST_F(ContextualSearchboxHandlerTest, OnDrivePickerDisconnected) {
@@ -1568,24 +1692,27 @@ TEST_F(ContextualSearchboxHandlerTest, OnDrivePickerResult_OnError) {
   EXPECT_TRUE(future.Wait());
 }
 
-TEST_F(ContextualSearchboxHandlerTest, DriveDisclaimer_ShouldShow) {
+TEST_F(ContextualSearchboxHandlerTest, DriveDisclaimer_NotAccepted) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(omnibox::kComposeboxDriveContextMenuOption);
 
-  base::test::TestFuture<bool> future;
-  handler().ShouldShowDriveDisclaimer(future.GetCallback());
-  EXPECT_TRUE(future.Get());
+  SetUpMockFpopService(/*accepted=*/false);
+
+  base::test::TestFuture<searchbox::mojom::DriveDisclaimerStatus> future;
+  handler().GetDriveDisclaimerStatus(future.GetCallback());
+  EXPECT_EQ(searchbox::mojom::DriveDisclaimerStatus::kNotAccepted,
+            future.Get());
 }
 
-TEST_F(ContextualSearchboxHandlerTest, DriveDisclaimer_AfterAccepted) {
+TEST_F(ContextualSearchboxHandlerTest, DriveDisclaimer_Accepted) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(omnibox::kComposeboxDriveContextMenuOption);
 
-  handler().OnDriveDisclaimerAccepted();
+  SetUpMockFpopService(/*accepted=*/true);
 
-  base::test::TestFuture<bool> future;
-  handler().ShouldShowDriveDisclaimer(future.GetCallback());
-  EXPECT_FALSE(future.Get());
+  base::test::TestFuture<searchbox::mojom::DriveDisclaimerStatus> future;
+  handler().GetDriveDisclaimerStatus(future.GetCallback());
+  EXPECT_EQ(searchbox::mojom::DriveDisclaimerStatus::kAccepted, future.Get());
 }
 
 TEST_F(ContextualSearchboxHandlerTest, DriveDisclaimer_FlagDisabled) {
@@ -1593,9 +1720,9 @@ TEST_F(ContextualSearchboxHandlerTest, DriveDisclaimer_FlagDisabled) {
   feature_list.InitAndDisableFeature(
       omnibox::kComposeboxDriveContextMenuOption);
 
-  base::test::TestFuture<bool> future;
-  handler().ShouldShowDriveDisclaimer(future.GetCallback());
-  EXPECT_FALSE(future.Get());
+  base::test::TestFuture<searchbox::mojom::DriveDisclaimerStatus> future;
+  handler().GetDriveDisclaimerStatus(future.GetCallback());
+  EXPECT_EQ(searchbox::mojom::DriveDisclaimerStatus::kRestricted, future.Get());
 }
 
 TEST_F(ContextualSearchboxHandlerTest, OnDriveUploadClicked) {
@@ -2244,6 +2371,10 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext) {
 
   // Flush the mojo pipe to ensure the callback is run.
   mock_searchbox_page_.FlushForTesting();
+
+  histogram_tester_.ExpectUniqueSample(
+      "ContextualSearch.AttachmentButtonUsed.NewTabPage",
+      contextual_search::ContextualSearchAttachmentButtonType::kCurrentTab, 1);
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, ClearFiles_KeepTabs) {
@@ -2486,6 +2617,45 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_DelayUpload) {
   ASSERT_TRUE(handler().tab_context_snapshot_.has_value());
   ASSERT_TRUE(handler().context_input_data().has_value());
   ASSERT_EQ(contextual_search::ContextUploadStatus::kProcessing, status);
+
+  histogram_tester_.ExpectUniqueSample(
+      "ContextualSearch.AttachmentButtonUsed.NewTabPage",
+      contextual_search::ContextualSearchAttachmentButtonType::kSuggestedTab, 1);
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_RecentTab) {
+  auto sample_url_1 = GURL("https://www.google.com");
+  auto sample_url_2 = GURL("https://www.youtube.com");
+  tabs::TabInterface* tab1 = AddTab(sample_url_1);
+  AddTab(sample_url_2);
+  const int sample_tab_id_1 = tab1->GetHandle().raw_value();
+
+  MockTabContextualizationController* tab_contextualization_controller =
+      static_cast<MockTabContextualizationController*>(
+          lens::TabContextualizationController::From(tab1));
+  EXPECT_CALL(*tab_contextualization_controller, GetPageContext(testing::_))
+      .WillOnce(
+          [](lens::TabContextualizationController::GetPageContextCallback
+                 callback) {
+            std::move(callback).Run(
+                std::make_unique<lens::ContextualInputData>());
+          });
+
+  EXPECT_CALL(query_controller(),
+              StartFileUploadFlow(testing::_, testing::NotNull(), testing::_));
+  EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged);
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
+  EXPECT_CALL(callback, Run);
+
+  handler().AddTabContext(sample_tab_id_1, /*delay_upload=*/false,
+                          callback.Get());
+
+  // Flush the mojo pipe to ensure the callback is run.
+  mock_searchbox_page_.FlushForTesting();
+
+  histogram_tester_.ExpectUniqueSample(
+      "ContextualSearch.AttachmentButtonUsed.NewTabPage",
+      contextual_search::ContextualSearchAttachmentButtonType::kRecentTab, 1);
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, DeleteContext_DelayUpload) {

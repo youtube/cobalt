@@ -269,6 +269,7 @@ To će u suprotnom biti onemogućeno na temelju vaših postavki privatnosti. To 
 <translation id="1407135791313364759">Otvori sve</translation>
 <translation id="1408696301184924537">Da biste sljedeći put automatski popunili IBAN, spremite ga na svoj Google račun</translation>
 <translation id="1408787208417187241">Trostruko spajanje pri vrhu</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" />. od <ph name="NUM_MATCHES_IN_GROUP" /> u grupi <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Druge osobe koje upotrebljavaju ovaj uređaj neće vidjeti vašu aktivnost, pa možete pregledavati privatnije. Time se neće promijeniti način na koji podatke prikupljaju web-lokacije koje posjećujete i usluge koje upotrebljavate, uključujući Google. Preuzimanja, oznake i stavke s popisa za čitanje spremat će se.</translation>
 <translation id="1410941016594047814">Omotnica Invite</translation>
 <translation id="1413235258620101697">CVC te kartice šifrirat će se i spremiti u Google Wallet radi brže naplate</translation>
@@ -300,6 +301,7 @@ To će u suprotnom biti onemogućeno na temelju vaših postavki privatnosti. To 
 <translation id="1445896388055045436">Pri naplati prikažite dostupne pogodnosti i nagrade kartice. Primjenjuju se uvjeti izdavatelja.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Tipke <ph name="DATA_CONTROLS_FIRST_KEY_SET" /> ne mogu se postaviti u istom rječniku kao i tipke <ph name="DATA_CONTROLS_SECOND_KEY_SET" /></translation>
+<translation id="1449251255954293933">Spremite broj za rješavanje pritužbi u Google Wallet</translation>
 <translation id="1455413310270022028">Gumica</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Nema recenzija za pregled}=1{Pogledajte jednu recenziju}one{Pogledajte sve recenzije (ukupno #)}few{Pogledajte sve recenzije (ukupno #)}other{Pogledajte svih # recenzija}}</translation>
 <translation id="1458059624921545588">Ljudi i društvo</translation>
@@ -660,6 +662,7 @@ To će u suprotnom biti onemogućeno na temelju vaših postavki privatnosti. To 
 <translation id="2045871135676061132">Omotnica za privatna pisma</translation>
 <translation id="2046951263634619614">Knjižare</translation>
 <translation id="2048261947532620704">Prevođenje stranice</translation>
+<translation id="2055016614992422886">Razgovor</translation>
 <translation id="2059166748188874810">Općina</translation>
 <translation id="2059202684901022309">22 x 34 inča</translation>
 <translation id="2064568741209980952">Krediti i zajmovi</translation>
@@ -1155,6 +1158,7 @@ To će u suprotnom biti onemogućeno na temelju vaših postavki privatnosti. To 
 <translation id="2782088940970074970">Najam automobila</translation>
 <translation id="278436560439594386">Kućanski uređaji</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Zaporke · Pristupni ključevi</translation>
 <translation id="2784949926578158345">Veza je ponovo uspostavljena.</translation>
 <translation id="2786008859124691917">Bicikli i oprema</translation>
 <translation id="2792012897584536778">Administratori uređaja postavili su sigurnosne certifikate koji im mogu omogućiti prikaz sadržaja web-lokacija koje posjetite.</translation>
@@ -2304,6 +2308,7 @@ Da biste sakrili opcije plaćanja kasnije, otvorite <ph name="BEGIN_LINK" />post
 <translation id="46128681529823442">Oprema za nogomet</translation>
 <translation id="4612904677925722054">Ova web-lokacija može sadržavati sadržaj za odrasle. Roditelj ili skrbnik mora ti dopustiti da posjetiš ovu web-lokaciju.</translation>
 <translation id="4619564267100705184">Potvrdite svoj identitet</translation>
+<translation id="4619669610757527494">Spremite vozačku dozvolu u Google Wallet</translation>
 <translation id="4622292761762557753">Svejedno prenesi</translation>
 <translation id="4622647778991854660">Omogućite obavijesti u centru za obavijesti. Otvorite <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Osobni dokumenti</translation>
@@ -2833,6 +2838,7 @@ Da biste sakrili opcije plaćanja kasnije, otvorite <ph name="BEGIN_LINK" />post
 <translation id="543656192084990644">Senzori kretanja nisu dopušteni</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, bilo je <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Suprotnim redoslijedom prema gore</translation>
+<translation id="5447103258548475868">Spremite putovnicu u Google Wallet</translation>
 <translation id="5447235695608032700">Dopustite da web-lokacija <ph name="SITE" /> upotrebljava podatke koje je spremila o vama</translation>
 <translation id="5447973833955560753">Zaporka za oporavak</translation>
 <translation id="5451331376824595378">Kad Chrome označi sigurnosne događaje, vašem administratoru šalju se relevantni podaci o tim događajima. To može uključivati URL-ove stranica koje posjetite u Chromeu, URL-ove stranica s kojih ste kopirali podatke, nazive ili metapodatke datoteka, IP adrese, rušenja preglednika ili kartica te korisničko ime koje upotrebljavate za prijavu u aplikacije temeljene na webu, uređaj i Chrome.</translation>
@@ -3556,6 +3562,7 @@ Da biste sakrili opcije plaćanja kasnije, otvorite <ph name="BEGIN_LINK" />post
 <translation id="6550245281449521513">Zaključavanje miša nije dopušteno</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, novo</translation>
 <translation id="6552566579578780089">Plaćanja</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" />. od <ph name="NUM_MATCHES_IN_GROUP" /> u grupi <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Posljednji posjet bio je prije <ph name="NUM_DAYS" /> dana</translation>
 <translation id="6556866813142980365">Ponovi</translation>
 <translation id="6557715786897013164">14 x 17 in</translation>
@@ -4233,6 +4240,7 @@ Dodatne pojedinosti:
 <translation id="7599089013883397081">Isteklo je vrijeme za preuzimanje</translation>
 <translation id="7602868996817972616">Postavite pitanje Googleu o ovoj stranici</translation>
 <translation id="7606123685356405076">Modeli Geminija 3</translation>
+<translation id="760632772920590778">Spremite vozilo u Google Wallet</translation>
 <translation id="7610193165460212391">Vrijednost je izvan raspona <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Debeo</translation>
 <translation id="7613889955535752492">Istječe: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4262,6 +4270,7 @@ Dodatne pojedinosti:
 <translation id="7647206758853451655">Kvaliteta ispisa</translation>
 <translation id="7648133459447652947">Da bi se prikazao pokazivač, prebacite se na drugu aplikaciju, ponovo učitajte stranicu ili se vratite</translation>
 <translation id="7648527891719919697">Web-lokacija će ostati blokirana jer ste u <ph name="BEGIN_ANDROID_SETTINGS_LINK" />postavkama Androida<ph name="END_ANDROID_SETTINGS_LINK" /> uključili Naprednu zaštitu. <ph name="BEGIN_LEARN_MORE_LINK" />Saznajte više o tom upozorenju<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Spremite broj poznatog putnika u Google Wallet</translation>
 <translation id="7648992873808071793">spremati datoteke na uređaj</translation>
 <translation id="7649070708921625228">Pomoć</translation>
 <translation id="7650141368285545431">Upotrijebi pristupni ključ s drugog uređaja</translation>
@@ -4354,6 +4363,7 @@ Dodatne pojedinosti:
 <translation id="7773005668374414287">Istim redoslijedom prema gore</translation>
 <translation id="7779418012194492374">Opozovi pristup za uređaj <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Danas</translation>
+<translation id="7782228658217918863">Spremite osobnu iskaznicu u Google Wallet</translation>
 <translation id="7782465647372057580">Podaci o računu šifriraju se i ostaju privatni</translation>
 <translation id="7785471469930192436">Potražite upute za svoju tražilicu da biste saznali kako izbrisati svoju povijest pretraživanja, ako je primjenjivo</translation>
 <translation id="7785790577395078482">ovaj tablet</translation>

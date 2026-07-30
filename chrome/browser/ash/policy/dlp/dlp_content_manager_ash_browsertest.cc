@@ -556,8 +556,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Resize browsers so that second window covers the first one.
   // Browser window can't have width less than 500.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(0, 0, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(0, 0, 700, 700));
 
   // Make first window content as confidential.
   helper_->ChangeConfidentiality(web_contents1, kScreenshotRestricted);
@@ -570,13 +570,13 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   ASSERT_EQ(events_.size(), 0u);
 
   // Move first window with confidential content to make it visible.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 700, 700));
 
   // Check that capture was requested to be stopped via callback.
   run_loop.Run();
 
   capture_mode_delegate->StopObservingRestrictedContent(base::DoNothing());
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectUniqueSample(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kVideoCaptureInterruptedUMA,
@@ -609,8 +609,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest, VideoCaptureReported) {
 
   // Resize browsers so that second window covers the first one.
   // Browser window can't have width less than 500.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(0, 0, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(0, 0, 700, 700));
 
   // Make first window content as confidential.
   helper_->ChangeConfidentiality(web_contents1, kScreenshotReported);
@@ -624,13 +624,13 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest, VideoCaptureReported) {
       }));
 
   // Move first window with confidential content to make it visible.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 700, 700));
 
   // Check that capture was not requested to be stopped via callback.
   run_loop.RunUntilIdle();
   capture_mode_delegate->StopObservingRestrictedContent(base::DoNothing());
 
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectBucketCount(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kVideoCaptureInterruptedUMA,
@@ -664,8 +664,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Resize browsers so that second window covers the first one.
   // Browser window can't have width less than 500.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(0, 0, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(0, 0, 700, 700));
 
   // Make first window content as confidential.
   helper_->ChangeConfidentiality(web_contents1, kScreenshotRestricted);
@@ -678,13 +678,13 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   ASSERT_EQ(events_.size(), 0u);
 
   // Move second window to make first window with confidential content visible.
-  browser2->window()->SetBounds(gfx::Rect(150, 150, 700, 700));
+  browser2->GetWindow()->SetBounds(gfx::Rect(150, 150, 700, 700));
 
   // Check that capture was requested to be stopped via callback.
   run_loop.Run();
 
   capture_mode_delegate->StopObservingRestrictedContent(base::DoNothing());
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectUniqueSample(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kVideoCaptureInterruptedUMA,
@@ -718,8 +718,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Resize browsers so that second window covers the first one.
   // Browser window can't have width less than 500.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(0, 0, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(0, 0, 700, 700));
 
   // Make first window content as confidential.
   helper_->ChangeConfidentiality(web_contents1, kScreenshotRestricted);
@@ -735,7 +735,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
       }));
 
   // Move first window, but keep confidential content hidden.
-  browser1->window()->SetBounds(gfx::Rect(150, 150, 500, 500));
+  browser1->GetWindow()->SetBounds(gfx::Rect(150, 150, 500, 500));
 
   // Check that capture was not requested to be stopped via callback.
   run_loop.RunUntilIdle();
@@ -745,7 +745,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // dismissed.
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 0);
 
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectTotalCount(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kVideoCaptureInterruptedUMA,
@@ -775,8 +775,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Resize browsers so that second window covers the first one.
   // Browser window can't have width less than 500.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(0, 0, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(0, 0, 700, 700));
 
   // Make first window content as confidential.
   helper_->ChangeConfidentiality(web_contents1, kScreenshotWarned);
@@ -790,7 +790,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
       }));
 
   // Move first window with confidential content to make it visible.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 700, 700));
   // Check that the warning is still not shown.
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 0);
 
@@ -819,7 +819,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
       true, 1);
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 0);
 
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectBucketCount(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kVideoCaptureInterruptedUMA,
@@ -847,8 +847,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Resize browsers so that second window covers the first one.
   // Browser window can't have width less than 500.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(0, 0, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(0, 0, 700, 700));
 
   // Make first window content as confidential.
   helper_->ChangeConfidentiality(web_contents1, kScreenshotWarned);
@@ -862,7 +862,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
       }));
 
   // Move first window with confidential content to make it visible.
-  browser1->window()->SetBounds(gfx::Rect(100, 100, 700, 700));
+  browser1->GetWindow()->SetBounds(gfx::Rect(100, 100, 700, 700));
   // Check that the warning is still not shown.
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 0);
 
@@ -891,7 +891,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
       false, 1);
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 0);
 
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectBucketCount(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kVideoCaptureInterruptedUMA,
@@ -1817,8 +1817,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
   helper_->ChangeConfidentiality(web_contents2, kScreenShareRestricted);
 
   // Resize both contents to be visible so that visibility state won't change.
-  browser1->window()->SetBounds(gfx::Rect(0, 00, 500, 500));
-  browser2->window()->SetBounds(gfx::Rect(150, 150, 500, 500));
+  browser1->GetWindow()->SetBounds(gfx::Rect(0, 00, 500, 500));
+  browser2->GetWindow()->SetBounds(gfx::Rect(150, 150, 500, 500));
 
   EXPECT_CALL(state_change_cb_,
               Run(testing::_, blink::mojom::MediaStreamStateChange::PAUSE))
@@ -1839,7 +1839,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
   browser1->tab_strip_model()->ActivateTabAt(0);
 
   // Cleanup and check reporting.
-  browser2->window()->Close();
+  browser2->GetWindow()->Close();
   histogram_tester_.ExpectUniqueSample(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kScreenSharePausedOrResumedUMA,

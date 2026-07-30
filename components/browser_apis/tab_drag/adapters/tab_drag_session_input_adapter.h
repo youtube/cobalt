@@ -5,8 +5,6 @@
 #ifndef COMPONENTS_BROWSER_APIS_TAB_DRAG_ADAPTERS_TAB_DRAG_SESSION_INPUT_ADAPTER_H_
 #define COMPONENTS_BROWSER_APIS_TAB_DRAG_ADAPTERS_TAB_DRAG_SESSION_INPUT_ADAPTER_H_
 
-#include <vector>
-
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
@@ -20,6 +18,7 @@ struct TabDragInputEvent {
     kMoved,
     kCancelled,
     kDropped,
+    kCaptureChanged,
   };
   Type type;
   gfx::Point screen_point;
@@ -34,7 +33,6 @@ class TabDragSessionInputAdapter {
 
   // Starts capturing input on the platform.
   virtual base::expected<void, mojo_base::mojom::ErrorPtr> StartInputCapture(
-      const std::vector<tabs_api::NodeId>& source_tab_ids,
       EventCallback callback) = 0;
 
   // Releases input capture.

@@ -22,6 +22,7 @@ include_rules = [
   "+components/origin_matcher",
   "+components/payments/content/android/java/src/org/chromium/components/payments",
   "+components/prefs",
+  "+components/sampling_profiler",
   "+components/services/heap_profiling/public",
   "+components/url_formatter",
   "+components/version_info",

@@ -57,6 +57,11 @@ class CONTENT_EXPORT PipScreenCaptureCoordinatorImpl
       desktop_capture::PipScreenCaptureExclusionObserver* observer) override;
   bool IsExcludedFromScreenCapture() const override;
 
+  base::UnguessableToken RegisterMediaPickerAsCapture(
+      const GlobalRenderFrameHostId& render_frame_host_id) override;
+  void UnregisterMediaPickerAsCapture(
+      const base::UnguessableToken& session_id) override;
+
   void OnPipShown(
       DesktopMediaID::Id pip_window_id,
       const GlobalRenderFrameHostId& pip_owner_render_frame_host_id);

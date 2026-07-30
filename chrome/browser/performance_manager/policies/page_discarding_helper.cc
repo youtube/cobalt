@@ -117,9 +117,12 @@ PageDiscardingHelper::~PageDiscardingHelper() = default;
 
 PageDiscardingHelper::DiscardResult PageDiscardingHelper::DiscardAPage(
     DiscardEligibilityPolicy::DiscardReason discard_reason,
-    bool ignore_recent_visibility) {
+    bool ignore_recent_visibility,
+    std::optional<absl::flat_hash_set<base::UnguessableToken>>
+        allowed_browser_context_ids) {
   return DiscardMultiplePagesImpl(std::nullopt, false, discard_reason,
-                                  ignore_recent_visibility);
+                                  ignore_recent_visibility,
+                                  std::move(allowed_browser_context_ids));
 }
 
 std::optional<base::TimeTicks> PageDiscardingHelper::DiscardMultiplePages(
@@ -127,9 +130,9 @@ std::optional<base::TimeTicks> PageDiscardingHelper::DiscardMultiplePages(
     bool discard_protected_tabs,
     DiscardEligibilityPolicy::DiscardReason discard_reason,
     bool ignore_recent_visibility) {
-  auto result =
-      DiscardMultiplePagesImpl(reclaim_target, discard_protected_tabs,
-                               discard_reason, ignore_recent_visibility);
+  auto result = DiscardMultiplePagesImpl(
+      reclaim_target, discard_protected_tabs, discard_reason,
+      ignore_recent_visibility, std::nullopt);
   return result.first_discard_time;
 }
 
@@ -138,7 +141,9 @@ PageDiscardingHelper::DiscardMultiplePagesImpl(
     std::optional<memory_pressure::ReclaimTarget> reclaim_target,
     bool discard_protected_tabs,
     DiscardEligibilityPolicy::DiscardReason discard_reason,
-    bool ignore_recent_visibility) {
+    bool ignore_recent_visibility,
+    std::optional<absl::flat_hash_set<base::UnguessableToken>>
+        allowed_browser_context_ids) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (reclaim_target) {
@@ -160,6 +165,12 @@ PageDiscardingHelper::DiscardMultiplePagesImpl(
 
   std::vector<PageNodeSortProxy> candidates;
   for (const PageNode* page_node : GetOwningGraph()->GetAllPageNodes()) {
+    if (allowed_browser_context_ids.has_value() &&
+        !allowed_browser_context_ids->contains(
+            page_node->GetBrowserContextID())) {
+      continue;
+    }
+
     CanDiscardResult can_discard_result = eligiblity_policy->CanDiscard(
         page_node, discard_reason, ignore_recent_visibility);
     if (can_discard_result == CanDiscardResult::kDisallowed) {

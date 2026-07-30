@@ -90,8 +90,4 @@ bool KeychainKeyProvider::UseForEncryption() {
   return true;
 }
 
-bool KeychainKeyProvider::IsCompatibleWithOsCryptSync() {
-  return true;
-}
-
 }  // namespace os_crypt_async

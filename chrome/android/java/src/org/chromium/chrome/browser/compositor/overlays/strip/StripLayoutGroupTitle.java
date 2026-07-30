@@ -135,9 +135,10 @@ public class StripLayoutGroupTitle extends StripLayoutView {
             Context context,
             StripLayoutGroupTitleDelegate delegate,
             StripLayoutViewOnKeyboardFocusHandler keyboardFocusHandler,
+            StripLayoutViewOnAccessibilityFocusHandler accessibilityFocusHandler,
             boolean incognito,
             @Nullable Token tabGroupId) {
-        super(incognito, delegate, keyboardFocusHandler, context);
+        super(incognito, delegate, keyboardFocusHandler, accessibilityFocusHandler, context);
         assert tabGroupId != null : "Tried to create a group title for an invalid group.";
         mDelegate = delegate;
         mTabGroupId = tabGroupId;

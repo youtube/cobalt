@@ -135,8 +135,9 @@ async function scrollToTextFragment(fragment: string) {
     const maxAttempts = 10;
     for (let attempts = 0; attempts < maxAttempts; attempts++) {
       const ranges = utils.processTextFragmentDirective(parsed);
-      if (ranges && ranges.length > 0) {
-        scrollRangeIntoView(ranges[0]);
+      const range = ranges?.[0];
+      if (range) {
+        scrollRangeIntoView(range);
         return;
       }
       await new Promise(resolve => window.setTimeout(resolve, 100));

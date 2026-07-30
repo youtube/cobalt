@@ -14,7 +14,7 @@ import {ReimagingCalibrationRunPage} from 'chrome://shimless-rma/reimaging_calib
 import {ShimlessRma} from 'chrome://shimless-rma/shimless_rma.js';
 import type {StateResult} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
 import {CalibrationOverallStatus} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
-import {assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 suite('reimagingCalibrationRunPageTest', function() {

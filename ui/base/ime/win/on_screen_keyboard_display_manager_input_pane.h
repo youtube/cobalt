@@ -68,8 +68,7 @@ class COMPONENT_EXPORT(UI_BASE_IME_WIN)
 
   // The main window which displays the on screen keyboard.
   const HWND hwnd_;
-  base::ObserverList<VirtualKeyboardControllerObserver, false>::Unchecked
-      observers_;
+  base::ObserverList<VirtualKeyboardControllerObserver, false> observers_;
   const scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
   const scoped_refptr<base::SingleThreadTaskRunner> background_task_runner_;
   scoped_refptr<VirtualKeyboardInputPane> virtual_keyboard_input_pane_;

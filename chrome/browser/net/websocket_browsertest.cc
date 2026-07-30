@@ -66,6 +66,7 @@
 #include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/embedded_test_server/register_basic_auth_handler.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -182,7 +183,7 @@ class WebSocketBrowserTest : public InProcessBrowserTest {
                                              frame->GetRoutingID())),
         /*auth_handler=*/mojo::NullRemote(), std::move(header_client),
         /*throttling_profile_id=*/std::nullopt,
-        /*network_restrictions_id=*/std::nullopt);
+        /*network_restrictions_id=*/network::GetTestNetworkRestrictionsId());
   }
 
   void SetBlockThirdPartyCookies(bool blocked) {
@@ -1057,13 +1058,97 @@ IN_PROC_BROWSER_TEST_F(WebSocketBrowserHTTPSConnectToTest,
   EXPECT_EQ("PASS", WaitAndGetTitle());
 }
 
+IN_PROC_BROWSER_TEST_F(WebSocketBrowserHTTPSConnectToTest,
+                       CookieAccess_PartitionedCookies) {
+  wss_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  ASSERT_TRUE(wss_server_.Start());
+
+  // Partitioned cookies should work when blocking 3P cookies is enabled.
+  SetBlockThirdPartyCookies(true);
+
+  auto cookie_partition_key =
+      net::CookiePartitionKey::FromURLForTesting(GURL("https://b.test"));
+
+  ASSERT_TRUE(content::SetCookie(
+      browser()->profile(), server().GetURL(kHostA, "/"),
+      "cookie=1; SameSite=None; Secure; Partitioned",
+      net::CookieOptions::SameSiteCookieContext::MakeInclusive(),
+      cookie_partition_key));
+
+  content::DOMMessageQueue message_queue(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  ConnectTo(kHostB, net::test_server::GetWebSocketURL(wss_server_, kHostA,
+                                                      "/echo-request-headers"));
+  std::string message;
+  EXPECT_TRUE(message_queue.WaitForMessage(&message));
+  EXPECT_THAT(message, HasSubstr("cookie=1"));
+  EXPECT_EQ("PASS", WaitAndGetTitle());
+}
+
+IN_PROC_BROWSER_TEST_F(WebSocketBrowserHTTPSConnectToTest,
+                       CookieAccess_PartitionedCookiesFirstParty) {
+  wss_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  ASSERT_TRUE(wss_server_.Start());
+
+  // Partitioned cookies should work when blocking 3P cookies is enabled.
+  SetBlockThirdPartyCookies(true);
+
+  auto cookie_partition_key = net::CookiePartitionKey::FromURLForTesting(
+      GURL("https://a.test"),
+      net::CookiePartitionKey::AncestorChainBit::kSameSite);
+
+  ASSERT_TRUE(content::SetCookie(
+      browser()->profile(), server().GetURL(kHostA, "/"),
+      "cookie=1; SameSite=None; Secure; Partitioned",
+      net::CookieOptions::SameSiteCookieContext::MakeInclusive(),
+      cookie_partition_key));
+
+  content::DOMMessageQueue message_queue1(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  ConnectTo(kHostA, net::test_server::GetWebSocketURL(wss_server_, kHostA,
+                                                      "/echo-request-headers"));
+  std::string message;
+  EXPECT_TRUE(message_queue1.WaitForMessage(&message));
+  EXPECT_THAT(message, HasSubstr("cookie=1"));
+  EXPECT_EQ("PASS", WaitAndGetTitle());
+}
+
+IN_PROC_BROWSER_TEST_F(WebSocketBrowserHTTPSConnectToTest,
+                       CookieAccess_PartitionedCookiesMismatchedPartition) {
+  wss_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  ASSERT_TRUE(wss_server_.Start());
+
+  // Disable 3P cookie blocking so the cookie can only be blocked by the
+  // partition mismatch.
+  SetBlockThirdPartyCookies(false);
+
+  auto cookie_partition_key =
+      net::CookiePartitionKey::FromURLForTesting(GURL("https://b.test"));
+
+  ASSERT_TRUE(content::SetCookie(
+      browser()->profile(), server().GetURL(kHostA, "/"),
+      "cookie=1; SameSite=None; Secure; Partitioned",
+      net::CookieOptions::SameSiteCookieContext::MakeInclusive(),
+      cookie_partition_key));
+
+  content::DOMMessageQueue message_queue1(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  ConnectTo("c.test", net::test_server::GetWebSocketURL(
+                          wss_server_, kHostA, "/echo-request-headers"));
+  std::string message;
+  EXPECT_TRUE(message_queue1.WaitForMessage(&message));
+  EXPECT_THAT(message, Not(HasSubstr("cookie=1")));
+  EXPECT_EQ("PASS", WaitAndGetTitle());
+}
+
 class TestTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
  public:
   explicit TestTrustedHeaderClient(base::OnceClosure quit)
       : quit_(std::move(quit)) {}
 
   // network::mojom::TrustedHeaderClient:
-  void OnBeforeSendHeaders(const net::HttpRequestHeaders& headers,
+  void OnBeforeSendHeaders(const GURL& request_url,
+                           const net::HttpRequestHeaders& headers,
                            OnBeforeSendHeadersCallback callback) override {
     std::move(callback).Run(net::OK, std::nullopt);
   }

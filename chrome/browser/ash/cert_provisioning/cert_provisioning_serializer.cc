@@ -393,6 +393,12 @@ bool CertProvisioningSerializer::DeserializeWorker(
         << " Failed to deserialize cert provisioning worker, error code: "
         << error_code;
     return false;
+  } else if (worker->process_id_.empty()) {
+    LOG(ERROR) << "Cert provisioning id is empty after deserialization";
+    return false;
+  } else {
+    LOG(WARNING) << "Deserialized worker [cppId: " << worker->process_id_
+                 << "]";
   }
 
   worker->InitAfterDeserialization();

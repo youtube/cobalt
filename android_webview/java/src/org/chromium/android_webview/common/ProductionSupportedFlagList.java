@@ -328,6 +328,9 @@ public final class ProductionSupportedFlagList {
                 "When enabled, two-part zip codes are splitted into two fields while filling and"
                         + " imported from two adjacent fields."),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_SUPPORT_STANDALONE_ZIP_CODE_GLOBALLY,
+                "When enabled, standalone zip code fields are detected globally."),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_SUPPORT_COMBINED_ZIP_AND_CITY_FR,
                 "When enabled, fields that combine postal code and city in France will be parsed"
                         + " correctly."),
@@ -451,6 +454,9 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.THREADED_PRELOAD_SCANNER,
                 "If enabled, the HTMLPreloadScanner will run on a worker thread."),
         Flag.baseFeature(BaseFeatures.ALIGN_WAKE_UPS, "Align delayed wake ups at 125 Hz"),
+        Flag.baseFeature(
+                BaseFeatures.ANDROID_THREAD_PRIORITY,
+                "Allows fine-grained control of thread priorities on Android."),
         Flag.baseFeature(
                 GpuFeatures.INCREASED_CMD_BUFFER_PARSE_SLICE,
                 "Enable the use of an increased parse slice size per command buffer before"
@@ -676,6 +682,7 @@ public final class ProductionSupportedFlagList {
                     + " even if input events are missed."),
         Flag.baseFeature("V8BaselineBatchCompilation"),
         Flag.baseFeature("V8ConcurrentSparkplug"),
+        Flag.baseFeature("V8Flag_homomorphic_ic"),
         Flag.baseFeature("V8Flag_incremental_marking_always_user_visible"),
         Flag.baseFeature("V8Flag_large_page_pool"),
         Flag.baseFeature("V8Flag_late_heap_limit_check"),
@@ -995,10 +1002,6 @@ public final class ProductionSupportedFlagList {
                 NetworkServiceFeatures.INCREASE_COOKIE_ACCESS_CACHE_SIZE,
                 "When enabled, keep more cookies in the cache to be able to skip redundant access"
                         + " notifications."),
-        Flag.baseFeature(
-                BlinkFeatures.RENDER_BLOCKING_FULL_FRAME_RATE,
-                "Enable the <link blocking=\"full-frame-rate\"/> API to lower the frame rate during"
-                        + " loading"),
         Flag.baseFeature("ProgressiveAccessibility"),
         Flag.baseFeature("PreloadingNoSamePageFragmentAnchorTracking"),
         Flag.baseFeature(
@@ -1380,6 +1383,23 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_SET_DOWNLOAD_FAVICONS_ENABLED,
                 "Enables the WebSettings setDownloadFaviconsEnabled method"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_MEMORY_PROFILING_CLIENT, "Enables Heap Profiler support"),
+        Flag.baseFeature(
+                "WebViewHttpCacheQuotaApi",
+                "When enabled, HTTP cache quota can be managed via support library APIs."),
+        Flag.baseFeature(
+                "AddressSorterConnectCache",
+                "Enables caching the results of UDP connect() results in AddressSorterPosix."),
+        Flag.baseFeature(
+                "EarlyCookieLoadOnPreconnect",
+                "When enabled, cookies are loaded early on preconnect requests."),
+        Flag.baseFeature(
+                "NoVarySearchCacheLoadOnSeparateTaskRunner",
+                "Enable loading the No Vary Search cache on a separate task runner."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_DOWNLOAD_FAVICONS,
+                "Determines whether a Favicon will be downloaded upon navigation."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

@@ -1,0 +1,74 @@
+<!--
+Regression test for crbug.com/361553 / crbug.com/41101884: toggling
+fullscreen on a page with a WebGL context must not lose the context.
+-->
+<html>
+<head>
+<script type="text/javascript">
+var gl;
+var contextWasLost = false;
+var enteredFullscreen = false;
+
+function contextLostHandler() {
+  contextWasLost = true;
+}
+
+function fullscreenChangeHandler() {
+  if (document.fullscreenElement) {
+    // The canvas just entered fullscreen. Immediately exit to exercise the
+    // full enter/exit cycle.
+    enteredFullscreen = true;
+    document.exitFullscreen();
+    return;
+  }
+
+  // The canvas just exited fullscreen, so the test is finished.
+  if (!enteredFullscreen) {
+    window.domAutomationController.send("FAILED");
+  } else if (contextWasLost) {
+    window.domAutomationController.send("FAILED");
+  } else {
+    window.domAutomationController.send("SUCCESS");
+  }
+}
+
+function enterFullscreen() {
+  var canvas = document.getElementById("canvas1");
+  var promise = canvas.requestFullscreen();
+  if (promise && promise.catch) {
+    promise.catch(function() {
+      window.domAutomationController.send("FAILED");
+    });
+  }
+}
+
+function onLoad() {
+  window.domAutomationController.send("LOADED");
+
+  var canvas = document.getElementById("canvas1");
+  if (!canvas) {
+    window.domAutomationController.send("FAILED");
+    return;
+  }
+  canvas.addEventListener("webglcontextlost", contextLostHandler, false);
+  document.addEventListener("fullscreenchange", fullscreenChangeHandler, false);
+
+  gl = canvas.getContext("webgl");
+  if (!gl) {
+    window.domAutomationController.send("FAILED");
+    return;
+  }
+  // Render a frame so the context is actually created and used.
+  gl.clearColor(0, 1, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+}
+</script>
+</head>
+<body onload="onLoad()">
+<button id="enterFullscreenButton" onclick="enterFullscreen()">
+  Enter fullscreen
+</button>
+<canvas id="canvas1" width="32px" height="32px">
+</canvas>
+</body>
+</html>

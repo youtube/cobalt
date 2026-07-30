@@ -45,12 +45,12 @@ class SelectionEditor final : public GarbageCollected<SelectionEditor> {
   SelectionEditor& operator=(const SelectionEditor&) = delete;
   void Dispose();
 
-  const SelectionInDOMTree& GetSelectionInDOMTree() const;
+  const SelectionInDomTree& GetSelectionInDomTree() const;
 
   VisibleSelection ComputeVisibleSelectionInDomTree() const;
   VisibleSelectionInFlatTree ComputeVisibleSelectionInFlatTree() const;
   bool ComputeAbsoluteBounds(gfx::Rect& anchor, gfx::Rect& focus) const;
-  void SetSelectionAndEndTyping(const SelectionInDOMTree&);
+  void SetSelectionAndEndTyping(const SelectionInDomTree&);
 
   // Sets the ContainsSelectionFocus flag on the style-owning layout object
   // and triggers layout invalidation if needed for text-overflow.
@@ -101,13 +101,13 @@ class SelectionEditor final : public GarbageCollected<SelectionEditor> {
   void UpdateCachedAbsoluteBoundsIfNeeded() const;
 
   void DidFinishTextChange(const Position& anchor, const Position& focus);
-  void DidFinishDOMMutation();
+  void DidFinishDomMutation();
   void DidInsertNode(const Node&);
 
   WeakMember<Document> document_;
   Member<LocalFrame> frame_;
 
-  SelectionInDOMTree selection_;
+  SelectionInDomTree selection_;
 
   // If document is root, document.getSelection().addRange(range) is cached on
   // this.

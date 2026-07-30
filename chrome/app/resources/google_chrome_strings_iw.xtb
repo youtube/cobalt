@@ -398,6 +398,7 @@
 <translation id="5234764350956374838">סגירה</translation>
 <translation id="5239627039202700673">‏שימוש ב-Chrome בכל פעם שלוחצים על קישורים בהודעות, במסמכים ובאפליקציות אחרות.</translation>
 <translation id="5251420635869119124">‏אורחים יכולים להשתמש ב-Chrome בלי להשאיר עקבות.</translation>
+<translation id="5271833978500241046">‏משתמשים בהן עם פיצ'רים אחרים של Gemini ב-Chrome</translation>
 <translation id="5286907366254680517">זוהתה</translation>
 <translation id="5320351714793324716">‏אם מאפשרים שימוש בקובצי cookie, יכול להיות שמערכת Chrome תשתמש בהם במהלך טעינה מראש.</translation>
 <translation id="5321325624576443340">‏טכנולוגיית Google Lens לא זמינה. יש לנסות שוב מאוחר יותר.</translation>
@@ -434,15 +435,6 @@
 <translation id="569897634095159764">‏לא ניתן להתחבר לאינטרנט. נדרש אימות של שרת ה-proxy.</translation>
 <translation id="5709557627224531708">‏הגדרת Chrome כדפדפן ברירת המחדל</translation>
 <translation id="5719246646468301581">‏תנאים והגבלות נוספים של Google Chrome ו-ChromeOS</translation>
-<translation id="5719324992913248873">‏בעקבות האיפוס:
-          <ph name="LINE_BREAKS" />
-           • יתאפסו חלק מההגדרות ומקיצורי הדרך של Chrome
-           <ph name="LINE_BREAK" />
-           • התוספים יושבתו
-           <ph name="LINE_BREAK" />
-           • יימחקו קובצי Cookie ונתונים זמניים אחרים מאתרים
-            <ph name="LINE_BREAKS" />
-           לא תהיה השפעה על הסימניות, ההיסטוריה והסיסמאות השמורות.</translation>
 <translation id="5736850870166430177">‏אם באתר כלשהו מתבצע ניסיון לגנוב את הסיסמה שלך, או אם המערכת מזהה הורדה של קובץ מזיק, Chrome עשוי גם לשלוח כתובות URL לבדיקה באמצעות 'גלישה בטוחה'. הנתונים שנשלחים לבדיקה כוללים ביטים מתוכן של דפים</translation>
 <translation id="5756509061973259733">‏כבר קיים במכשיר פרופיל Chrome עם החשבון הזה.</translation>
 <translation id="5759947850379142561">‏אפשר לבחור טקסט או תמונה לחיפוש באמצעות Google Lens או ללחוץ על Escape כדי לצאת מ-Google Lens</translation>
@@ -640,6 +632,7 @@
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">‏כדי להגן על הנתונים שלך, כדאי לאפשר ל-Chrome להסיר הרשאות מאתרים שלא נכנסת אליהם לאחרונה.</translation>
 <translation id="7629695634924605473">‏Chrome מודיע לך אם הסיסמאות שלך נמצאות בסיכון</translation>
+<translation id="7629898584100520089">‏חידושים בתחום ה-AI, כמו מיומנויות, נשמרים בחשבון שלך ב-Google ומנוהלים בנפרד מסנכרון Chrome</translation>
 <translation id="7641148173327520642">‏לפי הגדרת מנהל המערכת, Google Chrome יפתח את <ph name="ALTERNATIVE_BROWSER_NAME" /> כדי לגשת אל <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">עזרה</translation>
 <translation id="7651907282515937834">‏לוגו של Chrome Enterprise</translation>

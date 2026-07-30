@@ -9,7 +9,7 @@
 
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_style.h"
 
-@protocol BWGCommands;
+@protocol GeminiCommands;
 @class LegacyToolbarButton;
 @class ToolbarButtonActionsHandler;
 @class ToolbarButtonVisibilityConfiguration;
@@ -33,7 +33,7 @@
 // Handler for the actions.
 @property(nonatomic, weak) ToolbarButtonActionsHandler* actionHandler;
 // Handler for gemini commands.
-@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 // Configuration object for the visibility of the buttons.
 @property(nonatomic, strong)
     ToolbarButtonVisibilityConfiguration* visibilityConfiguration;

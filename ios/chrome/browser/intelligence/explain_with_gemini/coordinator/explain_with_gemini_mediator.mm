@@ -19,7 +19,7 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -195,7 +195,7 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   GeminiStartupState* startupState = [[GeminiStartupState alloc]
       initWithEntryPoint:gemini::EntryPoint::EditMenu];
   startupState.prepopulatedPrompt = prepopulatedPrompt;
-  [self.BWGHandler startGeminiFlowWithStartupState:startupState];
+  [self.geminiHandler startGeminiFlowWithStartupState:startupState];
 }
 
 // Returns the action to trigger the search with feature. Calls `handler` on

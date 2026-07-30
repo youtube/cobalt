@@ -321,7 +321,29 @@ TEST_P(PolicyBlocklistNavigationThrottleTest,
 }
 
 TEST_P(PolicyBlocklistNavigationThrottleTest,
-       IncognitoAllowlistAgainstURLBlocklist) {
+       IncognitoAllowlistAgainstURLBlocklistFeatureEnabled) {
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeature(
+      policy::features::kURLBlocklistOverridesIncognitoAllowlist);
+
+  base::HistogramTester histogram_tester;
+
+  SetIncognitoAllowlistUrlPattern("www.example.com");
+  SetBlocklistUrlPattern("example.com");
+
+  // General blocklists cannot be bypassed by an incognito allowlist by default.
+  TestNavigationThrottleCheckResult(
+      GURL("http://www.example.com/"),
+      content::NavigationThrottle::BLOCK_REQUEST,
+      std::make_optional(net::ERR_BLOCKED_BY_ADMINISTRATOR));
+}
+
+TEST_P(PolicyBlocklistNavigationThrottleTest,
+       IncognitoAllowlistAgainstURLBlocklistFeatureDisabled) {
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndDisableFeature(
+      policy::features::kURLBlocklistOverridesIncognitoAllowlist);
+
   base::HistogramTester histogram_tester;
 
   SetIncognitoAllowlistUrlPattern("www.example.com");

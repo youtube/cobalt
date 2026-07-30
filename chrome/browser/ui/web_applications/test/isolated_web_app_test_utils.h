@@ -87,7 +87,7 @@ class IsolatedWebAppBrowserTestHarness : public WebAppBrowserTestBase {
 class UpdateDiscoveryTaskResultWaiter
     : public IsolatedWebAppUpdateManager::Observer {
   using TaskResultCallback = base::OnceCallback<void(
-      IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status)>;
+      IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus status)>;
 
  public:
   UpdateDiscoveryTaskResultWaiter(WebAppProvider& provider,
@@ -96,9 +96,10 @@ class UpdateDiscoveryTaskResultWaiter
   ~UpdateDiscoveryTaskResultWaiter() override;
 
   // IsolatedWebAppUpdateManager::Observer:
-  void OnUpdateDiscoveryTaskCompleted(
+  void OnUpdateDiscoverAndPrepareTaskCompleted(
       const webapps::AppId& app_id,
-      IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status) override;
+      IsolatedWebAppUpdateCheckAndPrepareTask::CompletionStatus status)
+      override;
 
  private:
   const webapps::AppId expected_app_id_;

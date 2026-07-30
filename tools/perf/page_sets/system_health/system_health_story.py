@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import six
-
 from page_sets.system_health import platforms
 from page_sets.system_health import story_tags
 
@@ -48,8 +46,7 @@ class _MetaSystemHealthStory(type):
     return cls.__dict__.get('ABSTRACT_STORY', False)
 
 
-class SystemHealthStory(
-    six.with_metaclass(_MetaSystemHealthStory, page_module.Page)):
+class SystemHealthStory(page_module.Page, metaclass=_MetaSystemHealthStory):
   """Abstract base class for System Health user stories."""
 
   # The full name of a single page story has the form CASE:GROUP:PAGE:[VERSION]

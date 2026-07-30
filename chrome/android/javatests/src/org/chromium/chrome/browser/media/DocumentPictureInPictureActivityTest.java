@@ -279,6 +279,13 @@ public class DocumentPictureInPictureActivityTest {
                     ChromeTabUtils.loadUrlOnUiThread(mTab, dataUrl);
                 });
 
+        // Re-establish the native PiP session with the parent WebContents at its new URL.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    DocumentPictureInPictureActivity.onActivityStartForTesting(
+                            mParentWebContents, mWebContents);
+                });
+
         // Launch the PiP activity. Its verifyOpenerOrigin() will check the origin of
         // mParentWebContents
         // (which is now opaque, serializing to "null") against the intent's initial opener origin

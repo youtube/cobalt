@@ -21,13 +21,20 @@ _MANIFEST_MERGER_MAIN_CLASS = 'com.android.manifmerger.Merger'
 
 
 @contextlib.contextmanager
-def _ProcessMainManifest(manifest_path, manifest_package):
+def _ProcessMainManifest(manifest_path,
+                         manifest_package,
+                         inject_extract_native_libs=False):
   """Patches the main Android manifest"""
-  doc, manifest, _ = manifest_utils.ParseManifest(manifest_path)
+  doc, manifest, app_node = manifest_utils.ParseManifest(manifest_path)
   assert manifest_utils.GetPackage(manifest) or manifest_package, \
             'Must set manifest package in GN or in AndroidManifest.xml'
   if manifest_package:
     manifest.set('package', manifest_package)
+
+  if inject_extract_native_libs:
+    if manifest_utils.NamespacedGet(app_node, 'extractNativeLibs') is None:
+      manifest_utils.NamespacedSet(app_node, 'extractNativeLibs', 'false')
+
   tmp_prefix = manifest_path.replace(os.path.sep, '-')
   if len(tmp_prefix) > 100:
     tmp_prefix = tmp_prefix[-100:]
@@ -109,6 +116,10 @@ def main(argv):
   parser.add_argument('--warnings-as-errors',
                       action='store_true',
                       help='Treat all warnings as errors.')
+  parser.add_argument(
+      '--inject-extract-native-libs',
+      action='store_true',
+      help='Inject android:extractNativeLibs="false" if not set.')
   args = parser.parse_args(argv)
 
   with action_helpers.atomic_output(args.output) as output:
@@ -134,7 +145,8 @@ def main(argv):
 
     with contextlib.ExitStack() as stack:
       root_manifest, package = stack.enter_context(
-          _ProcessMainManifest(args.root_manifest, args.manifest_package))
+          _ProcessMainManifest(args.root_manifest, args.manifest_package,
+                               args.inject_extract_native_libs))
       if extras:
         seen_package_names = collections.Counter()
         extras_processed = [

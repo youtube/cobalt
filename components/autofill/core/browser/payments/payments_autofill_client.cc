@@ -58,8 +58,8 @@ const PaymentsDataManager& PaymentsAutofillClient::GetPaymentsDataManager()
   return const_cast<PaymentsAutofillClient*>(this)->GetPaymentsDataManager();
 }
 
-const payments::SaveAndFillManager*
-PaymentsAutofillClient::GetSaveAndFillManager() const {
+const SaveAndFillManager* PaymentsAutofillClient::GetSaveAndFillManager()
+    const {
   return const_cast<PaymentsAutofillClient*>(this)->GetSaveAndFillManager();
 }
 

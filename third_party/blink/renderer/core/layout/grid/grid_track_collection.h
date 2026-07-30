@@ -213,15 +213,17 @@ class CORE_EXPORT GridLayoutTrackCollection
   LayoutUnit GetSetOffset(wtf_size_t set_index) const;
   wtf_size_t GetSetTrackCount(wtf_size_t set_index) const;
 
-  // Builds a mapping from track index to set index. The vector is sized to
-  // the total number of tracks, where each entry contains the set index
-  // that the track belongs to.
-  Vector<wtf_size_t> BuildTrackToSetMapping() const;
-
   // Returns the accumulated extra margin at the start/end of the specified set;
   // if no index is specified, returns the extra margin of the grid container.
   LayoutUnit StartExtraMargin(wtf_size_t set_index = 0) const;
   LayoutUnit EndExtraMargin(wtf_size_t set_index = kNotFound) const;
+
+  // The accumulated difference between this subgrid's gutter size and its
+  // ancestors' gutter sizes. Positive when the subgrid's gutter is larger than
+  // the parent's gutter.
+  LayoutUnit AccumulatedGutterSizeDelta() const {
+    return accumulated_gutter_size_delta_;
+  }
 
   // Increase by `delta` the offset of the set at `set_index`.
   void AdjustSingleSetOffset(wtf_size_t set_index, LayoutUnit delta);
@@ -237,6 +239,10 @@ class CORE_EXPORT GridLayoutTrackCollection
 
   // Creates a track collection containing every |Range| with index in the range
   // [begin, end], including their respective |SetGeometry|.
+  //
+  // `is_subgrid_auto_placed` should be true when the subgrid's position in
+  // this parent is not yet known (e.g., it is auto-placed inside a grid-lanes
+  // ancestor).
   GridLayoutTrackCollection* CreateSubgridTrackCollection(
       wtf_size_t begin_range_index,
       wtf_size_t end_range_index,
@@ -244,7 +250,8 @@ class CORE_EXPORT GridLayoutTrackCollection
       const BoxStrut& subgrid_margin,
       const BoxStrut& subgrid_border_scrollbar_padding,
       GridTrackSizingDirection subgrid_track_direction,
-      bool is_opposite_direction_in_root_grid) const;
+      bool is_opposite_direction_in_root_grid,
+      bool is_subgrid_auto_placed = false) const;
 
   // Creates adjusted baselines for a subgrid's span within its parent,
   // accounting for margins, padding, and gutter size differences.
@@ -268,6 +275,9 @@ class CORE_EXPORT GridLayoutTrackCollection
   bool IsDependentOnAvailableSize() const;
 
   wtf_size_t FirstNonCollapsedLineIndex() const;
+  bool HasNonCollapsedLine() const {
+    return FirstNonCollapsedLineIndex() != kNotFound;
+  }
 
   const Vector<wtf_size_t>& CollapsedTrackIndexes() const {
     return collapsed_track_indexes_;

@@ -15,7 +15,7 @@
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/resources/cr_components/help_bubble/help_bubble.mojom.h"
-#include "ui/webui/resources/cr_components/history/foreign_sessions.mojom-forward.h"
+#include "ui/webui/resources/cr_components/history/foreign_sessions.mojom.h"
 #include "ui/webui/resources/cr_components/history/history.mojom-forward.h"
 #include "ui/webui/resources/cr_components/history_clusters/history_clusters.mojom-forward.h"
 #include "ui/webui/resources/cr_components/history_embeddings/history_embeddings.mojom.h"
@@ -52,7 +52,9 @@ class HistoryUIConfig : public content::WebUIConfig {
 };
 
 class HistoryUI : public ui::MojoWebUIController,
-                  public help_bubble::mojom::HelpBubbleHandlerFactory {
+                  public help_bubble::mojom::HelpBubbleHandlerFactory,
+                  public history_embeddings::mojom::PageHandlerFactory,
+                  public history::mojom::ForeignSessionPageHandlerFactory {
  public:
   explicit HistoryUI(content::WebUI* web_ui);
   HistoryUI(const HistoryUI&) = delete;
@@ -64,15 +66,21 @@ class HistoryUI : public ui::MojoWebUIController,
 
   // Instantiates the implementors of mojom interfaces.
   void BindInterface(
-      mojo::PendingReceiver<history_embeddings::mojom::PageHandler>
-          pending_page_handler);
+      mojo::PendingReceiver<history_embeddings::mojom::PageHandlerFactory>
+          pending_page_handler_factory);
   void BindInterface(
       mojo::PendingReceiver<history::mojom::PageHandler> pending_page_handler);
   void BindInterface(
-      mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler>
-          pending_page_handler);
+      mojo::PendingReceiver<history::mojom::ForeignSessionPageHandlerFactory>
+          pending_receiver);
   void BindInterface(mojo::PendingReceiver<history_clusters::mojom::PageHandler>
                          pending_page_handler);
+
+  // history::mojom::ForeignSessionPageHandlerFactory:
+  void CreateForeignSessionPageHandler(
+      mojo::PendingRemote<history::mojom::ForeignSessionPage> page,
+      mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler> receiver)
+      override;
   void BindInterface(
       mojo::PendingReceiver<page_image_service::mojom::PageImageServiceHandler>
           pending_page_handler);
@@ -96,6 +104,12 @@ class HistoryUI : public ui::MojoWebUIController,
       mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
       mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandler> handler)
       override;
+  // history_embeddings::mojom::PageHandlerFactory:
+  void CreatePageHandler(
+      mojo::PendingRemote<history_embeddings::mojom::Page> page,
+      mojo::PendingReceiver<history_embeddings::mojom::PageHandler> receiver)
+      override;
+
   std::unique_ptr<HistoryEmbeddingsHandler> history_embeddings_handler_;
   std::unique_ptr<history_clusters::HistoryClustersHandler>
       history_clusters_handler_;
@@ -107,6 +121,10 @@ class HistoryUI : public ui::MojoWebUIController,
   std::unique_ptr<user_education::HelpBubbleHandler> help_bubble_handler_;
   mojo::Receiver<help_bubble::mojom::HelpBubbleHandlerFactory>
       help_bubble_handler_factory_receiver_{this};
+  mojo::Receiver<history_embeddings::mojom::PageHandlerFactory>
+      history_embeddings_handler_factory_receiver_{this};
+  mojo::Receiver<history::mojom::ForeignSessionPageHandlerFactory>
+      foreign_session_page_handler_factory_receiver_{this};
 
   void UpdateDataSource();
 

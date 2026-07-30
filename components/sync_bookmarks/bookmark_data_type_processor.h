@@ -176,6 +176,9 @@ class BookmarkDataTypeProcessor : public syncer::DataTypeProcessor,
       const sync_pb::DataTypeState& type_state,
       syncer::UpdateResponseDataList updates);
 
+  void OverrideAllServerMetadataToForceApplyUpdates(
+      const syncer::UpdateResponseDataList& updates);
+
   // Returns true if the number of remote updates exceeds the limit.
   bool ExceedsRemoteUpdatesLimit(size_t count) const;
 

@@ -71,6 +71,7 @@ import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.hub.SingleChildViewManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestrator;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
@@ -85,12 +86,12 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeaturesJni;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherCustomViewManager;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridDialogMediator.DialogController;
-import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelperJni;
@@ -120,7 +121,11 @@ import java.util.function.Supplier;
  * nothing will crash since the bulk of the behaviors from the coordinator are either unit tested by
  * classes hosted insider the coordinator or have to be verified in an integration test.
  */
-@EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.FAVICON_DISABLE_HOST_FALLBACK})
+@EnableFeatures({
+    ChromeFeatureList.GLIC,
+    ChromeFeatureList.FAVICON_DISABLE_HOST_FALLBACK,
+    ChromeFeatureList.SEND_TAB_TO_SELF_AUTO_OPEN
+})
 @DisableFeatures({TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS})
 @RunWith(BaseRobolectricTestRunner.class)
 public class TabSwitcherPaneCoordinatorUnitTest {
@@ -208,6 +213,7 @@ public class TabSwitcherPaneCoordinatorUnitTest {
 
         PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(true);
         PriceTrackingFeatures.setIsSignedInAndSyncEnabledForTesting(true);
+        GlicEnabling.setEnabledForTesting(false);
 
         mTabModel = spy(new MockTabModel(mProfile, null));
         when(mTabModel.isTabModelRestored()).thenReturn(true);

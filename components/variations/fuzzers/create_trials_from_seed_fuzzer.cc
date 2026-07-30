@@ -9,6 +9,8 @@
 #include "components/variations/client_filterable_state.h"
 #include "components/variations/entropy_provider.h"
 #include "components/variations/proto/study.pb.h"
+#include "components/variations/proto/variations_seed.pb.h"
+#include "components/variations/proto/variations_seed_fuzzable.pb.h"
 #include "components/variations/variations_layers.h"
 #include "components/variations/variations_seed_processor.h"
 #include "components/variations/variations_test_utils.h"
@@ -55,9 +57,13 @@ void CreateTrialsFromStudyFuzzer(const VariationsSeed& seed) {
                             &feature_list);
 }
 
-DEFINE_PROTO_FUZZER(const VariationsSeed& seed) {
+DEFINE_PROTO_FUZZER(const fuzzable::variations::VariationsSeed& seed) {
+  variations::VariationsSeed lite_seed;
+  if (!lite_seed.ParseFromString(seed.SerializeAsString())) {
+    return;
+  }
   static Environment env;
-  CreateTrialsFromStudyFuzzer(seed);
+  CreateTrialsFromStudyFuzzer(lite_seed);
 }
 
 }  // namespace variations

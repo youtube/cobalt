@@ -4,23 +4,11 @@
 
 module extensions_bar.mojom;
 
-import "url/mojom/url.mojom";
+import "components/browser_apis/ui_controllers/toolbar/extensions_bar_data_model.mojom";
+import "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom";
+import "components/browser_apis/ui_controllers/toolbar/icon_handle.mojom";
 import "ui/base/mojom/menu_source_type.mojom";
 
-// Data of a toolbar button for dealing with extensions.
-struct ExtensionActionInfo {
-  // This is the action id used to identify the action in the
-  // ExtensionsContainer and related APIs --- and is the extenion's identifier
-  // string.
-  string id;
-  string accessible_name;
-  string tooltip;
-
-  // True if button is visible for any reason; e.g. pinned, or popped out
-  // because the user is interacting with this extension.
-  bool is_visible;
-  url.mojom.Url data_url_for_icon;
-};
 
 // Used by the WebUI page to bootstrap bidirectional communication.
 // At most a single connection is expected to exist at a time, but it
@@ -49,10 +37,11 @@ interface PageHandler {
 // WebUI-side handler for requests from the browser.
 interface Page {
   // Called when new actions are added or existing actions changed.
-  ActionsAddedOrUpdated(array<ExtensionActionInfo> actions);
+  ActionsAddedOrUpdated(array<toolbar_ui_api.mojom.IconUpdate> icons,
+                        array<ExtensionActionInfo> actions);
 
   // Called when an action is removed.
-  ActionRemoved(string id);
+  ActionRemoved(array<toolbar_ui_api.mojom.IconUpdate> icons, string id);
 
   // Called when an action has been popped out. The callback is expected to
   // be called when it's safe to anchor things to newly-visible button.

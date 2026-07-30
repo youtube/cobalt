@@ -437,6 +437,9 @@ public class CustomTabObserver extends EmptyTabObserver {
             PageLoadMetrics.removeObserver(mPageLoadMetricsObserver);
             mPageLoadMetricsObserver = null;
         }
+        // Cancel any pending capture Runnables so they don't keep the Tab (and transitively the
+        // owning Activity) alive in the main Looper's MessageQueue after destruction.
+        mNavigationInfoCaptureTrigger.destroy();
     }
 
     @Override

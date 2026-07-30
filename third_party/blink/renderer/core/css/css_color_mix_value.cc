@@ -59,19 +59,6 @@ bool CSSColorMixValue::NormalizePercentages(
   return true;
 }
 
-Color CSSColorMixValue::Mix(const Color& color1,
-                            const Color& color2,
-                            const CSSLengthResolver& length_resolver) const {
-  double alpha_multiplier;
-  double mix_amount;
-  if (!NormalizePercentages(mix_amount, alpha_multiplier, length_resolver)) {
-    return Color();
-  }
-  return Color::FromColorMix(ColorInterpolationSpace(),
-                             HueInterpolationMethod(), color1, color2,
-                             mix_amount, alpha_multiplier);
-}
-
 bool CSSColorMixValue::Equals(const CSSColorMixValue& other) const {
   return *color1_ == *other.color1_ && *color2_ == *other.color2_ &&
          base::ValuesEquivalent(percentage1_, other.percentage1_) &&

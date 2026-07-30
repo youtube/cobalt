@@ -72,7 +72,7 @@ const CGFloat kBaselineAdjustment = 10.0;
   [self configureMainStackView];
 }
 
-#pragma mark - GeminiFREViewControllerProtocol
+#pragma mark - GeminiFirstRunViewControllerProtocol
 
 - (CGFloat)contentHeight {
   return

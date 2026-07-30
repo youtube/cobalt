@@ -404,6 +404,7 @@
 <translation id="5234764350956374838">অগ্ৰাহ্য কৰক</translation>
 <translation id="5239627039202700673">আপুনি বাৰ্তা, নথি আৰু অন্য এপ্‌সমূহত থকা কোনো লিংকত ক্লিক কৰি যিকোনো সময়তে Chrome ব্যৱহাৰ কৰক।</translation>
 <translation id="5251420635869119124">অতিথিসকলে কোনো সুবিধা বাদ নিদিয়াকৈ Chrome ব্যৱহাৰ কৰিব পাৰে।</translation>
+<translation id="5271833978500241046">Chromeত Geminiৰ আন সুবিধাসমূহৰ সৈতে সেইসমূহ ব্যৱহাৰ কৰক</translation>
 <translation id="5286907366254680517">চিনাক্ত কৰা হৈছে</translation>
 <translation id="5320351714793324716">আপুনি যদি কুকিৰ অনুমতি দিয়ে Chromeএ সেয়া আগতীয়াকৈ ল’ড কৰোঁতে ব্যৱহাৰ কৰিব পাৰে</translation>
 <translation id="5321325624576443340">Google Lens উপলব্ধ নহয়। পাছত পুনৰ চেষ্টা কৰক।</translation>
@@ -442,15 +443,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="569897634095159764">ইণ্টাৰনেটৰ লগত সংযোগ কৰিব পৰা নাই। প্ৰ’ক্সি ছাৰ্ভাৰৰ বাবে বিশ্বাসযোগ্যতা প্ৰমাণীকৰণৰ আৱশ্যক।</translation>
 <translation id="5709557627224531708">Chromeক আপোনাৰ ডিফ'ল্ট ব্ৰাউজাৰ হিচাপে ছেট কৰক</translation>
 <translation id="5719246646468301581">Google Chrome আৰু Chrome OSৰ অতিৰিক্ত সেৱাৰ চৰ্তাৱলী</translation>
-<translation id="5719324992913248873">এই কাৰ্যটোৱে:
-          <ph name="LINE_BREAKS" />
-           • Chromeৰ কিছুমান ছেটিং আৰু Chromeৰ শ্বৰ্টকাট ৰিছেট কৰিব
-           <ph name="LINE_BREAK" />
-           • এক্সটেনশ্বনসমূহ অক্ষম কৰিব
-           <ph name="LINE_BREAK" />
-           • কুকি আৰু ছাইটৰ অন্য সাময়িক ডেটা মচিব
-            <ph name="LINE_BREAKS" />
-           বুকমাৰ্ক, ইতিহাস আৰু ছেভ হৈ থকা পাছৱৰ্ডত কোনো প্ৰভাৱ নপৰে।</translation>
 <translation id="5736850870166430177">যদি কোনোবা ছাইটে আপোনাৰ পাছৱৰ্ড চুৰি কৰিবলৈ চেষ্টা কৰে অথবা আপুনি কোনো ক্ষতিকাৰক ফাইল ডাউনল’ড কৰাৰ সময়ত Chromeএ পৃষ্ঠাৰ সমলৰ বিটসমূহকে ধৰি URLসমূহ সুৰক্ষিত ব্ৰাউজিঙলৈ পঠিয়াব পাৰে</translation>
 <translation id="5756509061973259733">এই ডিভাইচটোত এই একাউণ্টটোৰ সৈতে এটা Chrome প্ৰ’ফাইল ইতিমধ্যে আছে</translation>
 <translation id="5759947850379142561">Google Lensৰ জৰিয়তে সন্ধান কৰিবলৈ যিকোনো পাঠ বা প্ৰতিচ্ছবি বাছনি কৰক বা Google Lensৰ পৰা বাহিৰ ওলাবলৈ এস্কে’প টিপক</translation>
@@ -648,6 +640,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">আপোনাৰ ডেটা সুৰক্ষিত কৰিবলৈ, আপুনি শেহতীয়াকৈ নোচোৱা ছাইটসমূহৰ পৰা Chromeক অনুমতিসমূহ আঁতৰাবলৈ দিয়ক।</translation>
 <translation id="7629695634924605473">Chromeএ আপোনাৰ পাছৱৰ্ডসমূহ কেতিয়াবা হেক কৰা হৈছিল নেকি আপোনাক জানিবলৈ দিয়ে</translation>
+<translation id="7629898584100520089">দক্ষতাৰ দৰে AI উদ্ভাৱনসমূহ আপোনাৰ Google একাউণ্টত ছেভ কৰা হয় আৰু Chrome ছিংকৰ পৰা পৃথকভাৱে পৰিচালনা কৰা হয়</translation>
 <translation id="7641148173327520642">আপোনাৰ ছিষ্টেমৰ প্ৰশাসকে <ph name="TARGET_URL_HOSTNAME" /> এক্সেছ কৰিবৰ কাৰণে <ph name="ALTERNATIVE_BROWSER_NAME" /> খুলিবলৈ Google Chromeক কনফিগাৰ কৰিছে।</translation>
 <translation id="7649070708921625228">সহায়</translation>
 <translation id="7651907282515937834">Chrome এণ্টাৰপ্ৰাইজৰ ল’গ’</translation>

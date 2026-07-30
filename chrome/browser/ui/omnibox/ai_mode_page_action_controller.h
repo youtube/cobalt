@@ -5,15 +5,28 @@
 #ifndef CHROME_BROWSER_UI_OMNIBOX_AI_MODE_PAGE_ACTION_CONTROLLER_H_
 #define CHROME_BROWSER_UI_OMNIBOX_AI_MODE_PAGE_ACTION_CONTROLLER_H_
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+#include "url/gurl.h"
 
 class BrowserWindowInterface;
 class LocationBarView;
 class OmniboxController;
 class Profile;
+class SkBitmap;
+
+namespace gfx {
+class Image;
+}
+
+namespace ui {
+class ImageModel;
+}
 
 namespace omnibox {
 
@@ -60,6 +73,51 @@ class AiModePageActionController : public OmniboxEditModel::Observer {
                                    LocationBarView& location_bar_view);
 
  private:
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(AiModePageActionIconSource)
+  enum class IconSource {
+    // The page action was not shown.
+    kInvisible = 0,
+    // A built-in vector icon was used.
+    kVectorIcon = 1,
+    // The icon was loaded from omnibox's in-memory `FaviconCache`.
+    kMemoryFaviconCache = 2,
+    // The icon was loaded from the on-disk DB cache via `FaviconService`.
+    kDiskDbFaviconCache = 3,
+    // The icon was loaded from a network request via `BitmapFetcherService`.
+    kNetworkFetch = 4,
+    // The icon failed to load.
+    kFailedIcon = 5,
+    kMaxValue = kFailedIcon,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:AiModePageActionIconSource)
+
+  // Helper for `UpdatePageAction()`. Updates visibility, text, tooltip and
+  // override image:
+  // - If DSE is google, will use built-in image.
+  // - If DSE is 3p, will check the in-memory favicon cache.
+  // - If icon not found in the in-memory favicon cache, will check the on-disk
+  //   favicon DB.
+  // - If icon not found in the on-disk favicon DB, then will make a network
+  //   request to fetch the icon.
+  void UpdatePageActionUi(bool is_visible);
+
+  // Helper for `UpdatePageActionUi()` to update visibility. `source` used
+  // for logging.
+  void Hide(IconSource source);
+
+  // Helper for `UpdatePageActionUi()` to update the image and visibility.
+  // `source` used for logging.
+  void ShowAndOverrideImage(const ui::ImageModel& image, IconSource source);
+
+  // Helpers used in `UpdatePageActionUi()` to asynchronously fetch the
+  // favicon.
+  void OnFaviconFetchedLocally(const GURL& favicon_url,
+                               const gfx::Image& favicon);
+  void FetchFaviconFromNetwork(const GURL& favicon_url);
+  void OnFaviconFetchedFromNetwork(const GURL& favicon_url, SkBitmap bitmap);
+
   const raw_ref<BrowserWindowInterface> bwi_;
   const raw_ref<Profile> profile_;
   const raw_ref<LocationBarView> location_bar_view_;
@@ -67,7 +125,16 @@ class AiModePageActionController : public OmniboxEditModel::Observer {
   ui::ScopedUnownedUserData<AiModePageActionController> scoped_data_;
 
   base::ScopedObservation<OmniboxEditModel, OmniboxEditModel::Observer>
-      observation_{this};
+      omnibox_edit_model_observation_{this};
+
+  base::CallbackListSubscription ai_mode_config_subscription_;
+
+  // Used to cancel pending favicon fetches when the config changes.
+  base::WeakPtrFactory<AiModePageActionController> favicon_fetch_weak_factory_{
+      this};
+
+  // Lives as long as this lives. Used to subscribe to config changes.
+  base::WeakPtrFactory<AiModePageActionController> weak_factory_{this};
 };
 
 }  // namespace omnibox

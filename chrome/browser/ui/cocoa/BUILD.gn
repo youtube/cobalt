@@ -113,7 +113,10 @@ source_set("cocoa") {
     "window_size_autosaver.mm",
   ]
 
-  deps = []
+  deps = [
+    "//chrome/browser/ui:recently_audible_helper",
+    "//chrome/browser/ui:simple_message_box_internal",
+  ]
 
   if (enable_updater) {
     public += [ "keystone_infobar_delegate.h" ]
@@ -154,6 +157,7 @@ source_set("cocoa") {
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/search_engines",
+    "//chrome/browser/spellchecker",
     "//chrome/browser/status_icons",
     "//chrome/browser/themes",
     "//chrome/browser/ui:accelerator_utils_headers",
@@ -166,6 +170,7 @@ source_set("cocoa") {
     "//chrome/browser/ui/tab_contents",
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
     "//chrome/browser/ui/tabs/saved_tab_groups",
+    "//chrome/browser/ui/window_metadata",
     "//chrome/browser/web_applications",
     "//components/bookmarks/browser",
     "//components/bookmarks/managed",

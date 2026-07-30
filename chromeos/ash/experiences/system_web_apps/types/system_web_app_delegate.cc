@@ -147,10 +147,6 @@ bool SystemWebAppDelegate::UseSystemThemeColor() const {
   return true;
 }
 
-bool SystemWebAppDelegate::ShouldAnimateThemeChanges() const {
-  return false;
-}
-
 bool SystemWebAppDelegate::ShouldPinTab(GURL url) const {
   return false;
 }

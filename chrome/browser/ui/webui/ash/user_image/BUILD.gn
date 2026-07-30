@@ -15,7 +15,6 @@ static_library("user_image") {
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser/ash/login/users/default_user_image",
-    "//chrome/common",
     "//components/account_id",
     "//components/user_manager",
     "//content/public/browser",

@@ -230,6 +230,7 @@ class WebViewMediaAccessPEPCAPITest : public WebViewMediaAccessAPITest {
   WebViewMediaAccessPEPCAPITest() {
     feature_list_.InitWithFeatures(
         {blink::features::kUserMediaElement,
+         blink::features::kUserMediaElementLegacy,
          blink::features::kBypassPepcSecurityForTesting},
         {});
   }

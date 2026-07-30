@@ -6,10 +6,13 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -50,11 +53,10 @@ PreloadActivationReportManager::PreloadActivationReportManager() = default;
 
 PreloadActivationReportManager::~PreloadActivationReportManager() = default;
 
-void PreloadActivationReportManager::ReportActivation(
-    const GURL& endpoint,
-    WebContents* web_contents) {
+void PreloadActivationReportManager::ReportActivation(const GURL& endpoint,
+                                                      RenderFrameHost* rfh) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  CHECK(web_contents);
+  CHECK(rfh);
 
   url::Origin original_origin = url::Origin::Create(endpoint);
 
@@ -63,6 +65,10 @@ void PreloadActivationReportManager::ReportActivation(
   request->url = endpoint;
   request->method = net::HttpRequestHeaders::kHeadMethod;
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  if (base::FeatureList::IsEnabled(
+          features::kPreloadActivationReportWithExtensionInterception)) {
+    request->request_initiator = rfh->GetLastCommittedOrigin();
+  }
 
   constexpr net::NetworkTrafficAnnotationTag traffic_annotation =
       net::DefineNetworkTrafficAnnotation("preload_activation_beacon", R"(
@@ -116,24 +122,34 @@ void PreloadActivationReportManager::ReportActivation(
       },
       weak_ptr_factory_.GetWeakPtr(), it, original_origin));
 
-  network::mojom::URLLoaderFactory* factory =
-      url_loader_factory_for_testing_
-          ? url_loader_factory_for_testing_.get()
-          : web_contents->GetPrimaryMainFrame()
-                ->GetStoragePartition()
-                ->GetURLLoaderFactoryForBrowserProcess()
-                .get();
+  mojo::Remote<network::mojom::URLLoaderFactory> frame_factory;
+  network::mojom::URLLoaderFactory* factory = nullptr;
+
+  if (url_loader_factory_for_testing_) {
+    factory = url_loader_factory_for_testing_.get();
+  } else if (base::FeatureList::IsEnabled(
+                 features::kPreloadActivationReportWithExtensionInterception)) {
+    rfh->CreateNetworkServiceDefaultFactory(
+        frame_factory.BindNewPipeAndPassReceiver());
+    factory = frame_factory.get();
+  } else {
+    factory = rfh->GetStoragePartition()
+                  ->GetURLLoaderFactoryForBrowserProcess()
+                  .get();
+  }
 
   loader_ptr->DownloadHeadersOnly(
-      factory, base::BindOnce(
-                   [](base::WeakPtr<PreloadActivationReportManager> manager,
-                      UrlLoaderList::iterator it,
-                      scoped_refptr<net::HttpResponseHeaders> headers) {
-                     if (manager) {
-                       manager->OnComplete(it);
-                     }
-                   },
-                   weak_ptr_factory_.GetWeakPtr(), it));
+      factory,
+      base::BindOnce(
+          [](base::WeakPtr<PreloadActivationReportManager> manager,
+             UrlLoaderList::iterator it,
+             mojo::Remote<network::mojom::URLLoaderFactory> keeper,
+             scoped_refptr<net::HttpResponseHeaders> headers) {
+            if (manager) {
+              manager->OnComplete(it);
+            }
+          },
+          weak_ptr_factory_.GetWeakPtr(), it, std::move(frame_factory)));
 }
 
 void PreloadActivationReportManager::OnRedirect(

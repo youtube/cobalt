@@ -59,9 +59,6 @@ class CobrowseTabHelper : public web::WebStateObserver,
   explicit CobrowseTabHelper(web::WebState* web_state,
                              TemplateURLService* template_url_service);
 
-  // Returns whether the assistant should be closed for `url`.
-  bool ShouldCloseAssistant(const GURL& url);
-
   // Returns whether the assistant should be hidden for `url`.
   bool ShouldHideAssistant(const GURL& url);
 

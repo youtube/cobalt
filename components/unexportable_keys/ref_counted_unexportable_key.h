@@ -39,6 +39,8 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) RefCountedUnexportableKey
 class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) RefCountedUnexportableSigningKey
     : public RefCountedUnexportableKey {
  public:
+  using IdType = UnexportableSigningKeyId;
+
   // `key` must be non-null.
   explicit RefCountedUnexportableSigningKey(
       std::unique_ptr<crypto::UnexportableSigningKey> key);
@@ -63,6 +65,8 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) RefCountedUnexportableSigningKey
 class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) RefCountedUnexportableAttestationKey
     : public RefCountedUnexportableKey {
  public:
+  using IdType = UnexportableAttestationKeyId;
+
   // `key` must be non-null.
   explicit RefCountedUnexportableAttestationKey(
       std::unique_ptr<crypto::UnexportableAttestationKey> key);

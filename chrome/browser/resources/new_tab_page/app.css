@@ -316,7 +316,7 @@ svg {
   position: fixed;
 }
 
-:host([energy-effect-enabled_]) cr-composebox {
+:host([energy-effect-enabled_]) #composebox {
   --cr-composebox-expanded-border-radius: 28px;
 }
 
@@ -408,4 +408,43 @@ ntp-lens-upload-dialog {
   #scrim {
     transition: none;
   }
+}
+
+#voiceSearchDialog {
+  background: var(--color-composebox-background);
+  border: none;
+  border-radius: 28px;
+  box-shadow: var(--ntp-menu-shadow);
+  height: 112px;
+  inset-inline-start: anchor(start);
+  margin: 0;
+  overflow: visible;
+  padding: 0;
+  position: absolute;
+  position-anchor: --dialog-anchor;
+  top: anchor(top);
+  width: var(--ntp-search-box-width);
+}
+
+#voiceSearchDialog::backdrop {
+  background: transparent;
+}
+
+#voiceSearchCardContainer {
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+#voiceSearch {
+  height: 100%;
+  width: 100%;
+  --composebox-voice-search-top-padding: 9px;
+  --composebox-cancel-button-top: 10px;
+}
+
+#voiceSearchGlow {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }

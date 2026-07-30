@@ -22,6 +22,10 @@ class SendTabToSelfEntry;
 // Creates an OpenNewTabCommand for the given `entry`.
 OpenNewTabCommand* CreateOpenNewTabCommand(const SendTabToSelfEntry* entry);
 
+// Creates an OpenNewTabCommand to open the given `entry` in the background.
+OpenNewTabCommand* CreateOpenNewBackgroundTabCommand(
+    const SendTabToSelfEntry* entry);
+
 // Creates a PageContext for the given `web_state` by extracting form data
 // from all frames.
 PageContext ExtractFormFieldsFromWebState(web::WebState* web_state);

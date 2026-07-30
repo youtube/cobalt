@@ -104,6 +104,7 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kDownloadPrePolicyCheck,
           WebFeature::kDownloadPostPolicyCheck,
           WebFeature::kDownloadInAdFrame,
+          WebFeature::kDownloadFromAdScript,
           WebFeature::kDownloadInSandbox,
           WebFeature::kDownloadWithoutUserGesture,
           WebFeature::kLazyLoadFrameLoadingAttributeLazy,
@@ -392,8 +393,6 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kSpeculationRulesHeader,
           WebFeature::kGeolocationGetCurrentPosition,
           WebFeature::kGeolocationWatchPosition,
-          WebFeature::
-              kServiceWorkerStaticRouter_RaceNetworkAndFetchHandlerImprovement,
           WebFeature::kStorageAccessAPI_requestStorageAccessFor_Method,
           WebFeature::kSharedWorkerScriptUnderServiceWorkerControlIsBlob,
           WebFeature::kCSSEnvironmentVariable_SafeAreaInsetBottom_FastPath,

@@ -11,14 +11,13 @@ import '/strings.m.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrLottieElement} from 'chrome://resources/cr_elements/cr_lottie/cr_lottie.js';
 import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
-import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import type {IntroBrowserProxy} from './browser_proxy.js';
-import {IntroBrowserProxyImpl} from './browser_proxy.js';
 import type {IntroBrowserProxy as IntroMojoBrowserProxy} from './intro_browser_proxy.js';
 import {IntroBrowserProxyImpl as IntroMojoBrowserProxyImpl} from './intro_browser_proxy.js';
+import type {SignInPromoBrowserProxy} from './sign_in_promo_browser_proxy.js';
+import {SignInPromoBrowserProxyImpl} from './sign_in_promo_browser_proxy.js';
 import {getCss} from './sign_in_promo_refresh.css.js';
 import {getHtml} from './sign_in_promo_refresh.html.js';
 
@@ -49,8 +48,7 @@ export interface BenefitCard {
   iconId: string;
 }
 
-const SignInPromoRefreshElementBase =
-    WebUiListenerMixinLit(I18nMixinLit(CrLitElement));
+const SignInPromoRefreshElementBase = I18nMixinLit(CrLitElement);
 
 export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
   static get is(): string {
@@ -94,15 +92,16 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
       !loadTimeData.getBoolean('isFirstRunDesktopRevampEnabled');
   protected accessor isDarkMode_: boolean;
   private accessor anyButtonClicked_: boolean = false;
-  private browserProxy_: IntroBrowserProxy =
-      IntroBrowserProxyImpl.getInstance();
   private introBrowserProxy_: IntroMojoBrowserProxy =
       IntroMojoBrowserProxyImpl.getInstance();
+  private browserProxy_: SignInPromoBrowserProxy =
+      SignInPromoBrowserProxyImpl.getInstance();
   private variation_: Variation =
       loadTimeData.getInteger('signInPromoVariation') as Variation;
   private darkModeListener_: (e: MediaQueryListEvent) => void;
   private matchMedia_: MediaQueryList;
-  private listenerIds_: number[] = [];
+  private signInPromoListenerIds_: number[] = [];
+  private introListenerIds_: number[] = [];
 
   constructor() {
     super();
@@ -134,18 +133,20 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
   override connectedCallback() {
     super.connectedCallback();
 
-    this.browserProxy_.initializeMainView();
-
     if (this.isDeviceManaged_) {
-      this.addWebUiListener(
-          'managed-device-disclaimer-updated',
-          this.onManagedDeviceDisclaimerUpdated_.bind(this));
+      this.browserProxy_.handler.getManagedDeviceDisclaimer().then(
+          (res: {disclaimer: string}) => {
+            this.onManagedDeviceDisclaimerUpdated_(res.disclaimer);
+          });
     }
 
-    this.addWebUiListener('reset-intro-buttons', this.resetButtons_.bind(this));
+    this.signInPromoListenerIds_.push(
+        this.browserProxy_.callbackRouter.onResetButtons.addListener(() => {
+          this.resetButtons_();
+        }));
     this.matchMedia_.addEventListener('change', this.darkModeListener_);
 
-    this.listenerIds_.push(
+    this.introListenerIds_.push(
         this.introBrowserProxy_.callbackRouter.toggleAnimations.addListener(
             (active: boolean) => this.toggleAnimations_(active)));
   }
@@ -154,9 +155,13 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
     super.disconnectedCallback();
     this.matchMedia_.removeEventListener('change', this.darkModeListener_);
 
-    this.listenerIds_.forEach(
+    this.signInPromoListenerIds_.forEach(
+        id => this.browserProxy_.callbackRouter.removeListener(id));
+    this.signInPromoListenerIds_ = [];
+
+    this.introListenerIds_.forEach(
         id => this.introBrowserProxy_.callbackRouter.removeListener(id));
-    this.listenerIds_ = [];
+    this.introListenerIds_ = [];
   }
 
   private resetButtons_() {
@@ -179,12 +184,12 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
 
   protected onAcceptSignInButtonClick_() {
     this.anyButtonClicked_ = true;
-    this.browserProxy_.continueWithAccount();
+    this.browserProxy_.handler.continueWithAccount();
   }
 
   protected onDeclineSignInButtonClick_() {
     this.anyButtonClicked_ = true;
-    this.browserProxy_.continueWithoutAccount();
+    this.browserProxy_.handler.continueWithoutAccount();
   }
 
   /**
@@ -205,8 +210,16 @@ export class SignInPromoRefreshElement extends SignInPromoRefreshElementBase {
   }
 
   protected getAnimationUrl_(position: 'left'|'right'|'bottom'): string {
-    return `chrome://intro/animations/signin_benefits_${
-        this.isDarkMode_ ? 'dark' : 'light'}_${position}.json`;
+    // If animations are disabled entirely (e.g. via revamp disabled or
+    // testing), we load static JSON files for the light theme that start from
+    // frame 180 (resting state) instead of frame 0. We don't need separate
+    // files for the dark theme because the dark JSON files starting from frame
+    // 0 are acceptable from UX point of view.
+    const staticSuffix =
+        !this.isDarkMode_ && this.shouldDisableAnimations_ ? '_static' : '';
+    const theme = this.isDarkMode_ ? 'dark' : 'light';
+    return `chrome://intro/animations/signin_benefits_${theme}_${position}${
+        staticSuffix}.json`;
   }
 
   private toggleAnimations_(active: boolean) {

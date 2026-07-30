@@ -50,6 +50,7 @@ source_set("impl") {
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/color:color_headers",
     "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/views:layout_provider",
     "//chrome/common:constants",
     "//components/constrained_window",
     "//components/prefs",

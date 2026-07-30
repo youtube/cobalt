@@ -156,4 +156,18 @@ wtf_size_t TextOffsetMap::MapOffset(wtf_size_t offset) const {
   return last_entry ? offset + last_entry->target - last_entry->source : offset;
 }
 
+wtf_size_t TextOffsetMap::InverseMapOffset(wtf_size_t offset) const {
+  if (IsEmpty()) {
+    return offset;
+  }
+  const Entry* last_entry = nullptr;
+  for (const Entry& entry : entries_) {
+    if (entry.target > offset) {
+      break;
+    }
+    last_entry = &entry;
+  }
+  return last_entry ? offset + last_entry->source - last_entry->target : offset;
+}
+
 }  // namespace blink

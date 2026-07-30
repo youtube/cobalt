@@ -106,11 +106,6 @@ ContentTestSuite::ContentTestSuite(int argc, char** argv)
   // Reproducer:PrerendererTest.RemoveRendererHostAfterCandidateRemoved
   disable_field_trial("LCPTimingPredictorPrerender2");
 
-  // TODO(447306957) Enable testing for this field trial feature.
-  // Reproducer:ServiceWorkerRaceNetworkRequestURLLoaderClientTest.NetworkError_AfterInitialResponse
-  disable_field_trial(
-      "ServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement");
-
   // TODO(447307245) Enable testing for this field trial feature.
   // Reproducer:ParametrizedTests/PrefetchServiceTest.PrefetchQueueNotStuckWhenResettingRunningPrefetch/2
   disable_field_trial("Prerender2FallbackPrefetchSpecRules");

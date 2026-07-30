@@ -28,6 +28,7 @@
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/test_support/test_utils.h"
 #include "mojo/public/mojom/base/work_in_progress.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -59,8 +60,12 @@ std::vector<blink::mojom::AILanguageCodePtr> MakeLanguageCodeVector(
 class AIManagerTest : public AITestUtils::AITestBase {
  public:
   AIManagerTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        blink::features::kAIClassifierAPI);
+    scoped_feature_list_.InitWithFeatures(
+        {blink::features::kAIPromptAPI, blink::features::kAIWriterAPI,
+         blink::features::kAISummarizationAPI, blink::features::kAIRewriterAPI,
+         blink::features::kAIProofreadingAPI,
+         blink::features::kAIClassifierAPI},
+        {});
   }
 
  protected:
@@ -170,6 +175,30 @@ TEST_F(AIManagerTest, CanCreateNotEnabled) {
     EXPECT_EQ(future.Get(), blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableFeatureNotEnabled);
   }
+}
+
+TEST_F(AIManagerTest, CanCreateFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {}, {blink::features::kAIPromptAPI,
+           blink::features::kAIPromptAPIMultimodalInput,
+           blink::features::kAIWriterAPI, blink::features::kAISummarizationAPI,
+           blink::features::kAIRewriterAPI, blink::features::kAIProofreadingAPI,
+           blink::features::kAIClassifierAPI});
+
+  base::MockCallback<
+      base::OnceCallback<void(blink::mojom::ModelAvailabilityCheckResult)>>
+      callback;
+  EXPECT_CALL(callback, Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled))
+      .Times(6);
+
+  ai_manager_->CanCreateLanguageModel(/*options=*/{}, callback.Get());
+  ai_manager_->CanCreateWriter(/*options=*/{}, callback.Get());
+  ai_manager_->CanCreateSummarizer(/*options=*/{}, callback.Get());
+  ai_manager_->CanCreateRewriter(/*options=*/{}, callback.Get());
+  ai_manager_->CanCreateProofreader(/*options=*/{}, callback.Get());
+  ai_manager_->CanCreateClassifier(/*options=*/{}, callback.Get());
 }
 
 TEST_F(AIManagerTest, CanCreateEnterprisePolicyDisabled) {

@@ -6,9 +6,14 @@
 #define CHROME_BROWSER_SIGNIN_SIGNIN_UI_DELEGATE_H_
 
 #include <string>
+#include <type_traits>
 
-#include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
+#endif
 
 class Browser;
 class Profile;
@@ -42,6 +47,7 @@ class SigninUiDelegate {
                             signin_metrics::AccessPoint access_point,
                             signin_metrics::PromoAction promo_action) = 0;
 
+#if !BUILDFLAG(IS_ANDROID)
   // Displays a sync confirmation dialog to the user for an account with
   // identified by `account_id`. Account must be a valid (have no auth error)
   // account added to `profile`.
@@ -63,7 +69,12 @@ class SigninUiDelegate {
 
  protected:
   static Browser* EnsureBrowser(Profile* profile);
+#endif  // !BUILDFLAG(IS_ANDROID)
 };
+
+static_assert(std::is_trivially_destructible_v<SigninUiDelegate>,
+              "SigninUiDelegate must remain trivially destructible to be "
+              "statically defined!");
 
 }  // namespace signin_ui_util
 

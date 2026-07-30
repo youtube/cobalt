@@ -25,8 +25,6 @@ extern NSString* const kReadingListToolbarMarkButtonID;
 // Accessibility identifier for the "local" image of the reading list items.
 extern NSString* const kReadingListLocalImageID;
 
-// Accessibility identifier for the "badge" image of the reading list items.
-extern NSString* const kReadingListItemBadgeID;
 
 // NSUserDefault key to save last time a Messages prompt was shown.
 extern NSString* const kLastReadingListEntryAddedFromMessages;

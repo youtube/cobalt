@@ -15,9 +15,9 @@ namespace extensions {
 class Extension;
 
 // A helper class to determine if an extension is affected by the MV2
-// deprecation experiments.
+// deprecation.
 // NOTE: Instead of using this class directly, callers should go through the
-// ManifestV2ExperimentManager.
+// ManifestV2Handler.
 // TODO(https://crbug.com/431097630): Turn this into a util method? It has no
 // state.
 class MV2DeprecationImpactChecker {

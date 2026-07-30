@@ -11,7 +11,7 @@ import {fakeEthernetNetwork} from 'chrome://diagnostics/fake_data.js';
 import type {EthernetStateProperties, Network} from 'chrome://diagnostics/network_health_provider.mojom-webui.js';
 import {AuthenticationType} from 'chrome://diagnostics/network_health_provider.mojom-webui.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertFalse} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {assertDataPointHasExpectedHeaderAndValue} from './diagnostics_test_utils.js';

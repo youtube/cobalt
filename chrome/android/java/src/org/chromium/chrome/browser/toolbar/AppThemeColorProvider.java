@@ -86,14 +86,14 @@ public class AppThemeColorProvider extends ThemeColorProvider
                 new LayoutStateProvider.LayoutStateObserver() {
                     @Override
                     public void onStartedShowing(@LayoutType int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             updateTheme();
                         }
                     }
 
                     @Override
                     public void onStartedHiding(@LayoutType int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             updateTheme();
                         }
                     }

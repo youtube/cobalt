@@ -8,7 +8,7 @@
 #import "base/ios/ios_util.h"
 #import "base/no_destructor.h"
 #import "base/strings/sys_string_conversions.h"
-#import "base/strings/utf_string_conversions.h"
+#import "base/strings/utf_string_conversion_utils.h"
 #import "ios/chrome/browser/safe_browsing/model/input_event_observer.h"
 #import "ios/web/public/js_messaging/script_message.h"
 
@@ -78,8 +78,7 @@ void PasswordProtectionJavaScriptFeature::ScriptMessageReceived(
     // A key event should consist of a single character. A longer string
     // means the message isn't well-formed, so might be coming from a
     // compromised WebProcess.
-    std::u16string text16 = base::UTF8ToUTF16(*text);
-    if (text16.length() != 1) {
+    if (base::CountUnicodeCharacters(*text) != 1) {
       return;
     }
     observer->OnKeyPressed(*text);

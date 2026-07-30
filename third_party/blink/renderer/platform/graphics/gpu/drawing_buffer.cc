@@ -89,14 +89,6 @@ namespace blink {
 
 namespace {
 
-// Controls whether the canvas resource in ExportLowLatencyCanvasResource()
-// should be created with the SyncToken returned from back color buffer
-// (when enabled) or with an empty SyncToken (when disabled). Enabling this
-// feature would prevent flickering in some cases where desynchronized canvas
-// are periodically refreshed on Windows.
-BASE_FEATURE(kUseNonEmptySyncTokenForLowLatencyCanvas,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 #if !BUILDFLAG(IS_WIN)
 // Controls whether offscreen canvases are allowed to be placed into overlays.
 BASE_FEATURE(kAllowOverlaysForOffscreenCanvas,
@@ -810,12 +802,7 @@ DrawingBuffer::ExportLowLatencyCanvasResource() {
     // Restart SharedImage access on the back buffer to ensure a write fence is
     // generated on it to guarantee display reads this frame completely.
     // Display may still read parts of subsequent frames, which is okay.
-    if (base::FeatureList::IsEnabled(
-            kUseNonEmptySyncTokenForLowLatencyCanvas)) {
-      sync_token = back_color_buffer_->EndAccess();
-    } else {
-      back_color_buffer_->EndAccess();
-    }
+    sync_token = back_color_buffer_->EndAccess();
     back_color_buffer_->BeginAccess(gpu::SyncToken(), /*readonly=*/false);
   }
 

@@ -17,8 +17,6 @@ component("app_types") {
     "app_types.h",
     "capability_access.cc",
     "capability_access.h",
-    "features.cc",
-    "features.h",
     "icon_effects.h",
     "icon_types.cc",
     "icon_types.h",

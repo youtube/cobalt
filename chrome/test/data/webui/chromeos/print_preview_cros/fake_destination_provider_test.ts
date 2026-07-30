@@ -8,7 +8,7 @@ import {PDF_DESTINATION} from 'chrome://os-print/js/data/destination_constants.j
 import {FAKE_GET_LOCAL_DESTINATIONS_SUCCESSFUL_EMPTY, FakeDestinationProvider, GET_LOCAL_DESTINATIONS_METHOD, getFakeCapabilitiesResponse, OBSERVE_DESTINATION_CHANGES_METHOD} from 'chrome://os-print/js/fakes/fake_destination_provider.js';
 import type {Destination, FakeDestinationObserverInterface} from 'chrome://os-print/js/utils/print_preview_cros_app_types.js';
 import {PrinterType} from 'chrome://os-print/print.mojom-webui.js';
-import {assertDeepEquals, assertEquals} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertDeepEquals, assertEquals} from 'chrome://webui-test/chai_assert.js';
 
 // Test implementation of FakeDestinationObserverInterface used to verify
 // observer called with expected data and call count.

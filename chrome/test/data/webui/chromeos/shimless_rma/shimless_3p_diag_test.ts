@@ -13,7 +13,7 @@ import {setShimlessRmaServiceForTesting} from 'chrome://shimless-rma/mojo_interf
 import {Shimless3pDiagnostics} from 'chrome://shimless-rma/shimless_3p_diagnostics.js';
 import {ShimlessRma} from 'chrome://shimless-rma/shimless_rma.js';
 import {Show3pDiagnosticsAppResult} from 'chrome://shimless-rma/shimless_rma.mojom-webui.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 

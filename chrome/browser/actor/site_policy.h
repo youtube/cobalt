@@ -25,7 +25,7 @@ class Profile;
 namespace actor {
 
 class AggregatedJournal;
-class OriginChecker;
+class OriginGatingCache;
 
 // Called during initialization of the given profile, to load the blocklist.
 void InitActionBlocklist(Profile* profile);
@@ -63,7 +63,7 @@ using DecisionCallbackWithReason =
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const OriginChecker& origin_checker,
+                 const OriginGatingCache& origin_gating_cache,
                  const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback);
 
@@ -76,6 +76,7 @@ void MayActOnUrl(const GURL& url,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
+                 const OriginGatingCache& origin_gating_cache,
                  const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback);
 

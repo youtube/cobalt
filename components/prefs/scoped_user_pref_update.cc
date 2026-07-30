@@ -51,6 +51,12 @@ base::Value* ScopedUserPrefUpdateBase::GetValueOfType(base::Value::Type type) {
     SCOPED_CRASH_KEY_NUMBER("ScopedUserPrefUpdate", "Type",
                             pref ? std::to_underlying(pref->GetType()) : -1);
     base::debug::DumpWithoutCrashing();
+    if (!fallback_value_) {
+      fallback_value_ = type == base::Value::Type::DICT
+                            ? base::Value(base::DictValue())
+                            : base::Value(base::ListValue());
+    }
+    return &*fallback_value_;
   }
   return value_;
 }

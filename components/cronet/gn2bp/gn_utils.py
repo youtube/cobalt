@@ -9,6 +9,7 @@ import copy
 import json
 import logging as log
 import os
+import pathlib
 import re
 import sys
 import shlex
@@ -92,15 +93,6 @@ def label_to_path(label):
     return label[2:] or ""
 
 
-def label_without_toolchain(label):
-    """Strips the toolchain from a GN label.
-
-    Return a GN label (e.g //buildtools:protobuf(//gn/standalone/toolchain:
-    gcc_like_host) without the parenthesised toolchain part.
-    """
-    return label.split('(')[0]
-
-
 def _is_java_source(src):
     return os.path.splitext(src)[1] == '.java' and not src.startswith("//out/")
 
@@ -110,24 +102,23 @@ def _remove_out_prefix(label):
 
 
 def _filter_cflags(cflags):
-    cflags_processed = []
-    # This is set to true when we have combined two consecutive indices into a single
-    # string and want to skip the next iteration.
-    skip_next = False
-    for i in range(len(cflags)):
-        if skip_next:
-            skip_next = False
-            continue
 
-        if cflags[i].startswith("-Xclang"):
+    def gen():
+        iterator = iter(cflags)
+        for flag in iterator:
             # We don't care about -Xclang values as they're solely for the front-end to
             # enable some static analysis on the code. It's important to disable this as
             # there exists code that is implemented in Chromium, but built only in AOSP.
             # We don't want those to stop building due to some statical analysis error.
-            skip_next = True
-        else:
-            cflags_processed.append(cflags[i])
-    return cflags_processed
+            if flag.startswith("-Xclang"):
+                try:
+                    next(iterator)
+                except StopIteration:
+                    pass
+            else:
+                yield flag
+
+    return list(gen())
 
 
 def _filter_defines(defines):
@@ -141,6 +132,45 @@ def _filter_defines(defines):
     return (define for define in defines if not any(
         define.startswith(f"{excluded_define}=")
         for excluded_define in EXCLUDED_DEFINES))
+
+
+def _determine_target_type(target_name, desc):
+    type_ = desc['type']
+    metadata = desc.get("metadata", {})
+    script = desc.get("script", "")
+
+    # In GN, java libraries are actually a hierarchy of targets with a `group`
+    # target at the root. We surface the target as a `java_library` for clarity.
+    #
+    # The reason why we do this now and not alongside the java_library logic is
+    # so that, if this target is a builtin (see below), it is still returned as
+    # a java_library, not as a group (which would just get ignored).
+    if any(metadata_key in metadata
+           for metadata_key in ("java_library_deps", "java_library_sources")):
+        return 'java_library'
+
+    if type_ == "executable" and desc.get("crate_root", None):
+        return "rust_executable"
+
+    if script == "//tools/protoc_wrapper/protoc_wrapper.py":
+        return 'proto_library'
+
+    if script == "//build/android/gyp/aidl.py":
+        return "aidl_interface"
+
+    if script == "//build/rust/gni_impl/run_bindgen.py":
+        return "rust_bindgen"
+
+    # GN's copy is translated to Soong by making it look like a GN's action
+    # with a special //cp script. This works well for its only usage:
+    # //base:build_date_header. As the list of supported copy target grows, we might
+    # need to revisit this decision.
+    if type_ == 'copy' and target_name in [
+            '//base:build_date_header', '//base:build_date_header__testing'
+    ]:
+        return 'action'
+
+    return type_
 
 
 class GnParser:
@@ -193,7 +223,8 @@ class GnParser:
             VALID_TYPES = ('static_library', 'shared_library', 'executable',
                            'group', 'action', 'source_set', 'proto_library',
                            'copy', 'action_foreach', 'generated_file',
-                           "rust_library", "rust_proc_macro")
+                           "rust_library", "rust_proc_macro", "java_library",
+                           "rust_executable", "aidl_interface", "rust_bindgen")
             assert (gn_type in VALID_TYPES
                     ), f"Unable to parse target {name} with type {gn_type}."
             self.type = gn_type
@@ -218,9 +249,10 @@ class GnParser:
             # TODO: come up with a better way to only run this once.
             # is_finalized tracks whether finalize() was called on this target.
             self.is_finalized = False
-            # 'common' is a pseudo-architecture used to store common architecture dependent properties (to
-            # make handling of common vs architecture-specific arguments more consistent).
-            self.arch = {'common': self.Arch()}
+            # 'common' stores common architecture independent properties.
+            self.common = self.Arch()
+            self.arch = {}
+            self.build_only_deps = set()
 
             # This is used to get the name/version of libcronet
             self.output_name = None
@@ -233,6 +265,7 @@ class GnParser:
             # the generated module would not depend on those deps.
             self.jni_registration_java_deps = set()
             self.sdk_version = ""
+            self.unfiltered_java_target = None
             self.build_file_path = ""
             self.crate_name = None
             self.crate_root = None
@@ -243,92 +276,6 @@ class GnParser:
             # the original source files are.
             self.rust_source_dir = None
             self.rust_package_version = None
-
-        # Properties to forward access to common arch.
-        # TODO: delete these after the transition has been completed.
-        @property
-        def sources(self):
-            return self.arch['common'].sources
-
-        @sources.setter
-        def sources(self, val):
-            self.arch['common'].sources = val
-
-        @property
-        def inputs(self):
-            return self.arch['common'].inputs
-
-        @inputs.setter
-        def inputs(self, val):
-            self.arch['common'].inputs = val
-
-        @property
-        def outputs(self):
-            return self.arch['common'].outputs
-
-        @property
-        def libs(self):
-            return self.arch['common'].libs
-
-        @outputs.setter
-        def outputs(self, val):
-            self.arch['common'].outputs = val
-
-        @property
-        def args(self):
-            return self.arch['common'].args
-
-        @args.setter
-        def args(self, val):
-            self.arch['common'].args = val
-
-        @property
-        def response_file_contents(self):
-            return self.arch['common'].response_file_contents
-
-        @response_file_contents.setter
-        def response_file_contents(self, val):
-            self.arch['common'].response_file_contents = val
-
-        @property
-        def cflags(self):
-            return self.arch['common'].cflags
-
-        @cflags.setter
-        def cflags(self, val):
-            self.arch['common'].cflags = val
-
-        @property
-        def defines(self):
-            return self.arch['common'].defines
-
-        @property
-        def deps(self):
-            return self.arch['common'].deps
-
-        @deps.setter
-        def deps(self, val):
-            self.arch['common'].deps = val
-
-        @property
-        def rust_flags(self):
-            return self.arch['common'].rust_flags
-
-        @rust_flags.setter
-        def rust_flags(self, val):
-            self.arch['common'].rust_flags = val
-
-        @property
-        def include_dirs(self):
-            return self.arch['common'].include_dirs
-
-        @property
-        def ldflags(self):
-            return self.arch['common'].ldflags
-
-        @ldflags.setter
-        def ldflags(self, val):
-            self.arch['common'].ldflags = val
 
         def host_supported(self):
             return 'host' in self.arch
@@ -356,53 +303,48 @@ class GnParser:
                 sort_keys=True)
 
         def update(self, other, arch):
-            for key in ('cflags', 'defines', 'deps', 'include_dirs', 'ldflags',
-                        'proto_deps', 'proto_paths'):
-                val = getattr(self, key)
-                if isinstance(val, set):
-                    # The pylint is confused as it does not understand that this line is protected
-                    # behind a type-check via `isinstance`
-                    # pylint: disable=no-member
-                    val.update(getattr(other, key, ()))
-                elif isinstance(val, list):
-                    val.extend(getattr(other, key, []))
+            for key in ('defines', 'deps', 'include_dirs'):
+                getattr(self.common, key).update(getattr(other.common, key))
+            for key in ('cflags', 'ldflags'):
+                getattr(self.common, key).extend(getattr(other.common, key))
 
-            for key_in_arch in ('cflags', 'defines', 'include_dirs', 'deps',
-                                'ldflags', 'libs'):
-                val = getattr(self.arch[arch], key_in_arch)
-                if isinstance(val, set):
-                    val.update(getattr(other.arch[arch], key_in_arch, []))
-                elif isinstance(val, list):
-                    val.extend(getattr(other.arch[arch], key_in_arch, []))
+            for key in ('proto_deps', 'proto_paths'):
+                getattr(self, key).update(getattr(other, key))
+
+            if arch in self.arch and arch in other.arch:
+                for key_in_arch in ('defines', 'include_dirs', 'deps', 'libs'):
+                    getattr(self.arch[arch], key_in_arch).update(
+                        getattr(other.arch[arch], key_in_arch))
+                for key_in_arch in ('cflags', 'ldflags'):
+                    getattr(self.arch[arch], key_in_arch).extend(
+                        getattr(other.arch[arch], key_in_arch))
 
         def get_archs(self):
-            """ Returns a dict of archs without the common arch """
-            return {
-                arch: val
-                for arch, val in self.arch.items() if arch != 'common'
-            }
+            """ Returns a dict of archs """
+            return self.arch
 
         def _finalize_set_attribute(self, key):
             # Target contains the intersection of arch-dependent properties
-            getattr(self, key).update(
-                set.intersection(
-                    *
-                    [getattr(arch, key)
-                     for arch in self.get_archs().values()]))
-
-            # Deduplicate arch-dependent properties
-            for arch in self.get_archs().values():
-                getattr(arch, key).difference_update(getattr(self, key))
+            archs = list(self.arch.values())
+            if not archs:
+                return
+            intersection = set.intersection(
+                *[getattr(arch, key) for arch in archs])
+            getattr(self.common, key).update(intersection)
+            for arch in archs:
+                getattr(arch, key).difference_update(intersection)
 
         def _finalize_non_set_attribute(self, key):
             # Only when all the arch has the same non empty value, move the value to the target common
-            val = getattr(list(self.get_archs().values())[0], key)
-            if val and all(val == getattr(arch, key)
-                           for arch in self.get_archs().values()):
-                setattr(self, key, copy.deepcopy(val))
+            archs = list(self.arch.values())
+            if not archs:
+                return
+            val = getattr(archs[0], key)
+            if val and all(val == getattr(arch, key) for arch in archs):
+                setattr(self.common, key, copy.deepcopy(val))
 
         def _finalize_attribute(self, key):
-            val = getattr(self, key)
+            val = getattr(self.common, key)
             if isinstance(val, set):
                 self._finalize_set_attribute(key)
             elif isinstance(val, (list, str)):
@@ -419,7 +361,7 @@ class GnParser:
                 return
             self.is_finalized = True
 
-            if len(self.arch) == 1:
+            if not self.arch:
                 return
 
             for key in ('sources', 'cflags', 'defines', 'include_dirs', 'deps',
@@ -474,7 +416,8 @@ class GnParser:
         for target in self.all_targets.values():
             target.finalize()
 
-        return self.all_targets[label_without_toolchain(gn_target_name)]
+        return self.all_targets[gn2bp_common.label_without_toolchain(
+            gn_target_name)]
 
     def parse_gn_desc(self,
                       gn_desc,
@@ -489,9 +432,8 @@ class GnParser:
         """
         # Use name without toolchain for targets to support targets built for
         # multiple archs.
-        target_name = label_without_toolchain(gn_target_name)
+        target_name = gn2bp_common.label_without_toolchain(gn_target_name)
         desc = gn_desc[gn_target_name]
-        type_ = desc['type']
         arch, chromium_arch = self._get_arch(desc['toolchain'])
         metadata = desc.get("metadata", {})
 
@@ -504,34 +446,22 @@ class GnParser:
         if is_test_target:
             target_name += TESTING_SUFFIX
 
+
         target = self.all_targets.get(target_name)
         if target is None:
-            target = GnParser.Target(target_name, type_)
+            resolved_type = _determine_target_type(target_name, desc)
+            target = GnParser.Target(target_name, resolved_type)
+            if resolved_type == 'java_library':
+                target.sdk_version = 'current'
+                # Assume the target is unfiltered by default. This may be reassigned
+                # later.
+                target.unfiltered_java_target = target
             self.all_targets[target_name] = target
 
         if arch not in target.arch:
             target.arch[arch] = GnParser.Target.Arch()
         else:
             return target  # Target already processed.
-
-        def turn_into_java_library(java_target):
-            java_target.type = 'java_library'
-            java_target.sdk_version = 'current'
-            # Assume the target is unfiltered by default. This may be reassigned
-            # later.
-            java_target.unfiltered_java_target = java_target
-
-        # In GN, java libraries are actually a hierarchy of targets with a `group`
-        # target at the root. We surface the target as a `java_library` for clarity.
-        # See below for more details on how we handle java_library.
-        #
-        # The reason why we do this now and not alongside the java_library logic is
-        # so that, if this target is a builtin (see below), it is still returned as
-        # a java_library, not as a group (which would just get ignored).
-        if any(metadata_key in metadata
-               for metadata_key in ("java_library_deps",
-                                    "java_library_sources")):
-            turn_into_java_library(target)
 
         if target.name in self.builtin_deps:
             # return early, no need to parse any further as the module is a builtin.
@@ -542,17 +472,11 @@ class GnParser:
             return target
 
         target.testonly = desc.get('testonly', False)
-        if target.type == "executable" and desc.get("crate_root", None):
-            # Find a more decisive way to figure out that this is a rust executable.
-            # TODO: Add a metadata to the executable from Chromium side.
-            target.type = "rust_executable"
         deps = desc.get("deps", [])
         build_only_deps = []
         if custom_processor is not None:
             custom_processor(target, desc, deps, build_only_deps)
-        elif desc.get("script",
-                      "") == "//tools/protoc_wrapper/protoc_wrapper.py":
-            target.type = 'proto_library'
+        elif target.type == 'proto_library':
             target.proto_paths.update(self.get_proto_paths(desc))
             target.proto_exports.update(self.get_proto_exports(desc))
             target.proto_in_dir = self.get_proto_in_dir(desc)
@@ -569,11 +493,10 @@ class GnParser:
             target.arch[arch].sources.update(
                 source for source in desc.get('sources', [])
                 if not source.startswith("//out"))
-        elif target.script == "//build/android/gyp/aidl.py":
-            target.type = "aidl_interface"
+        elif target.type == 'aidl_interface':
             # It's assumed that all of AIDLs' attributes are not arch-specific.
-            target.sources.update(desc.get('sources', {}))
-            target.outputs.update(
+            target.common.sources.update(desc.get('sources', {}))
+            target.common.outputs.update(
                 [_remove_out_prefix(x) for x in desc['outputs']])
             target.aidl_includes = _extract_includes_from_aidl_args(
                 desc.get('args', ''))
@@ -611,9 +534,10 @@ class GnParser:
             # structure of the `java_library` GN subtargets.
 
             inputs = metadata.get("java_library_inputs", [])
-            target.sources.update(input for input in inputs
-                                  if not input.startswith('//out/'))
-            target.inputs.update(_remove_out_prefix(input) for input in inputs)
+            target.common.sources.update(input for input in inputs
+                                         if not input.startswith('//out/'))
+            target.common.inputs.update(
+                _remove_out_prefix(input) for input in inputs)
 
             deps.clear()
             deps.extend(metadata.get("java_library_deps", []))
@@ -636,37 +560,22 @@ class GnParser:
                     raise ValueError(
                         f"Unexpected android_sdk_dep: {android_sdk_dep} for target {target.name}"
                     )
-        elif desc.get("script", "") == "//build/rust/gni_impl/run_bindgen.py":
+        elif target.type == "rust_bindgen":
             # rust_bindgen is a supported module in Soong but GN depend on actions
             # so we need to copy the action fields (sources, outputs and args) in
             # order to correctly generate the `rust_bindgen` module.
-            target.sources.update(desc.get('sources', []))
+            target.arch[arch].sources.update(desc.get('sources', []))
             outs = [_remove_out_prefix(x) for x in desc['outputs']]
-            target.outputs.update(outs)
-            target.args = desc['args']
-            target.type = "rust_bindgen"
-        elif (target.type in [
-                'action', 'action_foreach'
-                # GN's copy is translated to Soong by making it look like a GN's action
-                # with a special //cp script. This works well for its only usage:
-                # //base:build_date_header. As the list of supported copy target grows, we might
-                # need to revisit this decision.
-        ]) or (desc['type'] == 'copy' and target.name in [
-                '//base:build_date_header', '//base:build_date_header__testing'
-        ]):
+            target.arch[arch].outputs.update(outs)
+            target.arch[arch].args = desc['args']
+        elif target.type in ['action', 'action_foreach']:
             target.arch[arch].inputs.update(desc.get('inputs', []))
             target.arch[arch].sources.update(desc.get('sources', []))
             outs = [_remove_out_prefix(x) for x in desc['outputs']]
             target.arch[arch].outputs.update(outs)
-            # We need to check desc['type'], not target.type: targets go through
-            # this code multiple times. If we checked for target.type, the second
-            # time we parsed a copy target, we would take the else branch.
             if desc['type'] == 'copy':
-                target.type = 'action'
                 target.script = '//cp'
             else:
-                # While the arguments might differ, an action should always use the same script for every
-                # architecture. (gen_android_bp's get_action_sanitizer actually relies on this fact.
                 target.script = desc['script']
                 # Soong treats '$' as a special character for substitutions.
                 # Escape it to ensure it is handled as a literal.
@@ -742,7 +651,7 @@ class GnParser:
         target.arch[arch].rust_flags = desc.get("rustflags", list())
         target.arch[arch].rust_flags.extend(
             self.build_script_outputs.get(
-                label_without_toolchain(gn_target_name),
+                gn2bp_common.label_without_toolchain(gn_target_name),
                 {}).get(chromium_arch, list()))
 
         if "-frtti" in target.arch[arch].cflags:
@@ -785,7 +694,7 @@ class GnParser:
                     # (_java__header). This reproduces this behavior.
                     target.build_only_deps.add(dep.unfiltered_java_target.name)
                 else:
-                    target.deps.add(dep.name)
+                    target.common.deps.add(dep.name)
                 target.transitive_jni_java_sources.update(
                     dep.transitive_jni_java_sources)
             elif dep.type in [

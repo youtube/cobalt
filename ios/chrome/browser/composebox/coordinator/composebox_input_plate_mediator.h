@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #include <memory>
+#include <set>
 #include <vector>
 
 #import "components/contextual_search/internal/ios/composebox_context_upload_observer_bridge.h"
@@ -19,8 +20,8 @@
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_consumer.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_mutator.h"
 #import "ios/chrome/browser/omnibox/ui/text_field_view_containing.h"
-#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_coordinator.h"
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_controller.h"
+#import "ios/web/public/web_state_id.h"
 
 @protocol BrowserCoordinatorCommands;
 @class ComposeboxAttachmentSelection;
@@ -60,7 +61,6 @@ class ContextualSearchSessionHandle;
     : NSObject <ComposeboxOmniboxClientDelegate,
                 ComposeboxInputPlateMutator,
                 ComposeboxContextUploadObserver,
-                TabPickerSelectionDelegate,
                 TextFieldViewContainingHeightDelegate,
                 ComposeboxInputStateManagerDelegate,
                 VoiceSearchDelegate>
@@ -126,6 +126,29 @@ class ContextualSearchSessionHandle;
 
 // Applies the focus parameters to initialize the session state.
 - (void)applyFocusParams:(ComposeboxFocusParams*)params;
+
+// Processes the picked Google Drive file metadata and triggers contextual
+// session upload.
+- (void)processDriveFileWithIdentifier:(NSString*)identifier
+                                  name:(NSString*)name
+                              mimeType:(NSString*)mimeType;
+
+// Returns the associated IDs for all currently attached tabs.
+- (std::set<web::WebStateID>)allAttachedWebStateIDs;
+
+// Returns the associated IDs for currently attached tabs from the current web
+// state context. Tabs attached from different web states (not visible in the
+// tab picker) will be excluded.
+- (std::set<web::WebStateID>)attachedWebStateIDsInCurrentContext;
+
+// Returns the maximum number of tab attachments allowed.
+- (NSUInteger)maxTabAttachmentCount;
+
+// Attaches the selected tabs.
+- (void)attachSelectedTabsWithWebStateIDs:
+            (std::set<web::WebStateID>)selectedWebStateIDs
+                        cachedWebStateIDs:
+                            (std::set<web::WebStateID>)cachedWebStateIDs;
 
 @end
 

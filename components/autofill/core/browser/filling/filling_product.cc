@@ -121,6 +121,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kManageAutofillAi:
     case SuggestionType::kManageAutofillAiIdentityDocs:
     case SuggestionType::kManageAutofillAiTravel:
+    case SuggestionType::kFetchingAmbientData:
       return FillingProduct::kAutofillAi;
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kLoyaltyCardEntry:

@@ -221,11 +221,6 @@
       '--extra-browser-args=--use-angle=d3d11',
     ],
   },
-  'gpu_force_angle_d3d9': {
-    'args': [
-      '--extra-browser-args=--use-angle=d3d9',
-    ],
-  },
   'gpu_force_angle_gl': {
     'args': [
       '--extra-browser-args=--use-angle=gl',

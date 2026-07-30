@@ -18,8 +18,6 @@ using AllowlistData = IwaAccessControl::UserInstallAllowlistItemData;
 TEST(IwaEntitlementsTest, FeatureToEntitlementMapping) {
   EXPECT_EQ(GetEntitlementForFeature("direct-sockets"),
             AllowlistData::DIRECT_SOCKETS);
-  EXPECT_EQ(GetEntitlementForFeature("direct-sockets-private"),
-            AllowlistData::DIRECT_SOCKETS_PRIVATE);
   EXPECT_EQ(GetEntitlementForFeature("smart-card"), AllowlistData::SMART_CARD);
   EXPECT_EQ(GetEntitlementForFeature("web-printing"),
             AllowlistData::WEB_PRINTING);
@@ -39,8 +37,6 @@ TEST(IwaEntitlementsTest, FeatureToEntitlementMapping) {
 TEST(IwaEntitlementsTest, IsFeatureGuardedByIsolatedContext) {
   EXPECT_TRUE(network::IsPermissionsPolicyFeatureGuardedByIsolatedContext(
       "direct-sockets"));
-  EXPECT_TRUE(network::IsPermissionsPolicyFeatureGuardedByIsolatedContext(
-      "direct-sockets-private"));
   EXPECT_TRUE(network::IsPermissionsPolicyFeatureGuardedByIsolatedContext(
       "direct-sockets-multicast"));
   EXPECT_TRUE(network::IsPermissionsPolicyFeatureGuardedByIsolatedContext(

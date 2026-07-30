@@ -55,7 +55,8 @@ void NavigationDownloadPolicy::ApplyDownloadFramePolicy(
     bool has_gesture,
     bool openee_can_access_opener_origin,
     bool has_download_sandbox_flag,
-    bool from_ad) {
+    bool from_ad_frame,
+    bool is_ad_script_in_stack) {
   if (!has_gesture)
     SetAllowed(NavigationDownloadType::kNoGesture);
 
@@ -69,11 +70,15 @@ void NavigationDownloadPolicy::ApplyDownloadFramePolicy(
     SetDisallowed(NavigationDownloadType::kSandbox);
   }
 
-  if (from_ad) {
+  if (from_ad_frame) {
     SetAllowed(NavigationDownloadType::kAdFrame);
     if (!has_gesture) {
       SetDisallowed(NavigationDownloadType::kAdFrameNoGesture);
     }
+  }
+
+  if (is_ad_script_in_stack) {
+    SetAllowed(NavigationDownloadType::kAdScript);
   }
 }
 

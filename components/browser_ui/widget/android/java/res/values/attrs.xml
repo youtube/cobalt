@@ -96,7 +96,9 @@ found in the LICENSE file.
         <attr name="textAlignStart" format="boolean"/>
         <attr name="chipColor" format="color"/>
         <attr name="chipStartPadding" format="reference|dimension"/>
+        <attr name="chipTopPadding" format="reference|dimension"/>
         <attr name="chipEndPadding" format="reference|dimension"/>
+        <attr name="chipBottomPadding" format="reference|dimension"/>
         <attr name="chipStateLayerColor" format="color"/>
         <attr name="chipStrokeColor" format="color"/>
         <attr name="chipStyle" format="reference"/>

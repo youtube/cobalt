@@ -93,7 +93,9 @@ class AppMenuHandlerImpl
 
         @Override
         public boolean isEnabled(int position) {
-            return getItemViewType(position) != AppMenuItemType.DIVIDER
+            int type = getItemViewType(position);
+            return type != AppMenuItemType.DIVIDER
+                    && type != AppMenuItemType.HEADER
                     && ((ListItem) getItem(position)).model.get(AppMenuItemProperties.ENABLED);
         }
     }
@@ -372,7 +374,8 @@ class AppMenuHandlerImpl
                             assert false : "ModelList is null";
                             return false;
                         }
-                        return mModelList.get(index).type != AppMenuItemType.DIVIDER;
+                        int type = mModelList.get(index).type;
+                        return type != AppMenuItemType.DIVIDER && type != AppMenuItemType.HEADER;
                     }
                 };
 
@@ -621,6 +624,10 @@ class AppMenuHandlerImpl
                 AppMenuItemType.EMPTY,
                 new LayoutViewBuilder<>(R.layout.menu_item_empty),
                 AppMenuItemViewBinder::bindStandardItem);
+        adapter.registerType(
+                AppMenuItemType.HEADER,
+                new LayoutViewBuilder<>(R.layout.menu_header),
+                AppMenuItemViewBinder::bindHeaderItem);
     }
 
     private void registerViewBinders(

@@ -49,8 +49,9 @@ class GlicNudgeControllerAndroidBrowserTest : public GlicBrowserTest {
 
   void SetUpOnMainThread() override {
     GlicBrowserTest::SetUpOnMainThread();
-    nudge_controller_ =
-        std::make_unique<GlicNudgeControllerAndroid>(GetTabListInterface());
+    nudge_controller_ = std::make_unique<GlicNudgeControllerAndroid>(
+        GetTabListInterface(),
+        GetTabListInterface()->GetActiveTab()->GetContents());
     nudge_controller_->SetTabStripDelegate(&mock_delegate_);
   }
 

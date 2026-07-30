@@ -230,6 +230,7 @@ public class ForeignSessionHelper {
 
     /**
      * Opens the given foreign tab in a new tab.
+     *
      * @param tab Tab to load the session into.
      * @param session Session that the target tab belongs to.
      * @param foreignTab Target tab to open.
@@ -241,20 +242,31 @@ public class ForeignSessionHelper {
             ForeignSession session,
             ForeignSessionTab foreignTab,
             int windowOpenDisposition) {
+        return openForeignSessionTab(tab, session.tag, foreignTab.id, windowOpenDisposition);
+    }
+
+    /**
+     * Opens the given foreign tab in a new tab.
+     *
+     * @param tab Tab to load the session into.
+     * @param sessionTag Tag of the session that the target tab belongs to.
+     * @param tabId ID of the target tab to open.
+     * @param windowOpenDisposition The WindowOpenDisposition flag.
+     * @return {@code True} iff the tab is successfully opened.
+     */
+    public boolean openForeignSessionTab(
+            Tab tab, String sessionTag, int tabId, int windowOpenDisposition) {
         return ForeignSessionHelperJni.get()
                 .openForeignSessionTab(
-                        mNativeForeignSessionHelper,
-                        tab,
-                        session.tag,
-                        foreignTab.id,
-                        windowOpenDisposition);
+                        mNativeForeignSessionHelper, tab, sessionTag, tabId, windowOpenDisposition);
     }
 
     /**
      * Remove Foreign session to display. Note that it will be reappear on the next sync.
      *
-     * This is mainly for when user wants to delete very old session that won't be used or syned in
-     * the future.
+     * <p>This is mainly for when user wants to delete very old session that won't be used or synced
+     * in the future.
+     *
      * @param session Session to be deleted.
      */
     public void deleteForeignSession(ForeignSession session) {

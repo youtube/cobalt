@@ -45,7 +45,7 @@ class AidaClientTest : public testing::Test {
 
     auto account_info = identity_test_env_->MakePrimaryAccountAvailable(
         kEmail, signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_devtools_generative_ai_features(true);
     signin::UpdateAccountInfoForAccount(identity_test_env_->identity_manager(),
                                         account_info);
@@ -179,7 +179,7 @@ TEST_F(AidaClientTest, NotAvailableIfCapabilityFalse) {
 
   auto account_info = identity_test_env_->identity_manager()
                           ->FindExtendedAccountInfoByEmailAddress(kEmail);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_devtools_generative_ai_features(false);
   signin::UpdateAccountInfoForAccount(identity_test_env_->identity_manager(),
                                       account_info);

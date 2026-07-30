@@ -57,6 +57,9 @@ public @interface SuggestionCommonProperties {
         int TOP_AND_BOTTOM = 2;
     }
 
+    /** Whether non-zero horizontal margins should be applied to the suggestion view. */
+    WritableBooleanPropertyKey APPLY_SIDE_SPACING = new WritableBooleanPropertyKey();
+
     /** Whether dark colors should be applied to text, icons. */
     WritableIntPropertyKey COLOR_SCHEME = new WritableIntPropertyKey();
 
@@ -89,6 +92,7 @@ public @interface SuggestionCommonProperties {
 
     PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
+                APPLY_SIDE_SPACING,
                 COLOR_SCHEME,
                 LAYOUT_DIRECTION,
                 DEVICE_FORM_FACTOR,

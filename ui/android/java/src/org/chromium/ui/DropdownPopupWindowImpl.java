@@ -251,8 +251,15 @@ class DropdownPopupWindowImpl
         return mAnchoredPopupWindow.isShowing();
     }
 
+    /** Sets the focusability of the popup window. */
+    @Override
+    public void setFocusable(boolean focusable) {
+        mAnchoredPopupWindow.setFocusable(focusable);
+    }
+
     /**
      * Measures the width of the list content. The adapter should not be null.
+     *
      * @return The popup window width in pixels.
      */
     private int measureContentWidth() {

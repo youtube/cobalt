@@ -169,7 +169,7 @@ class SaveAndFillManagerImpl : public SaveAndFillManager {
 
   // Struct that contains necessary information for uploading the card to
   // server.
-  payments::UploadCardRequestDetails upload_details_;
+  UploadCardRequestDetails upload_details_;
 
   FillCardCallback fill_card_callback_;
 

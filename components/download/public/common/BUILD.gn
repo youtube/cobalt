@@ -92,6 +92,7 @@ component("public") {
   ]
 
   deps = [
+    "//build:android_buildflags",
     "//components/download/database",
     "//components/download/internal/common:internal",
     "//components/services/quarantine",

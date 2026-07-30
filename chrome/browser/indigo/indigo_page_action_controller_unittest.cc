@@ -22,6 +22,7 @@
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/test_support/mock_glic_keyed_service.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
@@ -39,8 +40,10 @@
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/page_action/test_support/fake_tab_interface.h"
 #include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
+#include "chrome/browser/ui/side_panel/mock_side_panel_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -74,6 +77,37 @@ namespace {
 using ::optimization_guide::OptimizationGuideDecision;
 using ::testing::_;
 
+class FakeGlicSidePanelCoordinator : public glic::GlicSidePanelCoordinator {
+ public:
+  explicit FakeGlicSidePanelCoordinator(tabs::TabInterface* tab)
+      : glic::GlicSidePanelCoordinator(tab) {}
+
+  void Show(const ShowOptions& options) override {}
+  void Close(const glic::CloseOptions& options) override {}
+  bool IsShowing() const override { return is_showing_; }
+  State state() override {
+    return is_showing_ ? State::kShown : State::kClosed;
+  }
+  bool SupportsPeek() const override { return false; }
+  base::CallbackListSubscription AddStateCallback(
+      base::RepeatingCallback<void(State state)> callback) override {
+    return {};
+  }
+#if !BUILDFLAG(IS_ANDROID)
+  void SetContentsView(std::unique_ptr<views::View> contents_view) override {}
+#else
+  void SetWebContents(content::WebContents* web_contents) override {}
+#endif
+  int GetPreferredWidth() override { return 300; }
+  bool IsGlicSidePanelActive() override { return is_active_; }
+
+  void SetActive(bool active) { is_active_ = active; }
+  void SetShowing(bool showing) { is_showing_ = showing; }
+
+ private:
+  bool is_active_ = false;
+  bool is_showing_ = false;
+};
 // Matcher to verify that GlicInvokeOptions has a specific prompt.
 auto HasGlicPrompt(std::string_view prompt) {
   return ::testing::Field("prompts", &glic::GlicInvokeOptions::prompts,
@@ -210,6 +244,14 @@ class IndigoPageActionControllerTest : public testing::Test {
         tab_interface_->GetContents(), tab_interface_.get());
     ON_CALL(*tab_interface_, GetUnownedUserDataHost())
         .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
+    ON_CALL(*tab_interface_, GetBrowserWindowInterface())
+        .WillByDefault(testing::Return(&mock_browser_window_interface_));
+    ON_CALL(testing::Const(*tab_interface_), GetBrowserWindowInterface())
+        .WillByDefault(testing::Return(&mock_browser_window_interface_));
+
+    ON_CALL(testing::Const(mock_browser_window_interface_),
+            GetUnownedUserDataHost())
+        .WillByDefault(testing::ReturnRef(browser_window_user_data_host_));
 
     page_action_controller_ =
         std::make_unique<page_actions::MockPageActionController>();
@@ -233,6 +275,8 @@ class IndigoPageActionControllerTest : public testing::Test {
           << "Cannot expect registration when OptimizationGuideKeyedService "
              "was not created";
     }
+    fake_glic_side_panel_coordinator_ =
+        std::make_unique<FakeGlicSidePanelCoordinator>(tab_interface_.get());
     controller_ = std::make_unique<IndigoPageActionController>(
         *tab_interface_, *page_action_controller_);
   }
@@ -267,7 +311,7 @@ class IndigoPageActionControllerTest : public testing::Test {
         identity_manager->FindExtendedAccountInfoByAccountId(
             identity_manager->GetPrimaryAccountId(
                 signin::ConsentLevel::kSignin));
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(
         can_use_model_execution_features);
     identity_test_env_adaptor_->identity_test_env()
@@ -302,7 +346,8 @@ class IndigoPageActionControllerTest : public testing::Test {
     EXPECT_TRUE(prompts_loaded_future.Wait());
   }
 
-  content::BrowserTaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList feature_list_;
 #if BUILDFLAG(IS_CHROMEOS)
   // Needed because TestWebContents ends up creating BTM classes which depend
@@ -320,10 +365,14 @@ class IndigoPageActionControllerTest : public testing::Test {
   raw_ptr<testing::NiceMock<MockOptimizationGuideKeyedService>>
       mock_optimization_guide_;
   ui::UnownedUserDataHost unowned_user_data_host_;
+  ui::UnownedUserDataHost browser_window_user_data_host_;
+  testing::NiceMock<MockBrowserWindowInterface> mock_browser_window_interface_;
   std::unique_ptr<page_actions::FakeTabInterface> tab_interface_;
   std::unique_ptr<page_actions::MockPageActionController>
       page_action_controller_;
   std::unique_ptr<IndigoPageActionController> controller_;
+  std::unique_ptr<FakeGlicSidePanelCoordinator>
+      fake_glic_side_panel_coordinator_;
   base::test::ScopedCommandLine scoped_command_line_;
 };
 
@@ -633,7 +682,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionTriggersEligibilityCheck) {
             std::move(callback).Run(RemoteEligibility{});
           }));
 
-  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
   EXPECT_TRUE(fetcher_called.Wait());
 }
 
@@ -813,7 +862,8 @@ TEST_F(IndigoPageActionControllerTest,
   controller_->InvokeAction(EntryPoint::kAnchoredMessage);
 }
 
-TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
+TEST_F(IndigoPageActionControllerTest,
+       SuggestionChipClickShowsAnchoredMessageAndThenOpensGlic) {
   CreateController();
   SetupEligibleAndOnboarded();
 
@@ -821,6 +871,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
   local_feature_list.InitAndEnableFeatureWithParameters(
       features::kIndigoOpenGlic, {{"indigo_glic_prompt", "test prompt"}});
 
+  // Glic should only be invoked once, on the second click.
   EXPECT_CALL(*mock_glic_keyed_service_,
               InvokeWithAutoSubmit(_, HasGlicPrompt("test prompt")))
       .WillOnce(::testing::Return(base::WeakPtr<glic::GlicInstance>()));
@@ -849,7 +900,13 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicForSuggestionChip) {
     navigation2->Commit();
   }
 
+  // The first click on the suggestion chip should show the anchored message.
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(kActionIndigo, _));
+
   controller_->InvokeAction(EntryPoint::kSuggestionChip);
+
+  // The second click should now trigger Glic.
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -873,7 +930,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionTriggerReauthWhenPaused) {
                    /*enable_sync=*/false, signin_metrics::AccessPoint::kIndigo,
                    signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO));
 
-  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
 
   histogram_tester.ExpectUniqueSample(
       "Indigo.Transformation.Result",
@@ -889,6 +946,7 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionOpensGlicWithProtoPrompt) {
 
   CreateController();
   SetupEligibleAndOnboarded();
+
   SetupComponentWithPrompts(temp_dir.GetPath(), {{"v5", "proto test prompt"}});
 
   base::test::ScopedFeatureList local_feature_list;
@@ -917,6 +975,7 @@ TEST_F(IndigoPageActionControllerTest,
 
   CreateController();
   SetupEligibleAndOnboarded();
+
   SetupComponentWithPrompts(temp_dir.GetPath(), {{"v5", "proto test prompt"}});
 
   base::test::ScopedFeatureList local_feature_list;
@@ -947,6 +1006,7 @@ TEST_F(IndigoPageActionControllerTest,
 
   CreateController();
   SetupEligibleAndOnboarded();
+
   SetupComponentWithPrompts(temp_dir.GetPath(), {});
 
   base::test::ScopedFeatureList local_feature_list;
@@ -1042,6 +1102,24 @@ TEST_F(IndigoPageActionControllerTest, InvokeActionErrorToastRecordsMetrics) {
             1);
 }
 
+TEST_F(IndigoPageActionControllerTest, ShowsSuggestionChipWhenSidePanelIsOpen) {
+  CreateController();
+
+  // Simulate that the side panel is open.
+  fake_glic_side_panel_coordinator_->SetShowing(true);
+
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+
+  // Should only show the suggestion chip, and NOT the anchored message.
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _)).Times(0);
+  EXPECT_CALL(*page_action_controller_, ShowSuggestionChip(kActionIndigo, _));
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+}
+
 TEST_F(IndigoPageActionControllerTest, OnPageActionAnchoredMessageShown) {
   CreateController();
 
@@ -1084,5 +1162,184 @@ TEST_F(IndigoPageActionControllerTest, OnPageActionAnchoredMessageShown) {
             1);
 }
 
+TEST_F(IndigoPageActionControllerTest,
+       InvokeActionShowsAnchoredMessageWhenSidePanelClosed) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  // Simulate that the side panel is closed.
+  fake_glic_side_panel_coordinator_->SetShowing(false);
+
+  // The click should show the anchored message.
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(kActionIndigo, _));
+
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+}
+
+TEST_F(IndigoPageActionControllerTest,
+       InvokeActionSuggestionChipSecondClickDoesNotOpenGlic) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigoOpenGlic, {{"indigo_glic_prompt", "test prompt"}});
+
+  // Simulate that the side panel is closed.
+  fake_glic_side_panel_coordinator_->SetShowing(false);
+
+  // 1st click: show the anchored message.
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(kActionIndigo, _));
+
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+
+  // The 2nd click should NOT open Glic, but should show the anchored message
+  // again.
+  EXPECT_CALL(*mock_glic_keyed_service_, InvokeWithAutoSubmit(_, _)).Times(0);
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(kActionIndigo, _));
+
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+}
+
+TEST_F(IndigoPageActionControllerTest,
+       InvokeActionDoesNotOpenGlicWhenSidePanelOpen) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigoOpenGlic, {{"indigo_glic_prompt", "test prompt"}});
+
+  // Simulate that the Glic side panel is open.
+  fake_glic_side_panel_coordinator_->SetShowing(true);
+
+  // Glic should NOT be invoked.
+  EXPECT_CALL(*mock_glic_keyed_service_, InvokeWithAutoSubmit(_, _)).Times(0);
+
+  // We also should NOT show the anchored message, as we proceed to Invoke
+  // directly.
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _)).Times(0);
+
+  // Need to set an active page so IndigoAgentHost can be created and Invoked.
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  controller_->InvokeAction(EntryPoint::kSuggestionChip);
+}
+
+TEST_F(IndigoPageActionControllerTest, DelayAgentInvokeUntilGlicPanelOpened) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigoOpenGlic, {{"indigo_glic_prompt", "test prompt"}});
+
+  glic::GlicInvokeOptions captured_options(
+      glic::mojom::InvocationSource::kIndigoPageAction);
+
+  EXPECT_CALL(*mock_glic_keyed_service_,
+              InvokeWithAutoSubmit(_, HasGlicPrompt("test prompt")))
+      .WillOnce([&](glic::InvokeWithAutoSubmitPasskey passkey,
+                    glic::GlicInvokeOptions options) {
+        captured_options = std::move(options);
+        return base::WeakPtr<glic::GlicInstance>();
+      });
+
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _));
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  base::UserActionTester user_action_tester;
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
+
+  // The agent should not be triggered yet because we haven't executed
+  // on_panel_opened.
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            0);
+
+  // Now execute the panel opened callback.
+  ASSERT_FALSE(captured_options.on_panel_opened.is_null());
+  std::move(captured_options.on_panel_opened).Run();
+
+  // The agent should still not be triggered because of the 500ms delay.
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            0);
+
+  // Fast-forward time by 300ms.
+  task_environment_.FastForwardBy(base::Milliseconds(300));
+
+  // The agent should now be triggered.
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            1);
+}
+
+TEST_F(IndigoPageActionControllerTest,
+       DelayAgentInvokeUntilGlicPanelOpenedWithCustomDelay) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitWithFeaturesAndParameters(
+      {{features::kIndigoOpenGlic,
+        {{"indigo_glic_prompt", "test prompt"},
+         {"indigo_glic_trigger_delay", "500ms"}}}},
+      {});
+
+  glic::GlicInvokeOptions captured_options(
+      glic::mojom::InvocationSource::kIndigoPageAction);
+
+  EXPECT_CALL(*mock_glic_keyed_service_,
+              InvokeWithAutoSubmit(_, HasGlicPrompt("test prompt")))
+      .WillOnce([&](glic::InvokeWithAutoSubmitPasskey passkey,
+                    glic::GlicInvokeOptions options) {
+        captured_options = std::move(options);
+        return base::WeakPtr<glic::GlicInstance>();
+      });
+
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _));
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  base::UserActionTester user_action_tester;
+  controller_->InvokeAction(EntryPoint::kAnchoredMessage);
+
+  // The agent should not be triggered yet because we haven't executed
+  // on_panel_opened.
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            0);
+
+  // Now execute the panel opened callback.
+  ASSERT_FALSE(captured_options.on_panel_opened.is_null());
+  std::move(captured_options.on_panel_opened).Run();
+
+  // The agent should still not be triggered.
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            0);
+
+  // Fast-forward time by 300ms. It should still NOT be triggered because delay
+  // is 500ms.
+  task_environment_.FastForwardBy(base::Milliseconds(300));
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            0);
+
+  // Fast-forward time by another 200ms (total 500ms).
+  task_environment_.FastForwardBy(base::Milliseconds(200));
+
+  // The agent should now be triggered.
+  EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Transformation.Trigger"),
+            1);
+}
 }  // namespace
 }  // namespace indigo

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_wasm_response_extensions.h"
 
+#include "base/containers/span.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -108,13 +109,13 @@ class WasmCodeCachingCallback {
                         "v8.wasm.cachedModule", "producedCacheSize",
                         serialized_module.size);
 
-    v8::MemorySpan<const uint8_t> wire_bytes =
-        compiled_module.GetWireBytesRef();
     DigestValue wire_bytes_digest;
     {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                    "v8.wasm.compileDigestForCreate");
-      if (!ComputeDigest(kHashAlgorithmSha256, wire_bytes, wire_bytes_digest)) {
+      if (!ComputeDigest(kHashAlgorithmSha256,
+                         compiled_module.GetWireBytesRef(),
+                         wire_bytes_digest)) {
         return;
       }
       if (wire_bytes_digest.size() != kWireBytesDigestSize)

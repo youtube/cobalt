@@ -41,9 +41,7 @@ constexpr auto kCommandToPrefMap =
          prefs::kGlicFocusToggleHotkey},
         {LocalHotkeyManager::Command::kCaptureRegion,
          prefs::kGlicSelectionHotkey},
-#if BUILDFLAG(IS_ANDROID)
-        {LocalHotkeyManager::Command::kOpenGlic, prefs::kGlicLauncherHotkey},
-#endif
+        {LocalHotkeyManager::Command::kPanelToggle, prefs::kGlicLauncherHotkey},
     });
 
 constexpr std::array kCloseAccelerators = {
@@ -78,12 +76,6 @@ constexpr std::array kZoomResetAccelerators = {
     ui::Accelerator{ui::VKEY_0, kZoomModifier},
     ui::Accelerator{ui::VKEY_NUMPAD0, kZoomModifier}};
 
-#if BUILDFLAG(IS_ANDROID)
-constexpr ui::Accelerator kOpenGlicDefaultAccelerator = {ui::VKEY_G,
-                                                         ui::EF_ALT_DOWN};
-#else
-constexpr std::array<ui::Accelerator, 0> kOpenGlicAcceleratorsFallback = {};
-#endif
 
 constexpr auto kCommandToStaticAcceleratorsMap =
     base::MakeFixedFlatMap<LocalHotkeyManager::Command,
@@ -95,9 +87,6 @@ constexpr auto kCommandToStaticAcceleratorsMap =
 #if BUILDFLAG(IS_WIN)
         {LocalHotkeyManager::Command::kTitleBarContextMenu,
          kTitleBarContextMenuAccelerators},
-#endif
-#if !BUILDFLAG(IS_ANDROID)
-        {LocalHotkeyManager::Command::kOpenGlic, kOpenGlicAcceleratorsFallback},
 #endif
     });
 
@@ -164,10 +153,8 @@ ui::Accelerator LocalHotkeyManager::GetDefaultAccelerator(Command command) {
       return ui::Accelerator{ui::VKEY_G, kFocusToggleAcceleratorModifiers};
     case Command::kCaptureRegion:
       return GlicLauncherConfiguration::GetDefaultSelectionHotkey();
-#if BUILDFLAG(IS_ANDROID)
-    case Command::kOpenGlic:
-      return kOpenGlicDefaultAccelerator;
-#endif
+    case Command::kPanelToggle:
+      return GlicLauncherConfiguration::GetDefaultHotkey();
     default:
       NOTREACHED();
   }

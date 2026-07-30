@@ -1,7 +1,40 @@
 # List of additional tests to run for ChromeOS developers.
 
-# All tests runnable on amd64-generic is listed here.
-# This is to ensure this migration does not remove any test at initial phase.
+# Only ChromeOS PA engineers will run Tast tests. This file does not affect
+# other engineers (but it does affect Mega CQ).
+
+# By default, group:mainline && group:cq-medium && dep:chrome && !informational
+# Tast tests are already included.
+# This file only adds additional tests.
+
+# Additional tests must be group:mainline && !informational Tast tests.
+# Non-mainline or informational tests will be dropped.
+# Please add comments explaining why a test should be run on the Chrome CQ
+# for ChromeOS PA.
+# Unknown tests (or misspelled test names) will be sent to the test platform,
+# but they are highly unlikely to run because they probably do not exist.
+# The Test Results tab will not show the test at all if it does not exist,
+# not even as SKIPPED.
+# Tests without dep:chrome will still be sent to the CQ and run, but please
+# explicitly explain why they should be run on the Chrome CQ if they do not
+# depend on Chrome.
+#
+# Invalid (non-mainline/informational), unknown, or non-dep:chrome tests
+# will generate warnings during `gclient runhooks`.
+#
+# The Chrome CQ has strict performance SLAs. Please avoid adding a large
+# number of tests to this list, especially slower ones. As a guideline,
+# only add the most important or representative test (the one most
+# likely to catch more regressions) per feature.
+
+# ADD ADDITIONAL TESTS BELOW THIS LINE.
+
+# ADD ADDITIONAL TESTS ABOVE THIS LINE.
+
+# All group:mainline && dep:chrome && !informational tests runnable on
+# amd64-generic are listed below.
+# This is to ensure this migration does not remove any tests at the initial
+# phase.
 tast.a11y.Smoke
 tast.apps.LaunchSystemWebAppsFromURL
 tast.audio.BrowserPlay

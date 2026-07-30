@@ -718,6 +718,12 @@ struct Event {
   // histograms.
   bool lazy_background_active_on_dispatch;
 
+  // If valid, the event will not be dispatched to this process. This can be
+  // helpful for events that want to be dispatched to other renderer context's
+  // but don't want to receive that event themselves even if they have a
+  // listener for it.
+  content::ChildProcessId exclude_process_id;
+
   // Whether a user gesture triggered the event.
   EventRouter::UserGestureState user_gesture;
 

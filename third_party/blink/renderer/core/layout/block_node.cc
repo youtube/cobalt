@@ -252,6 +252,17 @@ bool CanUseCachedIntrinsicInlineSizes(const ConstraintSpace& constraint_space,
     }
   }
 
+  // A column wrapping flexbox will use the its min-block-size/max-block-size
+  // to wrap its flex-lines. The value of this "line-break-size" isn't part of
+  // the cache key (it could be if needed) so miss the cache for this case.
+  if (node.IsFlexibleBox() && style.ResolvedIsColumnFlexDirection() &&
+      !style.ResolvedIsFlexNowrap()) {
+    if (style.LogicalMinHeight().HasPercentOrStretch() ||
+        style.LogicalMaxHeight().HasPercentOrStretch()) {
+      return false;
+    }
+  }
+
   return true;
 }
 

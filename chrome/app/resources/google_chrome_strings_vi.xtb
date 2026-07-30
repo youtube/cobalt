@@ -402,6 +402,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="5234764350956374838">Bỏ qua</translation>
 <translation id="5239627039202700673">Dùng Chrome mỗi khi bạn nhấp vào đường liên kết trong thư/tin nhắn, tài liệu và các ứng dụng khác</translation>
 <translation id="5251420635869119124">Khách có thể sử dụng Chrome mà không phải thoát khỏi bất cứ nội dung nào.</translation>
+<translation id="5271833978500241046">Sử dụng các kỹ năng này cùng với các tính năng khác của Gemini trong Chrome</translation>
 <translation id="5286907366254680517">Đã phát hiện</translation>
 <translation id="5320351714793324716">Nếu bạn cho phép cookie thì Chrome có thể dùng các cookie này khi tải trước</translation>
 <translation id="5321325624576443340">Không dùng được Google Ống kính. Hãy thử lại sau.</translation>
@@ -438,15 +439,6 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="569897634095159764">Không thể kết nối với Internet. Máy chủ proxy yêu cầu xác thực.</translation>
 <translation id="5709557627224531708">Đặt Chrome làm trình duyệt mặc định</translation>
 <translation id="5719246646468301581">Điều khoản dịch vụ bổ sung của Google Chrome và ChromeOS</translation>
-<translation id="5719324992913248873">Hành động này sẽ:
-          <ph name="LINE_BREAKS" />
-           • Đặt lại một số chế độ cài đặt Chrome và lối tắt Chrome
-           <ph name="LINE_BREAK" />
-           • Tắt các tiện ích
-           <ph name="LINE_BREAK" />
-           • Xoá cookie và dữ liệu trang web tạm thời khác
-            <ph name="LINE_BREAKS" />
-           Dấu trang, nhật ký và mật khẩu đã lưu sẽ không bị ảnh hưởng.</translation>
 <translation id="5736850870166430177">Nếu một trang web cố ăn cắp mật khẩu của bạn hoặc nếu bạn tải một tệp gây hại xuống, thì Chrome cũng có thể gửi các URL đến tính năng Duyệt web an toàn, bao gồm cả các đoạn nội dung trên trang</translation>
 <translation id="5756509061973259733">Thiết bị này đã có một hồ sơ trên Chrome sử dụng tài khoản này</translation>
 <translation id="5759947850379142561">Chọn văn bản hoặc hình ảnh bất kỳ mà bạn muốn tìm kiếm bằng Google Ống kính hoặc nhấn phím Escape để thoát khỏi Google Ống kính</translation>
@@ -644,6 +636,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Để bảo vệ dữ liệu của bạn, hãy cho phép Chrome loại bỏ quyền của các trang web mà gần đây bạn không truy cập.</translation>
 <translation id="7629695634924605473">Chrome cho bạn biết mật khẩu của bạn có bị đánh cắp hay không</translation>
+<translation id="7629898584100520089">Các phát kiến về AI, chẳng hạn như kỹ năng, được lưu vào Tài khoản Google của bạn và được quản lý riêng với tính năng đồng bộ hoá Chrome</translation>
 <translation id="7641148173327520642">Quản trị viên hệ thống đã định cấu hình Google Chrome để mở <ph name="ALTERNATIVE_BROWSER_NAME" /> khi truy cập vào <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Trợ giúp</translation>
 <translation id="7651907282515937834">Biểu trưng Chrome Enterprise</translation>

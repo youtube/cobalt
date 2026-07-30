@@ -118,19 +118,11 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="2236949375853147973">Min aktivitet</translation>
 <translation id="2238130810669087193">Logga in i Chromium om du vill få tillgång till dina adresser med mera på alla dina enheter. Adressen sparas i ditt Google-konto när du har loggat in.</translation>
 <translation id="2241627712206172106">Om du delar en dator med vänner och familj kan de konfigurera Chromium precis som de vill och surfa separat.</translation>
+<translation id="22571759390241347">Färdigheter i Chromium</translation>
 <translation id="2283803047247799269">Sök i den här fliken med bildsökning</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium rekommenderar att du pausar fliken som saktar ned webbläsaren}other{Chromium rekommenderar att du pausar flikarna som saktar ned webbläsaren}}</translation>
 <translation id="2307973900865360088">Behåll i dockan</translation>
 <translation id="2313870531055795960">Kontrollera webbadresser mot en lista över osäkra webbplatser i Chromium. Om du utsätts för försök att kapa ditt lösenord på en webbplats eller om du laddar ned en skadlig fil kan webbadresserna skickas från Chromium till Säker webbsökning tillsammans med delar av sidinnehållet.</translation>
-<translation id="2332076562712130931">Den här åtgärden kommer att
-          <ph name="LINE_BREAKS" />
-           • återställa vissa inställningar och genvägar för Chromium
-           <ph name="LINE_BREAK" />
-           • inaktivera tillägg
-           <ph name="LINE_BREAK" />
-           • radera cookies och annan tillfällig webbplatsdata.
-            <ph name="LINE_BREAKS" />
-           Bokmärken, historiken och sparade lösenord påverkas inte.</translation>
 <translation id="2343156876103232566">Logga in på Chromium på båda enheterna om du vill skicka ett nummer från Android-telefonen.</translation>
 <translation id="2356070529366658676">Fråga</translation>
 <translation id="2359808026110333948">Fortsätt</translation>
@@ -192,6 +184,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="3003694935412297923">Alla uppgifter</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium måste verifiera din identitet innan viss data kan sparas i Google-kontot och användas på alla dina enheter. Om du loggar ut nu raderas denna data (1 objekt).}other{Chromium måste verifiera din identitet innan viss data kan sparas i Google-kontot och användas på alla dina enheter. Om du loggar ut nu raderas denna data ({count} objekt).}}</translation>
 <translation id="3013473503895162900">Öppna <ph name="URL" /> på en ny flik i Chromium.</translation>
+<translation id="302551344979399011">AI-innovationer som färdigheter sparas i Google-kontot och hanteras separat från synkronisering i Chromium</translation>
 <translation id="3032787606318309379">Lägger till i Chromium ...</translation>
 <translation id="3038232873781883849">Väntar på installation …</translation>
 <translation id="3045032126857188731">Översatt språk: <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@ Vissa funktioner kanske inte är tillgängliga och ändringar i inställningarna
 <translation id="5289287148052354622">Skaffa Chromium-appen</translation>
 <translation id="5294316920224716406">När du surfar i inkognitoläge visas en varning i Chromium innan en webbplats läses in med en osäker anslutning</translation>
 <translation id="5313228254328109263">Intern tjänst för Chromium-uppdatering</translation>
+<translation id="5324450571874973775">Använd dem tillsammans med andra Gemini-funktioner i Chromium</translation>
 <translation id="5346389065299425353">Fördjupa sökningen genom att lägga till flera flikar, filer och verktyg</translation>
 <translation id="5348677704241861105">Få en snabb översikt över det här dokumentet och ställ frågor med Gemini i Chromium</translation>
 <translation id="5352264705793813212">Chromium har hittat säkerhetsrekommendationer som du bör granska</translation>
@@ -674,6 +668,7 @@ Chromium kan inte återställa dina inställningar.</translation>
 <translation id="8318772038038596122">Organisationen avslutar Chromium när det inte har använts på <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Spara som bild</translation>
 <translation id="8340674089072921962">Chromium användes tidigare av <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="8351551329754447960">Aktivera färdigheter i Chromium</translation>
 <translation id="8359544530202147897">Uppdatera Chromium om du vill fortsätta använda Chromium-data i Google-kontot, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Du behöver Windows 10 eller senare för att få kommande uppdateringar av Chromium. På den här datorn används Windows 8.</translation>
 <translation id="8362914115861174987">Översätt till</translation>

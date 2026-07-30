@@ -303,13 +303,6 @@ Color Color::FromColorMix(Color::ColorSpace interpolation_space,
                                    color2, percentage);
 
   result.alpha_ *= alpha_multiplier;
-
-  // Legacy colors that are the result of color-mix should serialize as
-  // color(srgb ... ).
-  // See: https://github.com/mozilla/wg-decisions/issues/1125
-  if (result.IsLegacyColorSpace(result.color_space_)) {
-    result.ConvertToColorSpace(Color::ColorSpace::kSRGB);
-  }
   return result;
 }
 

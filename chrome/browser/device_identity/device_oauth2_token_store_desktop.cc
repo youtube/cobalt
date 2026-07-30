@@ -57,8 +57,7 @@ void DeviceOAuth2TokenStoreDesktop::RegisterPrefs(
 void DeviceOAuth2TokenStoreDesktop::Init(InitCallback callback) {
   os_crypt_async_->GetInstance(
       base::BindOnce(&DeviceOAuth2TokenStoreDesktop::OnOsCryptReady,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
-      os_crypt_async::Encryptor::Option::kEncryptSyncCompat);
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void DeviceOAuth2TokenStoreDesktop::OnOsCryptReady(

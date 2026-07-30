@@ -35,7 +35,6 @@
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
-#include "chrome/browser/ui/omnibox/ai_mode_button_config.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
@@ -56,6 +55,8 @@
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/omnibox_pedal.h"
 #include "components/omnibox/browser/actions/omnibox_pedal_concepts.h"
+#include "components/omnibox/browser/ai_mode_button_config.h"
+#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -72,6 +73,7 @@
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_log.h"
 #include "components/omnibox/browser/omnibox_logging_utils.h"
+#include "components/omnibox/browser/omnibox_metrics_constants.h"
 #include "components/omnibox/browser/omnibox_metrics_provider.h"
 #include "components/omnibox/browser/omnibox_navigation_observer.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
@@ -162,48 +164,23 @@ enum class OmniboxEscapeAction {
 const char kOmniboxFocusResultedInNavigation[] =
     "Omnibox.FocusResultedInNavigation";
 
-// Histogram name which counts the number of times the user enters
-// keyword hint mode and via what method.  The possible values are listed
-// in the metrics OmniboxEnteredKeywordMode2 enum which is defined in metrics
-// enum XML file.
-const char kEnteredKeywordModeHistogram[] = "Omnibox.EnteredKeywordMode2";
-
-// Like `kEnteredKeywordModeHistogram` but only logged when user has additional
-// text input at the time keyword mode was entered.
-const char kEnteredKeywordModeWithInputHistogram[] =
-    "Omnibox.EnteredKeywordModeWithInput";
-
-// Histogram name which counts the number of times the user completes a search
-// in keyword mode, enumerated by how they enter keyword mode.
-const char kAcceptedKeywordSuggestionHistogram[] =
-    "Omnibox.AcceptedKeywordSuggestion";
-
-// Histogram name which counts the number of times the user enters the keyword
-// mode, enumerated by the type of search engine.
-const char kKeywordModeUsageByEngineTypeEnteredHistogramName[] =
-    "Omnibox.KeywordModeUsageByEngineType.Entered";
-
-// Histogram name which counts the number of times the user completes a search
-// in keyword mode, enumerated by the type of search engine.
-const char kKeywordModeUsageByEngineTypeAcceptedHistogramName[] =
-    "Omnibox.KeywordModeUsageByEngineType.Accepted";
-
 void EmitEnteredKeywordModeHistogram(
     OmniboxEventProto::KeywordModeEntryMethod entry_method,
     const TemplateURL* turl,
     bool entered_with_input) {
   UMA_HISTOGRAM_ENUMERATION(
-      kEnteredKeywordModeHistogram, static_cast<int>(entry_method),
+      omnibox::kEnteredKeywordModeHistogram, static_cast<int>(entry_method),
       static_cast<int>(OmniboxEventProto::KeywordModeEntryMethod_MAX + 1));
   if (entered_with_input) {
     UMA_HISTOGRAM_ENUMERATION(
-        kEnteredKeywordModeWithInputHistogram, static_cast<int>(entry_method),
+        omnibox::kEnteredKeywordModeWithInputHistogram,
+        static_cast<int>(entry_method),
         static_cast<int>(OmniboxEventProto::KeywordModeEntryMethod_MAX + 1));
   }
 
   if (turl != nullptr) {
     base::UmaHistogramEnumeration(
-        kKeywordModeUsageByEngineTypeEnteredHistogramName,
+        omnibox::kKeywordModeUsageByEngineTypeEnteredHistogramName,
         turl->GetBuiltinEngineType(),
         BuiltinEngineType::KEYWORD_MODE_ENGINE_TYPE_MAX);
   }
@@ -213,15 +190,27 @@ void EmitAcceptedKeywordSuggestionHistogram(
     OmniboxEventProto::KeywordModeEntryMethod entry_method,
     const TemplateURL* turl) {
   UMA_HISTOGRAM_ENUMERATION(
-      kAcceptedKeywordSuggestionHistogram, static_cast<int>(entry_method),
+      omnibox::kAcceptedKeywordSuggestionHistogram,
+      static_cast<int>(entry_method),
       static_cast<int>(OmniboxEventProto::KeywordModeEntryMethod_MAX + 1));
 
   if (turl != nullptr) {
     base::UmaHistogramEnumeration(
-        kKeywordModeUsageByEngineTypeAcceptedHistogramName,
+        omnibox::kKeywordModeUsageByEngineTypeAcceptedHistogramName,
         turl->GetBuiltinEngineType(),
         BuiltinEngineType::KEYWORD_MODE_ENGINE_TYPE_MAX);
   }
+}
+
+const ai_mode_button_config::AiModeButtonConfig* GetAiModeButtonConfig(
+    OmniboxController* controller) {
+  // `GetAiModeButtonConfig()` is only called when AI mode button is visible.
+  CHECK(controller);
+  auto* service = controller->client()->GetAiModeButtonService();
+  CHECK(service);
+  auto* config = service->GetCurrentConfig();
+  CHECK(config);
+  return config;
 }
 
 }  // namespace
@@ -423,8 +412,9 @@ void OmniboxEditModel::SetUserText(const std::u16string& text) {
 }
 
 bool OmniboxEditModel::Unelide() {
-  // Unelision should not occur if the user has already inputted text.
-  if (user_input_in_progress()) {
+  // Unelision should not occur if the user has already inputted text or moved
+  // to another match. Doing so would incorrectly reset the omnibox text.
+  if (user_input_in_progress() || has_temporary_text_) {
     return false;
   }
 
@@ -812,6 +802,12 @@ void OmniboxEditModel::OpenAiMode(bool via_keyboard, bool via_context_menu) {
 
   if (!via_context_menu) {
     RecordAiModeButtonClick();
+  }
+
+  if (GetAiModeButtonConfig(controller_)->id !=
+      SearchEngineType::SEARCH_ENGINE_GOOGLE) {
+    NavigateToThirdPartyAiMode(query_text);
+    return;
   }
 
   if (ShouldOpenAimPopup(via_context_menu, current_match.type)) {
@@ -2286,7 +2282,7 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
 
 std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForAimButton() {
   DCHECK(popup_selection_.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM);
-  return ai_mode_button_config::GetCurrentAiModeButtonConfig().a11y_label;
+  return GetAiModeButtonConfig(controller_)->a11y_label;
 }
 
 std::u16string
@@ -3387,22 +3383,22 @@ OmniboxEditModel::GetOrCreateContextualSearchSessionHandle(Profile* profile) {
 }
 
 void OmniboxEditModel::NavigateToAiModeWithContextualizer(
-    std::u16string query_text) {
+    const std::u16string& query_text) {
   if (session_handle_) {
     session_handle_.reset();
   }
-  query_contextualizer_->Contextualize(
-      /*task_id=*/std::nullopt, base::UTF16ToUTF8(query_text),
-      /*tabs_to_recontextualize=*/{},
-      /*tabs_to_force_contextualize=*/{},
-      /*on_ineligible_callback=*/base::DoNothing(),
-      /*on_processed_callback=*/base::DoNothing(),
-      base::BindOnce(
-          &OmniboxEditModel::
-              NavigateToAiModeWithContextualizerOnContextualizationComplete,
-          weak_factory_.GetWeakPtr(), query_text,
-          WindowOpenDisposition::CURRENT_TAB),
-      /*enable_smart_tab_selection=*/false);
+  contextual_tasks::QueryContextualizer::ContextualizeParams params;
+  params.task_id = std::nullopt;
+  params.query_text = base::UTF16ToUTF8(query_text);
+  params.on_ineligible_callback = base::DoNothing();
+  params.on_processed_callback = base::DoNothing();
+  params.complete_callback = base::BindOnce(
+      &OmniboxEditModel::
+          NavigateToAiModeWithContextualizerOnContextualizationComplete,
+      weak_factory_.GetWeakPtr(), query_text,
+      WindowOpenDisposition::CURRENT_TAB);
+  params.enable_smart_tab_selection = false;
+  query_contextualizer_->Contextualize(std::move(params));
 }
 
 void OmniboxEditModel::
@@ -3524,7 +3520,7 @@ void OmniboxEditModel::
 }
 
 void OmniboxEditModel::NavigateToAiModeWithoutContextualizer(
-    std::u16string query_text) {
+    const std::u16string& query_text) {
   GURL ai_mode_url =
       GetUrlForAim(controller_->client()->GetTemplateURLService(),
                    omnibox::DESKTOP_CHROME_OMNIBOX_KEYWORD_ENTRY_POINT,
@@ -3532,4 +3528,21 @@ void OmniboxEditModel::NavigateToAiModeWithoutContextualizer(
                    lens::LensOverlayInvocationSource::kOmniboxContextualQuery,
                    /*additional_params=*/{});
   controller_->client()->OpenUrl(ai_mode_url);
+}
+
+void OmniboxEditModel::NavigateToThirdPartyAiMode(
+    const std::u16string& query_text) {
+  auto* config = GetAiModeButtonConfig(controller_);
+  std::string url = query_text.empty() ? config->navigation_url_empty
+                                       : config->navigation_url;
+  TemplateURLData turl_data;
+  turl_data.SetURL(url);
+  TemplateURL turl(turl_data);
+  TemplateURLService* turl_service =
+      controller_->client()->GetTemplateURLService();
+  GURL ai_mode_url =
+      turl.GenerateSearchURL(turl_service->search_terms_data(), query_text);
+  if (ai_mode_url.is_valid()) {
+    controller_->client()->OpenUrl(ai_mode_url);
+  }
 }

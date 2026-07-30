@@ -18,7 +18,7 @@ import java.lang.annotation.RetentionPolicy;
 @IntDef({
     LayoutType.NONE,
     LayoutType.BROWSING,
-    LayoutType.TAB_SWITCHER,
+    LayoutType.HUB,
     LayoutType.TOOLBAR_SWIPE,
     LayoutType.SIMPLE_ANIMATION,
 })
@@ -27,7 +27,7 @@ import java.lang.annotation.RetentionPolicy;
 public @interface LayoutType {
     int NONE = 0;
     int BROWSING = 1;
-    int TAB_SWITCHER = 2;
+    int HUB = 2;
     int TOOLBAR_SWIPE = 4;
     int SIMPLE_ANIMATION = 8;
     // Next layout type should be 16.

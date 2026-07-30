@@ -9,7 +9,7 @@ import type {PrintPreviewPageHandlerComposite} from 'chrome://os-print/js/data/p
 import {FAKE_PRINT_SESSION_CONTEXT_SUCCESSFUL, OBSERVE_PREVIEW_READY_METHOD} from 'chrome://os-print/js/fakes/fake_print_preview_page_handler.js';
 import type {FakePrintPreviewPageHandler} from 'chrome://os-print/js/fakes/fake_print_preview_page_handler.js';
 import {getPrintPreviewPageHandler} from 'chrome://os-print/js/utils/mojo_data_providers.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';

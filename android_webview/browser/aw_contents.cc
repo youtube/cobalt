@@ -879,6 +879,9 @@ void AwContents::OnFindResultReceived(int active_ordinal,
 }
 
 bool AwContents::ShouldDownloadFavicon() {
+  if (!base::FeatureList::IsEnabled(features::kWebViewDownloadFavicons)) {
+    return false;
+  }
   AwSettings* aw_settings = AwSettings::FromWebContents(web_contents_.get());
   return aw_settings->ShouldDownloadFavicon();
 }

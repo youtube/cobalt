@@ -15,16 +15,12 @@ AX_BASE_EXPORT extern const char kEnableExperimentalAccessibilityAutoclick[];
 AX_BASE_EXPORT extern const char
     kEnableExperimentalAccessibilityLabelsDebugging[];
 AX_BASE_EXPORT extern const char
-    kEnableExperimentalAccessibilityLanguageDetection[];
-AX_BASE_EXPORT extern const char
     kEnableExperimentalAccessibilityLanguageDetectionDynamic[];
 AX_BASE_EXPORT extern const char kEnableExperimentalAccessibilityManifestV3[];
 AX_BASE_EXPORT extern const char
     kEnableExperimentalAccessibilitySwitchAccessText[];
 AX_BASE_EXPORT extern const char kEnableMacAccessibilityAPIMigration[];
 
-// Returns true if experimental accessibility language detection is enabled.
-AX_BASE_EXPORT bool IsExperimentalAccessibilityLanguageDetectionEnabled();
 
 // Returns true if experimental accessibility language detection support for
 // dynamic content is enabled.

@@ -238,14 +238,12 @@
   (path "/System/Library/CoreServices/checkfixlist")
 )
 
-; From /System/Library/Sandbox/Profiles/dyld-support.sb on macOS 13.
-(if (>= os-version 1300)
-  (allow file-read* file-map-executable
-    (subpath "/System/Cryptexes/App")
-    (subpath "/System/Cryptexes/OS")
-    (subpath "/System/Volumes/Preboot/Cryptexes/App/System")
-    (subpath "/System/Volumes/Preboot/Cryptexes/OS")
-  )
+; From /System/Library/Sandbox/Profiles/dyld-support.sb.
+(allow file-read* file-map-executable
+  (subpath "/System/Cryptexes/App")
+  (subpath "/System/Cryptexes/OS")
+  (subpath "/System/Volumes/Preboot/Cryptexes/App/System")
+  (subpath "/System/Volumes/Preboot/Cryptexes/OS")
 )
 
 ; Reads from /usr.

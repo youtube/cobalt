@@ -69,7 +69,7 @@ fuzzer_test("renderer_proto_tree_fuzzer") {
   sources = [ "renderer_proto_tree_fuzzer.cc" ]
   deps = [
     ":fuzzer_support",
-    ":html_tree_proto",
+    ":html_tree_proto_fuzzable",
     "//third_party/libprotobuf-mutator",
   ]
 
@@ -86,9 +86,10 @@ fuzzer_test("renderer_proto_tree_fuzzer") {
   }
 }
 
-proto_library("html_tree_proto") {
+fuzzable_proto_library("html_tree_proto") {
   sources = [ "html_tree.proto" ]
   testonly = true
+  use_experimental_fuzzable_proto = true
 }
 
 fuzzer_test("signed_exchange_envelope_fuzzer") {

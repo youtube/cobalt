@@ -105,7 +105,7 @@ public final class AnchoredPopupWindowTest {
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
 
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         doReturn(mockPopup).when(mockFactory).createPopupWindow(any());
 
         AnchoredPopupWindow popupWindow = createAnchorPopupWindow(0);
@@ -119,7 +119,7 @@ public final class AnchoredPopupWindowTest {
         // Set up for test case, so we have a mock popup window.
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         doReturn(mockPopup).when(mockFactory).createPopupWindow(any());
 
         AnchoredPopupWindow popupWindow = createAnchorPopupWindow(0);
@@ -136,7 +136,7 @@ public final class AnchoredPopupWindowTest {
     public void testVerySmallPopupsDoNotShow() {
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         when(mockPopup.isShowing()).thenReturn(false);
         when(mockPopup.getBackground()).thenReturn(mock(Drawable.class));
         when(mockFactory.createPopupWindow(any())).thenReturn(mockPopup);
@@ -156,7 +156,7 @@ public final class AnchoredPopupWindowTest {
     public void testAllowVerySmallPopups() {
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         when(mockPopup.isShowing()).thenReturn(false);
         when(mockPopup.getBackground()).thenReturn(mock(Drawable.class));
         when(mockFactory.createPopupWindow(any())).thenReturn(mockPopup);
@@ -177,7 +177,7 @@ public final class AnchoredPopupWindowTest {
     public void testWebContentsRectChangesUpdatesPopup() {
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         when(mockPopup.isShowing()).thenReturn(false);
         when(mockPopup.getBackground()).thenReturn(mock(Drawable.class));
         when(mockFactory.createPopupWindow(any())).thenReturn(mockPopup);
@@ -219,7 +219,7 @@ public final class AnchoredPopupWindowTest {
         // Set up for test case, so we have a mock popup window.
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         doReturn(mockPopup).when(mockFactory).createPopupWindow(any());
 
         View view = mock(View.class, Answers.RETURNS_DEEP_STUBS);
@@ -267,7 +267,7 @@ public final class AnchoredPopupWindowTest {
     public void testCustomSpecCalculatorIsCalled() {
         UiWidgetFactory mockFactory = mock(UiWidgetFactory.class);
         UiWidgetFactory.setInstance(mockFactory);
-        PopupWindow mockPopup = mock(PopupWindow.class);
+        ChromePopupWindow mockPopup = mock(ChromePopupWindow.class);
         when(mockFactory.createPopupWindow(any())).thenReturn(mockPopup);
         when(mockPopup.getBackground()).thenReturn(mock(Drawable.class));
 

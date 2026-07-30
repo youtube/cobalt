@@ -85,7 +85,7 @@ MantaService::CanAccessMantaFeaturesWithoutMinorRestrictions() {
 
   // Fetches and uses the shared account capability for manta service.
   return ConvertToMantaFeatureSupportStatus(
-      extended_account_info.capabilities.can_use_manta_service());
+      extended_account_info.GetAccountCapabilities().can_use_manta_service());
 }
 
 std::unique_ptr<AnchovyProvider> MantaService::CreateAnchovyProvider() {

@@ -23,33 +23,33 @@ EditingTestBase::~EditingTestBase() = default;
 
 Position EditingTestBase::SetCaretTextToBody(
     const std::string& selection_text) {
-  const SelectionInDOMTree selection = SetSelectionTextToBody(selection_text);
+  const SelectionInDomTree selection = SetSelectionTextToBody(selection_text);
   DCHECK(selection.IsCaret())
       << "|selection_text| should contain a caret marker '|'";
   return selection.Anchor();
 }
 
-SelectionInDOMTree EditingTestBase::SetSelectionTextToBody(
+SelectionInDomTree EditingTestBase::SetSelectionTextToBody(
     const std::string& selection_text) {
   return SetSelectionText(GetDocument().body(), selection_text);
 }
 
-SelectionInDOMTree EditingTestBase::SetSelectionText(
+SelectionInDomTree EditingTestBase::SetSelectionText(
     HTMLElement* element,
     const std::string& selection_text) {
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SelectionSample::SetSelectionText(element, selection_text);
   UpdateAllLifecyclePhasesForTest();
   return selection;
 }
 
 std::string EditingTestBase::GetSelectionTextFromBody(
-    const SelectionInDOMTree& selection) const {
+    const SelectionInDomTree& selection) const {
   return SelectionSample::GetSelectionText(*GetDocument().body(), selection);
 }
 
 std::string EditingTestBase::GetSelectionTextFromBody() const {
-  return GetSelectionTextFromBody(Selection().GetSelectionInDOMTree());
+  return GetSelectionTextFromBody(Selection().GetSelectionInDomTree());
 }
 
 std::string EditingTestBase::GetSelectionTextInFlatTreeFromBody(
@@ -63,7 +63,7 @@ std::string EditingTestBase::GetCaretTextFromBody(
   DCHECK(position.IsValidFor(GetDocument()))
       << "A valid position must be provided " << position;
   return GetSelectionTextFromBody(
-      SelectionInDOMTree::Builder().Collapse(position).Build());
+      SelectionInDomTree::Builder().Collapse(position).Build());
 }
 
 ShadowRoot* EditingTestBase::CreateShadowRootForElementWithIDAndSetInnerHTML(

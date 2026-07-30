@@ -254,7 +254,7 @@ ReplacementFragment::ReplacementFragment(Document* document,
 
   const EphemeralRange range =
       CreateVisibleSelection(
-          SelectionInDOMTree::Builder().SelectAllChildren(*holder).Build())
+          SelectionInDomTree::Builder().SelectAllChildren(*holder).Build())
           .ToNormalizedEphemeralRange();
   const TextIteratorBehavior& behavior = TextIteratorBehavior::Builder()
                                              .SetEmitsOriginalText(true)
@@ -789,6 +789,8 @@ void ReplaceSelectionCommand::RemoveRedundantStylesAndKeepStyleSpanInline(
     const CSSPropertyValueSet* inline_style = element->InlineStyle();
     EditingStyle* new_inline_style =
         MakeGarbageCollected<EditingStyle>(inline_style);
+    EditingStyle* style_without_parent_context = nullptr;
+
     if (inline_style) {
       auto* html_element = DynamicTo<HTMLElement>(element);
       if (html_element) {
@@ -840,11 +842,38 @@ void ReplaceSelectionCommand::RemoveRedundantStylesAndKeepStyleSpanInline(
         new_inline_style->RemoveStyleFromRulesAndContext(
             element, GetDocument().documentElement());
 
+      const bool is_style_span_during_move =
+          RuntimeEnabledFeatures::
+              MoveParagraphsPreserveInlineStructureEnabled() &&
+          moving_paragraph_ && IsStyleSpanOrSpanWithOnlyStyleAttribute(element);
+      if (is_style_span_during_move) {
+        style_without_parent_context =
+            MakeGarbageCollected<EditingStyle>(inline_style);
+        style_without_parent_context->RemoveStyleFromContext(element, context);
+      }
+
       new_inline_style->RemoveStyleFromRulesAndContext(element, context);
     }
 
-    if (!inline_style || new_inline_style->IsEmpty()) {
-      if (IsStyleSpanOrSpanWithOnlyStyleAttribute(element) ||
+    const bool should_unwrap_style_span_during_move =
+        style_without_parent_context && style_without_parent_context->IsEmpty();
+    const bool is_redundant_nested_span =
+        moving_paragraph_ && IsA<HTMLSpanElement>(element) &&
+        IsA<HTMLSpanElement>(element->parentNode());
+    // During a paragraph move, keep an inline style <span> instead of
+    // unwrapping it so the moved text retains its inline structure. Redundant
+    // style wrappers and nested spans carry no useful context, so they are
+    // still unwrapped.
+    const bool preserve_style_span_during_move =
+        RuntimeEnabledFeatures::
+            MoveParagraphsPreserveInlineStructureEnabled() &&
+        moving_paragraph_ && !should_unwrap_style_span_during_move &&
+        !is_redundant_nested_span;
+
+    if (!inline_style || new_inline_style->IsEmpty() ||
+        should_unwrap_style_span_during_move) {
+      if ((IsStyleSpanOrSpanWithOnlyStyleAttribute(element) &&
+           !preserve_style_span_during_move) ||
           IsEmptyFontTag(element, kAllowNonEmptyStyleAttribute)) {
         inserted_nodes.WillRemoveNodePreservingChildren(*element);
         RemoveNodePreservingChildren(element, editing_state);
@@ -1179,6 +1208,14 @@ void ReplaceSelectionCommand::HandleStyleSpansBeforeInsertion(
     return;
   }
 
+  // For paragraph moves, defer cleanup of spans with inline style until after
+  // insertion, where spans are unwrapped only if that does not change the
+  // rendering of the moved text.
+  if (RuntimeEnabledFeatures::MoveParagraphsPreserveInlineStructureEnabled() &&
+      moving_paragraph_) {
+    return;
+  }
+
   EditingStyle* style_at_insertion_pos = MakeGarbageCollected<EditingStyle>(
       insertion_pos.ParentAnchoredEquivalent());
   String style_text = style_at_insertion_pos->Style()->AsText();
@@ -1388,7 +1425,7 @@ void ReplaceSelectionCommand::InsertParagraphSeparatorIfNeeds(
           !IsStartOfParagraph(start_after_delete) &&
           !IsEndOfEditableOrNonEditableContent(start_after_delete)) {
         SetEndingSelection(SelectionForUndoStep::From(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(NextPositionOf(start_after_delete).DeepEquivalent())
                 .Build()));
         if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -1411,7 +1448,7 @@ void ReplaceSelectionCommand::InsertParagraphSeparatorIfNeeds(
       if (IsEndOfParagraph(visible_start) &&
           !IsStartOfParagraph(visible_start) && next.IsNotNull()) {
         SetEndingSelection(
-            SelectionForUndoStep::From(SelectionInDOMTree::Builder()
+            SelectionForUndoStep::From(SelectionInDomTree::Builder()
                                            .Collapse(next.DeepEquivalent())
                                            .Build()));
         if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -1463,7 +1500,7 @@ void ReplaceSelectionCommand::InsertParagraphSeparatorIfNeeds(
         return;
       GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
       SetEndingSelection(SelectionForUndoStep::From(
-          SelectionInDOMTree::Builder()
+          SelectionInDomTree::Builder()
               .Collapse(
                   PreviousPositionOf(EndingVisibleSelection().VisibleStart())
                       .DeepEquivalent())
@@ -1943,7 +1980,7 @@ void ReplaceSelectionCommand::DoApply(EditingState* editing_state) {
             return;
         }
         SetEndingSelection(SelectionForUndoStep::From(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(
                     Position::AfterNode(*inserted_nodes.LastLeafInserted()))
                 .Build()));
@@ -1959,7 +1996,7 @@ void ReplaceSelectionCommand::DoApply(EditingState* editing_state) {
             EndingVisibleSelection().VisibleStart().DeepEquivalent();
       } else if (!IsStartOfParagraph(end_of_inserted_content)) {
         SetEndingSelection(SelectionForUndoStep::From(
-            SelectionInDOMTree::Builder()
+            SelectionInDomTree::Builder()
                 .Collapse(end_of_inserted_content.DeepEquivalent())
                 .Build()));
         if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -1978,7 +2015,7 @@ void ReplaceSelectionCommand::DoApply(EditingState* editing_state) {
           if (editing_state->IsAborted())
             return;
           SetEndingSelection(SelectionForUndoStep::From(
-              SelectionInDOMTree::Builder()
+              SelectionInDomTree::Builder()
                   .Collapse(Position::FirstPositionInNode(*new_list_item))
                   .Build()));
           if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -2220,10 +2257,10 @@ void ReplaceSelectionCommand::CompleteHTMLReplacement(
   end_of_inserted_range_ = end;
 
   if (select_replacement_) {
-    SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
-            .SetBaseAndExtentDeprecated(start, end)
-            .Build()));
+    SetEndingSelection(
+        SelectionForUndoStep::From(SelectionInDomTree::Builder()
+                                       .SetBaseAndExtentDeprecated(start, end)
+                                       .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
       SetEndingDomSelection(
           SelectionForUndoStep::From(SelectionInDomTree::Builder()
@@ -2235,9 +2272,7 @@ void ReplaceSelectionCommand::CompleteHTMLReplacement(
 
   if (end.IsNotNull()) {
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
-            .Collapse(end)
-            .Build()));
+        SelectionInDomTree::Builder().Collapse(end).Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
       SetEndingDomSelection(SelectionForUndoStep::From(
           SelectionInDomTree::Builder().Collapse(end).Build()));
@@ -2620,7 +2655,7 @@ bool ReplaceSelectionCommand::PerformTrivialReplace(
   }
 
   SetEndingSelection(SelectionForUndoStep::From(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtentDeprecated(select_replacement_ ? start : end, end)
           .Build()));
   if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {

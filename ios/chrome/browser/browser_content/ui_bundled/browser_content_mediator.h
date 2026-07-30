@@ -24,7 +24,7 @@ class WebStateList;
 - (instancetype)init NS_UNAVAILABLE;
 
 // The consumer.  Setting to a new value configures the new consumer.
-@property(nonatomic, strong) id<BrowserContentConsumer> consumer;
+@property(nonatomic, weak) id<BrowserContentConsumer> consumer;
 
 @end
 

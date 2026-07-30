@@ -74,7 +74,7 @@ AccountInfo CreateAccount(GaiaId gaia_id,
           .SetFullName(full_name)
           .SetHostedDomain(hosted_domain)
           .Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_enterprise_features(hosted_domain !=
                                              kNoHostedDomainFound);
   return account_info;
@@ -281,7 +281,7 @@ class DiceWebSigninInterceptHandlerTest
       public testing::WithParamInterface<TestParam> {
  public:
   DiceWebSigninInterceptHandlerTest() {
-    AccountCapabilitiesTestMutator mutator(&intercepted_account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&intercepted_account);
     switch (GetParam().is_supervised) {
       case signin::Tribool::kTrue:
         mutator.set_is_subject_to_parental_controls(true);
@@ -353,7 +353,7 @@ class DiceWebSigninInterceptHandlerChromeSigninInterceptionTest
     CHECK(interception_type() ==
           WebSigninInterceptor::SigninInterceptionType::kChromeSignin);
 
-    AccountCapabilitiesTestMutator mutator(&intercepted_account.capabilities);
+    AccountCapabilitiesTestMutator mutator(&intercepted_account);
     switch (IsSupervisedUser()) {
       case signin::Tribool::kTrue:
         mutator.set_is_subject_to_parental_controls(true);

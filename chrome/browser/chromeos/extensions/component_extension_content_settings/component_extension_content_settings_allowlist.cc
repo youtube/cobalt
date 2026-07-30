@@ -4,6 +4,7 @@
 
 #include "chrome/browser/chromeos/extensions/component_extension_content_settings/component_extension_content_settings_allowlist.h"
 
+#include "base/no_destructor.h"
 #include "chrome/browser/chromeos/extensions/component_extension_content_settings/component_extension_content_settings_allowlist_factory.h"
 #include "chrome/browser/extensions/component_extensions_allowlist/allowlist.h"
 #include "content/public/browser/browser_context.h"
@@ -15,17 +16,29 @@
 namespace extensions {
 
 namespace {
-static const ComponentExtensionContentSettingsAllowlist::
-    ExtensionsContentSettingsTypes kComponentExtensionsContentSettingsTypes = {
-        {extension_misc::kQuickOfficeComponentExtensionId,
-         {ContentSettingsType::FILE_SYSTEM_READ_GUARD,
-          ContentSettingsType::FILE_SYSTEM_WRITE_GUARD}}};
-}  // namespace
+
+const ComponentExtensionContentSettingsAllowlist::
+    ExtensionsContentSettingsTypes&
+    GetDefaultComponentExtensionsContentSettingsTypes() {
+  static const base::NoDestructor<ComponentExtensionContentSettingsAllowlist::
+                                      ExtensionsContentSettingsTypes>
+      val({{extension_misc::kQuickOfficeComponentExtensionId,
+            {ContentSettingsType::FILE_SYSTEM_READ_GUARD,
+             ContentSettingsType::FILE_SYSTEM_WRITE_GUARD}}});
+  return *val;
+}
 
 std::optional<
-    ComponentExtensionContentSettingsAllowlist::ExtensionsContentSettingsTypes>
-    ComponentExtensionContentSettingsAllowlist::
-        component_extensions_content_settings_types_for_testing_;
+    ComponentExtensionContentSettingsAllowlist::ExtensionsContentSettingsTypes>&
+GetComponentExtensionsContentSettingsTypesForTesting() {
+  static base::NoDestructor<
+      std::optional<ComponentExtensionContentSettingsAllowlist::
+                        ExtensionsContentSettingsTypes>>
+      val;
+  return *val;
+}
+
+}  // namespace
 
 ComponentExtensionContentSettingsAllowlist*
 ComponentExtensionContentSettingsAllowlist::Get(
@@ -87,7 +100,7 @@ void ComponentExtensionContentSettingsAllowlist::
     SetComponentExtensionsContentSettingsTypesForTesting(
         const ExtensionsContentSettingsTypes&
             component_extensions_content_settings_types_for_testing) {
-  component_extensions_content_settings_types_for_testing_ =
+  GetComponentExtensionsContentSettingsTypesForTesting() =
       component_extensions_content_settings_types_for_testing;
 }
 
@@ -95,9 +108,11 @@ const ComponentExtensionContentSettingsAllowlist::
     ExtensionsContentSettingsTypes&
     ComponentExtensionContentSettingsAllowlist::
         GetComponentExtensionsContentSettingsTypes() {
-  return component_extensions_content_settings_types_for_testing_.has_value()
-             ? component_extensions_content_settings_types_for_testing_.value()
-             : kComponentExtensionsContentSettingsTypes;
+  auto& testing_value = GetComponentExtensionsContentSettingsTypesForTesting();
+  if (testing_value.has_value()) {
+    return *testing_value;
+  }
+  return GetDefaultComponentExtensionsContentSettingsTypes();
 }
 
 void ComponentExtensionContentSettingsAllowlist::

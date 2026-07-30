@@ -1796,6 +1796,48 @@ TEST(HasKeyInMapTest, HandlesTruncation) {
   EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key2")));
 }
 
+TEST(HasKeyInMapTest, FindsString16Key) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  std::vector<uint16_t> key16 = {'k', 'e', 'y', '1'};
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  EncodeString8(SpanFrom("key2"), &encoded);
+  EncodeInt32(42, &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  EXPECT_TRUE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key1")));
+  EXPECT_TRUE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key2")));
+}
+
+TEST(HasKeyInMapTest, DoesNotFindNonAsciiString16Key) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  // "key_á" where á is U+00E1
+  std::vector<uint16_t> key16 = {'k', 'e', 'y', '_', 0x00e1};
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  // Searching with UTF-8 "key_á" should fail because it's non-ASCII.
+  // UTF-8 for á is \xc3\xa1
+  EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key_\xc3\xa1")));
+
+  // Searching with ASCII "key_a" should also fail.
+  EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key_a")));
+}
+
 TEST(HasKeyInMapTest, InvalidMessage) {
   std::vector<uint8_t> msg = {
       0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), 42};

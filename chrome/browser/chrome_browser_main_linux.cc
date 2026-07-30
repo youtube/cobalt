@@ -17,7 +17,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/grit/branded_strings.h"
 #include "components/password_manager/core/browser/password_manager_switches.h"
 #include "content/public/browser/browser_thread.h"
 #include "device/bluetooth/dbus/bluez_dbus_manager.h"

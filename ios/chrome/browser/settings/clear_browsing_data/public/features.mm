@@ -5,7 +5,7 @@
 #import "ios/chrome/browser/settings/clear_browsing_data/public/features.h"
 
 BASE_FEATURE(kPasswordRemovalFromDeleteBrowsingData,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsPasswordRemovalFromDeleteBrowsingDataEnabled() {
   return base::FeatureList::IsEnabled(kPasswordRemovalFromDeleteBrowsingData);

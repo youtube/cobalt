@@ -1047,18 +1047,9 @@ void AwProxyingURLLoaderFactory::CreateLoaderAndStart(
       cookie_manager_.is_bound() && global_cookie_policy &&
       io_thread_client->ShouldIncludeCookiesOnIntercept();
 
-  // WebView treats cookie access on a per request basis and so we have to
-  // essentially let the rest of the network stack know if we want to allow
-  // unpartitioned cookie access or not.
-  // We can handle this by allowing 3PCs in the case where we have given access
-  // to storage access.
-  bool hasStorageAccess = request.storage_access_api_status ==
-                          net::StorageAccessApiStatus::kAccessViaAPI;
-
   if (!global_cookie_policy) {
     options |= network::mojom::kURLLoadOptionBlockAllCookies;
-  } else if (!third_party_cookie_policy && !request.url.SchemeIsFile() &&
-             !hasStorageAccess) {
+  } else if (!third_party_cookie_policy && !request.url.SchemeIsFile()) {
     // Special case: if the application has asked that we allow file:// scheme
     // URLs to set cookies, we need to avoid setting a cookie policy (as file://
     // scheme URLs are third-party to everything).

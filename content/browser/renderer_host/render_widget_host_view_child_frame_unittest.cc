@@ -365,7 +365,6 @@ TEST_F(RenderWidgetHostViewChildFrameTest,
   visual_properties.rect_in_local_root = rect_in_local_root;
   visual_properties.compositor_viewport = compositor_viewport_pixel_rect;
   visual_properties.local_frame_size = compositor_viewport_pixel_rect.size();
-  visual_properties.capture_sequence_number = 123u;
   visual_properties.local_surface_id = local_surface_id;
   visual_properties.root_widget_viewport_segments.emplace_back(1, 2, 3, 4);
 
@@ -385,7 +384,6 @@ TEST_F(RenderWidgetHostViewChildFrameTest,
     EXPECT_EQ(rect_in_local_root.size(),
               sent_visual_properties.new_size_device_px);
     EXPECT_EQ(local_surface_id, sent_visual_properties.local_surface_id);
-    EXPECT_EQ(123u, sent_visual_properties.capture_sequence_number);
     EXPECT_EQ(1u, sent_visual_properties.root_widget_viewport_segments.size());
     EXPECT_EQ(gfx::Rect(1, 2, 3, 4),
               sent_visual_properties.root_widget_viewport_segments[0]);
@@ -517,6 +515,12 @@ TEST_F(RenderWidgetHostViewChildFrameTest,
                          blink::mojom::InputEventResultState::kIgnored);
   EXPECT_EQ(blink::WebInputEvent::Type::kGestureScrollEnd,
             GetMockInputHelper()->GetAndResetLastBubbledEventType());
+}
+
+TEST_F(RenderWidgetHostViewChildFrameTest,
+       InvalidateLocalSurfaceIdAndAllocationGroup) {
+  // Calling this method on a child frame should be a no-op and not crash.
+  view_->InvalidateLocalSurfaceIdAndAllocationGroup();
 }
 
 }  // namespace content

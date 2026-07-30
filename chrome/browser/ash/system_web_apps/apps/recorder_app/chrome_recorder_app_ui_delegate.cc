@@ -110,7 +110,7 @@ bool ChromeRecorderAppUIDelegate::CanUseGenerativeAiForCurrentProfile() {
 
   const AccountInfo extended_account_info =
       identity_manager->FindExtendedAccountInfoByAccountId(account_id);
-  if (extended_account_info.capabilities
+  if (extended_account_info.GetAccountCapabilities()
           .can_use_generative_ai_in_recorder_app() != signin::Tribool::kTrue) {
     return false;
   }
@@ -134,7 +134,7 @@ bool ChromeRecorderAppUIDelegate::CanUseSpeakerLabelForCurrentProfile() {
 
   const AccountInfo extended_account_info =
       identity_manager->FindExtendedAccountInfoByAccountId(account_id);
-  return extended_account_info.capabilities
+  return extended_account_info.GetAccountCapabilities()
              .can_use_speaker_label_in_recorder_app() == signin::Tribool::kTrue;
 }
 

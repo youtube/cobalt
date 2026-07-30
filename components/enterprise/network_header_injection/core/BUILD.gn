@@ -27,6 +27,8 @@ source_set("policy") {
 
 static_library("core") {
   sources = [
+    "features.cc",
+    "features.h",
     "http_header_injection_matcher.cc",
     "http_header_injection_matcher.h",
     "http_header_injection_rule.cc",
@@ -40,7 +42,6 @@ static_library("core") {
   deps = [
     "//base",
     "//components/keyed_service/core",
-    "//components/policy/core/browser",
     "//components/prefs",
     "//components/url_matcher",
     "//net",

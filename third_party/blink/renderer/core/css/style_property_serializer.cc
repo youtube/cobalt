@@ -731,9 +731,9 @@ String StylePropertySerializer::SerializeShorthand(
       return Get2Values(insetBlockShorthand());
     case CSSPropertyID::kInsetInline:
       return Get2Values(insetInlineShorthand());
-    case CSSPropertyID::kLineClamp:
+    case CSSPropertyID::kAlternativeLineClampShorthand:
       return LineClampValue(/* is_webkit_line_clamp */ false);
-    case CSSPropertyID::kAlternativeWebkitLineClamp:
+    case CSSPropertyID::kAlternativeWebkitLineClampShorthand:
       return LineClampValue(/* is_webkit_line_clamp */ true);
     case CSSPropertyID::kPlaceContent:
       return Get2Values(placeContentShorthand());

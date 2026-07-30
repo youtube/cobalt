@@ -68,7 +68,6 @@ include_rules = [
   "+chrome/common/chrome_paths.h",
   "+chrome/common/chrome_switches.h",
   "+chrome/common/extensions",
-  "+chrome/common/pref_names.h",
 ]
 
 specific_include_rules = {

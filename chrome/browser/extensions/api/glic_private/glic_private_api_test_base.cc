@@ -57,7 +57,7 @@ void GlicPrivateApiTestBase::SetupIdentityAndCapabilities() {
       IdentityManagerFactory::GetForProfile(test_profile), "test@example.com",
       signin::ConsentLevel::kSignin);
 
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_use_gemini_in_chrome(true);
   mutator.set_can_use_model_execution_features(true);
   signin::UpdateAccountInfoForAccount(

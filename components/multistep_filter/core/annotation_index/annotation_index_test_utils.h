@@ -14,7 +14,6 @@
 namespace multistep_filter {
 
 ExtractTaskAttributesResponse CreateExtractTaskAttributesResponse(
-    const std::string& domain,
     const std::string& task_type,
     const std::vector<std::pair<std::string, std::string>>& attributes);
 

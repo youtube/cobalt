@@ -13,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/stack_allocated.h"
 #include "base/synchronization/lock.h"
+#include "cc/paint/texture_backing.h"
 #include "components/viz/common/gpu/context_cache_controller.h"
 #include "components/viz/common/gpu/context_lost_observer.h"
 #include "components/viz/common/resources/shared_image_format.h"
@@ -77,6 +78,10 @@ class VIZ_COMMON_EXPORT RasterContextProvider {
   virtual void AddObserver(ContextLostObserver* obs) = 0;
   virtual void RemoveObserver(ContextLostObserver* obs) = 0;
 
+  // Returns true if the context has been lost. Can be called only after
+  // successful BindToCurrentSequence().
+  virtual bool IsLost() = 0;
+
   // Returns the lock that should be held if using this context from multiple
   // threads. This can be called on any thread.
   // Returns null if the context does not support locking and must be used from
@@ -110,6 +115,19 @@ class VIZ_COMMON_EXPORT RasterContextProvider {
 
  protected:
   virtual ~RasterContextProvider() = default;
+};
+
+class VIZ_COMMON_EXPORT RasterContextProviderWrapper
+    : public cc::TextureBackingContext {
+ public:
+  explicit RasterContextProviderWrapper(
+      scoped_refptr<RasterContextProvider> provider);
+
+  scoped_refptr<RasterContextProvider> provider() const { return provider_; }
+
+ private:
+  ~RasterContextProviderWrapper() override;
+  scoped_refptr<RasterContextProvider> provider_;
 };
 
 }  // namespace viz

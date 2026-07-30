@@ -22,6 +22,7 @@
 namespace cc {
 
 bool ToneMapUtil::UseGlobalToneMapFilter(const SkImage* image,
+                                         const gfx::HDRMetadata& metadata,
                                          const SkColorSpace* dst_color_space) {
   if (!image) {
     return false;
@@ -32,18 +33,29 @@ bool ToneMapUtil::UseGlobalToneMapFilter(const SkImage* image,
   if (SkColorSpace::Equals(image->colorSpace(), dst_color_space)) {
     return false;
   }
-  return UseGlobalToneMapFilter(image->colorSpace());
+  return UseGlobalToneMapFilter(image->colorSpace(), metadata);
 }
 
-bool ToneMapUtil::UseGlobalToneMapFilter(const SkColorSpace* cs) {
+bool ToneMapUtil::UseGlobalToneMapFilter(const SkColorSpace* cs,
+                                         const gfx::HDRMetadata& metadata) {
   if (!cs) {
     return false;
   }
   skcms_TransferFunction fn;
   cs->transferFn(&fn);
-  return skcms_TransferFunction_isHLGish(&fn) ||
-         skcms_TransferFunction_isPQish(&fn) ||
-         skcms_TransferFunction_isHLG(&fn) || skcms_TransferFunction_isPQ(&fn);
+  if (skcms_TransferFunction_isHLGish(&fn) ||
+      skcms_TransferFunction_isPQish(&fn) ||
+      skcms_TransferFunction_isHLG(&fn) || skcms_TransferFunction_isPQ(&fn)) {
+    return true;
+  }
+  if (metadata.HasAgtm()) {
+    if (auto& hatm = metadata.GetAgtm().fHeadroomAdaptiveToneMap) {
+      if (!hatm->fAlternateImages.empty()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void ToneMapUtil::AddGlobalToneMapFilterToPaint(

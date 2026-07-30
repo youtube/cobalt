@@ -148,7 +148,7 @@ class ChromeKioskCrashRestoreTest : public KioskCrashRestoreTest {
 IN_PROC_BROWSER_TEST_F(ChromeKioskCrashRestoreTest,
                        ShouldFailToRelaunchMissingCrashedChromeApp) {
   // If app is not installed when restoring from crash, the kiosk launch is
-  // expected to fail, as in that case the crash occured during the app
+  // expected to fail, as in that case the crash occurred during the app
   // initialization - before the app was actually launched.
   EXPECT_EQ(
       KioskAppLaunchError::Error::kUnableToLaunch,

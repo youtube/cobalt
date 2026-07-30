@@ -13,6 +13,8 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/contextual_tasks/mock_contextual_tasks_ui_service_delegate.h"
+#include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
@@ -177,24 +179,19 @@ class MockQueryContextualizer : public contextual_tasks::QueryContextualizer {
       : QueryContextualizer(service, delegate) {}
   ~MockQueryContextualizer() override = default;
 
-  void Contextualize(
-      const std::optional<base::Uuid>& task_id,
-      const std::string& query_text,
-      const std::vector<contextual_tasks::QueryContextualizer::TabId>&
-          tabs_to_recontextualize,
-      const std::vector<contextual_tasks::QueryContextualizer::TabId>&
-          tabs_to_force_contextualize,
-      contextual_tasks::QueryContextualizer::PageContextIneligibleCallback
-          on_ineligible_callback,
-      contextual_tasks::QueryContextualizer::TabProcessedCallback
-          on_processed_callback,
-      contextual_tasks::QueryContextualizer::ContextualizedCallback callback,
-      bool enable_smart_tab_selection) override {
-    MockContextualize(task_id, query_text, tabs_to_recontextualize,
-                      tabs_to_force_contextualize);
-    MockContextualizeWithCallbacks(task_id, query_text, tabs_to_recontextualize,
-                                   tabs_to_force_contextualize,
-                                   on_processed_callback, std::move(callback));
+  void Contextualize(contextual_tasks::QueryContextualizer::ContextualizeParams
+                         params) override {
+    std::vector<contextual_tasks::QueryContextualizer::TabId> force_tabs =
+        params.auto_suggested_chip_tabs;
+    if (force_tabs.empty()) {
+      force_tabs = params.tabs_for_contextual_searchbox_first_turn;
+    }
+    MockContextualize(params.task_id, params.query_text,
+                      params.tabs_to_recontextualize, force_tabs);
+    MockContextualizeWithCallbacks(params.task_id, params.query_text,
+                                   params.tabs_to_recontextualize, force_tabs,
+                                   params.on_processed_callback,
+                                   std::move(params.complete_callback));
   }
 
   MOCK_METHOD(void,
@@ -435,7 +432,15 @@ class LensQueryFlowRouterTest : public testing::Test {
   void SetUp() override {
     InitFeatureList();
 
-    profile_ = std::make_unique<TestingProfile>();
+    TestingProfile::Builder profile_builder;
+    profile_builder.AddTestingFactory(
+        OptimizationGuideKeyedServiceFactory::GetInstance(),
+        base::BindRepeating([](content::BrowserContext* context)
+                                -> std::unique_ptr<KeyedService> {
+          return std::make_unique<
+              testing::NiceMock<MockOptimizationGuideKeyedService>>();
+        }));
+    profile_ = profile_builder.Build();
     web_contents_ = content::WebContentsTester::CreateTestWebContents(
         profile_.get(), content::SiteInstance::Create(profile_.get()));
 

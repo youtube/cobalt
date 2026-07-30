@@ -1851,8 +1851,9 @@ bool ShapeResult::operator==(const ShapeResult& other) const {
     }
   }
 
-  // We don't check `character_position_`.
-  return width_ == other.width_ && start_index_ == other.start_index_ &&
+  // We don't check `character_position_` or `width_` which can differ
+  // depending if `RecalcCharacterPositions` has been called.
+  return start_index_ == other.start_index_ &&
          num_characters_ == other.num_characters_ &&
          direction_ == other.direction_ &&
          has_vertical_offsets_ == other.has_vertical_offsets_ &&

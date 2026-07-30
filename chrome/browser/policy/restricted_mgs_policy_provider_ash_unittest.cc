@@ -11,7 +11,7 @@
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chrome/browser/policy/restricted_mgs_policy_provider.h"
 #include "chrome/browser/profiles/profiles_state.h"
-#include "chrome/browser/ui/webui/certificates_handler.h"
+#include "chrome/browser/ui/webui/certificate_manager/certificate_manager_utils.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"

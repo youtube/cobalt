@@ -44,7 +44,7 @@ class LevelUpService : public KeyedService {
   const TaskInfo* GetTaskInfo(TaskType task_type) const;
 
   // Returns all available tasks.
-  const std::map<TaskType, TaskInfo>& GetTasks() const;
+  const std::map<TaskType, std::unique_ptr<TaskInfo>>& GetTasks() const;
 
   // KeyedService implementation.
   void Shutdown() override;
@@ -57,7 +57,7 @@ class LevelUpService : public KeyedService {
   void LoadPrefs();
 
   raw_ptr<PrefService> pref_service_;
-  std::map<TaskType, TaskInfo> tasks_;
+  std::map<TaskType, std::unique_ptr<TaskInfo>> tasks_;
   // Set of completed task identifiers. Stored as strings rather than TaskType
   // enums to support storing unknown tasks received via sync from newer
   // versions of the app.

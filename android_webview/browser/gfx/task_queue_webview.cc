@@ -11,7 +11,6 @@
 #include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/thread_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "gpu/command_buffer/service/blocking_sequence_runner.h"
@@ -39,8 +38,6 @@ void TaskQueueWebView::InitializeVizThread(
 void TaskQueueWebView::ScheduleOnVizAndBlock(VizTask viz_task) {
   TRACE_EVENT0("android_webview", "ScheduleOnVizAndBlock");
   DCHECK_CALLED_ON_VALID_THREAD(render_thread_checker_);
-  SCOPED_UMA_HISTOGRAM_TIMER_MICROS(
-      "Android.WebView.ScheduleOnVizAndBlockTime");
 
   // Expected behavior is |viz_task| on the viz thread. From |viz_task| until
   // the done closure is called (which may not be in the viz_task), viz thread

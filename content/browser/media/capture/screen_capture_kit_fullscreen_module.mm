@@ -67,8 +67,7 @@ bool IsOpenOfficeImpressWindow(NSString* window_title) {
   return [window_title hasSuffix:kEditorWindowNameOpenOffice];
 }
 
-bool API_AVAILABLE(macos(12.3))
-    IsWindowFullscreen(SCWindow* window, NSArray<SCDisplay*>* displays) {
+bool IsWindowFullscreen(SCWindow* window, NSArray<SCDisplay*>* displays) {
   for (SCDisplay* display : displays) {
     if (CGRectEqualToRect(window.frame, display.frame)) {
       return true;
@@ -77,8 +76,7 @@ bool API_AVAILABLE(macos(12.3))
   return false;
 }
 
-void API_AVAILABLE(macos(12.3))
-    LogModeToUma(ScreenCaptureKitFullscreenModule::Mode mode) {
+void LogModeToUma(ScreenCaptureKitFullscreenModule::Mode mode) {
   base::UmaHistogramEnumeration("Media.ScreenCaptureKit.FullscreenModuleMode",
                                 mode);
 }

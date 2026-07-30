@@ -240,6 +240,8 @@
   E(kActionSpellpanelToggle, IDC_SPELLPANEL_TOGGLE) \
   E(kActionSpellcheckAddToDictionary, IDC_SPELLCHECK_ADD_TO_DICTIONARY) \
   E(kActionSpellcheckMultiLingual, IDC_SPELLCHECK_MULTI_LINGUAL) \
+  E(kActionSpellcheckRemoveFromDictionary, \
+    IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY) \
   /* Writing direction */ \
   E(kActionWritingDirectionMenu, IDC_WRITING_DIRECTION_MENU) \
   E(kActionWritingDirectionDefault, IDC_WRITING_DIRECTION_DEFAULT) \

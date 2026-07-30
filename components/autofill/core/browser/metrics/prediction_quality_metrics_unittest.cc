@@ -473,14 +473,13 @@ TEST_F(PredictionQualityMetricsTest,
                   // No role so that regexes don't match.
                   {.autocomplete_attribute = "tel-country-code",
                    .form_control_type = FormControlType::kSelectOne,
-                   .select_options =
-                       {
-                           {.value = u"US", .text = u"United States (+1)"},
-                           {.value = u"CA", .text = u"Canada (+1)"},
-                           {.value = u"FR", .text = u"France (+33)"},
-                           {.value = u"DE", .text = u"Germany (+49)"},
-                           {.value = u"LB", .text = u"Lebanon (+961)"},
-                       }},
+                   .select_options = {{
+                       {.value = u"US", .text = u"United States (+1)"},
+                       {.value = u"CA", .text = u"Canada (+1)"},
+                       {.value = u"FR", .text = u"France (+33)"},
+                       {.value = u"DE", .text = u"Germany (+49)"},
+                       {.value = u"LB", .text = u"Lebanon (+961)"},
+                   }}},
                   {.role = PHONE_HOME_CITY_AND_NUMBER,
                    .autocomplete_attribute = "tel-national"}}});
   SeeForm(form_with_options);

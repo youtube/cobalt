@@ -130,6 +130,7 @@ void EtwConsumer::WillClearIncrementalState() {
 void EtwConsumer::ResetEmittedState() {
   interned_callstacks_.ResetEmittedState();
   interned_frames_.ResetEmittedState();
+  FinalizePreviousData();
   auto trace_packet = trace_writer_->NewTracePacket();
   trace_packet->set_sequence_flags(
       perfetto::protos::pbzero::TracePacket::SEQ_INCREMENTAL_STATE_CLEARED);
@@ -231,9 +232,7 @@ void EtwConsumer::ProcessEventRecord(EVENT_RECORD* event_record) {
 bool EtwConsumer::ProcessBuffer(EVENT_TRACE_LOGFILE* buffer) {
   auto* const self = reinterpret_cast<EtwConsumer*>(buffer->Context);
   DCHECK_CALLED_ON_VALID_SEQUENCE(self->sequence_checker_);
-  self->etw_events_ = nullptr;
-  // Release the handle to finalize the previous message.
-  self->packet_handle_ = {};
+  self->FinalizePreviousData();
   return true;  // Continue processing events.
 }
 
@@ -420,11 +419,6 @@ void EtwConsumer::HandleStackWalkEvent(const EVENT_HEADER& header,
     return;
   }
 
-  // Before interning any data, clear previous incremental state if needed.
-  if (reset_emitted_state_.load(std::memory_order_relaxed)) {
-    ResetEmittedState();
-  }
-
   // Read and validate the contents of `packet_data`.
   base::BufferIterator<const uint8_t> iterator{packet_data};
   // Size of `StackWalk` event:
@@ -436,6 +430,9 @@ void EtwConsumer::HandleStackWalkEvent(const EVENT_HEADER& header,
   const auto qpc_timestamp = *iterator.CopyObject<uint64_t>();
   (void)*iterator.CopyObject<uint32_t>();  // StackProcess
   const auto stack_thread = *iterator.CopyObject<uint32_t>();
+  if (!inclusion_policy_.ShouldRecordCallStacks(stack_thread)) {
+    return;
+  }
 
   // The remainder of the packet consists of the call stack.
   const size_t remaining_bytes = packet_data.size_bytes() - iterator.position();
@@ -444,6 +441,11 @@ void EtwConsumer::HandleStackWalkEvent(const EVENT_HEADER& header,
   call_stack.reserve(num_frames);
   for (size_t i = 0; i < num_frames; ++i) {
     call_stack.push_back(CopyPointer(iterator, pointer_size));
+  }
+
+  // Before interning any data, clear previous incremental state if needed.
+  if (reset_emitted_state_.load(std::memory_order_relaxed)) {
+    ResetEmittedState();
   }
 
   // Use a hash of the call stack as a unique identifier for interning.
@@ -469,8 +471,8 @@ void EtwConsumer::HandleStackWalkEvent(const EVENT_HEADER& header,
     return;
   }
 
-  // This call stack hasn't been seen before in this trace. Finalize previous
-  // data and start a new packet with interned data.
+  // This call stack hasn't been seen before in this trace. Start a new packet
+  // with interned data.
   StartNewPacket(qpc_timestamp);
   perfetto::protos::pbzero::InternedData* interned_data =
       packet_handle_->set_interned_data();
@@ -1230,15 +1232,19 @@ bool EtwConsumer::CalculateDiskIoEventInclusionAndThreadId(
   return false;
 }
 
+void EtwConsumer::FinalizePreviousData() {
+  etw_events_ = nullptr;
+  packet_handle_ = {};
+}
+
 void EtwConsumer::StartNewPacket(uint64_t qpc_timestamp) {
-  // Resetting the `packet_handle_` finalizes previous data.
+  FinalizePreviousData();
   packet_handle_ = trace_writer_->NewTracePacket();
   packet_handle_->set_timestamp(GetTimestampNanoseconds(qpc_timestamp));
   // `StackWalk` events require incremental state.
   packet_handle_->set_sequence_flags(
       perfetto::protos::pbzero::perfetto_pbzero_enum_TracePacket::
           SEQ_NEEDS_INCREMENTAL_STATE);
-  etw_events_ = nullptr;
 }
 
 }  // namespace tracing

@@ -35,6 +35,7 @@ namespace http://www.w3.org/1999/xhtml
     property appendChild
     property appendHTML
     property appendHTMLUnsafe
+    property ariaActionsElements
     property ariaActiveDescendantElement
     property ariaAtomic
     property ariaAutoComplete
@@ -437,6 +438,7 @@ html element area
     property host
     property hostname
     property href
+    property hreflang
     property interestForElement
     property noHref
     property origin
@@ -451,6 +453,7 @@ html element area
     property search
     property shape
     property target
+    property type
     property username
 html element article
 html element aside
@@ -1418,6 +1421,7 @@ namespace http://www.w3.org/2000/svg
     property appendChild
     property appendHTML
     property appendHTMLUnsafe
+    property ariaActionsElements
     property ariaActiveDescendantElement
     property ariaAtomic
     property ariaAutoComplete
@@ -2260,6 +2264,7 @@ svg element path
     property farthestViewportElement
     property getBBox
     property getCTM
+    property getPathData
     property getPointAtLength
     property getScreenCTM
     property getTotalLength

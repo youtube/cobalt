@@ -11,7 +11,7 @@ import {SummaryPanelController} from 'chrome://os-print/js/summary_panel_control
 import {createCustomEvent} from 'chrome://os-print/js/utils/event_utils.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockController} from 'chrome://webui-test/chromeos/mock_controller.m.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 

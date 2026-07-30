@@ -287,7 +287,7 @@ class WebRtcRemoteEventLogManager final
   // On the one hand, we want to remove expired files as soon as possible, but
   // on the other hand, we don't want to waste CPU by checking this too often.
   // Therefore, we prune pending files:
-  // 1. When a new BrowserContext is initalized, thereby also pruning the
+  // 1. When a new BrowserContext is initialized, thereby also pruning the
   //    pending logs contributed by that BrowserContext.
   // 2. Before initiating a new upload, thereby avoiding uploading a file that
   //    has just now expired.

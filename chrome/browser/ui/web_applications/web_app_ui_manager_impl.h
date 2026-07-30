@@ -175,6 +175,8 @@ class WebAppUiManagerImpl : public BrowserCollectionObserver,
       UninstallCompleteCallback callback,
       UninstallScheduledCallback scheduled_callback) override;
 
+  void UninstallAppSilentlyForMigration(const webapps::AppId& app_id) override;
+
   void ShowProfileErrorDialogForCorruptDB() override;
 
   void ShowIntentPicker(const GURL& url,
@@ -256,7 +258,8 @@ class WebAppUiManagerImpl : public BrowserCollectionObserver,
       UninstallCompleteCallback uninstall_complete_callback,
       webapps::UninstallResultCode uninstall_code);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
   void ShowIPHPromoForAppsLaunchedViaLinkCapturing(Browser* browser,
                                                    const webapps::AppId& app_id,
                                                    bool is_activated);
@@ -265,7 +268,8 @@ class WebAppUiManagerImpl : public BrowserCollectionObserver,
 
   void OnTabChangedDuringIph(BrowserWindowInterface* browser);
 
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+        // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
   void OnBrowserCloseCancelled(

@@ -695,7 +695,7 @@ class CORE_EXPORT PhysicalFragment : public GarbageCollected<PhysicalFragment> {
 
   bool HasPropagatedLayoutObjects() const {
     return HasPendingStickyDescendants() || PropagatedScrollInitialTarget() ||
-           PropagatedSnapAreas() || NamedTriggers();
+           PropagatedSnapAreas() || NamedTriggers() || HasChildAnchors();
   }
 
   class OofData : public GarbageCollected<OofData> {

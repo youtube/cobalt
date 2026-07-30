@@ -10,6 +10,7 @@
 #import "components/autofill/ios/form_util/form_activity_tab_helper.h"
 
 namespace autofill {
+
 TestFormActivityTabHelper::TestFormActivityTabHelper(web::WebState* web_state)
     : web_state_(web_state) {}
 
@@ -18,8 +19,8 @@ TestFormActivityTabHelper::~TestFormActivityTabHelper() = default;
 void TestFormActivityTabHelper::FormActivityRegistered(
     web::WebFrame* sender_frame,
     FormActivityParams const& params) {
-  autofill::FormActivityTabHelper* form_activity_tab_helper =
-      autofill::FormActivityTabHelper::GetOrCreateForWebState(web_state_);
+  FormActivityTabHelper* form_activity_tab_helper =
+      FormActivityTabHelper::GetOrCreateForWebState(web_state_);
   for (auto& observer : form_activity_tab_helper->observers_) {
     observer.FormActivityRegistered(web_state_, sender_frame, params);
   }
@@ -28,8 +29,8 @@ void TestFormActivityTabHelper::FormActivityRegistered(
 void TestFormActivityTabHelper::FormRemovalRegistered(
     web::WebFrame* sender_frame,
     const FormRemovalParams& params) {
-  autofill::FormActivityTabHelper* form_activity_tab_helper =
-      autofill::FormActivityTabHelper::GetOrCreateForWebState(web_state_);
+  FormActivityTabHelper* form_activity_tab_helper =
+      FormActivityTabHelper::GetOrCreateForWebState(web_state_);
   for (auto& observer : form_activity_tab_helper->observers_) {
     observer.FormRemoved(web_state_, sender_frame, params);
   }
@@ -39,11 +40,12 @@ void TestFormActivityTabHelper::DocumentSubmitted(web::WebFrame* sender_frame,
                                                   const FormData& form_data,
                                                   bool has_user_gesture,
                                                   bool perfect_filling) {
-  autofill::FormActivityTabHelper* form_activity_tab_helper =
-      autofill::FormActivityTabHelper::GetOrCreateForWebState(web_state_);
+  FormActivityTabHelper* form_activity_tab_helper =
+      FormActivityTabHelper::GetOrCreateForWebState(web_state_);
   for (auto& observer : form_activity_tab_helper->observers_) {
     observer.DocumentSubmitted(web_state_, sender_frame, form_data,
                                has_user_gesture, perfect_filling);
   }
 }
+
 }  // namespace autofill

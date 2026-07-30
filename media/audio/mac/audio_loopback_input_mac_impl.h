@@ -30,8 +30,8 @@ namespace media {
 
 class SharedHelper;
 
-// Implementation of AudioInputStream using the ScreenCaptureKit (SCK) API for
-// macOS 13.0 and later, intended solely for system audio loopback capture.
+// Implementation of AudioInputStream using the ScreenCaptureKit (SCK) API,
+// intended solely for system audio loopback capture.
 //
 // Overview of operation:
 // - An instance of SCKAudioInputStream is created by AudioManagerMac.
@@ -53,7 +53,7 @@ class SharedHelper;
 //   requestUserPermissionForScreenCapture] to be swizzled so that it reports
 //   that permissions have been granted. This is currently done in
 //   AudioManagerMac.
-class MEDIA_EXPORT API_AVAILABLE(macos(13.0)) SCKAudioInputStream
+class MEDIA_EXPORT SCKAudioInputStream
     : public AgcAudioStream<AudioInputStream> {
   using NotifyOnCloseCallback =
       base::RepeatingCallback<void(AudioInputStream*)>;

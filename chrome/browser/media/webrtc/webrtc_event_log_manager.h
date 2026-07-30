@@ -89,7 +89,7 @@ class WebRtcEventLogManager final
   };
 
   // Ensures that no previous instantiation of the class was performed, then
-  // instantiates the class and returns the object (ownership is transfered to
+  // instantiates the class and returns the object (ownership is transferred to
   // the caller). Subsequent calls to GetInstance() will return this object,
   // until it is destructed, at which pointer nullptr will be returned by
   // subsequent calls.

@@ -108,7 +108,7 @@ constexpr int kTallestFrameHeight = kTallestTabHeight + 19;
 // changed default theme assets, if you need themes to recreate their generated
 // images (which are cached), if you changed how missing values are
 // generated, or if you changed any constants.
-const int kThemePackVersion = 105;
+const int kThemePackVersion = 106;
 
 // IDs that are in the DataPack won't clash with the positive integer
 // uint16_t. kHeaderID should always have the maximum value because we want the
@@ -122,7 +122,6 @@ const int kColorsID = kMaxID - 3;
 const int kDisplayPropertiesID = kMaxID - 4;
 const int kSourceImagesID = kMaxID - 5;
 const int kScaleFactorsID = kMaxID - 6;
-const int kTabGroupColorPaletteShadesID = kMaxID - 7;
 
 struct PersistingImagesTable {
   // A non-changing integer ID meant to be saved in theme packs. This ID must
@@ -305,18 +304,6 @@ const StringToIdTable<TP::OverwritableByUserThemeProperty>
         // kThemePackVersion above, or else themes will display incorrectly.
 };
 const size_t kDisplayPropertiesSize = std::size(kDisplayProperties);
-
-const StringToIdTable<tab_groups::TabGroupColorId> kTabGroupColorIdTable[] = {
-    {"grey_override", tab_groups::TabGroupColorId::kGrey},
-    {"blue_override", tab_groups::TabGroupColorId::kBlue},
-    {"red_override", tab_groups::TabGroupColorId::kRed},
-    {"yellow_override", tab_groups::TabGroupColorId::kYellow},
-    {"green_override", tab_groups::TabGroupColorId::kGreen},
-    {"pink_override", tab_groups::TabGroupColorId::kPink},
-    {"purple_override", tab_groups::TabGroupColorId::kPurple},
-    {"cyan_override", tab_groups::TabGroupColorId::kCyan},
-    {"orange_override", tab_groups::TabGroupColorId::kOrange},
-};
 
 template <typename T>
 int GetIdForString(const std::string& key,
@@ -756,8 +743,6 @@ void BrowserThemePack::BuildFromExtension(
   pack->SetColorsFromJSON(extensions::ThemeInfo::GetColors(extension));
   pack->SetDisplayPropertiesFromJSON(
       extensions::ThemeInfo::GetDisplayProperties(extension));
-  pack->SetTabGroupColorPaletteShadesFromJSON(
-      extensions::ThemeInfo::GetTabGroupColorPalette(extension));
 
   // Builds the images. (Image building is dependent on tints).
   FilePathMap file_paths;
@@ -845,14 +830,6 @@ scoped_refptr<BrowserThemePack> BrowserThemePack::BuildFromDataPack(
   }
   pack->display_properties_ = reinterpret_cast<DisplayPropertyPair*>(
       const_cast<char*>(pointer->data()));
-
-  pointer = data_pack->GetStringView(kTabGroupColorPaletteShadesID);
-  if (!pointer) {
-    return nullptr;
-  }
-  UNSAFE_TODO(std::memcpy(pack->tab_group_color_palette_shades_.data(),
-                          pointer->data(),
-                          sizeof(pack->tab_group_color_palette_shades_)));
 
   pointer = data_pack->GetStringView(kSourceImagesID);
   if (!pointer) {
@@ -981,9 +958,6 @@ bool BrowserThemePack::WriteToDisk(const base::FilePath& path) const {
   resources[kDisplayPropertiesID] =
       std::string_view(reinterpret_cast<const char*>(display_properties_.get()),
                        sizeof(DisplayPropertyPair[kDisplayPropertiesSize]));
-  resources[kTabGroupColorPaletteShadesID] = std::string_view(
-      reinterpret_cast<const char*>(tab_group_color_palette_shades_.data()),
-      sizeof(tab_group_color_palette_shades_));
 
   int source_count = 1;
   SourceImage* end = source_images_;
@@ -1213,66 +1187,7 @@ void BrowserThemePack::AddColorMixers(ui::ColorProvider* provider,
     mixer[kColorNewTabButtonBackgroundFrameInactive] = {SK_ColorTRANSPARENT};
   }
 
-  for (const auto& [id, shades] : tab_group_color_palette_shades_) {
-    // The array |tab_group_color_palette_shades_| is populated from left to
-    // right, and unused entries are marked with id == -1. Stop iteration once
-    // an unused entry is encountered.
-    if (id == -1) {
-      break;
-    }
 
-    tab_groups::TabGroupColorId tab_group_color_id =
-        static_cast<tab_groups::TabGroupColorId>(id);
-
-    enum ShadeIndex {
-      k50,
-      k100,
-      k200,
-      k300,
-      k400,
-      k500,
-      k600,
-      k700,
-      k800,
-      k900,
-      k1000
-    };
-
-    mixer[GetTabGroupTabStripColorId(tab_group_color_id, true)] =
-        ui::SelectBasedOnDarkInput(kColorTabBackgroundInactiveFrameActive,
-                                   shades[k300], shades[k600]);
-
-    mixer[GetTabGroupTabStripColorId(tab_group_color_id, false)] =
-        ui::SelectBasedOnDarkInput(kColorTabBackgroundInactiveFrameInactive,
-                                   shades[k300], shades[k600]);
-
-    mixer[GetTabGroupDialogColorId(tab_group_color_id)] = {
-        GetTabGroupContextMenuColorId(tab_group_color_id)};
-
-    mixer[GetTabGroupContextMenuColorId(tab_group_color_id)] =
-        ui::SelectBasedOnDarkInput(ui::kColorMenuBackground, shades[k300],
-                                   shades[k600]);
-
-    mixer[GetSavedTabGroupForegroundColorId(tab_group_color_id)] =
-        ui::SelectBasedOnDarkInput(kColorBookmarkBarBackground, shades[k100],
-                                   shades[k800]);
-
-    mixer[GetSavedTabGroupOutlineColorId(tab_group_color_id)] =
-        ui::SelectBasedOnDarkInput(kColorBookmarkBarBackground, shades[k300],
-                                   shades[k700]);
-
-    mixer[GetTabGroupBookmarkColorId(tab_group_color_id)] =
-        ui::SelectBasedOnDarkInput(kColorBookmarkBarBackground, shades[k1000],
-                                   shades[k50]);
-
-    mixer[GetThumbnailTabStripTabGroupColorId(tab_group_color_id, true)] =
-        ui::SelectBasedOnDarkInput(kColorThumbnailTabStripBackgroundActive,
-                                   shades[k300], shades[k600]);
-
-    mixer[GetThumbnailTabStripTabGroupColorId(tab_group_color_id, false)] =
-        ui::SelectBasedOnDarkInput(kColorThumbnailTabStripBackgroundInactive,
-                                   shades[k300], shades[k600]);
-  }
 }
 
 // private:
@@ -1620,30 +1535,8 @@ void BrowserThemePack::ParseImageNamesFromJSON(
   }
 }
 
-void BrowserThemePack::SetTabGroupColorPaletteShadesFromJSON(
-    const base::DictValue* tab_group_color_palette_value) {
-  size_t count = 0;
-  for (const auto [key, value] : *tab_group_color_palette_value) {
-    if (!value.is_int()) {
-      continue;
-    }
 
-    int hue = value.GetInt();
-    if (hue < -1 || hue > 360) {
-      continue;
-    }
 
-    int id =
-        GetIdForString<tab_groups::TabGroupColorId>(key, kTabGroupColorIdTable);
-    if (id != -1) {
-      tab_group_color_palette_shades_[count].id = id;
-      ui::GenerateStandardShadesFromHue(
-          hue == -1 ? std::nullopt : std::make_optional(hue),
-          tab_group_color_palette_shades_[count].shades);
-      ++count;
-    }
-  }
-}
 
 void BrowserThemePack::AddFileAtScaleToMap(const std::string& image_name,
                                            ui::ResourceScaleFactor scale_factor,

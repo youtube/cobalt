@@ -5,6 +5,7 @@
 #include "gpu/command_buffer/client/internal/mappable_buffer_io_surface.h"
 
 #include "base/apple/mach_logging.h"
+#include "base/compiler_specific.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -177,7 +178,7 @@ bool MappableBufferIOSurface::Map() {
   return true;
 }
 
-void* MappableBufferIOSurface::memory(size_t plane) {
+base::span<uint8_t> MappableBufferIOSurface::memory(size_t plane) {
   AssertMapped();
   CHECK_LT(base::checked_cast<int>(plane), format_.NumberOfPlanes());
 #if BUILDFLAG(IS_IOS)
@@ -187,9 +188,28 @@ void* MappableBufferIOSurface::memory(size_t plane) {
   CHECK_LT(plane, gfx::kMaxIOSurfacePlanes);
   const size_t plane_offset = handle_.io_surface_plane_offset(plane);
   CHECK_LE(plane_offset, shared_memory_mapping_.mapped_size());
-  return UNSAFE_BUFFERS(shared_memory_mapping_.data() + plane_offset);
+  return shared_memory_mapping_.GetMemoryAsSpan<uint8_t>().subspan(
+      plane_offset);
 #else
-  return IOSurfaceGetBaseAddressOfPlane(handle_.io_surface().get(), plane);
+  size_t height_in_pixels = format_.GetPlaneSize(plane, size_).height();
+  size_t row_size_in_bytes = viz::SharedMemoryRowSizeForSharedImageFormat(
+                                 format_, plane, size_.width())
+                                 .value();
+  CHECK(height_in_pixels);
+  CHECK(row_size_in_bytes);
+
+  // Note that the stride might be larger than the row size due to padding.
+  // For all rows other than the last, this is legal data for the client to
+  // access as it's part of the buffer.  However, the final row is not
+  // guaranteed to have padding (it's a system-dependent internal detail).
+  // Thus, the data that is legal for the client to access should *not*
+  // include any bytes beyond the actual end of the final row.
+  size_t mapped_size =
+      stride(plane) * (height_in_pixels - 1) + row_size_in_bytes;
+  return UNSAFE_BUFFERS(
+      base::span<uint8_t>(static_cast<uint8_t*>(IOSurfaceGetBaseAddressOfPlane(
+                              handle_.io_surface().get(), plane)),
+                          mapped_size));
 #endif
 }
 

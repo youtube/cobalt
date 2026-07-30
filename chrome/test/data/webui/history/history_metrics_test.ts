@@ -5,18 +5,18 @@
 import 'chrome://history/history.js';
 
 import type {HistoryAppElement, HistoryEntry, HistoryItemElement} from 'chrome://history/history.js';
-import {BrowserProxyImpl, ForeignSessionBrowserProxyImpl, HistoryPageViewHistogram, HistorySignInState, SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram, SyncState, VisitContextMenuAction} from 'chrome://history/history.js';
+import {BrowserProxyImpl, foreignSessionBrowserProxyFactory, HistoryPageViewHistogram, HistorySignInState, SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram, SyncState, VisitContextMenuAction} from 'chrome://history/history.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
+import {FakeForeignSessionPageHandler} from './fake_foreign_session_page_handler.js';
 import {TestHistoryBrowserProxy} from './test_browser_proxy.js';
-import {TestHistoryForeignSessionBrowserProxy} from './test_foreign_session_browser_proxy.js';
 import {createHistoryEntry, createHistoryInfo, createSession, createWindow, disableLinkClicks, navigateTo} from './test_util.js';
 
 suite('Metrics', function() {
   let testProxy: TestHistoryBrowserProxy;
-  let foreignSessionProxy: TestHistoryForeignSessionBrowserProxy;
+  let foreignSessionProxy: FakeForeignSessionPageHandler;
   let app: HistoryAppElement;
   let histogramMap: {[key: string]: {[key: string]: number}};
   let actionMap: {[key: string]: number};
@@ -32,8 +32,10 @@ suite('Metrics', function() {
 
     testProxy = new TestHistoryBrowserProxy();
     BrowserProxyImpl.setInstance(testProxy);
-    foreignSessionProxy = new TestHistoryForeignSessionBrowserProxy();
-    ForeignSessionBrowserProxyImpl.setInstance(foreignSessionProxy);
+    foreignSessionProxy = new FakeForeignSessionPageHandler();
+    const {instance} =
+        foreignSessionBrowserProxyFactory.createForTest(foreignSessionProxy);
+    foreignSessionBrowserProxyFactory.setInstance(instance);
 
     actionMap = testProxy.actionMap;
     histogramMap = testProxy.histogramMap;
@@ -214,7 +216,7 @@ suite('Metrics', function() {
     assertTrue(!!histogram);
     assertEquals(1, histogram[SyncedTabsHistogram.INITIALIZED]);
 
-    await foreignSessionProxy.handler.whenCalled('getForeignSessions');
+    await foreignSessionProxy.whenCalled('getForeignSessions');
     await microtasksFinished();
 
     assertEquals(1, histogram[SyncedTabsHistogram.HAS_FOREIGN_DATA]);

@@ -25,7 +25,7 @@ bool IsWalletPublicPassStorageEnabled(ProfileIOS* profile);
 bool CanPerformAutofillAiAction(
     ProfileIOS* profile,
     AutofillAiAction action,
-    std::optional<autofill::EntityType> entity_type = std::nullopt);
+    std::optional<EntityType> entity_type = std::nullopt);
 
 // Returns whether Enhanced Autofill is enabled.
 bool IsEnhancedAutofillEnabled(ProfileIOS* profile);
@@ -34,9 +34,9 @@ bool IsEnhancedAutofillEnabled(ProfileIOS* profile);
 void SetEnhancedAutofillEnabled(ProfileIOS* profile, bool enabled);
 
 // Returns an entity base on the guid.
-base::optional_ref<const autofill::EntityInstance> GetEntityInstance(
+base::optional_ref<const EntityInstance> GetEntityInstance(
     ProfileIOS* profile,
-    const autofill::Suggestion::Payload& payload);
+    const Suggestion::Payload& payload);
 
 }  // namespace autofill
 

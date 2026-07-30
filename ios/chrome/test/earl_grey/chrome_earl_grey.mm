@@ -182,6 +182,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
          traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassRegular;
 }
 
+- (BOOL)isWindowedMode {
+  return [ChromeEarlGreyAppInterface isWindowedMode];
+}
+
 - (void)primesStopLogging {
   [ChromeEarlGreyAppInterface primesStopLogging];
 }

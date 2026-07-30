@@ -23,16 +23,13 @@ import java.util.List;
 @JNINamespace("webapk")
 @NullMarked
 class PwaRestoreBottomSheetMediator {
-    // The current activity.
-    private final Activity mActivity;
-
     // The underlying property model for the bottom sheeet.
     private final PropertyModel mModel;
 
     // The callback for the parent to get notified on when Restore is clicked.
     private final Runnable mParentRestoreClickHandler;
 
-    private final long mNativeMediator;
+    private long mNativeMediator;
 
     PwaRestoreBottomSheetMediator(
             ArrayList<PwaRestoreProperties.AppInfo> apps,
@@ -40,7 +37,6 @@ class PwaRestoreBottomSheetMediator {
             Runnable onReviewButtonClicked,
             Runnable onRestoreButtonClicked,
             Runnable onBackButtonClicked) {
-        mActivity = activity;
         mParentRestoreClickHandler = onRestoreButtonClicked;
         mModel =
                 PwaRestoreProperties.createModel(
@@ -51,36 +47,36 @@ class PwaRestoreBottomSheetMediator {
                         this::onSelectionToggled);
         mNativeMediator = PwaRestoreBottomSheetMediatorJni.get().initialize(this);
 
-        initializeState(apps);
+        initializeState(apps, activity);
         setPeekingState();
     }
 
-    private void initializeState(ArrayList<PwaRestoreProperties.AppInfo> apps) {
+    private void initializeState(ArrayList<PwaRestoreProperties.AppInfo> apps, Activity activity) {
         mModel.set(
                 PwaRestoreProperties.PEEK_TITLE,
-                mActivity.getString(R.string.pwa_restore_title_peeking));
+                activity.getString(R.string.pwa_restore_title_peeking));
         mModel.set(
                 PwaRestoreProperties.PEEK_DESCRIPTION,
-                mActivity.getString(R.string.pwa_restore_description_peeking));
+                activity.getString(R.string.pwa_restore_description_peeking));
         mModel.set(
                 PwaRestoreProperties.PEEK_BUTTON_LABEL,
-                mActivity.getString(R.string.pwa_restore_button_peeking));
+                activity.getString(R.string.pwa_restore_button_peeking));
 
         mModel.set(
                 PwaRestoreProperties.EXPANDED_TITLE,
-                mActivity.getString(R.string.pwa_restore_title_expanded));
+                activity.getString(R.string.pwa_restore_title_expanded));
         mModel.set(
                 PwaRestoreProperties.EXPANDED_DESCRIPTION,
-                mActivity.getString(R.string.pwa_restore_description_expanded));
+                activity.getString(R.string.pwa_restore_description_expanded));
         mModel.set(
                 PwaRestoreProperties.APPS_TITLE,
-                mActivity.getString(R.string.pwa_restore_apps_list));
+                activity.getString(R.string.pwa_restore_apps_list));
         mModel.set(
                 PwaRestoreProperties.EXPANDED_BUTTON_LABEL,
-                mActivity.getString(R.string.pwa_restore_button_expanded));
+                activity.getString(R.string.pwa_restore_button_expanded));
         mModel.set(
                 PwaRestoreProperties.DESELECT_BUTTON_LABEL,
-                mActivity.getString(R.string.pwa_restore_button_deselect));
+                activity.getString(R.string.pwa_restore_button_deselect));
 
         mModel.set(PwaRestoreProperties.APPS, apps);
     }
@@ -141,6 +137,13 @@ class PwaRestoreBottomSheetMediator {
 
         mModel.set(PwaRestoreProperties.DESELECT_BUTTON_ENABLED, somethingSelected);
         mModel.set(PwaRestoreProperties.EXPANDED_BUTTON_ENABLED, somethingSelected);
+    }
+
+    void destroy() {
+        if (mNativeMediator != 0) {
+            PwaRestoreBottomSheetMediatorJni.get().destroy(mNativeMediator);
+            mNativeMediator = 0;
+        }
     }
 
     PropertyModel getModel() {

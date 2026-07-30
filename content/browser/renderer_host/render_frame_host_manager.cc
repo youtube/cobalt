@@ -82,6 +82,7 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/page_visibility_state.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/url_utils.h"
 #include "ipc/constants.mojom.h"
@@ -5157,6 +5158,22 @@ bool RenderFrameHostManager::ReinitializeMainRenderFrame(
   }
 
   CHECK(render_frame_host->IsRenderFrameLive());
+
+  // The RenderWidgetHostView goes away with the render process. Initializing a
+  // RenderFrame means we'll be creating (or reusing, https://crbug.com/419087)
+  // a RenderWidgetHostView. The new RenderWidgetHostView should take its
+  // visibility from the RenderWidgetHostImpl, but this call exists to handle
+  // cases where it did not during a same-process navigation.
+  // TODO(danakj): We now hide the widget unconditionally (treating main frame
+  // and child frames alike) and show in DidFinishNavigation() always, so this
+  // should be able to go away. Try to remove this.
+  // TODO(https://crbug.com/521200679): Removing this breaks keyboard tab
+  // switching while a new tab is loading, despite the tab appearing to become
+  // visible at the correct time.
+  if (render_frame_host == render_frame_host_.get()) {
+    EnsureRenderFrameHostVisibilityConsistent();
+  }
+
   return true;
 }
 
@@ -5287,10 +5304,12 @@ void RenderFrameHostManager::CommitPending(
   // null), check that |pending_rfh|'s old lifecycle state supports that.
   RenderFrameHostImpl::LifecycleStateImpl prev_state =
       pending_rfh->lifecycle_state();
-  CHECK(!pending_stored_page ||
-        prev_state == RenderFrameHostImpl::LifecycleStateImpl::kPrerendering ||
-        prev_state ==
-            RenderFrameHostImpl::LifecycleStateImpl::kInBackForwardCache);
+  // TODO(522901110): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK(!pending_stored_page ||
+         prev_state == RenderFrameHostImpl::LifecycleStateImpl::kPrerendering ||
+         prev_state ==
+             RenderFrameHostImpl::LifecycleStateImpl::kInBackForwardCache);
 
   // Now close any modal dialogs that would prevent us from unloading the old
   // frame. This must be done separately from RenderFrameHost::Unload(), so that
@@ -5978,6 +5997,20 @@ void RenderFrameHostManager::ExecuteRemoteFramesBroadcastMethod(
   render_frame_host_->browsing_context_state()
       ->ExecuteRemoteFramesBroadcastMethod(callback, group_to_skip,
                                            outer_delegate_proxy);
+}
+
+void RenderFrameHostManager::EnsureRenderFrameHostVisibilityConsistent() {
+  RenderWidgetHostView* view = GetRenderWidgetHostView();
+  if (view &&
+      static_cast<RenderWidgetHostImpl*>(view->GetRenderWidgetHost())
+              ->IsHidden() != frame_tree_node_->frame_tree().IsHidden()) {
+    if (frame_tree_node_->frame_tree().IsHidden()) {
+      static_cast<RenderWidgetHostViewBase*>(view)->Hide();
+    } else {
+      static_cast<RenderWidgetHostViewBase*>(view)->ShowWithVisibility(
+          PageVisibilityState::kVisible);
+    }
+  }
 }
 
 void RenderFrameHostManager::EnsureRenderFrameHostPageFocusConsistent() {

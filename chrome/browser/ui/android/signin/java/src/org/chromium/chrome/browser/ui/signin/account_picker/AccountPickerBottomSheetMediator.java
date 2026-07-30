@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.text.TextUtils;
 
 import org.chromium.base.Callback;
+import org.chromium.base.CallbackController;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -92,6 +93,7 @@ public class AccountPickerBottomSheetMediator
     private final PropertyObserver<PropertyKey> mModelPropertyChangedObserver;
     private final SettableNonNullObservableSupplier<Boolean> mBackPressStateChangedSupplier =
             ObservableSuppliers.createNonNull(false);
+    private final CallbackController mCallbackController = new CallbackController();
 
     static AccountPickerBottomSheetMediator create(
             WindowAndroid windowAndroid,
@@ -340,7 +342,7 @@ public class AccountPickerBottomSheetMediator
 
     /** Implements {@link AccountsChangeObserver}. */
     @Override
-    public void onCoreAccountInfosChanged() {
+    public void onAccountsChanged() {
         mAccountManagerFacade.getAccounts().then(this::updateAccounts);
     }
 
@@ -392,6 +394,7 @@ public class AccountPickerBottomSheetMediator
     }
 
     void destroy() {
+        mCallbackController.destroy();
         mAccountPickerDelegate.onAccountPickerDestroy();
         mProfileDataCache.removeObserver(this);
         mAccountManagerFacade.removeObserver(this);
@@ -621,19 +624,20 @@ public class AccountPickerBottomSheetMediator
         mModel.set(AccountPickerBottomSheetProperties.VIEW_STATE, ViewState.SIGNIN_IN_PROGRESS);
         mSigninManager.isAccountManaged(
                 mSelectedAccount,
-                (Boolean isAccountManaged) -> {
-                    assertNonNull(mSigninTimestampsLogger)
-                            .recordTimestamp(Event.MANAGEMENT_STATUS_LOADED);
-                    if (isAccountManaged) {
-                        SigninMetricsUtils.logAccountConsistencyPromoAction(
-                                AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
-                                mSigninAccessPoint);
-                        shownConfirmManagementSheet();
-                        assertNonNull(mSigninTimestampsLogger).onManagementNoticeShown();
-                    } else {
-                        signInAfterCheckingManagement();
-                    }
-                });
+                mCallbackController.makeCancelable(
+                        (Boolean isAccountManaged) -> {
+                            assertNonNull(mSigninTimestampsLogger)
+                                    .recordTimestamp(Event.MANAGEMENT_STATUS_LOADED);
+                            if (isAccountManaged) {
+                                SigninMetricsUtils.logAccountConsistencyPromoAction(
+                                        AccountConsistencyPromoAction.CONFIRM_MANAGEMENT_SHOWN,
+                                        mSigninAccessPoint);
+                                shownConfirmManagementSheet();
+                                assertNonNull(mSigninTimestampsLogger).onManagementNoticeShown();
+                            } else {
+                                signInAfterCheckingManagement();
+                            }
+                        }));
     }
 
     private void shownConfirmManagementSheet() {

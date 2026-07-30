@@ -22,20 +22,16 @@ class MODULES_EXPORT HTMLUserMediaElementMediaStream final
 
   static HTMLUserMediaElementMediaStream& From(HTMLUserMediaElement&);
   static MediaStream* stream(HTMLUserMediaElement&);
-  static DOMException* error(HTMLUserMediaElement& element);
 
   explicit HTMLUserMediaElementMediaStream(HTMLUserMediaElement&);
 
   MediaStream* GetMediaStream() const { return media_stream_.Get(); }
   void SetMediaStream(MediaStream* stream) { media_stream_ = stream; }
 
-  void SetError(DOMException* error) { error_ = error; }
-
   void Trace(Visitor*) const override;
 
  private:
   Member<MediaStream> media_stream_;
-  Member<DOMException> error_;
 };
 
 }  // namespace blink

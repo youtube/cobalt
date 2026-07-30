@@ -10,7 +10,9 @@ import static org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils.i
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewTreeObserver;
 
@@ -35,6 +37,11 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modelutil.MVCListAdapter;
+import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
+import org.chromium.url.GURL;
+
+import java.util.function.BiConsumer;
 
 /** Abstract class for Tab Bottom Sheet toolbars. */
 @NullMarked
@@ -48,10 +55,17 @@ public class TabBottomSheetWebUi {
     private final WebViewResizingHelper mWebViewResizingHelper;
     private final @ColorInt int mBackgroundColor;
     private final @CoBrowseContainerType int mContainerType;
+    private final @Nullable BiConsumer<GURL, String> mEphemeralTabOpener;
 
     private @Nullable ThinWebView mThinWebView;
     private @Nullable WebContents mWebContents;
     private @Nullable ContentView mContentView;
+
+    // When the user highlights text and shows the dropdown menu, the dropdown window captures
+    // focus, causing the activity window to temporarily lose focus. We ignore clearing focus
+    // in this state to preserve the highlighted selection, but ensure focus is cleared when the
+    // dropdown is dismissed if the window has not regained focus.
+    private boolean mIgnoreClearFocusForDropdown;
 
     TabBottomSheetWebUi(
             Context context,
@@ -60,13 +74,16 @@ public class TabBottomSheetWebUi {
             ContextMenuPopulatorFactory contextMenuPopulatorFactory,
             SelectionDropdownMenuDelegate selectionDropdownMenuDelegate,
             @ColorInt int backgroundColor,
-            @CoBrowseContainerType int containerType) {
+            @CoBrowseContainerType int containerType,
+            @Nullable BiConsumer<GURL, String> ephemeralTabOpener) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mContextMenuPopulatorFactory = contextMenuPopulatorFactory;
-        mSelectionDropdownMenuDelegate = selectionDropdownMenuDelegate;
+        mSelectionDropdownMenuDelegate =
+                new SelectionDropdownMenuDelegateWrapper(selectionDropdownMenuDelegate);
         mBackgroundColor = backgroundColor;
         mContainerType = containerType;
+        mEphemeralTabOpener = ephemeralTabOpener;
         mWebViewResizingHelper =
                 new WebViewResizingHelper(containerView, windowAndroid, backgroundColor);
     }
@@ -102,7 +119,7 @@ public class TabBottomSheetWebUi {
                             new ViewTreeObserver.OnWindowFocusChangeListener() {
                                 @Override
                                 public void onWindowFocusChanged(boolean hasFocus) {
-                                    if (!hasFocus) {
+                                    if (!hasFocus && !mIgnoreClearFocusForDropdown) {
                                         contentView.clearFocus();
                                     }
                                 }
@@ -149,7 +166,8 @@ public class TabBottomSheetWebUi {
                         mWebContents,
                         mContainerType == CoBrowseContainerType.SIDE_PANEL
                                 ? BrowserIntentUtils.CHROME_LAUNCHER_ACTIVITY_CLASS_NAME
-                                : null);
+                                : null,
+                        mEphemeralTabOpener);
         mContextMenuPopulatorFactory.setItemDelegate(itemDelegate);
         ensureThinWebViewCreated();
         if (mThinWebView != null) {
@@ -252,5 +270,80 @@ public class TabBottomSheetWebUi {
     static void setInTestModeForTesting() {
         sInTestMode = true;
         ResettersForTesting.register(() -> sInTestMode = false);
+    }
+
+    private class SelectionDropdownMenuDelegateWrapper implements SelectionDropdownMenuDelegate {
+        private final SelectionDropdownMenuDelegate mDelegate;
+
+        public SelectionDropdownMenuDelegateWrapper(SelectionDropdownMenuDelegate delegate) {
+            mDelegate = delegate;
+        }
+
+        @Override
+        public void show(
+                Context context,
+                View rootView,
+                MVCListAdapter.ModelList items,
+                ItemClickListener clickListener,
+                Runnable dismissMenuCallback,
+                int x,
+                int y) {
+            mIgnoreClearFocusForDropdown = true;
+            mDelegate.show(
+                    context,
+                    rootView,
+                    items,
+                    clickListener,
+                    () -> {
+                        mIgnoreClearFocusForDropdown = false;
+                        dismissMenuCallback.run();
+                    },
+                    x,
+                    y);
+        }
+
+        @Override
+        public void dismiss() {
+            mIgnoreClearFocusForDropdown = false;
+            mDelegate.dismiss();
+            if (mContentView != null && !mContentView.hasWindowFocus()) {
+                mContentView.clearFocus();
+            }
+        }
+
+        @Override
+        public ListItem getDivider() {
+            return mDelegate.getDivider();
+        }
+
+        @Override
+        public ListItem getMenuItem(
+                @Nullable String title,
+                @Nullable String contentDescription,
+                int groupId,
+                int id,
+                @Nullable Drawable startIcon,
+                boolean isIconTintable,
+                boolean groupContainsIcon,
+                boolean enabled,
+                @Nullable Intent intent,
+                int order) {
+            return mDelegate.getMenuItem(
+                    title,
+                    contentDescription,
+                    groupId,
+                    id,
+                    startIcon,
+                    isIconTintable,
+                    groupContainsIcon,
+                    enabled,
+                    intent,
+                    order);
+        }
+
+        @Override
+        public long getNativeDelegate() {
+            return mDelegate.getNativeDelegate();
+        }
     }
 }

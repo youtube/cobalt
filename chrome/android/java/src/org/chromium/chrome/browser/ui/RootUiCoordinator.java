@@ -236,7 +236,6 @@ import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
-import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -368,7 +367,7 @@ public class RootUiCoordinator
      */
     private @Nullable ToolbarThemeColorProvider mAdjustedToolbarThemeColorProvider;
 
-    private IncognitoStateProvider mIncognitoStateProvider;
+    protected IncognitoStateProvider mIncognitoStateProvider;
 
     private final @Nullable Callback<Boolean> mOnOmniboxFocusChangedListener;
     protected @Nullable ToolbarManager mToolbarManager;
@@ -1367,15 +1366,13 @@ public class RootUiCoordinator
         if (contextualSearchManager != null) {
             contextualSearchManager.addObserver(mReadAloudContextualSearchObserver);
         }
-        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()) {
-            mReaderModeBottomSheetManager =
-                    new ReaderModeBottomSheetManager(
-                            mActivity,
-                            assertNonNull(getBottomSheetController()),
-                            mActivityTabProvider,
-                            mBrowserControlsManager,
-                            mToolbarThemeColorProvider);
-        }
+        mReaderModeBottomSheetManager =
+                new ReaderModeBottomSheetManager(
+                        mActivity,
+                        assertNonNull(getBottomSheetController()),
+                        mActivityTabProvider,
+                        mBrowserControlsManager,
+                        mToolbarThemeColorProvider);
 
         if (DeviceInfo.isAutomotive()) {
             mAutomotiveBackButtonToolbarCoordinator =
@@ -2010,6 +2007,9 @@ public class RootUiCoordinator
                     /* onShareRunnable= */ () -> {
                         assertNonNull(mToolbarManager).endFuseboxInput();
                     },
+                    /* onSigninTapped= */ () -> {
+                        assertNonNull(mToolbarManager).endFuseboxInput();
+                    },
                     mWindowAndroid,
                     mActivityResultTracker,
                     assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
@@ -2134,7 +2134,8 @@ public class RootUiCoordinator
                             mBottomBarHostManager,
                             mActionRegistry,
                             (preventClose, invocationSource) ->
-                                    toggleGlic(preventClose, invocationSource));
+                                    toggleGlic(preventClose, invocationSource),
+                            shouldSuppressTabStripAtStart());
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }
@@ -2199,7 +2200,7 @@ public class RootUiCoordinator
                             }
                         }
 
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             // Hide find toolbar and app menu.
                             if (mFindToolbarManager != null) mFindToolbarManager.hideToolbar();
                             hideAppMenu();
@@ -2218,7 +2219,7 @@ public class RootUiCoordinator
 
                     @Override
                     public void onFinishedShowing(int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             // Ideally we wouldn't allow the app menu to show while animating the
                             // overview mode. This is hard to track, however, because in some
                             // instances #onOverviewModeStartedShowing is called after
@@ -2232,14 +2233,14 @@ public class RootUiCoordinator
 
                     @Override
                     public void onStartedHiding(int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             hideAppMenu();
                         }
                     }
 
                     @Override
                     public void onFinishedHiding(int layoutType) {
-                        if (layoutType != LayoutType.TAB_SWITCHER) {
+                        if (layoutType != LayoutType.HUB) {
                             hideAppMenu();
                         }
                     }
@@ -2452,10 +2453,16 @@ public class RootUiCoordinator
         }
     }
 
-    /**
-     * @return whether the Android Edge To Edge Feature is supported for the current activity.
-     */
+    /** Returns whether the Android Edge To Edge Feature is supported for the current activity. */
     protected boolean supportsEdgeToEdge() {
+        return false;
+    }
+
+    /**
+     * Returns whether to suppress the tab strip when Chrome starts. Overridden by the subclass that
+     * needs the behavior.
+     */
+    protected boolean shouldSuppressTabStripAtStart() {
         return false;
     }
 
@@ -2737,7 +2744,7 @@ public class RootUiCoordinator
         }
         if (mLayoutManager != null) {
             outPersistentState.putBoolean(
-                    IS_TAB_SWITCHER_SHOWN, mLayoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER));
+                    IS_TAB_SWITCHER_SHOWN, mLayoutManager.isLayoutVisible(LayoutType.HUB));
         }
     }
 
@@ -2849,6 +2856,11 @@ public class RootUiCoordinator
     /** Returns a supplier of the share delegate. */
     public MonotonicObservableSupplier<ShareDelegate> getShareDelegateSupplier() {
         return mShareDelegateSupplier;
+    }
+
+    /** Returns the supplier of the omnibox focus state. */
+    public NonNullObservableSupplier<Boolean> getOmniboxFocusStateSupplier() {
+        return mOmniboxFocusStateSupplier;
     }
 
     public @Nullable ExclusiveAccessManager getExclusiveAccessManager() {

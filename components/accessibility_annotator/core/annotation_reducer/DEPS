@@ -4,6 +4,7 @@ include_rules = [
   "+components/optimization_guide/proto",
   "+components/signin/public/base",
   "+components/signin/public/identity_manager",
+  "+components/personal_context",
   "+google_apis",
   "+net/http",
   "+net/test/embedded_test_server",

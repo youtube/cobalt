@@ -42,8 +42,6 @@ using WebAppBackgroundAppLaunchAcceptanceCallback =
 
 namespace {
 
-bool g_auto_accept_launch_for_testing = false;
-
 constexpr int kMinBoundsForInstallDialog = 50;
 
 bool IsWidgetCurrentSizeSmallerThanPreferredSize(views::Widget* widget) {
@@ -190,13 +188,11 @@ void ShowWebInstallAppLaunchDialog(
   }
   delegate_weak_ptr->OnWidgetShownStartTracking(launch_dialog_widget);
 
-  if (g_auto_accept_launch_for_testing) {
+  InstallDialogTestResponse auto_response =
+      GetPwaInstallationDialogAutoResponseForTesting();  // IN-TEST
+  if (auto_response != InstallDialogTestResponse::kNone) {
     dialog_delegate->AcceptDialog();
   }
-}
-
-base::AutoReset<bool> SetAutoAcceptWebInstallLaunchDialogForTesting() {
-  return base::AutoReset<bool>(&g_auto_accept_launch_for_testing, true);
 }
 
 }  // namespace web_app

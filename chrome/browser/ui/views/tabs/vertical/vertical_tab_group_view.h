@@ -53,7 +53,7 @@ class VerticalTabGroupView
 
   // VerticalTabGroupHeaderView::Delegate:
   void ToggleCollapsedState(ToggleTabGroupCollapsedStateOrigin origin) override;
-  views::Widget* ShowGroupEditorBubble(
+  std::unique_ptr<views::Widget> ShowGroupEditorBubble(
       bool stop_context_menu_propagation) override;
   std::u16string GetGroupContentString() const override;
   bool IsValid() const override;

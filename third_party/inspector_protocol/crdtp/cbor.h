@@ -324,6 +324,7 @@ CRDTP_EXPORT span<uint8_t> GetString8ValueFromMap(span<uint8_t> message,
                                                   span<uint8_t> string8_key);
 // Safely checks if |key| exists in the top-level of a CBOR encoded map wrapped
 // in an envelope. Shallow parser that skips nested structures.
+// |key| should be ASCII. Supports STRING8 and STRING16 keys.
 // Returns true as soon as the key is found at the top level.
 CRDTP_EXPORT bool HasKeyInMap(span<uint8_t> message, span<uint8_t> key);
 

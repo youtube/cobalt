@@ -11,6 +11,7 @@ import "ui/accessibility/ax_enums.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
+import "mojo/public/mojom/base/big_buffer.mojom";
 
 // This is a mojom representation of the corresponding AnnotatedPageContent
 // proto.
@@ -369,6 +370,10 @@ struct AIPageContentImageInfo {
 
   // The image's source (`src`) URL.
   url.mojom.Url url;
+
+  // The MIME type of the image. Common MIME types include image/jpeg,
+  // image/png, image/gif, image/webp, and image/svg+xml.
+  string? mime_type;
 };
 
 struct AIPageContentSvgRootData {
@@ -728,6 +733,15 @@ struct AIPageContentOptions {
   bool include_otps_for_redaction = false;
 };
 
+// Result containing extracted image bytes and associated metadata. Supports
+// normal images (e.g. <img>, <picture>), content images with
+// "content: url(/path/to/image.png)", and SVG image elements <image>. See
+// `LayoutImage` and `LayoutSVGImage`.
+struct AIPageContentImageBytesResult {
+  mojo_base.mojom.BigBuffer image_bytes;
+  AIPageContentImageInfo image_info;
+};
+
 // Used to obtain the AIPageContent representation for Documents. Lives in the
 // renderer process and called by the browser process to pull data for a
 // Document.
@@ -737,4 +751,9 @@ interface AIPageContentAgent {
   // LocalFrames accessible from the LocalFrameRoot.
   GetAIPageContent(AIPageContentOptions request)
       => (AIPageContent? page_content);
+
+  // Gets the raw encoded image bytes (e.g., JPEG, PNG) for a specific image by
+  // its DOM node ID. Returns null if the node is not found or is not an image.
+  GetImageBytes(int32 dom_node_id)
+      => (AIPageContentImageBytesResult? result);
 };

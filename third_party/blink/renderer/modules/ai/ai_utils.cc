@@ -311,19 +311,19 @@ ResolveSamplingParamsOption(const LanguageModelCreateCoreOptions* options,
     return nullptr;
   }
 
-  // Count deprecation if only legacy params are enabled, i.e. for extensions.
-  const bool count_deprecation =
-      RuntimeEnabledFeatures::AIPromptAPILegacyParamsEnabled(
-          execution_context) &&
-      !RuntimeEnabledFeatures::AIPromptAPIParamsEnabled(execution_context);
-  if (options->hasTopK() && count_deprecation) {
+  if (options->hasTopK()) {
     Deprecation::CountDeprecation(
         execution_context, mojom::blink::WebFeature::kLanguageModel_TopK);
   }
-  if (options->hasTemperature() && count_deprecation) {
+  if (options->hasTemperature()) {
     Deprecation::CountDeprecation(
         execution_context,
         mojom::blink::WebFeature::kLanguageModel_Temperature);
+  }
+
+  if (!RuntimeEnabledFeatures::AIPromptAPILegacyParamsEnabled(
+          execution_context)) {
+    return nullptr;
   }
 
   // Both temperature and topK are optional, but must be provided together.

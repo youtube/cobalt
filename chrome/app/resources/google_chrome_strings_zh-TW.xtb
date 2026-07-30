@@ -395,6 +395,7 @@
 <translation id="5234764350956374838">關閉</translation>
 <translation id="5239627039202700673">你只要在訊息、文件和其他應用程式中點選連結，即可透過 Chrome 開啟</translation>
 <translation id="5251420635869119124">以訪客身分使用 Chrome 不會留下任何記錄。</translation>
+<translation id="5271833978500241046">搭配 Chrome 中的其他 Gemini 功能一起使用</translation>
 <translation id="5286907366254680517">偵測到的語言</translation>
 <translation id="5320351714793324716">如果你允許 Cookie，Chrome 可能會使用 Cookie 預先載入網頁</translation>
 <translation id="5321325624576443340">Google 智慧鏡頭目前無法使用，請稍後再試。</translation>
@@ -433,15 +434,6 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="569897634095159764">無法連線至網際網路。Proxy 伺服器需要驗證。</translation>
 <translation id="5709557627224531708">將 Chrome 設為預設瀏覽器</translation>
 <translation id="5719246646468301581">Google Chrome 和 ChromeOS 的《附加服務條款》</translation>
-<translation id="5719324992913248873">這個動作會：
-          <ph name="LINE_BREAKS" />
-           • 重設部分 Chrome 設定和 Chrome 快速鍵
-           <ph name="LINE_BREAK" />
-           • 停用擴充功能
-           <ph name="LINE_BREAK" />
-           • 刪除 Cookie 和其他暫存網站資料
-           <ph name="LINE_BREAKS" />
-           書籤、歷史記錄和已儲存的密碼不會受到影響。</translation>
 <translation id="5736850870166430177">如果有網站試圖竊取你的密碼，或當你下載有害檔案時，Chrome 可能也會將網址 (包括部分網頁內容) 傳送至安全瀏覽功能</translation>
 <translation id="5756509061973259733">這部裝置已有與此帳戶相關聯的 Chrome 設定檔</translation>
 <translation id="5759947850379142561">選取要使用 Google 智慧鏡頭搜尋的文字或圖片，或按下 Escape 鍵退出 Google 智慧鏡頭</translation>
@@ -639,6 +631,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">如果有最近未造訪的網站，可以允許 Chrome 移除權限，保護你的資料。</translation>
 <translation id="7629695634924605473">Chrome 會通知你密碼是否曾遭外洩</translation>
+<translation id="7629898584100520089">AI 創新功能 (例如技能) 會儲存到 Google 帳戶，並與 Chrome 同步功能分開管理</translation>
 <translation id="7641148173327520642">你的系統管理員已設定由 Google Chrome 開啟 <ph name="ALTERNATIVE_BROWSER_NAME" /> 以存取 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="7649070708921625228">說明</translation>
 <translation id="7651907282515937834">Chrome Enterprise 標誌</translation>

@@ -77,7 +77,7 @@ TEST_F(TypingCommandTest, insertLineBreakWithIllFormedHTML) {
   div->AppendChild(tr);
 
   LocalFrame* frame = GetDocument().GetFrame();
-  frame->Selection().SetSelection(SelectionInDOMTree::Builder()
+  frame->Selection().SetSelection(SelectionInDomTree::Builder()
                                       .Collapse(Position(form, 0))
                                       .Extend(Position(header, 0))
                                       .Build(),
@@ -132,7 +132,7 @@ TEST_F(TypingCommandTest, ForwardDeleteAtTableEnd) {
   Element* table = QuerySelector("table");
   table->setTextContent("a");
   UpdateAllLifecyclePhasesForTest();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(table->firstChild(), 1))
                                .Build(),
                            SetSelectionOptions());
@@ -151,7 +151,7 @@ TEST_F(TypingCommandTest, TypedCharactersInContentEditable) {
   MockChromeClient* chrome_client = MakeGarbageCollected<MockChromeClient>();
   table->GetDocument().GetPage()->SetChromeClientForTesting(chrome_client);
   UpdateAllLifecyclePhasesForTest();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(table->firstChild(), 1))
                                .Build(),
                            SetSelectionOptions());
@@ -172,7 +172,7 @@ TEST_F(TypingCommandTest, FirstTypedCharactersInContentEditable) {
   MockChromeClient* chrome_client = MakeGarbageCollected<MockChromeClient>();
   table->GetDocument().GetPage()->SetChromeClientForTesting(chrome_client);
   UpdateAllLifecyclePhasesForTest();
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(table->firstChild(), 1))
                                .Build(),
                            SetSelectionOptions());

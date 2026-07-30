@@ -19,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "components/accessibility_annotator/core/accessibility_query_service.h"
 #include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
@@ -42,6 +43,7 @@
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom.h"
+#include "components/autofill/core/common/unique_ids.h"
 #include "components/personal_context/core/personal_context_features.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/strings/grit/components_strings.h"
@@ -438,19 +440,17 @@ Suggestion CreateNoConnectionSuggestion() {
 std::optional<std::u16string> GetAttributeFillValue(
     const EntityInstance& entity,
     const AttributeType& attribute_type,
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     BrowserAutofillManager& manager) {
   base::optional_ref<const AttributeInstance> attribute =
       entity.attribute(attribute_type);
   if (!attribute) {
     return std::nullopt;
   }
-  const FormStructure* form_structure =
-      manager.FindCachedFormById(form.global_id());
+  const FormStructure* form_structure = manager.FindCachedFormById(form_id);
   const AutofillField* autofill_field =
-      form_structure ? form_structure->GetFieldById(field.global_id())
-                     : nullptr;
+      form_structure ? form_structure->GetFieldById(field_id) : nullptr;
   const std::string app_locale = manager.client().GetAppLocale();
   // Using `GetFillingValueAndTypeForEntity` is preferred when the field is
   // known because it handles field-specific requirements such as state/country
@@ -527,8 +527,8 @@ void AtMemoryManager::OnPopupHidden() {
 
 void AtMemoryManager::FillOrPreviewSearchResult(
     mojom::ActionPersistence action_persistence,
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     const Suggestion& suggestion) {
   const Suggestion::AtMemoryPayload& payload =
       suggestion.GetPayload<Suggestion::AtMemoryPayload>();
@@ -537,7 +537,7 @@ void AtMemoryManager::FillOrPreviewSearchResult(
     case mojom::ActionPersistence::kPreview:
       owner_->FillOrPreviewField(
           action_persistence, mojom::FieldActionType::kReplaceAtMemoryTrigger,
-          form, field, payload.value, FillingProduct::kAtMemory,
+          form_id, field_id, payload.value, FillingProduct::kAtMemory,
           /*field_type_used=*/std::nullopt);
       break;
     case mojom::ActionPersistence::kFill: {
@@ -552,14 +552,14 @@ void AtMemoryManager::FillOrPreviewSearchResult(
       switch (payload.entry_type) {
         case accessibility_annotator::EntryType::kIban: {
           CHECK(!std::holds_alternative<std::monostate>(payload.identifier));
-          FillIban(payload.identifier, form, field, suggestion,
+          FillIban(payload.identifier, form_id, field_id, suggestion,
                    std::move(metrics));
           break;
         }
         case accessibility_annotator::EntryType::kCreditCardNumber:
         case accessibility_annotator::EntryType::kCreditCardSecurityCode: {
           CHECK(std::holds_alternative<std::string>(payload.identifier));
-          FillCreditCard(payload.identifier, form, field, suggestion,
+          FillCreditCard(payload.identifier, form_id, field_id, suggestion,
                          std::move(metrics));
           break;
         }
@@ -581,8 +581,8 @@ void AtMemoryManager::FillOrPreviewSearchResult(
                 (std::holds_alternative<AttributeType>(*data_type) ||
                  std::holds_alternative<EntityType>(*data_type)));
           FillSensitiveAutofillAiData(
-              std::get<EntityInstance::EntityId>(payload.identifier), form,
-              field, suggestion, *data_type, std::move(metrics));
+              std::get<EntityInstance::EntityId>(payload.identifier), form_id,
+              field_id, suggestion, *data_type, std::move(metrics));
           break;
         }
 
@@ -592,8 +592,8 @@ void AtMemoryManager::FillOrPreviewSearchResult(
           }
           owner_->FillOrPreviewField(
               action_persistence,
-              mojom::FieldActionType::kReplaceAtMemoryTrigger, form, field,
-              payload.value, FillingProduct::kAtMemory,
+              mojom::FieldActionType::kReplaceAtMemoryTrigger, form_id,
+              field_id, payload.value, FillingProduct::kAtMemory,
               /*field_type_used=*/std::nullopt);
           break;
         }
@@ -609,6 +609,9 @@ bool AtMemoryManager::IsSearching() const {
 
 void AtMemoryManager::MaybeAppendPersonalContextNotice(
     std::vector<Suggestion>& suggestions) const {
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  return;
+#else
   if (personal_context::features::
           IsPersonalContextFirstRunNoticePhase2Enabled()) {
     if (!owner_->client().ShouldShowPersonalContextAutofillNotice()) {
@@ -622,6 +625,7 @@ void AtMemoryManager::MaybeAppendPersonalContextNotice(
         suggestions.emplace_back(SuggestionType::kPersonalContextNotice);
     suggestion.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
   }
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 }
 
 void AtMemoryManager::ExecuteQuery(const std::u16string& filter) {
@@ -751,8 +755,8 @@ void AtMemoryManager::OnSearchResultsReceived(
 
 void AtMemoryManager::FillIban(
     const Suggestion::AtMemoryPayload::Identifier& identifier,
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     const Suggestion& suggestion,
     std::unique_ptr<AtMemoryFunnelMetrics> metrics) {
   Suggestion::Payload iban_payload;
@@ -770,33 +774,39 @@ void AtMemoryManager::FillIban(
     return;
   }
 
+  if (metrics) {
+    metrics->OnFetchStarted();
+  }
+
   iban_access_manager->FetchValue(
       iban_payload,
       base::BindOnce(
-          [](base::WeakPtr<AtMemoryManager> manager, const FormData& form,
-             const FormFieldData& field, const Suggestion& suggestion,
+          [](base::WeakPtr<AtMemoryManager> manager,
+             const FormGlobalId& form_id, const FieldGlobalId& field_id,
+             const Suggestion& suggestion,
              std::unique_ptr<AtMemoryFunnelMetrics> metrics,
              const std::u16string& unmasked_value) {
             if (!manager) {
               return;
             }
             if (metrics) {
+              metrics->OnFetchCompleted();
               metrics->MarkFilled();
             }
             manager->owner_->FillOrPreviewField(
                 mojom::ActionPersistence::kFill,
-                mojom::FieldActionType::kReplaceAtMemoryTrigger, form, field,
-                unmasked_value, FillingProduct::kAtMemory,
+                mojom::FieldActionType::kReplaceAtMemoryTrigger, form_id,
+                field_id, unmasked_value, FillingProduct::kAtMemory,
                 /*field_type_used=*/std::nullopt);
           },
-          fill_weak_ptr_factory_.GetWeakPtr(), form, field, suggestion,
+          fill_weak_ptr_factory_.GetWeakPtr(), form_id, field_id, suggestion,
           std::move(metrics)));
 }
 
 void AtMemoryManager::FillCreditCard(
     const Suggestion::AtMemoryPayload::Identifier& identifier,
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     const Suggestion& suggestion,
     std::unique_ptr<AtMemoryFunnelMetrics> metrics) {
   CHECK(std::holds_alternative<std::string>(identifier));
@@ -815,18 +825,24 @@ void AtMemoryManager::FillCreditCard(
     return;
   }
 
+  if (metrics) {
+    metrics->OnFetchStarted();
+  }
+
   // TODO(crbug.com/497795513): Consider caching fetched cards.
   credit_card_access_manager->FetchCreditCard(
       credit_card,
       base::BindOnce(
-          [](base::WeakPtr<AtMemoryManager> manager, const FormData& form,
-             const FormFieldData& field, const Suggestion& suggestion,
+          [](base::WeakPtr<AtMemoryManager> manager,
+             const FormGlobalId& form_id, const FieldGlobalId& field_id,
+             const Suggestion& suggestion,
              std::unique_ptr<AtMemoryFunnelMetrics> metrics,
              const CreditCard& fetched_card) {
             if (!manager) {
               return;
             }
             if (metrics) {
+              metrics->OnFetchCompleted();
               metrics->MarkFilled();
             }
             const Suggestion::AtMemoryPayload& payload =
@@ -845,18 +861,18 @@ void AtMemoryManager::FillCreditCard(
 
             manager->owner_->FillOrPreviewField(
                 mojom::ActionPersistence::kFill,
-                mojom::FieldActionType::kReplaceAtMemoryTrigger, form, field,
-                fill_value, FillingProduct::kAtMemory,
+                mojom::FieldActionType::kReplaceAtMemoryTrigger, form_id,
+                field_id, fill_value, FillingProduct::kAtMemory,
                 /*field_type_used=*/std::nullopt);
           },
-          fill_weak_ptr_factory_.GetWeakPtr(), form, field, suggestion,
+          fill_weak_ptr_factory_.GetWeakPtr(), form_id, field_id, suggestion,
           std::move(metrics)));
 }
 
 void AtMemoryManager::FillSensitiveAutofillAiData(
     const EntityInstance::EntityId& entity_id,
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     const Suggestion& suggestion,
     const AtMemoryDataType& data_type,
     std::unique_ptr<AtMemoryFunnelMetrics> metrics) {
@@ -870,16 +886,20 @@ void AtMemoryManager::FillSensitiveAutofillAiData(
     return;
   }
 
+  if (metrics) {
+    metrics->OnFetchStarted();
+  }
+
   owner_->GetAutofillAiAccessManager().FetchEntityInstance(
       *entity, /*will_fill_sensitive_info=*/true,
       base::BindOnce(&AtMemoryManager::OnAutofillAiFetched,
-                     fill_weak_ptr_factory_.GetWeakPtr(), form, field,
+                     fill_weak_ptr_factory_.GetWeakPtr(), form_id, field_id,
                      suggestion, data_type, std::move(metrics)));
 }
 
 void AtMemoryManager::OnAutofillAiFetched(
-    const FormData& form,
-    const FormFieldData& field,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
     const Suggestion& suggestion,
     const AtMemoryDataType& data_type,
     std::unique_ptr<AtMemoryFunnelMetrics> metrics,
@@ -909,20 +929,21 @@ void AtMemoryManager::OnAutofillAiFetched(
   }
 
   std::optional<std::u16string> attribute_fill_value = GetAttributeFillValue(
-      fetched_entity, *target_attribute_type, form, field, *owner_);
+      fetched_entity, *target_attribute_type, form_id, field_id, *owner_);
   if (!attribute_fill_value) {
     return;
   }
 
   if (metrics) {
+    metrics->OnFetchCompleted();
     metrics->MarkFilled();
   }
 
-  owner_->FillOrPreviewField(mojom::ActionPersistence::kFill,
-                             mojom::FieldActionType::kReplaceAtMemoryTrigger,
-                             form, field, std::move(*attribute_fill_value),
-                             FillingProduct::kAtMemory,
-                             /*field_type_used=*/std::nullopt);
+  owner_->FillOrPreviewField(
+      mojom::ActionPersistence::kFill,
+      mojom::FieldActionType::kReplaceAtMemoryTrigger, form_id, field_id,
+      std::move(*attribute_fill_value), FillingProduct::kAtMemory,
+      /*field_type_used=*/std::nullopt);
 }
 
 }  // namespace autofill

@@ -43,7 +43,6 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lens.LensController;
-import org.chromium.chrome.browser.notifications.scheduler.TipsNotificationsFeatureType;
 import org.chromium.chrome.browser.notifications.tips.TipsPromoCoordinator.TipsPromoSheetContent;
 import org.chromium.chrome.browser.notifications.tips.TipsPromoProperties.ScreenType;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -52,6 +51,7 @@ import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.ChromeTabCreator;
+import org.chromium.chrome.browser.tips.TipsNotificationsFeatureType;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
@@ -479,7 +479,7 @@ public class TipsPromoCoordinatorUnitTest {
 
         mView.findViewById(R.id.tips_promo_settings_button).performClick();
         verify(mBottomSheetController).hideContent(any(), eq(true));
-        verify(mLayoutManager).showLayout(eq(LayoutType.TAB_SWITCHER), eq(true));
+        verify(mLayoutManager).showLayout(eq(LayoutType.HUB), eq(true));
 
         histogramWatcher.assertExpected();
     }

@@ -189,6 +189,7 @@ class PermissionElementBrowserTest : public PermissionElementBrowserTestBase {
     feature_list_.InitWithFeatures(
         {blink::features::kGeolocationElement,
          blink::features::kUserMediaElement,
+         blink::features::kUserMediaElementLegacy,
          blink::features::kBypassPepcSecurityForTesting},
         {permissions::features::kPermissionElementPromptPositioning});
   }
@@ -464,7 +465,8 @@ class PermissionElementWithSecurityBrowserTest
  public:
   PermissionElementWithSecurityBrowserTest() {
     feature_list_.InitWithFeatures({blink::features::kGeolocationElement,
-                                    blink::features::kUserMediaElement},
+                                    blink::features::kUserMediaElement,
+                                    blink::features::kUserMediaElementLegacy},
                                    {});
   }
 };
@@ -518,6 +520,7 @@ class PermissionElementStandardizedBrowserZoomTest
       feature_list_.InitWithFeatures(
           {blink::features::kGeolocationElement,
            blink::features::kUserMediaElement,
+           blink::features::kUserMediaElementLegacy,
            blink::features::kBypassPepcSecurityForTesting,
            blink::features::kStandardizedBrowserZoom},
           {});
@@ -525,6 +528,7 @@ class PermissionElementStandardizedBrowserZoomTest
       feature_list_.InitWithFeatures(
           {blink::features::kGeolocationElement,
            blink::features::kUserMediaElement,
+           blink::features::kUserMediaElementLegacy,
            blink::features::kBypassPepcSecurityForTesting},
           {blink::features::kStandardizedBrowserZoom});
     }
@@ -570,6 +574,7 @@ class PermissionElementNearElementBrowserTest
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
+         {blink::features::kUserMediaElementLegacy, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}},
          {permissions::features::kPermissionElementPromptPositioning,
           {{"PermissionElementPromptPositioningParam", "near_element"}}}},
@@ -584,6 +589,7 @@ class PermissionElementWindowMiddleBrowserTest
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
+         {blink::features::kUserMediaElementLegacy, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}},
          {permissions::features::kPermissionElementPromptPositioning,
           {{"PermissionElementPromptPositioningParam", "window_middle"}}}},
@@ -598,6 +604,7 @@ class PermissionElementLegacyPromptBrowserTest
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
+         {blink::features::kUserMediaElementLegacy, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}},
          {permissions::features::kPermissionElementPromptPositioning,
           {{"PermissionElementPromptPositioningParam", "legacy_prompt"}}}},
@@ -637,6 +644,7 @@ class MiscellaneousElementBrowserTest
     feature_list_.InitWithFeatures(
         {blink::features::kGeolocationElement,
          blink::features::kUserMediaElement,
+         blink::features::kUserMediaElementLegacy,
          blink::features::kBypassPepcSecurityForTesting,
          blink::features::kInstallElement},
         {permissions::features::kPermissionElementPromptPositioning});

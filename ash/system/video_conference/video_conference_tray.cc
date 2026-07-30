@@ -230,16 +230,16 @@ void VideoConferenceTrayButton::PaintButtonContents(gfx::Canvas* canvas) {
 }
 
 void VideoConferenceTrayButton::UpdateTooltip() {
-  int capture_state_id = VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF;
+  int capture_state_id = IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_OFF;
   if (show_privacy_indicator_) {
-    capture_state_id = VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON_AND_IN_USE;
+    capture_state_id = IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON_AND_IN_USE;
   } else if (!toggled()) {
-    capture_state_id = VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON;
+    capture_state_id = IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_STATE_ON;
   }
 
-  int base_string_id = VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP;
+  int base_string_id = IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TOOLTIP;
   if (toggle_is_one_way_) {
-    base_string_id = VIDEO_CONFERENCE_ONE_WAY_TOGGLE_BUTTON_TOOLTIP;
+    base_string_id = IDS_VIDEO_CONFERENCE_ONE_WAY_TOGGLE_BUTTON_TOOLTIP;
   }
 
   SetTooltipText(l10n_util::GetStringFUTF16(
@@ -258,14 +258,15 @@ VideoConferenceTray::VideoConferenceTray(Shelf* shelf)
 
   tray_container()->SetSpacingBetweenChildren(kTrayButtonsSpacing);
 
-  audio_icon_ = tray_container()->AddChildView(std::make_unique<
-                                               VideoConferenceTrayButton>(
-      base::BindRepeating(&VideoConferenceTray::OnAudioButtonClicked,
-                          weak_ptr_factory_.GetWeakPtr()),
-      /*icon=*/&kPrivacyIndicatorsMicrophoneIcon,
-      /*toggled_icon=*/&kVideoConferenceMicrophoneMutedIcon,
-      /*capturing_icon=*/&kVideoConferenceMicrophoneCapturingIcon,
-      /*accessible_name_id=*/VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
+  audio_icon_ = tray_container()->AddChildView(
+      std::make_unique<VideoConferenceTrayButton>(
+          base::BindRepeating(&VideoConferenceTray::OnAudioButtonClicked,
+                              weak_ptr_factory_.GetWeakPtr()),
+          /*icon=*/&kPrivacyIndicatorsMicrophoneIcon,
+          /*toggled_icon=*/&kVideoConferenceMicrophoneMutedIcon,
+          /*capturing_icon=*/&kVideoConferenceMicrophoneCapturingIcon,
+          /*accessible_name_id=*/
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_MICROPHONE));
   audio_icon_->SetVisible(false);
 
   camera_icon_ = tray_container()->AddChildView(
@@ -274,7 +275,7 @@ VideoConferenceTray::VideoConferenceTray(Shelf* shelf)
                               weak_ptr_factory_.GetWeakPtr()),
           &kPrivacyIndicatorsCameraIcon, &kVideoConferenceCameraMutedIcon,
           &kVideoConferenceCameraCapturingIcon,
-          VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
+          IDS_VIDEO_CONFERENCE_TOGGLE_BUTTON_TYPE_CAMERA));
   camera_icon_->SetVisible(false);
 
   toggle_bubble_button_ =

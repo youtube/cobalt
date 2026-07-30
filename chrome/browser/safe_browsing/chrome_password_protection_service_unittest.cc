@@ -268,7 +268,7 @@ class MockChromePasswordProtectionService
                         .SetAccountId(CoreAccountId::FromGaiaId(GaiaId("gaia")))
                         .SetHostedDomain(hosted_domain)
                         .Build();
-    AccountCapabilitiesTestMutator(&account_info_.capabilities)
+    AccountCapabilitiesTestMutator(&account_info_)
         .set_is_subject_to_enterprise_features(!hosted_domain.empty());
   }
 

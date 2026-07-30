@@ -110,7 +110,7 @@ void ElementInternals::Trace(Visitor* visitor) const {
   visitor->Trace(explicitly_set_attr_elements_map_);
   ListedElement::Trace(visitor);
   ScriptWrappable::Trace(visitor);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 }
 
 void ElementInternals::setFormValue(const V8ControlValue* value,
@@ -484,6 +484,14 @@ ElementBehavior* ElementInternals::FindBehaviorByType(
     }
   }
   return nullptr;
+}
+
+const FrozenArray<Element>* ElementInternals::ariaActionsElements() const {
+  return GetElementArrayAttribute(html_names::kAriaActionsAttr);
+}
+void ElementInternals::setAriaActionsElements(
+    GCedHeapVector<Member<Element>>* given_elements) {
+  SetElementArrayAttribute(html_names::kAriaActionsAttr, given_elements);
 }
 
 const FrozenArray<Element>* ElementInternals::ariaControlsElements() const {

@@ -201,6 +201,19 @@ public class AwWebContentsObserver extends WebContentsObserver {
         if (navigation.errorCode() != NetError.OK && !navigation.isDownload()) {
             processFailedLoad(true, navigation.errorCode(), navigation.getUrl());
         }
+        AwContentsClient client = mAwContentsClient.get();
+
+        // Invoke synthetic onPageFinished callbacks for duplicate navigations ignored by the
+        // IgnoreDuplicateNavs optimization. Without this optimization, a duplicate request would
+        // cancel the ongoing navigation (net::ERR_ABORTED) and start a new navigation. We mimic
+        // that signal here to maintain backward compatibility for apps that expect a callback for
+        // every attempt, consistent with `processFailedLoad()`.
+        if (client != null) {
+            int ignoredCount = navigation.getIgnoredDuplicateNavigationCount();
+            for (int i = 0; i < ignoredCount; i++) {
+                client.getCallbackHelper().postOnPageFinished(url);
+            }
+        }
 
         if (navigation.isInPrimaryMainFrame()) {
             AwContents awContents = mAwContents.get();
@@ -235,7 +248,6 @@ public class AwWebContentsObserver extends WebContentsObserver {
 
         navigation.getCommittedPage().setUrl(navigation.getUrl());
 
-        AwContentsClient client = mAwContentsClient.get();
         if (client != null) {
             // OnPageStarted is not called for in-page navigations, which include fragment
             // navigations and navigation from history.push/replaceState.

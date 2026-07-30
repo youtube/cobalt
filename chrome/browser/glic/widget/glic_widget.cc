@@ -283,6 +283,9 @@ GlicWidget::GlicWidget(ThemeService* theme_service, InitParams params)
   minimum_widget_size_ = GetInitialSize();
   OnSizeConstraintsChanged();
   theme_service_observation_.Observe(theme_service);
+  // Trigger theme propagation so child views are updated with the profile
+  // theme instead of the OS theme.
+  OnThemeChanged();
 }
 
 GlicWidget::~GlicWidget() = default;

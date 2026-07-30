@@ -6,6 +6,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/components/phonehub/message_receiver_impl.h"
 #include "chromeos/ash/components/phonehub/message_sender.h"
@@ -16,7 +17,14 @@
 
 namespace ash::phonehub {
 
-const proto::PingRequest kDefaultPingRequest;
+namespace {
+
+const proto::PingRequest& GetDefaultPingRequest() {
+  static const base::NoDestructor<proto::PingRequest> request;
+  return *request;
+}
+
+}  // namespace
 
 PingManagerImpl::PingManagerImpl(
     secure_channel::ConnectionManager* connection_manager,
@@ -77,7 +85,7 @@ void PingManagerImpl::SendPingRequest() {
   }
 
   PA_LOG(INFO) << "Sending Ping Request";
-  message_sender_->SendPingRequest(kDefaultPingRequest);
+  message_sender_->SendPingRequest(GetDefaultPingRequest());
 
   ping_sent_timestamp_ = base::TimeTicks::Now();
   // Maximum number of seconds to wait for ping response before disconnecting

@@ -45,6 +45,7 @@
 #include "url/gurl.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/search_engines/android/jni_headers/PrepopulatedAndRecentlyVisitedTemplateURLs_jni.h"
 #include "components/search_engines/android/jni_headers/TemplateUrlService_jni.h"
 
 using base::UserMetricsAction;
@@ -650,6 +651,28 @@ void TemplateUrlServiceAndroid::GetTemplateUrls(
         env, template_url_list_obj,
         CreateTemplateUrlAndroid(env, template_url));
   }
+}
+
+base::android::ScopedJavaLocalRef<jobject>
+TemplateUrlServiceAndroid::GetPrepopulatedAndRecentlyVisitedTemplateURLs(
+    JNIEnv* env) {
+  CHECK(base::FeatureList::IsEnabled(switches::kSearchSettingsUpdateV2));
+
+  auto result =
+      template_url_service_->GetPrepopulatedAndRecentlyVisitedTemplateURLs();
+
+  std::vector<const TemplateURL*> prepopulated_urls;
+  for (const auto& turl : result.prepopulated_urls) {
+    prepopulated_urls.push_back(turl.get());
+  }
+
+  std::vector<const TemplateURL*> recently_visited_urls;
+  for (const auto& turl : result.recently_visited_urls) {
+    recently_visited_urls.push_back(turl.get());
+  }
+
+  return Java_PrepopulatedAndRecentlyVisitedTemplateURLs_create(
+      env, prepopulated_urls, recently_visited_urls);
 }
 
 std::vector<const TemplateURL*>

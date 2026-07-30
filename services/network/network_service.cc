@@ -384,7 +384,9 @@ NetworkService::NetworkService(
     std::unique_ptr<service_manager::BinderRegistry> registry,
     mojo::PendingReceiver<mojom::NetworkService> receiver,
     bool delay_initialization_until_set_client)
-    : net_log_(net::NetLog::Get()), registry_(std::move(registry)) {
+    : net_log_(net::NetLog::Get()),
+      registry_(std::move(registry)),
+      time_to_first_context_timer_(base::ElapsedTimer()) {
   DCHECK(!g_network_service);
   g_network_service = this;
 
@@ -724,6 +726,12 @@ void NetworkService::SetSSLKeyLogFile(base::File file) {
 void NetworkService::CreateNetworkContext(
     mojo::PendingReceiver<mojom::NetworkContext> receiver,
     mojom::NetworkContextParamsPtr params) {
+  if (time_to_first_context_timer_) {
+    base::UmaHistogramMediumTimes(
+        "NetworkService.TimeToFirstCreateNetworkContext",
+        time_to_first_context_timer_->Elapsed());
+    time_to_first_context_timer_.reset();
+  }
 #if BUILDFLAG(IS_ANDROID)
   if (params->cookie_store_ready_callback) {
     auto pending = std::make_unique<PendingNetworkContext>(
@@ -1264,6 +1272,11 @@ void NetworkService::Bind(
     mojo::PendingReceiver<mojom::NetworkService> receiver) {
   DCHECK(!receiver_.is_bound());
   receiver_.Bind(std::move(receiver));
+}
+
+void NetworkService::BindNetworkContextCreator(
+    mojo::PendingReceiver<mojom::NetworkContextCreator> receiver) {
+  context_creator_receiver_set_.Add(this, std::move(receiver));
 }
 
 mojom::URLLoaderNetworkServiceObserver*

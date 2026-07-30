@@ -5,37 +5,61 @@
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 
 #include "base/check.h"
+#include "base/feature_list.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/types/to_address.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/bitmap_fetcher/bitmap_fetcher_service.h"
+#include "chrome/browser/bitmap_fetcher/bitmap_fetcher_service_factory.h"
+#include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/omnibox/ai_mode_button_service_factory.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
-#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "components/favicon/core/favicon_service.h"
+#include "components/favicon_base/favicon_types.h"
+#include "components/keyed_service/core/service_access_type.h"
+#include "components/omnibox/browser/ai_mode_button_config.h"
+#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/omnibox_client.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_pref_names.h"
 #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/search_engines/search_engine_type.h"
 #include "components/tabs/public/tab_interface.h"
+#include "skia/ext/image_operations.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
+#include "url/gurl.h"
 
 namespace {
+
+const char kIconSourceHistogram[] = "Omnibox.AiModePageAction.IconSource";
 
 page_actions::PageActionController* GetPageActionController(
     BrowserWindowInterface& bwi) {
@@ -47,32 +71,20 @@ page_actions::PageActionController* GetPageActionController(
   return tab_interface->GetTabFeatures()->page_action_controller();
 }
 
-void SetPageActionVisibility(
-    page_actions::PageActionController& page_action_controller,
-    bool visible) {
-  if (visible) {
-    page_action_controller.OverrideImage(
-        kActionAiMode,
-        ui::ImageModel::FromImageGenerator(
-            base::BindRepeating([](const ui::ColorProvider* color_provider) {
-              return gfx::CreateVectorIcon(
-                  features::IsRoundedIconsEnabled()
-                      ? omnibox::kSearchSparkIcon
-                      : omnibox::kSearchSparkOldIcon,
-                  GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize),
-                  color_provider->GetColor(kColorOmniboxIconForegroundTonal));
-            }),
-            gfx::Size(
-                GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize),
-                GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize))));
-    page_action_controller.Show(kActionAiMode);
-    page_action_controller.ShowSuggestionChip(kActionAiMode,
-                                              {.should_animate = false});
-    return;
+// Converts an `Image` of arbitrary size to an `ImageModel` of
+// `kLocationBarChipIconSize` size.
+ui::ImageModel SizedImageModel(const gfx::Image& image) {
+  gfx::Size target_size = {
+      GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize),
+      GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize)};
+  if (image.Size() == target_size) {
+    return ui::ImageModel::FromImage(image);
   }
 
-  page_action_controller.HideSuggestionChip(kActionAiMode);
-  page_action_controller.Hide(kActionAiMode);
+  gfx::ImageSkia image_skia = image.AsImageSkia();
+  image_skia = gfx::ImageSkiaOperations::CreateResizedImage(
+      image_skia, skia::ImageOperations::RESIZE_BEST, target_size);
+  return ui::ImageModel::FromImageSkia(image_skia);
 }
 
 }  // namespace
@@ -81,11 +93,60 @@ namespace omnibox {
 
 DEFINE_USER_DATA(AiModePageActionController);
 
+AiModePageActionController::AiModePageActionController(
+    BrowserWindowInterface& bwi,
+    Profile& profile,
+    LocationBarView& location_bar_view)
+    : bwi_(bwi),
+      profile_(profile),
+      location_bar_view_(location_bar_view),
+      scoped_data_(bwi.GetUnownedUserDataHost(), *this) {
+  CHECK(IsPageActionMigrated(PageActionIconType::kAiMode));
+
+  if (auto* omnibox_controller = location_bar_view.GetOmniboxController()) {
+    omnibox_edit_model_observation_.Observe(omnibox_controller->edit_model());
+  }
+
+  auto* ai_mode_button_service =
+      AiModeButtonServiceFactory::GetForProfile(&profile);
+  CHECK(ai_mode_button_service);
+  ai_mode_config_subscription_ =
+      ai_mode_button_service->RegisterOnConfigChanged(
+          base::IgnoreArgs<const ai_mode_button_config::AiModeButtonConfig*>(
+              base::BindRepeating(&AiModePageActionController::UpdatePageAction,
+                                  weak_factory_.GetWeakPtr())));
+}
+
+AiModePageActionController::~AiModePageActionController() = default;
+
+void AiModePageActionController::OnContentsChanged() {
+  UpdatePageAction();
+}
+
+void AiModePageActionController::UpdatePageAction() {
+  page_actions::PageActionController* page_action_controller =
+      GetPageActionController(*bwi_);
+  if (!page_action_controller) {
+    return;
+  }
+
+  const bool is_visible =
+      ShouldShowPageAction(base::to_address(profile_), *location_bar_view_);
+
+  if (is_visible) {
+    NotifyOmniboxTriggeredFeatureService(
+        *location_bar_view_->GetOmniboxController());
+  }
+  UpdatePageActionUi(is_visible);
+}
+
+// static
 AiModePageActionController* AiModePageActionController::From(
     BrowserWindowInterface* bwi) {
   return bwi ? Get(bwi->GetUnownedUserDataHost()) : nullptr;
 }
 
+// static
 void AiModePageActionController::OpenAiMode(
     OmniboxController& omnibox_controller,
     bool via_keyboard) {
@@ -93,6 +154,7 @@ void AiModePageActionController::OpenAiMode(
                                               /*via_context_menu=*/false);
 }
 
+// static
 void AiModePageActionController::NotifyOmniboxTriggeredFeatureService(
     const OmniboxController& omnibox_controller) {
   const auto* client = omnibox_controller.autocomplete_controller()
@@ -103,9 +165,19 @@ void AiModePageActionController::NotifyOmniboxTriggeredFeatureService(
           OmniboxEventProto_Feature_AIM_PAGE_ACTION_OMNIBOX_ENTRYPOINT);
 }
 
+// static
 bool AiModePageActionController::ShouldShowPageAction(
     Profile* profile,
     LocationBarView& location_bar_view) {
+  auto* service = AiModeButtonServiceFactory::GetForProfile(profile);
+  if (!service) {
+    return false;
+  }
+  auto* config = service->GetCurrentConfig();
+  if (!config || !config->IsValid()) {
+    return false;
+  }
+
   if (!profile->GetPrefs()->GetBoolean(omnibox::kShowAiModeOmniboxButton)) {
     return false;
   }
@@ -144,8 +216,7 @@ bool AiModePageActionController::ShouldShowPageAction(
   // don't show the AIM entrypoint if the default match is a URL suggestion.
   if (base::FeatureList::IsEnabled(
           omnibox::kHideAimEntrypointForUrlSuggestions) ||
-      base::FeatureList::IsEnabled(
-          omnibox::kWebUIOmniboxDynamicAiModeButton)) {
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxDynamicAiModeButton)) {
     const AutocompleteResult& result =
         omnibox_controller->autocomplete_controller()->result();
     if (result.default_match() &&
@@ -188,42 +259,153 @@ bool AiModePageActionController::ShouldShowPageAction(
   return has_focus;
 }
 
-AiModePageActionController::AiModePageActionController(
-    BrowserWindowInterface& bwi,
-    Profile& profile,
-    LocationBarView& location_bar_view)
-    : bwi_(bwi),
-      profile_(profile),
-      location_bar_view_(location_bar_view),
-      scoped_data_(bwi.GetUnownedUserDataHost(), *this) {
-  CHECK(IsPageActionMigrated(PageActionIconType::kAiMode));
-
-  if (auto* omnibox_controller = location_bar_view.GetOmniboxController()) {
-    observation_.Observe(omnibox_controller->edit_model());
-  }
-}
-
-AiModePageActionController::~AiModePageActionController() = default;
-
-void AiModePageActionController::OnContentsChanged() {
-  UpdatePageAction();
-}
-
-void AiModePageActionController::UpdatePageAction() {
-  page_actions::PageActionController* page_action_controller =
-      GetPageActionController(*bwi_);
-  if (!page_action_controller) {
+void AiModePageActionController::UpdatePageActionUi(bool is_visible) {
+  if (!is_visible) {
+    favicon_fetch_weak_factory_.InvalidateWeakPtrs();
+    Hide(IconSource::kInvisible);
     return;
   }
 
-  const bool is_visible =
-      ShouldShowPageAction(base::to_address(profile_), *location_bar_view_);
+  page_actions::PageActionController* page_action_controller =
+      GetPageActionController(*bwi_);
+  CHECK(page_action_controller);
+  auto* service =
+      AiModeButtonServiceFactory::GetForProfile(base::to_address(profile_));
+  CHECK(service);
+  auto* config = service->GetCurrentConfig();
+  CHECK(config);
 
-  if (is_visible) {
-    NotifyOmniboxTriggeredFeatureService(
-        *location_bar_view_->GetOmniboxController());
+  page_action_controller->OverrideText(kActionAiMode, config->text);
+  page_action_controller->OverrideTooltip(kActionAiMode, config->tooltip);
+  page_action_controller->OverrideAccessibleName(kActionAiMode,
+                                                 config->a11y_label);
+
+  if (config->id == SearchEngineType::SEARCH_ENGINE_GOOGLE) {
+    ShowAndOverrideImage(
+        ui::ImageModel::FromImageGenerator(
+            base::BindRepeating([](const ui::ColorProvider* color_provider) {
+              return gfx::CreateVectorIcon(
+                  features::IsRoundedIconsEnabled()
+                      ? omnibox::kSearchSparkIcon
+                      : omnibox::kSearchSparkOldIcon,
+                  GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize),
+                  color_provider->GetColor(kColorOmniboxIconForegroundTonal));
+            }),
+            gfx::Size(
+                GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize),
+                GetLayoutConstant(LayoutConstant::kLocationBarChipIconSize))),
+        IconSource::kVectorIcon);
+
+  } else {
+    GURL favicon_url(config->favicon_url);
+    OmniboxClient* client =
+        location_bar_view_->GetOmniboxController()->client();
+    gfx::Image image = client->GetFaviconForIconUrl(
+        favicon_url,
+        base::BindOnce(&AiModePageActionController::OnFaviconFetchedLocally,
+                       favicon_fetch_weak_factory_.GetWeakPtr(), favicon_url),
+        /*notify_on_empty=*/true);
+    // `image` will be empty if not cached. In which case, let
+    // `OnFaviconFetchedLocally()` handle visibility and the image.
+    if (!image.IsEmpty()) {
+      ShowAndOverrideImage(SizedImageModel(image),
+                           IconSource::kMemoryFaviconCache);
+    }
   }
-  SetPageActionVisibility(*page_action_controller, is_visible);
+}
+
+void AiModePageActionController::Hide(IconSource source) {
+  base::UmaHistogramEnumeration(kIconSourceHistogram, source);
+  if (page_actions::PageActionController* page_action_controller =
+          GetPageActionController(*bwi_)) {
+    page_action_controller->HideSuggestionChip(kActionAiMode);
+    page_action_controller->Hide(kActionAiMode);
+  }
+}
+
+void AiModePageActionController::ShowAndOverrideImage(
+    const ui::ImageModel& image_model,
+    IconSource source) {
+  base::UmaHistogramEnumeration(kIconSourceHistogram, source);
+  if (page_actions::PageActionController* page_action_controller =
+          GetPageActionController(*bwi_)) {
+    page_action_controller->OverrideImage(kActionAiMode, image_model);
+    page_action_controller->Show(kActionAiMode);
+    page_action_controller->ShowSuggestionChip(kActionAiMode,
+                                               {.should_animate = false});
+  }
+}
+
+void AiModePageActionController::OnFaviconFetchedLocally(
+    const GURL& favicon_url,
+    const gfx::Image& favicon) {
+  // If visibility became false, this callback should have been cancelled.
+  CHECK(ShouldShowPageAction(base::to_address(profile_), *location_bar_view_));
+
+  // If the config changed, this callback should have been cancelled.
+  auto* service =
+      AiModeButtonServiceFactory::GetForProfile(base::to_address(profile_));
+  CHECK(service);
+  auto* config = service->GetCurrentConfig();
+  CHECK(config);
+  CHECK_EQ(GURL{config->favicon_url}, favicon_url);
+
+  if (favicon.IsEmpty()) {
+    FetchFaviconFromNetwork(favicon_url);
+    return;
+  }
+  ShowAndOverrideImage(SizedImageModel(favicon),
+                       IconSource::kDiskDbFaviconCache);
+}
+
+void AiModePageActionController::FetchFaviconFromNetwork(
+    const GURL& favicon_url) {
+  BitmapFetcherService* fetcher_service =
+      BitmapFetcherServiceFactory::GetForBrowserContext(
+          base::to_address(profile_));
+  if (!fetcher_service) {
+    Hide(IconSource::kFailedIcon);
+    return;
+  }
+
+  fetcher_service->RequestImage(
+      favicon_url,
+      base::BindOnce(&AiModePageActionController::OnFaviconFetchedFromNetwork,
+                     favicon_fetch_weak_factory_.GetWeakPtr(), favicon_url));
+}
+
+void AiModePageActionController::OnFaviconFetchedFromNetwork(
+    const GURL& favicon_url,
+    SkBitmap bitmap) {
+  // If visibility became false, this callback should have been cancelled.
+  CHECK(ShouldShowPageAction(base::to_address(profile_), *location_bar_view_));
+
+  // If the config changed, this callback should have been cancelled.
+  auto* service =
+      AiModeButtonServiceFactory::GetForProfile(base::to_address(profile_));
+  CHECK(service);
+  auto* config = service->GetCurrentConfig();
+  CHECK(config);
+  CHECK_EQ(GURL{config->favicon_url}, favicon_url);
+
+  if (bitmap.empty()) {
+    Hide(IconSource::kFailedIcon);
+    return;
+  }
+
+  // Store fetched icon into favicon cache.
+  favicon::FaviconService* favicon_service =
+      FaviconServiceFactory::GetForProfile(base::to_address(profile_),
+                                           ServiceAccessType::EXPLICIT_ACCESS);
+  if (favicon_service) {
+    favicon_service->SetFavicons({favicon_url}, favicon_url,
+                                 favicon_base::IconType::kFavicon,
+                                 gfx::Image::CreateFrom1xBitmap(bitmap));
+  }
+
+  gfx::ImageSkia image_skia = gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
+  ShowAndOverrideImage(SizedImageModel(gfx::Image(image_skia)),
+                       IconSource::kNetworkFetch);
 }
 
 }  // namespace omnibox

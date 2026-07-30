@@ -11,6 +11,7 @@
 #import "base/no_destructor.h"
 #import "base/run_loop.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/run_until.h"
 #import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
@@ -40,11 +41,15 @@
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/shared/metrics/home_metrics.h"
+#import "ios/chrome/browser/ntp/shared/metrics/new_tab_page_metrics_constants.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
@@ -934,6 +939,80 @@ TEST_F(ComposeboxInputPlateMediatorTest,
         invalidatedAttachments:@[ item ]];
 
   EXPECT_FALSE([delegate awaitingAttachmentSignals]);
+}
+
+// Tests that kOmnibox is logged when a regular search is accepted while on the
+// NTP.
+TEST_F(ComposeboxInputPlateMediatorTest, LogsOmniboxMetricOnNTP) {
+  base::HistogramTester histogram_tester;
+
+  // Set active web state to NTP.
+  web::FakeWebState* active_web_state =
+      static_cast<web::FakeWebState*>(web_state_list_->GetActiveWebState());
+  active_web_state->SetVisibleURL(GURL("chrome://newtab"));
+  NewTabPageTabHelper::CreateForWebState(active_web_state);
+  NewTabPageTabHelper::FromWebState(active_web_state)
+      ->SetShowStartSurface(false);
+
+  // Set mode to RegularSearch.
+  ComposeboxFocusParams* params = [[ComposeboxFocusParams alloc]
+      initWithEntrypoint:ComposeboxEntrypoint::kOther
+                   query:nil
+                toolMode:ComposeboxMode::kRegularSearch
+               modelMode:ComposeboxModelOption::kNone
+          attachmentList:nil];
+  [mediator_ applyFocusParams:params];
+
+  UrlLoadParams load_params =
+      UrlLoadParams::InCurrentTab(GURL("https://google.com"));
+
+  [mediator_ omniboxDidAcceptText:u"query"
+                   destinationURL:GURL("https://google.com")
+                    URLLoadParams:load_params
+                     isSearchType:YES];
+
+  histogram_tester.ExpectUniqueSample(
+      kActionOnHomeHistogram, static_cast<int>(IOSHomeActionType::kOmnibox), 1);
+  histogram_tester.ExpectUniqueSample(
+      kActionOnNTPHistogram, static_cast<int>(IOSHomeActionType::kOmnibox), 1);
+  histogram_tester.ExpectTotalCount(kActionOnStartHistogram, 0);
+}
+
+// Tests that kOmnibox is logged when a regular search is accepted while on the
+// Start Surface.
+TEST_F(ComposeboxInputPlateMediatorTest, LogsOmniboxMetricOnStartSurface) {
+  base::HistogramTester histogram_tester;
+
+  // Set active web state to NTP with Start Surface.
+  web::FakeWebState* active_web_state =
+      static_cast<web::FakeWebState*>(web_state_list_->GetActiveWebState());
+  active_web_state->SetVisibleURL(GURL("chrome://newtab"));
+  NewTabPageTabHelper::CreateForWebState(active_web_state);
+  NewTabPageTabHelper::FromWebState(active_web_state)
+      ->SetShowStartSurface(true);
+
+  ComposeboxFocusParams* params = [[ComposeboxFocusParams alloc]
+      initWithEntrypoint:ComposeboxEntrypoint::kOther
+                   query:nil
+                toolMode:ComposeboxMode::kRegularSearch
+               modelMode:ComposeboxModelOption::kNone
+          attachmentList:nil];
+  [mediator_ applyFocusParams:params];
+
+  UrlLoadParams load_params =
+      UrlLoadParams::InCurrentTab(GURL("https://google.com"));
+
+  [mediator_ omniboxDidAcceptText:u"query"
+                   destinationURL:GURL("https://google.com")
+                    URLLoadParams:load_params
+                     isSearchType:YES];
+
+  histogram_tester.ExpectUniqueSample(
+      kActionOnHomeHistogram, static_cast<int>(IOSHomeActionType::kOmnibox), 1);
+  histogram_tester.ExpectUniqueSample(
+      kActionOnStartHistogram, static_cast<int>(IOSHomeActionType::kOmnibox),
+      1);
+  histogram_tester.ExpectTotalCount(kActionOnNTPHistogram, 0);
 }
 
 }  // namespace

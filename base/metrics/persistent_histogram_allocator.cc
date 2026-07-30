@@ -297,7 +297,7 @@ PersistentHistogramAllocator::~PersistentHistogramAllocator() = default;
 std::unique_ptr<HistogramBase> PersistentHistogramAllocator::GetHistogram(
     Reference ref) {
   // Unfortunately, the histogram "pickle" methods cannot be used as part of
-  // the persistance because the deserialization methods always create local
+  // the persistence because the deserialization methods always create local
   // count data (while these must reference the persistent counts) and always
   // add it to the local list of known histograms (while these may be simple
   // references to histograms in other processes).
@@ -443,7 +443,7 @@ std::unique_ptr<HistogramBase> PersistentHistogramAllocator::AllocateHistogram(
     // resolving the `ref` values stored in histogram_data instead of just
     // using what is already known above but avoids duplicating the switch
     // statement here and serves as a double-check that everything is
-    // correct before commiting the new histogram to persistent space.
+    // correct before committing the new histogram to persistent space.
     DurableStringView durable_name(
         std::string_view(histogram_data->name, name.size()));
     std::unique_ptr<HistogramBase> histogram =

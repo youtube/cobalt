@@ -1,0 +1,20 @@
+AXWebArea
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Save']
+++++AXStaticText AXValue='Mixed host'
+++AXButton AXTitle='Save'
+++AXGroup
+++++AXStaticText AXValue='Edit'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='Not focusable host'
+++AXButton AXTitle='Run'
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Open']
+++++AXStaticText AXValue='Tab-focusable host'
+++AXButton AXTitle='Open'
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Close']
+++++AXStaticText AXValue='Negative tabindex host'
+++AXButton AXTitle='Close'
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='All invalid host'
+++AXGroup
+++++AXStaticText AXValue='Another span'
+++AXButton AXTitle='Another button'

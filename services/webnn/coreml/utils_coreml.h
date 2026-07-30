@@ -19,10 +19,9 @@ namespace webnn::coreml {
 //
 // The caller must ensure that `multi_array` remains alive until
 // `result_callback` is run.
-void API_AVAILABLE(macos(12.3)) COMPONENT_EXPORT(WEBNN_SERVICE)
-    ReadFromMLMultiArray(
-        MLMultiArray* multi_array,
-        base::OnceCallback<void(mojo_base::BigBuffer)> result_callback);
+void COMPONENT_EXPORT(WEBNN_SERVICE) ReadFromMLMultiArray(
+    MLMultiArray* multi_array,
+    base::OnceCallback<void(mojo_base::BigBuffer)> result_callback);
 
 // Writes `bytes_to_write` into `multi_array`, overwriting any data
 // that was previously there. The length of `bytes_to_write` must exactly
@@ -30,7 +29,7 @@ void API_AVAILABLE(macos(12.3)) COMPONENT_EXPORT(WEBNN_SERVICE)
 //
 // The caller must ensure that `multi_array` and the bytes backed by
 // `bytes_to_write` remain alive until `done_closure` is run.
-void API_AVAILABLE(macos(12.3)) COMPONENT_EXPORT(WEBNN_SERVICE)
+void COMPONENT_EXPORT(WEBNN_SERVICE)
     WriteToMLMultiArray(MLMultiArray* multi_array,
                         base::span<const uint8_t> bytes_to_write,
                         base::OnceClosure done_closure);

@@ -16,7 +16,6 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContentsStatics;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.components.variations.VariationsSwitches;
 
@@ -41,9 +40,5 @@ public class VariationsHeadersTest extends AwParameterizedTest {
         AwContentsStatics.forceVariationIdsForTesting(List.of(), "4,10,34");
         String expectedHeaderStart = "CAQICggi";
         Assert.assertTrue(AwContentsStatics.getVariationsHeader().startsWith(expectedHeaderStart));
-        Assert.assertEquals(
-                1,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Android.WebView.VariationsHeaderLength"));
     }
 }

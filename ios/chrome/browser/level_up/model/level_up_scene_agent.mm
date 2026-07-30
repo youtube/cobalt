@@ -54,7 +54,7 @@
 
   _actionToTaskMap.clear();
   for (const auto& [type, info] : _levelUpService->GetTasks()) {
-    _actionToTaskMap[info.trigger_action] = type;
+    _actionToTaskMap[info->GetTriggerUserAction()] = type;
   }
 
   __weak LevelUpSceneAgent* weakSelf = self;

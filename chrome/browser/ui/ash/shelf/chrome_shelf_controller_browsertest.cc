@@ -93,7 +93,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_app_window_icon_observer.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
@@ -828,7 +827,7 @@ IN_PROC_BROWSER_TEST_F(ShelfPlatformAppBrowserTest, MultipleBrowsers) {
   ASSERT_TRUE(browser2);
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_NE(browser1->GetWindow(), browser2->window());
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
 
   const Extension* app = LoadAndLaunchPlatformApp("launch", "Launched");
   ui::BaseWindow* const app_window =
@@ -840,12 +839,12 @@ IN_PROC_BROWSER_TEST_F(ShelfPlatformAppBrowserTest, MultipleBrowsers) {
   EXPECT_EQ(ash::STATUS_RUNNING, item.status);
 
   EXPECT_TRUE(app_window->IsActive());
-  EXPECT_FALSE(browser2->window()->IsActive());
+  EXPECT_FALSE(browser2->GetWindow()->IsActive());
 
   SelectItem(ash::ShelfID(app_constants::kChromeAppId));
 
   EXPECT_FALSE(app_window->IsActive());
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
 }
 
 IN_PROC_BROWSER_TEST_F(ShelfPlatformAppBrowserTest,
@@ -947,7 +946,7 @@ IN_PROC_BROWSER_TEST_F(ShelfPlatformAppBrowserTest, BrowserActivation) {
   EXPECT_EQ(ash::TYPE_APP, item.type);
   EXPECT_EQ(ash::STATUS_RUNNING, item.status);
 
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
   EXPECT_EQ(ash::STATUS_RUNNING, shelf_model()->ItemByID(item_id1)->status);
 }
 
@@ -1307,7 +1306,9 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest, AppIDForPWA) {
   registration_waiter.AwaitRegistration();
 
   // Install PWA.
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
   web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
   install_observer.BeginListening();
   ui_test_utils::BrowserCreatedObserver browser_observer;
@@ -1357,13 +1358,13 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, LaunchInBackground) {
 // Confirm that clicking a icon for an app running in one of 2 maximized windows
 // activates the right window.
 IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, LaunchMaximized) {
-  browser()->window()->Maximize();
+  browser()->GetWindow()->Maximize();
   // Load about:blank in a new window.
   Browser* browser2 = CreateBrowser(browser()->profile());
   EXPECT_NE(browser(), browser2);
   TabStripModel* tab_strip = browser2->tab_strip_model();
   int tab_count = tab_strip->count();
-  browser2->window()->Maximize();
+  browser2->GetWindow()->Maximize();
 
   ash::ShelfID shortcut_id = CreateShortcut("app1");
 
@@ -1374,12 +1375,12 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, LaunchMaximized) {
   EXPECT_EQ(ash::STATUS_RUNNING, shelf_model()->ItemByID(shortcut_id)->status);
 
   // Activate the first browser window.
-  browser()->window()->Activate();
-  EXPECT_FALSE(browser2->window()->IsActive());
+  browser()->GetWindow()->Activate();
+  EXPECT_FALSE(browser2->GetWindow()->IsActive());
 
   // Selecting the shortcut activates the second window.
   SelectItem(shortcut_id);
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
 }
 
 // Launching the same app multiple times should launch a copy for each call.
@@ -2038,13 +2039,13 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTestNoDefaultBrowser,
 
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_NE(browser1->GetWindow(), browser2->window());
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
 
   // Activate multiple times the switcher to see that the windows get activated.
   SelectItem(browser_id, ui::EventType::kKeyReleased);
   EXPECT_TRUE(browser1->GetWindow()->IsActive());
   SelectItem(browser_id, ui::EventType::kKeyReleased);
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
 
   // Create a third browser - make sure that we do not toggle simply between
   // two windows.
@@ -2053,14 +2054,14 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTestNoDefaultBrowser,
   EXPECT_EQ(3u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_NE(browser1->GetWindow(), browser3->GetWindow());
   EXPECT_NE(browser2->window(), browser3->window());
-  EXPECT_TRUE(browser3->window()->IsActive());
+  EXPECT_TRUE(browser3->GetWindow()->IsActive());
 
   SelectItem(browser_id, ui::EventType::kKeyReleased);
   EXPECT_TRUE(browser1->GetWindow()->IsActive());
   SelectItem(browser_id, ui::EventType::kKeyReleased);
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
   SelectItem(browser_id, ui::EventType::kKeyReleased);
-  EXPECT_TRUE(browser3->window()->IsActive());
+  EXPECT_TRUE(browser3->GetWindow()->IsActive());
   SelectItem(browser_id, ui::EventType::kKeyReleased);
   EXPECT_TRUE(browser1->GetWindow()->IsActive());
 
@@ -2069,7 +2070,7 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTestNoDefaultBrowser,
                          apps::GetEventFlags(WindowOpenDisposition::NEW_WINDOW,
                                              false /* prefer_containner */));
   EXPECT_FALSE(browser1->GetWindow()->IsActive());
-  EXPECT_FALSE(browser2->window()->IsActive());
+  EXPECT_FALSE(browser2->GetWindow()->IsActive());
 
   // After activation our browser should be active again.
   SelectItem(browser_id, ui::EventType::kKeyReleased);
@@ -2104,7 +2105,7 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, ActivateAfterSessionRestore) {
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser(),
             browser());
-  EXPECT_TRUE(browser()->window()->IsActive());
+  EXPECT_TRUE(browser()->GetWindow()->IsActive());
 
   // Now request to either activate an existing app or create a new one.
   SelectItem(shortcut_id);
@@ -2116,7 +2117,7 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, ActivateAfterSessionRestore) {
   EXPECT_EQ(tab_count2, tab_strip2->count());
   EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser(),
             browser2);
-  EXPECT_TRUE(browser2->window()->IsActive());
+  EXPECT_TRUE(browser2->GetWindow()->IsActive());
 }
 
 // TODO(crbug.com/40537353, crbug.com/40565961): add back
@@ -2545,7 +2546,9 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest,
   ASSERT_TRUE(AddTabAtIndex(1, url, ui::PAGE_TRANSITION_LINK));
   registration_waiter.AwaitRegistration();
   // Install PWA.
-  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
+  base::AutoReset<web_app::InstallDialogTestResponse> auto_accept_pwa =
+      web_app::SetPwaInstallationAutoRespondForTesting(
+          web_app::InstallDialogTestResponse::kAcceptAndLaunch);
   web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
   install_observer.BeginListening();
   ui_test_utils::BrowserCreatedObserver browser_observer;
@@ -2573,8 +2576,12 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest,
   // Install shortcut app.
   webapps::AppId app_id;
   {
-    web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
-    web_app::test::ScopedAutoCheckChromeOsOpenInWindow auto_check;
+    base::AutoReset<web_app::InstallDialogTestResponse> auto_accept =
+        web_app::SetPwaInstallationAutoRespondForTesting(
+            web_app::InstallDialogTestResponse::kAcceptAndLaunch);
+    base::AutoReset<web_app::CreateShortcutDialogCheckState> auto_check =
+        web_app::SetCreateShortcutDialogCheckStateForTesting(
+            web_app::CreateShortcutDialogCheckState::kChecked);
     web_app::WebAppTestInstallWithOsHooksObserver install_observer(profile());
     install_observer.BeginListening();
     ui_test_utils::BrowserCreatedObserver browser_observer;
@@ -3009,8 +3016,8 @@ class PerDeskShelfAppBrowserTest : public ShelfAppBrowserTest,
 
   void CreateTestBrowser() {
     Browser* new_browser = CreateBrowser(browser()->profile());
-    new_browser->window()->Show();
-    new_browser->window()->Activate();
+    new_browser->GetWindow()->Show();
+    new_browser->GetWindow()->Activate();
   }
 
   ash::ShelfID GetBrowserId() const {

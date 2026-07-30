@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">關閉</translation>
 <translation id="5239627039202700673">隨時使用 Chrome 開啟訊息、文件和其他應用程式中的連結</translation>
 <translation id="5251420635869119124">以訪客身分使用 Chrome 不會留下任何記錄。</translation>
+<translation id="5271833978500241046">在 Chrome 中與其他 Gemini 功能一併使用</translation>
 <translation id="5286907366254680517">偵測到</translation>
 <translation id="5320351714793324716">如果你允許 Cookie，Chrome 可能會在預先載入時使用 Cookie</translation>
 <translation id="5321325624576443340">無法使用「Google 智能鏡頭」，請稍後再試。</translation>
@@ -441,15 +442,6 @@ Google Chrome 無法復原您的設定。</translation>
 <translation id="569897634095159764">無法連線至互聯網。Proxy 伺服器需要驗證。</translation>
 <translation id="5709557627224531708">將 Chrome 設為預設瀏覽器</translation>
 <translation id="5719246646468301581">Google Chrome 和 ChromeOS 附加服務條款</translation>
-<translation id="5719324992913248873">此動作將：
-          <ph name="LINE_BREAKS" />
-           • 重設部分 Chrome 設定及 Chrome 快速鍵
-           <ph name="LINE_BREAK" />
-           • 停用擴充程式
-           <ph name="LINE_BREAK" />
-           • 刪除 Cookie 和其他暫存網站資料
-            <ph name="LINE_BREAKS" />
-           書籤、記錄和已儲存的密碼並不會受到影響。</translation>
 <translation id="5736850870166430177">如果有網站試圖盜取您的密碼，或當您下載有害檔案時，Chrome 亦可能將網址 (包括部分網頁內容) 傳送至「安全瀏覽」功能</translation>
 <translation id="5756509061973259733">此裝置上已有此帳戶的 Chrome 設定檔</translation>
 <translation id="5759947850379142561">揀任何要用「Google 智能鏡頭」搜尋嘅文字或圖片，㩒 Esc 掣就可以退出「Google 智能鏡頭」</translation>
@@ -647,6 +639,7 @@ Google Chrome 無法復原您的設定。</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">為保護你的資料，請讓 Chrome 為你移除最近未瀏覽網站的權限。</translation>
 <translation id="7629695634924605473">Chrome 會通知您密碼是否曾被盜用</translation>
+<translation id="7629898584100520089">AI 創新功能 (例如技能) 會儲存至 Google 帳戶，並與 Chrome 同步功能分開管理</translation>
 <translation id="7641148173327520642">系統管理員已設定由 Google Chrome 開啟 <ph name="ALTERNATIVE_BROWSER_NAME" /> 以存取 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="7649070708921625228">說明</translation>
 <translation id="7651907282515937834">Chrome 企業標誌</translation>

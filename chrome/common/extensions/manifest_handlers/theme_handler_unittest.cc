@@ -51,58 +51,5 @@ TEST_F(ThemeHandlerTest, EmptyThemeDictionary) {
   EXPECT_TRUE(extension);
 }
 
-TEST_F(ThemeHandlerTest, ValidInputWithCustomizeTabGroupColorPaletteEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kCustomizeTabGroupColorPalette);
-
-  // Integer values for keys inside `tab_group_color_palette` should be
-  // considered valid and thus create an |extension|.
-  base::DictValue theme = base::DictValue().Set(
-      "tab_group_color_palette", base::DictValue().Set("red_override", 50));
-  std::u16string error;
-  scoped_refptr<Extension> extension = CreateExtension(std::move(theme), error);
-  EXPECT_TRUE(extension);
-
-  const base::DictValue* tab_group_color_palette_dict =
-      ThemeInfo::GetTabGroupColorPalette(extension.get());
-  EXPECT_TRUE(tab_group_color_palette_dict);
-
-  EXPECT_EQ(tab_group_color_palette_dict->FindInt("red_override"), 50);
-}
-
-TEST_F(ThemeHandlerTest, InvalidInputWithCustomizeTabGroupColorPaletteEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kCustomizeTabGroupColorPalette);
-
-  // Non-integer values inside `tab_group_color_palette` should be considered
-  // invalid and thus |extension| will be nullptr.
-  base::DictValue theme = base::DictValue().Set(
-      "tab_group_color_palette",
-      base::DictValue().Set("red_override", "invalid value"));
-  std::u16string error;
-  scoped_refptr<Extension> extension = CreateExtension(std::move(theme), error);
-  EXPECT_FALSE(extension);
-  EXPECT_EQ(error, errors::kInvalidThemeTabGroupColorPalette);
-}
-
-TEST_F(ThemeHandlerTest,
-       InvalidInputWithCustomizeTabGroupColorPaletteDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      features::kCustomizeTabGroupColorPalette);
-
-  // Due to the feature flag being disabled, the `tab_group_color_palette` key
-  // will be ignored. So, even though the values inside the
-  // `tab_group_color_palette` key are invalid, the overall theme will still be
-  // considered valid.
-  base::DictValue theme = base::DictValue().Set(
-      "tab_group_color_palette",
-      base::DictValue().Set("red_override", "invalid value"));
-  std::u16string error;
-  scoped_refptr<Extension> extension = CreateExtension(std::move(theme), error);
-  EXPECT_TRUE(extension);
-}
 
 }  // namespace extensions

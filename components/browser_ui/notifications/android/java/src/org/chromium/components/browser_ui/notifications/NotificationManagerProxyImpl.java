@@ -284,6 +284,6 @@ public class NotificationManagerProxyImpl implements NotificationManagerProxy {
             result = defaultValue;
         }
         T finalResult = result;
-        PostTask.postTask(TaskTraits.UI_DEFAULT, () -> callback.onResult(finalResult));
+        PostTask.postTask(TaskTraits.UI_DEFAULT, callback.bind(finalResult));
     }
 }

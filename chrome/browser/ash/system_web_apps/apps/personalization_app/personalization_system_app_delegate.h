@@ -26,7 +26,6 @@ class PersonalizationSystemAppDelegate : public ash::SystemWebAppDelegate {
   bool IsAppEnabled() const override;
   bool ShouldShowInLauncher() const override;
   bool ShouldShowInSearchAndShelf() const override;
-  bool ShouldAnimateThemeChanges() const override;
 };
 
 #endif  // CHROME_BROWSER_ASH_SYSTEM_WEB_APPS_APPS_PERSONALIZATION_APP_PERSONALIZATION_SYSTEM_APP_DELEGATE_H_

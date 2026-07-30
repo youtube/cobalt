@@ -4,10 +4,12 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "ash/constants/ash_switches.h"
 #include "ash/shell.h"
+#include "base/auto_reset.h"
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
@@ -15,52 +17,18 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/audio/sounds.h"
+#include "content/public/browser/audio_service.h"
 #include "content/public/test/browser_test.h"
 #include "services/audio/public/cpp/sounds/global_sounds_manager.h"
-#include "services/audio/public/cpp/sounds/sounds_manager.h"
+#include "services/audio/public/mojom/audio_service.mojom.h"
+#include "services/audio/test/fake_audio_service.h"
+#include "services/audio/test/fake_output_stream.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/events/test/event_generator.h"
 
 namespace {
 
 using ::ash::AccessibilityManager;
-
-class SoundsManagerTestImpl : public audio::SoundsManager {
- public:
-  SoundsManagerTestImpl() = default;
-
-  SoundsManagerTestImpl(const SoundsManagerTestImpl&) = delete;
-  SoundsManagerTestImpl& operator=(const SoundsManagerTestImpl&) = delete;
-
-  ~SoundsManagerTestImpl() override = default;
-
-  bool Initialize(SoundKey key,
-                  int /* resource_id */,
-                  media::AudioCodec codec,
-                  bool /* loop */) override {
-    is_sound_initialized_[key] = true;
-    return true;
-  }
-
-  bool Play(SoundKey key) override {
-    ++num_play_requests_[key];
-    return true;
-  }
-
-  bool Stop(SoundKey key) override { return true; }
-
-  base::TimeDelta GetDuration(SoundKey /* key */) override {
-    return base::TimeDelta();
-  }
-
-  bool is_sound_initialized(SoundKey key) { return is_sound_initialized_[key]; }
-
-  int num_play_requests(SoundKey key) { return num_play_requests_[key]; }
-
- private:
-  std::map<SoundKey, bool> is_sound_initialized_;
-  std::map<SoundKey, int> num_play_requests_;
-};
 
 class VolumeControllerTest : public InProcessBrowserTest {
  public:
@@ -162,23 +130,23 @@ IN_PROC_BROWSER_TEST_F(VolumeControllerTest, Mutes) {
   // Press volume up key will increase the volume from the original volume.
   VolumeUp();
   EXPECT_FALSE(audio_handler_->IsOutputMuted());
-    EXPECT_LT(initial_volume, audio_handler_->GetOutputVolumePercent());
+  EXPECT_LT(initial_volume, audio_handler_->GetOutputVolumePercent());
 
   VolumeMute();
   // After the volume down, press volume down key will decrease the volume from
   // the original volume while the volume is still muted.
   VolumeDown();
-    EXPECT_TRUE(audio_handler_->IsOutputMuted());
-    EXPECT_EQ(initial_volume, audio_handler_->GetOutputVolumePercent());
+  EXPECT_TRUE(audio_handler_->IsOutputMuted());
+  EXPECT_EQ(initial_volume, audio_handler_->GetOutputVolumePercent());
 
-    // Thus, further VolumeUp will increase the volume.
-    VolumeUp();
-    EXPECT_LT(initial_volume, audio_handler_->GetOutputVolumePercent());
+  // Thus, further VolumeUp will increase the volume.
+  VolumeUp();
+  EXPECT_LT(initial_volume, audio_handler_->GetOutputVolumePercent());
 }
 
 class VolumeControllerSoundsTest : public VolumeControllerTest {
  public:
-  VolumeControllerSoundsTest() : sounds_manager_(nullptr) {}
+  VolumeControllerSoundsTest() = default;
 
   VolumeControllerSoundsTest(const VolumeControllerSoundsTest&) = delete;
   VolumeControllerSoundsTest& operator=(const VolumeControllerSoundsTest&) =
@@ -186,70 +154,110 @@ class VolumeControllerSoundsTest : public VolumeControllerTest {
 
   ~VolumeControllerSoundsTest() override = default;
 
-  void SetUpInProcessBrowserTestFixture() override {
-    auto sounds_manager = std::make_unique<SoundsManagerTestImpl>();
-    sounds_manager_ = sounds_manager.get();
-    audio::GlobalSoundsManager::InitializeForTesting(std::move(sounds_manager));
+  void SetUpOnMainThread() override {
+    VolumeControllerTest::SetUpOnMainThread();
+    fake_audio_service_ = std::make_unique<audio::FakeAudioService>();
+    audio_service_override_.emplace(
+        content::OverrideAudioServiceForTesting(fake_audio_service_.get()));
+  }
+
+  void TearDownOnMainThread() override {
+    audio_service_override_.reset();
+    fake_audio_service_.reset();
+    VolumeControllerTest::TearDownOnMainThread();
   }
 
   bool is_sound_initialized() const {
-    return sounds_manager_->is_sound_initialized(
-        static_cast<int>(ash::Sound::kVolumeAdjust));
+    return !audio::GlobalSoundsManager::Get()
+                .GetDuration(static_cast<int>(ash::Sound::kVolumeAdjust))
+                .is_zero();
   }
 
-  int num_play_requests() const {
-    return sounds_manager_->num_play_requests(
-        static_cast<int>(ash::Sound::kVolumeAdjust));
+  // We must explicitly stop the sound to force the stream to close.
+  // In production, the stream remains alive for 1500ms after playback finishes
+  // to allow reuse. In tests, we want to verify each play request creates a new
+  // stream (to assert on play counts) without waiting 1500ms of real time.
+  // Additionally, because browser tests do not drive the audio clock, the
+  // stream would otherwise get stuck in the active state forever.
+  void FinishSound(ash::Sound sound) {
+    audio::GlobalSoundsManager::Get().Stop(static_cast<int>(sound));
+    fake_audio_service_->fake_output_stream().ExpectDisconnect();
   }
 
- private:
-  raw_ptr<SoundsManagerTestImpl, DanglingUntriaged> sounds_manager_;
+ protected:
+  std::unique_ptr<audio::FakeAudioService> fake_audio_service_;
+  std::optional<base::AutoReset<audio::mojom::AudioService*>>
+      audio_service_override_;
 };
 
 IN_PROC_BROWSER_TEST_F(VolumeControllerSoundsTest, Simple) {
+  auto& fake_output_stream = fake_audio_service_->fake_output_stream();
+  EXPECT_TRUE(is_sound_initialized());
   audio_handler_->SetOutputVolumePercent(50);
 
   AccessibilityManager::Get()->EnableSpokenFeedback(false);
   VolumeUp();
   VolumeDown();
-  EXPECT_EQ(0, num_play_requests());
+  EXPECT_EQ(0, fake_output_stream.play_count());
 
   AccessibilityManager::Get()->EnableSpokenFeedback(true);
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kSpokenFeedbackEnabled);
+
   VolumeUp();
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(2, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kVolumeAdjust);
+
   VolumeDown();
-  EXPECT_EQ(2, num_play_requests());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(3, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kVolumeAdjust);
 }
 
 IN_PROC_BROWSER_TEST_F(VolumeControllerSoundsTest, EdgeCases) {
-  EXPECT_TRUE(is_sound_initialized());
+  auto& fake_output_stream = fake_audio_service_->fake_output_stream();
   AccessibilityManager::Get()->EnableSpokenFeedback(true);
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kSpokenFeedbackEnabled);
 
   // Check that sound is played on volume up and volume down.
   audio_handler_->SetOutputVolumePercent(50);
   VolumeUp();
-  EXPECT_EQ(1, num_play_requests());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(2, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kVolumeAdjust);
+
   VolumeDown();
-  EXPECT_EQ(2, num_play_requests());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(3, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kVolumeAdjust);
 
   audio_handler_->SetOutputVolumePercent(99);
   VolumeUp();
-  EXPECT_EQ(3, num_play_requests());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(4, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kVolumeAdjust);
 
   audio_handler_->SetOutputVolumePercent(100);
   VolumeUp();
-  EXPECT_EQ(3, num_play_requests());
+  EXPECT_EQ(4, fake_output_stream.play_count());
 
   // Check that sound isn't played when audio is muted.
   audio_handler_->SetOutputVolumePercent(50);
   VolumeMute();
   VolumeDown();
   ASSERT_TRUE(audio_handler_->IsOutputMuted());
-  EXPECT_EQ(3, num_play_requests());
+  EXPECT_EQ(4, fake_output_stream.play_count());
 
   // Check that audio is unmuted and sound is played.
   VolumeUp();
   ASSERT_FALSE(audio_handler_->IsOutputMuted());
-  EXPECT_EQ(4, num_play_requests());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(5, fake_output_stream.play_count());
+  FinishSound(ash::Sound::kVolumeAdjust);
 }
 
 class VolumeControllerSoundsDisabledTest : public VolumeControllerSoundsTest {
@@ -270,13 +278,13 @@ class VolumeControllerSoundsDisabledTest : public VolumeControllerSoundsTest {
 };
 
 IN_PROC_BROWSER_TEST_F(VolumeControllerSoundsDisabledTest, VolumeAdjustSounds) {
-  EXPECT_FALSE(is_sound_initialized());
+  auto& fake_output_stream = fake_audio_service_->fake_output_stream();
 
   // Check that sound isn't played on volume up and volume down.
   audio_handler_->SetOutputVolumePercent(50);
   VolumeUp();
   VolumeDown();
-  EXPECT_EQ(0, num_play_requests());
+  EXPECT_EQ(0, fake_output_stream.play_count());
 }
 
 }  // namespace

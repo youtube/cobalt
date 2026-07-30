@@ -117,19 +117,11 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="2236949375853147973">Mijn activiteit</translation>
 <translation id="2238130810669087193">Log in bij Chromium om onder andere je adressen te gebruiken op al je apparaten. Dit adres wordt opgeslagen in je Google-account nadat je bent ingelogd.</translation>
 <translation id="2241627712206172106">Als je een computer deelt, kunnen vrienden en familie afzonderlijk surfen en Chromium configureren zoals zij dat willen.</translation>
+<translation id="22571759390241347">Vaardigheden in Chromium</translation>
 <translation id="2283803047247799269">Dit tabblad doorzoeken met Zoeken met afbeelding</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium raadt aan het tabblad dat je browser vertraagt te onderbreken}other{Chromium raadt aan de tabbladen die je browser vertragen te onderbreken}}</translation>
 <translation id="2307973900865360088">In Dock houden</translation>
 <translation id="2313870531055795960">Checkt URL's aan de hand van een lijst met onveilige sites die is opgeslagen in Chromium. Als een site je wachtwoord probeert te stelen of als je een schadelijk bestand downloadt, kan Chromium ook URL's, inclusief delen van de paginacontent, naar Safe Browsing sturen.</translation>
-<translation id="2332076562712130931">Door deze actie gebeurt het volgende:
-<ph name="LINE_BREAKS" />
-• Sommige Chromium-instellingen en -snelkoppelingen worden gereset
-<ph name="LINE_BREAK" />
-• Extensies worden uitgezet
-<ph name="LINE_BREAK" />
-• Cookies en andere tijdelijke sitegegevens worden verwijderd
-<ph name="LINE_BREAKS" />
-Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.</translation>
 <translation id="2343156876103232566">Als je een nummer hier vandaan naar je Android-telefoon wilt sturen, log je in bij Chromium op beide apparaten.</translation>
 <translation id="2356070529366658676">Vragen</translation>
 <translation id="2359808026110333948">Doorgaan</translation>
@@ -191,6 +183,7 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="3003694935412297923">Alle taken</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium moet verifiëren dat jij het bent voordat bepaalde gegevens kunnen worden opgeslagen in je Google-account en op al je apparaten kunnen worden gebruikt. Als je nu uitlogt, worden deze gegevens (1 item) verwijderd.}other{Chromium moet verifiëren dat jij het bent voordat bepaalde gegevens kunnen worden opgeslagen in je Google-account en op al je apparaten kunnen worden gebruikt. Als je nu uitlogt, worden deze gegevens ({count} items) verwijderd.}}</translation>
 <translation id="3013473503895162900">Open <ph name="URL" /> op een nieuw tabblad in Chromium.</translation>
+<translation id="302551344979399011">AI-innovaties zoals vaardigheden worden opgeslagen in je Google-account en worden afzonderlijk beheerd van Chromium-synchronisatie</translation>
 <translation id="3032787606318309379">Toevoegen aan Chromium...</translation>
 <translation id="3038232873781883849">Wachten op installatie...</translation>
 <translation id="3045032126857188731">Vertaalde taal: <ph name="LANGUAGE" /></translation>
@@ -382,6 +375,7 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="5289287148052354622">De Chromium-app downloaden</translation>
 <translation id="5294316920224716406">Als je browst in de incognitomodus, waarschuwt Chromium je voordat een site wordt geladen via een niet-beveiligde verbinding</translation>
 <translation id="5313228254328109263">Interne Chromium Updater-service</translation>
+<translation id="5324450571874973775">Gebruik ze samen met andere Gemini-functies in Chromium</translation>
 <translation id="5346389065299425353">Verfijn je zoekopdracht door meerdere tabbladen, bestanden en tools toe te voegen</translation>
 <translation id="5348677704241861105">Krijg een snel overzicht van dit document en stel vragen met Gemini in Chromium</translation>
 <translation id="5352264705793813212">Chromium heeft een aantal veiligheidsaanbevelingen gevonden die je moet controleren</translation>
@@ -673,6 +667,7 @@ Chromium kan je instellingen niet herstellen.</translation>
 <translation id="8318772038038596122">Je organisatie sluit Chromium als deze <ph name="TIMEOUT_DURATION" /> niet wordt gebruikt.</translation>
 <translation id="8321888067342493336">Opslaan als afbeelding</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> maakte eerder gebruik van Chromium</translation>
+<translation id="8351551329754447960">Vaardigheden aanzetten in Chromium</translation>
 <translation id="8359544530202147897">Update Chromium om de Chromium-gegevens in je Google-account <ph name="ACCOUNT_EMAIL" /> te blijven gebruiken</translation>
 <translation id="8360718212975266891">Als je toekomstige Chromium-updates wilt krijgen, heb je Windows 10 of hoger nodig. Deze computer gebruikt Windows 8.</translation>
 <translation id="8362914115861174987">Vertalen naar het</translation>

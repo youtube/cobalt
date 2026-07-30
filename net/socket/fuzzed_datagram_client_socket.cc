@@ -12,6 +12,7 @@
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
@@ -126,6 +127,17 @@ int FuzzedDatagramClientSocket::SetMulticastInterface(
 
 const NetLogWithSource& FuzzedDatagramClientSocket::NetLog() const {
   return net_log_;
+}
+
+base::expected<DatagramsMetadata, Error>
+FuzzedDatagramClientSocket::ReadMultiple(
+    IOBuffer* buf,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback) {
+  NOTIMPLEMENTED();
+  return base::unexpected(ERR_NOT_IMPLEMENTED);
 }
 
 int FuzzedDatagramClientSocket::Read(IOBuffer* buf,

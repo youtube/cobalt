@@ -12,6 +12,8 @@ source_set("system") {
     "system_permission_settings.h",
   ]
 
+  friend = [ "//chrome/browser/permissions:unit_tests" ]
+
   sources = [ "system_permission_settings.cc" ]
 
   configs += [

@@ -27,6 +27,8 @@ class AutofillPopupControllerImplTestApi {
                 kIgnoreEarlyClicksOnSuggestionsDuration);
   }
 
+  base::WeakPtr<AutofillPopupView> view() { return controller_->view_; }
+
   // Determines whether to suppress minimum show thresholds. It should only be
   // set during tests that cannot mock time (e.g. the autofill interactive
   // browsertests).
@@ -42,6 +44,13 @@ class AutofillPopupControllerImplTestApi {
     controller_->controller_common_
         .prefer_prev_arrow_side_on_suggestions_update = prefer_prev_arrow_side;
   }
+
+  void SetShowTabbedPopup(bool show_tabbed_popup) {
+    controller_->controller_common_.show_tabbed_popup = show_tabbed_popup;
+  }
+
+  void ClearState() { controller_->ClearState(); }
+
   bool HasSuggestions() const { return controller_->HasSuggestions(); }
 
  private:

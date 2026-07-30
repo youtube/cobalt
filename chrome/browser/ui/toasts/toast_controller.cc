@@ -191,7 +191,7 @@ base::CallbackListSubscription ToastController::RegisterOnWidgetDestroyed(
 }
 
 void ToastController::PrimaryPageChanged(content::Page& page) {
-  ClearTabScopedToasts();
+  ClearTabScopedToasts(/*is_navigation=*/true);
 }
 
 base::OneShotTimer* ToastController::GetToastCloseTimerForTesting() {
@@ -209,7 +209,7 @@ void ToastController::OnActiveTabChanged(
   omnibox_helper_observer_.Reset();
   omnibox_helper_observer_.Observe(tab_helper);
   Observe(web_contents);
-  ClearTabScopedToasts();
+  ClearTabScopedToasts(/*is_navigation=*/false);
 }
 
 void ToastController::QueueToast(ToastParams params) {
@@ -391,22 +391,30 @@ void ToastController::OnFullscreenStateChanged() {
       ShouldRenderToastOverWebContents());
 }
 
-void ToastController::ClearTabScopedToasts() {
+void ToastController::ClearTabScopedToasts(bool is_navigation) {
   if (next_toast_params_.has_value()) {
     const ToastId toast_id = next_toast_params_.value().toast_id;
     const ToastSpecification* const specification =
         toast_registry_->GetToastSpecification(toast_id);
-    RecordToastDismissReason(toast_id, toasts::ToastCloseReason::kAbort);
-    if (!specification->is_global_scope()) {
+
+    const bool should_persist =
+        is_navigation && specification->persist_on_navigation();
+    if (!specification->is_global_scope() && !should_persist) {
+      RecordToastDismissReason(toast_id, toasts::ToastCloseReason::kAbort);
       next_toast_params_ = std::nullopt;
     }
   }
 
-  if (currently_showing_toast_id_.has_value() &&
-      !toast_registry_
-           ->GetToastSpecification(currently_showing_toast_id_.value())
-           ->is_global_scope()) {
-    toast_close_timer_.Stop();
-    CloseToast(toasts::ToastCloseReason::kAbort);
+  if (currently_showing_toast_id_.has_value()) {
+    const ToastSpecification* const specification =
+        toast_registry_->GetToastSpecification(
+            currently_showing_toast_id_.value());
+
+    const bool should_persist =
+        is_navigation && specification->persist_on_navigation();
+    if (!specification->is_global_scope() && !should_persist) {
+      toast_close_timer_.Stop();
+      CloseToast(toasts::ToastCloseReason::kAbort);
+    }
   }
 }

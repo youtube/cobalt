@@ -293,14 +293,6 @@ std::string BuildLikePattern(std::string_view query) {
 
 }  // namespace
 
-DownloadRecordDatabase::DownloadRecordQuery::DownloadRecordQuery() = default;
-DownloadRecordDatabase::DownloadRecordQuery::DownloadRecordQuery(
-    const DownloadRecordQuery& other) = default;
-DownloadRecordDatabase::DownloadRecordQuery&
-DownloadRecordDatabase::DownloadRecordQuery::operator=(
-    const DownloadRecordQuery& other) = default;
-DownloadRecordDatabase::DownloadRecordQuery::~DownloadRecordQuery() = default;
-
 DownloadRecordDatabase::DownloadRecordDatabase(const base::FilePath& db_path)
     : db_path_(db_path),
       db_(sql::Database::Tag("DownloadRecord")),

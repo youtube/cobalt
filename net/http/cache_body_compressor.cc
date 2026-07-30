@@ -81,6 +81,13 @@ int CacheBodyCompressor::Compress(base::span<const uint8_t> input,
 #if !defined(NET_DISABLE_ZSTD_COMPRESS)
   CHECK(cctx_);
 
+  if (max_uncompressed_size_for_testing_.has_value() &&
+      total_input_bytes_ + static_cast<int64_t>(input.size()) >
+          *max_uncompressed_size_for_testing_) {
+    output_length_ = 0;
+    return ERR_CACHE_COMPRESSION_FAILURE;
+  }
+
   ZSTD_inBuffer zstd_input = {input.data(), input.size(), 0};
   ZSTD_outBuffer zstd_output = {output_buffer_->data(),
                                 static_cast<size_t>(output_buffer_->size()), 0};

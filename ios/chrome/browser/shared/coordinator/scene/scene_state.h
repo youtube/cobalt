@@ -21,6 +21,7 @@
 @class ProfileState;
 @class SceneController;
 @class SceneState;
+@class SceneStatePrefs;
 class SigninInProgress;
 @class SceneUIBlockerState;
 @class TabGridState;
@@ -134,6 +135,9 @@ class SigninInProgress;
 // Object containing the state of the layout.
 @property(nonatomic, strong, readonly) LayoutState* layoutState;
 
+// Object allowing access to the SceneState scoped preferences.
+@property(nonatomic, readonly) SceneStatePrefs* prefs;
+
 // Adds an observer to this scene state. The observers will be notified about
 // scene state changes per SceneStateObserver protocol.
 - (void)addObserver:(id<SceneStateObserver>)observer;
@@ -146,14 +150,6 @@ class SigninInProgress;
 
 // Array of all agents added to this scene state.
 - (NSArray*)connectedAgents;
-
-// Retrieves per-session preference for `key`. May return nil if the key is
-// not found.
-- (NSObject*)sessionObjectForKey:(NSString*)key;
-
-// Stores `object` as a per-session preference if supported by the device or
-// into NSUserDefaults otherwise (old table, phone, ...).
-- (void)setSessionObject:(NSObject*)object forKey:(NSString*)key;
 
 // Records that an extra sign-in process started. When the returned value is
 // destructed, the sign-in ended.

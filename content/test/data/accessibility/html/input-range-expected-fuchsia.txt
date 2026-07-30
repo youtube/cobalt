@@ -1,9 +1,9 @@
 UNKNOWN focusable has_input_focus
 ++UNKNOWN hidden
 ++++UNKNOWN
-++++++SLIDER focusable actions='{SET_VALUE}'
-++++++SLIDER focusable actions='{SET_VALUE}'
+++++++SLIDER focusable actions='{SET_VALUE}' value='5'
+++++++SLIDER focusable actions='{SET_VALUE}' value='5'
 ++++++SLIDER focusable actions='{SET_VALUE}' value='Medium'
 ++++++SLIDER focusable actions='{SET_VALUE}' value='Friday'
-++++++SLIDER focusable actions='{SET_VALUE}'
-++++++SLIDER focusable actions='{SET_VALUE}'
+++++++SLIDER focusable actions='{SET_VALUE}' value='0.2'
+++++++SLIDER focusable actions='{SET_VALUE}' value='50'

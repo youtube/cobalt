@@ -15,6 +15,7 @@
 #include "base/files/scoped_file.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/strings/strcat.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -313,6 +314,62 @@ TEST_F(AwContentRestrictionURLLoaderThrottleTest, StreamRequestBodyClosedPipe) {
   EXPECT_TRUE(delegate_.resume_called());
   EXPECT_EQ(fcntl(raw_write_fd, F_GETFD), -1);
   EXPECT_EQ(errno, EBADF);
+}
+
+TEST_F(AwContentRestrictionURLLoaderThrottleTest,
+       StreamRequestBodyMultipleDataElements) {
+  EXPECT_CALL(mock_client_, IsContentRestrictionEnabled())
+      .WillOnce(Return(true));
+
+  int pipe_fds[2];
+  ASSERT_EQ(0, pipe(pipe_fds));
+  base::ScopedFD read_fd(pipe_fds[0]);
+  base::ScopedFD write_fd(pipe_fds[1]);
+  EXPECT_CALL(mock_client_,
+              CreateRequestBodyPipeAndGetWriteFd(kTestNavigationId))
+      .WillOnce(Return(write_fd.release()));
+  EXPECT_CALL(mock_client_, RequestContentClassification(_, _, _))
+      .WillOnce(WithArgs<2>(
+          [](AwContentRestrictionManagerClient::ContentClassificationCallback
+                 callback) { std::move(callback).Run(true); }));
+
+  network::ResourceRequest request;
+  request.url = GURL(kTestUrl);
+  request.method = "POST";
+
+  // Create a multipart request body.
+  const std::string part_1(
+      base::StrCat({"Part1_", kTestRequestPayloadContent}));
+  const std::string part_2(
+      base::StrCat({"Part2_", kTestRequestPayloadContent}));
+  const std::string part_3(
+      base::StrCat({"Part3_", kTestRequestPayloadContent}));
+  auto request_body = base::MakeRefCounted<network::ResourceRequestBody>();
+  request_body->AppendBytes(std::vector<uint8_t>(part_1.begin(), part_1.end()));
+  request_body->AppendBytes(std::vector<uint8_t>(part_2.begin(), part_2.end()));
+  request_body->AppendBytes(std::vector<uint8_t>(part_3.begin(), part_3.end()));
+  ASSERT_EQ(request_body->elements()->size(), 3u);
+  request.request_body = request_body;
+  bool defer = false;
+  throttle_.WillStartRequest(&request, &defer);
+  EXPECT_TRUE(defer);
+
+  // Wait until all async tasks are executed before verifying all parts are
+  // streamed into the pipe.
+  task_environment_.RunUntilIdle();
+  const std::string expected_payload = base::StrCat({part_1, part_2, part_3});
+  char buffer[100];
+  ASSERT_LT(expected_payload.size(), sizeof(buffer));
+  ssize_t bytes_read =
+      HANDLE_EINTR(read(read_fd.get(), buffer, sizeof(buffer)));
+  ASSERT_EQ(bytes_read, static_cast<ssize_t>(expected_payload.size()));
+  std::string read_data(buffer, bytes_read);
+  EXPECT_EQ(read_data, expected_payload);
+
+  // A subsequent read should return 0 (EOF) now that the pipe has been closed.
+  ssize_t second_read =
+      HANDLE_EINTR(read(read_fd.get(), buffer, sizeof(buffer)));
+  EXPECT_EQ(second_read, 0);
 }
 
 }  // namespace

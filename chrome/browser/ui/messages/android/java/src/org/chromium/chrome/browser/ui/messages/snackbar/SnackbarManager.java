@@ -20,6 +20,8 @@ import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -63,7 +65,8 @@ public class SnackbarManager
         DismissalReason.SWIPE,
         DismissalReason.DISMISSED_BY_CALLER,
         DismissalReason.REPLACED_BY_ACTION_SNACKBAR,
-        DismissalReason.OTHERS
+        DismissalReason.OTHERS,
+        DismissalReason.REPLACED_BY_HIGH_PRIORITY
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface DismissalReason {
@@ -74,7 +77,8 @@ public class SnackbarManager
         int DISMISSED_BY_CALLER = 4;
         int REPLACED_BY_ACTION_SNACKBAR = 5;
         int OTHERS = 6;
-        int NUM_ENTRIES = 7;
+        int REPLACED_BY_HIGH_PRIORITY = 7;
+        int NUM_ENTRIES = 8;
     }
 
     // The slot to push parent view overrides to. An entry with a larger number will take
@@ -162,6 +166,26 @@ public class SnackbarManager
             new Runnable() {
                 @Override
                 public void run() {
+                    if (!mActivityInForeground) return;
+                    // Timer Inversion: The 3.8s countdown is paused when the user is currently
+                    // swiping the snackbar, or if an OS-level overlay (like the Contacts Picker)
+                    // obscures the Chrome Activity, trapping the attacker's spoof attempt.
+                    if (isBeingDragged()) {
+                        resetSnackbarTimeout();
+                        return;
+                    }
+                    Snackbar current = mSnackbars.getCurrent();
+                    if (current != null) {
+                        // Records if the UI thread stalled while the snackbar was visible.
+                        long driftMs =
+                                TimeUtils.uptimeMillis()
+                                        - mCurrentSnackbarStartTimeMs
+                                        - getDuration(current);
+                        if (driftMs > 0) {
+                            RecordHistogram.recordCustomTimesHistogram(
+                                    "Snackbar.TimerDrift", driftMs, 1, 60000, 50);
+                        }
+                    }
                     mSnackbars.removeCurrentDueToTimeout();
                     updateView();
                 }
@@ -175,6 +199,7 @@ public class SnackbarManager
     private final @Nullable ModalDialogManager mModalDialogManager;
 
     private @Nullable SnackbarView mView;
+    private long mCurrentSnackbarStartTimeMs;
     private boolean mActivityInForeground;
     private boolean mIsDisabledForTesting;
     private boolean mIsModalDialogShowing;
@@ -261,10 +286,23 @@ public class SnackbarManager
 
     /** Shows a snackbar at the bottom of the screen. */
     public void showSnackbar(Snackbar snackbar) {
+        ThreadUtils.assertOnUiThread();
         if (!mActivityInForeground || mIsDisabledForTesting) return;
+
+        if (mSnackbars.contains(snackbar)) {
+            // If the snackbar is already in the queue, we treat this as an update.
+            // This prevents duplicate entries and ensures the timer is reset.
+            updateView();
+            if (mSnackbars.getCurrent() == snackbar) {
+                resetSnackbarTimeout();
+            }
+            return;
+        }
+
         RecordHistogram.recordSparseHistogram("Snackbar.Shown", snackbar.getIdentifier());
 
         mSnackbars.add(snackbar);
+
         updateView();
         assumeNonNull(mView);
         mView.updateAccessibilityPaneTitle();
@@ -272,6 +310,7 @@ public class SnackbarManager
 
     /** Dismisses the currently showing snackbar after user swipe. */
     void dismissCurrentSnackbarDueToSwipe() {
+        ThreadUtils.assertOnUiThread();
         if (mSnackbars.isEmpty()) return;
         mSnackbars.removeCurrentDueToSwipe();
         updateView();
@@ -279,14 +318,18 @@ public class SnackbarManager
 
     /** Dismisses the currently showing snackbar. */
     void dismissCurrentSnackbar() {
+        ThreadUtils.assertOnUiThread();
         if (mSnackbars.isEmpty()) return;
-        SnackbarController currentSnackbarController = mSnackbars.getCurrent().getController();
+        Snackbar current = mSnackbars.getCurrent();
+        if (current == null) return;
+        SnackbarController currentSnackbarController = current.getController();
         assertNonNull(currentSnackbarController);
         dismissSnackbars(currentSnackbarController);
     }
 
     /** Dismisses all snackbars. */
     public void dismissAllSnackbars() {
+        ThreadUtils.assertOnUiThread();
         if (mSnackbars.isEmpty()) return;
 
         mSnackbars.clear();
@@ -297,9 +340,10 @@ public class SnackbarManager
      * Dismisses snackbars that are associated with the given {@link SnackbarController}.
      *
      * @param controller Only snackbars with this controller will be removed. A snackbar associated
-     *         with a null controller cannot be dismissed via this method.
+     *     with a null controller cannot be dismissed via this method.
      */
     public void dismissSnackbars(SnackbarController controller) {
+        ThreadUtils.assertOnUiThread();
         if (mSnackbars.removeMatchingSnackbars(controller)) {
             updateView();
         }
@@ -309,10 +353,11 @@ public class SnackbarManager
      * Dismisses snackbars that have a certain controller and action data.
      *
      * @param controller Only snackbars with this controller will be removed. A snackbar associated
-     *         with a null controller cannot be dismissed via this method.
+     *     with a null controller cannot be dismissed via this method.
      * @param actionData Only snackbars whose action data is equal to actionData will be removed.
      */
     public void dismissSnackbars(SnackbarController controller, Object actionData) {
+        ThreadUtils.assertOnUiThread();
         if (mSnackbars.removeMatchingSnackbars(controller, actionData)) {
             updateView();
         }
@@ -325,6 +370,7 @@ public class SnackbarManager
         if (currentSnackbar != null
                 && !currentSnackbar.isTypePersistent()
                 && !mIsModalDialogShowing) {
+            mCurrentSnackbarStartTimeMs = TimeUtils.uptimeMillis();
             int durationMs = getDuration(currentSnackbar);
             mUiThreadHandler.postDelayed(mHideRunnable, durationMs);
         }
@@ -418,6 +464,13 @@ public class SnackbarManager
     }
 
     /**
+     * @return Whether the currently showing snackbar is being dragged.
+     */
+    public boolean isBeingDragged() {
+        return mView != null && mView.isBeingDragged();
+    }
+
+    /**
      * Overrides the parent {@link ViewGroup} of the currently-showing snackbar. This method removes
      * the snackbar from its original parent, and attaches it to the given parent.
      *
@@ -467,6 +520,7 @@ public class SnackbarManager
             }
 
             if (viewChanged) {
+                mCurrentSnackbarStartTimeMs = TimeUtils.uptimeMillis();
                 mUiThreadHandler.removeCallbacks(mHideRunnable);
                 if (!currentSnackbar.isTypePersistent() && !mIsModalDialogShowing) {
                     int durationMs = getDuration(currentSnackbar);
@@ -538,7 +592,7 @@ public class SnackbarManager
     /**
      * @return The currently showing snackbar. For testing only.
      */
-    public Snackbar getCurrentSnackbarForTesting() {
+    public @Nullable Snackbar getCurrentSnackbarForTesting() {
         return mSnackbars.getCurrent();
     }
 

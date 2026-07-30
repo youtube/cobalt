@@ -4,11 +4,7 @@
 
 #include "chromeos/ash/components/phonehub/fake_ping_manager.h"
 
-#include "chromeos/ash/components/phonehub/proto/phonehub_api.pb.h"
-
 namespace ash::phonehub {
-
-const proto::PingRequest kDefaultPingRequest;
 
 FakePingManager::FakePingManager() = default;
 

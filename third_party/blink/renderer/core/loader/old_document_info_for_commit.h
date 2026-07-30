@@ -14,6 +14,8 @@ namespace blink {
 // given to the next document that is going to commit in this FrameLoader.
 // Note that the "previous document" might not necessarily use the same
 // FrameLoader as this one, e.g. in case of local RenderFrame swap.
+class SecurityOrigin;
+
 struct OldDocumentInfoForCommit : GarbageCollected<OldDocumentInfoForCommit> {
   explicit OldDocumentInfoForCommit(
       scoped_refptr<SecurityOrigin> new_document_origin);
@@ -37,6 +39,8 @@ struct OldDocumentInfoForCommit : GarbageCollected<OldDocumentInfoForCommit> {
   // The total processing time spent in the previous page's lifecycle events
   // (e.g. pagehide, visibilitychange) on navigation commit.
   base::TimeDelta total_lifecycle_events_processing_time_on_commit;
+  // The origin of the previous document in the frame.
+  scoped_refptr<const SecurityOrigin> old_document_origin;
 };
 
 // Owns the OldDocumentInfoForCommit and exposes it through `info_`

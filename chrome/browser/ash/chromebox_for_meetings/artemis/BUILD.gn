@@ -50,10 +50,6 @@ source_set("unit_tests") {
   sources = [
     "local_data_source_unittest.cc",
     "log_source_unittest.cc",
-    "test_data_aggregator_service.cc",
-    "test_data_aggregator_service.h",
-    "test_watchdog.cc",
-    "test_watchdog.h",
   ]
 
   deps = [

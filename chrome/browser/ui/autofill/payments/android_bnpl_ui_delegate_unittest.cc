@@ -27,15 +27,16 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill::payments {
+namespace {
 
 using ::testing::_;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
 
-class MockPaymentsAutofillClient : public payments::TestPaymentsAutofillClient {
+class MockPaymentsAutofillClient : public TestPaymentsAutofillClient {
  public:
   explicit MockPaymentsAutofillClient(AutofillClient* client)
-      : payments::TestPaymentsAutofillClient(client) {}
+      : TestPaymentsAutofillClient(client) {}
   ~MockPaymentsAutofillClient() override = default;
 
   MOCK_METHOD(bool,
@@ -54,21 +55,20 @@ class MockPaymentsAutofillClient : public payments::TestPaymentsAutofillClient {
               (override));
   MOCK_METHOD(bool,
               ShowTouchToFillBnplIssuers,
-              (base::span<const payments::BnplIssuerContext>,
+              (base::span<const BnplIssuerContext>,
                const std::string&,
-               base::OnceCallback<void(autofill::BnplIssuer)>,
+               base::OnceCallback<void(BnplIssuer)>,
                base::OnceClosure),
               (override));
-  MOCK_METHOD(
-      bool,
-      OnPurchaseAmountExtracted,
-      (base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
-       std::optional<int64_t> extracted_amount,
-       bool is_amount_supported_by_any_issuer,
-       const std::optional<std::string>& app_locale,
-       base::OnceCallback<void(autofill::BnplIssuer)> selected_issuer_callback,
-       base::OnceClosure cancel_callback),
-      (override));
+  MOCK_METHOD(bool,
+              OnPurchaseAmountExtracted,
+              (base::span<const BnplIssuerContext> bnpl_issuer_contexts,
+               std::optional<int64_t> extracted_amount,
+               bool is_amount_supported_by_any_issuer,
+               const std::optional<std::string>& app_locale,
+               base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+               base::OnceClosure cancel_callback),
+              (override));
 };
 
 class AndroidBnplUiDelegateTest : public ChromeRenderViewHostTestHarness {
@@ -175,10 +175,9 @@ TEST_F(AndroidBnplUiDelegateTest, ShowBnplTosUi) {
 // Tests that ShowSelectBnplIssuerUi calls the client's
 // ShowTouchToFillBnplIssuers.
 TEST_F(AndroidBnplUiDelegateTest, ShowSelectBnplIssuerUi) {
-  std::vector<payments::BnplIssuerContext> issuer_context = {
-      payments::BnplIssuerContext(
-          test::GetTestLinkedBnplIssuer(),
-          payments::BnplIssuerEligibilityForPage::kIsEligible)};
+  std::vector<BnplIssuerContext> issuer_context = {
+      BnplIssuerContext(test::GetTestLinkedBnplIssuer(),
+                        BnplIssuerEligibilityForPage::kIsEligible)};
 
   EXPECT_CALL(payments_autofill_client(),
               ShowTouchToFillBnplIssuers(ElementsAreArray(issuer_context),
@@ -193,10 +192,9 @@ TEST_F(AndroidBnplUiDelegateTest, ShowSelectBnplIssuerUi) {
 // Tests that UpdateBnplIssuerUi calls the client's
 // OnPurchaseAmountExtracted.
 TEST_F(AndroidBnplUiDelegateTest, UpdateBnplIssuerUi) {
-  std::vector<payments::BnplIssuerContext> issuer_context = {
-      payments::BnplIssuerContext(
-          test::GetTestLinkedBnplIssuer(),
-          payments::BnplIssuerEligibilityForPage::kIsEligible)};
+  std::vector<BnplIssuerContext> issuer_context = {
+      BnplIssuerContext(test::GetTestLinkedBnplIssuer(),
+                        BnplIssuerEligibilityForPage::kIsEligible)};
 
   EXPECT_CALL(
       payments_autofill_client(),
@@ -212,4 +210,5 @@ TEST_F(AndroidBnplUiDelegateTest, UpdateBnplIssuerUi) {
                                 /*cancel_callback=*/base::DoNothing());
 }
 
+}  // namespace
 }  // namespace autofill::payments

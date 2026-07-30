@@ -150,12 +150,6 @@ BASE_FEATURE(kAudioWorkletThreadPool, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAutofillFixFieldsAssociatedWithNestedFormsByParser,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If disabled (default for many years), autofilling triggers KeyDown and
-// KeyUp events that do not send any key codes. If enabled, these events
-// contain the "Unidentified" key.
-BASE_FEATURE(kAutofillSendUnidentifiedKeyAfterFill,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // https://crbug.com/1472970
 BASE_FEATURE(kAutoSpeculationRules, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
@@ -678,6 +672,8 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 
 BASE_FEATURE(kDetectJSFrameworksOnWorker, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDetectZhVariants, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Improves the signal-to-noise ratio of network error related messages in the
 // DevTools Console.
 // See http://crbug.com/124534.
@@ -711,24 +707,6 @@ BASE_FEATURE(kDropInputEventsWhilePaintHolding,
 // Performance Panel, which (when clicked) call into a DevTools extension.
 BASE_FEATURE(kEnableDevtoolsDeepLinkViaExtensibilityApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Whether to respect loading=lazy attribute for images when they are on
-// invisible pages.
-BASE_FEATURE(kEnableLazyLoadImageForInvisiblePage,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<EnableLazyLoadImageForInvisiblePageType>::Option
-    enable_lazy_load_image_for_invisible_page_types[] = {
-        {EnableLazyLoadImageForInvisiblePageType::kAllInvisiblePage,
-         "all_invisible_page"},
-        {EnableLazyLoadImageForInvisiblePageType::kPrerenderPage,
-         "prerender_page"}};
-BASE_FEATURE_ENUM_PARAM(
-    EnableLazyLoadImageForInvisiblePageType,
-    kEnableLazyLoadImageForInvisiblePageTypeParam,
-    &kEnableLazyLoadImageForInvisiblePage,
-    "enabled_page_type",
-    EnableLazyLoadImageForInvisiblePageType::kAllInvisiblePage,
-    &enable_lazy_load_image_for_invisible_page_types);
 
 // Prevents an opener from being returned when a BlobURL is cross-site to the
 // window's top-level site.
@@ -773,20 +751,15 @@ BASE_FEATURE(kFadeInScrollbarWhenMouseWheelMayBegin,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// TODO(blee) Disabled deferring scrollbar fade out.
-// Similar to kFadeInScrollbarWhenMouseWheelMayBegin, this should work
-// only on macOS. (So the parameter would not needed)
-// Currently, the began and cancelled wheel events are forwarded from
-// compositor thread to main thread, so that the deferred scrollbar
-// fade-out are triggered on the main thread.
-// But this extra wheel events forwarded to the main thread generate an
-// unintended DOM event dispatch, which introduce a regression on mouse
-// wheel event over a focused spin button element. See crbug.com/508306805
+// Defer scrollbar fade out until began or cancelled wheel event.
+// Callers must gate this on kFadeInScrollbarWhenMouseWheelMayBegin,
+// which is macOS-only by default, so the value is unused when the
+// feature is off.
 BASE_FEATURE_PARAM(bool,
                    kDeferFadeOutScrollbarUntilMouseWheelEnded,
                    &kFadeInScrollbarWhenMouseWheelMayBegin,
                    "defer_fade_out",
-                   false);
+                   true);
 
 // Enable the <fencedframe> element; see crbug.com/1123606. Note that enabling
 // this feature does not automatically expose this element to the web, it only
@@ -2541,11 +2514,6 @@ BASE_FEATURE(kThreadedBodyLoader, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThreadedPreloadScanner, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE_PARAM(bool,
-                   kThrottleFrameRateOnInitialization,
-                   &features::kRenderBlockingFullFrameRate,
-                   "throttle-frame-rate-on-initialization",
-                   false);
 
 // Enable throttling of fetch() requests from service workers in the
 // installing state.  The limit of 3 was chosen to match the limit
@@ -2818,9 +2786,8 @@ bool IsMemoryPurgeOnBackgroundingEnabled() {
 }
 
 bool IsInlineScriptCacheEnabled() {
-  // Inline script cache is built on top of PersistentCodeCache.
-  return base::FeatureList::IsEnabled(kInlineScriptCache) &&
-         IsPersistentCacheForCodeCacheEnabled();
+  return net::HttpCache::IsSplitCacheEnabled() &&
+         base::FeatureList::IsEnabled(kInlineScriptCache);
 }
 
 bool IsParkableStringsToDiskEnabled() {

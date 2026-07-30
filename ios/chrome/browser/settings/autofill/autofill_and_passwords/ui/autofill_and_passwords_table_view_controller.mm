@@ -11,6 +11,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_signin_promo_item.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/utils/autofill_and_passwords_item_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_table_view_controller_constants.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -127,7 +128,8 @@
       break;
     case SettingsItemTypeAutofillSettings:
       [self.delegate
-          autofillAndPasswordsTableViewControllerDidSelectAutofillSettings:self];
+          autofillAndPasswordsTableViewControllerDidSelectAutofillSettings:
+              self];
       break;
     default:
       break;
@@ -143,7 +145,12 @@
   _passwordsEnabled = enabled;
 
   if (_passwordsDetailItem) {
-    _passwordsDetailItem.detailText = PasswordsItemDetailText(enabled);
+    if (IsYourSavedInfoSettingsPageIosEnabled()) {
+      _passwordsDetailItem.trailingDetailText =
+          PasswordsItemDetailText(enabled);
+    } else {
+      _passwordsDetailItem.detailText = PasswordsItemDetailText(enabled);
+    }
     [self reconfigureCellsForItems:@[ _passwordsDetailItem ]];
   }
 }
@@ -155,8 +162,13 @@
   _autofillCreditCardEnabled = enabled;
 
   if (_autofillCreditCardDetailItem) {
-    _autofillCreditCardDetailItem.detailText =
-        AutofillCreditCardItemDetailText(enabled);
+    if (IsYourSavedInfoSettingsPageIosEnabled()) {
+      _autofillCreditCardDetailItem.trailingDetailText =
+          AutofillCreditCardItemDetailText(enabled);
+    } else {
+      _autofillCreditCardDetailItem.detailText =
+          AutofillCreditCardItemDetailText(enabled);
+    }
     [self reconfigureCellsForItems:@[ _autofillCreditCardDetailItem ]];
   }
 }
@@ -168,8 +180,13 @@
   _autofillProfileEnabled = enabled;
 
   if (_autofillProfileDetailItem) {
-    _autofillProfileDetailItem.detailText =
-        AutofillProfileItemDetailText(enabled);
+    if (IsYourSavedInfoSettingsPageIosEnabled()) {
+      _autofillProfileDetailItem.trailingDetailText =
+          AutofillProfileItemDetailText(enabled);
+    } else {
+      _autofillProfileDetailItem.detailText =
+          AutofillProfileItemDetailText(enabled);
+    }
     [self reconfigureCellsForItems:@[ _autofillProfileDetailItem ]];
   }
 }
@@ -181,7 +198,12 @@
   _identityDocsEnabled = enabled;
 
   if (_identityDocsDetailItem) {
-    _identityDocsDetailItem.detailText = IdentityDocsItemDetailText(enabled);
+    if (IsYourSavedInfoSettingsPageIosEnabled()) {
+      _identityDocsDetailItem.trailingDetailText =
+          IdentityDocsItemDetailText(enabled);
+    } else {
+      _identityDocsDetailItem.detailText = IdentityDocsItemDetailText(enabled);
+    }
     [self reconfigureCellsForItems:@[ _identityDocsDetailItem ]];
   }
 }
@@ -193,7 +215,12 @@
   _travelInfoEnabled = enabled;
 
   if (_travelInfoDetailItem) {
-    _travelInfoDetailItem.detailText = TravelInfoItemDetailText(enabled);
+    if (IsYourSavedInfoSettingsPageIosEnabled()) {
+      _travelInfoDetailItem.trailingDetailText =
+          TravelInfoItemDetailText(enabled);
+    } else {
+      _travelInfoDetailItem.detailText = TravelInfoItemDetailText(enabled);
+    }
     [self reconfigureCellsForItems:@[ _travelInfoDetailItem ]];
   }
 }
@@ -202,7 +229,7 @@
   _shouldShowAutofillAIFeatures = shouldShow;
 }
 
-#pragma mark - Sign-in Promo
+#pragma mark - AutofillAndPasswordsSigninPromoConsumer
 
 - (void)promoStateChanged:(BOOL)promoEnabled
         promoConfigurator:(SigninPromoViewConfigurator*)promoConfigurator
@@ -238,7 +265,8 @@
 }
 
 - (void)configureSigninPromoWithConfigurator:
-    (SigninPromoViewConfigurator*)configurator {
+            (SigninPromoViewConfigurator*)promoConfigurator
+                             identityChanged:(BOOL)identityChanged {
   TableViewModel* model = self.tableViewModel;
   if (![model hasSectionForSectionIdentifier:SettingsSectionIdentifierSignIn]) {
     return;
@@ -256,9 +284,20 @@
           [model itemAtIndexPath:path]);
 
   if (item) {
-    item.configurator = configurator;
+    item.configurator = promoConfigurator;
     [self reconfigureCellsForItems:@[ item ]];
   }
+}
+
+- (void)promoProgressStateDidChange {
+  [self.delegate
+      autofillAndPasswordsTableViewControllerPromoProgressStateDidChange:self];
+}
+
+- (void)signinPromoViewMediatorCloseButtonWasTapped:
+    (SigninPromoViewMediator*)mediator {
+  [self.delegate
+      autofillAndPasswordsTableViewControllerDidTapSigninPromoClose:self];
 }
 
 #pragma mark - SettingsControllerProtocol

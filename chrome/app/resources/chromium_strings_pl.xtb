@@ -115,19 +115,11 @@
 <translation id="2236949375853147973">Moja aktywność</translation>
 <translation id="2238130810669087193">Aby mieć dostęp do adresów oraz innych ustawień i danych na wszystkich swoich urządzeniach, zaloguj się w Chromium. Ten adres zostanie zapisany na Twoim koncie Google, gdy się zalogujesz.</translation>
 <translation id="2241627712206172106">Jeśli dzielisz się komputerem ze znajomymi lub rodziną, wszyscy możecie niezależnie przeglądać internet i po swojemu skonfigurować Chromium.</translation>
+<translation id="22571759390241347">Umiejętności w Chromium</translation>
 <translation id="2283803047247799269">Wyszukaj na tej karcie za pomocą wyszukiwania obrazów</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium zaleca wstrzymanie karty, która spowalnia przeglądarkę}few{Chromium zaleca wstrzymanie kart, które spowalniają przeglądarkę}many{Chromium zaleca wstrzymanie kart, które spowalniają przeglądarkę}other{Chromium zaleca wstrzymanie kart, które spowalniają przeglądarkę}}</translation>
 <translation id="2307973900865360088">Zachowaj w Docku</translation>
 <translation id="2313870531055795960">Sprawdza, czy URL jest na liście niebezpiecznych stron zapisanej w Chromium. Jeśli strona próbuje wykraść Twoje hasło lub pobierasz szkodliwy plik, Chromium może też wysłać URL wraz z fragmentami zawartości strony do usługi Bezpieczne przeglądanie.</translation>
-<translation id="2332076562712130931">To działanie spowoduje:
-          <ph name="LINE_BREAKS" />
-           • zresetowanie niektórych ustawień i skrótów Chromium,
-           <ph name="LINE_BREAK" />
-           • wyłączenie rozszerzeń,
-           <ph name="LINE_BREAK" />
-           • usunięcie plików cookie i innych tymczasowych danych witryn.
-            <ph name="LINE_BREAKS" />
-           Zakładki, historia i zapisane hasła pozostaną bez zmian.</translation>
 <translation id="2343156876103232566">Aby wysłać stąd numer na swój telefon z Androidem, zaloguj się w Chromium na obu urządzeniach.</translation>
 <translation id="2356070529366658676">Pytaj</translation>
 <translation id="2359808026110333948">Dalej</translation>
@@ -189,6 +181,7 @@
 <translation id="3003694935412297923">Wszystkie zadania</translation>
 <translation id="3012615494352020668">{count,plural, =1{Zanim niektóre dane będą mogły zostać zapisane na Twoim koncie Google i używane na wszystkich Twoich urządzeniach, Chromium musi potwierdzić Twoją tożsamość. Jeśli wylogujesz się teraz, te dane (1 element) zostaną usunięte.}few{Zanim niektóre dane będą mogły zostać zapisane na Twoim koncie Google i używane na wszystkich Twoich urządzeniach, Chromium musi potwierdzić Twoją tożsamość. Jeśli wylogujesz się teraz, te dane ({count} elementy) zostaną usunięte.}many{Zanim niektóre dane będą mogły zostać zapisane na Twoim koncie Google i używane na wszystkich Twoich urządzeniach, Chromium musi potwierdzić Twoją tożsamość. Jeśli wylogujesz się teraz, te dane ({count} elementów) zostaną usunięte.}other{Zanim niektóre dane będą mogły zostać zapisane na Twoim koncie Google i używane na wszystkich Twoich urządzeniach, Chromium musi potwierdzić Twoją tożsamość. Jeśli wylogujesz się teraz, te dane ({count} elementu) zostaną usunięte.}}</translation>
 <translation id="3013473503895162900">Otwórz <ph name="URL" /> w nowej karcie w Chromium.</translation>
+<translation id="302551344979399011">Innowacje oparte na AI, takie jak umiejętności, są zapisywane na Twoim koncie Google i zarządzane oddzielnie od synchronizacji Chromium</translation>
 <translation id="3032787606318309379">Dodawanie do Chromium...</translation>
 <translation id="3038232873781883849">Czekam na instalację…</translation>
 <translation id="3045032126857188731">Język tłumaczenia: <ph name="LANGUAGE" /></translation>
@@ -378,6 +371,7 @@
 <translation id="5289287148052354622">Pobierz aplikację Chromium</translation>
 <translation id="5294316920224716406">Podczas przeglądania w trybie incognito Chromium będzie Cię ostrzegać przed wczytaniem strony korzystającej z niezabezpieczonego połączenia</translation>
 <translation id="5313228254328109263">Wewnętrzna usługa aktualizatora Chromium</translation>
+<translation id="5324450571874973775">Używaj ich razem z innymi funkcjami Gemini w Chromium</translation>
 <translation id="5346389065299425353">Pogłębiaj wyszukiwanie, dodając kilka kart, plików i narzędzi</translation>
 <translation id="5348677704241861105">Uzyskaj szybki przegląd tego dokumentu i zadaj pytania dzięki Gemini w Chromium</translation>
 <translation id="5352264705793813212">Przeglądarka Chromium znalazła rekomendacje dotyczące bezpieczeństwa do sprawdzenia</translation>
@@ -669,6 +663,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="8318772038038596122">Twoja organizacja zamyka przeglądarkę Chromium, gdy nie jest ona używana przez <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Zapisz jako obraz</translation>
 <translation id="8340674089072921962">Użytkownik <ph name="USER_EMAIL_ADDRESS" /> wcześniej używał Chromium</translation>
+<translation id="8351551329754447960">Włącz umiejętności w Chromium</translation>
 <translation id="8359544530202147897">Zaktualizuj Chromium, aby nadal korzystać z danych Chromium na koncie <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">Aby w przyszłości otrzymywać aktualizacje Chromium, musisz mieć system Windows 10 lub nowszy. Na tym komputerze jest zainstalowany system Windows 8.</translation>
 <translation id="8362914115861174987">Tłumacz na</translation>

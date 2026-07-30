@@ -103,6 +103,8 @@ BrowserWindowInterface* GetBrowserWithTabStripModel(
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitTabMenuModel,
                                       kReversePositionMenuItem);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitTabMenuModel,
+                                      kToggleOrientationMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitTabMenuModel, kCloseMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(SplitTabMenuModel,
                                       kCloseStartTabMenuItem);
@@ -155,6 +157,10 @@ SplitTabMenuModel::SplitTabMenuModel(TabStripModel* tab_strip_model,
 
   if (base::FeatureList::IsEnabled(tabs::kSplitViewHorizontal)) {
     AddItem(GetCommandIdInt(CommandId::kToggleOrientation), std::u16string());
+    SetElementIdentifierAt(
+        GetIndexOfCommandId(GetCommandIdInt(CommandId::kToggleOrientation))
+            .value(),
+        kToggleOrientationMenuItem);
   }
 
   AddItem(GetCommandIdInt(CommandId::kReversePosition), std::u16string());
@@ -294,6 +300,7 @@ void SplitTabMenuModel::ExecuteCommand(int command_id, int event_flags) {
           NOTREACHED() << "Unknown menu source";
       }
       tab_strip_model_->UpdateSplitLayout(split_id, new_layout, source);
+      tab_strip_model_->UpdateSplitRatio(split_id, 0.5);
       break;
     }
   }

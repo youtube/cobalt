@@ -162,6 +162,20 @@ FeedStream::FeedStream(RefreshTaskScheduler* refresh_task_scheduler,
       ::prefs::kSigninAllowed, profile_prefs,
       base::BindRepeating(&FeedStream::ClearAll, GetWeakPtr()));
 
+#if BUILDFLAG(IS_ANDROID)
+  if (!chrome_info_.user_feedback_allowed_pref_key.empty()) {
+    pref_change_registrar_.Init(profile_prefs);
+    pref_change_registrar_.Add(
+        chrome_info_.user_feedback_allowed_pref_key,
+        base::BindRepeating(&FeedStream::OnUserFeedbackPolicyChanged,
+                            GetWeakPtr()));
+    is_user_feedback_disabled_ =
+        !profile_prefs->GetBoolean(chrome_info_.user_feedback_allowed_pref_key);
+  } else {
+    is_user_feedback_disabled_ = false;
+  }
+#endif
+
   // Inserting this task first ensures that |store_| is initialized before
   // it is used.
   task_queue_.AddTask(FROM_HERE,
@@ -986,9 +1000,7 @@ LaunchResult FeedStream::ShouldAttemptLoad(const StreamType& stream_type,
 }
 
 bool FeedStream::MissedLastRefresh(const StreamType& stream_type) {
-  // TODO(crbug.com/407797637): Replace stream_type.IsForYou() to
-  // stream_type.isValid() once kFollowing is removed.
-  if (!stream_type.IsForYou()) {
+  if (!stream_type.IsValid()) {
     return false;
   }
   RequestSchedule schedule = feed::prefs::GetRequestSchedule(*profile_prefs_);
@@ -1080,6 +1092,7 @@ RequestMetadata FeedStream::GetCommonRequestMetadata(
   result.language_tag = delegate_->GetLanguageTag();
   result.notice_card_acknowledged =
       privacy_notice_card_tracker_.HasAcknowledgedNoticeCard();
+  result.is_user_feedback_disabled = is_user_feedback_disabled_;
   result.tab_group_enabled_state = delegate_->GetTabGroupEnabledState();
 
   if (signed_in_request) {
@@ -1156,6 +1169,16 @@ void FeedStream::OnAllHistoryDeleted() {
 
 void FeedStream::OnCacheDataCleared() {
   ClearAll();
+}
+
+void FeedStream::OnUserFeedbackPolicyChanged() {
+  const bool disabled =
+      !chrome_info_.user_feedback_allowed_pref_key.empty() &&
+      !profile_prefs_->GetBoolean(chrome_info_.user_feedback_allowed_pref_key);
+  if (is_user_feedback_disabled_ != disabled) {
+    is_user_feedback_disabled_ = disabled;
+    InvalidateContentCacheFor(StreamKind::kForYou);
+  }
 }
 
 void FeedStream::OnSignedIn() {
@@ -1343,9 +1366,7 @@ void FeedStream::LoadModel(const StreamType& stream_type,
 
 void FeedStream::SetRequestSchedule(const StreamType& stream_type,
                                     RequestSchedule schedule) {
-  // TODO(crbug.com/407797637): Replace stream_type.IsForYou() to
-  // stream_type.isValid() once kFollowing is removed.
-  if (!stream_type.IsForYou()) {
+  if (!stream_type.IsValid()) {
     DLOG(ERROR) << "Ignoring request schedule for this stream: " << stream_type;
     return;
   }

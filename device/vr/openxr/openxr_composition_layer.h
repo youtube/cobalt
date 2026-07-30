@@ -145,6 +145,10 @@ class OpenXrCompositionLayer {
     DCHECK(creation_data_);
     return *creation_data_->mutable_data;
   }
+  bool flip_y() const {
+    DCHECK(creation_data_);
+    return creation_data_->read_only_data->flip_y;
+  }
 
  private:
   Type type_ = Type::kProjection;

@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">Bura qayıdaraq son zamanlarda bağladığınız tabları yenidən aça bilərsiniz</translation>
 <translation id="1016495303386450659">Element yeniləndi</translation>
+<translation id="1018804590490383958">Skanlayın və avtomatik doldurun</translation>
 <translation id="1019990162050689579">Gemini tətbiq fəaliyyəti</translation>
 <translation id="102916930470544692">Giriş açarı</translation>
 <translation id="1030376737535466765">Parol menecerini açın</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Brauzeri güncəlləyin</translation>
 <translation id="4021931095789478915">Oxu siyahısına ${url} əlavə edin</translation>
 <translation id="4028871427853484857">Hesabda yadda saxlayın…</translation>
+<translation id="4036529942385659684">Fəaliyyətsizlik müddətindən sonra başlanğıc səhifəsini göstərin</translation>
 <translation id="4038354071007134711">Bu cihazdakı heç bir tətbiq faylı aça bilmir.</translation>
 <translation id="4042870976416480368">Səhifədə tapın</translation>
 <translation id="4045441967987592849">Yenidən açın</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Qrupu idarə edin</translation>
 <translation id="4172051516777682613">Həmişə göstərin</translation>
 <translation id="417273154673973994">{count,plural, =1{1 tab qrupu bağlandı və yadda saxlandı}other{{count} tab qrupu bağlandı və yadda saxlandı}}</translation>
-<translation id="417612446554534067">Cihazlara göndərin</translation>
 <translation id="4180726336228139707">Yalnız bu cihazda</translation>
 <translation id="4181841719683918333">Dillər</translation>
 <translation id="4183350924949589798">Daha çox güvənliyə ehtiyacınız var?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Tablar bağlandı; çıxış edildi</translation>
 <translation id="4911042367886397055">Təkrar xoş gəldiniz, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Parol kopyasını ailə qrupunun üzvü ilə təhlükəsiz paylaşa bilərsiniz. <ph name="BEGIN_LINK" />Ətraflı məlumat<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Obyektiv</translation>
 <translation id="4917025507570489430"><ph name="USER_EMAIL" /> kimi daxil olduğunuz zaman mövcud axtarış datasından istifadə edə bilərsiniz. Təşkilatınız bu dataya baxa bilər.</translation>
 <translation id="4918086044614829423">Qəbul edin</translation>
 <translation id="4930714375720679147">Aktiv Edin</translation>
@@ -1549,6 +1551,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Ünvan panelinin yerini seçin</translation>
 <translation id="6307241780749477694">Bu cihazda bütün parollarınızı əldə etmək üçün kimliyinizi doğrulayın</translation>
+<translation id="6307792728709337290">Kartı Google Hesabında yadda saxlayaraq bu və Chrome-da ediləcək gələcək alışlar üçün avtomatik doldurun.</translation>
 <translation id="6316141353357700666">Göstərilən siyahıdan istifadə etmək istədiyiniz parolu seçin.</translation>
 <translation id="6321526113093607004">Əlfəcinlərə əlavə edin</translation>
 <translation id="6327249202318869726">Gemini hesabınız üçün deaktiv edilib. Ətraflı məlumat üçün admininizlə əlaqə saxlayın.</translation>
@@ -2143,6 +2146,7 @@ Kompüterinizdə davam etmək üçün <ph name="OTHER_EMAIL" /> hesabına keçin
 <translation id="8263809106706527890">Defolt brauzer ayarlarında dəyişiklik ola bilər. Bunu ayarlarda yoxlaya bilərsiniz.</translation>
 <translation id="8264966119170358612">Yadda saxlanılmış parollarınızdan bəziləri Google-a aid olmayan data pozulması nəticəsində ələ keçirilib. <ph name="BEGIN_LINK" />Ətraflı məlumat<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">iPad-i sıfırlayarkən <ph name="USER_NAME" /> hesabından çıxdınız. Yenidən daxil olmaq üçün aşağıda "Davam edin" üzərinə toxunun.</translation>
+<translation id="8270320981823560179">Disk</translation>
 <translation id="8273982424131314219">Məlumatlar <ph name="URL" /> saytına daxil ediləcək</translation>
 <translation id="8275068909952022340">Daha çox…</translation>
 <translation id="8281781826761538115">Defolt - <ph name="DEFAULT_LOCALE" /></translation>

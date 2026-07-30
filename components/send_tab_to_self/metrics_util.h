@@ -6,6 +6,7 @@
 #define COMPONENTS_SEND_TAB_TO_SELF_METRICS_UTIL_H_
 
 #include "base/time/time.h"
+#include "components/sync_device_info/device_info.h"
 
 namespace send_tab_to_self {
 
@@ -121,6 +122,35 @@ void RecordTimeSentToReceived(base::TimeDelta delay);
 // it was opened by the user on the target device. Note: this involves clocks
 // on two different devices so the value may be skewed.
 void RecordTimeSentToOpened(base::TimeDelta delay);
+
+// Form factor combinations for sending/receiving devices.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SendTabToSelfFormFactorCombination)
+enum class SendTabToSelfFormFactorCombination {
+  kDesktopToDesktop = 0,
+  kDesktopToPhone = 1,
+  kDesktopToTablet = 2,
+  kDesktopToUnknown = 3,
+  kPhoneToDesktop = 4,
+  kPhoneToPhone = 5,
+  kPhoneToTablet = 6,
+  kPhoneToUnknown = 7,
+  kTabletToDesktop = 8,
+  kTabletToPhone = 9,
+  kTabletToTablet = 10,
+  kTabletToUnknown = 11,
+  kUnknownToDesktop = 12,
+  kUnknownToPhone = 13,
+  kUnknownToTablet = 14,
+  kUnknownToUnknown = 15,
+  kMaxValue = kUnknownToUnknown,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sharing/enums.xml:SendTabToSelfFormFactorCombination)
+
+void RecordDeviceFormFactorCombination(
+    syncer::DeviceInfo::FormFactor sender_form_factor,
+    syncer::DeviceInfo::FormFactor target_form_factor);
 
 }  // namespace send_tab_to_self
 

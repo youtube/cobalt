@@ -2,6 +2,7 @@ include_rules = [
   "+components/url_pattern",
   "+net/http",
   "+services/network/public",
+  "+third_party/blink/public",
 ]
 
 specific_include_rules = {

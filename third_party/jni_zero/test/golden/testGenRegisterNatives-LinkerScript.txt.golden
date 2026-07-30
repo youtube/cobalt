@@ -1,0 +1,6 @@
+{
+  local:
+    Java_org_jni_1zero_SampleForLinker_init;
+    Java_org_jni_1zero_SampleForLinker_nativeMethod;
+    Java_org_jni_1zero_SampleForLinker_staticMethod;
+};

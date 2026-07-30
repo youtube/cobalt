@@ -1,6 +1,7 @@
 include_rules = [
   "+chrome/elevation_service",
   "+chrome/updater",
+  "+components/private_verification_tokens/common",
   "+components/fingerprinting_protection_filter/common",
   "+components/cdm/common",
   "+components/live_caption",

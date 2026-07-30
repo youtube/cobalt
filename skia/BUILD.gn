@@ -62,6 +62,7 @@ config("skia_config") {
     "SK_ENABLE_SKSL",
     "SK_UNTIL_CRBUG_1187654_IS_FIXED",
     "SK_USER_CONFIG_HEADER=\"../../skia/config/SkUserConfig.h\"",
+    "SK_USE_PARTITION_ALLOC",
     "SK_WIN_FONTMGR_NO_SIMULATIONS",
 
     # Staging
@@ -495,6 +496,7 @@ component("skia") {
     ":skia_opts",
     ":skia_switches",
     "//base",
+    "//base/allocator/partition_allocator:raw_ptr",
     "//third_party/libwebp",
     "//third_party/libwebp:libwebp_webp",
     "//ui/base:features",

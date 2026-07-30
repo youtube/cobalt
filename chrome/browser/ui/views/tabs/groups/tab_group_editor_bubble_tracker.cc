@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_tracker.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/widget/widget.h"
 
@@ -18,12 +19,9 @@ TabGroupEditorBubbleTracker::TabGroupEditorBubbleTracker(
 }
 
 TabGroupEditorBubbleTracker::~TabGroupEditorBubbleTracker() {
-  if (is_open_ && widget_) {
-    widget_->RemoveObserver(this);
-    widget_->Close();
-    on_bubble_closed_callback_list_.Notify();
-  }
-  CHECK(!IsInObserverList());
+  is_open_ = false;
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  widget_.reset();
 }
 
 void TabGroupEditorBubbleTracker::SetScrollView(
@@ -36,12 +34,15 @@ void TabGroupEditorBubbleTracker::SetScrollView(
           : base::CallbackListSubscription();
 }
 
-void TabGroupEditorBubbleTracker::Opened(views::Widget* bubble_widget) {
+void TabGroupEditorBubbleTracker::Opened(
+    std::unique_ptr<views::Widget> bubble_widget) {
   DCHECK(bubble_widget);
   DCHECK(!is_open_);
-  widget_ = bubble_widget;
+  widget_ = std::move(bubble_widget);
   is_open_ = true;
-  bubble_widget->AddObserver(this);
+  widget_->MakeCloseSynchronous(
+      base::BindOnce(&TabGroupEditorBubbleTracker::CloseWidget,
+                     weak_ptr_factory_.GetWeakPtr()));
   on_bubble_opened_callback_list_.Notify();
 }
 
@@ -57,24 +58,32 @@ TabGroupEditorBubbleTracker::RegisterOnBubbleClosed(
   return on_bubble_closed_callback_list_.Add(std::move(callback));
 }
 
-void TabGroupEditorBubbleTracker::OnWidgetDestroying(
-    views::Widget* bubble_widget) {
-  CHECK(widget_ == bubble_widget);
+void TabGroupEditorBubbleTracker::CloseWidget(
+    views::Widget::ClosedReason reason) {
+  if (!is_open_) {
+    return;
+  }
+
   is_open_ = false;
-  widget_->RemoveObserver(this);
-  widget_ = nullptr;
+
+  if (widget_) {
+    widget_->CloseWithReason(reason);
+  }
+
+  // The widget cannot be destroyed synchronously here because CloseWidget is
+  // often called from within a Widget observer iteration (e.g., inside
+  // OnWidgetActivationChanged). Doing so would destroy the observer list.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+      FROM_HERE, widget_.release());
+
   on_bubble_closed_callback_list_.Notify();
 }
 
 void TabGroupEditorBubbleTracker::OnVerticalTabStripModeWillChange(
     tabs::VerticalTabStripStateController* controller) {
-  if (widget_) {
-    widget_->CloseNow();
-  }
+  CloseWidget(views::Widget::ClosedReason::kUnspecified);
 }
 
 void TabGroupEditorBubbleTracker::OnContentsScrolled() {
-  if (widget_) {
-    widget_->Close();
-  }
+  CloseWidget(views::Widget::ClosedReason::kUnspecified);
 }

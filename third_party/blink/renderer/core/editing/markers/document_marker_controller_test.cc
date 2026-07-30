@@ -613,7 +613,7 @@ TEST_F(DocumentMarkerControllerTest, MarkersIntersectingCollapsedRange) {
   EXPECT_EQ(3u, results[0].second->EndOffset());
 }
 
-TEST_F(DocumentMarkerControllerTest, MarkersIntersectingRangeWithShadowDOM) {
+TEST_F(DocumentMarkerControllerTest, MarkersIntersectingRangeWithShadowDom) {
   // Set up some shadow elements in a way we know doesn't work properly when
   // using EphemeralRange instead of EphemeralRangeInFlatTree:
   // <div>not shadow</div>

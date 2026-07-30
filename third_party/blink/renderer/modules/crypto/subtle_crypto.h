@@ -45,6 +45,7 @@ class DOMArrayBuffer;
 class EncapsulatedBits;
 class EncapsulatedKey;
 class V8UnionCryptoKeyOrCryptoKeyPair;
+class V8UnionArrayBufferOrJsonWebKey;
 
 class SubtleCrypto final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
@@ -93,10 +94,10 @@ class SubtleCrypto final : public ScriptWrappable {
                                      bool extractable,
                                      const Vector<String>& key_usages,
                                      ExceptionState&);
-  ScriptPromise<IDLAny> exportKey(ScriptState*,
-                                  const String&,
-                                  CryptoKey*,
-                                  ExceptionState&);
+  ScriptPromise<V8UnionArrayBufferOrJsonWebKey> exportKey(ScriptState*,
+                                                          const String&,
+                                                          CryptoKey*,
+                                                          ExceptionState&);
 
   ScriptPromise<DOMArrayBuffer> wrapKey(ScriptState*,
                                         const String&,

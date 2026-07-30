@@ -151,6 +151,13 @@ class DevToolsUIBindings : public DevToolsEmbedderMessageDispatcher::Delegate,
 
   void SetHttpServiceRegistryForTesting(
       std::unique_ptr<DevToolsHttpServiceRegistry> service_registry);
+  const std::map<std::string, std::string>& GetExtensionsAPIForTesting() const {
+    return extensions_api_;
+  }
+  void RegisterExtensionsAPIForTesting(const std::string& origin,
+                                       const std::string& script) {
+    RegisterExtensionsAPI(origin, script);
+  }
 
   static base::DictValue GetSyncInformationForProfile(Profile* profile);
 

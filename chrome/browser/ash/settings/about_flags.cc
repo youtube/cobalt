@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "ash/constants/chrome_pref_names.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
@@ -14,7 +15,6 @@
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/site_isolation/about_flags.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
@@ -229,7 +229,7 @@ void FeatureFlagsUpdate::ApplyUserPolicyToFlags(PrefService* user_profile_prefs,
   // policy. If it is supposed to be enabled, make sure it can not be disabled
   // using flags-induced command-line switches.
   const PrefService::Preference* site_per_process_pref =
-      user_profile_prefs->FindPreference(::prefs::kSitePerProcess);
+      user_profile_prefs->FindPreference(ash::chrome_prefs::kSitePerProcess);
   if (site_per_process_pref->IsManaged() &&
       site_per_process_pref->GetValue()->GetBool()) {
     flags->erase(::about_flags::SiteIsolationTrialOptOutChoiceEnabled());

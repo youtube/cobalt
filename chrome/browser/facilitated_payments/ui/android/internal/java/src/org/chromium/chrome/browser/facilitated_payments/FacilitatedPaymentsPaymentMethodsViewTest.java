@@ -62,6 +62,7 @@ import org.mockito.quality.Strictness;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -218,6 +219,7 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/524086369")
     public void testViewCanBeShownUsingTheModel() {
         // Confirm that the bottom sheet is not open.
         assertThat(mBottomSheetController.isSheetOpen(), is(false));
@@ -241,6 +243,7 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/523228313")
     public void testViewCanBeHiddenUsingTheModel() {
         runOnUiThreadBlocking(
                 () -> {

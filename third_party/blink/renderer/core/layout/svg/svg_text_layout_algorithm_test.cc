@@ -67,4 +67,17 @@ TEST_F(SvgTextLayoutAlgorithmTest, ControlCharCrash) {
   // Pass if no crashes.
 }
 
+TEST_F(SvgTextLayoutAlgorithmTest, FirstLineTextTransformCrash) {
+  SetBodyInnerHTML(R"HTML(
+<svg xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text::first-line { text-transform: uppercase; }
+  </style>
+  <text>&#xDF;</text>
+</svg>
+)HTML");
+  UpdateAllLifecyclePhasesForTest();
+  // Pass if no crashes.
+}
+
 }  // namespace blink

@@ -42,6 +42,7 @@ android_library("java") {
     "//chrome/browser/hub:java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/tab:java",
+    "//chrome/browser/tab_ui/android:java",
     "//chrome/browser/tabmodel:java",
     "//components/sync_device_info:sync_device_info_java",
     "//content/public/android:content_java",

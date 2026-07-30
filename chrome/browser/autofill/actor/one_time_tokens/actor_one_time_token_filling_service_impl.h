@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_AUTOFILL_ACTOR_ONE_TIME_TOKENS_ACTOR_ONE_TIME_TOKEN_FILLING_SERVICE_IMPL_H_
 #define CHROME_BROWSER_AUTOFILL_ACTOR_ONE_TIME_TOKENS_ACTOR_ONE_TIME_TOKEN_FILLING_SERVICE_IMPL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,9 @@
 class Profile;
 
 namespace autofill {
+
+class ActorFillingObserver;
+
 // Implementation for the ActorOneTimeTokenFillingService. This is owned by
 // `actor::ExecutionEngine`. It's called by the AttemptOtpFillingTool and
 // interacts with the backend OneTimeTokenService.
@@ -47,6 +51,8 @@ class ActorOneTimeTokenFillingServiceImpl
   raw_ptr<Profile> profile_;
   one_time_tokens::ExpiringSubscription subscription_;
   base::OnceCallback<void(std::string)> retrieve_otp_callback_;
+  std::unique_ptr<ActorFillingObserver> filling_observer_;
+
   base::WeakPtrFactory<ActorOneTimeTokenFillingServiceImpl> weak_ptr_factory_{
       this};
 };

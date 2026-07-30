@@ -23,7 +23,6 @@ build_webui("build") {
   grd_prefix = "cr_components_most_visited"
 
   ts_files = [
-    "browser_proxy.ts",
     "most_visited.html.ts",
     "most_visited.ts",
     "window_proxy.ts",

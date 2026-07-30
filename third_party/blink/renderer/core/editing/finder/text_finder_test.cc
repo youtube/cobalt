@@ -192,7 +192,7 @@ TEST_F(TextFinderTest, FindTextNotFound) {
   EXPECT_FALSE(GetTextFinder().ActiveMatch());
 }
 
-TEST_F(TextFinderTest, FindTextInShadowDOM) {
+TEST_F(TextFinderTest, FindTextInShadowDom) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<b>FOO</b><i slot='bar'>foo</i>");
   ShadowRoot& shadow_root =
@@ -359,7 +359,7 @@ TEST_F(TextFinderTest, ScopeTextMatchesRepeated) {
   EXPECT_EQ(FindInPageRect(text_node, 14, text_node, 20), match_rects[1]);
 }
 
-TEST_F(TextFinderTest, ScopeTextMatchesWithShadowDOM) {
+TEST_F(TextFinderTest, ScopeTextMatchesWithShadowDom) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<b>FOO</b><i slot='bar'>foo</i>");
   ShadowRoot& shadow_root =
@@ -465,7 +465,7 @@ TEST_F(TextFinderTest, SequentialMatches) {
   EXPECT_EQ(FindInPageRect(text_node, 4, text_node, 6), match_rects[2]);
 }
 
-TEST_F(TextFinderTest, FindTextJavaScriptUpdatesDOM) {
+TEST_F(TextFinderTest, FindTextJavaScriptUpdatesDom) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<b>XXXXFindMeYYYY</b><i></i>");
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
@@ -523,7 +523,7 @@ TEST_F(TextFinderTest, FindTextJavaScriptUpdatesDOM) {
             match_rects[1]);
 }
 
-TEST_F(TextFinderTest, FindTextJavaScriptUpdatesDOMAfterNoMatches) {
+TEST_F(TextFinderTest, FindTextJavaScriptUpdatesDomAfterNoMatches) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<b>XXXXYYYY</b><i></i>");
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);

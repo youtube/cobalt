@@ -435,7 +435,7 @@ int16_t Range::compareBoundaryPoints(Node* container_a,
                                      unsigned offset_b,
                                      ExceptionState& exception_state) {
   bool disconnected = false;
-  int16_t result = ComparePositionsInDOMTree(container_a, offset_a, container_b,
+  int16_t result = ComparePositionsInDomTree(container_a, offset_a, container_b,
                                              offset_b, &disconnected);
   if (disconnected) {
     exception_state.ThrowDOMException(
@@ -1004,8 +1004,10 @@ DocumentFragment* Range::createContextualFragment(
   // https://html.spec.whatwg.org/#the-createcontextualfragment()-method
 
   // Step 1: Invoke Get Trusted Type compliant string.
-  String compliant_markup = TrustedTypesCheckForHTML(
-      markup, owner_document_->GetExecutionContext(),
+  FragmentParserOptions resolved_options(
+      FragmentParserOptions::RunScripts::kRunScripts);
+  String compliant_markup = TrustedTypesCheckForFragment(
+      markup, resolved_options, owner_document_->GetExecutionContext(),
       trusted_types_names::kRange,
       trusted_types_names::kCreateContextualFragment, exception_state);
 
@@ -1047,7 +1049,7 @@ DocumentFragment* Range::createContextualFragment(
 
   // Steps 7, 8, 9: Invoke fragment parsing, etc.
   return blink::CreateContextualFragment(compliant_markup, element,
-                                         exception_state);
+                                         resolved_options, exception_state);
 }
 
 void Range::detach() {
@@ -1821,16 +1823,16 @@ void Range::UpdateSelectionIfAddedToSelection() {
   Position end_position = EndPosition();
   switch (update_selection_behavior_) {
     case UpdateSelectionBehavior::kEndOnly:
-      start_position = selection.GetSelectionInDOMTree().ComputeStartPosition();
+      start_position = selection.GetSelectionInDomTree().ComputeStartPosition();
       break;
     case UpdateSelectionBehavior::kStartOnly:
-      end_position = selection.GetSelectionInDOMTree().ComputeEndPosition();
+      end_position = selection.GetSelectionInDomTree().ComputeEndPosition();
       break;
     case UpdateSelectionBehavior::kAll:
       break;
   }
 
-  selection.SetSelection(SelectionInDOMTree::Builder()
+  selection.SetSelection(SelectionInDomTree::Builder()
                              .Collapse(start_position)
                              .Extend(end_position)
                              .Build(),

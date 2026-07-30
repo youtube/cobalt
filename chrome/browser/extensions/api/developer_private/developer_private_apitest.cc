@@ -29,7 +29,6 @@
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/browsertest_util.h"
 #include "extensions/browser/extension_host_test_helper.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
 #include "extensions/browser/offscreen_document_host.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/manifest_handlers/background_info.h"

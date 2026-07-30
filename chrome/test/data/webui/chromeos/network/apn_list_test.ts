@@ -16,6 +16,7 @@ import type {ApnProperties, ManagedApnList, ManagedCellularProperties} from 'chr
 import {PolicySource, PortalState} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
 suite('ApnListTest', () => {
   let apnList: ApnListElement;
@@ -143,6 +144,7 @@ suite('ApnListTest', () => {
   }
 
   setup(async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
     apnList = document.createElement('apn-list');
     document.body.appendChild(apnList);
     await flushTasks();
@@ -518,7 +520,9 @@ suite('ApnListTest', () => {
             apnSelectionDialog.shadowRoot!.querySelector<CrButtonElement>(
                 '.cancel-button');
         assertTrue(!!cancelButton);
+        const closePromise = eventToPromise('close', apnSelectionDialog);
         cancelButton.click();
+        await closePromise;
         await flushTasks();
         apnSelectionDialog =
             apnList.shadowRoot!.querySelector('apn-selection-dialog');

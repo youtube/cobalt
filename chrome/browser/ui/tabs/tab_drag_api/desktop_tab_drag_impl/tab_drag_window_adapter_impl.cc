@@ -6,6 +6,8 @@
 
 #include "base/notimplemented.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "ui/base/base_window.h"
+#include "ui/views/widget/widget.h"
 
 TabDragWindowAdapterImpl::TabDragWindowAdapterImpl(
     BrowserWindowInterface* browser_window)
@@ -13,11 +15,37 @@ TabDragWindowAdapterImpl::TabDragWindowAdapterImpl(
 
 TabDragWindowAdapterImpl::~TabDragWindowAdapterImpl() = default;
 
+gfx::Rect TabDragWindowAdapterImpl::GetBoundsInScreen() const {
+  return browser_window_->GetWindow()->GetBounds();
+}
+
 gfx::Point TabDragWindowAdapterImpl::ConvertScreenPointToLocal(
     const gfx::Point& screen_point) const {
   // TODO(crbug.com/501070453): Implement this once a client is registered
   NOTIMPLEMENTED();
   return screen_point;
+}
+
+void TabDragWindowAdapterImpl::SetCapture() {
+  views::Widget* widget = views::Widget::GetWidgetForNativeWindow(
+      browser_window_->GetWindow()->GetNativeWindow());
+  if (widget) {
+    widget->SetCapture(nullptr);
+  }
+}
+
+void TabDragWindowAdapterImpl::ReleaseCapture() {
+  views::Widget* widget = views::Widget::GetWidgetForNativeWindow(
+      browser_window_->GetWindow()->GetNativeWindow());
+  if (widget) {
+    widget->ReleaseCapture();
+  }
+}
+
+bool TabDragWindowAdapterImpl::HasCapture() const {
+  views::Widget* widget = views::Widget::GetWidgetForNativeWindow(
+      browser_window_->GetWindow()->GetNativeWindow());
+  return widget && widget->HasCapture();
 }
 
 base::WeakPtr<tabs_api::TabDragWindowAdapter>

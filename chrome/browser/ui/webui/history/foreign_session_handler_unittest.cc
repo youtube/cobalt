@@ -141,10 +141,10 @@ class ForeignSessionHandlerTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::SetUp();
 
     handler_ = std::make_unique<ForeignSessionHandler>(
-        handler_remote_.BindNewPipeAndPassReceiver(), profile(), web_contents(),
-        restore_tab_callback_.Get(), restore_windows_callback_.Get(),
+        handler_remote_.BindNewPipeAndPassReceiver(), page_.BindAndGetRemote(),
+        profile(), web_contents(), restore_tab_callback_.Get(),
+        restore_windows_callback_.Get(),
         /*side_panel_ui=*/nullptr);
-    handler_->SetPage(page_.BindAndGetRemote());
   }
 
   void TearDown() override {
@@ -302,10 +302,9 @@ class ForeignSessionHandlerSidePanelTest
     side_panel_ui_->set_embedder(embedder);
 
     handler_ = std::make_unique<ForeignSessionHandler>(
-        handler_remote_.BindNewPipeAndPassReceiver(), profile(),
-        web_ui_->GetWebContents(), restore_tab_callback_.Get(),
+        handler_remote_.BindNewPipeAndPassReceiver(), page_.BindAndGetRemote(),
+        profile(), web_ui_->GetWebContents(), restore_tab_callback_.Get(),
         base::DoNothing(), side_panel_ui_.get());
-    handler_->SetPage(page_.BindAndGetRemote());
   }
 
   void TearDown() override {
@@ -357,12 +356,6 @@ class ForeignSessionHandlerSidePanelTest
   base::MockCallback<ForeignSessionHandler::RestoreForeignSessionTabCallback>
       restore_tab_callback_;
 };
-
-TEST_F(ForeignSessionHandlerSidePanelTest, SetPageShowsSidePanelUI) {
-  auto embedder = std::make_unique<MockEmbedder>();
-  EXPECT_CALL(*embedder, ShowUI());
-  CreateSidePanelUI(embedder->GetWeakPtr());
-}
 
 TEST_F(ForeignSessionHandlerSidePanelTest,
        OpenForeignSessionTabWithSidePanelLeftClick) {

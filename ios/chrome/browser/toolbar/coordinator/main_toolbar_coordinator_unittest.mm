@@ -13,7 +13,6 @@
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observer.h"
-#import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
@@ -28,11 +27,11 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
@@ -143,10 +142,10 @@ class MainToolbarCoordinatorTest : public PlatformTest {
         startDispatchingToTarget:mock_page_action_menu_commands
                      forProtocol:@protocol(PageActionMenuCommands)];
 
-    id mock_bwg_commands = OCMProtocolMock(@protocol(BWGCommands));
+    id mock_gemini_commands = OCMProtocolMock(@protocol(GeminiCommands));
     [browser_->GetCommandDispatcher()
-        startDispatchingToTarget:mock_bwg_commands
-                     forProtocol:@protocol(BWGCommands)];
+        startDispatchingToTarget:mock_gemini_commands
+                     forProtocol:@protocol(GeminiCommands)];
 
     id mock_popup_menu_handler = OCMProtocolMock(@protocol(PopupMenuCommands));
     [browser_->GetCommandDispatcher()
@@ -259,8 +258,6 @@ TEST_F(MainToolbarCoordinatorTest, SideSwipeSnapshotForToolbarNotInHierarchy) {
   web::WebState* web_state = test_web_state.get();
   WebViewProxyTabHelper::CreateForWebState(web_state);
   InfoBarManagerImpl::CreateForWebState(web_state);
-  OfflinePageTabHelper::CreateForWebState(
-      web_state, ReadingListModelFactory::GetForProfile(profile_.get()));
   InfobarBadgeTabHelper::CreateForWebState(web_state);
 
   browser_->GetWebStateList()->InsertWebState(

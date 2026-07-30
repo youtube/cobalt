@@ -17,6 +17,13 @@ message ContextMemoryAmbientAutofillRequest {
   string top_level_domain = 1;
 
   repeated EntityType requested_types = 2;
+
+  // Whether to return sensitive PII data presence.
+  //
+  // If false or not specified, the masked data of available spii data
+  // will be provided in the response. If set to true, only the presence of spii
+  // will be returned.
+  bool return_spii_presence = 3;
 }
 
 message ContextMemoryAmbientAutofillResponse {

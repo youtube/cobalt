@@ -7,6 +7,7 @@
 #include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
+#include "third_party/blink/renderer/core/route_matching/navigation_state.h"
 #include "third_party/blink/renderer/core/route_matching/route.h"
 #include "third_party/blink/renderer/core/route_matching/route_map.h"
 #include "third_party/blink/renderer/core/url_pattern/url_pattern.h"
@@ -14,24 +15,23 @@
 
 namespace blink {
 
-void RouteLocation::Trace(Visitor* v) const {
-  v->Trace(url_pattern_);
-}
-
 const Route* RouteLocation::FindOrCreateRoute(Document& document) const {
-  if (url_pattern_) {
-    // A URLPattern becomes an anonymous route. One route for each unique
-    // URLPattern.
-    RouteMap::Ensure(document).AddAnonymousRoute(url_pattern_);
+  if (type_ == kUrlPattern || type_ == kUrl) {
+    // url-pattern() and url() become anonymous routes. One route for each
+    // unique entry.
+    RouteMap::Ensure(document).AddAnonymousRoute(value_);
   }
   const auto* route_map = RouteMap::Get(&document);
   if (!route_map) {
     return nullptr;
   }
-  if (url_pattern_) {
-    return route_map->FindRoute(url_pattern_);
+  switch (type_) {
+    case kUrl:
+    case kUrlPattern:
+      return route_map->FindAnonymousRoute(value_);
+    case kRouteName:
+      return route_map->FindRoute(value_);
   }
-  return route_map->FindRoute(GetRouteName());
 }
 
 bool RouteLocation::CheckSelectorMatch(
@@ -48,13 +48,21 @@ bool RouteLocation::CheckSelectorMatch(
 }
 
 void RouteLocation::SerializeTo(StringBuilder& builder) const {
-  DCHECK(!string_.IsNull());
-  if (url_pattern_) {
-    builder.Append("url-pattern(");
-    SerializeString(string_, builder);
-    builder.Append(")");
-  } else {
-    SerializeIdentifier(string_, builder);
+  DCHECK(!value_.IsNull());
+  switch (type_) {
+    case kUrlPattern:
+      builder.Append("url-pattern(");
+      SerializeString(value_, builder);
+      builder.Append(")");
+      break;
+    case kUrl:
+      builder.Append("url(");
+      SerializeString(value_, builder);
+      builder.Append(")");
+      break;
+    case kRouteName:
+      SerializeIdentifier(value_, builder);
+      break;
   }
 }
 
@@ -71,6 +79,7 @@ bool NavigationLocationTestExpression::Matches(Document& document) const {
 void NavigationLocationTestExpression::SerializeTo(
     StringBuilder& builder) const {
   SerializePrepositionTo(preposition_, builder);
+  builder.Append(": ");
   route_location_->SerializeTo(builder);
 }
 
@@ -79,16 +88,16 @@ void NavigationLocationTestExpression::SerializePrepositionTo(
     StringBuilder& builder) {
   switch (preposition) {
     case NavigationPreposition::kAt:
-      builder.Append("at: ");
+      builder.Append("at");
       break;
     case NavigationPreposition::kFrom:
-      builder.Append("from: ");
+      builder.Append("from");
       break;
     case NavigationPreposition::kTo:
-      builder.Append("to: ");
+      builder.Append("to");
       break;
     case NavigationPreposition::kWith:
-      builder.Append("with: ");
+      builder.Append("with");
       break;
   }
 }
@@ -121,8 +130,8 @@ void NavigationLocationBetweenTestExpression::SerializeTo(
 }
 
 bool NavigationPhaseTestExpression::Matches(Document& document) const {
-  const auto* route_map = RouteMap::Get(&document);
-  return route_map && route_map->GetPhase() == phase_;
+  const auto* state = NavigationState::Get(&document);
+  return state && state->GetPhase() == phase_;
 }
 
 void NavigationPhaseTestExpression::SerializeTo(StringBuilder& builder) const {
@@ -137,22 +146,20 @@ void NavigationPhaseTestExpression::SerializeTo(StringBuilder& builder) const {
     case NavigationPhase::kCommitted:
       builder.Append("committed");
       break;
-    case NavigationPhase::kInactive:
-      NOTREACHED();
   }
 }
 
 bool NavigationTypeTestExpression::Matches(Document& document) const {
-  const auto* route_map = RouteMap::Get(&document);
-  if (!route_map) {
+  const auto* state = NavigationState::Get(&document);
+  if (!state) {
     return false;
   }
-  switch (route_map->GetHistoryTraverseType()) {
-    case RouteMap::kNotTraversing:
+  switch (state->GetTraverseType()) {
+    case NavigationState::kNotTraversing:
       return false;
-    case RouteMap::kBack:
+    case NavigationState::kBack:
       return type_ == kTraverse || type_ == kBack;
-    case RouteMap::kForward:
+    case NavigationState::kForward:
       return type_ == kTraverse || type_ == kForward;
   }
 }
@@ -174,7 +181,8 @@ void NavigationTypeTestExpression::SerializeTo(StringBuilder& builder) const {
 }
 
 bool NavigationPreviewTestExpression::Matches(Document& document) const {
-  return RouteMap::Get(&document)->IsInPreview();
+  const auto* state = NavigationState::Get(&document);
+  return state && state->IsInPreview();
 }
 
 void NavigationPreviewTestExpression::SerializeTo(

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.80.0"
 name = "derivre"
-version = "0.3.11"
+version = "0.3.12"
 authors = ["Michal Moskal <michal@moskal.me>"]
 build = false
 exclude = ["scripts/*"]
@@ -73,14 +73,14 @@ version = "1.21.0"
 version = "1.8.1"
 
 [dependencies.hashbrown]
-version = "0.15.2"
+version = "0.17.1"
 default-features = false
 
 [dependencies.regex-syntax]
 version = "0.8.5"
 
 [dependencies.strum]
-version = "0.27.0"
+version = "0.28.0"
 features = ["derive"]
 
 [dev-dependencies.bstr]
@@ -96,4 +96,4 @@ version = "1.0.217"
 features = ["derive"]
 
 [dev-dependencies.toml]
-version = "0.8.20"
+version = "1.1.2"

@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include "base/observer_list_types.h"
+
 namespace gfx {
 class Rect;
 }
@@ -18,7 +20,7 @@ class Surface;
 enum class OverlayPriority;
 
 // Observers can listen to various events on the Surfaces.
-class SurfaceObserver {
+class SurfaceObserver : public base::CheckedObserver {
  public:
   // Called at the top of the surface's destructor, to give observers a
   // chance to remove themselves.
@@ -68,7 +70,7 @@ class SurfaceObserver {
       OverlayPriority overlay_priority_hint) {}
 
  protected:
-  virtual ~SurfaceObserver() = default;
+  ~SurfaceObserver() override = default;
 };
 
 }  // namespace exo

@@ -5,7 +5,6 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_NAVIGATION_CAPTURING_SETTINGS_IMPL_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_NAVIGATION_CAPTURING_SETTINGS_IMPL_H_
 
-#include "base/memory/raw_ref.h"
 #include "chrome/browser/web_applications/navigation_capturing_settings.h"
 
 class Profile;
@@ -28,9 +27,6 @@ class NavigationCapturingSettingsImpl : public NavigationCapturingSettings {
 
   std::optional<webapps::AppId> GetCapturingWebAppForUrl(
       const GURL& url) override;
-
- private:
-  raw_ref<Profile> profile_;
 };
 
 }  // namespace web_app

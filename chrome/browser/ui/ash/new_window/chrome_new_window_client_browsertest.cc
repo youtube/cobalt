@@ -97,7 +97,7 @@ IN_PROC_BROWSER_TEST_F(ChromeNewWindowClientBrowserTest,
 
   // After activating |browser1|, the newly created window should be created
   // against |browser1|'s profile.
-  browser1->window()->Show();
+  browser1->GetWindow()->Show();
   ChromeNewWindowClient::Get()->NewWindow(
       /*incognito=*/false,
       /*should_trigger_session_restore=*/true);
@@ -106,14 +106,14 @@ IN_PROC_BROWSER_TEST_F(ChromeNewWindowClientBrowserTest,
   // Test for incognito windows.
   // The newly created incognito window should be created against the current
   // active |browser1|'s profile.
-  browser1->window()->Show();
+  browser1->GetWindow()->Show();
   ChromeNewWindowClient::Get()->NewWindow(
       /*incognito=*/true, /*should_trigger_session_restore=*/true);
   EXPECT_EQ(GetLastActiveBrowser()->profile()->GetOriginalProfile(), profile1);
 
   // The newly created incognito window should be created against the current
   // active |browser2|'s profile.
-  browser2->window()->Show();
+  browser2->GetWindow()->Show();
   ChromeNewWindowClient::Get()->NewWindow(
       /*incognito=*/true, /*should_trigger_session_restore=*/true);
   EXPECT_EQ(GetLastActiveBrowser()->profile()->GetOriginalProfile(), profile2);
@@ -148,7 +148,7 @@ IN_PROC_BROWSER_TEST_F(ChromeNewWindowClientBrowserTest, IncognitoForced) {
 
   // Deactivating the current normal profile browser
   Browser* regular_browser = GetLastActiveBrowser();
-  regular_browser->window()->Deactivate();
+  regular_browser->GetWindow()->Deactivate();
 
   // NewTab should open a new browser window in Incognito
   ChromeNewWindowClient::Get()->NewTab();
@@ -158,8 +158,8 @@ IN_PROC_BROWSER_TEST_F(ChromeNewWindowClientBrowserTest, IncognitoForced) {
   EXPECT_TRUE(incognito_browser->profile()->IsIncognitoProfile());
 
   // After deactivating browsers, NewTab should open a new Incognito Tab only
-  incognito_browser->window()->Deactivate();
-  regular_browser->window()->Deactivate();
+  incognito_browser->GetWindow()->Deactivate();
+  regular_browser->GetWindow()->Deactivate();
   ChromeNewWindowClient::Get()->NewTab();
   EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   EXPECT_EQ(2, incognito_browser->tab_strip_model()->count());

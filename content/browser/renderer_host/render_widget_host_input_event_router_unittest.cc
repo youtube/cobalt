@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/test/run_until.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/input/features.h"
@@ -127,6 +128,12 @@ class MockRootRenderWidgetHostView : public TestRenderWidgetHostView {
       const gfx::PointF& point,
       input::RenderWidgetHostViewInput* target_view,
       gfx::PointF* transformed_point) override {
+    if (transform_should_fail_ && target_view != this) {
+      // Simulates HitTestQuery::TransformLocationForTarget() returning false
+      // because a (compromised) embedding renderer submitted a
+      // HitTestRegionList that omits the child OOPIF's FrameSinkId.
+      return false;
+    }
     if (target_view == this) {
       *transformed_point = point;
     } else {
@@ -135,7 +142,16 @@ class MockRootRenderWidgetHostView : public TestRenderWidgetHostView {
     return true;
   }
 
+  bool TransformPointToLocalCoordSpace(
+      const gfx::PointF& point,
+      const viz::FrameSinkId& original_frame_sink_id,
+      gfx::PointF* transformed_point) override {
+    *transformed_point = point + offset_;
+    return true;
+  }
+
   void SetOffset(const gfx::Vector2dF& offset) { offset_ = offset; }
+  void SetTransformShouldFail(bool fail) { transform_should_fail_ = fail; }
 
   void ProcessGestureEvent(const blink::WebGestureEvent& event,
                            const ui::LatencyInfo&) override {
@@ -181,6 +197,7 @@ class MockRootRenderWidgetHostView : public TestRenderWidgetHostView {
       blink::WebInputEvent::Type::kUndefined;
   uint32_t unique_id_for_last_touch_ack_ = 0;
   bool force_null_rir_ = false;
+  bool transform_should_fail_ = false;
   gfx::Vector2dF offset_;
 };
 
@@ -571,20 +588,102 @@ TEST_F(RenderWidgetHostInputEventRouterTest,
        FindViewFromFrameSinkIdWithAncestorVerification) {
   ChildViewState child1 = MakeChildView(view_root_.get());
   ChildViewState child2 = MakeChildView(view_root_.get());
+  ChildViewState grandchild = MakeChildView(child1.view.get());
 
-  // child2 is NOT a descendant of child1.
+  // child2 is NOT a direct child of child1.
   EXPECT_EQ(nullptr, rwhier()->FindViewFromFrameSinkId(
                          child2.view->GetFrameSinkId(), child1.view.get()));
 
-  // child2 IS a descendant of view_root_.
+  // child2 IS a direct child of view_root_.
   EXPECT_EQ(child2.view.get(),
             rwhier()->FindViewFromFrameSinkId(child2.view->GetFrameSinkId(),
                                               view_root_.get()));
 
-  // child1 IS a descendant of view_root_.
+  // child1 IS a direct child of view_root_.
   EXPECT_EQ(child1.view.get(),
             rwhier()->FindViewFromFrameSinkId(child1.view->GetFrameSinkId(),
                                               view_root_.get()));
+
+  // grandchild is a descendant of view_root_ but NOT a direct child.
+  // Under strict direct-child validation, it should return nullptr.
+  EXPECT_EQ(nullptr, rwhier()->FindViewFromFrameSinkId(
+                         grandchild.view->GetFrameSinkId(), view_root_.get()));
+
+  // grandchild IS a direct child of child1.
+  EXPECT_EQ(grandchild.view.get(),
+            rwhier()->FindViewFromFrameSinkId(grandchild.view->GetFrameSinkId(),
+                                              child1.view.get()));
+}
+
+// Verifies that during async hit testing, the browser validates that
+// coordinates returned by the renderer match the expected forward transform.
+// Confirms that honest coordinates are accepted and spoofed coordinates
+// (clickjacking attempts) are rejected and safely fall back.
+TEST_F(RenderWidgetHostInputEventRouterTest,
+       AsyncTargetingCoordinateValidation) {
+  ChildViewState child = MakeChildView(view_root_.get());
+
+  // Set child offset in the root view.
+  gfx::Vector2dF offset(10.f, 20.f);
+  view_root_->SetOffset(offset);
+
+  // Set root hit-test result to ask renderer (trigger async path).
+  view_root_->SetHittestResult(view_root_.get(), true);
+
+  // Case 1: Valid coordinate returned by renderer.
+  // Click at (100, 100) in root. Child local should be (90, 80).
+  gfx::PointF click_point(100.f, 100.f);
+  gfx::PointF valid_local_point(90.f, 80.f);
+
+  input_target_client_root_->forward_callback_ = base::BindOnce(
+      [](viz::FrameSinkId ret, gfx::PointF local_point,
+         MockInputTargetClient::FrameSinkIdAtCallback callback) {
+        if (callback) {
+          std::move(callback).Run(ret, local_point);
+        }
+      },
+      child.view->GetFrameSinkId(), valid_local_point);
+
+  // Simulate mouse event.
+  blink::WebMouseEvent mouse_event(
+      blink::WebInputEvent::Type::kMouseDown,
+      blink::WebInputEvent::kNoModifiers,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  mouse_event.button = blink::WebPointerProperties::Button::kLeft;
+  mouse_event.SetPositionInWidget(click_point.x(), click_point.y());
+
+  // Route event. The targeter should query the client.
+  rwhier()->RouteMouseEvent(view_root_.get(), &mouse_event, ui::LatencyInfo());
+
+  // Wait for callback.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return last_mouse_down_target() == child.view.get(); }));
+
+  // The event should be successfully dispatched to the child view.
+  EXPECT_EQ(child.view.get(), last_mouse_down_target());
+
+  // Case 2: Spoofed coordinate returned by renderer.
+  // Click at (100, 100). Child returns (50, 50) which is far outside epsilon
+  // (2.0).
+  gfx::PointF spoofed_local_point(50.f, 50.f);
+
+  input_target_client_root_->forward_callback_ = base::BindOnce(
+      [](viz::FrameSinkId ret, gfx::PointF local_point,
+         MockInputTargetClient::FrameSinkIdAtCallback callback) {
+        if (callback) {
+          std::move(callback).Run(ret, local_point);
+        }
+      },
+      child.view->GetFrameSinkId(), spoofed_local_point);
+
+  // Route event again.
+  rwhier()->RouteMouseEvent(view_root_.get(), &mouse_event, ui::LatencyInfo());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return last_mouse_down_target() == view_root_.get(); }));
+
+  // Validation should fail, and we should fall back to targeting the parent
+  // (view_root_).
+  EXPECT_EQ(view_root_.get(), last_mouse_down_target());
 }
 
 TEST_F(RenderWidgetHostInputEventRouterTest, DoNotCoalesceTouchEvents) {
@@ -1969,6 +2068,91 @@ TEST_F(RenderWidgetHostInputEventRouterTest,
   // Without the fix, they will be (100, 100).
   EXPECT_EQ(gfx::PointF(90, 90),
             rwhier()->mouse_down_post_transformed_coordinate_for_testing());
+
+  rwhier()->OnRenderWidgetHostViewInputDestroyed(child.view.get());
+}
+
+// POC for the autoscroll transform-failure fallback.
+//
+// When `is_autoscroll_in_progress_` is true, RenderWidgetTargeter reuses the
+// cached `middle_click_result_` (which may be a cross-origin OOPIF) and tries
+// to transform the incoming root-view coordinate into the target's local
+// space. If that transform fails — which a compromised embedding renderer can
+// force by submitting a CompositorFrame whose HitTestRegionList omits the
+// child's FrameSinkId — the code falls back to the *untransformed* root
+// coordinate but still dispatches to the cached cross-origin target:
+//
+//   } else {
+//     result.target_location = request_target_location;  // root coords!
+//   }
+//
+// Every sibling call site in the input router *drops* the event when this
+// transform fails. This test demonstrates that the autoscroll path instead
+// delivers root-space coordinates to the child view.
+TEST_F(RenderWidgetHostInputEventRouterTest,
+       AutoscrollTransformFailureDispatchesRootCoordsToChild) {
+  ChildViewState child = MakeChildView(view_root_.get());
+
+  // Child OOPIF is embedded at root offset (200,150).
+  constexpr gfx::Vector2dF kChildOffset(200, 150);
+  view_root_->SetOffset(kChildOffset);
+
+  // 1. User middle-clicks inside the child at root (350,250) =
+  //    child-local (150,100). This caches middle_click_result_.view = child.
+  constexpr gfx::PointF kRootClick(350, 250);
+  blink::WebMouseEvent middle_down(
+      blink::WebInputEvent::Type::kMouseDown,
+      blink::WebInputEvent::kNoModifiers,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  middle_down.button = blink::WebPointerProperties::Button::kMiddle;
+  middle_down.SetPositionInWidget(kRootClick.x(), kRootClick.y());
+  view_root_->SetHittestResult(child.view.get(), false);
+  rwhier()->RouteMouseEvent(view_root_.get(), &middle_down, ui::LatencyInfo());
+
+  // Send Middle MouseUp to clear last_mouse_down_target_
+  blink::WebMouseEvent middle_up(
+      blink::WebInputEvent::Type::kMouseUp, blink::WebInputEvent::kNoModifiers,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  middle_up.button = blink::WebPointerProperties::Button::kMiddle;
+  middle_up.SetPositionInWidget(kRootClick.x(), kRootClick.y());
+  rwhier()->RouteMouseEvent(view_root_.get(), &middle_up, ui::LatencyInfo());
+  ASSERT_EQ(nullptr, last_mouse_down_target());
+
+  // 2. Child's renderer sends FrameWidgetHost::AutoscrollStart →
+  //    SetIsAutoScrollInProgress(child, true) succeeds because
+  //    child == middle_click_result_.view.
+  rwhier()->SetAutoScrollInProgress(child.view.get(), true);
+  ASSERT_TRUE(rwhier()
+                  ->GetRenderWidgetTargeterForTests()
+                  ->is_auto_scroll_in_progress());
+
+  // 3. The compromised parent renderer now submits a CompositorFrame whose
+  //    HitTestRegionList omits the child's FrameSinkId. The aggregated
+  //    hit-test data no longer contains the child, so
+  //    HitTestQuery::TransformLocationForTarget() (and therefore
+  //    TransformPointToCoordSpaceForView(root → child)) returns false.
+  //    The child's RenderWidgetHostViewChildFrame is *not* destroyed, so
+  //    ViewWillBeDestroyed does not clear middle_click_result_.
+  view_root_->SetTransformShouldFail(true);
+
+  // 4. User left-clicks at root (350,250). RenderWidgetTargeter takes the
+  //    autoscroll branch, the transform fails.
+  //    - Vulnerable: falls back to root coords and dispatches to child.
+  //    - Fixed: drops the event.
+  blink::WebMouseEvent left_down(
+      blink::WebInputEvent::Type::kMouseDown,
+      blink::WebInputEvent::kNoModifiers,
+      blink::WebInputEvent::GetStaticTimeStampForTests());
+  left_down.button = blink::WebPointerProperties::Button::kLeft;
+  left_down.SetPositionInWidget(kRootClick.x(), kRootClick.y());
+  rwhier()->RouteMouseEvent(view_root_.get(), &left_down, ui::LatencyInfo());
+
+  // With the fix, the event is dropped, so the child should NOT receive the
+  // event. Since we cleared last_mouse_down_target_ with middle_up, it should
+  // remain nullptr. Vulnerable implementation will route to child, setting
+  // last_mouse_down_target_ to child.
+  EXPECT_EQ(nullptr, last_mouse_down_target())
+      << "VULNERABLE: event routed to child OOPIF after transform failure";
 
   rwhier()->OnRenderWidgetHostViewInputDestroyed(child.view.get());
 }

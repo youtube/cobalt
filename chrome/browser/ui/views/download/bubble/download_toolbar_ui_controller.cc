@@ -462,6 +462,9 @@ DownloadToolbarUIController::DownloadToolbarUIController(
 
   bubble_controller_ = std::make_unique<DownloadBubbleUIController>(browser);
 
+  controller_ = std::make_unique<DownloadDisplayController>(
+      this, browser_view_->browser(), bubble_controller_.get());
+
   browser_collection_observation_.Observe(
       ProfileBrowserCollection::GetForProfile(browser->profile()));
 }
@@ -469,13 +472,6 @@ DownloadToolbarUIController::DownloadToolbarUIController(
 DownloadToolbarUIController::~DownloadToolbarUIController() {
   controller_.reset();
   bubble_controller_.reset();
-}
-
-void DownloadToolbarUIController::Init() {
-  // `controller_` can call `Show()` synchronously so it must be initialized
-  // separately at a point where the PinnedToolbarActionsContainer will exist.
-  controller_ = std::make_unique<DownloadDisplayController>(
-      this, browser_view_->browser(), bubble_controller_.get());
 }
 
 void DownloadToolbarUIController::TearDownPreBrowserWindowDestruction() {
@@ -596,7 +592,7 @@ bool DownloadToolbarUIController::IsFullscreenWithParentViewHidden() const {
 
   // Handle the remaining fullscreen case.
   return browser_view_->browser()->window() &&
-         browser_view_->browser()->window()->IsFullscreen() &&
+         browser_view_->browser()->GetWindow()->IsFullscreen() &&
          !browser_view_->browser()->window()->IsToolbarVisible();
 }
 
@@ -1149,7 +1145,7 @@ bool DownloadToolbarUIController::ShouldShowBubbleAsInactive() const {
   // browser is inactive, make the bubble inactive to avoid stealing focus from
   // non-Chrome windows or showing on a different workspace.
   if (!browser_view_->browser()->window() ||
-      !browser_view_->browser()->window()->IsActive()) {
+      !browser_view_->browser()->GetWindow()->IsActive()) {
     return true;
   }
 

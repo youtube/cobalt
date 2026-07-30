@@ -40,7 +40,6 @@ static_library("wallpaper") {
     "//chrome/browser/sync",
     "//chrome/browser/ui/ash/login",
     "//chrome/browser/ui/ash/system_web_apps",
-    "//chrome/common",
     "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/cryptohome",
     "//chromeos/ash/components/settings",

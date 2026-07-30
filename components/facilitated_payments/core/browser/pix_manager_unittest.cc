@@ -393,7 +393,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled, CopyTrigger_LogPixCodeCopied) {
   GURL url("https://example.com/");
   url::Origin origin = url::Origin::Create(url);
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -419,7 +420,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   GURL iframe_url("https://iframe.example.com/");
   url::Origin origin = url::Origin::Create(url);
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -457,7 +459,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -493,7 +496,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -525,7 +529,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
   // The DataDecoder (utility process) validates the Pix code string
@@ -554,7 +559,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
           optimization_guide::OptimizationGuideDecision::kFalse));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
   // The DataDecoder (utility process) validates the Pix code string
@@ -591,7 +597,8 @@ TEST_P(
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
   // The DataDecoder (utility process) validates the Pix code string
@@ -623,11 +630,110 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
   task_environment_.RunUntilIdle();
+}
+
+TEST_P(
+    PixManagerTestWithAccountLinkingEnabled,
+    CopyTrigger_InIframe_IframeUrlNotAllowlisted_SameOriginWithAllowlistedMerchant_PixValidationTriggered) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kEnableIframeForPix);
+  payments_data_manager_->AddMaskedBankAccountForTest(
+      CreatePixBankAccount(/*instrument_id=*/1));
+
+  GURL main_frame_url("https://merchant.com/");
+  GURL iframe_url("https://merchant.com/path/to/page");
+  url::Origin origin = url::Origin::Create(main_frame_url);
+
+  // Mock allowlist check for iframe URL to return false.
+  EXPECT_CALL(*optimization_guide_decider_,
+              CanApplyOptimization(
+                  testing::Eq(iframe_url),
+                  testing::Eq(optimization_guide::proto::PIX_PSP_ALLOWLIST),
+                  testing::Matcher<optimization_guide::OptimizationMetadata*>(
+                      testing::Eq(nullptr))))
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kFalse));
+
+  // Mock Merchant allowlist check for main frame URL to return true.
+  EXPECT_CALL(
+      *optimization_guide_decider_,
+      CanApplyOptimization(
+          testing::Eq(main_frame_url),
+          testing::Eq(
+              optimization_guide::proto::PIX_MERCHANT_ORIGINS_ALLOWLIST),
+          testing::Matcher<optimization_guide::OptimizationMetadata*>(
+              testing::Eq(nullptr))))
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kTrue));
+
+  // Verify that IsAvailable is called.
+  EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
+
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/true,
+      PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+
+  task_environment_.RunUntilIdle();
+}
+
+TEST_P(
+    PixManagerTestWithAccountLinkingEnabled,
+    CopyTrigger_InIframe_IframeUrlNotAllowlisted_SameOriginWithNonAllowlistedMerchant_PixValidationNotTriggered) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kEnableIframeForPix);
+  payments_data_manager_->AddMaskedBankAccountForTest(
+      CreatePixBankAccount(/*instrument_id=*/1));
+
+  GURL main_frame_url("https://merchant.com/");
+  GURL iframe_url("https://merchant.com/path/to/page");
+  url::Origin origin = url::Origin::Create(main_frame_url);
+
+  // Mock allowlist check for iframe URL to return false.
+  EXPECT_CALL(*optimization_guide_decider_,
+              CanApplyOptimization(
+                  testing::Eq(iframe_url),
+                  testing::Eq(optimization_guide::proto::PIX_PSP_ALLOWLIST),
+                  testing::Matcher<optimization_guide::OptimizationMetadata*>(
+                      testing::Eq(nullptr))))
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kFalse));
+
+  // Mock Merchant allowlist check for main frame URL to return false.
+  EXPECT_CALL(
+      *optimization_guide_decider_,
+      CanApplyOptimization(
+          testing::Eq(main_frame_url),
+          testing::Eq(
+              optimization_guide::proto::PIX_MERCHANT_ORIGINS_ALLOWLIST),
+          testing::Matcher<optimization_guide::OptimizationMetadata*>(
+              testing::Eq(nullptr))))
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kFalse));
+
+  // Verify that IsAvailable is NOT called.
+  EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
+
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/true,
+      PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+
+  task_environment_.RunUntilIdle();
+
+  histogram_tester.ExpectUniqueSample(
+      "FacilitatedPayments.Pix.PayflowExitedReason",
+      /*sample=*/PixFlowExitedReason::kSameOriginMerchantNotAllowlisted,
+      /*expected_bucket_count=*/1);
 }
 
 TEST_P(
@@ -652,7 +758,8 @@ TEST_P(
           optimization_guide::OptimizationGuideDecision::kFalse));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -714,7 +821,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -743,7 +851,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
           optimization_guide::OptimizationGuideDecision::kTrue));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -775,7 +884,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
           optimization_guide::OptimizationGuideDecision::kTrue));
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -796,7 +906,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   url::Origin origin = url::Origin::Create(main_frame_url);
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -818,7 +929,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   url::Origin origin = url::Origin::Create(main_frame_url);
 
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -848,12 +960,12 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 
   pix_manager_->OnPixCodeCopiedToClipboard(
       main_frame_url, std::nullopt, origin,
-      PixCodeRustValidationResult::kDynamic,
+      /*is_same_origin=*/false, PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
   pix_manager_->OnPixCodeCopiedToClipboard(
       main_frame_url, std::nullopt, origin,
-      PixCodeRustValidationResult::kDynamic,
+      /*is_same_origin=*/false, PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -887,7 +999,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 
   // First call: with iframe. `pix_code_is_in_iframe_` should become true.
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
   EXPECT_TRUE(test_api(*pix_manager_).pix_code_is_in_iframe());
@@ -896,16 +1009,17 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // false.
   pix_manager_->OnPixCodeCopiedToClipboard(
       main_frame_url, std::nullopt, origin,
-      PixCodeRustValidationResult::kDynamic, "pix_code",
-      ukm::UkmRecorder::GetNewSourceID());
+      /*is_same_origin=*/false, PixCodeRustValidationResult::kDynamic,
+      "pix_code", ukm::UkmRecorder::GetNewSourceID());
   task_environment_.RunUntilIdle();
   EXPECT_FALSE(test_api(*pix_manager_).pix_code_is_in_iframe());
 
   // Third call: with iframe again. `pix_code_is_in_iframe_` should be updated
   // to true.
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
-      "pix_code", ukm::UkmRecorder::GetNewSourceID());
+      main_frame_url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic, "pix_code",
+      ukm::UkmRecorder::GetNewSourceID());
   task_environment_.RunUntilIdle();
   EXPECT_TRUE(test_api(*pix_manager_).pix_code_is_in_iframe());
 }
@@ -932,11 +1046,13 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   std::string pix_code =
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F";
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
-      pix_code, ukm::UkmRecorder::GetNewSourceID());
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic, pix_code,
+      ukm::UkmRecorder::GetNewSourceID());
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
-      pix_code, ukm::UkmRecorder::GetNewSourceID());
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic, pix_code,
+      ukm::UkmRecorder::GetNewSourceID());
   // The DataDecoder (utility process) validates the Pix code string
   // asynchronously.
   task_environment_.RunUntilIdle();
@@ -1376,6 +1492,7 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // Simulate Pix code being copied. The transaction latency is computed from
   // this point.
   pix_manager_->OnPixCodeCopiedToClipboard(url, std::nullopt, origin,
+                                           /*is_same_origin=*/false,
                                            std::nullopt, std::string(),
                                            ukm::UkmRecorder::GetNewSourceID());
   // Fully mocked time, does not advance by itself.
@@ -1431,7 +1548,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled, LogTransactionResultForIframe) {
 
   // Simulate Pix code being copied.
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      url, iframe_url, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -1479,7 +1597,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 
   // Simulate Pix code being copied.
   pix_manager_->OnPixCodeCopiedToClipboard(
-      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      url, std::nullopt, origin, /*is_same_origin=*/false,
+      PixCodeRustValidationResult::kDynamic,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
@@ -1658,6 +1777,7 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 
   // Simulate Pix code being copied. The latency is computed from this point.
   pix_manager_->OnPixCodeCopiedToClipboard(url, std::nullopt, origin,
+                                           /*is_same_origin=*/false,
                                            std::nullopt, std::string(),
                                            ukm::UkmRecorder::GetNewSourceID());
   // Fully mocked time, does not advance by itself.

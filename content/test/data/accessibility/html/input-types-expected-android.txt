@@ -40,7 +40,7 @@ android.webkit.WebView focusable focused
 ++++++android.widget.Spinner role_description='month picker' clickable focusable interesting hint='Month:' input_type=20
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Number: '
-++++++android.widget.EditText role_description='spin button' clickable editable_text focusable range interesting name='Number:' input_type=2
+++++++android.widget.EditText role_description='spin button' clickable editable_text focusable range interesting hint='Number:' input_type=2
 ++++android.view.View
 ++++++android.widget.TextView interesting name='Password: '
 ++++++android.widget.EditText clickable editable_text focusable password interesting hint='Password:' input_type=225

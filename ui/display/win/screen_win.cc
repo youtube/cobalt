@@ -69,26 +69,38 @@ std::optional<int> GetPerMonitorDPI(HMONITOR monitor) {
   return static_cast<int>(dpi_x);
 }
 
-float GetScaleFactorForDPI(int dpi, bool include_accessibility) {
-  const float scale = display::win::internal::GetScalingFactorFromDPI(dpi);
-  return include_accessibility
-             ? (scale * UwpTextScaleFactor::Instance()->GetTextScaleFactor())
-             : scale;
+struct ScaleFactors {
+  float device;
+  float text;
+};
+ScaleFactors GetScaleFactorsForDPI(int dpi, bool include_accessibility) {
+  const float device_scale_factor =
+      display::win::internal::GetScalingFactorFromDPI(dpi);
+  if (include_accessibility) {
+    const float text_scale_factor =
+        UwpTextScaleFactor::Instance()->GetTextScaleFactor();
+    return {device_scale_factor * text_scale_factor, text_scale_factor};
+  }
+  return {device_scale_factor, 1.0f};
 }
 
 // Gets the raw monitor scale factor.
 //
 // Respects the forced device scale factor, and will fall back to the global
 // scale factor if per-monitor DPI is not supported.
-float GetMonitorScaleFactor(HMONITOR monitor,
-                            bool include_accessibility = true) {
+ScaleFactors GetMonitorScaleFactors(HMONITOR monitor,
+                                    bool include_accessibility = true) {
   DCHECK(monitor);
-  if (Display::HasForceDeviceScaleFactor())
-    return Display::GetForcedDeviceScaleFactor();
+  if (Display::HasForceDeviceScaleFactor()) {
+    return {Display::GetForcedDeviceScaleFactor(), 1.0f};
+  }
 
   const auto dpi = GetPerMonitorDPI(monitor);
-  return dpi ? GetScaleFactorForDPI(dpi.value(), include_accessibility)
-             : GetDPIScale();
+  if (dpi) {
+    return GetScaleFactorsForDPI(dpi.value(), include_accessibility);
+  }
+
+  return {GetDPIScale(), 1.0f};
 }
 
 // Gets a user-friendly name for a given display using EDID data. Returns an
@@ -276,6 +288,7 @@ Display CreateDisplayFromDisplayInfo(
                                                      1.0f / scale_factor);
   Display display(display_info.id(), bounds);
   display.set_device_scale_factor(scale_factor);
+  display.set_text_scale_multiplier(display_info.text_scale_multiplier());
   display.set_work_area(gfx::ScaleToEnclosingRect(
       display_info.screen_work_rect(), 1.0f / scale_factor));
   display.set_rotation(display_info.rotation());
@@ -489,6 +502,7 @@ std::vector<internal::DisplayInfo> GetDisplayInfosFromSystem() {
       continue;
     }
 
+    const auto scale_factors = GetMonitorScaleFactors(monitor);
     const auto display_settings =
         GetDisplaySettingsForDevice(monitor_info->szDevice);
     const gfx::Vector2dF pixels_per_inch =
@@ -500,8 +514,8 @@ std::vector<internal::DisplayInfo> GetDisplayInfosFromSystem() {
       cached_hmonitor = monitor;
     }
     display_infos.emplace_back(
-        std::move(cached_hmonitor), *monitor_info,
-        GetMonitorScaleFactor(monitor), Display::kDefaultBitsPerPixel,
+        std::move(cached_hmonitor), *monitor_info, scale_factors.device,
+        scale_factors.text, Display::kDefaultBitsPerPixel,
         GetSDRWhiteLevel(path_info), display_settings.rotation,
         display_settings.frequency, pixels_per_inch,
         GetOutputTechnology(path_info), GetFriendlyDeviceName(path_info));
@@ -620,7 +634,7 @@ ScreenWinDisplay CreateFallbackPrimaryScreenDisplay() {
                                   : 1.0;
   internal::DisplayInfo display_info(
       std::nullopt, monitor_info, device_scale_factor,
-      Display::kDefaultBitsPerPixel,
+      /*text_scale_multiplier*/ 1.0f, Display::kDefaultBitsPerPixel,
       /*sdr_white_level=*/1.0f, Display::ROTATE_0,
       /*display_frequency=*/60.0f, gfx::Vector2dF(),
       DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER, std::string());
@@ -799,7 +813,7 @@ int ScreenWin::GetSystemMetricsForMonitor(HMONITOR monitor, int metric) const {
 
   // We'll then pull up the system metrics scaled by the appropriate amount.
   return GetSystemMetricsForScaleFactor(
-      GetMonitorScaleFactor(monitor, include_accessibility), metric);
+      GetMonitorScaleFactors(monitor, include_accessibility).device, metric);
 }
 
 int ScreenWin::GetSystemMetricsInDIP(int metric) const {
@@ -814,7 +828,8 @@ float ScreenWin::GetScaleFactorForHWND(HWND hwnd) const {
 }
 
 float ScreenWin::GetScaleFactorForMonitor(HMONITOR monitor) const {
-  return GetMonitorScaleFactor(monitor, /*include_accessibility=*/false);
+  return GetMonitorScaleFactors(monitor, /*include_accessibility=*/false)
+      .device;
 }
 
 int ScreenWin::GetDPIForHWND(HWND hwnd) const {
@@ -827,7 +842,7 @@ int ScreenWin::GetDPIForHWND(HWND hwnd) const {
 }
 
 float ScreenWin::GetScaleFactorForDPI(int dpi) const {
-  return display::win::GetScaleFactorForDPI(dpi, true);
+  return display::win::GetScaleFactorsForDPI(dpi, true).device;
 }
 
 void ScreenWin::SetRequestHDRStatusCallback(

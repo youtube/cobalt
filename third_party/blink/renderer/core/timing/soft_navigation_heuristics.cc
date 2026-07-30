@@ -40,6 +40,7 @@
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_info.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 namespace blink {
 
@@ -95,7 +96,7 @@ void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
                                          uint64_t required_paint_area) {
   TRACE_EVENT_INSTANT(
       "loading", "SoftNavigationHeuristics::SoftNavigationContextWasExhausted",
-      perfetto::Track::FromPointer(&context), "context", context);
+      context.GetTracingTrack(), "context", context);
 
   // Don't bother to log if the URL was never set.  That means it was just a
   // normal interaction.
@@ -326,8 +327,9 @@ void SoftNavigationHeuristics::SameDocumentNavigationCommitted(
     TRACE_EVENT_INSTANT("loading",
                         "SoftNavigationHeuristics::"
                         "SameDocumentNavigationCommittedWithoutContext",
-                        perfetto::Track::FromPointer(this), "url",
-                        new_url_string);
+                        perfetto::NamedTrack::FromPointer(
+                            "blink::SoftNavigationHeuristics", this),
+                        "url", new_url_string);
     base::UmaHistogramEnumeration(
         kPageLoadInternalSoftNavigationOutcome,
         SoftNavigationOutcome::kNoSoftNavContextDuringUrlChange);
@@ -348,7 +350,7 @@ void SoftNavigationHeuristics::SameDocumentNavigationCommitted(
                         "SoftNavigationHeuristics::"
                         "SameDocumentNavigationCommittedWithoutContextButMerg"
                         "edIntoPreviousContext",
-                        perfetto::Track::FromPointer(context), "context",
+                        context_for_current_url_->GetTracingTrack(), "context",
                         *context_for_current_url_, "url", new_url_string);
     base::UmaHistogramEnumeration(
         kPageLoadInternalSoftNavigationOutcome,
@@ -363,7 +365,7 @@ void SoftNavigationHeuristics::SameDocumentNavigationCommitted(
 
   TRACE_EVENT_INSTANT(
       "loading", "SoftNavigationHeuristics::SameDocumentNavigationCommitted",
-      perfetto::Track::FromPointer(context), "context", *context);
+      context->GetTracingTrack(), "context", *context);
 
   MaybeCommitNavigationOrEmitSoftNavigation(context);
 }

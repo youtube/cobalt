@@ -291,7 +291,8 @@ public class AwWebContentsObserverTest extends AwParameterizedTest {
                 /* isPdf= */ false,
                 /* mimeType= */ "",
                 page,
-                /* isSameOrigin= */ true);
+                /* isSameOrigin= */ true,
+                /* ignoredDuplicateNavigationCount= */ 0);
         mWebContentsObserver.didFinishNavigationInPrimaryMainFrame(navigation);
 
         // Check that onNavigationCompleted() is called correctly.

@@ -51,7 +51,7 @@
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -185,6 +185,10 @@ void GeminiTabHelper::CancelPageContextGeneration() {
 void GeminiTabHelper::ExecuteZeroStateSuggestions(
     base::OnceCallback<void(NSArray<NSString*>*)> callback) {
   CHECK(IsZeroStateSuggestionsEnabled());
+  if (!gemini_contextual_eligibility_) {
+    std::move(callback).Run(nil);
+    return;
+  }
   zero_state_suggestions_service_->FetchZeroStateSuggestions(
       std::move(callback));
 }
@@ -336,8 +340,8 @@ std::optional<std::string> GeminiTabHelper::GetServerId() {
   return std::nullopt;
 }
 
-void GeminiTabHelper::SetGeminiCommandsHandler(id<BWGCommands> handler) {
-  gemini_commands_handler_ = handler;
+void GeminiTabHelper::SetGeminiHandler(id<GeminiCommands> handler) {
+  gemini_handler_ = handler;
 }
 
 void GeminiTabHelper::SetHelpCommandsHandler(id<HelpCommands> handler) {
@@ -381,10 +385,8 @@ bool GeminiTabHelper::IsGeminiChatAvailableForWebState() {
     return !is_aim_url && !is_ntp;
   }
 
-  // By default, the NTP is ineligible, and only extractable pages are eligible
-  // (unless `IsGeminiFloatyAllPagesEnabled` is enabled).
-  return !is_ntp && (CanExtractPageContextForWebState(web_state_) ||
-                     IsGeminiFloatyAllPagesEnabled());
+  // By default, the NTP is ineligible, and only extractable pages are eligible.
+  return !is_ntp && CanExtractPageContextForWebState(web_state_);
 }
 
 IOSGeminiInvocationPageType GeminiTabHelper::GetCurrentPageType() {
@@ -422,7 +424,7 @@ void GeminiTabHelper::WasShown(web::WebState* web_state) {
   if (IsNextIaOrLiveMode()) {
     NotifyPageContextUpdated(web_state);
   } else if (IsGeminiCopresenceEnabled()) {
-    [gemini_commands_handler_
+    [gemini_handler_
         updateFloatyVisibilityIfEligibleAnimated:NO
                                       fromSource:gemini::FloatyUpdateSource::
                                                      WebNavigation];
@@ -436,7 +438,7 @@ void GeminiTabHelper::WasHidden(web::WebState* web_state) {
   if (IsNextIaOrLiveMode()) {
     NotifyPageContextUpdated(web_state);
   } else if (IsGeminiCopresenceEnabled()) {
-    [gemini_commands_handler_
+    [gemini_handler_
         hideFloatyIfInvokedAnimated:NO
                          fromSource:gemini::FloatyUpdateSource::WebNavigation];
   }
@@ -462,6 +464,9 @@ void GeminiTabHelper::DidStartNavigation(
     NotifyPageContextUpdated(web_state_);
   }
 
+  // Reset gemini eligibility. The eligibility is decided by the optimization
+  // guide with GLIC_ZERO_STATE_SUGGESTIONS.
+  gemini_contextual_eligibility_ = false;
   if (IsZeroStateSuggestionsEnabled()) {
     zero_state_suggestions_service_->ClearCachedSuggestions();
   }
@@ -510,7 +515,7 @@ void GeminiTabHelper::DidFinishNavigation(
     } else {
       RecordGeminiPageAvailability(IOSGeminiPageAvailability::kUnavailable);
     }
-    [gemini_commands_handler_
+    [gemini_handler_
         updateFloatyVisibilityIfEligibleAnimated:NO
                                       fromSource:gemini::FloatyUpdateSource::
                                                      WebNavigation];
@@ -729,7 +734,7 @@ void GeminiTabHelper::OnCanApplyContextualCueingDecision(
       feature_engagement::TrackerFactory::GetForProfile(profile)
           ->WouldTriggerHelpUI(
               feature_engagement::kIPHiOSGeminiFullscreenPromoFeature)) {
-    [gemini_commands_handler_ showBWGPromoIfPageIsEligible];
+    [gemini_handler_ showGeminiPromoIfPageIsEligible];
     return;
   }
 
@@ -796,15 +801,14 @@ void GeminiTabHelper::OnGeminiEligibilityDecision(
     return;
   }
 
-  const bool eligible = ComputeGeminiEligibility(decision, metadata);
-  if (IsZeroStateSuggestionsEnabled()) {
-    zero_state_suggestions_service_->SetCanApply(eligible);
-  }
+  gemini_contextual_eligibility_ = ComputeGeminiEligibility(decision, metadata);
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
 
-  if (eligible &&
+  // Use the page's contextual suggestions eligibility as a proxy to ensure that
+  // the Image Remix feature is only shown on a safe, eligible subset of pages.
+  if (gemini_contextual_eligibility_ &&
       gemini::IsFeatureAvailable(gemini::Feature::kImageRemix, profile) &&
       user_enabled_request_metadata &&
       feature_engagement::TrackerFactory::GetForProfile(profile)

@@ -34,7 +34,6 @@
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
-#include "components/services/app_service/public/cpp/features.h"
 #include "components/services/app_service/public/cpp/icon_effects.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "content/public/test/browser_task_environment.h"

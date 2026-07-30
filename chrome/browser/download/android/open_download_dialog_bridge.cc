@@ -17,7 +17,6 @@
 #include "chrome/browser/download/android/download_dialog_utils.h"
 #include "chrome/browser/download/android/open_download_dialog_bridge_delegate.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/grit/generated_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_item_utils.h"
 #include "ui/android/window_android.h"

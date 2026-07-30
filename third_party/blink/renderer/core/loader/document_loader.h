@@ -115,7 +115,6 @@ class Element;
 class Frame;
 class FrameLoader;
 class HistoryItem;
-class LocalDOMWindow;
 class LocalFrame;
 class LocalFrameClient;
 class MHTMLArchive;
@@ -501,6 +500,8 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   const mojom::RendererContentSettingsPtr& GetContentSettings();
 
   void ReportTotalTakenTimeToUpdateSubresourceLoadMetrics();
+
+  bool IsInCommitDataForTesting() const { return in_commit_data_; }
 
  protected:
   // Based on its MIME type, if the main document's response corresponds to an

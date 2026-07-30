@@ -403,6 +403,8 @@
   E_CPONLY(kColorLiveCaptionBubbleForegroundSecondary) \
   E_CPONLY(kColorLiveCaptionBubbleCheckbox) \
   E_CPONLY(kColorLiveCaptionBubbleLink) \
+  E_CPONLY(kColorLiveCaptionDialogBackground) \
+  E_CPONLY(kColorLiveCaptionDialogForeground) \
   E_CPONLY(kColorLoadingGradientBorder) \
   E_CPONLY(kColorLoadingGradientEnd) \
   E_CPONLY(kColorLoadingGradientMiddle) \

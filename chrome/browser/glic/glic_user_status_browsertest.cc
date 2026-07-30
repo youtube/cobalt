@@ -148,7 +148,7 @@ class GlicUserStatusBrowserTest : public InProcessBrowserTest {
     AccountInfo account_info = identity_test_env_->MakePrimaryAccountAvailable(
         account->email, signin::ConsentLevel::kSignin);
 
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     SetGlicCapability(mutator, true);
     mutator.set_is_subject_to_enterprise_features(
         !account->host_domain.empty());
@@ -499,7 +499,7 @@ IN_PROC_BROWSER_TEST_F(
   AccountInfo account_info = identity_test_env_->MakePrimaryAccountAvailable(
       enterpriseAccount.email, signin::ConsentLevel::kSignin);
   enterprise_util::SetUserAcceptedAccountManagement(profile(), true);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   SetGlicCapability(mutator, true);
   identity_test_env_->UpdateAccountInfoForAccount(account_info);
   base::RunLoop().RunUntilIdle();
@@ -545,7 +545,7 @@ IN_PROC_BROWSER_TEST_F(
   AccountInfo account_info = identity_test_env_->MakePrimaryAccountAvailable(
       enterpriseAccount.email, signin::ConsentLevel::kSignin);
   enterprise_util::SetUserAcceptedAccountManagement(profile(), true);
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   SetGlicCapability(mutator, true);
   identity_test_env_->UpdateAccountInfoForAccount(account_info);
   EXPECT_FALSE(GetCachedStatusDict().has_value());
@@ -570,7 +570,7 @@ IN_PROC_BROWSER_TEST_F(
   // Re-apply capabilities, as they are lost when the token is restored.
   account_info = identity_manager_->FindExtendedAccountInfoByAccountId(
       account_info.account_id);
-  AccountCapabilitiesTestMutator refreshed_mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator refreshed_mutator(&account_info);
   SetGlicCapability(refreshed_mutator, true);
   identity_test_env_->UpdateAccountInfoForAccount(account_info);
 
@@ -906,7 +906,7 @@ IN_PROC_BROWSER_TEST_F(GlicShareImageEnablementBrowserTest, LiveEligibility) {
       identity_manager->FindExtendedAccountInfoByAccountId(
           identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
   ASSERT_FALSE(primary_account.IsEmpty());
-  AccountCapabilitiesTestMutator mutator(&primary_account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&primary_account);
 
   // Set the account capability to true.
   mutator.set_can_use_model_execution_features(true);

@@ -226,6 +226,10 @@ AutofillAiManager::AutofillAiManager(
         client, ScopedAutofillManagersObservation::InitializationPolicy::
                     kObservePreexistingManagers);
   }
+  if (PersonalContextAccessManager* access_manager =
+          client_->GetPersonalContextAccessManager()) {
+    personal_context_access_manager_observation_.Observe(access_manager);
+  }
 }
 
 AutofillAiManager::~AutofillAiManager() = default;
@@ -337,10 +341,12 @@ void AutofillAiManager::OnAfterLoadedServerPredictions(
   if (PersonalContextAccessManager* access_manager =
           client_->GetPersonalContextAccessManager()) {
     base::flat_set<EntityType> requested_types(std::from_range, relevant_types);
-    // TODO(crbug.com/516721244): Ensure that types are not requested multiple
-    // times if OnAfterLoadedServerPredictions is called multiple times.
     access_manager->PrefetchAmbientAutofillContext(requested_types);
   }
+}
+
+void AutofillAiManager::OnPrefetchAmbientAutofillContextComplete(bool success) {
+  // TODO(crbug.com/503303085): Implement.
 }
 
 void AutofillAiManager::UpdateLoggerReadinessData(const FormStructure& form) {
@@ -484,8 +490,7 @@ void AutofillAiManager::HandlePromptResult(
   // is no longer eligible by the time the user clicks "Accept", we abort the
   // Wallet save.
   if (entity.record_type() == EntityInstance::RecordType::kServerWallet &&
-      !MayPerformAutofillAiAction(*client_,
-                                  autofill::AutofillAiAction::kImportToWallet,
+      !MayPerformAutofillAiAction(*client_, AutofillAiAction::kImportToWallet,
                                   entity.type())) {
     HandleIneligibleWalletFallback(prompt_type, std::move(entity));
     return;

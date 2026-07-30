@@ -467,7 +467,6 @@
       如果啟用這項政策，系統會啟用經過改善的國際鍵盤快速鍵。
       如果不設定，系統會為受管理的裝置以及消費者擁有的裝置啟用這項政策。
       請注意，這只是一項臨時政策，允許受管理的使用者仍可使用已淘汰的舊版快速鍵。這項政策將在自訂鍵盤快速鍵推出後遭到淘汰。</translation>
-<translation id="1359459742455216057"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 應用程式的專屬 ID。</translation>
 <translation id="1361661842732478894">在工具列上顯示首頁按鈕</translation>
 <translation id="1363275621236827384">允許在 Quirks Server 中查詢硬體設定檔</translation>
 <translation id="1363839375295535439">如果將這項政策設為啟用或不設定，只要系統支援，就會啟用 LPAC 沙箱來執行列印程序。
@@ -7078,9 +7077,6 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="5649788773465136073">禁止網站使用受保護內容 ID，這可能會導致受保護內容的播放品質降低。</translation>
 <translation id="5650256117857913687">禁止遠端存取使用者在本機用戶端瀏覽器中開啟主機端網址</translation>
 <translation id="5650716720715977549">將限制套用到更私人的網路端點</translation>
-<translation id="5651538748810288218">如果將這項政策設為 1，網站就能存取及使用感應器 (例如動作感應器和光度感應器)。如果將這項政策設為 2，系統會拒絕授予感應器存取權。
-
-      如果不設定這項政策，系統會套用 <ph name="ALLOW_SENSORS_POLICY_NAME" />，但使用者可以變更這項設定。</translation>
 <translation id="5652250453612826983">控管家長監護政策，這些政策只適用於兒童帳戶。
       這些政策並非是透過管理控制台設定，而是直接由 Kids API Server 設定。</translation>
 <translation id="5654682237531873653">如果將這項政策設為啟用，系統就會開啟拼字檢查功能，而且使用者無法停用。但是在 <ph name="MS_WIN_NAME" />、<ph name="PRODUCT_OS_NAME" /> 和 <ph name="LINUX_OS_NAME" /> 中，由於使用者可以分別開啟/關閉不同語言的拼字檢查功能，因此他們只要關閉所有語言的拼字檢查功能，就能達到與停用功能相同的效果。如要避免這種情況，請使用 <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> 政策強制啟用特定語言的拼字檢查功能。
@@ -7539,6 +7535,7 @@ IP 位址空間覆寫有兩種形式：
 <translation id="5962271004971310788">如要以無痕模式瀏覽，使用者必須允許在無痕模式中執行這些擴充功能</translation>
 <translation id="5963752574792883406">通訊埠 990 (2022 年 2 月 1 日前可解除封鎖)</translation>
 <translation id="596523880465577341">這項政策已淘汰，因此系統不再支援，請改用「<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />」政策。</translation>
+<translation id="5965344524743236327">這個 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 專案 ID 或編號會對應到要啟用的 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 執行個體。如要進一步瞭解專案 ID，請前往 https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects。</translation>
 <translation id="5966615072639944554">允許擴充功能使用 Remote Attestation API</translation>
 <translation id="596732417280023843">憑證設定檔的名稱。</translation>
 <translation id="5972538402066550344">允許使用精細回報控制項</translation>
@@ -7945,6 +7942,7 @@ IP 位址空間覆寫有兩種形式：
 <translation id="6264247808139384018">如果將這項政策設為啟用或不設定，使用密碼驗證的使用者可以鎖定螢幕。
 
 如果將這項政策設為停用，使用者將無法鎖定螢幕，只能從使用者工作階段登出。</translation>
+<translation id="6265114688953151459"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 引擎的專屬 ID，長度必須介於 1 到 63 個半形字元，並符合下列格式：[a-z0-9][a-z0-9-_]*。詳情請參閱 https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine。</translation>
 <translation id="6265892395051519509">允許在這些網站上存取感應器</translation>
 <translation id="6266043141694454734">決定是否要使用 Chrome Root Store 和內建的憑證驗證器來驗證伺服器憑證</translation>
 <translation id="6266686172120601139">啟用「Web Audio 自動調節緩衝」</translation>
@@ -8719,7 +8717,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
 如果是 <ph name="PRODUCT_NAME" />，裝置必須使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 註冊，這項政策才會生效。
 如果是 <ph name="PRODUCT_OS_NAME" />，這項政策一律會生效。</translation>
-<translation id="6714333117401088746">與要啟用的 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 執行個體相對應的 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 專案 ID。</translation>
 <translation id="6720330829631914048">一天開始後經過的小時數 (24 小時制)。</translation>
 <translation id="6720862827454058309">覆寫 IP 位址空間對應關係</translation>
 <translation id="6721252203593581486">在 M97 中，第三方內容中的 WebSQL (例如跨網站 iframe) 預設為關閉狀態，而在 M101 中將全面移除。

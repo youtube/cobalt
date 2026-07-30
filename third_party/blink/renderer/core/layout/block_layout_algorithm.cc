@@ -4078,6 +4078,9 @@ NOINLINE void BlockLayoutAlgorithm::SetupLineClamp() {
 
       if (!RuntimeEnabledFeatures::CSSLineClampEnabled()) {
         line_clamp_data_.data.block_ellipsis = EBlockEllipsis::kEllipsis;
+      } else if (!RuntimeEnabledFeatures::CSSLineClampAsShorthandEnabled()) {
+        line_clamp_data_.data.block_ellipsis =
+            Style().LineClampInternalBlockEllipsis();
       }
     }
   } else {

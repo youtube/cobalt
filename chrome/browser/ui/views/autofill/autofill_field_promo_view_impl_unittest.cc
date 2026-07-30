@@ -119,7 +119,7 @@ class AutofillFieldPromoViewImplTest : public TestWithBrowserView {
 
  private:
   const ui::ElementIdentifier test_promo_element_identifier_ =
-      autofill::PopupViewViews::kAutofillStandaloneCvcSuggestionElementId;
+      PopupViewViews::kAutofillStandaloneCvcSuggestionElementId;
   base::WeakPtr<AutofillFieldPromoView> view_;
 };
 

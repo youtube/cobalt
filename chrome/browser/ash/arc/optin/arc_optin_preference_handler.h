@@ -56,11 +56,11 @@ class ArcOptInPreferenceHandler {
 
   // Retrieves ownership status from device settings via callback to determine
   // if the user is the device owner. Returns whether the current user is
-  // allowed to update the consent.
-  bool IsAllowedToUpdateUserConsent(
+  // allowed to update the choice.
+  bool IsAllowedToUpdateUserChoice(
       ash::DeviceSettingsService::OwnershipStatus ownership_status);
 
-  // Helper functions to retrieve user metrics consent.
+  // Helper functions to retrieve user metrics choice.
   bool GetUserMetrics();
   void EnableUserMetrics(bool is_enabled);
 
@@ -73,7 +73,7 @@ class ArcOptInPreferenceHandler {
       bool metrics_enabled,
       ash::DeviceSettingsService::OwnershipStatus ownership_status);
 
-  // Notifies user metrics consent changes to ARC related preferences.
+  // Notifies user metrics choice changes to ARC related preferences.
   //
   // Ownership status will either be None or Taken, it cannot be Unknown.
   void SendMetricsMode(
@@ -94,8 +94,8 @@ class ArcOptInPreferenceHandler {
   PrefChangeRegistrar pref_local_change_registrar_;
   // Used to track backup&restore and location service preference.
   PrefChangeRegistrar pref_change_registrar_;
-  // Metrics consent observer.
-  base::CallbackListSubscription reporting_consent_subscription_;
+  // Metrics choice observer.
+  base::CallbackListSubscription reporting_choice_subscription_;
 
   base::WeakPtrFactory<ArcOptInPreferenceHandler> weak_ptr_factory_{this};
 };

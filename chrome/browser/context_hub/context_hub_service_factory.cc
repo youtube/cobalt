@@ -7,6 +7,7 @@
 #include "base/feature_list.h"
 #include "chrome/browser/context_hub/context_hub_service.h"
 #include "chrome/browser/context_hub/features.h"
+#include "chrome/browser/personal_context/personal_context_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 
 // static
@@ -27,7 +28,9 @@ ContextHubServiceFactory::ContextHubServiceFactory()
           "ContextHubService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              .Build()) {}
+              .Build()) {
+  DependsOn(PersonalContextServiceFactory::GetInstance());
+}
 
 ContextHubServiceFactory::~ContextHubServiceFactory() = default;
 
@@ -37,5 +40,12 @@ ContextHubServiceFactory::BuildServiceInstanceForBrowserContext(
   if (!base::FeatureList::IsEnabled(context_hub::features::kContextHub)) {
     return nullptr;
   }
-  return std::make_unique<context_hub::ContextHubService>();
+  Profile* profile = Profile::FromBrowserContext(context);
+  personal_context::PersonalContextService* personal_context_service =
+      PersonalContextServiceFactory::GetForProfile(profile);
+  if (!personal_context_service) {
+    return nullptr;
+  }
+  return std::make_unique<context_hub::ContextHubService>(
+      personal_context_service);
 }

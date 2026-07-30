@@ -14,6 +14,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -37,13 +38,11 @@
 #include "net/base/load_flags.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-#include "base/json/json_reader.h"
 #include "components/grit/components_resources.h"
 #include "ui/base/resource/resource_bundle.h"
 #endif
@@ -574,25 +573,23 @@ void PopularSitesImpl::OnSimpleLoaderComplete(
     return;
   }
 
-  data_decoder::DataDecoder::ParseJsonIsolated(
-      *response_body, base::BindOnce(&PopularSitesImpl::OnJsonParsed,
-                                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void PopularSitesImpl::OnJsonParsed(
-    data_decoder::DataDecoder::ValueOrError result) {
-  ASSIGN_OR_RETURN(base::Value list, std::move(result), [&](std::string error) {
-    DLOG(WARNING) << "JSON parsing failed: " << std::move(error);
+  base::JSONReader::Result result =
+      base::JSONReader::ReadAndReturnValueWithError(*response_body,
+                                                    base::JSON_PARSE_RFC);
+  if (!result.has_value()) {
+    DLOG(WARNING) << "JSON parsing failed: " << result.error().message;
     OnDownloadFailed();
-  });
+    return;
+  }
 
-  if (!list.is_list()) {
+  base::ListValue* list = result->GetIfList();
+  if (!list) {
     DLOG(WARNING) << "JSON is not a list";
     OnDownloadFailed();
     return;
   }
-  sections_ = ParseSites(list.GetList(), version_in_pending_url_);
-  prefs_->SetList(prefs::kPopularSitesJsonPref, std::move(list).TakeList());
+  sections_ = ParseSites(*list, version_in_pending_url_);
+  prefs_->SetList(prefs::kPopularSitesJsonPref, std::move(*list));
   prefs_->SetInt64(prefs::kPopularSitesLastDownloadPref,
                    base::Time::Now().ToInternalValue());
   prefs_->SetInteger(prefs::kPopularSitesVersionPref, version_in_pending_url_);

@@ -27,16 +27,17 @@
 @class BookmarksCoordinator;
 @class BrowserContentViewController;
 @protocol BrowserCoordinatorCommands;
-@protocol BWGCommands;
 @protocol DefaultPromoNonModalPresentationDelegate;
 @protocol FindInPageCommands;
 class FullscreenBrowserAgent;
 class FullscreenController;
+@protocol GeminiCommands;
 @protocol HelpCommands;
 @protocol IncognitoReauthCommands;
 @class KeyCommandsProvider;
 @class LayoutGuideCenter;
 @class LayoutState;
+@class MainToolbarCoordinator;
 @class NewTabPageCoordinator;
 @protocol PopupMenuCommands;
 @class PopupMenuCoordinator;
@@ -48,7 +49,6 @@ class TabUsageRecorderBrowserAgent;
 @protocol TextZoomCommands;
 @class ToolbarAccessoryPresenter;
 @protocol ToolbarCommands;
-@class MainToolbarCoordinator;
 class UrlLoadingBrowserAgent;
 @protocol VoiceSearchController;
 
@@ -68,7 +68,7 @@ typedef struct {
   id<SceneCommands> sceneHandler;
   id<ToolbarCommands> toolbarHandler;
   id<FindInPageCommands> findInPageCommandsHandler;
-  id<BWGCommands> geminiHandler;
+  id<GeminiCommands> geminiHandler;
   LayoutGuideCenter* layoutGuideCenter;
   BOOL isOffTheRecord;
   raw_ptr<UrlLoadingBrowserAgent> urlLoadingBrowserAgent;
@@ -122,7 +122,7 @@ typedef struct {
     nonModalPromoPresentationDelegate;
 
 // Command handler for Gemini commands.
-@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 
 // The layout state.
 @property(nonatomic, weak) LayoutState* layoutState;

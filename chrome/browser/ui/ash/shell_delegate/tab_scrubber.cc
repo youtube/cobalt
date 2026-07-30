@@ -412,12 +412,8 @@ void TabScrubber::UpdateSwipeX(float x_offset) {
   Tab* last_tab = tab_strip_->tab_at(last_tab_index);
   int last_tab_center = last_tab->GetMirroredBounds().CenterPoint().x();
 
-  if (swipe_x_ < first_tab_center) {
-    swipe_x_ = first_tab_center;
-  }
-  if (swipe_x_ > last_tab_center) {
-    swipe_x_ = last_tab_center;
-  }
+  swipe_x_ = std::clamp(swipe_x_, static_cast<float>(first_tab_center),
+                        static_cast<float>(last_tab_center));
 }
 
 void TabScrubber::UpdateHighlightedTab(Tab* new_tab, int new_index) {

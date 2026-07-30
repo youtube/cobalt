@@ -96,6 +96,11 @@ class BackForwardCachePageLoadMetricsObserver
  private:
   friend class ::BackForwardCachePageLoadMetricsObserverTest;
 
+  // Records INP before the first soft navigation arrives.
+  void RecordResponsivenessMetricsBeforeSoftNavigation();
+  // Records CLS before the first soft navigation arrives.
+  void RecordLayoutShiftBeforeSoftNavigation();
+
   // Records metrics related to the end of a page visit. This occurs either
   // when the observed page enters (or re-enters) the back-forward cache, or
   // when OnComplete is called on this observer while the page is not in

@@ -106,6 +106,12 @@ class CdmRegistryImplTest : public testing::Test {
   void SetUp() final {
     DVLOG(1) << __func__;
 
+    if constexpr (BUILDFLAG(IS_CHROMEOS)) {
+      // On ChromeOS, only HARDWARE_GL is available, so we cannot disable the
+      // ACCELERATED_GL feature without leaving no usable GPU mode.
+      GTEST_SKIP();
+    }
+
     auto* gpu_data_manager = GpuDataManagerImpl::GetInstance();
 
     // Simulate GPU process initialization completing with GL unavailable.
@@ -235,8 +241,7 @@ class CdmRegistryImplTest : public testing::Test {
 
   void SelectHardwareSecureDecryption(bool enabled) {
     const std::vector<base::test::FeatureRef> kHardwareSecureFeatures = {
-        media::kHardwareSecureDecryption,
-        media::kHardwareSecureDecryptionExperiment};
+        media::kHardwareSecureDecryption};
     const std::vector<base::test::FeatureRef> kNoFeatures = {};
 
     auto enabled_features = enabled ? kHardwareSecureFeatures : kNoFeatures;

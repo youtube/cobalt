@@ -324,6 +324,7 @@ public class ExpandablePaymentHandlerTest {
     @Test
     @SmallTest
     @Feature({"Payments"})
+    @DisabledTest(message = "crbug.com/522982654")
     public void testIncognitoTrue() throws Throwable {
         startDefaultServer();
         WebPageStation webPage =

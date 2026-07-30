@@ -15,6 +15,29 @@ struct InternalsDataPayload {
   ConfigInfo config;
   bool show_error_allowed;
   bool experimental_triggering_enabled;
+  InternalsDebugInfo debug_info;
+};
+
+struct InternalsDebugInfo {
+  // Feature flags
+  bool glic_feature_enabled;
+  bool glic_actor_feature_enabled;
+  bool glic_rollout_feature_enabled;
+
+  // Platform and form factor
+  Platform platform;
+  FormFactor form_factor;
+
+  // Browser and user settings
+  map<string, bool> boolean_settings;
+  string hotkey;
+};
+
+// This determines how invoke will handle waiting for first run experience
+// completion.
+enum FreCompletionWaitMode {
+  kDefault,
+  kNever,
 };
 
 // Configuration options for invoking Glic from the internals page.
@@ -32,6 +55,7 @@ struct TriggerInvokeFromInternalsOptions {
   bool auto_submit;
   FreOverride fre_override = kUnspecified;
   bool wait_for_panel_open;
+  FreCompletionWaitMode fre_completion_wait_mode = kDefault;
   bool? show_panel;
   InvokeTargetSurface surface;
   ActuationTarget actuation_target;

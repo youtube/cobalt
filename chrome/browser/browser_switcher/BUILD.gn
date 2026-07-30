@@ -105,7 +105,6 @@ source_set("unit_tests") {
     deps += [
       ":browser_switcher",
       "//base/test:test_support",
-      "//chrome/app:generated_resources",
       "//chrome/test:test_support",
       "//components/policy:generated",
       "//components/policy:policy_code_generate",

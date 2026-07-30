@@ -5,7 +5,9 @@
 #ifndef MEDIA_FORMATS_HLS_SECURITY_METADATA_H_
 #define MEDIA_FORMATS_HLS_SECURITY_METADATA_H_
 
+#include "base/containers/flat_set.h"
 #include "media/base/media_export.h"
+#include "url/origin.h"
 
 namespace media::hls {
 
@@ -20,16 +22,26 @@ struct MEDIA_EXPORT SecurityMetadata {
   bool did_redirect = false;
   bool has_range_request = false;
 
+  // Includes all the origins (after redirects) which are represented in the
+  // data of this stream. If this data was encrypted, the key request origin
+  // is also included.
+  base::flat_set<url::Origin> response_origins;
+
   // A stream is never allowed to have a tainted origin and be a range
   // request.
   bool HasIncompatibleRangeAndOrigin() const {
     return would_taint_origin && has_range_request;
   }
 
+  // Merge in other metadata, keeping the most strict flag from each, and
+  // combining the origins.
+  void MergeFrom(const SecurityMetadata& other);
+
   // Note: the range request isn't flagged as part of testing, because that
   // information comes from the MediaSegment configurations used to construct
   // the stream.
-  static SecurityMetadata CreateForTesting(bool would_taint_origin = false,
+  static SecurityMetadata CreateForTesting(std::string url,
+                                           bool would_taint_origin = false,
                                            bool did_redirect = false);
 };
 

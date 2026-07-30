@@ -129,7 +129,7 @@ public class ScreenOrientationProviderImpl
             case ScreenOrientationLockType.LANDSCAPE:
                 return ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
             case ScreenOrientationLockType.ANY:
-                return ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR;
+                return ActivityInfo.SCREEN_ORIENTATION_FULL_USER;
             case ScreenOrientationLockType.NATURAL:
                 // If the tab is being reparented, we don't have a display strongly associated with
                 // it, so we get the default display.

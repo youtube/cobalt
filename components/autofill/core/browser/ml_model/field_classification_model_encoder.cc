@@ -147,7 +147,7 @@ FieldClassificationModelEncoder::EncodeField(const FormFieldData& field) const {
         return EncodeAttribute(field.name_attribute());
       case FeaturesEnum::FEATURE_TYPE:
         return EncodeAttribute(base::UTF8ToUTF16(
-            autofill::FormControlTypeToString(field.form_control_type())));
+            FormControlTypeToString(field.form_control_type())));
     }
     return {};
   };

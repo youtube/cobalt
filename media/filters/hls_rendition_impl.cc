@@ -119,7 +119,7 @@ void HlsRenditionImpl::CheckState(
 
   // Consider re-requesting.
   if (ranges.empty() && segments_->Exhausted()) {
-    MaybeFetchManifestUpdates(std::move(time_remaining_cb), base::Seconds(0));
+    MaybeFetchManifestUpdates(std::move(time_remaining_cb), std::nullopt);
     return;
   }
 
@@ -277,7 +277,7 @@ void HlsRenditionImpl::OnManifestUpdate(ManifestDemuxer::DelayCallback cb,
 
 void HlsRenditionImpl::MaybeFetchManifestUpdates(
     ManifestDemuxer::DelayCallback cb,
-    base::TimeDelta delay) {
+    std::optional<base::TimeDelta> delay) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!is_stopped_for_shutdown_);
   // Section 6.3.4 of the spec states that:
@@ -288,10 +288,19 @@ void HlsRenditionImpl::MaybeFetchManifestUpdates(
   auto update_after =
       std::max(size_t{1}, segments_->QueueSize()) * segments_->GetMaxDuration();
   if (since_last_manifest > update_after) {
-    FetchManifestUpdates(std::move(cb), delay);
+    FetchManifestUpdates(std::move(cb), delay.value_or(base::Seconds(0)));
     return;
   }
-  std::move(cb).Run(std::max(delay, update_after - since_last_manifest));
+
+  // If we tried to update the manifest with a pending "manifest_delay" (the
+  // we have until the next data is required), just use that as the delay - the
+  // manifest update is less important than the segment append, and it'll get
+  // sorted out _after_ that next segment is appended, if it's needed. If there
+  // is no pending manifest delay, then we are probably going to underflow, but
+  // the spec is pretty clear that we can't just keep hitting the manifest uri
+  // for updates too quickly - so calculate the soonest time we can, and delay
+  // until then.
+  std::move(cb).Run(delay.value_or(update_after - since_last_manifest));
 }
 
 base::TimeDelta HlsRenditionImpl::GetIdealBufferSize() const {

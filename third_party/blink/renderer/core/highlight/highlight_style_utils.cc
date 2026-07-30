@@ -433,6 +433,24 @@ HighlightStyleUtils::HighlightPaintingStyle(
   // specified on the originating element (or the other highlight overlays).
   highlight_style.shadow = nullptr;
 
+  // An ignored selection (e.g. over user-select:none text) must not contribute
+  // any foreground color of its own. Mark the foreground colors as coming from
+  // the previous layer so that ComputeParts() re-resolves them per-part against
+  // the layer that is actually below the selection. Otherwise the selection
+  // layer keeps the color of whatever layer preceded it during layer
+  // construction (such as a custom highlight) and leaks it onto text that layer
+  // does not cover. The background and decoration colors are intentionally not
+  // inherited here: the background stays transparent (selection backgrounds are
+  // suppressed for non-selectable text), and the decoration colors are resolved
+  // or flagged separately below and are never seeded from the previous layer,
+  // so neither can leak it. This is skipped in the text-clip phase, where the
+  // colors are unused.
+  if (!uses_text_as_clip && ignored_selection) {
+    colors_from_previous_layer.Put(HighlightColorProperty::kCurrentColor);
+    colors_from_previous_layer.Put(HighlightColorProperty::kFillColor);
+    colors_from_previous_layer.Put(HighlightColorProperty::kEmphasisColor);
+  }
+
   if (!uses_text_as_clip && !ignored_selection) {
     std::optional<Color> maybe_color;
 

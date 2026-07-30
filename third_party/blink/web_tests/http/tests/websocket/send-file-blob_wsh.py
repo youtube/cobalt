@@ -1,5 +1,3 @@
-from six.moves import range
-
 from mod_pywebsocket import common
 from mod_pywebsocket import msgutil
 from mod_pywebsocket import util

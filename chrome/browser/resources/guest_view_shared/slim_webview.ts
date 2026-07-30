@@ -310,6 +310,7 @@ export class SlimWebviewElement extends CrLitElement {
   private onBeforeSendHeadersParamsInternal: OnBeforeSendHeadersParams|null =
       null;
   private allowedOriginsParamsInternal: OriginCheckParams|null = null;
+  private userAgentOverrideInternal: string = '';
 
   constructor() {
     super();
@@ -337,6 +338,20 @@ export class SlimWebviewElement extends CrLitElement {
         this.guestInstanceId === null,
         'Cannot set allowedOriginsParams once the guest is created');
     this.allowedOriginsParamsInternal = params;
+  }
+
+  getUserAgent(): string {
+    return this.userAgentOverrideInternal || navigator.userAgent;
+  }
+
+  setUserAgentOverride(userAgentOverride: string) {
+    this.userAgentOverrideInternal = userAgentOverride;
+    if (this.guestInstanceId === null ||
+        this.guestInstanceId === GUEST_INSTANCE_ID_PENDING) {
+      return;
+    }
+    BrowserProxyImpl.getInstance().handler.setUserAgentOverride(
+        this.guestInstanceId, userAgentOverride);
   }
 
   override connectedCallback() {
@@ -411,6 +426,11 @@ export class SlimWebviewElement extends CrLitElement {
     if (this.allowedOriginsParams !== null) {
       createParams.storage['allowedOrigins'] =
           this.allowedOriginsParams.toValue();
+    }
+    if (this.userAgentOverrideInternal) {
+      createParams.storage['userAgentOverride'] = {
+        stringValue: this.userAgentOverrideInternal,
+      };
     }
     const result =
         await BrowserProxyImpl.getInstance().handler.createGuest(createParams);

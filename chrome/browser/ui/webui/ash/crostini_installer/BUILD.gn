@@ -17,6 +17,7 @@ static_library("crostini_installer") {
   ]
 
   deps = [
+    "//ash/constants",
     "//ash/public/cpp",
     "//ash/strings",
     "//chrome/app/theme:chrome_unscaled_resources",
@@ -25,7 +26,6 @@ static_library("crostini_installer") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/chromeos/crostini_installer:resources",
     "//chrome/browser/ui/webui/ash/system_web_dialog",
-    "//chrome/common",
 
     # TODO(http://crbug.com/421830018): The following deps is made necessary
     # only because of the existing circular dependency between

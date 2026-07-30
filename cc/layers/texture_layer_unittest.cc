@@ -63,11 +63,11 @@ using ::testing::Mock;
 // TODO(crbug.com/40883999): settings new expectations after
 // VerifyAndClearExpectations is undefined behavior. See
 // http://google.github.io/googletest/gmock_cook_book.html#forcing-a-verification
-#define EXPECT_SET_NEEDS_COMMIT(expect, code_to_test)                 \
-  do {                                                                \
-    EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times((expect)); \
-    code_to_test;                                                     \
-    Mock::VerifyAndClearExpectations(layer_tree_host_.get());         \
+#define EXPECT_SET_NEEDS_COMMIT(expect, code_to_test)                  \
+  do {                                                                 \
+    EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times((expect)); \
+    code_to_test;                                                      \
+    Mock::VerifyAndClearExpectations(layer_tree_host_.get());          \
   } while (false)
 
 namespace cc {
@@ -125,7 +125,7 @@ class MockLayerTreeHost : public LayerTreeHost {
     return base::WrapUnique(new MockLayerTreeHost(std::move(params)));
   }
 
-  MOCK_METHOD0(SetNeedsCommit, void());
+  MOCK_METHOD1(SetNeedsCommit, void(bool urgent));
   MOCK_METHOD0(StartRateLimiter, void());
   MOCK_METHOD0(StopRateLimiter, void());
 
@@ -201,7 +201,7 @@ class TextureLayerTest : public testing::Test {
     animation_host_ = AnimationHost::CreateForTesting(ThreadInstance::kMain);
     layer_tree_host_ = MockLayerTreeHost::Create(
         &fake_client_, &task_graph_runner_, animation_host_.get());
-    EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AnyNumber());
+    EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AnyNumber());
     layer_tree_host_->SetViewportRectAndScale(gfx::Rect(10, 10), 1.f,
                                               viz::LocalSurfaceId());
     Mock::VerifyAndClearExpectations(layer_tree_host_.get());
@@ -209,7 +209,7 @@ class TextureLayerTest : public testing::Test {
 
   void TearDown() override {
     Mock::VerifyAndClearExpectations(layer_tree_host_.get());
-    EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AnyNumber());
+    EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AnyNumber());
 
     animation_host_->SetMutatorHostDelegate(nullptr);
     layer_tree_host_->SetRootLayer(nullptr);
@@ -348,41 +348,41 @@ TEST_F(TextureLayerWithResourceTest, ReplaceMailboxOnMainThreadBeforeCommit) {
   scoped_refptr<TextureLayer> test_layer = TextureLayer::Create(nullptr);
   ASSERT_TRUE(test_layer.get());
 
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AnyNumber());
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AnyNumber());
   layer_tree_host_->SetRootLayer(test_layer);
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
 
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_layer->SetTransferableResource(test_resource1_.resource,
                                       test_resource1_.release_callback);
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
 
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_resource1_.ExpectRelease();
   test_layer->SetTransferableResource(test_resource2_.resource,
                                       test_resource2_.release_callback);
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
   test_resource1_.Verify();
 
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_resource2_.ExpectRelease();
   test_layer->ClearTexture();
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
   test_resource2_.Verify();
 
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_layer->SetTransferableResource(test_resource1_.resource,
                                       test_resource1_.release_callback);
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
 
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_resource1_.ExpectRelease();
   test_layer->ClearTexture();
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
   test_resource1_.Verify();
 
   // Test destructor.
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_layer->SetTransferableResource(test_resource1_.resource,
                                       test_resource1_.release_callback);
 }
@@ -390,10 +390,10 @@ TEST_F(TextureLayerWithResourceTest, ReplaceMailboxOnMainThreadBeforeCommit) {
 TEST_F(TextureLayerWithResourceTest, AffectedByHdr) {
   scoped_refptr<TextureLayer> test_layer = TextureLayer::Create(nullptr);
   ASSERT_TRUE(test_layer.get());
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AnyNumber());
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AnyNumber());
   layer_tree_host_->SetRootLayer(test_layer);
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
 
   // sRGB is unaffected by HDR parameters.
   test_resource1_.resource = MakeFakeResource(gfx::ColorSpace::CreateSRGB());
@@ -402,7 +402,7 @@ TEST_F(TextureLayerWithResourceTest, AffectedByHdr) {
                                       test_resource1_.release_callback);
   Mock::VerifyAndClearExpectations(layer_tree_host_.get());
   EXPECT_FALSE(test_layer->RequiresSetNeedsDisplayOnHdrHeadroomChange());
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
   test_resource1_.ExpectRelease();
 
   // HDR10 is affected by HDR parameters.
@@ -414,7 +414,7 @@ TEST_F(TextureLayerWithResourceTest, AffectedByHdr) {
 
   EXPECT_TRUE(test_layer->RequiresSetNeedsDisplayOnHdrHeadroomChange());
   test_resource2_.ExpectRelease();
-  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit()).Times(AtLeast(1));
+  EXPECT_CALL(*layer_tree_host_, SetNeedsCommit(_)).Times(AtLeast(1));
 
   // sRGB with extended range is affected by HDR parameters.
   test_resource1_.resource.hdr_metadata.extended_range.emplace(5.f, 5.f);

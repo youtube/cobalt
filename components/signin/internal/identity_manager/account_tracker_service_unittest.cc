@@ -707,7 +707,7 @@ TEST_F(AccountTrackerServiceTest, TokenAvailable_AccountCapabilitiesFailed) {
   EXPECT_TRUE(CheckAccountTrackerEvents({}));
   AccountInfo account_info = account_tracker()->GetAccountInfo(
       AccountKeyToAccountId(kAccountKeyAlpha));
-  EXPECT_FALSE(account_info.capabilities.AreAllCapabilitiesKnown());
+  EXPECT_FALSE(account_info.GetAccountCapabilities().AreAllCapabilitiesKnown());
 }
 
 TEST_F(AccountTrackerServiceTest, TokenAvailable_AccountCapabilitiesCancelled) {
@@ -722,7 +722,7 @@ TEST_F(AccountTrackerServiceTest, TokenAvailable_AccountCapabilitiesCancelled) {
   EXPECT_TRUE(CheckAccountTrackerEvents({}));
   AccountInfo account_info = account_tracker()->GetAccountInfo(
       AccountKeyToAccountId(kAccountKeyAlpha));
-  EXPECT_FALSE(account_info.capabilities.AreAllCapabilitiesKnown());
+  EXPECT_FALSE(account_info.GetAccountCapabilities().AreAllCapabilitiesKnown());
 }
 
 TEST_F(AccountTrackerServiceTest,
@@ -769,8 +769,9 @@ TEST_F(AccountTrackerServiceTest,
   EXPECT_FALSE(account_fetcher()->AreAllAccountCapabilitiesFetched());
   AccountInfo account_info = account_tracker()->GetAccountInfo(
       AccountKeyToAccountId(kAccountKeyAlpha));
-  EXPECT_EQ(account_info.capabilities.can_fetch_family_member_info(),
-            signin::Tribool::kTrue);
+  EXPECT_EQ(
+      account_info.GetAccountCapabilities().can_fetch_family_member_info(),
+      signin::Tribool::kTrue);
 
   // Phase 2: complete the fetch.
   CompleteAccountCapabilitiesFetchWithoutCapabilities(kAccountKeyAlpha);

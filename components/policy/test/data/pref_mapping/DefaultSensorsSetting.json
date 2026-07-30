@@ -8,13 +8,43 @@
       "chromeos",
       "fuchsia"
     ],
-    "simple_policy_pref_mapping_test": {
-      "pref_name": "profile.managed_default_content_settings.sensors",
-      "default_value": 0,
-      "values_to_test": [
-        1,
-        2
-      ]
-    }
+    "policy_pref_mapping_tests": [
+      {
+        "note": "Default value (no policy set)",
+        "policies": {},
+        "prefs": {
+          "profile.managed_default_content_settings.sensors": {
+            "default_value": 0
+          }
+        }
+      },
+      {
+        "note": "Policy set to Allow (1)",
+        "policies": { "DefaultSensorsSetting": 1 },
+        "prefs": {
+          "profile.managed_default_content_settings.sensors": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "note": "Policy set to Block (2)",
+        "policies": { "DefaultSensorsSetting": 2 },
+        "prefs": {
+          "profile.managed_default_content_settings.sensors": {
+            "value": 2
+          }
+        }
+      },
+      {
+        "note": "Policy set to Ask (3) - falls back to Allow (1) because kSensorsAllowAskBlockPermissionModel is OFF by default",
+        "policies": { "DefaultSensorsSetting": 3 },
+        "prefs": {
+          "profile.managed_default_content_settings.sensors": {
+            "value": 1
+          }
+        }
+      }
+    ]
   }
 ]

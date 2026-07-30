@@ -23,6 +23,7 @@
 #import "components/variations/service/variations_service_utils.h"
 #import "ios/chrome/browser/intelligence/actor/tools/utils/actor_tool_utils.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/tabs/model/inactive_tabs/features.h"
 
 BASE_FEATURE(kEnhancedCalendar, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -486,6 +487,7 @@ bool IsGeminiCopresenceEnabled() {
   return base::FeatureList::IsEnabled(kGeminiCopresence);
 }
 
+// TODO(crbug.com/522712050): Remove once Gemini Config Params are merged.
 const char kGeminiCopresenceResponseReadyInterval[] =
     "GeminiCopresenceResponseReadyInterval";
 
@@ -530,23 +532,15 @@ bool IsGeminiCopresenceTrackSourcesEnabled() {
       kGeminiCopresence, kGeminiCopresenceTrackSources, false);
 }
 
-BASE_FEATURE(kGeminiResponseViewDynamicResizing,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiConfigParams, base::FEATURE_ENABLED_BY_DEFAULT);
 
-bool IsGeminiResponseViewDynamicResizingEnabled() {
-  if (!IsPageActionMenuEnabled()) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(kGeminiResponseViewDynamicResizing);
-}
+const char kGeminiResponseReadyInterval[] = "GeminiResponseReadyInterval";
+constexpr double kGeminiResponseReadyIntervalDefault = 7.0;
 
-BASE_FEATURE(kGeminiDynamicSettings, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsGeminiDynamicSettingsEnabled() {
-  if (!IsPageActionMenuEnabled()) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(kGeminiDynamicSettings);
+double GetGeminiResponseReadyInterval() {
+  return base::GetFieldTrialParamByFeatureAsDouble(
+      kGeminiConfigParams, kGeminiResponseReadyInterval,
+      kGeminiResponseReadyIntervalDefault);
 }
 
 BASE_FEATURE(kPageStabilityMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -740,7 +734,7 @@ bool IsGeminiActorEnabled() {
   return base::FeatureList::IsEnabled(kGeminiActor);
 }
 
-BASE_FEATURE(kGeminiRichAPCExtraction, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiRichAPCExtraction, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiRichAPCExtractionEnabled() {
   if (!IsPageActionMenuEnabled() ||
@@ -749,24 +743,6 @@ bool IsGeminiRichAPCExtractionEnabled() {
   }
 
   return base::FeatureList::IsEnabled(kGeminiRichAPCExtraction);
-}
-
-BASE_FEATURE(kGeminiFloatyAllPages, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsGeminiFloatyAllPagesEnabled() {
-  if (!IsPageActionMenuEnabled()) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(kGeminiFloatyAllPages);
-}
-
-BASE_FEATURE(kGeminiMapsRichUI, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsGeminiMapsRichUIEnabled() {
-  if (!IsPageActionMenuEnabled()) {
-    return false;
-  }
-  return base::FeatureList::IsEnabled(kGeminiMapsRichUI);
 }
 
 BASE_FEATURE(kGeminiUnaryMigration, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -788,13 +764,13 @@ bool IsGeminiBinaryMigrationEnabled() {
 }
 
 BASE_FEATURE(kPersistTabContextRichExtraction,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsPersistTabContextRichExtractionEnabled() {
   return base::FeatureList::IsEnabled(kPersistTabContextRichExtraction);
 }
 
-BASE_FEATURE(kPageContextIPCOptimization, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPageContextIPCOptimization, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kPageContextIPCOptimizationActionableParam[] = "enable_actionable";
 
@@ -856,6 +832,24 @@ bool IsGeneralizedGeminiEntryFlowEnabled() {
   return base::FeatureList::IsEnabled(kGeneralizedGeminiEntryFlow);
 }
 
+BASE_FEATURE(kGeminiLuminous, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiLuminousEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kGeminiLuminous);
+}
+
+BASE_FEATURE(kAppSwitcherAISummarization, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAppSwitcherAISummarizationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kAppSwitcherAISummarization);
+}
+
 #pragma mark - Debugging Features
 
 const char kBWGPromoConsentParams[] = "BWGPromoConsentVariations";
@@ -909,8 +903,9 @@ bool IsActorServiceLoggingEnabled() {
   return base::FeatureList::IsEnabled(kActorServiceLogging);
 }
 
-BASE_FEATURE(kIOSBottomSheetMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSGeminiBottomSheetMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsIOSBottomSheetMigrationEnabled() {
-  return base::FeatureList::IsEnabled(kIOSBottomSheetMigration);
+bool IsIOSGeminiBottomSheetMigrationEnabled() {
+  return IsGeminiCopresenceEnabled() && IsAssistantContainerEnabled() &&
+         base::FeatureList::IsEnabled(kIOSGeminiBottomSheetMigration);
 }

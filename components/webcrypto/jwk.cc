@@ -50,7 +50,11 @@ namespace {
 const blink::WebCryptoKeyUsageMask kJwkEncUsage =
     blink::kWebCryptoKeyUsageEncrypt | blink::kWebCryptoKeyUsageDecrypt |
     blink::kWebCryptoKeyUsageWrapKey | blink::kWebCryptoKeyUsageUnwrapKey |
-    blink::kWebCryptoKeyUsageDeriveKey | blink::kWebCryptoKeyUsageDeriveBits;
+    blink::kWebCryptoKeyUsageDeriveKey | blink::kWebCryptoKeyUsageDeriveBits |
+    blink::kWebCryptoKeyUsageEncapsulateKey |
+    blink::kWebCryptoKeyUsageEncapsulateBits |
+    blink::kWebCryptoKeyUsageDecapsulateKey |
+    blink::kWebCryptoKeyUsageDecapsulateBits;
 const blink::WebCryptoKeyUsageMask kJwkSigUsage =
     blink::kWebCryptoKeyUsageSign | blink::kWebCryptoKeyUsageVerify;
 
@@ -84,7 +88,11 @@ const JwkToWebCryptoUsageMapping kJwkWebCryptoUsageMap[] = {
     {"deriveKey", blink::kWebCryptoKeyUsageDeriveKey},
     {"deriveBits", blink::kWebCryptoKeyUsageDeriveBits},
     {"wrapKey", blink::kWebCryptoKeyUsageWrapKey},
-    {"unwrapKey", blink::kWebCryptoKeyUsageUnwrapKey}};
+    {"unwrapKey", blink::kWebCryptoKeyUsageUnwrapKey},
+    {"encapsulateKey", blink::kWebCryptoKeyUsageEncapsulateKey},
+    {"encapsulateBits", blink::kWebCryptoKeyUsageEncapsulateBits},
+    {"decapsulateKey", blink::kWebCryptoKeyUsageDecapsulateKey},
+    {"decapsulateBits", blink::kWebCryptoKeyUsageDecapsulateBits}};
 
 bool JwkKeyOpToWebCryptoUsage(std::string_view key_op,
                               blink::WebCryptoKeyUsage* usage) {

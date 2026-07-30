@@ -116,10 +116,6 @@ struct BLINK_COMMON_EXPORT VisualProperties {
   ui::mojom::WindowShowState window_show_state =
       ui::mojom::WindowShowState::kDefault;
 
-  // This represents the latest capture sequence number requested. When this is
-  // incremented, that means the caller wants to synchronize surfaces which
-  // should cause a new LocalSurfaceId to be generated.
-  uint32_t capture_sequence_number = 0u;
 
   // This represents the browser zoom level for a WebContents.
   // (0 is the default value which results in 1.0 zoom factor).

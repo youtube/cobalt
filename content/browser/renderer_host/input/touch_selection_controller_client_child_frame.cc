@@ -26,8 +26,8 @@ TouchSelectionControllerClientChildFrame::
         RenderWidgetHostViewChildFrame* rwhv,
         TouchSelectionControllerClientManager* manager)
     : rwhv_(rwhv), manager_(manager) {
-  DCHECK(rwhv);
-  DCHECK(manager_);
+  CHECK(rwhv, base::NotFatalUntil::M152);
+  CHECK(manager_, base::NotFatalUntil::M152);
 }
 
 TouchSelectionControllerClientChildFrame::

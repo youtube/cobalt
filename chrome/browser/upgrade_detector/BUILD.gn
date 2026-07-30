@@ -64,7 +64,10 @@ source_set("upgrade_detector") {
 
 source_set("impl") {
   sources = []
-  deps = [ ":upgrade_detector" ]
+  deps = [
+    ":upgrade_detector",
+    "//chrome/browser/ui:browser_otr_state",
+  ]
 
   if (!is_android) {
     sources += [

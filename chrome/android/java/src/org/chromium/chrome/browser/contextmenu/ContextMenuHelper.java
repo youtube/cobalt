@@ -243,7 +243,9 @@ public class ContextMenuHelper {
 
     public static ContextMenuHelper createForTesting(
             long nativeContextMenuHelper, WebContents webContents) {
-        return create(nativeContextMenuHelper, webContents);
+        ContextMenuHelper helper = create(nativeContextMenuHelper, webContents);
+        ResettersForTesting.register(helper::destroy);
+        return helper;
     }
 
     void showContextMenuForTesting(

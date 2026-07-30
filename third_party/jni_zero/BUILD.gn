@@ -147,6 +147,12 @@ if (enable_java_templates && is_android) {
     ]
   }
 
+  java_annotation_processor("validator_processor") {
+    sources = [ "processor/java/src/org/jni_zero/processor/JniZeroValidatorProcessor.java" ]
+    main_class = "org.jni_zero.processor.JniZeroValidatorProcessor"
+    deps = [ ":jni_zero_java" ]
+  }
+
   group("jni_zero_tests") {
     testonly = true
     deps = [

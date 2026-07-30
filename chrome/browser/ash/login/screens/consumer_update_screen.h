@@ -249,10 +249,4 @@ class ConsumerUpdateScreen
 
 }  // namespace ash
 
-// TODO(crbug.com/40163357): remove after the //chrome/browser/chromeos
-// source migration is finished.
-namespace chromeos {
-using ::ash ::ConsumerUpdateScreen;
-}
-
 #endif  // CHROME_BROWSER_ASH_LOGIN_SCREENS_CONSUMER_UPDATE_SCREEN_H_

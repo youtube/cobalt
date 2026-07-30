@@ -20,7 +20,7 @@
 #include "extensions/common/api/messaging/message.h"
 #include "extensions/common/api/messaging/port_id.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/extension_features.h"
+#include "extensions/common/manifest_handlers/devtools_page_handler.h"
 #include "extensions/common/mojom/event_dispatcher.mojom.h"
 #include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "extensions/renderer/api/messaging/message_target.h"
@@ -36,7 +36,6 @@
 #include "extensions/renderer/get_script_context.h"
 #include "extensions/renderer/ipc_message_sender.h"
 #include "extensions/renderer/native_extension_bindings_system.h"
-#include "extensions/renderer/polyfill_util.h"
 #include "extensions/renderer/script_context.h"
 #include "gin/arguments.h"
 #include "gin/data_object_builder.h"
@@ -102,13 +101,12 @@ bool IsMessagePolyfillSupportEnabled(ScriptContext* script_context) {
     return false;
   }
   const Extension* extension = script_context->extension();
-  if (extension) {
-    return IsExtensionBrowserNamespaceAndPolyfillSupportEnabledForExtension(
-        extension);
+
+  if (!extension) {
+    return true;
   }
-  // For example a non-extension webpage that can communicate with extensions.
-  return base::FeatureList::IsEnabled(
-      extensions_features::kExtensionBrowserNamespaceAndPolyfillSupport);
+
+  return chrome_manifest_urls::GetDevToolsPage(extension).is_empty();
 }
 
 // Returns an array from the `result` object's `property_name` if it exists,
@@ -711,7 +709,7 @@ bool OneTimeMessageHandler::DeliverMessageToReceiver(
     // it intended to respond asynchronously.
     if (port.event_name == messaging_util::kOnMessageEvent ||
         port.event_name == messaging_util::kOnMessageExternalEvent) {
-      CallbackID listener_throws_error_callback_id;
+      std::optional<CallbackID> listener_throws_error_callback_id;
       if (IsMessagePolyfillSupportEnabled(script_context)) {
         auto listener_throws_error_callback =
             CreateListenerErrorCallback(target_port_id);
@@ -720,7 +718,7 @@ bool OneTimeMessageHandler::DeliverMessageToReceiver(
             callback_manager_->CreateListenerThrowsErrorFunction(
                 *script_context, target_port_id,
                 std::move(listener_throws_error_callback),
-                listener_throws_error_callback_id);
+                *listener_throws_error_callback_id);
       }
       auto message_dispatched_callback = CreateEventDispatchCallback(
           target_port_id, listener_throws_error_callback_id);
@@ -1094,9 +1092,6 @@ void OneTimeMessageHandler::OneTimeMessageCallbackManager::
     auto& callbacks = port_id_iter->second;
     callbacks.erase(callback_id);
     if (!callbacks.empty()) {
-      // If we've deleted the callback, but there's still a remaining callback
-      // then this should only happen iff polyfill support is enabled.
-      DCHECK(IsMessagePolyfillSupportEnabled(script_context));
       // When polyfill support is enabled we'll create two callbacks (message
       // response and promise reject) that can be collected at different times.
       // Only the last callback of these two collected should continue on to
@@ -1356,8 +1351,7 @@ void OneTimeMessageHandler::OnEventFired(
   // Cleanup listener error callback if created since it shouldn't be possible
   // for synchronous thrown errors to appear after all listeners have finished
   // being dispatched to.
-  if (IsMessagePolyfillSupportEnabled(script_context) &&
-      listener_error_callback_id
+  if (listener_error_callback_id
       // We get here once all listeners have been dispatched to, but since any
       // of them could invalidate the context we need to check it's still valid
       // before trying to access the context to cleanup the callback. If the

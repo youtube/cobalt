@@ -29,13 +29,13 @@ void ResetGeminiConsent(PrefService* prefs) {
   UpdateUserConsentPrefs(false, prefs);
 }
 
-FREState CurrentFREState(PrefService* prefs) {
+FirstRunState CurrentFirstRunState(PrefService* prefs) {
   if (DidUserSeeGeminiPromo(prefs)) {
-    return DidUserConsentToGemini(prefs) ? FREState::kCompleted
-                                         : FREState::kStarted;
+    return DidUserConsentToGemini(prefs) ? FirstRunState::kCompleted
+                                         : FirstRunState::kStarted;
   }
 
-  return FREState::kPending;
+  return FirstRunState::kPending;
 }
 
 bool DidUserConsentToGemini(PrefService* prefs) {

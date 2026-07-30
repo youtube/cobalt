@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.toolbar.top;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.animation.Animator;
 import android.animation.AnimatorSet;
@@ -109,11 +110,14 @@ public class ToolbarTablet extends ToolbarLayout {
     private @Nullable TabletCaptureStateToken mLastCaptureStateToken;
     private @DrawableRes int mBookmarkButtonImageRes;
     private @Nullable ExtensionsToolbarCoordinator mExtensionsToolbarCoordinator;
+    private @Nullable ImageButton mGlicActionChip;
+    private @Nullable View mGlicDivider;
 
     private final @Nullable ToolbarWidthConsumer[] mToolbarWidthConsumers =
             new ToolbarWidthConsumer[ToolbarComponentId.COUNT];
 
     private boolean mIsDestroyed;
+    private boolean mShowingFusebox;
 
     /**
      * Constructs a ToolbarTablet object.
@@ -354,7 +358,7 @@ public class ToolbarTablet extends ToolbarLayout {
         } else {
             mBookmarkButtonImageRes = R.drawable.ic_star_24dp;
             mBookmarkButton.setImageResource(R.drawable.ic_star_24dp);
-            ImageViewCompat.setImageTintList(mBookmarkButton, getTint());
+            ImageViewCompat.setImageTintList(mBookmarkButton, getButtonTintList());
             mBookmarkButton.setContentDescription(
                     getContext().getString(R.string.accessibility_menu_bookmark));
         }
@@ -587,7 +591,7 @@ public class ToolbarTablet extends ToolbarLayout {
 
         mOptionalButtonUsesTint = buttonSpec.getSupportsTinting();
         if (mOptionalButtonUsesTint) {
-            ImageViewCompat.setImageTintList(mOptionalButton, getTint());
+            ImageViewCompat.setImageTintList(mOptionalButton, getButtonTintList());
         } else {
             ImageViewCompat.setImageTintList(mOptionalButton, null);
         }
@@ -636,9 +640,51 @@ public class ToolbarTablet extends ToolbarLayout {
         setOptionalButtonVisibility(/* isVisible= */ false);
     }
 
+    @Override
+    protected boolean shouldDrawHairline() {
+        return super.shouldDrawHairline() && !mShowingFusebox;
+    }
+
     private void setOptionalButtonVisibility(boolean isVisible) {
         if (mOptionalButton == null) return;
         mOptionalButton.setVisibility(isVisible ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * Set {@link ToolbarWidthConsumer} for Glic button pinned on the tab strip but moved to the
+     * toolbar when the tab strip becomes hidden.
+     */
+    public void setGlicToolbarWidthConsumer(ToolbarWidthConsumer consumer) {
+        mToolbarWidthConsumers[ToolbarComponentId.GLIC_PINNED_MOVED] = consumer;
+    }
+
+    /**
+     * Toggle Glic action button visibility on the toolbar.
+     *
+     * @param visible Whether the button should be visible or not.
+     * @param clickListener Callback to invoke when the Glic action button is clicked.
+     */
+    public void setGlicActionChipVisibility(boolean visible, OnClickListener clickListener) {
+        if (mGlicDivider == null) {
+            mGlicDivider = assumeNonNull(findViewById(R.id.glic_divider));
+        }
+        mGlicDivider.setVisibility(visible ? VISIBLE : GONE);
+        if (visible) {
+            ViewStub glicActionChipStub = findViewById(R.id.glic_action_chip_stub);
+            if (mGlicActionChip == null && glicActionChipStub != null) {
+                mGlicActionChip = (ImageButton) glicActionChipStub.inflate();
+                mGlicActionChip.setOnClickListener(clickListener);
+                mGlicActionChip.setImageResource(R.drawable.ic_spark_24dp);
+                mGlicActionChip.setContentDescription(
+                        getContext().getString(R.string.glic_tab_strip_button_tooltip));
+                ImageViewCompat.setImageTintList(mGlicActionChip, getButtonTintList());
+            }
+            assumeNonNull(mGlicActionChip).setVisibility(VISIBLE);
+        } else {
+            if (mGlicActionChip != null) {
+                mGlicActionChip.setVisibility(GONE);
+            }
+        }
     }
 
     private class ToolbarPaddingWidthConsumer implements ToolbarWidthConsumer {
@@ -924,7 +970,8 @@ public class ToolbarTablet extends ToolbarLayout {
         if (state == FuseboxState.COMPACT || state == FuseboxState.EXPANDED) {
             mFixedHeightBackground.setVisibility(VISIBLE);
             setBackgroundColor(Color.TRANSPARENT);
-            setHairlineVisibility(false);
+            mShowingFusebox = true;
+            updateHairlineVisibility();
             layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
         } else {
             mFixedHeightBackground.setVisibility(GONE);
@@ -932,7 +979,8 @@ public class ToolbarTablet extends ToolbarLayout {
                     mThemeColorProvider == null
                             ? SemanticColorUtils.getDefaultBgColor(getContext())
                             : mThemeColorProvider.getThemeColor());
-            setHairlineVisibility(true);
+            mShowingFusebox = false;
+            updateHairlineVisibility();
             layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
         }
         setLayoutParams(layoutParams);

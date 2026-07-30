@@ -68,7 +68,6 @@
 #import "ios/chrome/browser/reader_mode/model/constants.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
-#import "ios/chrome/browser/reading_list/model/offline_url_utils.h"
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_utils.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
@@ -80,9 +79,9 @@
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/cobalt_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
 #import "ios/chrome/browser/shared/public/commands/level_up_commands.h"
@@ -359,6 +358,13 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   _authServiceObserverBridge.reset();
   _identityManager = nullptr;
   _identityManagerObserverBridge.reset();
+
+  self.navigationAgent = nullptr;
+  self.browserPolicyConnector = nullptr;
+  self.promosManager = nullptr;
+  self.readingListBrowserAgent = nullptr;
+  self.tabBasedIPHBrowserAgent = nullptr;
+  self.templateURLService = nullptr;
 }
 
 #pragma mark - Property getters/setters
@@ -937,7 +943,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
                              accessibilityID:kToolsMenuOpenAskBWG
                                 hideItemText:nil
                                      handler:^{
-                                       [weakSelf startAskBWG];
+                                       [weakSelf startAskGemini];
                                      }];
 }
 
@@ -1515,7 +1521,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     }
     // Ensures that the floaty doesn't show when another view controller is
     // presented as a result of an overflow item being tapped.
-    [weakSelf.BWGHandler
+    [weakSelf.geminiHandler
         hideFloatyIfInvokedAnimated:NO
                          fromSource:gemini::FloatyUpdateSource::ViewTransition];
     [weakSelf logFeatureEngagementEventForClickOnAction:actionType];
@@ -1805,6 +1811,16 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 #pragma mark - Private
 
+// Returns the center of the tools menu button in window coordinates.
+- (CGPoint)toolsMenuButtonCenter {
+  UIView* toolsMenu =
+      [self.layoutGuideCenter referencedViewUnderName:kToolsMenuGuide];
+  if (!toolsMenu) {
+    return CGPointZero;
+  }
+  return [toolsMenu.superview convertPoint:toolsMenu.center toView:nil];
+}
+
 - (void)updateIdentityAction {
   if (!self.identityAction || !self.authenticationService ||
       !self.authenticationService->HasPrimaryIdentity()) {
@@ -1973,11 +1989,6 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       self.webState->GetNavigationManager()->GetVisibleItem();
   if (!navItem) {
     return NO;
-  }
-  const GURL& URL = navItem->GetURL();
-  // Show site info for offline pages.
-  if (reading_list::IsOfflineURL(URL)) {
-    return YES;
   }
   // Do not show site info for NTP.
   if ([self isCurrentWebPageNTP]) {
@@ -2508,15 +2519,25 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (void)reload {
   RecordAction(UserMetricsAction("MobileMenuReload"));
   self.tabBasedIPHBrowserAgent->NotifyMultiGestureRefreshEvent();
+  // Dismissing the menu disconnects the mediator, so save anything cleaned up
+  // there.
+  WebNavigationBrowserAgent* navigationAgent = self.navigationAgent;
   [self dismissMenu];
-  self.navigationAgent->Reload();
+  if (navigationAgent) {
+    navigationAgent->Reload();
+  }
 }
 
 // Dismisses the menu and stops the current page load.
 - (void)stopLoading {
   RecordAction(UserMetricsAction("MobileMenuStop"));
+  // Dismissing the menu disconnects the mediator, so save anything cleaned up
+  // there.
+  WebNavigationBrowserAgent* navigationAgent = self.navigationAgent;
   [self dismissMenu];
-  self.navigationAgent->StopLoading();
+  if (navigationAgent) {
+    navigationAgent->StopLoading();
+  }
 }
 
 // Dismisses the menu and opens a new tab.
@@ -2526,7 +2547,9 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
   [self dismissMenu];
   [self.sceneHandler
-      openURLInNewTab:[OpenNewTabCommand commandWithIncognito:NO]];
+      openURLInNewTab:[OpenNewTabCommand
+                          commandWithIncognito:NO
+                                   originPoint:[self toolsMenuButtonCenter]]];
 }
 
 // Dismisses the menu and opens a new incognito tab.
@@ -2534,7 +2557,9 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   RecordAction(UserMetricsAction("MobileMenuNewIncognitoTab"));
   [self dismissMenu];
   [self.sceneHandler
-      openURLInNewTab:[OpenNewTabCommand commandWithIncognito:YES]];
+      openURLInNewTab:[OpenNewTabCommand
+                          commandWithIncognito:YES
+                                   originPoint:[self toolsMenuButtonCenter]]];
 }
 
 // Dismisses the menu and opens a new window.
@@ -2599,8 +2624,13 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 // Dismisses the menu and requests the desktop version of the current page
 - (void)requestDesktopSite {
   RecordAction(UserMetricsAction("MobileMenuRequestDesktopSite"));
+  // Dismissing the menu disconnects the mediator, so save anything cleaned up
+  // there.
+  WebNavigationBrowserAgent* navigationAgent = self.navigationAgent;
   [self dismissMenu];
-  self.navigationAgent->RequestDesktopSite();
+  if (navigationAgent) {
+    navigationAgent->RequestDesktopSite();
+  }
   [self.helpHandler
       presentInProductHelpWithType:InProductHelpType::kDefaultSiteView];
 }
@@ -2619,8 +2649,13 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 // Dismisses the menu and requests the mobile version of the current page
 - (void)requestMobileSite {
   RecordAction(UserMetricsAction("MobileMenuRequestMobileSite"));
+  // Dismissing the menu disconnects the mediator, so save anything cleaned up
+  // there.
+  WebNavigationBrowserAgent* navigationAgent = self.navigationAgent;
   [self dismissMenu];
-  self.navigationAgent->RequestMobileSite();
+  if (navigationAgent) {
+    navigationAgent->RequestMobileSite();
+  }
 }
 
 // Dismisses the menu and opens Find In Page
@@ -2673,7 +2708,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   }
   AccountInfo accountInfo =
       self.identityManager->FindExtendedAccountInfo(primaryAccount);
-  return accountInfo.capabilities.can_submit_feedback() !=
+  return accountInfo.GetAccountCapabilities().can_submit_feedback() !=
          signin::Tribool::kFalse;
 }
 
@@ -2745,10 +2780,10 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   [self.sceneHandler openAIMenu];
 }
 
-// Starts ask BWG.
-- (void)startAskBWG {
+// Starts ask Gemini.
+- (void)startAskGemini {
   [self dismissMenu];
-  [self.BWGHandler
+  [self.geminiHandler
       startGeminiFlowWithStartupState:
           [[GeminiStartupState alloc]
               initWithEntryPoint:gemini::EntryPoint::OverflowMenu]];
@@ -2895,17 +2930,19 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 - (void)enterpriseLearnMore {
   [self dismissMenu];
-  [self.sceneHandler
-      openURLInNewTab:[OpenNewTabCommand commandWithURLFromChrome:
-                                             GURL(kChromeUIManagementURL)]];
+  OpenNewTabCommand* command =
+      [OpenNewTabCommand commandWithURLFromChrome:GURL(kChromeUIManagementURL)];
+  command.originPoint = [self toolsMenuButtonCenter];
+  [self.sceneHandler openURLInNewTab:command];
 }
 
 - (void)parentLearnMore {
   [self dismissMenu];
   GURL familyLinkURL = GURL(supervised_user::kManagedByParentUiMoreInfoUrl);
-  [self.sceneHandler
-      openURLInNewTab:[OpenNewTabCommand
-                          commandWithURLFromChrome:familyLinkURL]];
+  OpenNewTabCommand* command =
+      [OpenNewTabCommand commandWithURLFromChrome:familyLinkURL];
+  command.originPoint = [self toolsMenuButtonCenter];
+  [self.sceneHandler openURLInNewTab:command];
 }
 
 - (void)openSpotlightDebugger {

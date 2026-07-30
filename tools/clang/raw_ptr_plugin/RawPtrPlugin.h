@@ -6,7 +6,6 @@
 #define TOOLS_CLANG_RAW_PTR_PLUGIN_RAWPTRPLUGIN_H_
 
 #include "Options.h"
-#include "PluginConfig.h"
 #include "clang/Frontend/FrontendAction.h"
 
 namespace raw_ptr_plugin {
@@ -27,7 +26,6 @@ class RawPtrPlugin : public clang::PluginASTAction {
 
  private:
   Options options_;
-  RawPtrPluginConfig config_;
 };
 
 }  // namespace raw_ptr_plugin

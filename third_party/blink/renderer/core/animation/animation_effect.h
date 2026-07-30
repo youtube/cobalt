@@ -84,6 +84,8 @@ class CORE_EXPORT AnimationEffect : public ScriptWrappable {
 
   ~AnimationEffect() override = default;
 
+  Animation* GetAnimation() const;
+
   virtual bool IsKeyframeEffect() const { return false; }
   virtual bool IsInertEffect() const { return false; }
 
@@ -175,9 +177,6 @@ class CORE_EXPORT AnimationEffect : public ScriptWrappable {
       bool forwards,
       std::optional<AnimationTimeDelta> local_time,
       AnimationTimeDelta time_to_next_iteration) const = 0;
-
-  const Animation* GetAnimation() const;
-  Animation* GetAnimation();
 
   virtual std::optional<AnimationTimeDelta> TimelineDuration() const = 0;
 

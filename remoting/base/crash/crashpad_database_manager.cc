@@ -66,6 +66,10 @@ inline base::FilePath GetNetworkProcessCrashpadDatabasePath() {
   return GetVarLibDir().Append("crashpad.network");
 }
 
+inline base::FilePath GetPeerConnectionProcessCrashpadDatabasePath() {
+  return GetVarLibDir().Append("crashpad.peer_connection");
+}
+
 void SetupCrashpadSubdirectory(const base::FilePath& path,
                                base::cstring_view new_owner = {}) {
   auto delete_path = [&path]() {
@@ -95,7 +99,8 @@ void SetupCrashpadSubdirectory(const base::FilePath& path,
       return;
     }
 
-    if (HANDLE_EINTR(chown(path.value().c_str(), user_info->uid, -1)) != 0) {
+    if (HANDLE_EINTR(
+            chown(path.value().c_str(), user_info->uid, user_info->gid)) != 0) {
       PLOG(ERROR) << "Failed to chown " << path << " to " << new_owner;
       delete_path();
       return;
@@ -120,6 +125,8 @@ void SetupCrashpadDirectories() {
   SetupCrashpadSubdirectory(GetDaemonProcessCrashpadDatabasePath());
   SetupCrashpadSubdirectory(GetNetworkProcessCrashpadDatabasePath(),
                             GetNetworkProcessUsername());
+  SetupCrashpadSubdirectory(GetPeerConnectionProcessCrashpadDatabasePath(),
+                            GetPeerConnectionProcessUsername());
 }
 #endif  // BUILDFLAG(IS_LINUX)
 
@@ -138,6 +145,9 @@ base::FilePath GetCrashpadDatabasePath() {
     std::string username = GetUsername();
     if (username == GetNetworkProcessUsername()) {
       return GetNetworkProcessCrashpadDatabasePath();
+    }
+    if (username == GetPeerConnectionProcessUsername()) {
+      return GetPeerConnectionProcessCrashpadDatabasePath();
     }
     std::optional<std::string> xdg_runtime_dir =
         base::Environment::Create()->GetVar("XDG_RUNTIME_DIR");

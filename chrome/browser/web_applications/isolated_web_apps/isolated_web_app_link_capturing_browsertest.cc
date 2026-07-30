@@ -692,7 +692,9 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppLinkCapturingDefaultBehaviorBrowserTest,
       &provider().install_manager());
   manifest_updated_observer.BeginListening({url_info.app_id()});
 
-  EXPECT_THAT(provider().isolated_web_app_update_manager().DiscoverUpdatesNow(),
+  EXPECT_THAT(provider()
+                  .isolated_web_app_update_manager()
+                  .DiscoverAndPrepareUpdatesNow(),
               testing::Eq(1ul));
 
   manifest_updated_observer.Wait();

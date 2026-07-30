@@ -21,7 +21,8 @@ class XRCompositionLayer : public XRLayer {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRCompositionLayer(XRGraphicsBinding* binding,
+  XRCompositionLayer(XRSession* session,
+                     XRGraphicsBinding* binding,
                      XRLayerDrawingContext* drawing_context);
   ~XRCompositionLayer() override = default;
 

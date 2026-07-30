@@ -16,7 +16,6 @@ static_library("multidevice_internals") {
 
   public_deps = [
     "//base",
-    "//chrome/common",
     "//chromeos/ash/components/multidevice/logging",
     "//chromeos/ash/components/phonehub",
     "//content/public/browser",
@@ -27,6 +26,7 @@ static_library("multidevice_internals") {
   deps = [
     "//ash",
     "//ash/constants",
+    "//ash/public/cpp",
     "//base:i18n",
     "//chrome/browser/ash/phonehub",
     "//chrome/browser/profiles:profile",

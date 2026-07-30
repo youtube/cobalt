@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/script/wasm_module_script.h"
 
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/bindings/core/v8/boxed_v8_module.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -13,7 +14,6 @@
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "v8/include/v8.h"
 
 namespace blink {
 
@@ -78,9 +78,7 @@ WasmModuleScript* WasmModuleScript::Create(
   v8::Local<v8::WasmModuleObject> result;
   v8::Local<v8::Value> error;
   bool success =
-      v8::WasmModuleObject::Compile(
-          isolate, v8::MemorySpan<const uint8_t>(source.data(), source.size()))
-          .ToLocal(&result);
+      v8::WasmModuleObject::Compile(isolate, source).ToLocal(&result);
   // <spec step="8">If the previous step threw an error, then:</spec>
   if (try_catch.HasCaught()) {
     DCHECK(!success);
@@ -138,11 +136,8 @@ WasmModuleScript::WasmModuleScript(Modulator* settings_object,
 v8::Local<v8::WasmModuleObject> WasmModuleScript::EmptyModuleForTesting(
     v8::Isolate* isolate) {
   v8::Local<v8::WasmModuleObject> result;
-  bool success =
-      v8::WasmModuleObject::Compile(
-          isolate, v8::MemorySpan<const uint8_t>(kEmptyWasmByteSequence.data(),
-                                                 kEmptyWasmByteSequence.size()))
-          .ToLocal(&result);
+  bool success = v8::WasmModuleObject::Compile(isolate, kEmptyWasmByteSequence)
+                     .ToLocal(&result);
   CHECK(success);
   return result;
 }

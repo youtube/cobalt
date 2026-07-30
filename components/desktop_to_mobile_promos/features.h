@@ -52,6 +52,7 @@ enum class MobileNTPPromoOnDesktopVariation {
 // button.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithReminder);
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithReminderWave1);
+BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithReminderWave2);
 
 // If this feature is enabled, collect data for the mobile promo on desktop.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopRecordActiveDays);
@@ -60,6 +61,7 @@ BASE_DECLARE_FEATURE(kMobilePromoOnDesktopRecordActiveDays);
 // promo on desktop.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithQRCode);
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithQRCodeWave1);
+BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithQRCodeWave2);
 
 // If this feature is enabled, force the iOS promo to be a specific type.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopForcePromoType);

@@ -43,13 +43,9 @@ def __step_config(ctx, step_config):
         # Requires dynamic globbing of hundreds of policy definition YAML files
         # under components/policy/resources/templates/ directory.
         "components/policy/resources/policy_templates.py",
-        "components/vector_icons/aggregate_vector_icons.py",
-        "components/zucchini/fuzzers/generate_fuzzer_data.py",
         "mojo/public/tools/bindings/minify_with_terser.py",
         "remoting/tools/build/remoting_copy_locales.py",
         "testing/libfuzzer/fuzzers/generate_v8_inspector_fuzzer_corpus.py",
-        "testing/libfuzzer/research/domatolpm/fuzzer_generator.py",
-        "testing/libfuzzer/research/domatolpm/generator.py",
         "testing/scripts/rust/generate_script.py",
         # Dynamically walks and loads 160+ translated grd files (xtb) and requires
         # full grit python libraries. Too many dynamic dependencies to track.
@@ -63,11 +59,9 @@ def __step_config(ctx, step_config):
         # metadata files to determine JS source files to load at runtime, making
         # input tracking too complex for static analysis without Starlark handlers.
         "third_party/closure_compiler/js_binary.py",
-        "third_party/dawn/generator/dawn_gpu_info_generator.py",
-        "third_party/dawn/generator/dawn_json_generator.py",
         "third_party/dawn/generator/dawn_version_generator.py",
-        "third_party/dawn/generator/opengl_loader_generator.py",
         "third_party/dawn/src/tint/cmd/bench/generate_benchmark_inputs.py",
+        "third_party/dawn/tools/generate-sources-gn.py",
         "third_party/dawn/tools/run.py",
         "third_party/dawn/webgpu-cts/scripts/compile_src.py",
         "third_party/dawn/webgpu-cts/scripts/copy_files.py",
@@ -81,7 +75,6 @@ def __step_config(ctx, step_config):
         "third_party/lottie/minify_lottie.py",
         "third_party/perfetto/src/trace_processor/plugins/wattson/gen_wattson_curves.py",
         "third_party/perfetto/tools/gen_amalgamated_sql.py",
-        "third_party/pffft/generate_seed_corpus.py",
         "third_party/rust/cxx/chromium_integration/run_cxxbridge.py",
         "third_party/spirv-tools/src/utils/update_build_version.py",
         "third_party/swiftshader/third_party/SPIRV-Tools/utils/update_build_version.py",
@@ -122,19 +115,12 @@ def __step_config(ctx, step_config):
     node_js_files = [
         "third_party/devtools-frontend/src/front_end/core/i18n/collect-ui-strings.js",
         "third_party/devtools-frontend/src/front_end/core/i18n/generate-locales-js.js",
-        "third_party/devtools-frontend/src/front_end/Images/generate-css-vars.js",
-        "third_party/devtools-frontend/src/front_end/panels/timeline/enable-easter-egg.js",
         "third_party/devtools-frontend/src/node_modules/rollup/dist/bin/rollup",
-        "third_party/devtools-frontend/src/scripts/build/compress_files.js",
+        "third_party/devtools-frontend/src/scripts/build/build_ai_skills.mjs",
         "third_party/devtools-frontend/src/scripts/build/esbuild.js",
         "third_party/devtools-frontend/src/scripts/build/generate_css_js_files.js",
         "third_party/devtools-frontend/src/scripts/build/generate_devtools_json.mjs",
         "third_party/devtools-frontend/src/scripts/build/generate_html_entrypoint.js",
-        "third_party/devtools-frontend/src/scripts/build/ninja/copy-file.js",
-        "third_party/devtools-frontend/src/scripts/build/ninja/copy-files.js",
-        "third_party/devtools-frontend/src/scripts/build/ninja/generate-declaration.js",
-        "third_party/devtools-frontend/src/scripts/build/ninja/generate-tsconfig.js",
-        "third_party/devtools-frontend/src/scripts/build/ninja/minify-json-files.js",
         "third_party/devtools-frontend/src/scripts/component_docs/generate_docs.mjs",
     ]
 

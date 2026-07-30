@@ -1,0 +1,183 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>WGC Desktop Capture Texture test: screen capture delivers texture frames</title>
+</head>
+<body>
+<div id="container">
+    <video id="localVideo" playsinline autoplay muted></video>
+    <video id="remoteVideo" playsinline autoplay></video>
+</div>
+
+<script>
+'use strict';
+
+let startTime;
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+let renderedFramesCount;
+
+let localStream;
+let pc1;
+let pc2;
+const offerOptions = {
+  offerToReceiveVideo: 1
+};
+
+function logOutput(s) {
+  if (window.domAutomationController) {
+    window.domAutomationController.log(s);
+  } else {
+    console.log(s);
+  }
+}
+
+function sendResult(status) {
+  if (window.domAutomationController) {
+    window.domAutomationController.send(status);
+  } else {
+    console.log(status);
+  }
+}
+
+function getName(pc) {
+  return (pc === pc1) ? 'pc1' : 'pc2';
+}
+
+function getOtherPc(pc) {
+  return (pc === pc1) ? pc2 : pc1;
+}
+
+async function start() {
+  logOutput('Requesting display stream');
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia(
+        {video: true, audio: false});
+    logOutput('Received display stream');
+    localVideo.srcObject = stream;
+    localStream = stream;
+  } catch (e) {
+    sendResult('FAILED');
+    logOutput(`getDisplayMedia() error: ${e.name}`);
+  }
+}
+
+async function call() {
+  logOutput('Starting call');
+  startTime = window.performance.now();
+  const videoTracks = localStream.getVideoTracks();
+  if (videoTracks.length > 0) {
+    logOutput(`Using video device: ${videoTracks[0].label}`);
+  }
+  const configuration = {};
+  pc1 = new RTCPeerConnection(configuration);
+  pc1.addEventListener('icecandidate', e => onIceCandidate(pc1, e));
+  pc2 = new RTCPeerConnection(configuration);
+  pc2.addEventListener('icecandidate', e => onIceCandidate(pc2, e));
+  pc2.addEventListener('track', gotRemoteStream);
+
+  localStream.getTracks().forEach(track => pc1.addTrack(track, localStream));
+
+  try {
+    const offer = await pc1.createOffer(offerOptions);
+    await onCreateOfferSuccess(offer);
+  } catch (e) {
+    onCreateSessionDescriptionError(e);
+  }
+}
+
+function onCreateSessionDescriptionError(error) {
+  sendResult('FAILED');
+  logOutput(`Failed to create session description: ${error.toString()}`);
+}
+
+async function onCreateOfferSuccess(desc) {
+  try {
+    await pc1.setLocalDescription(desc);
+  } catch (e) {
+    onSetSessionDescriptionError(e);
+  }
+
+  try {
+    await pc2.setRemoteDescription(desc);
+  } catch (e) {
+    onSetSessionDescriptionError(e);
+  }
+
+  try {
+    const answer = await pc2.createAnswer();
+    await onCreateAnswerSuccess(answer);
+  } catch (e) {
+    onCreateSessionDescriptionError(e);
+  }
+}
+
+function onSetSessionDescriptionError(error) {
+  sendResult('FAILED');
+  logOutput(`Failed to set session description: ${error.toString()}`);
+}
+
+function gotRemoteStream(e) {
+  if (remoteVideo.srcObject !== e.streams[0]) {
+    remoteVideo.srcObject = e.streams[0];
+    logOutput('pc2 received remote stream');
+  }
+}
+
+async function onCreateAnswerSuccess(desc) {
+  try {
+    await pc2.setLocalDescription(desc);
+  } catch (e) {
+    onSetSessionDescriptionError(e);
+  }
+  try {
+    await pc1.setRemoteDescription(desc);
+  } catch (e) {
+    onSetSessionDescriptionError(e);
+  }
+}
+
+async function onIceCandidate(pc, event) {
+  try {
+    await (getOtherPc(pc).addIceCandidate(event.candidate));
+  } catch (e) {
+    sendResult('FAILED');
+    logOutput(`${getName(pc)} failed to add ICE Candidate: ${e.toString()}`);
+  }
+}
+
+localVideo.addEventListener('loadedmetadata', function() {
+  logOutput(`Local video videoWidth: ${this.videoWidth}px, videoHeight: ${this.videoHeight}px`);
+  call();
+});
+
+remoteVideo.addEventListener('resize', () => {
+  logOutput(`Remote video size changed to ${remoteVideo.videoWidth}x${remoteVideo.videoHeight}`);
+  if (startTime) {
+    const elapsedTime = window.performance.now() - startTime;
+    logOutput('Setup time: ' + elapsedTime.toFixed(3) + 'ms');
+    startTime = null;
+  }
+});
+
+remoteVideo.requestVideoFrameCallback(function rVFC(now, metaData) {
+  if (!renderedFramesCount) {
+    renderedFramesCount = 0;
+  }
+  renderedFramesCount = renderedFramesCount + 1;
+  const minRequiredFrames = 2;
+  if (renderedFramesCount >= minRequiredFrames) {
+      logOutput(`Rendered ${renderedFramesCount} frames on remote video.`);
+      logOutput('Test complete.');
+      sendResult('SUCCESS');
+      return;
+  }
+  remoteVideo.requestVideoFrameCallback(rVFC);
+});
+
+start();
+
+</script>
+
+</body>
+</html>

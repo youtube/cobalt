@@ -22,7 +22,6 @@
 #include "chrome/browser/sharesheet/sharesheet_controller.h"
 #include "chrome/browser/sharesheet/sharesheet_service_delegator.h"
 #include "chrome/browser/sharesheet/sharesheet_types.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/drive/drive_api_util.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"

@@ -59,8 +59,7 @@ void ProfileReportGenerator::MaybeGenerate(
   delegate_->GetAffiliationInfo(report_.get());
 
   switch (report_type) {
-    // TODO(crbug.com/441536805): Rename report type `kFull` to `kBrowser`.
-    case ReportType::kFull:
+    case ReportType::kBrowser:
       report_->set_id(path.AsUTF8Unsafe());
       break;
     case ReportType::kProfileReport:

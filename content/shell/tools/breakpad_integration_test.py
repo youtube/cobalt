@@ -21,7 +21,6 @@ import subprocess
 import sys
 import tempfile
 import time
-from six.moves import range
 
 TOP_SRC_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 

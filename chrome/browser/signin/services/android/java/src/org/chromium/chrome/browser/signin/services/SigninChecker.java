@@ -39,7 +39,7 @@ public class SigninChecker implements AccountsChangeObserver, Destroyable {
         mAccountManagerFacade = AccountManagerFacadeProvider.getInstance();
         mAccountManagerFacade.addObserver(this);
         if (mAccountManagerFacade.getAccounts().isFulfilled()) {
-            onCoreAccountInfosChanged();
+            onAccountsChanged();
         }
         mNumOfChildAccountChecksDone = 0;
     }
@@ -50,7 +50,7 @@ public class SigninChecker implements AccountsChangeObserver, Destroyable {
     }
 
     @Override
-    public void onCoreAccountInfosChanged() {
+    public void onAccountsChanged() {
         var accountsPromise = mAccountManagerFacade.getAccounts();
         assert accountsPromise.isFulfilled();
         var accounts = accountsPromise.getResult();

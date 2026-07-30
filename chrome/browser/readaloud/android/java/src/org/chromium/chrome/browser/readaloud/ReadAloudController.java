@@ -677,7 +677,7 @@ public class ReadAloudController
 
                     @Override
                     public void onStartedShowing(@LayoutType int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             mIsInTabSwitcher = true;
                             maybeHidePlayer();
                         }
@@ -685,7 +685,7 @@ public class ReadAloudController
 
                     @Override
                     public void onFinishedHiding(@LayoutType int layoutType) {
-                        if (layoutType == LayoutType.TAB_SWITCHER) {
+                        if (layoutType == LayoutType.HUB) {
                             mIsInTabSwitcher = false;
                             maybeShowPlayer();
                         }

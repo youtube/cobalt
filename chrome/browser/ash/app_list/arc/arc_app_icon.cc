@@ -23,6 +23,7 @@
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ui/ash/shelf/arc_app_shelf_id.h"
 #include "chrome/grit/component_extension_resources.h"
+#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/grit/extensions_browser_resources.h"
 #include "ipc/constants.mojom.h"

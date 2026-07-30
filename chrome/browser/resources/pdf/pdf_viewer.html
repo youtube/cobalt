@@ -71,6 +71,8 @@ import {AnnotationMode} from './constants.js';
       <if expr="enable_pdf_ink2">
         ${this.isInTextAnnotationMode_() ? html`
           <div class="text-box-container">
+            <ink-text-annotations .viewport="${this.viewport}">
+            </ink-text-annotations>
             <ink-text-box @state-changed="${this.onTextBoxStateChanged_}">
             </ink-text-box>
           </div>` : ''}

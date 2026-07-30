@@ -30,7 +30,7 @@ namespace web_app {
 namespace {
 
 // Set to true the first time the localized name of the chrome apps dir has been
-// updated sucessfully, as this only needs to be done once.
+// updated successfully, as this only needs to be done once.
 bool g_have_localized_app_dir_name = false;
 
 base::FilePath GetLocalizableAppShortcutsSubdirName() {

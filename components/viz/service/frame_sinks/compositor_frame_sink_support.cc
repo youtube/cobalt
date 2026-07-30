@@ -664,7 +664,7 @@ void CompositorFrameSinkSupport::UpdateThreadIdsPostVerification(
   }
 }
 
-void CompositorFrameSinkSupport::DidNotProduceFrame(const BeginFrameAck& ack) {
+bool CompositorFrameSinkSupport::DidNotProduceFrame(const BeginFrameAck& ack) {
   TRACE_EVENT(
       "viz,benchmark,graphics.pipeline", "Graphics.Pipeline",
       perfetto::Flow::Global(ack.trace_id), [&](perfetto::EventContext ctx) {
@@ -676,7 +676,9 @@ void CompositorFrameSinkSupport::DidNotProduceFrame(const BeginFrameAck& ack) {
         frame_sink_id_.WriteIntoTrace(ctx.Wrap(data->set_frame_sink_id()));
         data->set_surface_frame_trace_id(ack.trace_id);
       });
-  DCHECK(ack.frame_id.IsSequenceValid());
+  if (!ack.frame_id.IsSequenceValid()) {
+    return false;
+  }
 
   begin_frame_tracker_.ReceivedAck(ack);
 
@@ -702,6 +704,7 @@ void CompositorFrameSinkSupport::DidNotProduceFrame(const BeginFrameAck& ack) {
     begin_frame_source_->DidFinishFrame(this);
     frame_sink_manager_->DidFinishFrame(frame_sink_id_, last_begin_frame_args_);
   }
+  return true;
 }
 
 void CompositorFrameSinkSupport::SubmitCompositorFrame(
@@ -766,6 +769,10 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
     return SubmitResult::INVALID_DISPLAY_TRANSFORM;
   }
 
+  if (!frame.metadata.begin_frame_ack.frame_id.IsSequenceValid()) {
+    return SubmitResult::INVALID_BEGIN_FRAME_ACK;
+  }
+
   CHECK(callback_received_begin_frame_);
   CHECK(callback_received_receive_ack_);
 
@@ -781,7 +788,6 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
 
   // Override the has_damage flag (ignoring invalid data from clients).
   frame.metadata.begin_frame_ack.has_damage = true;
-  DCHECK(frame.metadata.begin_frame_ack.frame_id.IsSequenceValid());
 
   if (!ui::LatencyInfo::Verify(
           frame.metadata.latency_info,
@@ -1469,6 +1475,8 @@ const char* CompositorFrameSinkSupport::GetSubmitResultAsString(
       return "Invalid CompositorFrame";
     case SubmitResult::INVALID_DISPLAY_TRANSFORM:
       return "Invalid display transform hint";
+    case SubmitResult::INVALID_BEGIN_FRAME_ACK:
+      return "Invalid BeginFrameAck sequence";
   }
   NOTREACHED();
 }

@@ -22,6 +22,8 @@ static_library("installer_policies_no_content_deps") {
     "first_party_sets_component_installer_policy.h",
     "origin_trials_component_installer.cc",
     "origin_trials_component_installer.h",
+    "private_verification_tokens_installer_policy.cc",
+    "private_verification_tokens_installer_policy.h",
     "safety_tips_component_installer.cc",
     "safety_tips_component_installer.h",
     "trust_token_key_commitments_component_installer_policy.cc",
@@ -36,6 +38,7 @@ static_library("installer_policies_no_content_deps") {
     "//components/lookalikes/core:proto",
     "//components/lookalikes/core:safety_tips",
     "//components/prefs",
+    "//components/private_verification_tokens/common:private_verification_tokens_issuer_config",
     "//components/update_client",
     "//mojo/public/cpp/base:protobuf_support",
     "//services/network/public/cpp",
@@ -73,6 +76,7 @@ source_set("unit_tests") {
     "first_party_sets_component_installer_policy_unittest.cc",
     "history_search_strings_component_installer_unittest.cc",
     "optimization_hints_component_installer_unittest.cc",
+    "private_verification_tokens_installer_policy_unittest.cc",
     "trust_token_key_commitments_component_installer_policy_unittest.cc",
   ]
 
@@ -86,6 +90,7 @@ source_set("unit_tests") {
     "//components/history_embeddings/core",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/private_verification_tokens/common:private_verification_tokens_issuer_config",
     "//mojo/public/cpp/base:protobuf_support",
     "//services/network/public/cpp",
     "//testing/gmock",

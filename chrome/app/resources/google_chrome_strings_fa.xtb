@@ -398,6 +398,7 @@
 <translation id="5234764350956374838">بستن</translation>
 <translation id="5239627039202700673">‏از Chrome برای باز کردن پیوندهای موجود در پیام‌ها، اسناد، و برنامه‌های دیگر استفاده کنید</translation>
 <translation id="5251420635869119124">‏مهمان‌‌ها می‌توانند از Chrome استفاده کنند بدون اینکه اثری از خود به جا بگذارند.</translation>
+<translation id="5271833978500241046">‏از آن‌ها در کنار دیگر ویژگی‌های Gemini در Chrome استفاده کنید</translation>
 <translation id="5286907366254680517">تشخیص داده شد</translation>
 <translation id="5320351714793324716">‏اگر کوکی‌ها را مجاز کنید، ممکن است Chrome از آن‌ها هنگام پیش‌بارگیری استفاده کند</translation>
 <translation id="5321325624576443340">‏«لنز Google» دردسترس نیست. بعداً دوباره امتحان کنید.</translation>
@@ -434,15 +435,6 @@
 <translation id="569897634095159764">اتصال به اینترنت برقرار نشد. سرور پروکسی به اصالت‌سنجی نیاز دارد.</translation>
 <translation id="5709557627224531708">‏تنظیم Chrome به‌عنوان مرورگر پیش‌فرض</translation>
 <translation id="5719246646468301581">‏شرایط خدمات تکمیلی Google Chrome و ChromeOS</translation>
-<translation id="5719324992913248873">‏با این اقدام:
-          <ph name="LINE_BREAKS" />
-           • برخی‌از تنظیمات Chrome و میان‌برهای Chrome بازنشانی می‌شوند
-           <ph name="LINE_BREAK" />
-           • افزونه‌ها غیرفعال می‌شوند
-           <ph name="LINE_BREAK" />
-           • کوکی‌ها و دیگر داده‌های موقت سایت حذف می‌شوند
-            <ph name="LINE_BREAKS" />
-           نشانک‌ها، سابقه، و گذرواژه‌های ذخیره‌شده تحت‌تأثیر قرار نمی‌گیرند.</translation>
 <translation id="5736850870166430177">‏اگر سایتی تلاش کند گذرواژه شما را به‌سرقت ببرد، یا وقتی فایل مخربی بارگیری می‌کنید، Chrome ممکن است نشانی‌های وب را نیز به‌همراه بخش‌های کوچکی از محتوای صفحه، به «مرور ایمن» ارسال کند</translation>
 <translation id="5756509061973259733">‏درحال‌حاضر یک نمایه Chrome با این حساب در این دستگاه وجود دارد</translation>
 <translation id="5759947850379142561">‏نوشتار یا تصویری را برای جستجو کردن با «لنز Google» انتخاب کنید یا برای خارج شدن از «لنز Google»، کلید Escape را فشار دهید</translation>
@@ -639,6 +631,7 @@
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">‏برای محافظت از داده‌هایتان، به Chrome اجازه داده می‌شود اجازه‌های سایت‌هایی را که اخیراً از آن‌ها بازدید نکرده‌اید حذف کند.</translation>
 <translation id="7629695634924605473">‏Chrome می‌تواند، اگر گذرواژه‌هایتان در معرض خطر باشد، مطلعتان کند</translation>
+<translation id="7629898584100520089">‏نوآوری‌های هوشواره‌ای مانند مهارت‌ها، در «حساب Google» شما ذخیره شده و جدا از همگام‌سازی Chrome مدیریت می‌شوند</translation>
 <translation id="7641148173327520642">‏سرپرست سیستم برای باز شدن <ph name="ALTERNATIVE_BROWSER_NAME" /> جهت دسترسی به <ph name="TARGET_URL_HOSTNAME" />، Google Chrome را پیکربندی کرده است.</translation>
 <translation id="7649070708921625228">راهنما</translation>
 <translation id="7651907282515937834">‏نشان‌واره Chrome Enterprise</translation>

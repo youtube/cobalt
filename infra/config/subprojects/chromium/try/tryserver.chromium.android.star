@@ -81,6 +81,9 @@ try_.builder(
             "third_party/arcore-android-sdk-client/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
 )
 

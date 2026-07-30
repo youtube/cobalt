@@ -22,14 +22,15 @@ namespace {
 
 class ConnectionMetricsTest : public testing::Test {
  public:
-  ConnectionMetricsTest() {
+  ConnectionMetricsTest() = default;
+  ~ConnectionMetricsTest() override = default;
+
+  void CreateConnectionMetrics(proto::FeatureName feature_name) {
     auto fake_connection = std::make_unique<FakeConnection>(base::DoNothing());
     fake_connection_ = fake_connection.get();
-    connection_metrics_ =
-        std::make_unique<ConnectionMetrics>(std::move(fake_connection));
+    connection_metrics_ = std::make_unique<ConnectionMetrics>(
+        std::move(fake_connection), feature_name);
   }
-
-  ~ConnectionMetricsTest() override = default;
 
  protected:
   base::test::TaskEnvironment task_environment_{
@@ -42,6 +43,9 @@ class ConnectionMetricsTest : public testing::Test {
 };
 
 TEST_F(ConnectionMetricsTest, Success) {
+  CreateConnectionMetrics(
+      proto::FeatureName::FEATURE_NAME_DEMO_GEMINI_GENERATE_CONTENT);
+
   // Prepare request.
   proto::PrivateAiRequest request;
   request.set_feature_name(
@@ -85,15 +89,29 @@ TEST_F(ConnectionMetricsTest, Success) {
                                        response_size, 1);
   histogram_tester_.ExpectUniqueTimeSample(
       "PrivateAi.Client.RequestLatency.Success", base::Milliseconds(500), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "PrivateAi.Client.RequestLatency.DemoGenerateContent",
+      base::Milliseconds(500), 1);
   histogram_tester_.ExpectUniqueSample("PrivateAi.Client.RequestStatusCode",
                                        StatusCode::kSuccess, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "PrivateAi.Client.RequestStatusCode.DemoGenerateContent",
+      StatusCode::kSuccess, 1);
 }
 
 TEST_F(ConnectionMetricsTest, Timeout) {
+  CreateConnectionMetrics(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
+
+  // Prepare request.
+  proto::PrivateAiRequest request;
+  request.set_feature_name(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
+
   // Send request.
   base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
       future;
-  connection_metrics_->Send(proto::PrivateAiRequest(), base::Seconds(10),
+  connection_metrics_->Send(std::move(request), base::Seconds(10),
                             future.GetCallback());
 
   // Send response.
@@ -111,8 +129,14 @@ TEST_F(ConnectionMetricsTest, Timeout) {
   // Verify response related metrics.
   histogram_tester_.ExpectUniqueSample("PrivateAi.Client.RequestStatusCode",
                                        StatusCode::kTimeout, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "PrivateAi.Client.RequestStatusCode.ZeroStateSuggestion",
+      StatusCode::kTimeout, 1);
   histogram_tester_.ExpectUniqueTimeSample(
       "PrivateAi.Client.RequestLatency.Timeout", base::Seconds(10), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "PrivateAi.Client.RequestLatency.ZeroStateSuggestion", base::Seconds(10),
+      1);
   histogram_tester_.ExpectTotalCount("PrivateAi.Client.RequestLatency.Success",
                                      0);
   histogram_tester_.ExpectTotalCount("PrivateAi.Client.RequestLatency.Error",
@@ -120,10 +144,18 @@ TEST_F(ConnectionMetricsTest, Timeout) {
 }
 
 TEST_F(ConnectionMetricsTest, Error) {
+  CreateConnectionMetrics(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
+
+  // Prepare request.
+  proto::PrivateAiRequest request;
+  request.set_feature_name(
+      proto::FeatureName::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION);
+
   // Send request.
   base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
       future;
-  connection_metrics_->Send(proto::PrivateAiRequest(), base::Seconds(10),
+  connection_metrics_->Send(std::move(request), base::Seconds(10),
                             future.GetCallback());
 
   // Send response.
@@ -142,8 +174,14 @@ TEST_F(ConnectionMetricsTest, Error) {
   // Verify response related metrics.
   histogram_tester_.ExpectUniqueSample("PrivateAi.Client.RequestStatusCode",
                                        StatusCode::kNetworkError, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "PrivateAi.Client.RequestStatusCode.ZeroStateSuggestion",
+      StatusCode::kNetworkError, 1);
   histogram_tester_.ExpectUniqueTimeSample(
       "PrivateAi.Client.RequestLatency.Error", base::Milliseconds(200), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "PrivateAi.Client.RequestLatency.ZeroStateSuggestion",
+      base::Milliseconds(200), 1);
   histogram_tester_.ExpectTotalCount("PrivateAi.Client.RequestLatency.Success",
                                      0);
   histogram_tester_.ExpectTotalCount("PrivateAi.Client.RequestLatency.Timeout",

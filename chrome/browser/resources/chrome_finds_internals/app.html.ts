@@ -15,7 +15,6 @@ export function getHtml(this: ChromeFindsInternalsAppElement) {
   <p>Use this page to inspect and trigger different aspects of the Finds Service:</p>
   <ul>
     <li><strong>Trigger Finds Service</strong>: Executes the full Finds service workflow.</li>
-    <li><strong>Trigger Finds Test Notification</strong>: Directly schedules a mock Finds notification for testing.</li>
     <li><strong>Dump History to JSON</strong>: Queries and displays the raw history entries that would be provided to the model.</li>
   </ul>
 </section>
@@ -32,10 +31,6 @@ export function getHtml(this: ChromeFindsInternalsAppElement) {
     <cr-button id="run-finds-model-btn" class="action-button"
         @click="${this.onRunFindsModelClick_}">
       Trigger Finds Service
-    </cr-button>
-    <cr-button id="finds-test-notification-btn" class="action-button"
-        @click="${this.onTriggerFindsTestNotificationClick_}">
-      Trigger Finds Test Notification
     </cr-button>
     <cr-button id="dump-history-btn" @click="${this.onDumpHistoryClick_}">
       Dump History to JSON

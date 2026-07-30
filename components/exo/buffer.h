@@ -80,7 +80,6 @@ class Buffer {
       base::OnceCallback<void(gfx::GpuFenceHandle)>;
   virtual std::optional<viz::TransferableResource> ProduceTransferableResource(
       FrameSinkResourceManager* resource_manager,
-      std::unique_ptr<gfx::GpuFence> acquire_fence,
       bool secure_output_only,
       gfx::ColorSpace color_space,
       ProtectedNativePixmapQueryDelegate* protected_native_pixmap_query);
@@ -233,7 +232,6 @@ class SolidColorBuffer : public Buffer {
   gfx::Size GetSize() const override;
   std::optional<viz::TransferableResource> ProduceTransferableResource(
       FrameSinkResourceManager* resource_manager,
-      std::unique_ptr<gfx::GpuFence> acquire_fence,
       bool secure_output_only,
       gfx::ColorSpace color_space,
       ProtectedNativePixmapQueryDelegate* protected_native_pixmap_query)

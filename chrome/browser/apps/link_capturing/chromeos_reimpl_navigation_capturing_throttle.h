@@ -25,8 +25,6 @@ namespace apps {
 // 1. ARC apps (Android apps on ChromeOS classic).
 // 2. Projector System Web App (and potentially other System Web Apps).
 // 3. ChromeOS Web App Experiments (e.g. Microsoft 365 experiment app).
-// 4. Supplemental V2 capturing for regular Web Apps when navigating in existing
-//    frames (if `kNavigationCapturingOnExistingFrames` is enabled).
 class ChromeOsReimplNavigationCapturingThrottle
     : public content::NavigationThrottle {
  public:

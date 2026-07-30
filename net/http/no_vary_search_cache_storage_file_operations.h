@@ -67,6 +67,12 @@ class NET_EXPORT NoVarySearchCacheStorageFileOperations {
     // failure.
     virtual bool Write(base::span<const uint8_t> data) = 0;
 
+    // Permits Write() to be called from a different sequence. Must be called on
+    // the old sequence immediately before posting this object to the new
+    // sequence. Once Write() has been called on the new sequence, the object
+    // will be bound to that sequence and must be destroyed on that sequence.
+    virtual void DetachFromCurrentSequence() = 0;
+
    protected:
     Writer() = default;
   };
@@ -121,6 +127,12 @@ class NET_EXPORT NoVarySearchCacheStorageFileOperations {
   // the returned Writer object cleanly closes the file.
   virtual base::expected<std::unique_ptr<Writer>, base::File::Error>
   CreateWriter(std::string_view filename) = 0;
+
+  // Permits methods to be called from a different sequence. Must be called on
+  // the old sequence immediately before posting this object to the new
+  // sequence. Once methods have been called on the new sequence, the object
+  // will be bound to that sequence and must be destroyed on that sequence.
+  virtual void DetachFromCurrentSequence() = 0;
 
  protected:
   NoVarySearchCacheStorageFileOperations() = default;

@@ -11,7 +11,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_custom_element_constructor.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_custom_element_constructor_hash.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_definition.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -35,7 +35,7 @@ class ScriptState;
 class ScriptValue;
 
 class CORE_EXPORT CustomElementRegistry final : public ScriptWrappable,
-                                                public ElementRareDataField {
+                                                public NodeRareDataField {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

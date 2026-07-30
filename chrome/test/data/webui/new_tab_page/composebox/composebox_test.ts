@@ -7,8 +7,10 @@ import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {ContextType, ContextualSearchInputStateDeletionType} from 'chrome://resources/cr_components/composebox/common.js';
 import {ModelMode, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {ContextualEntrypointAndMenuElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
+import type {SearchAnimatedGlowElement} from 'chrome://resources/cr_components/search/animated_glow.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {SelectedFileInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -377,6 +379,9 @@ suite('NewTabPageComposeboxTest', () => {
     assertFalse(!!$$<HTMLElement>(testProxy.element, '#carousel'));
 
     // Close composebox.
+    testProxy.element.suggestInventory = SuggestInventory.kTravel;
+    assertEquals(SuggestInventory.kTravel, testProxy.element.suggestInventory);
+
     const whenCloseComposebox =
         eventToPromise<CustomEvent<{composeboxText: string}>>(
             'close-composebox', testProxy.element);
@@ -384,6 +389,7 @@ suite('NewTabPageComposeboxTest', () => {
         testProxy.element.getInputElement(), '#cancelIcon')!.click();
     await whenCloseComposebox;
     assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 2);
+    assertEquals(null, testProxy.element.suggestInventory);
   });
 });
 
@@ -399,6 +405,19 @@ suite('NewTabPageComposeboxTest', () => {
         useNtpComposeboxFork: useForked,
       });
     });
+
+    test(
+        'sets darkThemeColorsEnabled as false on search-animated-glow',
+        async () => {
+          createComposeboxElement(testProxy);
+          await microtasksFinished();
+
+          const animatedGlow = testProxy.element.shadowRoot
+                                   .querySelector<SearchAnimatedGlowElement>(
+                                       'search-animated-glow');
+          assertTrue(!!animatedGlow);
+          assertFalse(animatedGlow.darkThemeColorsEnabled);
+        });
 
     test('ntp composebox uses configured forward submit icon', async () => {
       createComposeboxElement(testProxy, {
@@ -898,6 +917,10 @@ suite('NewTabPageComposeboxTest', () => {
 
       await microtasksFinished();
 
+      testProxy.element.suggestInventory = SuggestInventory.kTravel;
+      assertEquals(
+          SuggestInventory.kTravel, testProxy.element.suggestInventory);
+
       // Close composebox.
       const whenCloseComposebox =
           eventToPromise<CustomEvent<{composeboxText: string}>>(
@@ -908,6 +931,7 @@ suite('NewTabPageComposeboxTest', () => {
       const event = await whenCloseComposebox;
       assertEquals(event.detail.composeboxText, '');
       assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
+      assertEquals(null, testProxy.element.suggestInventory);
     });
 
     test('NotifySessionStarted called on composebox created', () => {
@@ -976,8 +1000,8 @@ suite('NewTabPageComposeboxTest', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', {key: 'a'}));
       await microtasksFinished();
 
-      // Verify hint is visible again.
-      assertTrue(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+      // Verify hint is NOT visible again because it was cleared.
+      assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
     });
 
     test(
@@ -1112,6 +1136,63 @@ suite('NewTabPageComposeboxTest', () => {
           assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
         });
 
+    test(
+        'Tab key does not accept Smart Compose when hidden by wrapping',
+        async () => {
+          // Enable Smart Compose.
+          loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
+          createComposeboxElement(testProxy);
+          const inputElement = testProxy.element.getInputElement();
+          const input = inputElement.$.input;
+
+          // Mock Canvas measureText and clientWidth to trigger wrapping.
+          const originalMeasureText =
+              CanvasRenderingContext2D.prototype.measureText;
+          CanvasRenderingContext2D.prototype.measureText = function(
+              text: string) {
+            if (text.includes('wrap')) {
+              return {width: 150} as TextMetrics;
+            }
+            return {width: 50} as TextMetrics;
+          };
+          Object.defineProperty(
+              input, 'clientWidth', {configurable: true, get: () => 100});
+
+          // Provide an input and a hint that wraps.
+          input.value = 'tes.';
+          input.dispatchEvent(new Event('input'));
+          const hint = 'wrap';
+
+          testProxy.element.haveReceivedSynchronousAutocompleteResponse = true;
+          testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
+              createAutocompleteResultForTesting({
+                input: 'tes.',
+                smartComposeInlineHint: hint,
+              }));
+          await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+          await microtasksFinished();
+
+          // Verify hint is hidden.
+          assertFalse(!!inputElement.shadowRoot.querySelector('#smartCompose'));
+
+          // Press Tab.
+          const tabEvent = new KeyboardEvent(
+              'keydown',
+              {key: 'Tab', bubbles: true, cancelable: true, composed: true});
+          input.dispatchEvent(tabEvent);
+          await microtasksFinished();
+
+          // Verify hint is NOT accepted (input remains unchanged) and default
+          // tab behavior is NOT prevented.
+          assertEquals('tes.', input.value);
+          assertFalse(tabEvent.defaultPrevented);
+          assertEquals('', testProxy.element.smartComposeInlineHint);
+
+          // Restore mock.
+          CanvasRenderingContext2D.prototype.measureText = originalMeasureText;
+        });
+
+
     test('onInputStateChanged updates inputState', async () => {
       createComposeboxElement(testProxy);
       const inputState = {
@@ -1150,12 +1231,14 @@ suite('NewTabPageComposeboxTest', () => {
             aimUrlParams: [],
             menuLabel: 'Regular',
             hintText: 'Hint Regular',
+            menuTooltip: '',
           },
           {
             model: ModelMode.kGeminiPro,
             aimUrlParams: [{paramKey: 'xyz', paramValue: '1'}],
             menuLabel: 'Pro',
             hintText: 'Hint Pro',
+            menuTooltip: '',
           },
         ],
         modelSectionConfig: null,
@@ -1415,6 +1498,10 @@ suite('NewTabPageComposeboxTest', () => {
           new Event('input'));
       await microtasksFinished();
 
+      testProxy.element.suggestInventory = SuggestInventory.kTravel;
+      assertEquals(
+          SuggestInventory.kTravel, testProxy.element.suggestInventory);
+
       const whenCloseComposebox =
           eventToPromise<CustomEvent<{composeboxText: string}>>(
               'close-composebox', testProxy.element);
@@ -1426,6 +1513,7 @@ suite('NewTabPageComposeboxTest', () => {
       const event = await whenCloseComposebox;
       assertEquals(event.detail.composeboxText, 'test');
       assertEquals(testProxy.searchboxHandler.getCallCount('clearFiles'), 1);
+      assertEquals(null, testProxy.element.suggestInventory);
     });
 
     test(

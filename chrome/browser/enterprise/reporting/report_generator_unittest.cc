@@ -216,8 +216,9 @@ class ReportGeneratorTest : public ::testing::Test {
               run_loop.Quit();
             }));
     run_loop.Run();
-    if (report_type == ReportType::kFull)
+    if (report_type == ReportType::kBrowser) {
       VerifyMetrics(rets);  // Only generated for reports with profiles.
+    }
     return rets;
   }
 
@@ -297,7 +298,7 @@ class ReportGeneratorTest : public ::testing::Test {
 #if BUILDFLAG(IS_ANDROID)
 
 TEST_F(ReportGeneratorTest, GenerateBasicReport) {
-  auto requests = GenerateRequests(ReportType::kFull);
+  auto requests = GenerateRequests(ReportType::kBrowser);
   EXPECT_EQ(1u, requests.size());
 
   // Verify the basic request
@@ -334,7 +335,7 @@ TEST_F(ReportGeneratorTest, GenerateBasicReport) {
 
 TEST_F(ReportGeneratorTest, GenerateBasicReport) {
   auto profile_names = CreateProfiles(/*number*/ 2, kIdle);
-  auto requests = GenerateRequests(ReportType::kFull);
+  auto requests = GenerateRequests(ReportType::kBrowser);
   EXPECT_EQ(1u, requests.size());
 
   auto* basic_request = requests[0].get();
@@ -442,7 +443,7 @@ TEST_F(ReportGeneratorTest, ReportArcAppInChromeOS) {
 
   // Verify the Arc application information in the report is same as the test
   // data.
-  auto requests = GenerateRequests(ReportType::kFull);
+  auto requests = GenerateRequests(ReportType::kBrowser);
   EXPECT_EQ(1u, requests.size());
 
   ReportRequest* request = requests.front().get();
@@ -456,7 +457,7 @@ TEST_F(ReportGeneratorTest, ReportArcAppInChromeOS) {
 
   // Generate the Arc application information again and make sure the report
   // remains the same.
-  requests = GenerateRequests(ReportType::kFull);
+  requests = GenerateRequests(ReportType::kBrowser);
   EXPECT_EQ(1u, requests.size());
 
   request = requests.front().get();
@@ -488,7 +489,7 @@ TEST_F(ReportGeneratorTest, ArcPlayStoreDisabled) {
   // No Arc application information is reported after the Arc Play Store
   // support for given profile is disabled.
   primary_profile->GetPrefs()->SetBoolean(arc::prefs::kArcEnabled, false);
-  auto requests = GenerateRequests(ReportType::kFull);
+  auto requests = GenerateRequests(ReportType::kBrowser);
   EXPECT_EQ(1u, requests.size());
 
   ReportRequest* request = requests.front().get();

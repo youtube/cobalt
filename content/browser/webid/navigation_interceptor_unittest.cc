@@ -11,9 +11,12 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "content/browser/webid/accounts_fetcher.h"
-#include "content/browser/webid/request_service.h"
+#include "content/browser/webid/identity_registry.h"
+#include "content/browser/webid/request.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/webid/federated_embedder_login_request.h"
 #include "content/public/browser/webid/identity_credential_source.h"
@@ -47,10 +50,19 @@ class InterceptorMockNavigationHandle : public MockNavigationHandle {
   bool StartedWithTransientActivation() override { return true; }
 };
 
-class MockFederatedAuthRequest : public RequestService {
+class MockFederatedAuthRequest : public Request {
  public:
   explicit MockFederatedAuthRequest(RenderFrameHost* rfh)
-      : RequestService(rfh) {}
+      : Request(
+            rfh,
+            /*manager=*/nullptr,
+            rfh->GetBrowserContext()
+                ->GetFederatedIdentityApiPermissionContext(),
+            rfh->GetBrowserContext()
+                ->GetFederatedIdentityAutoReauthnPermissionContext(),
+            rfh->GetBrowserContext()->GetFederatedIdentityPermissionContext(),
+            IdentityRegistry::FromWebContents(
+                WebContents::FromRenderFrameHost(rfh))) {}
 
   MOCK_METHOD(
       void,
@@ -251,7 +263,7 @@ TEST_F(NavigationInterceptorTest, WillProcessResponse) {
   webid::NavigationInterceptor interceptor(
       registry,
       base::BindLambdaForTesting(
-          [&federated_auth_request](RenderFrameHost* rfh) -> RequestService* {
+          [&federated_auth_request](RenderFrameHost* rfh) -> Request* {
             return federated_auth_request.get();
           }));
 
@@ -304,7 +316,7 @@ TEST_F(NavigationInterceptorTest,
   webid::NavigationInterceptor interceptor(
       registry,
       base::BindLambdaForTesting(
-          [&federated_auth_request](RenderFrameHost* rfh) -> RequestService* {
+          [&federated_auth_request](RenderFrameHost* rfh) -> Request* {
             return federated_auth_request.get();
           }));
 
@@ -361,7 +373,7 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseWithRedirect) {
   webid::NavigationInterceptor interceptor(
       registry,
       base::BindLambdaForTesting(
-          [&federated_auth_request](RenderFrameHost* rfh) -> RequestService* {
+          [&federated_auth_request](RenderFrameHost* rfh) -> Request* {
             return federated_auth_request.get();
           }));
 
@@ -411,7 +423,7 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseNoActivation) {
   webid::NavigationInterceptor interceptor(
       registry,
       base::BindLambdaForTesting(
-          [&federated_auth_request](RenderFrameHost* rfh) -> RequestService* {
+          [&federated_auth_request](RenderFrameHost* rfh) -> Request* {
             return federated_auth_request.get();
           }));
 
@@ -452,9 +464,8 @@ TEST_F(NavigationInterceptorTest, NavigationAfterStartRequest) {
   content::MockNavigationThrottleRegistry registry(&mock_navigation_handle);
 
   webid::NavigationInterceptor interceptor(
-      registry,
-      base::BindLambdaForTesting(
-          [](RenderFrameHost* rfh) -> RequestService* { return nullptr; }));
+      registry, base::BindLambdaForTesting(
+                    [](RenderFrameHost* rfh) -> Request* { return nullptr; }));
 
   NavigationFinishObserver observer(web_contents());
   interceptor.WillStartRequest();
@@ -496,7 +507,7 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseTokenRequestFails) {
   webid::NavigationInterceptor interceptor(
       registry,
       base::BindLambdaForTesting(
-          [&federated_auth_request](RenderFrameHost* rfh) -> RequestService* {
+          [&federated_auth_request](RenderFrameHost* rfh) -> Request* {
             return federated_auth_request.get();
           }));
 
@@ -870,9 +881,8 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseWithConnectionStatus) {
   content::MockNavigationThrottleRegistry registry(&mock_navigation_handle);
 
   webid::NavigationInterceptor interceptor(
-      registry,
-      base::BindLambdaForTesting(
-          [](RenderFrameHost* rfh) -> RequestService* { return nullptr; }));
+      registry, base::BindLambdaForTesting(
+                    [](RenderFrameHost* rfh) -> Request* { return nullptr; }));
 
   base::RunLoop run_loop;
   bool was_resumed = false;
@@ -922,9 +932,8 @@ TEST_F(NavigationInterceptorTest,
   content::MockNavigationThrottleRegistry registry(&mock_navigation_handle);
 
   webid::NavigationInterceptor interceptor(
-      registry,
-      base::BindLambdaForTesting(
-          [](RenderFrameHost* rfh) -> RequestService* { return nullptr; }));
+      registry, base::BindLambdaForTesting(
+                    [](RenderFrameHost* rfh) -> Request* { return nullptr; }));
 
   base::RunLoop run_loop;
   bool was_resumed = false;
@@ -979,9 +988,8 @@ TEST_F(NavigationInterceptorTest,
   content::MockNavigationThrottleRegistry registry(&mock_navigation_handle);
 
   webid::NavigationInterceptor interceptor(
-      registry,
-      base::BindLambdaForTesting(
-          [](RenderFrameHost* rfh) -> RequestService* { return nullptr; }));
+      registry, base::BindLambdaForTesting(
+                    [](RenderFrameHost* rfh) -> Request* { return nullptr; }));
 
   base::RunLoop run_loop;
   bool was_resumed = false;
@@ -1032,9 +1040,8 @@ TEST_F(NavigationInterceptorTest,
   content::MockNavigationThrottleRegistry registry(&mock_navigation_handle);
 
   webid::NavigationInterceptor interceptor(
-      registry,
-      base::BindLambdaForTesting(
-          [](RenderFrameHost* rfh) -> RequestService* { return nullptr; }));
+      registry, base::BindLambdaForTesting(
+                    [](RenderFrameHost* rfh) -> Request* { return nullptr; }));
 
   base::RunLoop run_loop;
   bool was_resumed = false;
@@ -1091,9 +1098,8 @@ TEST_F(EmbedderLoginNavigationInterceptorTest,
   content::MockNavigationThrottleRegistry registry(&mock_navigation_handle);
 
   webid::NavigationInterceptor interceptor(
-      registry,
-      base::BindLambdaForTesting(
-          [](RenderFrameHost* rfh) -> RequestService* { return nullptr; }));
+      registry, base::BindLambdaForTesting(
+                    [](RenderFrameHost* rfh) -> Request* { return nullptr; }));
 
   interceptor.WillStartRequest();
   auto result = interceptor.WillProcessResponse();

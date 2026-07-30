@@ -19,7 +19,7 @@ bool GeminiAllowedByEnterprise(PrefService* prefs);
 
 // Functions that interact with the Gemini consent.
 void ResetGeminiConsent(PrefService* prefs);
-FREState CurrentFREState(PrefService* prefs);
+FirstRunState CurrentFirstRunState(PrefService* prefs);
 bool DidUserConsentToGemini(PrefService* prefs);
 bool DidUserSeeGeminiPromo(PrefService* prefs);
 bool DidGeminiLiveIntroPlay(PrefService* prefs);

@@ -1,0 +1,7 @@
+team_email: "extensions-core+wpt@chromium.org"
+wpt: {
+  notify: YES
+}
+buganizer_public: {
+  component_id: 2162343 # Chromium > Platform > Extensions > WPT
+}

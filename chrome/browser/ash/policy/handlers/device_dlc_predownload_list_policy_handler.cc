@@ -34,22 +34,6 @@ void OnInstallDlcComplete(
 
 }  // namespace
 
-class OnInstallDlcHandlerImpl
-    : public DeviceDlcPredownloadListPolicyHandler::OnInstallDlcHandler {
- public:
-  OnInstallDlcHandlerImpl() = default;
-  ~OnInstallDlcHandlerImpl() override = default;
-
-  void OnInstallDlcComplete(
-      const base::Value& dlc_id,
-      const ash::DlcserviceClient::InstallResult& install_result) override {
-    if (install_result.error != dlcservice::kErrorNone) {
-      LOG(ERROR) << "Failed to install DLC (" << dlc_id
-                 << "): " << install_result.error;
-    }
-  }
-};
-
 DeviceDlcPredownloadListPolicyHandler::
     ~DeviceDlcPredownloadListPolicyHandler() = default;
 

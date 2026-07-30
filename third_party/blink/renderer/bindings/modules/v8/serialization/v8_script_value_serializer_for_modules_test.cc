@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_certificate.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_data_channel_state.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_union_arraybuffer_jsonwebkey.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_cryptokey_cryptokeypair.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
@@ -286,17 +287,6 @@ DOMException* ConvertCryptoResult<DOMException*>(v8::Isolate* isolate,
                                                  const ScriptValue& value) {
   return V8DOMException::ToWrappable(isolate, value.V8Value());
 }
-template <>
-std::vector<unsigned char> ConvertCryptoResult<std::vector<unsigned char>>(
-    v8::Isolate* isolate,
-    const ScriptValue& value) {
-  DummyExceptionStateForTesting exception_state;
-  if (DOMArrayBuffer* buffer = NativeValueTraits<DOMArrayBuffer>::NativeValue(
-          isolate, value.V8Value(), exception_state)) {
-    return base::ToVector(buffer->ByteSpan());
-  }
-  return {};
-}
 
 template <typename IDLType, typename T>
 class WebCryptoResultAdapter
@@ -330,6 +320,17 @@ class WebCryptoResultAdapter
   void React(ScriptState* script_state,
              V8UnionCryptoKeyOrCryptoKeyPair* crypto_union) {
     function_.Run(crypto_union);
+  }
+  template <typename I = IDLType>
+    requires(std::is_same_v<I, V8UnionArrayBufferOrJsonWebKey>)
+  void React(ScriptState* script_state,
+             V8UnionArrayBufferOrJsonWebKey* union_value) {
+    if (union_value->IsArrayBuffer()) {
+      function_.Run(
+          base::ToVector(union_value->GetAsArrayBuffer()->ByteSpan()));
+    } else {
+      NOTREACHED();
+    }
   }
 
  private:
@@ -369,7 +370,8 @@ T SubtleCryptoSync(V8TestingScope& scope, PMF func, Args&&... args) {
                 *out = result;
                 std::move(quit_closure).Run();
               },
-              Unretained(&result), run_loop.QuitClosure())),
+              blink::subtle::UnretainedException(&result),
+              run_loop.QuitClosure())),
       scheduler::GetSingleThreadTaskRunnerForTesting());
   // The promise may resolve synchronously.
   scope.PerformMicrotaskCheckpoint();
@@ -401,7 +403,7 @@ CryptoKey* SyncImportKey(V8TestingScope& scope,
 std::vector<uint8_t> SyncExportKey(V8TestingScope& scope,
                                    WebCryptoKeyFormat format,
                                    const WebCryptoKey& key) {
-  return SubtleCryptoSync<std::vector<uint8_t>, IDLAny>(
+  return SubtleCryptoSync<std::vector<uint8_t>, V8UnionArrayBufferOrJsonWebKey>(
       scope, &WebCrypto::ExportKey, format, key);
 }
 

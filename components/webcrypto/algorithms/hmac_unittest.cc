@@ -512,32 +512,6 @@ TEST_F(WebCryptoHmacTest, ImportExportJwk) {
       blink::kWebCryptoKeyUsageVerify, "HS512");
 }
 
-TEST_F(WebCryptoHmacTest, ExportJwkEmptyKey) {
-  blink::WebCryptoKeyUsageMask usages = blink::kWebCryptoKeyUsageSign;
-
-  // Importing empty HMAC key is no longer allowed. However such a key can be
-  // created via de-serialization.
-  blink::WebCryptoKey key;
-  ASSERT_TRUE(DeserializeKeyForClone(blink::WebCryptoKeyAlgorithm::CreateHmac(
-                                         blink::kWebCryptoAlgorithmIdSha1, 0),
-                                     blink::kWebCryptoKeyTypeSecret, true,
-                                     usages, {}, &key));
-
-  // Export the key in JWK format and validate.
-  std::vector<uint8_t> json;
-  ASSERT_EQ(Status::Success(),
-            ExportKey(blink::kWebCryptoKeyFormatJwk, key, &json));
-  EXPECT_TRUE(VerifySecretJwk(json, "HS1", "", usages));
-
-  // Now try re-importing the JWK key.
-  key = blink::WebCryptoKey::CreateNull();
-  EXPECT_EQ(Status::ErrorHmacImportEmptyKey(),
-            ImportKey(blink::kWebCryptoKeyFormatJwk, json,
-                      CreateHmacImportAlgorithmNoLength(
-                          blink::kWebCryptoAlgorithmIdSha1),
-                      true, usages, &key));
-}
-
 // Imports an HMAC key contaning no byte data.
 TEST_F(WebCryptoHmacTest, ImportRawEmptyKey) {
   const blink::WebCryptoAlgorithm import_algorithm =

@@ -158,7 +158,7 @@ class WindowConfig {
   bool active_ = true;
 };
 
-SCDisplay* API_AVAILABLE(macos(12.3)) CreateSCDisplay(CGRect frame) {
+SCDisplay* CreateSCDisplay(CGRect frame) {
   id display = OCMClassMock([SCDisplay class]);
   OCMStub([display frame]).andReturn(frame);
   return display;
@@ -166,8 +166,7 @@ SCDisplay* API_AVAILABLE(macos(12.3)) CreateSCDisplay(CGRect frame) {
 
 }  // namespace
 
-class API_AVAILABLE(macos(12.3)) MockResetStreamInterface
-    : public ScreenCaptureKitResetStreamInterface {
+class MockResetStreamInterface : public ScreenCaptureKitResetStreamInterface {
  public:
   MOCK_METHOD1(ResetStreamTo, void(SCWindow* window));
 };
@@ -177,12 +176,12 @@ class SCKFullscreenModuleTest : public testing::Test {
   SCKFullscreenModuleTest() = default;
 
   void SetUp() override {}
-  SCWindow* API_AVAILABLE(macos(12.3)) AddWindow(WindowConfig window_config) {
+  SCWindow* AddWindow(WindowConfig window_config) {
     windows_.push_back(window_config);
     return CreateSCWindow(window_config, windows_.size());
   }
 
-  void API_AVAILABLE(macos(12.3)) getShareableContentMock(
+  void getShareableContentMock(
       ScreenCaptureKitFullscreenModule::ContentHandler handler) {
     NSArray* windows = [NSArray array];
     for (size_t i = 0; i < windows_.size(); ++i) {
@@ -206,8 +205,7 @@ class SCKFullscreenModuleTest : public testing::Test {
   }
 
  protected:
-  SCWindow* API_AVAILABLE(macos(12.3))
-      CreateSCWindow(WindowConfig config, CGWindowID window_id) const {
+  SCWindow* CreateSCWindow(WindowConfig config, CGWindowID window_id) const {
     id window = OCMClassMock([SCWindow class]);
     id owning_application = OCMClassMock([SCRunningApplication class]);
 

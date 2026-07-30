@@ -76,6 +76,46 @@ class LayerTreeHostProxyTestSetNeedsCommit : public LayerTreeHostProxyTest {
 
 MULTI_THREAD_TEST_F(LayerTreeHostProxyTestSetNeedsCommit);
 
+class LayerTreeHostProxyTestSetNeedsCommitUrgent
+    : public LayerTreeHostProxyTest {
+ protected:
+  LayerTreeHostProxyTestSetNeedsCommitUrgent() = default;
+  LayerTreeHostProxyTestSetNeedsCommitUrgent(
+      const LayerTreeHostProxyTestSetNeedsCommitUrgent&) = delete;
+  ~LayerTreeHostProxyTestSetNeedsCommitUrgent() override = default;
+
+  LayerTreeHostProxyTestSetNeedsCommitUrgent& operator=(
+      const LayerTreeHostProxyTestSetNeedsCommitUrgent&) = delete;
+
+  void BeginTest() override {
+    EXPECT_EQ(ProxyMain::NO_PIPELINE_STAGE,
+              GetProxyMain()->max_requested_pipeline_stage());
+    EXPECT_FALSE(GetProxyMain()->has_sent_urgent_commit_request());
+
+    proxy()->SetNeedsCommit(/*urgent=*/false);
+    EXPECT_EQ(ProxyMain::COMMIT_PIPELINE_STAGE,
+              GetProxyMain()->max_requested_pipeline_stage());
+    proxy()->SetNeedsCommit(/*urgent=*/true);
+    EXPECT_TRUE(GetProxyMain()->has_sent_urgent_commit_request());
+  }
+
+  void DidBeginMainFrame() override {
+    EXPECT_EQ(ProxyMain::NO_PIPELINE_STAGE,
+              GetProxyMain()->max_requested_pipeline_stage());
+    EXPECT_EQ(ProxyMain::NO_PIPELINE_STAGE,
+              GetProxyMain()->current_pipeline_stage());
+  }
+
+  void DidCommit() override {
+    EXPECT_EQ(1, update_check_layer()->update_count());
+    EXPECT_EQ(ProxyMain::NO_PIPELINE_STAGE,
+              GetProxyMain()->current_pipeline_stage());
+    EndTest();
+  }
+};
+
+MULTI_THREAD_TEST_F(LayerTreeHostProxyTestSetNeedsCommitUrgent);
+
 class LayerTreeHostProxyTestSetNeedsAnimate : public LayerTreeHostProxyTest {
  protected:
   LayerTreeHostProxyTestSetNeedsAnimate() = default;

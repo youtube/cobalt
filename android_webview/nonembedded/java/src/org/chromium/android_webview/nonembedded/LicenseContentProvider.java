@@ -20,10 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/**
- * Content provider for about:credits.
- * Used by SystemWebview and TrichromeWebview, but not Monochrome.
- */
+/** Content provider for about:credits. Used by SystemWebview and TrichromeWebview. */
 public class LicenseContentProvider extends ContentProvider
         implements ContentProvider.PipeDataWriter<String> {
     public static final String LICENSES_URI_SUFFIX = "LicenseContentProvider/webview_licenses";

@@ -203,8 +203,8 @@ class CreditCardFidoAuthenticatorTest
   }
 
   void SetUserOptInPreference(bool user_is_opted_in) {
-    ::autofill::prefs::SetCreditCardFIDOAuthEnabled(
-        autofill_client().GetPrefs(), user_is_opted_in);
+    prefs::SetCreditCardFIDOAuthEnabled(autofill_client().GetPrefs(),
+                                        user_is_opted_in);
     fido_authenticator().user_is_opted_in_ =
         fido_authenticator().IsUserOptedIn();
   }

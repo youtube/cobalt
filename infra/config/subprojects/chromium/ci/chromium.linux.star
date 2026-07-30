@@ -593,7 +593,6 @@ ci.thin_tester(
         mixins = [
             "isolate_profile_data",
             "linux-jammy",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "browser_tests": targets.mixin(
@@ -658,7 +657,6 @@ ci.thin_tester(
         mixins = [
             "isolate_profile_data",
             "linux-jammy",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(
@@ -886,19 +884,11 @@ ci.thin_tester(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.browser_tests_weston.filter",
                 ],
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1473501
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     shards = 20,
                 ),
             ),
             "content_browsertests": targets.mixin(
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1473501
-                retry_only_failed_tests = True,
             ),
             "content_unittests": targets.mixin(
                 args = [
@@ -929,9 +919,6 @@ ci.thin_tester(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.unit_tests_wayland.filter",
                 ],
-                # Only retry the individual failed tests instead of rerunning entire
-                # shards.
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     shards = 4,
                 ),
@@ -1004,10 +991,6 @@ ci.thin_tester(
                     "--mutter-display=1280x800",
                     "--test-launcher-filter-file=../../testing/buildbot/filters/ozone-linux.browser_tests_mutter.filter",
                 ],
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1473501
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     expiration_sec = 18000,
                     hard_timeout_sec = 14400,
@@ -1015,10 +998,6 @@ ci.thin_tester(
                 ),
             ),
             "content_browsertests": targets.mixin(
-                # Only retry the individual failed tests instead of rerunning
-                # entire shards.
-                # crbug.com/1473501
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     expiration_sec = 18000,
                     hard_timeout_sec = 14400,

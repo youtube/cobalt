@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">ସବୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="1408696301184924537">ପରବର୍ତ୍ତୀ ସମୟରେ ଏହି IBANକୁ ଅଟୋଫିଲ କରିବା ପାଇଁ ଏହାକୁ ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟରେ ସେଭ କରନ୍ତୁ</translation>
 <translation id="1408787208417187241">ଉପର ପଟରେ ତିନୋଟି ଷ୍ଟାପଲ୍</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />। <ph name="SUGGESTION_TYPE" />। <ph name="GROUP_HEADER" /> ଗ୍ରୁପରେ <ph name="NUM_MATCHES_IN_GROUP" />ରୁ <ph name="MATCH_POSITION" />।</translation>
 <translation id="1410365862999780287">ଏହି ଡିଭାଇସକୁ ବ୍ୟବହାର କରୁଥିବା ଅନ୍ୟମାନେ ଆପଣଙ୍କ କାର୍ଯ୍ୟକଳାପ ଦେଖିବେ ନାହିଁ, ତେଣୁ ଆପଣ ଅଧିକ ପ୍ରାଇଭେଟ ଭାବେ ବ୍ରାଉଜ କରିପାରିବେ। Google ସମେତ ଆପଣ ଭିଜିଟ କରୁଥିବା ୱେବସାଇଟ ଏବଂ ସେଗୁଡ଼ିକ ବ୍ୟବହାର କରୁଥିବା ସେବାଗୁଡ଼ିକ ଦ୍ୱାରା ଡାଟା କିପରି ସଂଗ୍ରହ କରାଯାଏ ତାହା ଏହା ପରିବର୍ତ୍ତନ କରିବ ନାହିଁ। ଡାଉନଲୋଡ, ବୁକମାର୍କ ଏବଂ ପଢ଼ିବା ତାଲିକାର ଆଇଟମଗୁଡ଼ିକୁ ସେଭ କରାଯିବ।</translation>
 <translation id="1410941016594047814">ଏନଭେଲପ ଇନଭାଇଟ</translation>
 <translation id="1413235258620101697">ଦ୍ରୁତ ଚେକଆଉଟ ପାଇଁ ଏହି କାର୍ଡର CVCକୁ ଏନକ୍ରିପ୍ଟ କରାଯାଇ Google Walletରେ ସେଭ କରାଯିବ</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">ଚେକଆଉଟ ସମୟରେ ଉପଲବ୍ଧ କାର୍ଡ ଲାଭ ଏବଂ ରିୱାର୍ଡଗୁଡ଼ିକ ଦେଖାନ୍ତୁ। ପ୍ରଦାନକାରୀ ସର୍ତ୍ତାବଳୀ ଲାଗୁ ହୁଏ।</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">"<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" କୀଗୁଡ଼ିକ ପରି "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" କୀଗୁଡ଼ିକୁ ସମାନ ଶବ୍ଦକୋଷରେ ସେଟ କରାଯାଇପାରିବ ନାହିଁ</translation>
+<translation id="1449251255954293933">Google Walletରେ ରିଡ୍ରେସ ନମ୍ବର ସେଭ କରନ୍ତୁ</translation>
 <translation id="1455413310270022028">ଇରେଜର୍</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{0 ସମୀକ୍ଷା ଦେଖନ୍ତୁ}=1{1 ସମୀକ୍ଷା ଦେଖନ୍ତୁ}other{ସମସ୍ତ # ସମୀକ୍ଷା ଦେଖନ୍ତୁ}}</translation>
 <translation id="1458059624921545588">ଲୋକ ଓ ସମାଜ</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">ଏନଭେଲପ ପର୍ସନାଲ</translation>
 <translation id="2046951263634619614">ବହି ରିଟେଲର</translation>
 <translation id="2048261947532620704">ପୃଷ୍ଠାକୁ ଅନୁବାଦ କରାଯାଉଛି</translation>
+<translation id="2055016614992422886">ବାର୍ତ୍ତାଳାପ</translation>
 <translation id="2059166748188874810">ମ୍ୟୁନିସିପାଲିଟି</translation>
 <translation id="2059202684901022309">22 x 34 ଇଞ୍ଚ</translation>
 <translation id="2064568741209980952">କ୍ରେଡିଟ ଓ ଋଣ ପ୍ରଦାନ</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">କାର ଭଡ଼ା</translation>
 <translation id="278436560439594386">ହୋମ ଉପକରଣଗୁଡ଼ିକ</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">ପାସୱାର୍ଡ · ପାସକୀ</translation>
 <translation id="2784949926578158345">ସଂଯୋଗଟି ରିସେଟ୍ କରାଯାଇଛି।</translation>
 <translation id="2786008859124691917">ସାଇକେଲ ଓ ଆକ୍ସେସୋରୀ</translation>
 <translation id="2792012897584536778">ଏହି ଡିଭାଇସ୍‌ର ଆଡ୍‌ମିନିଷ୍ଟ୍ରେଟର୍‌ମାନେ ସୁରକ୍ଷା ସାର୍ଟିଫିକେଟ୍‌ଗୁଡ଼ିକ ସେଟ୍‌ଅପ୍ କରିଛନ୍ତି ଯାହା ଆପଣ ଯାଇଥିବା ୱେବ୍‌ସାଇଟ୍‌ଗୁଡ଼ିକର ବିଷୟବସ୍ତୁ ଦେଖିବା ପାଇଁ ହୁଏତ ସେମାନଙ୍କୁ ଅନୁମତି ଦେଇପାରେ।</translation>
@@ -2302,6 +2306,7 @@
 <translation id="46128681529823442">ସକର ଇକ୍ୟୁପମେଣ୍ଟ</translation>
 <translation id="4612904677925722054">ଏହି ସାଇଟରେ ପ୍ରାପ୍ତ ବୟସ୍କଙ୍କ ପାଇଁ ବିଷୟବସ୍ତୁ ଥାଇପାରେ। ଏହି ୱେବସାଇଟ ଭିଜିଟ କରିବା ତୁମ ପାଇଁ ଠିକ ବୋଲି ଜଣେ ବାପା କିମ୍ବା ମା ବା ଅଭିଭାବକ କହିବା ଆବଶ୍ୟକ।</translation>
 <translation id="4619564267100705184">ଏହା ଆପଣ ବୋଲି ଯାଞ୍ଚ କରନ୍ତୁ</translation>
+<translation id="4619669610757527494">Google Walletରେ ଡ୍ରାଇଭିଂ ଲାଇସେନ୍ସ ସେଭ କରନ୍ତୁ</translation>
 <translation id="4622292761762557753">ଯେ କୌଣସି ମତେ ଟ୍ରାନ୍ସଫର କରନ୍ତୁ</translation>
 <translation id="4622647778991854660">ବିଜ୍ଞପ୍ତି କେନ୍ଦ୍ରରେ ବିଜ୍ଞପ୍ତିକୁ ସକ୍ଷମ କରନ୍ତୁ। <ph name="LINK" /> ଖୋଲନ୍ତୁ।</translation>
 <translation id="4623894491222334521">ପରିଚୟ ଡକ୍ୟୁମେଣ୍ଟ</translation>
@@ -2831,6 +2836,7 @@
 <translation id="543656192084990644">ମୋସନ ସେନ୍ସରଗୁଡ଼ିକୁ ଅନୁମତି ଦିଆଯାଇନାହିଁ</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, ମୂଳ ମୂଲ୍ୟ <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">ଓଲଟା ଅର୍ଡରରେ ଫେସ୍ ଅପ୍</translation>
+<translation id="5447103258548475868">Google Walletରେ ପାସପୋର୍ଟ ସେଭ କରନ୍ତୁ</translation>
 <translation id="5447235695608032700">ଆପଣଙ୍କ ବିଷୟରେ <ph name="SITE" /> ସେଭ କରିଥିବା ସୂଚନା ବ୍ୟବହାର କରିବା ପାଇଁ ଏହି ସାଇଟକୁ ଅନୁମତି ଦିଅନ୍ତୁ</translation>
 <translation id="5447973833955560753">ରିକଭରି ପାସୱାର୍ଡ</translation>
 <translation id="5451331376824595378">Chrome ଦ୍ୱାରା ସୁରକ୍ଷା ଇଭେଣ୍ଟଗୁଡ଼ିକ ଫ୍ଲାଗ କରାଗଲେ, ଇଭେଣ୍ଟ ବିଷୟରେ ପ୍ରାସଙ୍ଗିକ ଡାଟା ଆପଣଙ୍କ ଆଡମିନିଷ୍ଟ୍ରେଟରଙ୍କୁ ପଠାଯାଏ। ଏଥିରେ ଆପଣ Chromeରେ ଭିଜିଟ କରୁଥିବା ପୃଷ୍ଠାଗୁଡ଼ିକର URL, ଆପଣ ଡାଟା କପି କରିଥିବା ପୃଷ୍ଠାଗୁଡ଼ିକର URL, ଫାଇଲଗୁଡ଼ିକର ନାମ କିମ୍ବା ମେଟାଡାଟା, IP ଠିକଣା, ବ୍ରାଉଜର ବା ଟାବ କ୍ରାସ ଏବଂ ୱେବ ଆଧାରିତ ଆପ୍ଲିକେସନ, ଆପଣଙ୍କ ଡିଭାଇସ ଓ Chromeରେ ସାଇନ ଇନ କରିବା ପାଇଁ ଆପଣ ବ୍ୟବହାର କରୁଥିବା ୟୁଜରନେମ ଅନ୍ତର୍ଭୁକ୍ତ ହୋଇପାରେ।</translation>
@@ -3553,6 +3559,7 @@
 <translation id="6550245281449521513">ମାଉସ ଲକ କରିବାକୁ ଅନୁମତି ଦିଆଯାଇନାହିଁ</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, ନୂଆ</translation>
 <translation id="6552566579578780089">ପେମେଣ୍ଟ</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />। <ph name="SUGGESTION_TYPE" />। <ph name="GROUP_HEADER" /> ଗ୍ରୁପରେ <ph name="NUM_MATCHES_IN_GROUP" />ରୁ <ph name="MATCH_POSITION" />।</translation>
 <translation id="6554732001434021288">ଗତ ଥର <ph name="NUM_DAYS" /> ଦିନ ପୂର୍ବେ ଭିଜିଟ୍ କରାଯାଇଛି</translation>
 <translation id="6556866813142980365">ରି-ଡୁ କରନ୍ତୁ</translation>
 <translation id="6557715786897013164">14 x 17 ଇଞ୍ଚ</translation>
@@ -4229,6 +4236,7 @@
 <translation id="7599089013883397081">ଡାଉନଲୋଡ କରିବା ସମୟ ସମାପ୍ତ ହୋଇଯାଇଛି</translation>
 <translation id="7602868996817972616">ଏହି ପୃଷ୍ଠା ବିଷୟରେ Googleକୁ ପଚାରନ୍ତୁ</translation>
 <translation id="7606123685356405076">Gemini 3 ମଡେଲ</translation>
+<translation id="760632772920590778">Google Walletରେ ଗାଡ଼ି ସମ୍ୱନ୍ଧୀୟ ସୂଚନା ସେଭ କରନ୍ତୁ</translation>
 <translation id="7610193165460212391">ମୂଲ୍ୟ <ph name="VALUE" /> ପରିସୀମା ବାହାରେ ଅଛି।</translation>
 <translation id="761261689936461781">ମୋଟା</translation>
 <translation id="7613889955535752492">ସମୟ ଅବଧିର ସମାପ୍ତି: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4258,6 +4266,7 @@
 <translation id="7647206758853451655">ପ୍ରିଣ୍ଟ ଗୁଣବତ୍ତା</translation>
 <translation id="7648133459447652947">ଆପଣଙ୍କର କର୍ସର ଦେଖାଇବାକୁ, ଆପ୍ସ ସ୍ୱିଚ କରି ପୃଷ୍ଠାକୁ ରିଲୋଡ କରନ୍ତୁ କିମ୍ବା ପଛକୁ ଫେରନ୍ତୁ</translation>
 <translation id="7648527891719919697">ଆପଣ <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android ସେଟିଂସ<ph name="END_ANDROID_SETTINGS_LINK" />ରେ ଆଡଭାନ୍ସଡ ପ୍ରୋଟେକସନ ଚାଲୁ କରିଥିବା ଯୋଗୁଁ ଏହି ସାଇଟ ବ୍ଲକ ହୋଇ ରହିବ। <ph name="BEGIN_LEARN_MORE_LINK" />ଏହି ଚେତାବନୀ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Google Walletରେ ଜଣାଶୁଣା ଟ୍ରାଭେଲରଙ୍କ ନମ୍ବର ସେଭ କରନ୍ତୁ</translation>
 <translation id="7648992873808071793">ଏହି ଡିଭାଇସ୍‌ରେ ଫାଇଲ୍ ଷ୍ଟୋର୍ କରନ୍ତୁ</translation>
 <translation id="7649070708921625228">ସହାୟତା</translation>
 <translation id="7650141368285545431">ଅନ୍ୟ ଏକ ଡିଭାଇସରୁ ପାସକୀ ବ୍ୟବହାର କରନ୍ତୁ</translation>
@@ -4350,6 +4359,7 @@
 <translation id="7773005668374414287">ସେହି ସମାନ ଅର୍ଡରରେ ଫେସ୍ ଅପ୍</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" /> ପାଇଁ ଆକ୍ସେସ ପ୍ରତ୍ୟାହାର କରନ୍ତୁ</translation>
 <translation id="7781829728241885113">ଗତକଲି</translation>
+<translation id="7782228658217918863">Google Walletରେ ପରିଚୟ କାର୍ଡ ସେଭ କରନ୍ତୁ</translation>
 <translation id="7782465647372057580">ଆକାଉଣ୍ଟ ସୂଚନା ଏନକ୍ରିପ୍ଟ ହୋଇଛି ଏବଂ ପ୍ରାଇଭେଟ ରଖାଯାଇଛି</translation>
 <translation id="7785471469930192436">ଯଦି ପ୍ରଯୁଜ୍ୟ ହୁଏ, ତେବେ ଆପଣଙ୍କ ସନ୍ଧାନ ଇତିହାସକୁ ଡିଲିଟ୍ କରିବା ପାଇଁ ଆପଣଙ୍କ ସନ୍ଧାନ ଇଞ୍ଜିନର ନିର୍ଦ୍ଦେଶଗୁଡ଼ିକୁ ଦେଖନ୍ତୁ</translation>
 <translation id="7785790577395078482">ଏହି ଟାବଲେଟ</translation>

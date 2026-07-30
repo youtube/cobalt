@@ -146,7 +146,6 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
         boolean addToHomeScreenVisible = true;
         boolean requestDesktopSiteVisible = true;
         boolean tryAddingReadAloud = true;
-        boolean readerModePrefsVisible = false;
         boolean translateVisible = true;
         // When the icon row is visible, site info is a button in that row.
         // This is a separate menu item row for the site info shown within the icon row.
@@ -184,7 +183,6 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             requestDesktopSiteVisible = false;
             addToHomeScreenVisible = false;
             tryAddingReadAloud = false;
-            readerModePrefsVisible = true;
         } else if (mUiType == CustomTabsUiType.MINIMAL_UI_WEBAPP) {
             requestDesktopSiteVisible = false;
             // For Webapps & WebAPKs Verifier#wasPreviouslyVerified() performs verification
@@ -373,11 +371,6 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
                             AppMenuHandler.AppMenuItemType.STANDARD,
                             buildModelForStandardMenuItem(
                                     R.id.find_in_page_id, R.string.menu_find_in_page, 0)));
-        }
-
-        // --- Reader Mode Prefs ---
-        if (readerModePrefsVisible) {
-            modelList.add(buildReaderModePrefsItem());
         }
 
         // --- Price Tracking / Price Insights ---

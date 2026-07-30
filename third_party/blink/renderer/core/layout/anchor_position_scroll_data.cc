@@ -21,15 +21,18 @@ namespace {
 
 // Finds the LayoutObject of the anchor element given by position-anchor.
 const LayoutObject* PositionAnchorObject(const LayoutBox& box) {
-  const StylePositionAnchor& position_anchor = box.StyleRef().PositionAnchor();
+  const DefaultAnchorData default_anchor_data =
+      box.StyleRef().GetDefaultAnchorData();
   using Type = StylePositionAnchor::Type;
-  switch (position_anchor.GetType()) {
+  switch (default_anchor_data.GetType()) {
     case Type::kNone:
       return nullptr;
     case Type::kAuto:
       return box.AcceptableImplicitAnchor();
     case Type::kName:
-      return box.FindTargetAnchor(position_anchor.GetName());
+      return box.FindTargetAnchor(default_anchor_data.GetName());
+    case Type::kNormal:
+      NOTREACHED();
   }
 }
 
@@ -75,8 +78,8 @@ bool AnchorPositionScrollData::IsActive() const {
   return anchored_element_->GetAnchorPositionScrollData() == this;
 }
 
-PhysicalOffset
-AnchorPositionScrollData::SpeculativeDefaultAnchorRememberedOffset() const {
+PhysicalOffset AnchorPositionScrollData::GetFilteredRememberedOffset(
+    RememberedScrollOffsetType type) const {
   OutOfFlowData* out_of_flow_data = anchored_element_->GetOutOfFlowData();
 
   const OutOfFlowData::RememberedScrollOffsets* offsets =
@@ -84,30 +87,25 @@ AnchorPositionScrollData::SpeculativeDefaultAnchorRememberedOffset() const {
           ? out_of_flow_data->GetSpeculativeRememberedScrollOffsets()
           : nullptr;
 
-  if (offsets) {
-    return offsets
-        ->GetOffsetForAnchor(default_anchor_adjustment_data_.anchor_element)
-        .value_or(PhysicalOffset());
+  if (!offsets) {
+    return PhysicalOffset();
   }
-  return PhysicalOffset();
+
+  return offsets
+      ->GetOffset(default_anchor_adjustment_data_.anchor_element, type,
+                  NeedsScrollAdjustmentInX(), NeedsScrollAdjustmentInY())
+      .value_or(PhysicalOffset());
+}
+
+PhysicalOffset
+AnchorPositionScrollData::SpeculativeDefaultAnchorRememberedOffset() const {
+  return GetFilteredRememberedOffset(RememberedScrollOffsetType::kLayout);
 }
 
 PhysicalOffset AnchorPositionScrollData::
     SpeculativeDefaultAnchorRememberedOffsetIncludingChained() const {
-  OutOfFlowData* out_of_flow_data = anchored_element_->GetOutOfFlowData();
-
-  const OutOfFlowData::RememberedScrollOffsets* offsets =
-      out_of_flow_data
-          ? out_of_flow_data->GetSpeculativeRememberedScrollOffsets()
-          : nullptr;
-
-  if (offsets) {
-    return offsets
-        ->GetOffsetForAnchorForRangeAdjustment(
-            default_anchor_adjustment_data_.anchor_element)
-        .value_or(PhysicalOffset());
-  }
-  return PhysicalOffset();
+  return GetFilteredRememberedOffset(
+      RememberedScrollOffsetType::kRangeAdjustment);
 }
 
 // static
@@ -431,7 +429,7 @@ void AnchorPositionScrollData::Trace(Visitor* visitor) const {
   visitor->Trace(position_visibility_observer_);
   visitor->Trace(dependent_anchors_);
   PostLayoutSnapshotClient::Trace(visitor);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
 }
 
 }  // namespace blink

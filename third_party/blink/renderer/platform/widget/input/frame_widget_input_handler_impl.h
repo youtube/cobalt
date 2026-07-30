@@ -58,6 +58,7 @@ class PLATFORM_EXPORT FrameWidgetInputHandlerImpl
   void ClearImeTextSpansByType(uint32_t start,
                                uint32_t end,
                                ui::ImeTextSpan::Type type) override;
+  void CancelStylusGesturePreview() override;
   void SetCompositionFromExistingText(
       int32_t start,
       int32_t end,

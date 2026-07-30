@@ -5,7 +5,7 @@
 import 'chrome://os-print/js/destination_row_controller.js';
 
 import {DestinationRowController} from 'chrome://os-print/js/destination_row_controller.js';
-import {assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {resetDataManagersAndProviders} from './test_utils.js';
 

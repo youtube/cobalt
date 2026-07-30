@@ -264,22 +264,6 @@ void LogBenefitFormEventToAllBenefitHistograms(
 void LogBenefitFormEventToAllBenefitHistograms(std::string_view benefit_source,
                                                CardBenefitFormEvent event);
 
-// Log the given `event` for card benefits on a benefit source level.
-// TODO(crbug.com/417228483): Remove this function after adding benefit form
-// event enums to a new histogram with a new enum class.
-void LogBenefitFormEventToBenefitSourceHistogramDeprecated(
-    std::string_view benefit_source,
-    FormEvent event);
-
-// Log the given `event` for every card benefit source with benefits available
-// shown.
-// TODO(crbug.com/417228483): Remove this function after adding benefit form
-// event enums to a new histogram with a new enum class.
-void LogBenefitFormEventForAllBenefitSourcesWithBenefitAvailableDeprecated(
-    const base::flat_map<int64_t, std::string>&
-        instrument_ids_to_available_benefit_sources,
-    FormEvent event);
-
 }  // namespace autofill::autofill_metrics
 
 #endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CARD_METADATA_METRICS_H_

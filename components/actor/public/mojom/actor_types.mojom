@@ -243,6 +243,12 @@ enum ActionResultCode {
   // The offset of the target element didn't change after scrolling.
   kScrollOffsetDidNotChange = 502,
 
+  // The scroll event has a missing direction.
+  kScrollMissingDirection = 503,
+
+  // The scroll event has a missing distance.
+  kScrollMissingDistance = 504,
+
   // Please see the comment above about adding new values.
 
   ///////////////////////////////////////////////////////////////////////

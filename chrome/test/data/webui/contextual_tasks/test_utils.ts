@@ -4,10 +4,16 @@
 
 
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
-import {createAutocompleteMatch, createAutocompleteResultForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
-import {type PageHandlerRemote as SearchboxPageHandlerRemote, type PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {type MockTimer} from 'chrome://webui-test/mock_timer.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+
+// <if expr="not is_android or enable_webui_contextual_tasks_composebox">
+import {assertDeepEquals, assertFalse} from 'chrome://webui-test/chai_assert.js';
+import type {ContextualTasksAppElement} from 'chrome://contextual-tasks/app.js';
+import type {ContextualTasksComposeboxElement} from 'chrome://contextual-tasks/composebox.js';
+import type {ContextualTasksInnerComposeboxElement} from 'chrome://contextual-tasks/contextual_tasks_inner_composebox.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+// </if>
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
@@ -17,8 +23,7 @@ import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_p
 // Generated from btoa(String.fromCharCode(...[1, 2, 3]))
 export const HANDSHAKE_REQUEST_MESSAGE_BASE64 = 'AQID';
 
-export const ADD_FILE_CONTEXT_FN = 'addFileContext';
-export const ADD_TAB_CONTEXT_FN = 'addTabContext';
+
 
 // Byte array of a typical handshake response from the webview.
 // Equivalent to base64 decoding 'CgIIAA=='
@@ -72,27 +77,101 @@ export function simulateLoadCommit(
   webview.dispatchEvent(loadCommitEvent);
 }
 
-export async function setupAutocompleteResults(
-    searchboxCallbackRouterRemote: SearchboxPageRemote, testQuery: string,
-    mockTimer: MockTimer) {
-  const matches = [
-    createAutocompleteMatch({
-      allowedToBeDefaultMatch: true,
-      contents: testQuery,
-      destinationUrl: `${fixtureUrl}/search?q=${testQuery}`,
-      type: 'search-what-you-typed',
-      fillIntoEdit: testQuery,
-    }),
-    createAutocompleteMatch(),
-  ];
-  searchboxCallbackRouterRemote.autocompleteResultChanged(
-      createAutocompleteResultForTesting({
-        input: testQuery,
-        matches: matches,
-      }));
-  await searchboxCallbackRouterRemote.$.flushForTesting();
-  mockTimer.tick(0);
+
+
+export async function deleteLastFile(composebox: any) {
+  const files = composebox.$.carousel.files;
+  const deletedId = files[files.length - 1]!.uuid;
+  composebox.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
+    detail: {
+      uuid: deletedId,
+    },
+    bubbles: true,
+    composed: true,
+  }));
+  await microtasksFinished();
 }
+
+export function getSubmitContainer(composebox: any): HTMLElement|null {
+  const submitElement =
+      composebox.shadowRoot.querySelector('cr-composebox-submit');
+  return submitElement?.$.submitContainer || null;
+}
+
+export function getSubmitButton(composebox: any): HTMLButtonElement|null {
+  const submitElement =
+      composebox.shadowRoot.querySelector('cr-composebox-submit');
+  return submitElement?.$.submitIcon || null;
+}
+/**
+ * Creates and appends a 'contextual-tasks-app' element to the document body.
+ * @param url The URL to initialize the test proxy with.
+ * @param setupProxy Optional callback to configure the test proxy before
+ *     element creation.
+ * @param waitForInitialLoadStart If true, waits for the app's initial load
+ *     start to finish.
+ * @returns A promise that resolves to an object containing the created app
+ *     element and the test proxy.
+ */
+export async function createContextualTasksAppElement(
+    url: string = fixtureUrl,
+    setupProxy?: (proxy: TestContextualTasksBrowserProxy) => void,
+    waitForInitialLoadStart: boolean = true) {
+  const proxy = new TestContextualTasksBrowserProxy(url);
+  BrowserProxyImpl.setInstance(proxy);
+  if (setupProxy) {
+    setupProxy(proxy);
+  }
+  const appElement = document.createElement('contextual-tasks-app');
+
+  let promise: Promise<void>|undefined;
+  if (waitForInitialLoadStart) {
+    const {promise: p, resolve} = Promise.withResolvers<void>();
+    promise = p;
+    appElement.setOnLoadStartFinishedCallbackForTesting(resolve);
+  }
+
+  document.body.appendChild(appElement);
+
+  if (promise) {
+    await promise;
+  }
+  await microtasksFinished();
+
+  return {appElement, proxy};
+}
+
+// <if expr="not is_android or enable_webui_contextual_tasks_composebox">
+// The element the wrapper renders as `#composebox`: the legacy shared
+// `<cr-composebox>` (flag-off) or the CT fork (flag-on).
+export type CtInnerComposeboxUnionElement =
+    ContextualTasksComposeboxElement['$']['composebox']|
+    ContextualTasksInnerComposeboxElement;
+
+export interface CtComposeboxAppParts {
+  app: ContextualTasksAppElement;
+  wrapper: ContextualTasksComposeboxElement;
+  innerComposebox: CtInnerComposeboxUnionElement;
+}
+
+/**
+ * Mounts a fresh `<contextual-tasks-app>` and resolves the composebox chain.
+ * Mock proxies must already be installed by the caller. The wrapper reads
+ * `useContextualTasksComposeboxFork` in a field initializer at construction
+ * time, so the override must happen before createElement.
+ */
+export async function createCtComposeboxApp(useFork: boolean):
+    Promise<CtComposeboxAppParts> {
+  loadTimeData.overrideValues({useContextualTasksComposeboxFork: useFork});
+  const app = document.createElement('contextual-tasks-app');
+  document.body.appendChild(app);
+  await microtasksFinished();
+  const wrapper = app.$.composebox;
+  return {app, wrapper, innerComposebox: wrapper.$.composebox};
+}
+
+export const ADD_FILE_CONTEXT_FN = 'addFileContext';
+export const ADD_TAB_CONTEXT_FN = 'addTabContext';
 
 export async function uploadFileAndVerify(
     token: Object, file: File, composebox: any,
@@ -163,65 +242,4 @@ export async function verifyFileCarouselMatchesUploaded(
   assertEquals(fileInfo.fileName, file.name);
   assertDeepEquals(fileData.bytes, fileArray);
 }
-
-export async function deleteLastFile(composebox: any) {
-  const files = composebox.$.carousel.files;
-  const deletedId = files[files.length - 1]!.uuid;
-  composebox.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
-    detail: {
-      uuid: deletedId,
-    },
-    bubbles: true,
-    composed: true,
-  }));
-  await microtasksFinished();
-}
-
-export function getSubmitContainer(composebox: any): HTMLElement|null {
-  const submitElement =
-      composebox.shadowRoot.querySelector('cr-composebox-submit');
-  return submitElement?.$.submitContainer || null;
-}
-
-export function getSubmitButton(composebox: any): HTMLButtonElement|null {
-  const submitElement =
-      composebox.shadowRoot.querySelector('cr-composebox-submit');
-  return submitElement?.$.submitIcon || null;
-}
-/**
- * Creates and appends a 'contextual-tasks-app' element to the document body.
- * @param url The URL to initialize the test proxy with.
- * @param setupProxy Optional callback to configure the test proxy before
- *     element creation.
- * @param waitForInitialLoadStart If true, waits for the app's initial load
- *     start to finish.
- * @returns A promise that resolves to an object containing the created app
- *     element and the test proxy.
- */
-export async function createContextualTasksAppElement(
-    url: string = fixtureUrl,
-    setupProxy?: (proxy: TestContextualTasksBrowserProxy) => void,
-    waitForInitialLoadStart: boolean = true) {
-  const proxy = new TestContextualTasksBrowserProxy(url);
-  BrowserProxyImpl.setInstance(proxy);
-  if (setupProxy) {
-    setupProxy(proxy);
-  }
-  const appElement = document.createElement('contextual-tasks-app');
-
-  let promise: Promise<void>|undefined;
-  if (waitForInitialLoadStart) {
-    const {promise: p, resolve} = Promise.withResolvers<void>();
-    promise = p;
-    appElement.setOnLoadStartFinishedCallbackForTesting(resolve);
-  }
-
-  document.body.appendChild(appElement);
-
-  if (promise) {
-    await promise;
-  }
-  await microtasksFinished();
-
-  return {appElement, proxy};
-}
+// </if>

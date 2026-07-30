@@ -1,0 +1,22 @@
+Name: googleapis
+URL: https://github.com/googleapis/googleapis
+Version: N/A
+Revision: f5cb7afc40b63d52f43bc306cb9b64a87b681aea
+Update Mechanism: Manual
+License: Apache-2.0
+License File: src/LICENSE
+Shipped: yes
+Security Critical: no
+
+Description:
+Public interface definitions of Google APIs.
+
+Local Modifications:
+
+- Majority of unneeded protos are removed.
+
+- patches/000-remove-unused-rpc.patch
+
+  Removes RPC-related definitions that cause build issues in Chrome.  The
+  patch can be removed when Chrome builds without it. (Note: be mindful of
+  compile time, it might increase it.)

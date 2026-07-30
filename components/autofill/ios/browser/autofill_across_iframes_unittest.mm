@@ -51,9 +51,9 @@
 #import "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #import "url/gurl.h"
 
-using autofill::test::NewFrameCatcher;
-using base::test::ios::kWaitForJSCompletionTimeout;
-using net::test_server::EmbeddedTestServer;
+using ::autofill::test::NewFrameCatcher;
+using ::base::test::ios::kWaitForJSCompletionTimeout;
+using ::net::test_server::EmbeddedTestServer;
 using ::testing::AllOf;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
@@ -64,7 +64,7 @@ using ::testing::IsTrue;
 using ::testing::Property;
 using ::testing::SizeIs;
 using ::testing::UnorderedElementsAre;
-using testing::VariantWith;
+using ::testing::VariantWith;
 
 namespace autofill {
 
@@ -400,7 +400,7 @@ class TestAutofillManager : public BrowserAutofillManager {
 };
 
 // A mock child frame registrar observer.
-class MockRegistrarObserver : public autofill::ChildFrameRegistrarObserver {
+class MockRegistrarObserver : public ChildFrameRegistrarObserver {
  public:
   MOCK_METHOD(void,
               OnDidDoubleRegistration,
@@ -423,16 +423,15 @@ class AutofillAcrossIframesTest : public AutofillTestWithWebState {
          FormHandlersJavaScriptFeature::GetInstance()});
 
     // We need an AutofillAgent to exist or else the form will never get parsed.
-    prefs_ = autofill::test::PrefServiceForTesting();
+    prefs_ = test::PrefServiceForTesting();
     autofill_agent_ = [[AutofillAgent alloc] initWithPrefService:prefs_.get()
                                                         webState:web_state()];
 
-    autofill_client_ = std::make_unique<autofill::TestAutofillClientIOS>(
-        web_state(), autofill_agent_);
+    autofill_client_ =
+        std::make_unique<TestAutofillClientIOS>(web_state(), autofill_agent_);
 
     // Password autofill agent needs to exist before any call to fill data.
-    autofill::PasswordAutofillAgent::CreateForWebState(web_state(),
-                                                       &delegate_mock_);
+    PasswordAutofillAgent::CreateForWebState(web_state(), &delegate_mock_);
 
     autofill_manager_injector_ =
         std::make_unique<TestAutofillManagerInjector<TestAutofillManager>>(
@@ -511,8 +510,8 @@ class AutofillAcrossIframesTest : public AutofillTestWithWebState {
     return GetWebFramesManagerForAutofill(web_state());
   }
 
-  autofill::ChildFrameRegistrar* registrar() {
-    return autofill::ChildFrameRegistrar::GetOrCreateForWebState(web_state());
+  ChildFrameRegistrar* registrar() {
+    return ChildFrameRegistrar::GetOrCreateForWebState(web_state());
   }
 
   // Serve document with `contents` accessible at `path` on main origin server.
@@ -676,9 +675,9 @@ class AutofillAcrossIframesTest : public AutofillTestWithWebState {
   std::unique_ptr<TestAutofillManagerInjector<TestAutofillManager>>
       autofill_manager_injector_;
   std::unique_ptr<PrefService> prefs_;
-  std::unique_ptr<autofill::TestAutofillClientIOS> autofill_client_;
+  std::unique_ptr<TestAutofillClientIOS> autofill_client_;
   AutofillAgent* autofill_agent_;
-  autofill::MockPasswordAutofillAgentDelegate delegate_mock_;
+  MockPasswordAutofillAgentDelegate delegate_mock_;
 
   EmbeddedTestServer test_server_;
   std::string main_frame_html_;
@@ -743,8 +742,7 @@ TEST_F(AutofillAcrossIframesTest, WithChildFrames) {
   EXPECT_EQ(-1, remote_token1.predecessor);
   EXPECT_EQ(0, remote_token2.predecessor);
 
-  auto* registrar =
-      autofill::ChildFrameRegistrar::GetOrCreateForWebState(web_state());
+  auto* registrar = ChildFrameRegistrar::GetOrCreateForWebState(web_state());
   ASSERT_TRUE(registrar);
 
   // Get the frame tokens from the registrar. Wrap this in a block because the
@@ -873,8 +871,7 @@ TEST_F(AutofillAcrossIframesTest, Resolve) {
   EXPECT_THAT(remote_token.token, VariantWith<RemoteFrameToken>(IsTrue()));
 
   // Wait for the child frame to register itself.
-  auto* registrar =
-      autofill::ChildFrameRegistrar::GetOrCreateForWebState(web_state());
+  auto* registrar = ChildFrameRegistrar::GetOrCreateForWebState(web_state());
   ASSERT_TRUE(registrar);
   ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
       kWaitForJSCompletionTimeout, ^bool {
@@ -917,8 +914,7 @@ TEST_F(AutofillAcrossIframesTest, SetAndGetParent) {
   EXPECT_THAT(remote_token.token, VariantWith<RemoteFrameToken>(IsTrue()));
 
   // Wait for the child frame to register itself.
-  auto* registrar =
-      autofill::ChildFrameRegistrar::GetOrCreateForWebState(web_state());
+  auto* registrar = ChildFrameRegistrar::GetOrCreateForWebState(web_state());
   ASSERT_TRUE(registrar);
   ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
       kWaitForJSCompletionTimeout, ^bool {
@@ -1721,8 +1717,7 @@ TEST_F(AutofillAcrossIframesTest, FrameDoubleRegistration_Notify) {
   ASSERT_EQ(spoofy_form.fields().size(), 1u);
 
   MockRegistrarObserver registrar_observer;
-  base::ScopedObservation<autofill::ChildFrameRegistrar,
-                          autofill::ChildFrameRegistrarObserver>
+  base::ScopedObservation<ChildFrameRegistrar, ChildFrameRegistrarObserver>
       registrar_scoped_observation{&registrar_observer};
   registrar_scoped_observation.Observe(registrar());
 

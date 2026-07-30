@@ -480,7 +480,6 @@ TEST_F(LazyLoadImagesTest, AttributeChangedFromLazyToEager) {
       .getElementById(AtomicString("my_image"))
       ->setAttribute(html_names::kLoadingAttr, AtomicString("eager"));
 
-  Compositor().BeginFrame();
   test::RunPendingTasks();
 
   full_resource.Complete(TestImage());

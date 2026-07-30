@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {isDistilledByReadability} from '../shared/common.js';
-import {getTextNodeOffsets} from '../shared/dom_queries.js';
+import {getNearestTextBoundaryPoint, getTextNodeOffsets} from '../shared/dom_queries.js';
 
 import {NodeStore} from './node_store.js';
 import {ContentPositionSource} from './read_anything_types.js';
@@ -107,7 +107,8 @@ export class SelectionController {
 
   // Called when the user selects text in reading mode. Forwards that
   // information to the main panel to draw the corresponding selection there.
-  onSelectionChange(selection: Selection|null) {
+  onSelectionChange(
+      selection: Selection|null, container: Node = document.body) {
     this.currentSelection_ = selection;
 
     // No need to send the selection info back to the main panel if it came
@@ -124,7 +125,8 @@ export class SelectionController {
       return;
     }
 
-    if ((selection === null) || !selection.anchorNode || !selection.focusNode) {
+    if ((selection === null) || !selection.anchorNode || !selection.focusNode ||
+        selection.isCollapsed) {
       // The selection was collapsed by clicking inside the selection.
       chrome.readingMode.onCollapseSelection();
       return;
@@ -138,10 +140,36 @@ export class SelectionController {
       chrome.readingMode.attemptLogEarlySelection(/*fromSidePanel=*/ true);
     }
 
+    // Determine the direction of the selection (dragging forward vs backward).
+    // This is necessary because normalizeBoundaryPoint_ requires knowing
+    // whether an endpoint is the start of the selection (isStart = true) or the
+    // end (isStart = false) to perform correct boundary shifting without
+    // leaking into preceding elements (like the article title on backward
+    // drags).
+    let isBackward = false;
+    if (selection.anchorNode && selection.focusNode) {
+      const position =
+          selection.anchorNode.compareDocumentPosition(selection.focusNode);
+      if (position === Node.DOCUMENT_POSITION_PRECEDING) {
+        isBackward = true;
+      } else if (position === 0) {
+        isBackward = selection.anchorOffset > selection.focusOffset;
+      }
+    }
+
+    // Normalize the selection boundaries to ensure they fall on valid text
+    // nodes within the article container, adjusting for the direction of
+    // selection to prevent index shifting errors.
+    const normalizedAnchor = getNearestTextBoundaryPoint(
+        selection.anchorNode, selection.anchorOffset, container, !isBackward);
+    const normalizedFocus = getNearestTextBoundaryPoint(
+        selection.focusNode, selection.focusOffset, container, isBackward);
     const {anchorNodeId, anchorOffset, focusNodeId, focusOffset} =
         this.getSelectionIds_(
-            selection.anchorNode, selection.anchorOffset, selection.focusNode,
-            selection.focusOffset);
+            normalizedAnchor.node, normalizedAnchor.offset,
+            normalizedFocus.node, normalizedFocus.offset);
+
+
     if (!anchorNodeId || !focusNodeId) {
       // The selection is on a node that doesn't map to the article text (e.g.
       // the background or UI elements). Collapse the main panel selection to
@@ -156,10 +184,10 @@ export class SelectionController {
         this.nodeStore_.getDomNode(chrome.readingMode.startNodeId);
     const mainPanelFocus =
         this.nodeStore_.getDomNode(chrome.readingMode.endNodeId);
-    if (!mainPanelAnchor || !mainPanelAnchor.contains(selection.anchorNode) ||
-        !mainPanelFocus || !mainPanelFocus.contains(selection.focusNode) ||
-        selection.anchorOffset !== chrome.readingMode.startOffset ||
-        selection.focusOffset !== chrome.readingMode.endOffset) {
+    if (!mainPanelAnchor || !mainPanelAnchor.contains(normalizedAnchor.node) ||
+        !mainPanelFocus || !mainPanelFocus.contains(normalizedFocus.node) ||
+        anchorOffset !== chrome.readingMode.startOffset ||
+        focusOffset !== chrome.readingMode.endOffset) {
       chrome.readingMode.onSelectionChange(
           anchorNodeId, anchorOffset, focusNodeId, focusOffset);
     }

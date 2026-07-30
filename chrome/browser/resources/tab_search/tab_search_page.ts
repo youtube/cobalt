@@ -851,10 +851,10 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
       });
     }
 
-    const filteredMediaTabs = search<TabData|SplitViewData>(
+    const filteredMediaTabs = await search<TabData|SplitViewData>(
         this.searchText_, mediaTabs, this.searchOptions_);
 
-    let filteredOpenTabs = search<TabData|SplitViewData>(
+    let filteredOpenTabs = await search<TabData|SplitViewData>(
         this.searchText_, this.openTabs_, this.searchOptions_);
 
     // The MRU tab that is not the active tab is either the first tab in the
@@ -902,7 +902,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
           0;
     });
     let filteredRecentlyClosedItems =
-        search<TabData|TabGroupData|SplitViewData>(
+        await search<TabData|TabGroupData|SplitViewData>(
             this.searchText_, recentlyClosedItems, this.searchOptions_);
 
     // Limit the number of recently closed items to the default display count

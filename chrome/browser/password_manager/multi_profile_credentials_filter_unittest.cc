@@ -133,7 +133,7 @@ class MultiProfileCredentialsFilterTest : public testing::Test {
                        .SetLocale("en")
                        .SetAvatarUrl("https://example.com")
                        .Build();
-    AccountCapabilitiesTestMutator(&account_info.capabilities)
+    AccountCapabilitiesTestMutator(&account_info)
         .set_is_subject_to_account_level_enterprise_policies(false);
     DCHECK(account_info.IsValid());
     identity_test_env()->UpdateAccountInfoForAccount(account_info);
@@ -365,7 +365,7 @@ TEST_F(MultiProfileCredentialsFilterTest, SigninNotIntercepted) {
                      .SetLocale("en")
                      .SetAvatarUrl("https://example.com")
                      .Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_account_level_enterprise_policies(false);
   CHECK(account_info.IsValid());
   identity_test_env()->UpdateAccountInfoForAccount(account_info);

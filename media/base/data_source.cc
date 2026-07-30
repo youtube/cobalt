@@ -13,8 +13,6 @@ DataSource::DataSource() = default;
 
 DataSource::~DataSource() = default;
 
-DataSource::Factory::~Factory() = default;
-
 bool DataSource::AssumeFullyBuffered() const {
   return true;
 }
@@ -39,9 +37,5 @@ void DataSource::StopPreloading() {}
 void DataSource::OnMediaPlaybackRateChanged(double playback_rate) {}
 
 void DataSource::OnMediaIsPlaying() {}
-
-CrossOriginDataSource* DataSource::GetAsCrossOriginDataSource() {
-  return nullptr;
-}
 
 }  // namespace media

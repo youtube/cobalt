@@ -113,8 +113,6 @@ class ArcRobotAuthCodeFetcherBrowserTest
                      bool* output_fetch_success,
                      std::string* output_auth_code) {
     base::RunLoop run_loop;
-    fetcher->SetURLLoaderFactoryForTesting(
-        test_url_loader_factory_.GetSafeWeakWrapper());
     fetcher->Fetch(base::BindOnce(
         [](bool* output_fetch_success, std::string* output_auth_code,
            base::RunLoop* run_loop, bool fetch_success,
@@ -156,7 +154,9 @@ IN_PROC_BROWSER_TEST_F(ArcRobotAuthCodeFetcherBrowserTest,
   std::string auth_code;
   bool fetch_success = false;
 
-  auto robot_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>();
+  auto robot_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>(
+      test_url_loader_factory()->GetSafeWeakWrapper(),
+      g_browser_process->platform_part()->browser_policy_connector_ash());
   FetchAuthCode(robot_fetcher.get(), &fetch_success, &auth_code);
 
   EXPECT_TRUE(fetch_success);
@@ -177,7 +177,9 @@ IN_PROC_BROWSER_TEST_F(ArcRobotAuthCodeFetcherBrowserTest,
   std::string auth_code = "NOT-YET-FETCHED";
   bool fetch_success = true;
 
-  auto robot_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>();
+  auto robot_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>(
+      test_url_loader_factory()->GetSafeWeakWrapper(),
+      g_browser_process->platform_part()->browser_policy_connector_ash());
   FetchAuthCode(robot_fetcher.get(), &fetch_success, &auth_code);
 
   EXPECT_FALSE(fetch_success);
@@ -208,7 +210,9 @@ IN_PROC_BROWSER_TEST_F(ArcRobotAuthCodeFetcherOfflineBrowserTest,
   std::string auth_code = "NOT-YET-FETCHED";
   bool fetch_success = true;
 
-  auto robot_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>();
+  auto robot_fetcher = std::make_unique<ArcRobotAuthCodeFetcher>(
+      test_url_loader_factory()->GetSafeWeakWrapper(),
+      g_browser_process->platform_part()->browser_policy_connector_ash());
   FetchAuthCode(robot_fetcher.get(), &fetch_success, &auth_code);
 
   EXPECT_FALSE(fetch_success);

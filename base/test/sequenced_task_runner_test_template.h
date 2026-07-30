@@ -292,7 +292,7 @@ TYPED_TEST_P(SequencedTaskRunnerTest, DelayedTaskAfterManyLongTasks) {
                                          kTaskCount));
 }
 
-// TODO(francoisk777@gmail.com) Add a test, similiar to the above, which runs
+// TODO(francoisk777@gmail.com) Add a test, similar to the above, which runs
 // some tasked nestedly (which should be implemented in the test
 // delegate). Also add, to the test delegate, a predicate which checks
 // whether the implementation supports nested tasks.

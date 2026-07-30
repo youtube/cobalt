@@ -44,12 +44,16 @@ using URLSecurityPolicy =
 
 // Handle the url request completion status and return the interrupt reasons.
 // |cert_status| is ignored if error_code is not net::ERR_ABORTED.
+// |is_served_from_service_worker| reinterprets a net::ERR_ABORTED completion as
+// a resumable network failure rather than a user cancellation (see the function
+// body for rationale).
 COMPONENTS_DOWNLOAD_EXPORT DownloadInterruptReason
 HandleRequestCompletionStatus(net::Error error_code,
                               bool has_strong_validators,
                               net::CertStatus cert_status,
                               bool is_partial_request,
-                              DownloadInterruptReason abort_reason);
+                              DownloadInterruptReason abort_reason,
+                              bool is_served_from_service_worker);
 
 // Parse the HTTP server response code.
 // If |fetch_error_body| is true, most of HTTP response codes will be accepted

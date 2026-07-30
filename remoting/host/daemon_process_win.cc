@@ -110,15 +110,6 @@ class DaemonProcessWin : public DaemonProcess {
 
   ~DaemonProcessWin() override;
 
-  // WorkerProcessIpcDelegate implementation.
-  void OnChannelConnected(int32_t peer_pid) override;
-  void OnWorkerProcessStopped() override;
-
-  // DaemonProcess overrides.
-  bool OnDesktopSessionAgentAttached(
-      int terminal_id,
-      mojo::ScopedMessagePipeHandle desktop_pipe) override;
-
   // mojom::ChromotingHostServices implementation.
   void BindSessionServices(
       mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver)
@@ -139,11 +130,9 @@ class DaemonProcessWin : public DaemonProcess {
   std::unique_ptr<DesktopSession> DoCreateDesktopSession(
       int terminal_id,
       const mojom::DesktopSessionOptions& options) override;
-  void DoCrashNetworkProcess(const base::Location& location) override;
   void LaunchNetworkProcess() override;
-  void SendHostConfigToNetworkProcess(
-      const std::string& serialized_config) override;
-  void SendTerminalDisconnected(int terminal_id) override;
+
+  bool OnInitAfterChannelConnected(int32_t peer_pid) override;
 
   // Initializes the pairing registry on the host side.
   bool InitializePairingRegistry();
@@ -152,13 +141,6 @@ class DaemonProcessWin : public DaemonProcess {
   bool OpenPairingRegistry();
 
  private:
-  // Mojo keeps the task runner passed to it alive forever, so an
-  // AutoThreadTaskRunner should not be passed to it. Otherwise, the process may
-  // never shut down cleanly.
-  mojo::core::ScopedIPCSupport ipc_support_;
-
-  std::unique_ptr<WorkerProcessLauncher> network_launcher_;
-
   // Handle of the network process.
   ScopedHandle network_process_;
 
@@ -168,10 +150,6 @@ class DaemonProcessWin : public DaemonProcess {
   std::unique_ptr<EtwTraceConsumer> etw_trace_consumer_;
 
   base::SequenceBound<MinidumpHandler> minidump_handler_;
-
-  mojo::AssociatedRemote<mojom::DesktopSessionConnectionEvents>
-      desktop_session_connection_events_;
-  mojo::AssociatedRemote<mojom::RemotingHostControl> remoting_host_control_;
 };
 
 DaemonProcessWin::DaemonProcessWin(
@@ -180,54 +158,21 @@ DaemonProcessWin::DaemonProcessWin(
     StoppedCallback stopped_callback)
     : DaemonProcess(caller_task_runner,
                     io_task_runner,
-                    std::move(stopped_callback)),
-      ipc_support_(io_task_runner->task_runner(),
-                   mojo::core::ScopedIPCSupport::ShutdownPolicy::FAST) {}
+                    std::move(stopped_callback)) {}
 
 DaemonProcessWin::~DaemonProcessWin() = default;
 
-void DaemonProcessWin::OnChannelConnected(int32_t peer_pid) {
+bool DaemonProcessWin::OnInitAfterChannelConnected(int32_t peer_pid) {
   // Obtain the handle of the network process.
   network_process_.Set(OpenProcess(PROCESS_DUP_HANDLE, false, peer_pid));
   if (!network_process_.is_valid()) {
     CrashNetworkProcess(FROM_HERE);
-    return;
+    return false;
   }
-
-  // Typically the Daemon process is responsible for disconnecting the remote
-  // however in cases where the network process crashes, we want to ensure that
-  // |remoting_host_control_| is reset so it can be reused after the network
-  // process is relaunched.
-  remoting_host_control_.reset();
-  network_launcher_->GetRemoteAssociatedInterface(
-      remoting_host_control_.BindNewEndpointAndPassReceiver());
-  desktop_session_connection_events_.reset();
-  network_launcher_->GetRemoteAssociatedInterface(
-      desktop_session_connection_events_.BindNewEndpointAndPassReceiver());
 
   if (!InitializePairingRegistry()) {
     CrashNetworkProcess(FROM_HERE);
-    return;
-  }
-
-  DaemonProcess::OnChannelConnected(peer_pid);
-}
-
-void DaemonProcessWin::OnWorkerProcessStopped() {
-  // Reset our IPC remote so it's ready to re-init if the network process is
-  // re-launched.
-  remoting_host_control_.reset();
-  desktop_session_connection_events_.reset();
-
-  DaemonProcess::OnWorkerProcessStopped();
-}
-
-bool DaemonProcessWin::OnDesktopSessionAgentAttached(
-    int terminal_id,
-    mojo::ScopedMessagePipeHandle desktop_pipe) {
-  if (desktop_session_connection_events_) {
-    desktop_session_connection_events_->OnDesktopSessionAgentAttached(
-        terminal_id, std::move(desktop_pipe));
+    return false;
   }
 
   return true;
@@ -247,15 +192,8 @@ std::unique_ptr<DesktopSession> DaemonProcessWin::DoCreateDesktopSession(
   }
 }
 
-void DaemonProcessWin::DoCrashNetworkProcess(const base::Location& location) {
-  DCHECK(caller_task_runner()->BelongsToCurrentThread());
-
-  network_launcher_->Crash(location);
-}
-
 void DaemonProcessWin::LaunchNetworkProcess() {
   DCHECK(caller_task_runner()->BelongsToCurrentThread());
-  DCHECK(!network_launcher_);
 
   // Construct the host binary name.
   base::FilePath host_binary;
@@ -273,33 +211,7 @@ void DaemonProcessWin::LaunchNetworkProcess() {
       io_task_runner(), std::move(target),
       UnprivilegedProcessDelegate::IntegrityLevel::kLow);
 
-  network_launcher_ =
-      std::make_unique<WorkerProcessLauncher>(std::move(delegate), this);
-}
-
-void DaemonProcessWin::SendHostConfigToNetworkProcess(
-    const std::string& serialized_config) {
-  if (!remoting_host_control_) {
-    return;
-  }
-
-  LOG_IF(ERROR, !remoting_host_control_.is_connected())
-      << "IPC channel not connected. HostConfig message will be dropped.";
-
-  std::optional<base::DictValue> config(HostConfigFromJson(serialized_config));
-  if (!config.has_value()) {
-    LOG(ERROR) << "Invalid host config, shutting down.";
-    OnPermanentError(kInvalidHostConfigurationExitCode);
-    return;
-  }
-
-  remoting_host_control_->ApplyHostConfig(std::move(config.value()));
-}
-
-void DaemonProcessWin::SendTerminalDisconnected(int terminal_id) {
-  if (desktop_session_connection_events_) {
-    desktop_session_connection_events_->OnTerminalDisconnected(terminal_id);
-  }
+  SetNetworkLauncherDelegate(std::move(delegate));
 }
 
 std::unique_ptr<DaemonProcess> DaemonProcess::Create(
@@ -341,11 +253,11 @@ bool DaemonProcessWin::InitializePairingRegistry() {
     return false;
   }
 
-  if (!remoting_host_control_) {
+  if (!IsNetworkProcessReady()) {
     return false;
   }
 
-  remoting_host_control_->InitializePairingRegistry(
+  remoting_host_control()->InitializePairingRegistry(
       mojo::PlatformHandle(std::move(privileged_key)),
       mojo::PlatformHandle(std::move(unprivileged_key)));
 
@@ -440,7 +352,7 @@ bool DaemonProcessWin::OpenPairingRegistry() {
 void DaemonProcessWin::BindSessionServices(
     mojo::PendingReceiver<mojom::ChromotingSessionServices> receiver) {
   DCHECK(caller_task_runner()->BelongsToCurrentThread());
-  if (!desktop_session_connection_events_.is_bound()) {
+  if (!IsNetworkProcessReady()) {
     LOG(ERROR) << "Binding rejected. Network process is not ready.";
     return;
   }
@@ -455,7 +367,7 @@ void DaemonProcessWin::BindSessionServices(
       });
 
   if (it != sessions.end()) {
-    desktop_session_connection_events_->OnSessionServicesClientConnected(
+    desktop_session_connection_events()->OnSessionServicesClientConnected(
         (*it)->id(), std::move(receiver));
   } else {
     LOG(WARNING) << "No desktop session found for Windows session ID "

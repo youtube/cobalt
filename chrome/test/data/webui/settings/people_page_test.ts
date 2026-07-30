@@ -350,6 +350,35 @@ suite('SyncStatusTests', function() {
     assertFalse(deleteProfile);
   });
 
+  test('SignOutDialogManagedProfileHtmlEscaping', async function() {
+    loadTimeData.overrideValues({
+      syncDisconnectManagedProfileExplanation: 'Explanation $1',
+    });
+
+    await syncBrowserProxy.whenCalled('getSyncStatus');
+    simulateSyncStatus({
+      signedInState: SignedInState.SYNCING,
+      domain: 'example.com<a href="http://example.com">link</a>',
+      syncSystemEnabled: true,
+      statusAction: StatusAction.NO_ACTION,
+    });
+
+    Router.getInstance().navigateTo(routes.SIGN_OUT);
+    await flushTasks();
+
+    const signoutDialog =
+        peoplePage.shadowRoot!.querySelector('settings-signout-dialog');
+    assertTrue(!!signoutDialog);
+    assertTrue(signoutDialog.$.dialog.open);
+
+    const dialogBody = signoutDialog.shadowRoot!.querySelector('[slot=body]');
+    assertTrue(!!dialogBody);
+    assertEquals(
+        'Explanation example.com<a href="http://example.com">link</a>',
+        dialogBody.textContent);
+    assertFalse(!!dialogBody.querySelector('a'));
+  });
+
   test('getProfileStatsCount', async function() {
     // Navigate to chrome://settings/signOut
     Router.getInstance().navigateTo(routes.SIGN_OUT);
@@ -380,12 +409,6 @@ suite('SyncStatusTests', function() {
         loadTimeData.getStringF(
             'deleteProfileWarningWithCountsPlural', 2, 'fakeUsername'),
         warningMessage.textContent.trim());
-
-    // Close the disconnect dialog.
-    signoutDialog.$.disconnectConfirm.click();
-    await new Promise(function(resolve) {
-      listenOnce(window, 'popstate', resolve);
-    });
   });
 
   test('NavigateDirectlyToSignOutURL', async function() {
@@ -401,13 +424,6 @@ suite('SyncStatusTests', function() {
     // handler if the user navigates directly to
     // chrome://settings/signOut. if so, it should not cause a crash.
     new ProfileInfoBrowserProxyImpl().getProfileStatsCount();
-
-    // Close the disconnect dialog.
-    peoplePage.shadowRoot!.querySelector('settings-signout-dialog')!.$
-        .disconnectConfirm.click();
-    await new Promise(function(resolve) {
-      listenOnce(window, 'popstate', resolve);
-    });
   });
 
   test('Signout dialog suppressed when not signed in', async function() {

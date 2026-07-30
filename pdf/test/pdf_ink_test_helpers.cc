@@ -150,7 +150,8 @@ void PrintTo(const InkTextBoxAttributes& info, std::ostream* os) {
       << SkColorGetB(color) << ", " << SkColorGetA(color) << ")"
       << ",\n  css_font_size=" << info.css_font_size
       << ",\n  typeface=" << typeface << ",\n  alignment=" << alignment
-      << ",\n  orientation=" << info.orientation
+      << ",\n  orientation=" << info.orientation << ",\n  viewport_orientation="
+      << static_cast<int>(info.viewport_orientation)
       << ",\n  is_bold=" << base::ToString(info.is_bold)
       << ",\n  is_italic=" << base::ToString(info.is_italic)
       << ",\n  text=" << info.text << "\n}";

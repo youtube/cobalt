@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/base/directory_listing.h"
+#include "net/base/module/directory_listing.h"
 
 #include "base/byte_count.h"
 #include "base/strings/utf_string_conversions.h"

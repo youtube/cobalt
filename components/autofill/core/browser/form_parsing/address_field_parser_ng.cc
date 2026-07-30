@@ -369,7 +369,7 @@ void AddressFieldParserNG::AddClassifications(
         FieldAndMatchInfo(field_ptr,
                           {.matched_attribute =
                                MatchInfo::MatchAttribute::kHighQualityLabel}),
-        field_type, kBaseAddressParserScore, field_candidates);
+        field_type, HeuristicParser::kAddress, field_candidates);
   }
 }
 

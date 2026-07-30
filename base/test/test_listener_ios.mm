@@ -25,6 +25,13 @@ void IOSRunLoopListener::OnTestEnd(const testing::TestInfo& test_info) {
     // At the end of the test, spin the default loop for a moment.
     NSDate* stop_date = [NSDate dateWithTimeIntervalSinceNow:0.001];
     [NSRunLoop.currentRunLoop runUntilDate:stop_date];
+
+    // Clear NSUserDefaults to prevent state leakage.
+    NSString* bundle_id = [NSBundle mainBundle].bundleIdentifier;
+    if (bundle_id) {
+      [[NSUserDefaults standardUserDefaults]
+          removePersistentDomainForName:bundle_id];
+    }
   }
 }
 

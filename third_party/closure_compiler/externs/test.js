@@ -88,6 +88,26 @@ chrome.test.sendMessage = function(message, callback) {};
 chrome.test.sendScriptResult = function(result, callback) {};
 
 /**
+ * Notifies the browser process that a specific test case in the test code
+ * started running. The chrome.test API uses this internally.
+ * @param {string} testName
+ * @see https://developer.chrome.com/extensions/test#method-notifyTestStarted
+ */
+chrome.test.notifyTestStarted = function(testName) {};
+
+/**
+ * Notifies the browser process that a specific test case in the test code
+ * finished running. The chrome.test API uses this internally.
+ * @param {string} testName
+ * @param {boolean} result
+ * @param {number} remainingTests
+ * @param {string} assertionDescription
+ * @param {string=} message
+ * @see https://developer.chrome.com/extensions/test#method-notifyTestFinished
+ */
+chrome.test.notifyTestFinished = function(testName, result, remainingTests, assertionDescription, message) {};
+
+/**
  * @see https://developer.chrome.com/extensions/test#method-callbackAdded
  */
 chrome.test.callbackAdded = function() {};
@@ -238,15 +258,6 @@ chrome.test.callbackFail = function(expectedError, func) {};
  * @see https://developer.chrome.com/extensions/test#method-runTests
  */
 chrome.test.runTests = function(tests) {};
-
-/**
- * Sets whether to diverge behavior to support the browser.test proposal (true)
- * from
- * (https://github.com/w3c/webextensions/blob/main/proposals/browser_test_api.md) or maintain existing behavior (false). For testing purposes only.
- * @param {boolean} enabled
- * @see https://developer.chrome.com/extensions/test#method-setUseStandardizedApiBehaviorForTesting
- */
-chrome.test.setUseStandardizedApiBehaviorForTesting = function(enabled) {};
 
 /**
  * @see https://developer.chrome.com/extensions/test#method-getApiFeatures

@@ -24,6 +24,7 @@ build_webui("build") {
   mojo_files = [ "$root_gen_dir/chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in.mojom-webui.ts" ]
   ts_definitions = [
     "//tools/typescript/definitions/chrome_event.d.ts",
+    "//tools/typescript/definitions/chrome_histograms.d.ts",
     "//tools/typescript/definitions/webview_tag.d.ts",
   ]
 }

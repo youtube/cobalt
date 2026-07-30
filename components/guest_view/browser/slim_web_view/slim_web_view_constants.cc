@@ -31,6 +31,7 @@ const char kReason[] = "reason";
 const char kRequestId[] = "requestId";
 const char kRequestInfo[] = "requestInfo";
 const char kTargetURL[] = "targetUrl";
+const char kUserAgentOverride[] = "userAgentOverride";
 const char kWindowOpenDisposition[] = "windowOpenDisposition";
 
 }  // namespace guest_view::slim_web_view

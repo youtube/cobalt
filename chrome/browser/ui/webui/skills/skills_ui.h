@@ -11,11 +11,14 @@
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_metrics.h"
 #include "content/public/browser/webui_config.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/mojo_web_ui_controller.h"
+
 namespace skills {
 
 class SkillsPageHandler;
+class SkillsPageHandlerV2;
 class SkillsDialogHandler;
 class SkillsDialogDelegate;
 
@@ -33,6 +36,9 @@ class SkillsUI : public ui::MojoWebUIController,
   // interface passing the pending receiver that will be internally bound.
   void BindInterface(
       mojo::PendingReceiver<skills::mojom::PageHandlerFactory> receiver);
+
+  void BindInterface(
+      mojo::PendingReceiver<skills::mojom::SkillsPageHandler> receiver);
 
   // Initializes the SkillsDialogDelegate and initial skill for the dialog.
   void InitializeDialog(base::WeakPtr<SkillsDialogDelegate> delegate,
@@ -66,6 +72,7 @@ class SkillsUI : public ui::MojoWebUIController,
   Skill initial_skill_;
   mojom::SkillsDialogType dialog_type_;
   std::unique_ptr<SkillsPageHandler> page_handler_;
+  std::unique_ptr<SkillsPageHandlerV2> page_handler_v2_;
   std::unique_ptr<SkillsDialogHandler> dialog_handler_;
   base::WeakPtr<SkillsDialogDelegate> delegate_;
 

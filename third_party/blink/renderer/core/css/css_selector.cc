@@ -297,6 +297,16 @@ inline unsigned CSSSelector::SpecificityForOneSelector() const {
   NOTREACHED();
 }
 
+std::array<uint8_t, 3> CSSSelector::SimpleSelectorSpecificityTuple() const {
+  unsigned specificity = SpecificityForOneSelector();
+
+  uint8_t a = (specificity & kIdMask) >> 16;
+  uint8_t b = (specificity & kClassMask) >> 8;
+  uint8_t c = (specificity & kElementMask);
+
+  return {a, b, c};
+}
+
 unsigned CSSSelector::SpecificityForPage() const {
   // See https://drafts.csswg.org/css-page/#cascading-and-page-context
   unsigned s = 0;
@@ -524,6 +534,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoTextField:
     case kPseudoToolFormActive:
     case kPseudoToolSubmitActive:
+    case kPseudoTriggerLink:
     case kPseudoUnknown:
     case kPseudoUnboundedElementInactive:
     case kPseudoUnparsed:
@@ -720,6 +731,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"target-text", CSSSelector::kPseudoTargetText},
     {"tool-form-active", CSSSelector::kPseudoToolFormActive},
     {"tool-submit-active", CSSSelector::kPseudoToolSubmitActive},
+    {"trigger-link", CSSSelector::kPseudoTriggerLink},
     {"user-invalid", CSSSelector::kPseudoUserInvalid},
     {"user-valid", CSSSelector::kPseudoUserValid},
     {"valid", CSSSelector::kPseudoValid},
@@ -894,6 +906,11 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
 
   if (match->type == CSSSelector::kPseudoExpandIcon &&
       !RuntimeEnabledFeatures::MenuElementsEnabled()) {
+    return CSSSelector::kPseudoUnknown;
+  }
+
+  if (match->type == CSSSelector::kPseudoTriggerLink &&
+      !RuntimeEnabledFeatures::RouteMatchingEnabled()) {
     return CSSSelector::kPseudoUnknown;
   }
 
@@ -1137,6 +1154,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoTargetBefore:
     case kPseudoTargetAfter:
     case kPseudoTextField:
+    case kPseudoTriggerLink:
     case kPseudoUnknown:
     case kPseudoUnparsed:
     case kPseudoUserInvalid:
@@ -1934,6 +1952,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoTextField:
     case kPseudoToolFormActive:
     case kPseudoToolSubmitActive:
+    case kPseudoTriggerLink:
     case kPseudoUnboundedElementInactive:
     case kPseudoVideoPersistent:
     case kPseudoVideoPersistentAncestor:
@@ -2295,6 +2314,7 @@ bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
     case CSSSelector::kPseudoTextField:
     case CSSSelector::kPseudoToolFormActive:
     case CSSSelector::kPseudoToolSubmitActive:
+    case CSSSelector::kPseudoTriggerLink:
     case CSSSelector::kPseudoUserInvalid:
     case CSSSelector::kPseudoUserValid:
     case CSSSelector::kPseudoValid:

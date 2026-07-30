@@ -37,7 +37,6 @@ static_library("sharesheet") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/ash/thumbnail_loader",
     "//chrome/browser/ui/color:color_headers",
-    "//chrome/common",
     "//chromeos/components/sharesheet:constants",
     "//chromeos/constants",
     "//extensions/browser",

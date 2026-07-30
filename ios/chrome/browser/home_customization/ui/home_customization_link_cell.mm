@@ -87,6 +87,9 @@ const CGFloat kVerticalMargin = 8;
     [self.contentView addSubview:_contentStackView];
 
     AddSameConstraints(_contentStackView, self.contentView.layoutMarginsGuide);
+
+    self.isAccessibilityElement = YES;
+    self.accessibilityTraits = UIAccessibilityTraitLink;
   }
   return self;
 }
@@ -99,6 +102,13 @@ const CGFloat kVerticalMargin = 8;
   _title.text = [HomeCustomizationHelper titleForLinkType:type];
   _subtitle.text = [HomeCustomizationHelper subtitleForLinkType:type];
 
+  if (_subtitle.text.length > 0) {
+    self.accessibilityLabel =
+        [NSString stringWithFormat:@"%@, %@", _title.text, _subtitle.text];
+  } else {
+    self.accessibilityLabel = _title.text;
+  }
+
   self.accessibilityIdentifier =
       [HomeCustomizationHelper accessibilityIdentifierForLinkType:type];
 }
@@ -109,6 +119,7 @@ const CGFloat kVerticalMargin = 8;
 - (void)prepareForReuse {
   [super prepareForReuse];
   self.accessibilityIdentifier = nil;
+  self.accessibilityLabel = nil;
   _title.text = nil;
   _subtitle.text = nil;
 }

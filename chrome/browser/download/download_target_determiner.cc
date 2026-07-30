@@ -1183,7 +1183,7 @@ DownloadConfirmationReason DownloadTargetDeterminer::NeedsConfirmation(
   // For everything else, prompting is controlled by the PromptForDownload pref.
   // The user may still be prompted even if this pref is disabled due to, for
   // example, there being an unresolvable filename conflict or the target path
-  // is not writeable, or if the path is blocked by DLP.
+  // is not writable, or if the path is blocked by DLP.
   if (download_prefs_->PromptForDownload()) {
     return DownloadConfirmationReason::PREFERENCE;
   } else {

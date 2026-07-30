@@ -45,13 +45,12 @@ To help make the process of security bug triage as efficient and smooth as
 possible, please consider the following best practices for Chromium security bug
 reports:
 
-* Use the [security bug reporting
-  form](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342)
+* Report issues using [Google Bughunters](https://bughunters.google.com/report/vrp)
+  and select -> Chrome VRP.
   * This will allow the bug report to be included in the security bug triage
     queue immediately.
-* Include the version number and OS used to reproduce the bug. For an [extra
-  bonus reward](https://g.co/chrome/vrp/#bisect-bonus), please consider
-  including a bisection.
+* Include the version number and OS used to reproduce the bug and please
+  consider including a bisection.
 
 ### Proof of Concept (PoC)
 

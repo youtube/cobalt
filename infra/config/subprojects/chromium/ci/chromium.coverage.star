@@ -278,7 +278,6 @@ coverage_builder(
             "emulator-4-cores",
             "linux-jammy",
             "x86-64",
-            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             # Keep this same as android-10-x86-rel

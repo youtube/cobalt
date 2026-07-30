@@ -403,6 +403,7 @@
 <translation id="5234764350956374838">برخاست کریں</translation>
 <translation id="5239627039202700673">‏جب بھی آپ پیغامات، دستاویزات اور دیگر ایپس میں لنکس پر کلک کرتے وقت Chrome استعمال کریں</translation>
 <translation id="5251420635869119124">‏مہمان کسی چیز کو پیچھے چھوڑے بغیر Chrome کو استعمال کر سکتے ہیں۔</translation>
+<translation id="5271833978500241046">‏انہیں Chrome میں Gemini کی دیگر خصوصیات کے ساتھ استعمال کریں</translation>
 <translation id="5286907366254680517">پتا چلا</translation>
 <translation id="5320351714793324716">‏اگر آپ کوکیز کی اجازت دیتے ہیں تو Chrome پیشگی لوڈنگ کے دوران ان کا استعمال کر سکتا ہے</translation>
 <translation id="5321325624576443340">‏‫Google لینز دستیاب نہیں ہے۔ بعد میں دوبارہ کوشش کریں۔</translation>
@@ -441,15 +442,6 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="569897634095159764">انٹرنیٹ سے منسلک ہونے سے قاصر۔ پراکسی سرور کیلئے تصدیق درکار ہے۔</translation>
 <translation id="5709557627224531708">‏Chrome کو اپنے ڈیفالٹ براؤزر کے بطور سیٹ کریں</translation>
 <translation id="5719246646468301581">‏‫Google Chrome اور Chrome OS کی سروس کی اضافی شرائط</translation>
-<translation id="5719324992913248873">‏اس کارروائی سے مندرجہ ذیل ہوگا:
-          <ph name="LINE_BREAKS" />
-           • ‫Chromium کی کچھ ترتیبات اور Chromium شارٹ کٹس ری سیٹ ہو جائیں گے
-           <ph name="LINE_BREAK" />
-           • ایکسٹینشنز غیر فعال ہو جائیں گی
-           <ph name="LINE_BREAK" />
-           • کوکیز اور سائٹ کا دیگر عارضی ڈیٹا حذف ہو جائے گا
-            <ph name="LINE_BREAKS" />
-           بُک مارکس، سرگزشت اور محفوظ کردہ پاس ورڈز متاثر نہیں ہوں گے۔</translation>
 <translation id="5736850870166430177">‏اگر کوئی سائٹ آپ کا پاس ورڈ چرانے کی کوشش کرتی ہے یا جب آپ نقصان دہ فائل ڈاؤن لوڈ کرتے ہیں تو Chrome محفوظ براؤزنگ پر صفحہ کے مواد کے کچھ حصوں سمیت URLs بھی بھیج سکتا ہے</translation>
 <translation id="5756509061973259733">‏اس آلے پر اس اکاؤنٹ کے ساتھ ایک Chrome پروفائل پہلے سے موجود ہے</translation>
 <translation id="5759947850379142561">‏‫Google لینز کے ساتھ تلاش کرنے کیلئے کوئی بھی ٹیکسٹ یا تصویر منتخب کریں یا Google لینز سے باہر نکلنے کیلئے Escape کو دبائیں</translation>
@@ -647,6 +639,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">‏اپنے ڈیٹا کی حفاظت کے لیے، Chrome کو ان سائٹس سے اجازتیں ہٹانے کی اجازت دیں جنہیں آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔</translation>
 <translation id="7629695634924605473">‏Chrome آپ کو بتاتا ہے کہ آیا آپ کے پاس ورڈز کے ساتھ کبھی چھیڑ چھاڑ کی گئی ہے</translation>
+<translation id="7629898584100520089">‏AI اختراعات جیسی مہارتیں آپ کے Google اکاؤنٹ میں محفوظ ہوتی ہیں اور ان کا نظم Chrome Sync سے علیحدہ طور پر کیا جاتا ہے</translation>
 <translation id="7641148173327520642">‏آپ کے سسٹم کے منتظم نے <ph name="TARGET_URL_HOSTNAME" /> تک رسائی حاصل کرنے کیلئے Google Chrome کو <ph name="ALTERNATIVE_BROWSER_NAME" /> کھولنے کیلئے کنفیگر کیا ہے۔</translation>
 <translation id="7649070708921625228">مدد</translation>
 <translation id="7651907282515937834">‏Chrome انٹرپرائز کا لوگو</translation>

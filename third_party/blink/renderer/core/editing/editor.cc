@@ -111,9 +111,9 @@ bool IsInPasswordFieldWithUnrevealedPassword(const Position& position) {
 
 // When an event handler has moved the selection outside of a text control
 // we should use the target control's selection for this editing operation.
-SelectionInDOMTree Editor::SelectionForCommand(Event* event) {
-  const SelectionInDOMTree selection =
-      GetFrameSelection().GetSelectionInDOMTree();
+SelectionInDomTree Editor::SelectionForCommand(Event* event) {
+  const SelectionInDomTree selection =
+      GetFrameSelection().GetSelectionInDomTree();
   if (!event)
     return selection;
   // If the target is a text control, and the current selection is outside of
@@ -127,7 +127,7 @@ SelectionInDOMTree Editor::SelectionForCommand(Event* event) {
   if (!selection.IsNone() &&
       text_control_of_target == text_control_of_selection_start)
     return selection;
-  const SelectionInDOMTree& select = text_control_of_target->Selection();
+  const SelectionInDomTree& select = text_control_of_target->Selection();
   if (select.IsNone())
     return selection;
   return select;
@@ -146,8 +146,10 @@ static bool IsCaretAtStartOfWrappedLine(const FrameSelection& selection) {
   if (!selection.ComputeVisibleSelectionInDomTree().IsCaret()) {
     return false;
   }
-  if (selection.GetSelectionInDOMTree().Affinity() != TextAffinity::kDownstream)
+  if (selection.GetSelectionInDomTree().Affinity() !=
+      TextAffinity::kDownstream) {
     return false;
+  }
   const Position& position =
       selection.ComputeVisibleSelectionInDomTree().Start();
   if (InSameLine(PositionWithAffinity(position, TextAffinity::kUpstream),
@@ -861,7 +863,7 @@ bool Editor::FindString(LocalFrame& frame,
     return false;
 
   frame.Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(EphemeralRange(result_range))
           .Build());
   frame.Selection().RevealSelection();
@@ -995,7 +997,7 @@ void Editor::SyncSelection(SyncCondition force_sync) {
   // https://crbug.com/459123383 .
   if (frame_->Client()) {
     frame_->Client()->DidChangeSelection(
-        !GetFrameSelection().GetSelectionInDOMTree().IsRange(), force_sync);
+        !GetFrameSelection().GetSelectionInDomTree().IsRange(), force_sync);
   }
 }
 

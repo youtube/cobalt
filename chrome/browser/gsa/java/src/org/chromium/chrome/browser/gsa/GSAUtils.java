@@ -11,17 +11,29 @@ import org.chromium.base.PackageUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.externalauth.ExternalAuthUtils;
 
 /** This class provides utilities for the state of Google Search App. */
 @NullMarked
 public class GSAUtils {
     private static final Object sPackageInfoLock = new Object();
     @Nullable private static volatile PackageInfo sPackageInfo;
+    private static boolean sFakePassableGsaEnvironmentForTesting;
 
     public static final String GSA_PACKAGE_NAME = "com.google.android.googlequicksearchbox";
     public static final String GSA_CLASS_NAME =
             "com.google.android.apps.search.googleapp.activity.GoogleAppActivity";
     public static final String VOICE_SEARCH_INTENT_ACTION = "android.intent.action.VOICE_ASSIST";
+
+    /**
+     * If true, short-circuit GSA checks to return a valid environment. Used by test cases.
+     *
+     * @param shouldFake Whether to fake the GSA check.
+     */
+    public static void setFakePassableGsaEnvironmentForTesting(final boolean shouldFake) {
+        sFakePassableGsaEnvironmentForTesting = shouldFake;
+        ResettersForTesting.register(() -> sFakePassableGsaEnvironmentForTesting = false);
+    }
 
     /**
      * @return Whether the given package name is the package name for Google Search App.
@@ -69,6 +81,10 @@ public class GSAUtils {
      * @return The version name of the Agsa package or null if it can't be found.
      */
     public static @Nullable String getAgsaVersionName() {
+        if (sFakePassableGsaEnvironmentForTesting) {
+            // Return a version that is likely to be above any minimums.
+            return "100.0";
+        }
         PackageInfo info = getAgsaPackageInfo();
         return info == null ? null : info.versionName;
     }
@@ -79,8 +95,24 @@ public class GSAUtils {
      * @return Whether the AGSA is enabled
      */
     public static boolean isAgsaEnabled() {
+        if (sFakePassableGsaEnvironmentForTesting) {
+            return true;
+        }
         PackageInfo info = getAgsaPackageInfo();
         return info != null && info.applicationInfo != null && info.applicationInfo.enabled;
+    }
+
+    /**
+     * Checks whether the GSA package on the device is guaranteed to be an official GSA build.
+     *
+     * @return Whether the package is valid.
+     */
+    public static boolean isValidAgsaPackage() {
+        if (sFakePassableGsaEnvironmentForTesting) {
+            return true;
+        }
+
+        return ExternalAuthUtils.getInstance().isGoogleSigned(GSA_PACKAGE_NAME);
     }
 
     @Nullable

@@ -385,7 +385,8 @@ void MaybeRecordSupervisedUserStateMetrics(
       base::StrCat({kChromeSingInInterceptionSupervisionStateHistogramPrefix,
                     DiceWebSigninInterceptorDelegate::GetHistogramSuffix(
                         interception_type)}),
-      CapabilityToSupervisionState(intercepted_account_info.capabilities));
+      CapabilityToSupervisionState(
+          intercepted_account_info.GetAccountCapabilities()));
 }
 
 }  // namespace
@@ -1675,8 +1676,8 @@ bool DiceWebSigninInterceptor::IsFullExtendedAccountInfoAvailable(
   if (!IsRequiredExtendedAccountInfoAvailable(account_info)) {
     return false;
   }
-  return account_info.capabilities.is_subject_to_parental_controls() !=
-         signin::Tribool::kUnknown;
+  return account_info.GetAccountCapabilities()
+             .is_subject_to_parental_controls() != signin::Tribool::kUnknown;
 }
 
 bool DiceWebSigninInterceptor::managed_profile_creation_required_by_policy()

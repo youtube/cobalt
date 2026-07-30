@@ -14,11 +14,6 @@ namespace features {
 BASE_DECLARE_FEATURE(kUseChimeAndroidSdk);
 
 }  // namespace features
-
-namespace switches {
-// Debug flag to show Chime notifications.
-extern const char kDebugChimeNotification[];
-}  // namespace switches
 }  // namespace notifications
 
 #endif  // CHROME_BROWSER_NOTIFICATIONS_CHIME_ANDROID_FEATURES_H_

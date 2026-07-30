@@ -22,10 +22,12 @@ source_set("webauthn") {
 
   if (is_android) {
     public += [
+      "android/cable_module_android.h",
       "android/cable_registration_state.h",
       "android/chrome_webauthn_client_android.h",
       "android/credential_sorter_android.h",
     ]
+
     public_deps += [
       "//chrome/browser/touch_to_fill/password_manager:public",
       "//components/webauthn/android",
@@ -71,6 +73,10 @@ source_set("webauthn") {
       "//crypto",
       "//google_apis",
     ]
+  }
+
+  if (is_mac) {
+    public += [ "chrome_authenticator_request_delegate_mac.h" ]
   }
 }
 

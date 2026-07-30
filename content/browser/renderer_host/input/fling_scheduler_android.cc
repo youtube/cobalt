@@ -15,7 +15,7 @@ namespace content {
 
 FlingSchedulerAndroid::FlingSchedulerAndroid(RenderWidgetHostImpl* host)
     : host_(host) {
-  DCHECK(host);
+  CHECK(host, base::NotFatalUntil::M152);
 }
 
 FlingSchedulerAndroid::~FlingSchedulerAndroid() {
@@ -24,7 +24,7 @@ FlingSchedulerAndroid::~FlingSchedulerAndroid() {
 
 void FlingSchedulerAndroid::ScheduleFlingProgress(
     base::WeakPtr<input::FlingController> fling_controller) {
-  DCHECK(fling_controller);
+  CHECK(fling_controller, base::NotFatalUntil::M152);
   fling_controller_ = fling_controller;
   if (observed_compositor_)
     return;
@@ -50,7 +50,7 @@ void FlingSchedulerAndroid::ScheduleFlingProgress(
 
 void FlingSchedulerAndroid::DidStopFlingingOnBrowser(
     base::WeakPtr<input::FlingController> fling_controller) {
-  DCHECK(fling_controller);
+  CHECK(fling_controller, base::NotFatalUntil::M152);
   RemoveCompositorTick();
   fling_controller_ = nullptr;
   host_->GetRenderInputRouter()->DidStopFlinging();
@@ -163,7 +163,7 @@ void FlingSchedulerAndroid::OnBeginFrame(
     base::TimeTicks frame_begin_time,
     base::TimeDelta frame_interval,
     std::optional<base::TimeTicks> first_coalesced_frame_begin_time) {
-  DCHECK(observed_compositor_);
+  CHECK(observed_compositor_, base::NotFatalUntil::M152);
   if (fling_controller_)
     fling_controller_->ProgressFling(frame_begin_time,
                                      first_coalesced_frame_begin_time);

@@ -107,6 +107,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   void OnBoostForLoadingRemoved() override;
   void OnImmersiveXrSessionStarted() override;
   void OnImmersiveXrSessionStopped() override;
+  bool HasImmersiveXrSessionForTesting() const override;
   StoragePartition* GetStoragePartition() override;
   virtual void AddWord(const std::u16string& word);
   bool Shutdown(int exit_code) override;
@@ -353,6 +354,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   base::Process::Priority priority_;
   bool is_unused_;
   bool is_for_top_chrome_web_ui_ = false;
+  bool has_immersive_xr_session_ = false;
   bool is_ready_ = false;
   base::TimeTicks process_launched_time_;
   base::Process process;

@@ -9,6 +9,10 @@
 
 #include "third_party/blink/public/mojom/payments/payment_request.mojom.h"
 
+namespace url {
+class Origin;
+}
+
 namespace payments {
 
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.payments
@@ -37,6 +41,7 @@ enum class SecurePaymentConfirmationRequestValidationError {
   kValidLogoUrlSchemeRequired,
   kLogoLabelRequired,
   kInternalError,
+  kWebAuthnExtensionsNotSupported,
 };
 
 // Converts a SecurePaymentConfirmationRequestValidationError to a
@@ -49,7 +54,8 @@ std::string SecurePaymentConfirmationRequestValidationErrorToString(
 // specific validation error.
 SecurePaymentConfirmationRequestValidationError
 IsValidSecurePaymentConfirmationRequest(
-    const mojom::SecurePaymentConfirmationRequestPtr& request);
+    const mojom::SecurePaymentConfirmationRequestPtr& request,
+    const url::Origin& initiator_origin);
 
 }  // namespace payments
 

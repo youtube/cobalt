@@ -17,9 +17,12 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_init.h"
 #include "third_party/blink/renderer/core/frame/csp/csp_directive_list.h"
+#include "third_party/blink/renderer/core/frame/csp/csp_hash_report_body.h"
 #include "third_party/blink/renderer/core/frame/csp/test_util.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/report.h"
+#include "third_party/blink/renderer/core/frame/reporting_context.h"
 #include "third_party/blink/renderer/core/html/html_script_element.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
@@ -43,6 +46,25 @@ using network::mojom::ContentSecurityPolicySource;
 using network::mojom::ContentSecurityPolicyType;
 using testing::Contains;
 using testing::SizeIs;
+
+class MockReportingContext : public ReportingContext {
+ public:
+  explicit MockReportingContext(ExecutionContext& ec) : ReportingContext(ec) {}
+
+  void QueueReport(Report* report, const Vector<String>& endpoints) override {
+    reports_.push_back(report);
+  }
+
+  const HeapVector<Member<Report>>& reports() const { return reports_; }
+
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(reports_);
+    ReportingContext::Trace(visitor);
+  }
+
+ private:
+  HeapVector<Member<Report>> reports_;
+};
 
 }  // namespace
 
@@ -1904,6 +1926,52 @@ TEST_F(ContentSecurityPolicyTest, StaticAllowBaseURI) {
           ContentSecurityPolicySource::kHTTP, *secure_origin);
   EXPECT_TRUE(ContentSecurityPolicy::AllowBaseURI(allowed_base, policies));
   EXPECT_FALSE(ContentSecurityPolicy::AllowBaseURI(blocked_base, policies));
+}
+
+// Regression test for crbug.com/513824957.
+TEST_F(ContentSecurityPolicyTest, AddHashReportSanitization) {
+  auto dummy = std::make_unique<DummyPageHolder>();
+  auto* window = dummy->GetFrame().DomWindow();
+  window->GetSecurityContext().SetSecurityOriginForTesting(secure_origin);
+
+  auto* mock_reporting_context =
+      MakeGarbageCollected<MockReportingContext>(*window);
+  Supplement<ExecutionContext>::ProvideTo(*window, mock_reporting_context);
+
+  csp = MakeGarbageCollected<ContentSecurityPolicy>();
+  csp->BindToDelegate(window->GetContentSecurityPolicyDelegate());
+  csp->AddPolicies(ParseContentSecurityPolicies(
+      "script-src 'report-sha256'", ContentSecurityPolicyType::kEnforce,
+      ContentSecurityPolicySource::kHTTP, *secure_origin));
+
+  HashMap<HashAlgorithm, String> hashes;
+  hashes.insert(kHashAlgorithmSha256, "some-hash");
+
+  // An extension URL should be sanitized in the report.
+  KURL extension_url("chrome-extension://abcdefghijklmnop/script.js");
+  csp->AddHashReportIfNeeded(&dummy->GetFrame(), extension_url.GetString(),
+                             hashes);
+
+  EXPECT_EQ(1u, mock_reporting_context->reports().size());
+  Report* report = mock_reporting_context->reports()[0];
+  EXPECT_EQ(ReportType::kCSPHash, report->type());
+
+  CSPHashReportBody* body = static_cast<CSPHashReportBody*>(report->body());
+  // This expectation will FAIL if url is not sanitized.
+  // It should be "chrome-extension" (just the scheme) according to
+  // StripURLForUseInReport.
+  EXPECT_EQ("chrome-extension", body->subresourceURL());
+
+  // A web URL should also be processed (e.g., stripping fragment).
+  KURL web_url("https://example.test/script.js#fragment");
+  csp->AddHashReportIfNeeded(&dummy->GetFrame(), web_url.GetString(), hashes);
+
+  EXPECT_EQ(2u, mock_reporting_context->reports().size());
+  report = mock_reporting_context->reports()[1];
+  body = static_cast<CSPHashReportBody*>(report->body());
+  // This expectation will also FAIL if url is not sanitized (fragment will
+  // remain).
+  EXPECT_EQ("https://example.test/script.js", body->subresourceURL());
 }
 
 }  // namespace blink

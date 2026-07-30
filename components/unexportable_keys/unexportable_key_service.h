@@ -14,6 +14,10 @@
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "crypto/signature_verifier.h"
 
+namespace crypto {
+struct AttestationStatement;
+}  // namespace crypto
+
 namespace unexportable_keys {
 
 // Service providing access to `UnexportableSigningKey`s and
@@ -182,6 +186,20 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) UnexportableKeyService {
       base::span<const uint8_t> data,
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)>
+          callback) = 0;
+
+  // Asynchronously certifies `signing_key_id` with `attestation_key_id` and
+  // `challenge`.
+  // Invokes `callback` with either:
+  // - attestation statement if the certification was successful, or
+  // - `ServiceError` if the keys are not found or if there was a certification
+  //   error.
+  virtual void CertifySlowlyAsync(
+      UnexportableAttestationKeyId attestation_key_id,
+      UnexportableSigningKeyId signing_key_id,
+      base::span<const uint8_t> challenge,
+      BackgroundTaskPriority priority,
+      base::OnceCallback<void(ServiceErrorOr<crypto::AttestationStatement>)>
           callback) = 0;
 
   // Deletes a collection of keys.

@@ -235,7 +235,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.LongScreenshots.MemoryLimitOnCapture" units="%"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>jhimawan@google.com</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -290,7 +290,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sharing.ScrollCapture.BitmapGeneratorStatus"
     enum="SharingScrollCaptureBitmapGenerationStatus"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>ckitagawa@chromium.org</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -302,7 +302,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.ScrollCapture.MemoryPressureOnSearch"
-    enum="MemoryPressureLevel" expires_after="2026-10-01">
+    enum="MemoryPressureLevel" expires_after="2026-12-06">
   <owner>jhimawan@google.com</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -379,6 +379,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sharing.SendTabToSelf.AndroidDevicePickerTargetCount"
+    units="devices" expires_after="2027-06-16">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The number of target devices shown in the Android device picker UI. Recorded
+    when the device picker bottom sheet is shown to the user.
+  </summary>
+</histogram>
+
 <histogram name="Sharing.SendTabToSelf.AutoOpenOutcome"
     enum="SendTabToSelfAutoOpenOutcome" expires_after="2027-03-30">
   <owner>ankushkush@google.com</owner>
@@ -387,6 +397,18 @@ chromium-metrics-reviews@google.com.
     Outcome of an attempt to automatically open a received Send Tab To Self
     entry in the foreground. Recorded whenever a new entry is received and
     evaluated for auto-opening.
+  </summary>
+</histogram>
+
+<histogram name="Sharing.SendTabToSelf.DeviceFormFactorCombination"
+    enum="SendTabToSelfFormFactorCombination" expires_after="2027-06-15">
+  <owner>treib@chromium.org</owner>
+  <owner>ankushkush@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the form factor combination of the sending (local) device and the
+    target (destination) device when a tab is sent. Recorded on the sending
+    device at the moment the tab is sent.
   </summary>
 </histogram>
 
@@ -519,7 +541,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sharing.ShareSheetLongScreenshots.BitmapGeneratorStatus"
     enum="SharingShareSheetLongScreenshotsBitmapGenerationStatus"
-    expires_after="2026-10-01">
+    expires_after="2026-12-06">
   <owner>jhimawan@google.com</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>

@@ -266,7 +266,7 @@ TEST_F(PerUserStateManagerChromeOSTest, UserIdErasedWhenConsentTurnedOff) {
   // finishes.
   RunUntilIdle();
 
-  GetPerUserStateManager()->SetCurrentUserMetricsConsent(false);
+  GetPerUserStateManager()->SetCurrentUserMetricsChoice(false);
 
   EXPECT_FALSE(
       GetTestProfile()->GetPrefs()->GetBoolean(prefs::kMetricsUserConsent));
@@ -297,7 +297,7 @@ TEST_F(PerUserStateManagerChromeOSTest,
   // finishes.
   RunUntilIdle();
 
-  GetPerUserStateManager()->SetCurrentUserMetricsConsent(true);
+  GetPerUserStateManager()->SetCurrentUserMetricsChoice(true);
 
   EXPECT_TRUE(
       GetTestProfile()->GetPrefs()->GetBoolean(prefs::kMetricsUserConsent));
@@ -324,7 +324,7 @@ TEST_F(PerUserStateManagerChromeOSTest,
   // finishes.
   RunUntilIdle();
 
-  GetPerUserStateManager()->SetCurrentUserMetricsConsent(true);
+  GetPerUserStateManager()->SetCurrentUserMetricsChoice(true);
 
   EXPECT_TRUE(
       GetTestProfile()->GetPrefs()->GetBoolean(prefs::kMetricsUserConsent));
@@ -354,7 +354,7 @@ TEST_F(PerUserStateManagerChromeOSTest,
 
   // Consent set by guest during OOBE.
   EXPECT_TRUE(GetPerUserStateManager()
-                  ->GetCurrentUserReportingConsentIfApplicable()
+                  ->GetCurrentUserReportingChoiceIfApplicable()
                   .has_value());
 
   // Ensure state has been reset.
@@ -369,8 +369,7 @@ TEST_F(PerUserStateManagerChromeOSTest,
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
 
   // Guest user can always change consent.
-  EXPECT_TRUE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(guest_user));
+  EXPECT_TRUE(GetPerUserStateManager()->IsUserAllowedToChoose(guest_user));
 }
 
 TEST_F(PerUserStateManagerChromeOSTest,
@@ -401,10 +400,9 @@ TEST_F(PerUserStateManagerChromeOSTest,
   RunUntilIdle();
 
   // Child user reporting can be changed as it's the parental OOBE flow.
-  EXPECT_TRUE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(child_user));
+  EXPECT_TRUE(GetPerUserStateManager()->IsUserAllowedToChoose(child_user));
   EXPECT_FALSE(GetPerUserStateManager()
-                   ->GetCurrentUserReportingConsentIfApplicable()
+                   ->GetCurrentUserReportingChoiceIfApplicable()
                    .value());
 }
 
@@ -436,10 +434,9 @@ TEST_F(PerUserStateManagerChromeOSTest,
   RunUntilIdle();
 
   // Child user reporting can be changed as it's the parental OOBE flow.
-  EXPECT_TRUE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(child_user));
+  EXPECT_TRUE(GetPerUserStateManager()->IsUserAllowedToChoose(child_user));
   EXPECT_FALSE(GetPerUserStateManager()
-                   ->GetCurrentUserReportingConsentIfApplicable()
+                   ->GetCurrentUserReportingChoiceIfApplicable()
                    .value());
 }
 
@@ -473,8 +470,7 @@ TEST_F(PerUserStateManagerChromeOSTest,
 
   // Secondary user reporting consent can be changed even with device owner
   // consent disabled.
-  EXPECT_TRUE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(secondary_user));
+  EXPECT_TRUE(GetPerUserStateManager()->IsUserAllowedToChoose(secondary_user));
 
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
 }
@@ -496,11 +492,11 @@ TEST_F(PerUserStateManagerChromeOSTest, MultiUserUsesPrimaryUser) {
   // finishes.
   RunUntilIdle();
 
-  GetPerUserStateManager()->SetCurrentUserMetricsConsent(true);
+  GetPerUserStateManager()->SetCurrentUserMetricsChoice(true);
 
   // User consent should be set to true.
   EXPECT_TRUE(GetPerUserStateManager()
-                  ->GetCurrentUserReportingConsentIfApplicable()
+                  ->GetCurrentUserReportingChoiceIfApplicable()
                   .has_value());
 
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
@@ -523,7 +519,7 @@ TEST_F(PerUserStateManagerChromeOSTest, MultiUserUsesPrimaryUser) {
   // User consent should still be true since that's the value of the primary
   // user.
   EXPECT_TRUE(GetPerUserStateManager()
-                  ->GetCurrentUserReportingConsentIfApplicable()
+                  ->GetCurrentUserReportingChoiceIfApplicable()
                   .has_value());
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
 
@@ -534,7 +530,7 @@ TEST_F(PerUserStateManagerChromeOSTest, MultiUserUsesPrimaryUser) {
   // User consent should still be true since that's the value of the primary
   // user.
   EXPECT_TRUE(GetPerUserStateManager()
-                  ->GetCurrentUserReportingConsentIfApplicable()
+                  ->GetCurrentUserReportingChoiceIfApplicable()
                   .has_value());
 }
 
@@ -553,7 +549,7 @@ TEST_F(PerUserStateManagerChromeOSTest,
 
   // Per-user should not run if ownership status is unknown.
   EXPECT_FALSE(GetPerUserStateManager()
-                   ->GetCurrentUserReportingConsentIfApplicable()
+                   ->GetCurrentUserReportingChoiceIfApplicable()
                    .has_value());
   EXPECT_FALSE(GetPerUserStateManager()->is_log_store_set());
 }
@@ -574,15 +570,14 @@ TEST_F(PerUserStateManagerChromeOSTest, PerUserDisabledForDeviceOwner) {
 
   // Owner should not have a consent.
   EXPECT_FALSE(GetPerUserStateManager()
-                   ->GetCurrentUserReportingConsentIfApplicable()
+                   ->GetCurrentUserReportingChoiceIfApplicable()
                    .has_value());
 
   // Log store uses ephemeral partition regardless of device owner consent.
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
 
   // Device owner cannot change per user consent.
-  EXPECT_FALSE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(owner_user));
+  EXPECT_FALSE(GetPerUserStateManager()->IsUserAllowedToChoose(owner_user));
 }
 
 TEST_F(PerUserStateManagerChromeOSTest,
@@ -605,11 +600,10 @@ TEST_F(PerUserStateManagerChromeOSTest,
   // Per-user should not run if ownership status is none.
   // We assume this device is likely the owner if it's not a guest user.
   EXPECT_FALSE(GetPerUserStateManager()
-                   ->GetCurrentUserReportingConsentIfApplicable()
+                   ->GetCurrentUserReportingChoiceIfApplicable()
                    .has_value());
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
-  EXPECT_FALSE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(test_user));
+  EXPECT_FALSE(GetPerUserStateManager()->IsUserAllowedToChoose(test_user));
 }
 
 TEST_F(PerUserStateManagerChromeOSTest, PerUserEnabledWhenGuestOnNewDevice) {
@@ -631,11 +625,10 @@ TEST_F(PerUserStateManagerChromeOSTest, PerUserEnabledWhenGuestOnNewDevice) {
   // Per-user should not run if ownership status is none.
   // We assume this device is likely the owner if it's not a guest user.
   EXPECT_TRUE(GetPerUserStateManager()
-                  ->GetCurrentUserReportingConsentIfApplicable()
+                  ->GetCurrentUserReportingChoiceIfApplicable()
                   .has_value());
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
-  EXPECT_TRUE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(guest_user));
+  EXPECT_TRUE(GetPerUserStateManager()->IsUserAllowedToChoose(guest_user));
 }
 
 TEST_F(PerUserStateManagerChromeOSTest, PerUserDisabledWhenDeviceIsManaged) {
@@ -656,11 +649,10 @@ TEST_F(PerUserStateManagerChromeOSTest, PerUserDisabledWhenDeviceIsManaged) {
 
   // Per-user should not run if ownership status is unknown.
   EXPECT_FALSE(GetPerUserStateManager()
-                   ->GetCurrentUserReportingConsentIfApplicable()
+                   ->GetCurrentUserReportingChoiceIfApplicable()
                    .has_value());
   EXPECT_TRUE(GetPerUserStateManager()->is_log_store_set());
-  EXPECT_FALSE(
-      GetPerUserStateManager()->IsUserAllowedToChangeConsent(test_user));
+  EXPECT_FALSE(GetPerUserStateManager()->IsUserAllowedToChoose(test_user));
 }
 
 }  // namespace metrics

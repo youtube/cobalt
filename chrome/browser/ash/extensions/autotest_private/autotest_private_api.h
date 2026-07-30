@@ -22,7 +22,7 @@
 #include "chrome/browser/ash/bruschetta/bruschetta_installer.h"
 #include "chrome/browser/ash/printing/cups_printers_manager.h"
 #include "chrome/browser/platform_util.h"
-#include "chrome/browser/ui/views/web_apps/web_app_testing_flags.h"
+#include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/common/extensions/api/autotest_private.h"
 #include "chromeos/ash/experiences/arc/mojom/power.mojom.h"
 #include "chromeos/ash/experiences/arc/mojom/process.mojom.h"
@@ -1132,7 +1132,8 @@ class AutotestPrivateInstallPWAForCurrentURLFunction
   std::unique_ptr<PWABannerObserver> banner_observer_;
   std::unique_ptr<PWAInstallManagerObserver> install_mananger_observer_;
   base::OneShotTimer timeout_timer_;
-  base::AutoReset<bool> auto_accept_pwa_install_confirmation_;
+  base::AutoReset<web_app::InstallDialogTestResponse>
+      auto_accept_pwa_install_confirmation_;
 };
 
 class AutotestPrivateActivateAcceleratorFunction : public ExtensionFunction {

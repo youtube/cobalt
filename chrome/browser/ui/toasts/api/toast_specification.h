@@ -48,6 +48,10 @@ class ToastSpecification {
     // dismiss.
     Builder& AddGlobalScoped();
 
+    // Adds a property to allow tab-scoped toasts to survive navigation
+    // events (like form submissions).
+    Builder& SetPersistOnNavigation();
+
     // Explicitly marks this toast as an actionable toast (allows the user to
     // interact with it in some way).
     // NOTE: Only use this for toasts that do not have actionable buttons /
@@ -82,6 +86,7 @@ class ToastSpecification {
 
   bool has_menu() const { return has_menu_; }
   bool is_global_scope() const { return is_global_scope_; }
+  bool persist_on_navigation() const { return persist_on_navigation_; }
   bool is_actionable() const {
     return has_close_button() || has_menu() || has_actionable_override();
   }
@@ -91,6 +96,7 @@ class ToastSpecification {
   void AddActionButton(int string_id, base::RepeatingClosure closure);
   void AddMenu();
   void AddGlobalScope();
+  void SetPersistOnNavigation();
   void SetToastAsActionable();
 
  private:
@@ -101,6 +107,7 @@ class ToastSpecification {
   std::optional<int> action_button_string_id_;
   base::RepeatingClosure action_button_closure_;
   bool is_global_scope_ = false;
+  bool persist_on_navigation_ = false;
   bool actionable_toast_override_ = false;
 };
 

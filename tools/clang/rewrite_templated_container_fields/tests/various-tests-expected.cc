@@ -557,13 +557,13 @@ class A {
  public:
   A(const std::vector<T*>& arg) : v(arg) {}
 
-  virtual const std::vector<T*>& get() {
+  virtual const std::vector<raw_ptr<T>>& get() {
     do_something(v);
     return v;
   }
 
  protected:
-  std::vector<T*> v;
+  std::vector<raw_ptr<T>> v;
 };
 
 void fctttttt() {

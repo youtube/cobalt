@@ -82,6 +82,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/mock_translate_driver.h"
 #include "components/ukm/test_ukm_recorder.h"
@@ -198,6 +199,11 @@ class TestAutofillClientTemplate : public T {
     personal_context_access_manager_ = personal_context_access_manager;
   }
 
+  const subscription_eligibility::SubscriptionEligibilityService*
+  GetSubscriptionEligibilityService() const override {
+    return &subscription_eligibility_service_;
+  }
+
   consent_auditor::ConsentAuditor* GetConsentAuditor() override {
     if (!consent_auditor_) {
       consent_auditor_ =
@@ -240,7 +246,7 @@ class TestAutofillClientTemplate : public T {
   }
 
   PasswordManagerDelegate* GetPasswordManagerDelegate(
-      const autofill::FieldGlobalId& field_id) override {
+      const FieldGlobalId& field_id) override {
     return password_manager_delegate_.get();
   }
 
@@ -516,6 +522,12 @@ class TestAutofillClientTemplate : public T {
   void set_should_show_personal_context_autofill_notice(bool should_show) {
     should_show_personal_context_autofill_notice_ = should_show;
   }
+  void MarkPersonalContextInAutofillNoticeAsAcknowledged() override {
+    is_personal_context_notice_acknowledged_ = true;
+  }
+  bool is_personal_context_notice_acknowledged() const {
+    return is_personal_context_notice_acknowledged_;
+  }
 
   void SetAutofillProfileEnabled(bool autofill_profile_enabled) {
     autofill_profile_enabled_ = autofill_profile_enabled;
@@ -558,7 +570,7 @@ class TestAutofillClientTemplate : public T {
         GetIdentityManager()->GetPrimaryAccountInfo(
             signin::ConsentLevel::kSignin));
     CHECK(!account_info.account_id.empty());
-    AccountCapabilitiesTestMutator(&account_info.capabilities)
+    AccountCapabilitiesTestMutator(&account_info)
         .set_can_use_model_execution_features(can_use_model_execution);
     signin::UpdateAccountInfoForAccount(GetIdentityManager(), account_info);
   }
@@ -774,7 +786,9 @@ class TestAutofillClientTemplate : public T {
   bool wallet_public_pass_storage_enabled_ = true;
 
   std::unique_ptr<test::AutofillTestingPrefService> prefs_ =
-      autofill::test::PrefServiceForTesting();
+      test::PrefServiceForTesting();
+  subscription_eligibility::SubscriptionEligibilityService
+      subscription_eligibility_service_{GetPrefs()};
   std::unique_ptr<TestStrikeDatabase> test_strike_database_;
 
   std::unique_ptr<TestPersonalDataManager> test_personal_data_manager_;
@@ -817,6 +831,7 @@ class TestAutofillClientTemplate : public T {
   bool is_tab_in_actor_mode_ = false;
 
   bool should_show_personal_context_autofill_notice_ = false;
+  bool is_personal_context_notice_acknowledged_ = false;
 
   SuggestionHidingReason popup_hidden_reason_;
 

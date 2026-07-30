@@ -158,10 +158,10 @@ ProfileCustomizationUI::GetProfileCustomizationHandlerForTesting() {
 }
 
 void ProfileCustomizationUI::CreateThemeColorPickerHandler(
-    mojo::PendingReceiver<theme_color_picker::mojom::ThemeColorPickerHandler>
-        handler,
     mojo::PendingRemote<theme_color_picker::mojom::ThemeColorPickerClient>
-        client) {
+        client,
+    mojo::PendingReceiver<theme_color_picker::mojom::ThemeColorPickerHandler>
+        handler) {
   theme_color_picker_handler_ = std::make_unique<ThemeColorPickerHandler>(
       std::move(handler), std::move(client),
       NtpCustomBackgroundServiceFactory::GetForProfile(

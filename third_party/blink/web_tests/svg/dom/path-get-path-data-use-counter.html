@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>SVGPathElement.getPathData() use counter</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg>
+  <path id="path" d="M 0 0 L 10 10"/>
+</svg>
+<script>
+// Must match WebFeature values in
+// third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.
+const kSVGPathElementGetPathData = 5927;
+const kSVGPathElementGetPathDataNormalized = 5928;
+
+function setup() {
+  assert_true(!!window.internals,
+              'window.internals is required for this test');
+  assert_true('getPathData' in SVGPathElement.prototype,
+              'SVGPathDataAPI must be enabled for this test to run');
+  internals.clearUseCounter(document, kSVGPathElementGetPathData);
+  internals.clearUseCounter(document, kSVGPathElementGetPathDataNormalized);
+}
+
+test(() => {
+  setup();
+  path.getPathData();
+  assert_true(
+      internals.isUseCounted(document, kSVGPathElementGetPathData),
+      'getPathData() should trigger SVGPathElementGetPathData');
+  assert_false(
+      internals.isUseCounted(document, kSVGPathElementGetPathDataNormalized),
+      'getPathData() should not trigger SVGPathElementGetPathDataNormalized');
+}, 'getPathData() triggers SVGPathElementGetPathData only');
+
+test(() => {
+  setup();
+  path.getPathData({ normalize: true });
+  assert_true(
+      internals.isUseCounted(document, kSVGPathElementGetPathData),
+      'getPathData({normalize:true}) should trigger SVGPathElementGetPathData');
+  assert_true(
+      internals.isUseCounted(document, kSVGPathElementGetPathDataNormalized),
+      'getPathData({normalize:true}) should trigger ' +
+          'SVGPathElementGetPathDataNormalized');
+}, 'getPathData({normalize: true}) triggers both counters');
+
+test(() => {
+  setup();
+  path.getPathData({ normalize: false });
+  assert_true(
+      internals.isUseCounted(document, kSVGPathElementGetPathData),
+      'getPathData({normalize:false}) should trigger SVGPathElementGetPathData');
+  assert_false(
+      internals.isUseCounted(document, kSVGPathElementGetPathDataNormalized),
+      'getPathData({normalize:false}) should not trigger ' +
+          'SVGPathElementGetPathDataNormalized');
+}, 'getPathData({normalize: false}) triggers SVGPathElementGetPathData only');
+</script>

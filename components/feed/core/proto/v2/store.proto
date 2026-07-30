@@ -36,6 +36,8 @@ message Record {
     DocView doc_view = 11;
   }
   reserved 7, 8, 9, 10;
+  reserved "subscribed_web_feeds", "recommended_web_feed",
+      "recommended_web_feed_index", "pending_web_feed_operation";
 }
 
 // List of the hashes for all the contents in a collection (carousel, list,
@@ -87,8 +89,7 @@ message Metadata {
   // Metadata about a specific stream.
   message StreamMetadata {
     string stream_key = 1;
-    // Whether the stream data is known to be stale. This can happen in the
-    // WebFeed stream if the subscription list changes.
+    // Whether the stream data is known to be stale.
     bool is_known_stale = 3;
     // If this stream has been viewed before, this is the list of content in the
     // stream (`StreamData.content_hashes`). This is used to determine whether
@@ -144,6 +145,7 @@ message Metadata {
   bytes feed_launch_cui_metadata = 12;
 
   reserved 9, 10;
+  reserved "followed_from_web_page_menu_count";
 }
 
 // A set of StreamStructures that should be applied to a stream.

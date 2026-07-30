@@ -277,6 +277,8 @@ class FakeServer : public syncer::LoopbackServer::ObserverForTests {
 
   void TriggerMigrationDoneError(syncer::DataTypeSet types);
 
+  void EnableGcDirectiveForMigration();
+
   int GetMigrationVersion(syncer::DataType type) const;
 
   static int GetProgressMarkerMigrationVersion(

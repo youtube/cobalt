@@ -36,7 +36,7 @@ class SaveUpdateAddressProfilePromptController {
  public:
   SaveUpdateAddressProfilePromptController(
       std::unique_ptr<SaveUpdateAddressProfilePromptView> prompt_view,
-      autofill::PersonalDataManager* personal_data,
+      PersonalDataManager* personal_data,
       const AutofillProfile& profile,
       const AutofillProfile* original_profile,
       SaveUpdateAddressProfilePromptMode prompt_mode,
@@ -93,7 +93,7 @@ class SaveUpdateAddressProfilePromptController {
   // tab the prompt will be displayed in. The lifetime of this object is
   // constrained with the lifetime of the tab's web content, which owns the
   // corresponding personal data manager.
-  raw_ptr<autofill::PersonalDataManager> personal_data_;
+  raw_ptr<PersonalDataManager> personal_data_;
   // The profile which is being confirmed by the user.
   AutofillProfile profile_;
   // The profile (if exists) which will be updated if the user confirms.

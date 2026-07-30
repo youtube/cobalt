@@ -77,7 +77,7 @@ class CORE_EXPORT PseudoElement : public Element {
   // display:inline. Scroll marker pseudo-elements may need to blockify the
   // display type (depending on the parent). Returns nullptr if no adjustment is
   // necessary.
-  const ComputedStyle* AdjustedLayoutStyle(
+  virtual const ComputedStyle* AdjustedLayoutStyle(
       const ComputedStyle& style,
       const ComputedStyle& layout_parent_style);
 

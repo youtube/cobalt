@@ -1,0 +1,7 @@
+monorail: {
+  component: "Blink>Agentic Platform>WebMCP"
+}
+team_email: "agentic-web-platform-team@google.com"
+buganizer_public: {
+  component_id: 2021259
+}

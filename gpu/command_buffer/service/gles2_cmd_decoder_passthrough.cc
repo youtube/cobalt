@@ -2617,7 +2617,8 @@ void GLES2DecoderPassthroughImpl::ProcessDescheduleUntilFinished() {
 
   TRACE_EVENT_END(
       "cc", /*"GLES2DecoderPassthroughImpl::DescheduleUntilFinished"*/
-      perfetto::Track::FromPointer(this));
+      perfetto::NamedTrack::FromPointer(
+          "gpu::gles2::GLES2DecoderPassthroughImpl", this));
   deschedule_until_finished_fences_.pop_front();
   client()->OnRescheduleAfterFinished();
 }

@@ -29,6 +29,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.ListObservable.ListObserver;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
 /**
  * Empty coordinator that is responsible for showing an empty state view in tab switcher when we are
@@ -46,13 +47,7 @@ class TabListEmptyCoordinator {
     private final ListObserver<Void> mListObserver;
     private final Callback<Runnable> mRunOnItemAnimatorFinished;
     private final OnLayoutChangeListener mLayoutChangeListener =
-            (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                boolean heightChanged = (bottom - top) != (oldBottom - oldTop);
-                boolean widthChanged = (right - left) != (oldRight - oldLeft);
-                if (heightChanged || widthChanged) {
-                    fixMargins();
-                }
-            };
+            CommonOnLayoutChangeListeners.createSizeChangedListener(this::fixMargins);
 
     private @Nullable ViewGroup mEmptyView;
     private TextView mEmptyStateHeading;

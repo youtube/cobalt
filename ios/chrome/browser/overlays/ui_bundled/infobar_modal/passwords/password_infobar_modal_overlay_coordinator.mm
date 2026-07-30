@@ -9,6 +9,9 @@
 #import "ios/chrome/browser/overlays/model/public/default/default_infobar_overlay_request_config.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_modal/infobar_modal_overlay_coordinator+modal_configuration.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_modal/passwords/password_infobar_modal_overlay_mediator.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 
 @interface PasswordInfobarModalOverlayCoordinator ()
 // Redefine ModalConfiguration properties as readwrite.
@@ -41,9 +44,12 @@
 - (void)configureModal {
   DCHECK(!self.modalMediator);
   DCHECK(!self.modalViewController);
+  id<SettingsCommands> settingsCommandHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), SettingsCommands);
   PasswordInfobarModalOverlayMediator* modalMediator =
       [[PasswordInfobarModalOverlayMediator alloc]
-          initWithRequest:self.request];
+                 initWithRequest:self.request
+          settingsCommandHandler:settingsCommandHandler];
   InfobarPasswordContainerViewController* modalViewController =
       [[InfobarPasswordContainerViewController alloc]
           initWithDelegate:modalMediator

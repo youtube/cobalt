@@ -7,6 +7,9 @@
 
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_step_eligibility_checker.h"
 
+inline constexpr char kFeatureShowcasePasswordManagerStepIdentifier[] =
+    "password-manager";
+
 class PasswordManagerFeatureShowcaseEligibilityChecker
     : public FeatureShowcaseStepEligibilityChecker {
  public:

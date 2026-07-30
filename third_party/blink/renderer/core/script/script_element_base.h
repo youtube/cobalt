@@ -35,7 +35,6 @@ namespace blink {
 class Document;
 class Element;
 class ExecutionContext;
-class HTMLScriptElementOrSVGScriptElement;
 class ScriptLoader;
 
 ScriptLoader* ScriptLoaderFromElement(Element*);

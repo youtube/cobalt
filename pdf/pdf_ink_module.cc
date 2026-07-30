@@ -188,14 +188,18 @@ InkTextBoxAttributes GetTextBoxAttributesFromDict(const base::DictValue& data) {
   CHECK_GE(orientation, 0);
   CHECK_LE(orientation, 3);
 
+  PageOrientation viewport_orientation =
+      PageOrientationFromClockwiseRotationSteps(
+          data.FindInt("viewportOrientation").value());
+
   const base::DictValue& styles = *text_attributes.FindDict("styles");
   bool is_bold = styles.FindBool("bold").value();
   bool is_italic = styles.FindBool("italic").value();
 
-  return InkTextBoxAttributes(textbox, GetColorFromDict(text_attributes),
-                              css_font_size, typeface, alignment, orientation,
-                              /*is_bold=*/is_bold, /*is_italic=*/is_italic,
-                              *data.FindString("text"));
+  return InkTextBoxAttributes(
+      textbox, GetColorFromDict(text_attributes), css_font_size, typeface,
+      alignment, orientation, viewport_orientation,
+      /*is_bold=*/is_bold, /*is_italic=*/is_italic, *data.FindString("text"));
 }
 
 ink::Rect GetEraserRect(const gfx::PointF& center) {
@@ -1480,7 +1484,10 @@ void PdfInkModule::HandleGetAllTextAnnotationsMessage(
               .Set("text", item.attributes.text)
               .Set("textAttributes", std::move(text_attributes))
               .Set("textBoxRect", std::move(textbox_rect))
-              .Set("textOrientation", item.attributes.orientation));
+              .Set("textOrientation", item.attributes.orientation)
+              .Set("viewportOrientation",
+                   GetClockwiseRotationSteps(
+                       item.attributes.viewport_orientation)));
 
       ++frontend_id;
     }

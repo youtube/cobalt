@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "components/omnibox/browser/vector_icons.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -35,7 +36,8 @@ namespace autofill {
 PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
                                        Delegate& delegate,
                                        bool show_indicator,
-                                       bool is_loading)
+                                       bool is_loading,
+                                       bool show_search_icon_sparkle)
     : delegate_(delegate) {
   ChromeLayoutProvider* layout_provider = ChromeLayoutProvider::Get();
 
@@ -51,12 +53,17 @@ PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
   int icon_size = layout_provider->GetDistanceMetric(
       views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE);
 
-  search_icon_ = AddChildView(
-      std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
-          ::features::IsRoundedIconsEnabled()
-              ? vector_icons::kSearchIcon
-              : vector_icons::kSearchChromeRefreshOldIcon,
-          ui::kColorIcon, icon_size)));
+  const gfx::VectorIcon* icon = nullptr;
+  if (show_search_icon_sparkle) {
+    icon = &omnibox::kSearchSparkIcon;
+  } else {
+    icon = features::IsRoundedIconsEnabled()
+               ? &vector_icons::kSearchIcon
+               : &vector_icons::kSearchChromeRefreshOldIcon;
+  }
+
+  search_icon_ = AddChildView(std::make_unique<views::ImageView>(
+      ui::ImageModel::FromVectorIcon(*icon, ui::kColorIcon, icon_size)));
 
   throbber_ = AddChildView(std::make_unique<views::Throbber>(icon_size));
   SetLoading(is_loading);

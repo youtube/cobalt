@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
+import {PinnedToolbarAction} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import type {PinnedToolbarActionsElement} from './pinned_toolbar_actions.js';
-import {PinnedToolbarAction} from './toolbar_ui_api_data_model.mojom-webui.js';
 
 export function getHtml(this: PinnedToolbarActionsElement) {
   // clang-format off

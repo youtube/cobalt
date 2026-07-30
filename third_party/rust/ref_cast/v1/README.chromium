@@ -1,0 +1,11 @@
+Name: ref-cast
+URL: https://crates.io/crates/ref-cast
+Version: 1.0.25
+Revision: 8cea9d561e44ec4ebaf4de1ba64bedfdf2944138
+Update Mechanism: Manual (https://crbug.com/449898466)
+License: Apache-2.0
+License File: //third_party/rust/chromium_crates_io/vendor/ref-cast-v1/LICENSE-APACHE
+Shipped: yes
+Security Critical: yes
+
+Description: Safely cast &T to &U where the struct U contains a single field of type T.

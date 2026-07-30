@@ -39,55 +39,57 @@ extension ILType {
         withProperties: ["type", "id", "name", "icon", "password", "federation"])
 }
 
-private let credentialManager = ObjectGroup(
-    name: MojoStrings.credentialManager,
-    instanceType: .jsCredentialManager,
-    properties: [
-        "$interfaceName": .string
-    ],
-    methods: [
-        "getRemote": [] => .jsCredentialManagerRemote
-    ]
-)
+extension ObjectGroup {
+    fileprivate static let credentialManager = ObjectGroup(
+        name: MojoStrings.credentialManager,
+        instanceType: .jsCredentialManager,
+        properties: [
+            "$interfaceName": .string
+        ],
+        methods: [
+            "getRemote": [] => .jsCredentialManagerRemote
+        ]
+    )
 
-private let credentialManagerRemote = ObjectGroup(
-    name: MojoStrings.credentialManagerRemote,
-    instanceType: .jsCredentialManagerRemote,
-    properties: [
-        "$": .jsCredentialManagerRemoteWrapper
-    ],
-    methods: [
-        "preventSilentAccess": [] => .jsPromise,
-        "store": [.plain(.jsCredentialInfo)] => .jsPromise,
-        "get": [
-            .plain(.jsCredentialMediationRequirement), .boolean, .plain(.jsUrlArray),
-        ] => .jsPromise,
-    ]
-)
+    fileprivate static let credentialManagerRemote = ObjectGroup(
+        name: MojoStrings.credentialManagerRemote,
+        instanceType: .jsCredentialManagerRemote,
+        properties: [
+            "$": .jsCredentialManagerRemoteWrapper
+        ],
+        methods: [
+            "preventSilentAccess": [] => .jsPromise,
+            "store": [.plain(.jsCredentialInfo)] => .jsPromise,
+            "get": [
+                .plain(.jsCredentialMediationRequirement), .boolean, .plain(.jsUrlArray),
+            ] => .jsPromise,
+        ]
+    )
 
-private let credentialManagerRemoteWrapper = ObjectGroup(
-    name: MojoStrings.credentialManagerRemoteWrapper,
-    instanceType: .jsCredentialManagerRemoteWrapper,
-    properties: [:],
-    methods: [
-        "close": [] => .undefined,
-        "isBound": [] => .boolean,
-    ]
-)
+    fileprivate static let credentialManagerRemoteWrapper = ObjectGroup(
+        name: MojoStrings.credentialManagerRemoteWrapper,
+        instanceType: .jsCredentialManagerRemoteWrapper,
+        properties: [:],
+        methods: [
+            "close": [] => .undefined,
+            "isBound": [] => .boolean,
+        ]
+    )
 
-private let credentialInfo = ObjectGroup(
-    name: MojoStrings.credentialInfo,
-    instanceType: .jsCredentialInfo,
-    properties: [
-        "type": .jsCredentialType,
-        "id": .jsString16,
-        "name": .jsString16,
-        "icon": .jsUrl,
-        "password": .jsString16,
-        "federation": .jsSchemeHostPort,
-    ],
-    methods: [:]
-)
+    fileprivate static let credentialInfo = ObjectGroup(
+        name: MojoStrings.credentialInfo,
+        instanceType: .jsCredentialInfo,
+        properties: [
+            "type": .jsCredentialType,
+            "id": .jsString16,
+            "name": .jsString16,
+            "icon": .jsUrl,
+            "password": .jsString16,
+            "federation": .jsSchemeHostPort,
+        ],
+        methods: [:]
+    )
+}
 
 private let mojoBuiltins: [String: ILType] = [
     MojoStrings.credentialManager: .jsCredentialManager,
@@ -180,7 +182,7 @@ private let MojoUrlArrayGenerator = CodeGenerator(
     "MojoUrlArrayGenerator", inputs: .required(.jsUrl), produces: [.jsUrlArray]
 ) {
     b, url in
-    b.createArray(with: [url], elementGroupName: ObjectGroup.urlGroup.name)
+    b.createArray(with: [url], elementGroupName: ObjectGroup.url.name)
 }
 
 private let keepGenerators = [
@@ -212,33 +214,26 @@ let mojoCredentialManagerProfile = Profile(
         ),
     ] + v8Profile.startupTests,
     additionalCodeGenerators: [
-        (MojoMethodCallGenerator, 70),
-        (MojoPropertyRetrievalGenerator, 50),
-        (MojoString16Generator, 5),
-        (MojoUrlGenerator, 5),
-        (MojoUrlArrayGenerator, 5),
-        (MojoSchemeHostPortGenerator, 5),
-    ],
+        (MojoMethodCallGenerator, 10000),
+        (MojoPropertyRetrievalGenerator, 10000),
+        (MojoUrlArrayGenerator, 1),
+    ] + commonMojoCodeGenerators,
     additionalProgramTemplates: WeightedList([
         // Heavily bias Fuzzilli to use the ProgramTemplate that establishes a Mojo connection.
         (MojoCredentialManagerFuzzer, 1000)
     ]),
     disabledCodeGenerators: mojoDisabledGenerators,
     disabledMutators: v8Profile.disabledMutators,
-    additionalBuiltins: mojoBuiltins,
+    additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },
     additionalObjectGroups: [
-        credentialManager,
-        credentialManagerRemote,
-        credentialManagerRemoteWrapper,
-        ObjectGroup.int16Element,
-        ObjectGroup.string16,
-        ObjectGroup.urlGroup,
-        ObjectGroup.schemeHostPort,
-        credentialInfo,
-    ],
+        .credentialManager,
+        .credentialManagerRemote,
+        .credentialManagerRemoteWrapper,
+        .credentialInfo,
+    ] + commonMojoObjectGroups,
     additionalEnumerations: [
         .jsCredentialType, .jsCredentialMediationRequirement,
-    ],
-    additionalOptionsBags: [],
+    ] + commonMojoEnumerations,
+    additionalOptionsBags: [] + commonMojoOptionsBags,
     optionalPostProcessor: nil
 )

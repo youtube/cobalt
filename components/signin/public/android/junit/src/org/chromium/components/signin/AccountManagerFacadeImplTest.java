@@ -33,6 +33,7 @@ import android.os.UserManager;
 import androidx.test.rule.GrantPermissionRule;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,6 +54,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.components.extensions.ExtensionsBuildflags;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.signin.AccountManagerDelegate.CapabilityResponse;
 import org.chromium.components.signin.AccountManagerFacade.ChildAccountStatusListener;
@@ -116,6 +118,11 @@ public class AccountManagerFacadeImplTest {
 
     @Before
     public void setUp() {
+        if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
+            Assume.assumeFalse(
+                    "MigrateAccountManagerDelegate is not supported when extensions are enabled.",
+                    ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE);
+        }
         lenient().when(mExternalAuthUtilsMock.canUseGooglePlayServices()).thenReturn(true);
         ExternalAuthUtils.setInstanceForTesting(mExternalAuthUtilsMock);
 
@@ -224,10 +231,10 @@ public class AccountManagerFacadeImplTest {
                         .expectBooleanRecord("Signin.GetAccountsBackoffSuccess", false)
                         .build();
 
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         RobolectricUtil.runAllBackgroundAndUi();
         // Called once on AccountManagerFacade creation and a second time when
-        // onCoreAccountInfoChanged is called.
+        // onAccountsChanged is called.
         verify(mDelegate, times(2)).getAccountsSynchronous();
 
         // The delegate call fails indefinitely but is only retried MAXIMUM_RETRIES times (plus the
@@ -247,13 +254,13 @@ public class AccountManagerFacadeImplTest {
     public void testAccountFetchingFailsThenSucceeds() throws Exception {
         // Initially, account fetching fails.
         doThrow(AccountManagerDelegateException.class).when(mDelegate).getAccountsSynchronous();
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertFalse(mFacade.didAccountFetchSucceed());
         assertEquals(mFacade.getAccounts().getResult(), List.of());
 
         // Accounts are updated again.
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         RobolectricUtil.runAllBackgroundAndUi();
         // Account fetch is still marked as non-successful.
         assertFalse(mFacade.didAccountFetchSucceed());
@@ -372,7 +379,7 @@ public class AccountManagerFacadeImplTest {
 
     @Test
     public void testGetCoreAccountInfosWithAccountPatternsChange() throws Exception {
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         assertEquals(List.of(), mFacade.getAccounts().getResult());
 
         CoreAccountInfo accountInfo1 = addTestAccount("test1@gmail.com");
@@ -713,10 +720,10 @@ public class AccountManagerFacadeImplTest {
                         .expectBooleanRecord("Signin.GetAccountsBackoffSuccess", false)
                         .build();
 
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         RobolectricUtil.runAllBackgroundAndUi();
         // Called once on AccountManagerFacade creation and a second time when
-        // onCoreAccountInfoChanged is called.
+        // onAccountsChanged is called.
         verify(mDelegate, times(2)).getPlatformAccountsSynchronous();
 
         // The delegate call fails indefinitely but is only retried MAXIMUM_RETRIES times (plus the
@@ -739,12 +746,12 @@ public class AccountManagerFacadeImplTest {
         doThrow(AccountManagerDelegateException.class)
                 .when(mDelegate)
                 .getPlatformAccountsSynchronous();
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertFalse(mFacade.didAccountFetchSucceed());
 
         // Accounts are updated again.
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         RobolectricUtil.runAllBackgroundAndUi();
         // Account fetch is still marked as non-successful.
         assertFalse(mFacade.didAccountFetchSucceed());
@@ -827,7 +834,7 @@ public class AccountManagerFacadeImplTest {
     public void
             testGetCoreAccountInfosWithAccountPatternsChange_migrateAccountManagerDelegateEnabled()
                     throws Exception {
-        mDelegate.callOnCoreAccountInfoChanged();
+        mDelegate.callOnAccountsChanged();
         assertEquals(List.of(), mFacade.getAccounts().getResult());
 
         CoreAccountInfo accountInfo1 = addTestAccount("test1@gmail.com");

@@ -15,7 +15,6 @@
 
 namespace blink {
 
-class Document;
 class ExecutionContext;
 template <typename IDLType>
 class FrozenArray;

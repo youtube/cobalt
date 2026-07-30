@@ -95,7 +95,7 @@
 #include "content/browser/media/audio_stream_monitor.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/memory/scheduler_loop_quarantine_web_contents_observer.h"
-#include "content/browser/network/declarative_performance_observer.h"
+#include "content/browser/network/declarative_performance_observer_coordinator.h"
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/permissions/permission_util.h"
 #include "content/browser/preloading/prefetch/prefetch_request.h"
@@ -4382,7 +4382,7 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params,
   SchedulerLoopQuarantineWebContentsObserver::MaybeCreateForWebContents(this);
   RedirectChainDetector::CreateForWebContents(this);
   BtmWebContentsObserver::MaybeCreateForWebContents(this);
-  DeclarativePerformanceObserver::CreateForWebContents(this);
+  DeclarativePerformanceObserverCoordinator::CreateForWebContents(this);
 
   // BrowserPluginGuest::Init needs to be called after this WebContents has
   // a RenderWidgetHostViewChildFrame. That is, |view_->CreateView| above.
@@ -7559,6 +7559,15 @@ WebContentsImpl::ForSecurityDropFullscreen(int64_t display_id) {
   // checked. (See CanEnterFullscreenMode().)
 
   std::vector<base::WeakPtr<WebContentsImpl>> blocked_contents_list;
+  auto cleanup_blockers = [](std::vector<base::WeakPtr<WebContentsImpl>> list) {
+    for (auto& wc : list) {
+      if (wc) {
+        DCHECK_GT(wc->fullscreen_blocker_count_, 0);
+        --wc->fullscreen_blocker_count_;
+      }
+    }
+  };
+
   std::vector<base::WeakPtr<WebContentsImpl>> openers;
   for (WebContentsImpl* opener : GetAllOpeningWebContents(this)) {
     openers.push_back(opener->weak_factory_.GetWeakPtr());
@@ -7566,6 +7575,7 @@ WebContentsImpl::ForSecurityDropFullscreen(int64_t display_id) {
 
   for (auto& opener : openers) {
     if (!weak_this) {
+      cleanup_blockers(std::move(blocked_contents_list));
       return std::nullopt;
     }
     if (!opener) {
@@ -7585,17 +7595,13 @@ WebContentsImpl::ForSecurityDropFullscreen(int64_t display_id) {
     blocked_contents_list.push_back(opener);
   }
 
-  return base::ScopedClosureRunner(base::BindOnce(
-      [](std::vector<base::WeakPtr<WebContentsImpl>> blocked_contents_list) {
-        for (base::WeakPtr<WebContentsImpl>& web_contents :
-             blocked_contents_list) {
-          if (web_contents) {
-            DCHECK_GT(web_contents->fullscreen_blocker_count_, 0);
-            --web_contents->fullscreen_blocker_count_;
-          }
-        }
-      },
-      std::move(blocked_contents_list)));
+  if (!weak_this) {
+    cleanup_blockers(std::move(blocked_contents_list));
+    return std::nullopt;
+  }
+
+  return base::ScopedClosureRunner(
+      base::BindOnce(cleanup_blockers, std::move(blocked_contents_list)));
 }
 
 void WebContentsImpl::ResumeLoadingCreatedWebContents() {
@@ -10694,6 +10700,14 @@ void WebContentsImpl::OnFocusedElementChangedInFrame(
   OPTIONAL_TRACE_EVENT1("content",
                         "WebContentsImpl::OnFocusedElementChangedInFrame",
                         "render_frame_host", frame);
+  // Only apply focus updates from the currently focused frame. We ignore
+  // updates from unfocused frames (instead of treating them as bad messages)
+  // because document-local focus changes are allowed, and focus transitions
+  // can race asynchronously. Focus theft is already handled and blocked (with
+  // bad messages) in `RenderFrameHostImpl::VerifyFencedFrameFocusChange`.
+  if (frame != GetFocusedFrame()) {
+    return;
+  }
   RenderWidgetHostViewBase* root_view =
       static_cast<RenderWidgetHostViewBase*>(GetRenderWidgetHostView());
   if (!root_view || !frame->GetView()) {
@@ -12574,16 +12588,6 @@ gfx::mojom::DelegatedInkPointRenderer* WebContentsImpl::GetDelegatedInkRenderer(
     delegated_ink_point_renderer_.reset_on_disconnect();
   }
   return delegated_ink_point_renderer_.get();
-}
-
-void WebContentsImpl::OnInputIgnored(const blink::WebInputEvent& event) {
-#if BUILDFLAG(IS_ANDROID)
-  if (auto* animation_manager =
-          static_cast<BackForwardTransitionAnimationManagerAndroid*>(
-              GetBackForwardTransitionAnimationManager())) {
-    animation_manager->MaybeRecordIgnoredInput(event);
-  }
-#endif
 }
 
 #if BUILDFLAG(IS_ANDROID)

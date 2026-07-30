@@ -449,6 +449,31 @@ TEST_F(GaiaAuthFetcherTest, MultiloginEnableOamlCookieBindingEnforced) {
       request.url.GetQuery());
 }
 
+TEST_F(GaiaAuthFetcherTest, MultiloginEnableYoutubeCookieBindingEnforced) {
+  MockGaiaConsumer consumer;
+  TestGaiaAuthFetcher auth(&consumer, GetURLLoaderFactory());
+  const std::vector<gaia::MultiloginAccountAuthCredentials> accounts = {
+      {GaiaId("id"), "token", ""},
+  };
+
+  auth.StartOAuthMultilogin(
+      gaia::MultiloginMode::MULTILOGIN_UPDATE_COOKIE_ACCOUNTS_ORDER, accounts,
+      "cc_result", base::NullCallback(),
+      {.mode = gaia::MultiloginCookieBindingParams::Mode::kEnabledEnforced,
+       .youtube_mode =
+           gaia::MultiloginCookieBindingParams::Mode::kEnabledEnforced});
+
+  ASSERT_THAT(received_requests_, SizeIs(1));
+  const network::ResourceRequest& request = received_requests_.at(0);
+  EXPECT_EQ("POST", request.method);
+  EXPECT_THAT(request.headers.GetHeader("Authorization"),
+              Optional(std::string("MultiBearer token:id")));
+  EXPECT_EQ(
+      "source=ChromiumBrowser&reuseCookies=0&externalCcResult=cc_result&cookie_"
+      "binding=2&yt_cookie_binding=2",
+      request.url.GetQuery());
+}
+
 TEST_F(GaiaAuthFetcherTest, MultiloginRequestMultiOAuthFormat) {
   MockGaiaConsumer consumer;
   TestGaiaAuthFetcher auth(&consumer, GetURLLoaderFactory());

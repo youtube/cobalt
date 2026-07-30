@@ -4,6 +4,7 @@
 
 #include "chromecast/renderer/cast_demo_bindings.h"
 
+#include <array>
 #include <tuple>
 
 #include "base/check.h"
@@ -336,7 +337,7 @@ void CastDemoBindings::VolumeChanged(float level) {
       v8::Local<v8::Function>::New(isolate, std::move(volume_change_handler_));
 
   auto args =
-      v8::to_array<v8::Local<v8::Value>>({gin::ConvertToV8(isolate, level)});
+      std::to_array<v8::Local<v8::Value>>({gin::ConvertToV8(isolate, level)});
 
   v8::MaybeLocal<v8::Value> maybe_result =
       handler->Call(context, context->Global(), args.size(), args.data());

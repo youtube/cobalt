@@ -94,7 +94,8 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
-         hdr_metadata() == config.hdr_metadata() && level() == config.level();
+         hdr_metadata() == config.hdr_metadata() && level() == config.level() &&
+         spatial_format() == config.spatial_format();
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -115,7 +116,8 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", encryption scheme: " << encryption_scheme()
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
-    << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
+    << ", color space: " << color_space_info().ToGfxColorSpace().ToString()
+    << ", spatial format: [" << spatial_format().ToString() << "]";
 
   if (!hdr_metadata().IsEmpty()) {
     s << ", hdr metadata: " << hdr_metadata().ToString();

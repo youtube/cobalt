@@ -5,6 +5,8 @@
 #import "ios/chrome/browser/level_up/coordinator/level_up_coordinator.h"
 
 #import "ios/chrome/browser/level_up/coordinator/level_up_mediator.h"
+#import "ios/chrome/browser/level_up/model/level_up_service.h"
+#import "ios/chrome/browser/level_up/model/level_up_service_factory.h"
 #import "ios/chrome/browser/level_up/ui/level_up_all_tasks_view_controller.h"
 #import "ios/chrome/browser/level_up/ui/level_up_view_controller.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -33,8 +35,11 @@
 
   AuthenticationService* authService =
       AuthenticationServiceFactory::GetForProfile(self.browser->GetProfile());
+  LevelUpService* levelUpService =
+      LevelUpServiceFactory::GetForProfile(self.browser->GetProfile());
   self.mediator =
-      [[LevelUpMediator alloc] initWithAuthenticationService:authService];
+      [[LevelUpMediator alloc] initWithAuthenticationService:authService
+                                              levelUpService:levelUpService];
   self.mediator.profileConsumer = self.viewController;
   self.mediator.consumer = self.viewController;
 

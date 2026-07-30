@@ -91,6 +91,7 @@ class MEDIA_EXPORT DemuxerManager {
                                         bool /*is_static*/)>;
 
   DemuxerManager(Client* client,
+                 url::Origin security_origin,
                  scoped_refptr<base::SequencedTaskRunner> media_task_runner,
                  MediaLog* log,
                  std::unique_ptr<Demuxer> demuxer_override);
@@ -182,6 +183,11 @@ class MEDIA_EXPORT DemuxerManager {
   // objects.
   // Note: this may be very large, take care when making copies.
   GURL loaded_url_;
+
+  // The security origin of the frame. HLS tracks the security origin for
+  // manifests, and since manifests can exist as data: urls with no security
+  // origin, we need to use the frame origin instead.
+  url::Origin security_origin_;
 
   // The data source for creating a demuxer. This should be null when using
   // ChunkDemuxer.

@@ -124,6 +124,42 @@ void ShowWebAppFileLaunchDialog(const std::vector<base::FilePath>& file_paths,
 // Sets an override title for the Create Shortcut confirmation view.
 void SetOverrideTitleForTesting(const char* title_to_use);
 
+enum class InstallDialogTestResponse {
+  kNone,
+  kDeny,
+  kAcceptAndLaunch,
+  kAcceptNoLaunch,
+};
+
+base::AutoReset<InstallDialogTestResponse>
+SetPwaInstallationAutoRespondForTesting(InstallDialogTestResponse response);
+
+InstallDialogTestResponse GetPwaInstallationDialogAutoResponseForTesting();
+
+enum class InstallDialogDeactivateAction {
+  kClose,
+  kKeepOpen,
+};
+
+base::AutoReset<InstallDialogDeactivateAction>
+SetPwaInstallationDialogDeactivateActionForTesting(
+    InstallDialogDeactivateAction action);
+
+InstallDialogDeactivateAction
+GetPwaInstallationDialogDeactivateActionForTesting();
+
+enum class CreateShortcutDialogCheckState {
+  kDefault,
+  kChecked,
+  kUnchecked,
+};
+
+base::AutoReset<CreateShortcutDialogCheckState>
+SetCreateShortcutDialogCheckStateForTesting(
+    CreateShortcutDialogCheckState state);
+
+CreateShortcutDialogCheckState GetCreateShortcutDialogCheckStateForTesting();
+
 // Describes the state of in-product-help being shown to the user.
 enum class PwaInProductHelpState {
   // The in-product-help bubble was shown.
@@ -184,10 +220,6 @@ void ShowSubAppsInstallDialog(
     const webapps::AppId& parent_app_id,
     base::OnceCallback<void(bool)> callback);
 
-// Sets whether |ShowDiyInstallDialogForWebApps| should accept immediately
-// without any user interaction.
-void SetAutoAcceptDiyAppsInstallDialogForTesting(bool auto_accept);
-
 // Shows the Isolated Web App manual install wizard.
 IsolatedWebAppInstallerCoordinator* LaunchIsolatedWebAppInstaller(
     Profile* profile,
@@ -221,9 +253,6 @@ void ShowWebInstallAppLaunchDialog(
     std::string app_name,
     const SkBitmap& icon,
     WebInstallAppLaunchAcceptanceCallback callback);
-
-// Sets whether |ShowWebInstallAppLaunchDialog| should accept immediately.
-base::AutoReset<bool> SetAutoAcceptWebInstallLaunchDialogForTesting();
 
 // Shows the install not supported dialog for web apps. This dialog is
 // displayed when the user tries to install a web app in an unsupported

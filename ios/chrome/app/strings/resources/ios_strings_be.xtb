@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">ГГГГ</translation>
 <translation id="1013952917065545813">Адсюль вы можаце адкрываць нядаўна закрытыя ўкладкі</translation>
 <translation id="1016495303386450659">Элемент абноўлены</translation>
+<translation id="1018804590490383958">Сканіраваць і запоўніць аўтаматычна</translation>
 <translation id="1019990162050689579">Гісторыя дзеянняў у праграмах Gemini</translation>
 <translation id="102916930470544692">Ключ доступу</translation>
 <translation id="1030376737535466765">Адкрыць Менеджар пароляў</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Абнавіце браўзер</translation>
 <translation id="4021931095789478915">Дадаць ${url} у Спіс на прагляд</translation>
 <translation id="4028871427853484857">Захаваць ва ўліковым запісе…</translation>
+<translation id="4036529942385659684">Паказваць стартавую старонку пасля перыяду бяздзейнасці</translation>
 <translation id="4038354071007134711">На прыладзе няма праграм, у якіх можна адкрыць гэты файл.</translation>
 <translation id="4042870976416480368">Знайсці на старонцы</translation>
 <translation id="4045441967987592849">Зноў адкрыць</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Кіраваць групай</translation>
 <translation id="4172051516777682613">Заўсёды паказваць</translation>
 <translation id="417273154673973994">{count,plural, =1{1 група ўкладак закрыта і захавана}one{{count} група ўкладак закрыта і захавана}few{{count} групы ўкладак закрыты і захаваны}many{{count} груп укладак закрыта і захавана}other{{count} групы ўкладак закрыта і захавана}}</translation>
-<translation id="417612446554534067">Адправіць на вашы прылады</translation>
 <translation id="4180726336228139707">Толькі на гэтай прыладзе</translation>
 <translation id="4181841719683918333">Мовы</translation>
 <translation id="4183350924949589798">Патрабуецца дадатковая бяспека?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Укладкі былі закрыты, а вы выйшлі з уліковага запісу</translation>
 <translation id="4911042367886397055">З вяртаннем, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Вы можаце бяспечна абагуліць копію свайго пароля з іншым удзельнікам сямейнай групы. <ph name="BEGIN_LINK" />Даведацца больш<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Аб’ектыў</translation>
 <translation id="4917025507570489430">Вы зможаце выкарыстоўваць існуючыя даныя пра работу ў браўзеры, увайшоўшы як <ph name="USER_EMAIL" />. Ваша арганізацыя можа праглядаць гэтыя даныя.</translation>
 <translation id="4918086044614829423">Прыняць</translation>
 <translation id="4930714375720679147">Уключыць</translation>
@@ -1549,6 +1551,7 @@
 <translation id="6301767200000930965">Аа</translation>
 <translation id="630308129961693966">Выберыце пазіцыю адраснага радка</translation>
 <translation id="6307241780749477694">Каб атрымаць доступ да ўсіх пароляў на гэтай прыладзе, спраўдзіце сваю асобу</translation>
+<translation id="6307792728709337290">Захавайце картку ва Уліковым запісе Google, каб яе рэквізіты запаўняліся аўтаматычна пры гэтай і наступных куплях у Chrome.</translation>
 <translation id="6316141353357700666">Выберыце патрэбны пароль са спіса.</translation>
 <translation id="6321526113093607004">Дадаць у Закладкі</translation>
 <translation id="6327249202318869726">Сэрвіс Gemini выключаны для вашага ўліковага запісу. Па дадатковую інфармацыю звярніцеся да адміністратара.</translation>
@@ -2143,6 +2146,7 @@
 <translation id="8263809106706527890">Магчыма, ваш стандартны браўзер зменены. Гэта можна праверыць у наладах.</translation>
 <translation id="8264966119170358612">Некаторыя захаваныя вамі паролі былі раскрыты ў выніку ўцечкі даных у староннім сэрвісе. <ph name="BEGIN_LINK" />Даведацца больш<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">У выніку скіду налад iPad адбыўся выхад з уліковага запісу <ph name="USER_NAME" />. Каб увайсці зноў, націсніце "Працягнуць" ніжэй.</translation>
+<translation id="8270320981823560179">Дыск</translation>
 <translation id="8273982424131314219">Інфармацыя будзе запоўнена на старонцы <ph name="URL" /></translation>
 <translation id="8275068909952022340">Яшчэ…</translation>
 <translation id="8281781826761538115">Стандартная мова: <ph name="DEFAULT_LOCALE" /></translation>

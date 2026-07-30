@@ -22,7 +22,13 @@ class ExclusiveAccessContextAndroid : public ExclusiveAccessContext {
       const jni_zero::JavaRef<jobject>& j_context,
       const jni_zero::JavaRef<jobject>& j_fullscreen_manager,
       const jni_zero::JavaRef<jobject>& j_activity_tab_provider);
+  // Constructor for testing, bypasses JNI creation.
+  ExclusiveAccessContextAndroid();
   ~ExclusiveAccessContextAndroid() override;
+
+  // Injects an exclusive access bubble instance for testing.
+  void SetBubbleForTesting(
+      std::unique_ptr<ExclusiveAccessBubbleAndroid> bubble);
 
   void Destroy(JNIEnv* env);
 
@@ -70,11 +76,14 @@ class ExclusiveAccessContextAndroid : public ExclusiveAccessContext {
 
   void ForceActiveTab(JNIEnv* env, const jni_zero::JavaRef<jobject>& j_tab);
 
+ private:
+  int snooze_reset_count_ = 0;
+  static constexpr int kMaxSnoozeResets = 10;
+
   base::WeakPtr<ExclusiveAccessContextAndroid> GetAsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
 
- private:
   void DestroyAnyExclusiveAccessBubble();
 
   base::android::ScopedJavaGlobalRef<jobject> java_context_;

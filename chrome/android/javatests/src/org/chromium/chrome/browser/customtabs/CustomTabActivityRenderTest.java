@@ -47,6 +47,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -134,6 +135,11 @@ public class CustomTabActivityRenderTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private Tracker mTracker;
+
+    // Spy created inside individual tests; kept as a field so MockitoResetter picks it up and
+    // resets Mockito state on it, breaking the MockingProgress -> InvocationContainer retention
+    // chain.
+    @Spy private CustomTabsConnection mConnectionSpy;
 
     @Before
     public void setUp() {
@@ -261,9 +267,9 @@ public class CustomTabActivityRenderTest {
     @Feature("RenderTest")
     public void testCctToolbarWithOmnibox() throws IOException {
         // Permit Omnibox for any upcoming intent(s).
-        var connection = spy(CustomTabsConnection.getInstance());
-        doReturn(true).when(connection).shouldEnableOmniboxForIntent(any());
-        CustomTabsConnection.setInstanceForTesting(connection);
+        mConnectionSpy = spy(CustomTabsConnection.getInstance());
+        doReturn(true).when(mConnectionSpy).shouldEnableOmniboxForIntent(any());
+        CustomTabsConnection.setInstanceForTesting(mConnectionSpy);
         startActivityAndRenderToolbar("cct_omnibox");
     }
 

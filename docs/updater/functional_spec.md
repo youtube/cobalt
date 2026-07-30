@@ -542,6 +542,10 @@ the server indicating an installation failure.
 The user interface is localized in the same languages as the Chromium project.
 
 No UI will be shown if the `--silent` switch is specified on the command line.
+On Windows, if a silent installation requires UAC elevation and `--silent`
+does not have the `allow-uac` value parameter (i.e. `--silent=allow-uac`),
+the installation will abort immediately and fail silently to prevent showing
+any interactive UI prompts.
 
 The launch command provided by the application installer via the
 [installer result API](#installer-result-api)

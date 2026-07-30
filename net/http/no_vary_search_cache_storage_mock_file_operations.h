@@ -30,6 +30,7 @@ class MockFileOperations : public NoVarySearchCacheStorageFileOperations {
               CreateWriter,
               (std::string_view filename),
               (override));
+  MOCK_METHOD(void, DetachFromCurrentSequence, (), (override));
 };
 
 // Mock implementation of NoVarySearchCacheStorageFileOperations::Writer. This
@@ -46,6 +47,7 @@ class MockWriter : public NoVarySearchCacheStorageFileOperations::Writer {
   ~MockWriter() override;
 
   MOCK_METHOD(bool, Write, (base::span<const uint8_t> data), (override));
+  MOCK_METHOD(void, DetachFromCurrentSequence, (), (override));
 };
 
 }  // namespace net

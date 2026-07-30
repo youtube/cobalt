@@ -38,7 +38,6 @@ namespace multistep_filter {
 
 namespace {
 
-constexpr size_t kDefaultMaxResults = 100;
 // TODO(b/514312241): Remove this fallback message when the JSON
 // configuration is being served properly.
 constexpr char16_t kTestingFallbackMessage[] = u"Continue where you left off?";
@@ -82,14 +81,6 @@ void LogSuggestionGenerated(MultistepFilterLogRouter* log_router,
       << LogDetail{"suggestion", suggestion.ToString()};
 }
 
-void LogNoSupportedTasks(MultistepFilterLogRouter* log_router,
-                         int64_t navigation_id,
-                         std::string_view domain,
-                         std::string_view reason) {
-  MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kNoSupportedTasks, domain)
-      << LogDetail{"reason", std::string(reason)};
-}
 
 void LogNoRelevantAnnotations(MultistepFilterLogRouter* log_router,
                               int64_t navigation_id,
@@ -115,6 +106,7 @@ FilterSuggestionGenerator::~FilterSuggestionGenerator() = default;
 
 void FilterSuggestionGenerator::GenerateSuggestion(
     const GURL& url,
+    const std::vector<std::string>& supported_task_types,
     base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
     int64_t navigation_id,
     std::string_view domain) {
@@ -122,47 +114,25 @@ void FilterSuggestionGenerator::GenerateSuggestion(
   base::ScopedClosureRunner failure_callback(
       base::BindOnce(std::move(split_callback.first), std::nullopt));
 
-  annotation_index_client_->GetSupportedTaskTypesForDomain(
-      domain,
-      base::BindOnce(
-          &FilterSuggestionGenerator::OnSupportedTaskTypesFetched,
-          weak_ptr_factory_.GetWeakPtr(), url, std::move(split_callback.second),
-          std::move(failure_callback), navigation_id, std::string(domain)),
-      navigation_id);
-}
-
-void FilterSuggestionGenerator::OnSupportedTaskTypesFetched(
-    const GURL& url,
-    base::OnceCallback<void(std::optional<UrlFilterSuggestion>)>
-        success_callback,
-    base::ScopedClosureRunner failure_callback,
-    int64_t navigation_id,
-    std::string_view domain,
-    std::optional<std::vector<std::string>> supported_task_types) {
-  if (!supported_task_types || supported_task_types->empty()) {
-    LogNoSupportedTasks(log_router_, navigation_id, domain,
-                        !supported_task_types ? "fetch_failed" : "empty_list");
-    return;
-  }
-
   // Fetch annotations for multiple task types asynchronously from the
   // FilterStore. The BarrierCallback waits until all these individual queries
   // complete before aggregating and processing them in
   // `OnAllAnnotationsFetched()`.
   auto barrier_callback = base::BarrierCallback<std::vector<FilterAnnotation>>(
-      supported_task_types->size(),
-      base::BindOnce(&FilterSuggestionGenerator::OnAllAnnotationsFetched,
-                     weak_ptr_factory_.GetWeakPtr(), url,
-                     std::move(success_callback), std::move(failure_callback),
-                     navigation_id, std::string(domain)));
+      supported_task_types.size(),
+      base::BindOnce(
+          &FilterSuggestionGenerator::OnAllAnnotationsFetched,
+          weak_ptr_factory_.GetWeakPtr(), url, std::move(split_callback.second),
+          std::move(failure_callback), navigation_id, std::string(domain)));
 
   const base::Time min_creation_time =
       base::Time::Now() - kMultistepFilterSessionDuration.Get();
   // TODO(crbug.com/493485174): Filter supported task types to only include
   // filtering tasks.
-  for (const std::string& task_type : *supported_task_types) {
+  for (const std::string& task_type : supported_task_types) {
     filter_store_->GetAnnotationsForTaskSortedByCreationTimestamp(
-        task_type, barrier_callback, kDefaultMaxResults, min_creation_time);
+        task_type, barrier_callback, internal::kDefaultMaxResults,
+        min_creation_time);
   }
 }
 
@@ -194,7 +164,7 @@ void FilterSuggestionGenerator::OnAllAnnotationsFetched(
   // Suppress suggestions if the latest annotation is for the same domain and
   // within the throttle duration.
   if (!all_annotations.empty() &&
-      all_annotations.front().source_domain == domain &&
+      all_annotations.front().source_host == url.GetHost() &&
       base::Time::Now() - all_annotations.front().creation_timestamp <
           kSameDomainSuggestionSuppressionDuration.Get()) {
     LogSuggestionSuppressed(log_router_, navigation_id, domain,
@@ -301,10 +271,12 @@ void FilterSuggestionGenerator::OnFilterSuggestionCandidatesFetched(
   UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
       .navigation_url = std::move(candidate.navigation_url),
       .source_domain = base::UTF8ToUTF16(matching_annotation_it->source_domain),
+      .source_host = base::UTF8ToUTF16(matching_annotation_it->source_host),
       .extraction_timestamp = matching_annotation_it->creation_timestamp,
       .attribute_ui_labels = std::move(attribute_ui_labels),
       .triggering_navigation_id = navigation_id,
       .triggering_domain = std::string(domain),
+      .triggering_host = url.GetHost(),
       .task_type = std::move(matching_annotation_it->task_type),
       .suggestion_message = std::move(*message)});
   LogSuggestionGenerated(log_router_, navigation_id, domain, suggestion);

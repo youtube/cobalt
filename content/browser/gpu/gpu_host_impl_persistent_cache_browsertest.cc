@@ -71,9 +71,8 @@ class GpuHostImplPersistentCacheTest : public ContentBrowserTest {
   GpuHostImplPersistentCacheTest()
       : gpu_service_thread_("Gpu Service"),
         cache_factory_thread_("Cache Factory") {
-    feature_list_.InitWithFeaturesAndParameters(
-        {{features::kSkiaGraphite,
-          {{features::kSkiaGraphiteDawnUsePersistentCache.name, "true"}}}},
+    feature_list_.InitWithFeatures(
+        {features::kSkiaGraphite, features::kSkiaGraphiteUsePersistentCache},
         {});
 
     CHECK(temp_dir_.CreateUniqueTempDir());
@@ -84,6 +83,7 @@ class GpuHostImplPersistentCacheTest : public ContentBrowserTest {
         cache_factory_.get());
   }
   ~GpuHostImplPersistentCacheTest() override {
+    base::ScopedAllowBlockingForTesting allow_blocking;
     viz::PersistentCacheSandboxedFileFactory::SetInstanceForTesting(nullptr);
     cache_factory_thread_.Stop();
   }

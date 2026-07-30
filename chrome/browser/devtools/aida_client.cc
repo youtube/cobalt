@@ -76,7 +76,8 @@ bool IsAidaBlockedByAge(std::optional<AccountInfo> account_info) {
     return true;
   }
   return account_info.value()
-             .capabilities.can_use_devtools_generative_ai_features() !=
+             .GetAccountCapabilities()
+             .can_use_devtools_generative_ai_features() !=
          signin::Tribool::kTrue;
 }
 

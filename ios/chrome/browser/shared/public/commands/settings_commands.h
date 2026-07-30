@@ -9,6 +9,8 @@
 
 #import <optional>
 
+#import "base/ios/block_types.h"
+
 namespace autofill {
 class AutofillProfile;
 class CreditCard;
@@ -53,6 +55,15 @@ enum class PushNotificationClientId;
 // Does nothing if the current scene is blocked.
 - (void)showSyncPassphraseSettingsFromViewController:
     (UIViewController*)baseViewController;
+
+// TODO(crbug.com/41352590) : Do not pass baseViewController through dispatcher.
+// Shows the sync encryption passphrase UI, presenting from
+// `baseViewController`. `completion` is executed after the UI is dismissed.
+// Does nothing if the current scene is blocked.
+- (void)showSyncPassphraseSettingsFromViewController:
+            (UIViewController*)baseViewController
+                                          completion:
+                                              (ProceduralBlock)completion;
 
 // Shows the list of saved passwords in the settings.
 - (void)showSavedPasswordsSettingsFromViewController:

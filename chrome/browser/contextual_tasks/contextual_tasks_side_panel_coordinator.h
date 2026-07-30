@@ -94,6 +94,7 @@ class ContextualTasksSidePanelCoordinator
   void Show(bool transition_from_tab,
             omnibox::ChromeAimEntryPoint entry_point) override;
   void Close() override;
+  void OpenInZeroState() override;
   bool IsPanelOpenForContextualTask() const override;
   std::optional<tabs::TabHandle> GetAutoSuggestedTabHandle() override;
   void OnTaskChanged(content::WebContents* web_contents,
@@ -213,6 +214,16 @@ class ContextualTasksSidePanelCoordinator
 
   void OnEligibilityChange(bool is_eligible);
 
+  // ContextualTasksUiService is a ProfileKeyedService whose lifetime is bound
+  // to the Profile. In contrast, ContextualTasksSidePanelCoordinator is a
+  // window-scoped object whose teardown occurs asynchronously via the message
+  // loop during window closure. Because of this mismatched lifetime, the UI
+  // service can be destroyed before the coordinator, leading to use-after-free
+  // dangling raw pointer crashes if a raw pointer is cached. To prevent this,
+  // the coordinator must fetch the service dynamically via GetUiService() and
+  // check for null.
+  ContextualTasksUiService* GetUiService() const;
+
   // Browser window of the current panel.
   const raw_ptr<BrowserWindowInterface> browser_window_ = nullptr;
 
@@ -225,8 +236,6 @@ class ContextualTasksSidePanelCoordinator
 
   const raw_ptr<contextual_search::ContextualSearchService>
       contextual_search_service_;
-
-  const raw_ptr<ContextualTasksUiService> ui_service_;
 
   // Pref service for the current profile.
   const raw_ptr<PrefService> pref_service_;

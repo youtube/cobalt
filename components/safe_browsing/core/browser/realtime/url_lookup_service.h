@@ -77,7 +77,9 @@ class RealTimeUrlLookupService : public RealTimeUrlLookupServiceBase {
           min_allowed_timestamp_for_referrer_chains_getter,
       ReferrerChainProvider* referrer_chain_provider,
       WebUIDelegate* delegate,
-      IntelligentScanDelegate* intelligent_scan_delegate);
+      IntelligentScanDelegate* intelligent_scan_delegate,
+      base::RepeatingCallback<network::mojom::NetworkContext*()>
+          network_context_getter);
 
   RealTimeUrlLookupService(const RealTimeUrlLookupService&) = delete;
   RealTimeUrlLookupService& operator=(const RealTimeUrlLookupService&) = delete;

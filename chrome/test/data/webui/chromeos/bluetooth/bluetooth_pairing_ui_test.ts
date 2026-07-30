@@ -15,7 +15,7 @@ import {PairingAuthType} from 'chrome://resources/ash/common/bluetooth/bluetooth
 import {setBluetoothConfigForTesting} from 'chrome://resources/ash/common/bluetooth/cros_bluetooth_config.js';
 import {AudioOutputCapability, BluetoothSystemState, DeviceConnectionState, DeviceType} from 'chrome://resources/mojo/chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom-webui.js';
 import type {BluetoothDeviceProperties} from 'chrome://resources/mojo/chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom-webui.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/chromeos/test_util.js';
 import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -677,17 +677,17 @@ suite('CrComponentsBluetoothPairingUiTest', function() {
         assertTrue(!!deviceHandler);
 
         // Try pairing to device.
-        pairDevicePromise = deviceHandler!.waitForPairDevice();
+        pairDevicePromise = deviceHandler.waitForPairDevice();
         await selectDevice(device2.deviceProperties);
         await pairDevicePromise;
-        assertEquals(deviceHandler!.getPairDeviceCalledCount(), 1);
+        assertEquals(deviceHandler.getPairDeviceCalledCount(), 1);
 
         // Simulate device pairing cancellation and make sure there are
         // no queued pairing devices.
-        deviceHandler!.completePairDevice(/*success=*/ false);
+        deviceHandler.completePairDevice(/*success=*/ false);
         await flushTasks();
         await waitAfterNextRender(bluetoothPairingUi);
-        assertEquals(deviceHandler!.getPairDeviceCalledCount(), 1);
+        assertEquals(deviceHandler.getPairDeviceCalledCount(), 1);
       });
 
   test('Pair with a specific device by address, success', async function() {

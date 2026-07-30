@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">Відкрити все</translation>
 <translation id="1408696301184924537">Щоб наступного разу автоматично заповнити цей номер IBAN, збережіть його у своєму обліковому записі Google</translation>
 <translation id="1408787208417187241">Тричі скріпити вгорі</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> з <ph name="NUM_MATCHES_IN_GROUP" /> у групі "<ph name="GROUP_HEADER" />".</translation>
 <translation id="1410365862999780287">Інші користувачі цього пристрою не бачитимуть дані про ваші дії, тож ви зможете переглядати веб-контент конфіденційно. Це не вплине на спосіб збирання даних веб-сайтами, які ви відвідуєте, і сервісами, які вони використовують (зокрема Google). Завантаження, закладки й пункти зі списку читання зберігатимуться.</translation>
 <translation id="1410941016594047814">Конверт Invite</translation>
 <translation id="1413235258620101697">Код CVC цієї картки буде зашифровано й збережено в Google Гаманці, щоб ви могли швидше оплачувати замовлення</translation>
@@ -300,6 +301,7 @@
 <translation id="1445896388055045436">Показувати доступні переваги й бонуси картки під час оплати. Застосовуються умови емітента.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Ключі "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" не можна додати в той самий словник, що й ключі "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />"</translation>
+<translation id="1449251255954293933">Збережіть ідентифікатор Redress Number у Google Гаманці</translation>
 <translation id="1455413310270022028">Гумка</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Переглянути 0 відгуків}=1{Переглянути 1 відгук}one{Переглянути всі відгуки (#)}few{Переглянути всі # відгуки}many{Переглянути всі # відгуків}other{Переглянути всі # відгуку}}</translation>
 <translation id="1458059624921545588">Люди й суспільство</translation>
@@ -660,6 +662,7 @@
 <translation id="2045871135676061132">Конверт особистий</translation>
 <translation id="2046951263634619614">Книжкові крамниці</translation>
 <translation id="2048261947532620704">Переклад сторінки</translation>
+<translation id="2055016614992422886">Розмова</translation>
 <translation id="2059166748188874810">Муніципалітет</translation>
 <translation id="2059202684901022309">22 x 34 дюйм.</translation>
 <translation id="2064568741209980952">Кредити й позики</translation>
@@ -1155,6 +1158,7 @@
 <translation id="2782088940970074970">Прокат автомобілів</translation>
 <translation id="278436560439594386">Побутові прилади</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Паролі • Ключі доступу</translation>
 <translation id="2784949926578158345">З’єднання було скинуто.</translation>
 <translation id="2786008859124691917">Велосипеди й аксесуари</translation>
 <translation id="2792012897584536778">Адміністратори цього пристрою налаштували сертифікати безпеки, які дають їм змогу бачити вміст відкритих вами веб-сайтів.</translation>
@@ -2305,6 +2309,7 @@
 <translation id="46128681529823442">Обладнання для футболу</translation>
 <translation id="4612904677925722054">Цей сайт може містити контент для повнолітніх. Батько, мати чи опікун мають дозволити тобі відвідати цей вебсайт.</translation>
 <translation id="4619564267100705184">Підтвердити особу</translation>
+<translation id="4619669610757527494">Збережіть посвідчення водія в Google Гаманці</translation>
 <translation id="4622292761762557753">Усе одно перенести</translation>
 <translation id="4622647778991854660">Увімкніть сповіщення в Центрі сповіщень. Відкрийте <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Посвідчення особи</translation>
@@ -2834,6 +2839,7 @@
 <translation id="543656192084990644">Використання датчиків руху заборонено</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, було: <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Зворотний порядок лицевою стороною вгору</translation>
+<translation id="5447103258548475868">Збережіть паспортні дані в Google Гаманці</translation>
 <translation id="5447235695608032700">Дозволити сайту <ph name="SITE" /> використовувати збережену про вас інформацію</translation>
 <translation id="5447973833955560753">Пароль для відновлення</translation>
 <translation id="5451331376824595378">Коли Chrome повідомляє про події системи безпеки, ваш адміністратор отримує відповідні дані про них, зокрема URL-адреси відвіданих у Chrome сторінок, URL-адреси сторінок, з яких ви скопіювали дані, назви або метадані файлів, ІР-адреси, інформацію про збої в роботі вебпереглядача чи вкладок, а також ім’я користувача, під яким ви входите у вебдодатки, систему пристрою або обліковий запис у Chrome.</translation>
@@ -3557,6 +3563,7 @@
 <translation id="6550245281449521513">Блокування миші заборонено</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, нове</translation>
 <translation id="6552566579578780089">Способи оплати</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> з <ph name="NUM_MATCHES_IN_GROUP" /> у групі "<ph name="GROUP_HEADER" />".</translation>
 <translation id="6554732001434021288">Останнє відвідування: <ph name="NUM_DAYS" /> дн. тому</translation>
 <translation id="6556866813142980365">Повторити</translation>
 <translation id="6557715786897013164">14 x 17 дюйм.</translation>
@@ -4234,6 +4241,7 @@
 <translation id="7599089013883397081">Час очікування завантаження минув</translation>
 <translation id="7602868996817972616">Запитати Google про цю сторінку</translation>
 <translation id="7606123685356405076">Моделі Gemini 3</translation>
+<translation id="760632772920590778">Збережіть дані транспортного засобу в Google Гаманці</translation>
 <translation id="7610193165460212391">Значення за межами діапазону <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Товстий</translation>
 <translation id="7613889955535752492">Діє до: <ph name="EXPIRATION_MONTH" />.<ph name="EXPIRATION_YEAR" /></translation>
@@ -4263,6 +4271,7 @@
 <translation id="7647206758853451655">Якість друку</translation>
 <translation id="7648133459447652947">Щоб показати курсор, перейдіть в інший додаток, оновіть сторінку або поверніться назад</translation>
 <translation id="7648527891719919697">Цей сайт залишатиметься заблокованим, оскільки в <ph name="BEGIN_ANDROID_SETTINGS_LINK" />налаштуваннях Android<ph name="END_ANDROID_SETTINGS_LINK" /> увімкнено Додатковий захист. <ph name="BEGIN_LEARN_MORE_LINK" />Докладніше про це попередження<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Збережіть номер відомого мандрівника в Google Гаманці</translation>
 <translation id="7648992873808071793">Зберігати файли на цьому пристрої</translation>
 <translation id="7649070708921625228">Довідка</translation>
 <translation id="7650141368285545431">Використовувати ключ доступу з іншого пристрою</translation>
@@ -4355,6 +4364,7 @@
 <translation id="7773005668374414287">Однаковий порядок лицевою стороною вгору</translation>
 <translation id="7779418012194492374">Скасувати доступ для пристрою <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Учора</translation>
+<translation id="7782228658217918863">Збережіть посвідчення особи в Google Гаманці</translation>
 <translation id="7782465647372057580">Дані облікового запису шифруються й зберігаються конфіденційно</translation>
 <translation id="7785471469930192436">Перегляньте вказівки пошукової системи щодо того, як видалити історію пошуку (якщо вона є)</translation>
 <translation id="7785790577395078482">цього планшета</translation>

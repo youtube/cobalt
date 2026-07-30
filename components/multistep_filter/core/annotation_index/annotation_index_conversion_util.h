@@ -51,9 +51,10 @@ std::vector<FilterSuggestionCandidate> ToFilterSuggestionCandidates(
 // Converts a URL into an `ExtractTaskAttributesRequest` proto.
 ExtractTaskAttributesRequest ToExtractTaskAttributesRequest(const GURL& url);
 
-// Converts an `ExtractTaskAttributesResponse` proto into a `FilterAnnotation`
-// data model.
+// Converts a URL and an `ExtractTaskAttributesResponse` proto into a
+// `FilterAnnotation` data model.
 std::optional<FilterAnnotation> ToFilterAnnotation(
+    const GURL& url,
     const ExtractTaskAttributesResponse& response);
 
 }  // namespace multistep_filter

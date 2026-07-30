@@ -61,6 +61,7 @@ MultivariantPlaylist::~MultivariantPlaylist() = default;
 ParseStatus::Or<scoped_refptr<MultivariantPlaylist>>
 MultivariantPlaylist::Parse(std::string_view source,
                             GURL uri,
+                            url::Origin security_origin,
                             types::DecimalInteger version) {
   DCHECK(version != 0);
   if (version < Playlist::kMinSupportedVersion ||
@@ -301,19 +302,24 @@ MultivariantPlaylist::Parse(std::string_view source,
   }
 
   return base::MakeRefCounted<MultivariantPlaylist>(
-      base::PassKey<MultivariantPlaylist>(), std::move(uri), version,
+      base::PassKey<MultivariantPlaylist>(), std::move(security_origin),
+      std::move(uri), version,
       common_state.independent_segments_tag.has_value(), std::move(variants),
       std::move(common_state.variable_dict));
 }
 
 MultivariantPlaylist::MultivariantPlaylist(
     base::PassKey<MultivariantPlaylist>,
+    url::Origin security_origin,
     GURL uri,
     types::DecimalInteger version,
     bool independent_segments,
     std::vector<VariantStream> variants,
     VariableDictionary variable_dictionary)
-    : Playlist(std::move(uri), version, independent_segments),
+    : Playlist(std::move(security_origin),
+               std::move(uri),
+               version,
+               independent_segments),
       variants_(std::move(variants)),
       variable_dictionary_(std::move(variable_dictionary)) {}
 

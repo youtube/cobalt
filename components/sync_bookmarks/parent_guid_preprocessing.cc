@@ -16,6 +16,7 @@
 #include "base/uuid.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_uuids.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/data_type_state.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
@@ -27,9 +28,6 @@ namespace sync_bookmarks {
 namespace {
 
 // The tag used in the sync protocol to identity well-known permanent folders.
-const char kBookmarkBarTag[] = "bookmark_bar";
-const char kMobileBookmarksTag[] = "synced_bookmarks";
-const char kOtherBookmarksTag[] = "other_bookmarks";
 
 // Fake GUID used to populate field |BookmarkSpecifics.parent_guid| for the case
 // where a parent is specified in |SyncEntity.parent_id| but the parent's
@@ -70,13 +68,13 @@ base::Uuid TryGetParentGuidFromTracker(
 
 std::string_view GetGuidForEntity(const syncer::EntityData& entity) {
   // Special-case permanent folders, which may not include a GUID in specifics.
-  if (entity.server_defined_unique_tag == kBookmarkBarTag) {
+  if (entity.server_defined_unique_tag == syncer::kBookmarkBarTag) {
     return bookmarks::kBookmarkBarNodeUuid;
   }
-  if (entity.server_defined_unique_tag == kOtherBookmarksTag) {
+  if (entity.server_defined_unique_tag == syncer::kOtherBookmarksTag) {
     return bookmarks::kOtherBookmarksNodeUuid;
   }
-  if (entity.server_defined_unique_tag == kMobileBookmarksTag) {
+  if (entity.server_defined_unique_tag == syncer::kSyncedBookmarksTag) {
     return bookmarks::kMobileBookmarksNodeUuid;
   }
   // Fall back to the regular case, i.e. GUID in specifics, or an empty value

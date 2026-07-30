@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "build/build_config.h"
 #include "components/signin/internal/identity_manager/account_info_util.h"
@@ -80,7 +81,7 @@ struct AccountInfo : public CoreAccountInfo {
   // `AccountInfo`s with `std::optional<AccountInfo>`.
   // TODO(crbug.com/40268200): eliminate case 2 when migration to Gaia ID
   // completes and we always can create `CoreAccountId` from `GaiaId`.
-  const CoreAccountId& GetAccountId() const;
+  const CoreAccountId& GetAccountId() const LIFETIME_BOUND;
 
   // Returns Gaia ID of the account.
   //
@@ -99,7 +100,7 @@ struct AccountInfo : public CoreAccountInfo {
   // completes and all accounts have populated Gaia ID.
   // TODO(crbug.com/40283608): eliminate case 3 when the account tracker stops
   // tracking new incomplete accounts.
-  const GaiaId& GetGaiaId() const;
+  const GaiaId& GetGaiaId() const LIFETIME_BOUND;
 
   // Returns email address of the account.
   //
@@ -117,32 +118,33 @@ struct AccountInfo : public CoreAccountInfo {
   // `AccountInfo`s with `std::optional<AccountInfo>`.
   // TODO(crbug.com/40283608): eliminate case 2 when the account tracker stops
   // tracking new incomplete accounts.
-  std::string_view GetEmail() const;
+  std::string_view GetEmail() const LIFETIME_BOUND;
 
   // Returns whether the account is under advanced protection.
   bool IsUnderAdvancedProtection() const;
 
   // Returns the full name of the account.
   // Returns std::nullopt if the value is unknown yet.
-  std::optional<std::string_view> GetFullName() const;
+  std::optional<std::string_view> GetFullName() const LIFETIME_BOUND;
 
   // Returns the given name of the account.
   // Returns std::nullopt if the value is unknown yet.
-  std::optional<std::string_view> GetGivenName() const;
+  std::optional<std::string_view> GetGivenName() const LIFETIME_BOUND;
 
   // Returns the hosted domain of the account. Might be empty if an account
   // doesn't have a hosted domain.
   // Returns std::nullopt if the value is unknown yet.
-  std::optional<std::string_view> GetHostedDomain() const;
+  std::optional<std::string_view> GetHostedDomain() const LIFETIME_BOUND;
 
   // Returns the URL of the account avatar. Might be empty if the account
   // doesn't have a usable avatar.
   // Returns std::nullopt if the value is unknown yet.
-  std::optional<std::string_view> GetAvatarUrl() const;
+  std::optional<std::string_view> GetAvatarUrl() const LIFETIME_BOUND;
 
   // Returns the last downloaded account avatar URL with size.
   // Returns std::nullopt if the avatar image hasn't been downloaded yet.
-  std::optional<std::string_view> GetLastDownloadedAvatarUrlWithSize() const;
+  std::optional<std::string_view> GetLastDownloadedAvatarUrlWithSize() const
+      LIFETIME_BOUND;
 
   // Returns the account avatar image.
   // Returns std::nullopt if the avatar image hasn't been downloaded yet.
@@ -157,14 +159,14 @@ struct AccountInfo : public CoreAccountInfo {
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
   // Returns the account capabilities.
-  const AccountCapabilities& GetAccountCapabilities() const;
+  const AccountCapabilities& GetAccountCapabilities() const LIFETIME_BOUND;
 
   // Returns whether this is a child account.
   signin::Tribool IsChildAccount() const;
 
   // Returns the locale of the account.
   // Returns std::nullopt if the value is unknown yet.
-  std::optional<std::string_view> GetLocale() const;
+  std::optional<std::string_view> GetLocale() const LIFETIME_BOUND;
 
   // Returns true if all fields in the account info are empty.
   bool IsEmpty() const;

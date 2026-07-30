@@ -117,8 +117,9 @@ void ConnectionProxy::Send(proto::PrivateAiRequest request,
 
   if (!inner_connection_) {
     // Initialization failed or connection disconnected.
-    std::move(callback).Run(base::unexpected(StatusCode::kError));
-    CallOnDisconnect(StatusCode::kError);
+    std::move(callback).Run(
+        base::unexpected(StatusCode::kConnectionClosedByClient));
+    CallOnDisconnect(StatusCode::kConnectionClosedByClient);
     return;
   }
 
@@ -159,7 +160,7 @@ void ConnectionProxy::OnProxyToken(
 
   if (!auth_token) {
     logger_->LogError(FROM_HERE, "Failed to get auth token for proxy.");
-    CallOnDisconnect(StatusCode::kError);
+    CallOnDisconnect(StatusCode::kProxyTokenFetchFailed);
     return;
   }
 

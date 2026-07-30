@@ -12,8 +12,6 @@
 namespace blink {
 
 class BoxFragmentBuilder;
-class MainGap;
-class CrossGap;
 class GapGeometry;
 struct LogicalOffset;
 struct FlexLine;

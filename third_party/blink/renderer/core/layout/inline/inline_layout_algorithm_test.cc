@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
 #include "third_party/blink/renderer/core/layout/inline/physical_line_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
@@ -1064,6 +1065,56 @@ TEST_F(InlineLayoutAlgorithmTest, LineClampAndMaxContent) {
   InlineCursor cursor(*test);
   cursor.MoveToLastLogicalLeaf();
   EXPECT_FALSE(cursor.Current().IsEllipsis());
+}
+
+TEST_F(InlineLayoutAlgorithmTest, TextEmphasisAsRuby) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      #container {
+        font: 20px Ahem;
+        line-height: 1;
+        text-emphasis-style: dot;
+        text-emphasis-position: under;
+      }
+    </style>
+    <div id="container">Hello</div>
+  )HTML");
+
+  LayoutBlockFlow* container =
+      To<LayoutBlockFlow>(GetLayoutObjectByElementId("container"));
+
+  {
+    ScopedTextEmphasisAsRubyForTest enable_text_emphasis_as_ruby(false);
+    container->SetNeedsLayout("test");
+    UpdateAllLifecyclePhasesForTest();
+
+    InlineCursor cursor(*container);
+    cursor.MoveToFirstLine();
+    ASSERT_TRUE(cursor);
+
+    // Default: text-emphasis increases the line box height.
+    EXPECT_GT(cursor.Current().Size().height, LayoutUnit(20));
+    // The container height is equal to the line box height.
+    EXPECT_EQ(container->LogicalHeight(), cursor.Current().Size().height);
+  }
+
+  {
+    ScopedTextEmphasisAsRubyForTest enable_text_emphasis_as_ruby(true);
+    container->SetNeedsLayout("test");
+    UpdateAllLifecyclePhasesForTest();
+
+    InlineCursor cursor(*container);
+    cursor.MoveToFirstLine();
+    ASSERT_TRUE(cursor);
+
+    // With TextEmphasisAsRuby: line box height remains same as line-height.
+    EXPECT_EQ(cursor.Current().Size().height, LayoutUnit(20));
+
+    // The container height should be greater than the line box height (20px)
+    // because the annotation overflow (emphasis marks) should be accommodated
+    // by the block layout.
+    EXPECT_GT(container->LogicalHeight(), LayoutUnit(20));
+  }
 }
 
 }  // namespace

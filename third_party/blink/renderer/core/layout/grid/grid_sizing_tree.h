@@ -139,6 +139,11 @@ class CORE_EXPORT GridSizingTree {
   // `GridLayoutTree` instance, which doesn't hold the grid items.
   const GridLayoutTree* FinalizeTree() const;
 
+  // Same as `FinalizeTree`, but only includes the subtree rooted at
+  // `subtree_root`. The returned `GridLayoutTree` is a fresh, standalone tree
+  // (the subtree's root is at index 0 in the returned tree).
+  const GridLayoutTree* FinalizeSubtreeAt(wtf_size_t subtree_root) const;
+
   SubgriddedItemData LookupSubgriddedItemData(
       const GridItemData& grid_item) const;
 
@@ -250,6 +255,13 @@ class GridSizingSubtree : public GridSubtree<GridSizingTree> {
   GridSizingTrackCollection& SizingCollection(
       GridTrackSizingDirection track_direction) const {
     return LayoutData().SizingCollection(track_direction);
+  }
+
+  // Finalizes the current subtree into a fresh `GridLayoutTree` that contains
+  // only this subtree's nodes (the subtree's root is at index 0). See
+  // `GridSizingTree::FinalizeSubtreeAt`.
+  const GridLayoutTree* FinalizeTree() const {
+    return SizingTree().FinalizeSubtreeAt(subtree_root_);
   }
 
  private:

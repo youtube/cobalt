@@ -14,7 +14,9 @@ message OfflineBadgeContent {
   optional bool available_offline = 1;
 }
 
+// Deprecated.
 message WebFeedFollowState {
+  option deprecated = true;
   enum FollowState {
     UNSPECIFIED = 0;
     // The WebFeed is followed.

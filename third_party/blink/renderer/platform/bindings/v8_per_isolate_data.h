@@ -312,10 +312,6 @@ class PLATFORM_EXPORT V8PerIsolateData final {
   V8TemplateMap v8_template_map_for_main_world_;
   V8TemplateMap v8_template_map_for_non_main_worlds_;
 
-  using V8DictTemplateMap = HashMap<const void*,
-                                    v8::Eternal<v8::DictionaryTemplate>,
-                                    SimplePtrHashTraits>;
-
   HashMap<const void*, v8::Eternal<v8::DictionaryTemplate>, SimplePtrHashTraits>
       v8_dict_template_map_;
 

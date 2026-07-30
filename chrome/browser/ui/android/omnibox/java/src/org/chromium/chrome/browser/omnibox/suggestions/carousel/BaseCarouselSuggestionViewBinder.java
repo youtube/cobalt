@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.omnibox.suggestions.carousel;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.graphics.Color;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewOutlineProvider;
@@ -30,10 +28,14 @@ public interface BaseCarouselSuggestionViewBinder {
      * @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object)
      */
     static void bind(PropertyModel model, BaseCarouselSuggestionView view, PropertyKey key) {
+        var adapter = (SimpleRecyclerViewAdapter) view.getAdapter();
+        if (adapter == null) {
+            adapter = BaseCarouselSuggestionItemViewBuilder.createAdapter();
+            view.setAdapter(adapter);
+        }
 
         if (key == BaseCarouselSuggestionViewProperties.TILES) {
             var items = model.get(BaseCarouselSuggestionViewProperties.TILES);
-            var adapter = assumeNonNull((SimpleRecyclerViewAdapter) view.getAdapter());
             if (items != null) {
                 adapter.getModelList().set(items);
             } else {
@@ -43,7 +45,6 @@ public interface BaseCarouselSuggestionViewBinder {
             propagateCommonProperties(adapter.getModelList(), model);
         } else if (key == SuggestionCommonProperties.COLOR_SCHEME) {
             // Propagate color scheme to all tiles.
-            var adapter = assumeNonNull((SimpleRecyclerViewAdapter) view.getAdapter());
             propagateCommonProperties(adapter.getModelList(), model);
         } else if (key == BaseCarouselSuggestionViewProperties.ITEM_DECORATION) {
             view.setItemDecoration(model.get(BaseCarouselSuggestionViewProperties.ITEM_DECORATION));

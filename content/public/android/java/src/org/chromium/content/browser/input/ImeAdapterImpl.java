@@ -77,6 +77,7 @@ import org.chromium.content.browser.webcontents.WebContentsImpl;
 import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.ContentFeatureMap;
+import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.content_public.browser.ImeAdapter;
 import org.chromium.content_public.browser.ImeEventObserver;
 import org.chromium.content_public.browser.InputMethodManagerWrapper;
@@ -188,6 +189,7 @@ public class ImeAdapterImpl
     private int mLastSelectionEnd;
 
     private String mLastText = "";
+    private HtmlMetadata mHtmlMetadata = HtmlMetadata.EMPTY;
 
     private int mLastCompositionStart;
     private int mLastCompositionEnd;
@@ -426,6 +428,15 @@ public class ImeAdapterImpl
         getStylusWritingImeCallback().handleStylusWritingGestureAction(-1, gestureData);
     }
 
+    /** Signals to Blink to cancel and clear any active handwriting preview spans. */
+    public void cancelPreviewGesture() {
+        if (mNativeImeAdapterAndroid == 0) {
+            Log.e(TAG, "cancelPreviewGesture called after native adapter was destroyed.");
+            return;
+        }
+        ImeAdapterImplJni.get().cancelPreviewGesture(mNativeImeAdapterAndroid);
+    }
+
     void handleGesture(OngoingGesture request) {
         mOngoingGestures.put(request.getId(), request);
         StylusWritingGestureData gestureData = request.getGestureData();
@@ -578,6 +589,7 @@ public class ImeAdapterImpl
                         mLastSelectionStart,
                         mLastSelectionEnd,
                         mLastText,
+                        mHtmlMetadata,
                         outAttrs));
         if (DEBUG_LOGS) Log.i(TAG, "onCreateInputConnection: " + mInputConnection);
 
@@ -745,6 +757,9 @@ public class ImeAdapterImpl
             boolean showIfNeeded,
             boolean alwaysHide,
             String text,
+            @Nullable String htmlLabel,
+            @Nullable String htmlFieldName,
+            @Nullable String htmlPlaceholder,
             int selectionStart,
             int selectionEnd,
             int compositionStart,
@@ -815,6 +830,9 @@ public class ImeAdapterImpl
             mLastSelectionEnd = selectionEnd;
             mLastCompositionStart = compositionStart;
             mLastCompositionEnd = compositionEnd;
+            if (!mHtmlMetadata.equals(htmlLabel, htmlFieldName, htmlPlaceholder)) {
+                mHtmlMetadata = HtmlMetadata.create(htmlLabel, htmlFieldName, htmlPlaceholder);
+            }
 
             // Check for the visibility request and policy if VK APIs are enabled.
             if (vkPolicy == VirtualKeyboardPolicy.MANUAL) {
@@ -1189,6 +1207,12 @@ public class ImeAdapterImpl
 
     public boolean performEditorAction(int actionCode) {
         if (!isValid()) return false;
+
+        // Only hide the keyboard on DONE if fullscreen IME is allowed/enabled.
+        // See crbug.com/498324340.
+        if (actionCode == EditorInfo.IME_ACTION_DONE && mAllowFullscreenIme) {
+            hideKeyboard();
+        }
 
         // If mTextInputAction has been specified (indicating an enterKeyHint
         // has been specified in the HTML) then we do will send the enter key
@@ -2228,6 +2252,8 @@ public class ImeAdapterImpl
         // Stylus Writing
         void handleStylusWritingGestureAction(
                 long nativeImeAdapterAndroid, int id, ByteBuffer gestureData);
+
+        void cancelPreviewGesture(long nativeImeAdapterAndroid);
 
         void performSpellCheck(long nativeImeAdapterAndroid);
 

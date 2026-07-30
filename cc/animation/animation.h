@@ -158,6 +158,9 @@ class CC_ANIMATION_EXPORT Animation : public base::RefCounted<Animation>,
 
   void SetHoldTime(std::optional<base::TimeDelta> hold_time);
 
+  void SetPlaybackRate(double playback_rate);
+  double GetPlaybackRate() const;
+
   base::TimeDelta CalculateCurrentTime(base::TimeTicks monotonic_time) const;
 
   void SetRunState(KeyframeModel::RunState run_state);
@@ -173,6 +176,12 @@ class CC_ANIMATION_EXPORT Animation : public base::RefCounted<Animation>,
   enum class AutoRewind { kDisabled, kEnabled, kForced };
   void Play(base::TimeTicks monotonic_time,
             AutoRewind auto_rewind = AutoRewind::kEnabled);
+  void PlayInternal(base::TimeTicks monotonic_time,
+                    AutoRewind auto_rewind,
+                    double playback_rate);
+
+  void Reverse(base::TimeTicks monotonic_time,
+               AutoRewind auto_rewind = AutoRewind::kEnabled);
 
   virtual bool IsWorkletAnimation() const;
 

@@ -26,9 +26,9 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.notifications.scheduler.TipsNotificationsFeatureType;
 import org.chromium.chrome.browser.notifications.tips.TipsPromoProperties.FeatureTipPromoData;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.tips.TipsNotificationsFeatureType;
 
 import java.util.concurrent.TimeUnit;
 

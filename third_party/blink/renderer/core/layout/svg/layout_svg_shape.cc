@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 #include "third_party/blink/renderer/platform/geometry/path_builder.h"
 #include "third_party/blink/renderer/platform/geometry/stroke_data.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "ui/gfx/geometry/point_f.h"
 
@@ -448,8 +449,20 @@ AffineTransform LayoutSVGShape::ComputeRootTransform() const {
   const LayoutObject* root = this;
   while (root && !root->IsSVGRoot())
     root = root->Parent();
-  return AffineTransform::FromTransform(
-      LocalToAncestorTransform(To<LayoutSVGRoot>(root)));
+  auto* layout_svg_root = To<LayoutSVGRoot>(root);
+  AffineTransform transform =
+      AffineTransform::FromTransform(LocalToAncestorTransform(layout_svg_root));
+  // When this SVG is rendered via SVGImage (e.g. <image> or <img>), the
+  // container may apply a non-uniform scale (e.g. for
+  // preserveAspectRatio="none"). Include that scale so non-scaling-stroke
+  // accounts for the full CTM to the host coordinate space.
+  if (RuntimeEnabledFeatures::SvgImageNonUniformScalingFixEnabled()) {
+    const gfx::Vector2dF& scale = layout_svg_root->GetContainerScale();
+    if (scale.x() != 1.f || scale.y() != 1.f) {
+      transform.ScaleNonUniform(scale.x(), scale.y());
+    }
+  }
+  return transform;
 }
 
 AffineTransform LayoutSVGShape::ComputeNonScalingStrokeTransform(

@@ -34,12 +34,6 @@ namespace base {
 class TimeTicks;
 }  // namespace base
 
-#if BUILDFLAG(IS_CHROMEOS)
-namespace crosapi::mojom {
-class LocalPrinter;
-}
-
-#endif
 
 namespace content {
 class WebContents;
@@ -217,8 +211,8 @@ class PrintPreviewHandler : public content::WebUIMessageHandler {
   // preview is displayed.
   void HandleGetInitialSettings(const base::ListValue& args);
 
-  // Opens printer settings in the Chrome OS Settings App or OS's printer manger
-  // dialog. |args| is unused.
+  // Opens printer settings in the Chrome OS Settings App or OS's printer
+  // manager dialog. |args| is unused.
   void HandleManagePrinters(const base::ListValue& args);
 
   void SendInitialSettings(const std::string& callback_id,
@@ -310,15 +304,6 @@ class PrintPreviewHandler : public content::WebUIMessageHandler {
 
   // Used to transmit mojo interface method calls to the associated receiver.
   mojo::AssociatedRemote<mojom::PrintRenderFrame> print_render_frame_;
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Used to transmit mojo interface method calls to ash chrome. Null if
-  // CrosapiManager is unavailable. In the post-Lacros world, it still bears the
-  // responsibility of talking to other parts of Ash for printer related
-  // business logic.
-  raw_ptr<crosapi::mojom::LocalPrinter, DanglingUntriaged> local_printer_ =
-      nullptr;
-#endif
 
   base::WeakPtrFactory<PrintPreviewHandler> weak_factory_{this};
 };

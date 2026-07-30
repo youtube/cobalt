@@ -995,7 +995,7 @@ WebRange EditContext::GetSelectionOffsets() const {
 void EditContext::Trace(Visitor* visitor) const {
   ActiveScriptWrappable::Trace(visitor);
   EventTarget::Trace(visitor);
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
   visitor->Trace(attached_elements_);
   visitor->Trace(execution_context_);
 }

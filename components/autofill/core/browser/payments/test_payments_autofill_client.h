@@ -53,7 +53,7 @@ class CreditCardCvcAuthenticator;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 class OmniboxAutofillDelegate;
 #endif
-class TouchToFillDelegate;
+class TouchToFillPaymentMethodDelegate;
 
 namespace payments {
 
@@ -168,7 +168,6 @@ class TestPaymentsAutofillClient : public PaymentsAutofillClient {
   CreditCardCvcAuthenticator& GetCvcAuthenticator() override;
   CreditCardOtpAuthenticator* GetOtpAuthenticator() override;
   TestCreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator() override;
-  bool IsRiskBasedAuthEffectivelyAvailable() const override;
   bool IsMandatoryReauthEnabled() override;
   void ShowMandatoryReauthOptInPrompt(
       base::OnceClosure accept_mandatory_reauth_callback,
@@ -187,16 +186,16 @@ class TestPaymentsAutofillClient : public PaymentsAutofillClient {
       const OfferNotificationOptions& options) override;
   void DismissOfferNotification() override;
   bool ShowTouchToFillCreditCard(
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       base::span<const Suggestion> suggestions) override;
   bool ShowTouchToFillIban(
-      base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const autofill::Iban> ibans_to_suggest) override;
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
+      base::span<const Iban> ibans_to_suggest) override;
   bool ShowTouchToFillAffiliatedLoyaltyCard(
-      base::WeakPtr<TouchToFillDelegate> delegate,
-      std::vector<autofill::LoyaltyCard> loyalty_cards_to_suggest) override;
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
+      std::vector<LoyaltyCard> loyalty_cards_to_suggest) override;
   bool ShowTouchToFillForAllLoyaltyCards(
-      base::WeakPtr<TouchToFillDelegate> delegate,
+      base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
       std::vector<LoyaltyCard> loyalty_cards_to_suggest) override;
   bool OnPurchaseAmountExtracted(
       base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,

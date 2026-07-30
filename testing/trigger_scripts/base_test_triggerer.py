@@ -22,7 +22,6 @@ import sys
 import tempfile
 import time
 import logging
-import six
 
 SRC_DIR = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -54,7 +53,7 @@ def convert_to_go_swarming_args(args):
 def strip_unicode(obj):
     """Recursively re-encodes strings as utf-8 inside |obj|. Returns the result.
   """
-    if isinstance(obj, six.text_type):
+    if isinstance(obj, str):
         return obj.encode('utf-8', 'replace')
     if isinstance(obj, list):
         return list(map(strip_unicode, obj))

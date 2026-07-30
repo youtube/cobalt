@@ -41,7 +41,7 @@ struct TestFormRemovalInfo {
   FormRemovalParams form_removal_params;
 };
 
-class TestFormActivityObserver : public autofill::FormActivityObserver {
+class TestFormActivityObserver : public FormActivityObserver {
  public:
   explicit TestFormActivityObserver(web::WebState* web_state);
 

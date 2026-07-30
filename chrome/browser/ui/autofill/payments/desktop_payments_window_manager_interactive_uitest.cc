@@ -40,7 +40,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/window/dialog_client_view.h"
 
-namespace autofill {
+namespace autofill::payments {
+namespace {
 
 class TestContentAutofillClientForWindowManagerTest
     : public TestContentAutofillClient {
@@ -49,16 +50,14 @@ class TestContentAutofillClientForWindowManagerTest
       content::WebContents* web_contents)
       : TestContentAutofillClient(web_contents) {
     GetPaymentsAutofillClient()->set_payments_network_interface(
-        std::make_unique<payments::TestPaymentsNetworkInterface>(
-            nullptr, nullptr, nullptr));
+        std::make_unique<TestPaymentsNetworkInterface>(nullptr, nullptr,
+                                                       nullptr));
     GetPaymentsAutofillClient()->set_payments_window_manager(
-        std::make_unique<payments::DesktopPaymentsWindowManager>(this));
+        std::make_unique<DesktopPaymentsWindowManager>(this));
   }
 
   ~TestContentAutofillClientForWindowManagerTest() override = default;
 };
-
-namespace payments {
 
 constexpr std::string_view kTestUrl = "https://site.example/";
 constexpr std::string_view kBnplInitialUrl = "https://www.bnplinitialurl.com/";
@@ -340,8 +339,8 @@ IN_PROC_BROWSER_TEST_F(DesktopPaymentsWindowManagerInteractiveUiTest,
   auto* autofill_client = client();
   EXPECT_TRUE(autofill_client->GetPaymentsAutofillClient()
                   ->autofill_progress_dialog_shown());
-  const std::optional<payments::UnmaskRequestDetails>& unmask_request =
-      static_cast<payments::TestPaymentsNetworkInterface*>(
+  const std::optional<UnmaskRequestDetails>& unmask_request =
+      static_cast<TestPaymentsNetworkInterface*>(
           autofill_client->GetPaymentsAutofillClient()
               ->GetPaymentsNetworkInterface())
           ->unmask_request();
@@ -506,8 +505,8 @@ IN_PROC_BROWSER_TEST_F(DesktopPaymentsWindowManagerInteractiveUiTest,
   // with the correct fields set, and the progress dialog was shown.
   EXPECT_TRUE(
       client()->GetPaymentsAutofillClient()->autofill_progress_dialog_shown());
-  const std::optional<payments::UnmaskRequestDetails>& unmask_request =
-      static_cast<payments::TestPaymentsNetworkInterface*>(
+  const std::optional<UnmaskRequestDetails>& unmask_request =
+      static_cast<TestPaymentsNetworkInterface*>(
           client()->GetPaymentsAutofillClient()->GetPaymentsNetworkInterface())
           ->unmask_request();
   ASSERT_TRUE(unmask_request.has_value());
@@ -593,8 +592,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(test_api(window_manager()).GetFlowState().has_value());
 
   // Check that the flow was ended and no UnmaskCardRequest was triggered.
-  const std::optional<payments::UnmaskRequestDetails>& unmask_request =
-      static_cast<payments::TestPaymentsNetworkInterface*>(
+  const std::optional<UnmaskRequestDetails>& unmask_request =
+      static_cast<TestPaymentsNetworkInterface*>(
           client()->GetPaymentsAutofillClient()->GetPaymentsNetworkInterface())
           ->unmask_request();
   ASSERT_FALSE(unmask_request.has_value());
@@ -651,8 +650,8 @@ IN_PROC_BROWSER_TEST_F(DesktopPaymentsWindowManagerInteractiveUiTest,
   EXPECT_FALSE(test_api(window_manager()).GetFlowState().has_value());
 
   // Check that the flow was ended and no UnmaskCardRequest was triggered.
-  const std::optional<payments::UnmaskRequestDetails>& unmask_request =
-      static_cast<payments::TestPaymentsNetworkInterface*>(
+  const std::optional<UnmaskRequestDetails>& unmask_request =
+      static_cast<TestPaymentsNetworkInterface*>(
           client()->GetPaymentsAutofillClient()->GetPaymentsNetworkInterface())
           ->unmask_request();
   ASSERT_FALSE(unmask_request.has_value());
@@ -708,8 +707,8 @@ IN_PROC_BROWSER_TEST_F(DesktopPaymentsWindowManagerInteractiveUiTest,
   EXPECT_FALSE(test_api(window_manager()).GetFlowState().has_value());
 
   // Check that the flow was ended and no UnmaskCardRequest was triggered.
-  const std::optional<payments::UnmaskRequestDetails>& unmask_request =
-      static_cast<payments::TestPaymentsNetworkInterface*>(
+  const std::optional<UnmaskRequestDetails>& unmask_request =
+      static_cast<TestPaymentsNetworkInterface*>(
           client()->GetPaymentsAutofillClient()->GetPaymentsNetworkInterface())
           ->unmask_request();
   ASSERT_FALSE(unmask_request.has_value());
@@ -1228,6 +1227,5 @@ IN_PROC_BROWSER_TEST_F(PaymentsWindowUserConsentDialogIntegrationTest,
           })));
 }
 
-}  // namespace payments
-
-}  // namespace autofill
+}  // namespace
+}  // namespace autofill::payments

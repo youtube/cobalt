@@ -25,7 +25,7 @@ bool ShouldShowWebauthnHybridEntryPoint(const FormFieldData& field) {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   return false;
 #else
-  const std::optional<autofill::AutocompleteParsingResult>& autocomplete =
+  const std::optional<AutocompleteParsingResult>& autocomplete =
       field.parsed_autocomplete();
   return autocomplete.has_value() &&  // Assume no autcomplete if not parsed.
          autocomplete->webauthn;      // Field must have "webauthn" annotation.

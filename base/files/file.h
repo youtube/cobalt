@@ -81,6 +81,7 @@ class BASE_EXPORT File {
         1 << 21,  // Windows only. Marks the file with a deny ACE that prevents
                   // opening the file with EXECUTE access. Cannot be used with
                   // FILE_WIN_EXECUTE flag. See also PreventExecuteMapping.
+    FLAG_NO_FOLLOW = 1 << 22,  // POSIX only. Do not follow symbolic links.
   };
 
   // This enum has been recorded in multiple histograms using PlatformFileError

@@ -210,7 +210,10 @@ export class PowerBookmarksService {
    */
   stopListening() {
     for (const [eventName, callback] of this.listeners_.entries()) {
-      this.bookmarksApi_.callbackRouter[eventName].removeListener(callback);
+      const router = this.bookmarksApi_.callbackRouter[eventName];
+      if (router) {
+        router.removeListener(callback);
+      }
     }
   }
 
@@ -392,8 +395,11 @@ export class PowerBookmarksService {
   }
 
   private addListener_(eventName: string, callback: Function): void {
-    this.bookmarksApi_.callbackRouter[eventName].addListener(callback);
-    this.listeners_.set(eventName, callback);
+    const router = this.bookmarksApi_.callbackRouter[eventName];
+    if (router) {
+      router.addListener(callback);
+      this.listeners_.set(eventName, callback);
+    }
   }
 
   private onBookmarkNodeChanged_(id: string, newTitle: string, newUrl: string) {
@@ -434,6 +440,7 @@ export class PowerBookmarksService {
     // Remove node from oldParent at oldIndex.
     const oldParent = this.findBookmarkWithId(oldParentId)!;
     const movedNode = oldParent.children![oldIndex];
+    assert(movedNode);
     Object.assign(movedNode, {index: newIndex, parentId: newParentId});
     oldParent.children!.splice(oldIndex, 1);
 
@@ -451,6 +458,7 @@ export class PowerBookmarksService {
       const path = this.findPathToId(id);
       const removedNode = path.pop()!;
       const parent = path[path.length - 1];
+      assert(parent);
       parent.children!.splice(parent.children!.indexOf(removedNode), 1);
       this.delegate_.onBookmarkRemoved(removedNode);
     }

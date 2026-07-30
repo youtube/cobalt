@@ -99,7 +99,7 @@ class PolicyOAuth2TokenFetcherImpl : public PolicyOAuth2TokenFetcher,
   void ForwardPolicyToken(const std::string& token,
                           const GoogleServiceAuthError& error);
 
-  // Auth code which is used to retreive a refresh token.
+  // Auth code which is used to retrieve a refresh token.
   std::string auth_code_;
 
   scoped_refptr<network::SharedURLLoaderFactory> system_url_loader_factory_;

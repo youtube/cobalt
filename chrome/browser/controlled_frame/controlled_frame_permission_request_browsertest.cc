@@ -514,6 +514,7 @@ class ControlledFramePermissionRequestPEPCTest
   ControlledFramePermissionRequestPEPCTest() {
     feature_list_.InitWithFeatures(
         {blink::features::kUserMediaElement,
+         blink::features::kUserMediaElementLegacy,
          blink::features::kBypassPepcSecurityForTesting},
         {});
   }

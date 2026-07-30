@@ -113,6 +113,8 @@ final class SigninButtonMediator
 
     private final SigninAndHistorySyncActivityLauncher mSigninAndHistorySyncActivityLauncher;
 
+    private final Runnable mOnSigninTapped;
+
     /**
      * @param context The {@link Context} to retrieve resources.
      * @param windowAndroid The {@link WindowAndroid} for the current window.
@@ -128,6 +130,7 @@ final class SigninButtonMediator
      * @param modalDialogManager The {@link ModalDialogManager} to manage the dialog.
      * @param snackbarManager The {@link SnackbarManager} to show sign-in/sign-out snackbars.
      * @param themeColorProvider The {@link ThemeColorProvider} to get toolbar tint changes.
+     * @param onSigninTapped Runnable to be called when the sign-in button is tapped.
      */
     public SigninButtonMediator(
             Context context,
@@ -140,7 +143,8 @@ final class SigninButtonMediator
             BottomSheetController bottomSheetController,
             ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
-            ThemeColorProvider themeColorProvider) {
+            ThemeColorProvider themeColorProvider,
+            Runnable onSigninTapped) {
         mContext = context;
         mModel = model;
         mProfileSupplier = profileSupplier;
@@ -153,6 +157,7 @@ final class SigninButtonMediator
         mBottomSheetController = bottomSheetController;
         mSigninAndHistorySyncActivityLauncher = signinAndHistorySyncActivityLauncher;
         mThemeColorProvider = themeColorProvider;
+        mOnSigninTapped = onSigninTapped;
         mActivityFocusTint = mThemeColorProvider.getActivityFocusTint();
         mThemeColorProvider.addTintObserver(this);
         mModel.set(
@@ -351,6 +356,8 @@ final class SigninButtonMediator
         if (mProfile == null || mProfile.isOffTheRecord()) {
             return;
         }
+
+        mOnSigninTapped.run();
         recordSigninButtonUsed(mProfile);
 
         Profile originalProfile = mProfile.getOriginalProfile();

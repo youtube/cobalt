@@ -33,4 +33,7 @@ extern NSString* const kAutofillAddressMigrateToAccountButtonId;
 // Accessibility identifier for the edit cell button in the section.
 extern NSString* const kAutofillEditButtonCellId;
 
+// Accessibility identifier for the Pay Over Time settings entry cell.
+extern NSString* const kAutofillPayOverTimeCellId;
+
 #endif  // IOS_CHROME_BROWSER_SETTINGS_UI_BUNDLED_AUTOFILL_AUTOFILL_SETTINGS_CONSTANTS_H_

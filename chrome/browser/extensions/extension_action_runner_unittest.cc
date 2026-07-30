@@ -217,7 +217,6 @@ TEST_F(ExtensionActionRunnerUnitTest, GrantTabPermissions) {
   EXPECT_TRUE(runner()->WantsToRun(extension));
 
   runner()->GrantTabPermissions({extension});
-  EXPECT_TRUE(content::WaitForLoadStop(web_contents()));
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(1u, GetExecutionCountForExtension(extension->id()));

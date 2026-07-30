@@ -20,12 +20,14 @@ import org.junit.runner.RunWith;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.build.BuildConfig;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.ProfileManager;
-import org.chromium.chrome.browser.search_engines.settings.SearchEngineAdapter;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.components.search_engines.PrepopulatedAndRecentlyVisitedTemplateURLs;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService.LoadListener;
@@ -192,14 +194,13 @@ public class TemplateUrlServiceTest {
     @Test
     @SmallTest
     @Feature({"SearchEngines"})
+    @EnableFeatures(ChromeFeatureList.SEARCH_SETTINGS_UPDATE_V2)
     public void testSetAndGetSearchEngine() {
         waitForTemplateUrlServiceToLoad();
 
         List<TemplateUrl> searchEngines = getSearchEngines(mTemplateUrlService);
         // Ensure known state of default search index before running test.
         TemplateUrl defaultSearchEngine = getDefaultSearchEngine(mTemplateUrlService);
-        SearchEngineAdapter.sortAndFilterUnnecessaryTemplateUrl(
-                searchEngines, defaultSearchEngine, /* isEeaChoiceCountry= */ false);
 
         // Outside of the EEA, where prepopulated engines are always sorted by ID, Google has the
         // lowest ID and will be at the index 0 in the sorted list.
@@ -217,6 +218,31 @@ public class TemplateUrlServiceTest {
 
         defaultSearchEngine = getDefaultSearchEngine(mTemplateUrlService);
         Assert.assertEquals(searchEngines.get(1), defaultSearchEngine);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"SearchEngines"})
+    @EnableFeatures(ChromeFeatureList.SEARCH_SETTINGS_UPDATE_V2)
+    public void testGetPrepopulatedAndRecentlyVisitedTemplateURLs() {
+        waitForTemplateUrlServiceToLoad();
+
+        PrepopulatedAndRecentlyVisitedTemplateURLs result =
+                ThreadUtils.runOnUiThreadBlocking(
+                        mTemplateUrlService::getPrepopulatedAndRecentlyVisitedTemplateURLs);
+
+        Assert.assertNotNull(result);
+        List<TemplateUrl> prepopulated = result.getPrepopulatedUrls();
+        List<TemplateUrl> recent = result.getRecentlyVisitedUrls();
+
+        Assert.assertNotNull(prepopulated);
+        Assert.assertNotNull(recent);
+
+        // At least the default search engine should be in the prepopulated list.
+        Assert.assertFalse(prepopulated.isEmpty());
+
+        TemplateUrl defaultSearchEngine = getDefaultSearchEngine(mTemplateUrlService);
+        Assert.assertTrue(prepopulated.contains(defaultSearchEngine));
     }
 
     @Test

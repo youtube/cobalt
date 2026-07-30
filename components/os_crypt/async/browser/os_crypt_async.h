@@ -57,21 +57,15 @@ class COMPONENT_EXPORT(OS_CRYPT_ASYNC) OSCryptAsync {
 
   // Obtain an Encryptor instance. Can be called multiple times, each one will
   // get a valid instance once the initialization has completed, on the
-  // `callback`. `option` determines characteristics of the resulting Encryptor
-  // instance returned in the callback, see encryptor.h. Must be called on the
-  // same sequence that the OSCryptAsync object was created on.
+  // `callback`. Must be called on the same sequence that the OSCryptAsync
+  // object was created on.
   // The callback might be executed before this function returns, if the
   // Encryptor is already available.
-  virtual void GetInstance(InitCallback callback, Encryptor::Option option);
-
-  // Same as the `GetInstance` method above but uses a default option.
-  void GetInstance(InitCallback callback);
+  virtual void GetInstance(InitCallback callback);
 
  private:
   using ProviderIterator =
       std::vector<std::unique_ptr<KeyProvider>>::const_iterator;
-
-  void CallbackHelper(InitCallback callback, Encryptor::Option option) const;
   void HandleKey(ProviderIterator current,
                  const std::string& tag,
                  base::expected<Encryptor::Key, KeyProvider::KeyError> key);
@@ -87,8 +81,6 @@ class COMPONENT_EXPORT(OS_CRYPT_ASYNC) OSCryptAsync {
   std::list<base::OnceClosure> callbacks_ GUARDED_BY_CONTEXT(sequence_checker_);
   Encryptor::KeyRing key_ring_ GUARDED_BY_CONTEXT(sequence_checker_);
   std::string provider_for_encryption_ GUARDED_BY_CONTEXT(sequence_checker_);
-  std::string provider_for_os_crypt_sync_compatible_encryption_
-      GUARDED_BY_CONTEXT(sequence_checker_);
   size_t number_of_failing_key_providers_
       GUARDED_BY_CONTEXT(sequence_checker_) = 0;
 

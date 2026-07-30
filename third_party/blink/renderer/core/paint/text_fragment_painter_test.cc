@@ -191,7 +191,7 @@ class BlockCaretTextColorPainterTest : public TextFragmentPainterTest {
     auto* target = GetElementById("target");
     auto* text = target->firstChild();
     auto& selection = Selection();
-    selection.SetSelection(SelectionInDOMTree::Builder()
+    selection.SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(text, dom_offset))
                                .Build(),
                            SetSelectionOptions());

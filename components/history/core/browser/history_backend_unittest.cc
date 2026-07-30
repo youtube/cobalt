@@ -1240,6 +1240,123 @@ TEST_F(HistoryBackendTest, KeywordGenerated) {
   ASSERT_EQ(0, backend_->db()->GetRowForURL(url, &row));
 }
 
+TEST_F(HistoryBackendTest, SegmentsDoNotIncludeRedirects) {
+  ASSERT_TRUE(backend_.get());
+
+  base::Time visit_time = base::Time::Now() - base::Days(1);
+
+  // 1. Typed visit (no redirect). A segment should be created.
+  GURL typed_url("http://typed-no-redirect.com");
+  HistoryAddPageArgs typed_request(
+      typed_url, visit_time, 0, 0, std::nullopt, GURL(), RedirectList(),
+      ui::PAGE_TRANSITION_TYPED, false, SOURCE_BROWSED,
+      VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(typed_request);
+
+  std::string typed_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(typed_url);
+  SegmentID typed_segment_id =
+      backend_->db()->GetSegmentNamed(typed_segment_name);
+  EXPECT_NE(0, typed_segment_id);
+
+  // 2. Client redirect: User visits referrer_url (typed), which then
+  // client-redirects to target_url, resulting in two separate AddPage() calls.
+  // A segment should be created for referrer_url, but NOT for target_url.
+  GURL referrer_url("http://client-redirect-referrer.com");
+  HistoryAddPageArgs referrer_request(
+      referrer_url, visit_time - base::Seconds(10), 0, 0, std::nullopt, GURL(),
+      RedirectList(), ui::PAGE_TRANSITION_TYPED, false, SOURCE_BROWSED,
+      VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(referrer_request);
+
+  std::string referrer_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(referrer_url);
+  EXPECT_NE(0, backend_->db()->GetSegmentNamed(referrer_segment_name));
+
+  GURL client_redirect_target_url("http://client-redirect-target.com");
+  HistoryAddPageArgs client_redirect_request(
+      client_redirect_target_url, visit_time, 0, 0, std::nullopt, referrer_url,
+      RedirectList{referrer_url, client_redirect_target_url},
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
+                                ui::PAGE_TRANSITION_CLIENT_REDIRECT),
+      false, SOURCE_BROWSED, VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(client_redirect_request);
+
+  std::string client_redirect_target_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(client_redirect_target_url);
+  EXPECT_EQ(
+      0, backend_->db()->GetSegmentNamed(client_redirect_target_segment_name));
+
+  // 3. Single visit with ui::PAGE_TRANSITION_TYPED |
+  // ui::PAGE_TRANSITION_SERVER_REDIRECT (this shouldn't usually happen, but
+  // could represent a synced/restored visit). No segment should be created.
+  GURL single_server_redirect_url("http://single-server-redirect.com");
+  HistoryAddPageArgs single_server_redirect_request(
+      single_server_redirect_url, visit_time, 0, 0, std::nullopt, GURL(),
+      RedirectList(),
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
+                                ui::PAGE_TRANSITION_SERVER_REDIRECT),
+      false, SOURCE_BROWSED, VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(single_server_redirect_request);
+
+  std::string single_server_redirect_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(single_server_redirect_url);
+  EXPECT_EQ(
+      0, backend_->db()->GetSegmentNamed(single_server_redirect_segment_name));
+
+  // 4. Realistic server redirect chain: User types server_redirect_source_url,
+  // which server-redirects to server_redirect_target_url. A segment should be
+  // created for the source_url, but NOT for the target_url.
+  GURL server_redirect_source_url("http://server-redirect-source.com");
+  GURL server_redirect_target_url("http://server-redirect-target.com");
+  HistoryAddPageArgs server_redirect_request(
+      server_redirect_target_url, visit_time, 0, 0, std::nullopt, GURL(),
+      RedirectList{server_redirect_source_url, server_redirect_target_url},
+      ui::PAGE_TRANSITION_TYPED, false, SOURCE_BROWSED,
+      VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(server_redirect_request);
+
+  std::string server_redirect_source_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(server_redirect_source_url);
+  EXPECT_NE(
+      0, backend_->db()->GetSegmentNamed(server_redirect_source_segment_name));
+
+  std::string server_redirect_target_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(server_redirect_target_url);
+  EXPECT_EQ(
+      0, backend_->db()->GetSegmentNamed(server_redirect_target_segment_name));
+
+  // 5. Bookmark non-redirect control.
+  // A segment should be created.
+  GURL bookmark_url("http://bookmark-no-redirect.com");
+  HistoryAddPageArgs bookmark_request(
+      bookmark_url, visit_time, 0, 0, std::nullopt, GURL(), RedirectList(),
+      ui::PAGE_TRANSITION_AUTO_BOOKMARK, false, SOURCE_BROWSED,
+      VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(bookmark_request);
+
+  std::string bookmark_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(bookmark_url);
+  SegmentID bookmark_segment_id =
+      backend_->db()->GetSegmentNamed(bookmark_segment_name);
+  EXPECT_NE(0, bookmark_segment_id);
+
+  // 6. Bookmark with server redirect (e.g. synced/restored or
+  // individually-added redirect visit). No segment should be created.
+  GURL bookmark_redirect_url("http://bookmark-server-redirect.com");
+  HistoryAddPageArgs bookmark_redirect_request(
+      bookmark_redirect_url, visit_time, 0, 0, std::nullopt, GURL(),
+      RedirectList(),
+      ui::PageTransitionFromInt(ui::PAGE_TRANSITION_AUTO_BOOKMARK |
+                                ui::PAGE_TRANSITION_SERVER_REDIRECT),
+      false, SOURCE_BROWSED, VisitResponseCodeCategory::kNot404, false, true);
+  backend_->AddPage(bookmark_redirect_request);
+
+  std::string bookmark_redirect_segment_name =
+      VisitSegmentDatabase::ComputeSegmentName(bookmark_redirect_url);
+  EXPECT_EQ(0, backend_->db()->GetSegmentNamed(bookmark_redirect_segment_name));
+}
+
 TEST_F(HistoryBackendTest, AddPage404) {
   // Enable `history::kVisitedLinksOn404` to make 404s eligible for History.
   base::test::ScopedFeatureList feature_list;

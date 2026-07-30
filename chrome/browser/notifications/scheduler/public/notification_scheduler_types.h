@@ -45,25 +45,6 @@ enum class SchedulerClientType {
   kMaxValue = kChromeFinds
 };
 
-// The Chrome feature correlating to each tip notification.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// A Java counterpart will be generated for this enum.
-// GENERATED_JAVA_ENUM_PACKAGE: (
-//   org.chromium.chrome.browser.notifications.scheduler)
-enum class TipsNotificationsFeatureType {
-  kEnhancedSafeBrowsing = 0,
-  kQuickDelete = 1,
-  kGoogleLens = 2,
-  kBottomOmnibox = 3,
-  kPasswordAutofill = 4,
-  kSignin = 5,
-  kCreateTabGroups = 6,
-  kCustomizeMVT = 7,
-  kRecentTabs = 8,
-  kMaxValue = kRecentTabs
-};
-
 // The type of user feedback from a displayed notification.
 enum class UserFeedback {
   // No user feedback yet.

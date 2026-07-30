@@ -44,6 +44,9 @@ struct CORE_EXPORT BoxStrut {
   // Create a strut based on an inner rectangle positioned within an area.
   BoxStrut(const LogicalSize& outer_size, const LogicalRect& inner_rect);
 
+  // Create a strut based on an outer and inner rectangle (insets are inwards).
+  BoxStrut(const LogicalRect& outer_rect, const LogicalRect& inner_rect);
+
   // Update each of data members with std::min(this->member, other.member).
   // This function returns `*this`.
   BoxStrut& Intersect(const BoxStrut& other);

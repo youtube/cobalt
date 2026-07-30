@@ -50,7 +50,7 @@ class TouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView {
       base::span<const Suggestion> suggestions,
       const payments::TouchToFillDisplayOptions& options) override;
   bool ShowIbans(TouchToFillPaymentMethodViewController* controller,
-                 base::span<const autofill::Iban> ibans_to_suggest) override;
+                 base::span<const Iban> ibans_to_suggest) override;
   bool ShowAffiliatedLoyaltyCards(
       TouchToFillPaymentMethodViewController* controller,
       base::span<const LoyaltyCard> affiliated_loyalty_cards,

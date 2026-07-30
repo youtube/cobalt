@@ -229,6 +229,7 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Listener,
   // rendering and may be backgrounded unnecessarily without this call.
   virtual void OnImmersiveXrSessionStarted() = 0;
   virtual void OnImmersiveXrSessionStopped() = 0;
+  virtual bool HasImmersiveXrSessionForTesting() const = 0;
 
   // Returns true if the process is hosting a Top Chrome WebUI, e.g., Tab
   // Search, Side Panel, Initial WebUI. High-privilege WebUIs that share

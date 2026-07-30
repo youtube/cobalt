@@ -78,9 +78,8 @@ JNI_AutofillProviderTestHelper_SimulateMainFrameAutofillServerResponseForTesting
       for (auto form_field_data : form_data.fields()) {
         if (form_field_data.id_attribute() ==
             jfield_ids.GetAs<std::u16string>(env, i)) {
-          autofill::test::AddFieldPredictionToForm(
-              form_field_data,
-              static_cast<autofill::FieldType>(field_types_view.Get(i)),
+          test::AddFieldPredictionToForm(
+              form_field_data, static_cast<FieldType>(field_types_view.Get(i)),
               form_suggestion);
           found_fields_count++;
           break;
@@ -88,7 +87,7 @@ JNI_AutofillProviderTestHelper_SimulateMainFrameAutofillServerResponseForTesting
       }
     }
     if (found_fields_count > 0) {
-      signatures = autofill::test::GetEncodedSignatures(*form_structure);
+      signatures = test::GetEncodedSignatures(*form_structure);
       forms.push_back(std::move(form_data));
       break;
     }
@@ -134,15 +133,15 @@ JNI_AutofillProviderTestHelper_SimulateMainFramePredictionsAutofillServerRespons
           std::vector<FieldType> field_types = base::ToVector(
               field_types_jarray.CreateView(env),
               [](int32_t type) -> FieldType { return FieldType(type); });
-          autofill::test::AddFieldPredictionsToForm(
-              form_field_data, field_types, form_suggestion);
+          test::AddFieldPredictionsToForm(form_field_data, field_types,
+                                          form_suggestion);
           found_fields_count++;
           break;
         }
       }
     }
     if (found_fields_count > 0) {
-      signatures = autofill::test::GetEncodedSignatures(*form_structure);
+      signatures = test::GetEncodedSignatures(*form_structure);
       CHECK(found_fields_count == static_cast<size_t>(field_ids_length));
       forms = {std::move(form_data)};
     }

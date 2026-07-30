@@ -17,6 +17,7 @@
 #include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/send_tab_to_self_model_observer.h"
 #include "components/sync_device_info/device_info.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "ui/views/widget/widget_observer.h"
 #include "url/gurl.h"
@@ -56,6 +57,7 @@ class SendTabToSelfModel;
 
 class SendTabToSelfBubbleController
     : public content::WebContentsUserData<SendTabToSelfBubbleController>,
+      public content::WebContentsObserver,
       public views::WidgetObserver,
       public send_tab_to_self::SendTabToSelfModelObserver {
  public:
@@ -131,6 +133,9 @@ class SendTabToSelfBubbleController
                                    std::string_view device_name,
                                    syncer::DeviceInfo::FormFactor form_factor,
                                    SendTabToSelfResult result);
+
+  // content::WebContentsObserver:
+  void PrimaryPageChanged(content::Page& page) override;
 
   // views::WidgetObserver:
   void OnWidgetDestroying(views::Widget* widget) override;

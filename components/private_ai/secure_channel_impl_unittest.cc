@@ -569,6 +569,46 @@ TEST_F(SecureChannelImplTest, TransportErrorAfterSessionEstablished) {
   EXPECT_TRUE(established_called_);
 }
 
+// Tests that a socket closed by server transport error in kEstablished state
+// maps to StatusCode::kConnectionClosedByServer.
+TEST_F(SecureChannelImplTest, TransportSocketClosedAfterSessionEstablished) {
+  SetUpAttestation();
+  SetUpHandshake();
+
+  oak::session::v1::SessionRequest expected_session_request;
+  {
+    oak::session::v1::EncryptedMessage encrypted_request;
+    encrypted_request.set_ciphertext("encrypted: secret request");
+    *expected_session_request.mutable_encrypted_message() = encrypted_request;
+  }
+
+  EXPECT_CALL(*transport_, Send(EqualsSessionRequest(expected_session_request)))
+      .WillOnce([&]() {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](Transport::ResponseCallback cb) {
+                             cb.Run(base::unexpected(
+                                 Transport::TransportError::kSocketClosed));
+                           },
+                           response_callback_));
+      });
+
+  base::test::TestFuture<base::expected<Response, StatusCode>> future;
+  CreateSecureChannel(future.GetRepeatingCallback());
+  EXPECT_TRUE(secure_channel_->Write(StringToBytes("secret request")));
+
+  const auto& result = future.Get();
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), StatusCode::kConnectionClosedByServer);
+
+  histogram_tester_.ExpectTotalCount("PrivateAi.SecureChannel.SessionDuration2",
+                                     1);
+  histogram_tester_.ExpectUniqueSample(
+      "PrivateAi.SecureChannel.RequestsPerSession", /*sample=*/1,
+      /*expected_bucket_count=*/1);
+  EXPECT_TRUE(established_called_);
+}
+
 // Tests a failure in generating the initial attestation request.
 TEST_F(SecureChannelImplTest, GetAttestationRequestFails) {
   EXPECT_CALL(*attestation_handler_, GetAttestationRequest())

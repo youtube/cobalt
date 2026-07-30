@@ -18,7 +18,7 @@ solution and guidelines for future developments.
 - **Allow for radical UI changes.** The core architecture of the package should
   be structured to allow for flexibility and experimentation in the UI. This
   means it generally shouldn't be tied to any particular UI surface, and
-  specifically that it is flexible enough to accomodate both the current NTP and
+  specifically that it is flexible enough to accommodate both the current NTP and
   its evolutions.
 
 

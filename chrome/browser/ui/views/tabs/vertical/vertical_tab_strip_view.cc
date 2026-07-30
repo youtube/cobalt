@@ -17,7 +17,6 @@
 #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_pinned_tab_container_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_header_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_scroll_bar.h"
@@ -294,25 +293,77 @@ void VerticalTabStripView::OnWidgetVisibilityChanged(views::Widget* widget,
   if (collection_node_ && visible && is_first_window_presentation_) {
     // Only scroll-in the active tab for the first window presentation.
     is_first_window_presentation_ = false;
-    OnActiveTabChanged(collection_node_->GetController()->GetActiveTab());
+    OnTabChanged(collection_node_->GetController()->GetActiveTab());
   }
 }
 
-void VerticalTabStripView::OnActiveTabChanged(
-    const tabs::TabInterface* active_tab) {
-  if (collection_node_ && active_tab) {
-    // Expand group if the activated tab is within a collapsed group unless
-    // we are header dragging the collapsed group.
-    if (active_tab->GetGroup().has_value() &&
-        !collection_node_->GetController()->GetDragHandler().IsDragging()) {
-      TabCollectionNode* group_node = collection_node_->GetNodeForHandle(
-          active_tab->GetBrowserWindowInterface()
-              ->GetTabStripModel()
-              ->group_model()
-              ->GetTabGroup(active_tab->GetGroup().value())
-              ->GetCollectionHandle());
-      CHECK(group_node);
+void VerticalTabStripView::OnChildMoved(TabCollectionNode* moved_node) {
+  CHECK(moved_node);
 
+  if (collection_node_ &&
+      collection_node_->GetController()->GetDragHandler().IsDragging()) {
+    return;
+  }
+
+  const tabs::TabInterface* active_tab =
+      collection_node_->GetController()->GetActiveTab();
+
+  bool is_active_tab = false;
+  if (active_tab) {
+    if (moved_node->type() == TabCollectionNode::Type::TAB) {
+      const tabs::TabInterface* tab =
+          std::get<const tabs::TabInterface*>(moved_node->GetNodeData());
+      is_active_tab = (tab == active_tab);
+    } else if (moved_node->type() == TabCollectionNode::Type::SPLIT) {
+      is_active_tab =
+          (moved_node->GetNodeForHandle(active_tab->GetHandle()) != nullptr);
+    }
+  }
+
+  const views::View* focused_view =
+      GetFocusManager() ? GetFocusManager()->GetFocusedView() : nullptr;
+  views::View* view = moved_node->view();
+  bool has_focus = view && focused_view && view->Contains(focused_view);
+
+  if (is_active_tab || has_focus) {
+    switch (moved_node->type()) {
+      case TabCollectionNode::Type::TAB: {
+        const tabs::TabInterface* tab =
+            std::get<const tabs::TabInterface*>(moved_node->GetNodeData());
+        OnTabChanged(tab);
+        break;
+      }
+      case TabCollectionNode::Type::SPLIT:
+      case TabCollectionNode::Type::GROUP:
+        ScrollToView(view);
+        break;
+      case TabCollectionNode::Type::TABSTRIP:
+      case TabCollectionNode::Type::PINNED:
+      case TabCollectionNode::Type::UNPINNED:
+        break;
+    }
+  }
+}
+
+void VerticalTabStripView::OnTabChanged(const tabs::TabInterface* active_tab) {
+  if (!collection_node_ || !active_tab) {
+    return;
+  }
+
+  if (collection_node_->GetController()->GetDragHandler().IsDragging()) {
+    return;
+  }
+
+  // Expand group if the activated tab is within a collapsed group unless
+  // we are header dragging the collapsed group.
+  if (active_tab->GetGroup().has_value()) {
+    TabCollectionNode* group_node = collection_node_->GetNodeForHandle(
+        active_tab->GetBrowserWindowInterface()
+            ->GetTabStripModel()
+            ->group_model()
+            ->GetTabGroup(active_tab->GetGroup().value())
+            ->GetCollectionHandle());
+    if (group_node) {
       auto* group_view =
           views::AsViewClass<VerticalTabGroupView>(group_node->view());
       if (group_view && group_view->IsCollapsed()) {
@@ -320,17 +371,16 @@ void VerticalTabStripView::OnActiveTabChanged(
             ToggleTabGroupCollapsedStateOrigin::kMenuAction);
       }
     }
-
-    // Scroll to the activated tab if it isn't in the visible viewport.
-    TabCollectionNode* activated_node =
-        collection_node_->GetNodeForHandle(active_tab->GetHandle());
-    CHECK(activated_node);
-    EnsureViewVisible(activated_node->view());
   }
+
+  TabCollectionNode* activated_node =
+      collection_node_->GetNodeForHandle(active_tab->GetHandle());
+  CHECK(activated_node);
+  ScrollToView(activated_node->view());
 }
 
-void VerticalTabStripView::EnsureViewVisible(views::View* view) {
-  if (!view || !Contains(view)) {
+void VerticalTabStripView::ScrollToView(views::View* view) {
+  if (!view || !Contains(view) || is_first_window_presentation_) {
     return;
   }
 

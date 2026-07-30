@@ -1158,26 +1158,30 @@ TEST_P(AutofillCrowdsourcingEncodingUploadProto,
        EncodeUploadRequest_ThreeBitHashedMetadata) {
   const bool kUploadMoreDataEnabled = GetParam();
 
-  FormData form;
-  form.set_id_attribute(u"form-id");
-  form.set_name_attribute(u"form-name");
-  form.set_action(GURL("http://www.foo.com/submit"));
-  form.set_button_titles({std::make_pair(
-      u"Submit Button", mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE)});
-
-  FormFieldData field;
-  field.set_id_attribute(u"field1-id");
-  field.set_name_attribute(u"field1-name");
-  field.set_label(u"Field 1 Label");
-  field.set_aria_label(u"Field 1 Aria Label");
-  field.set_aria_description(u"Field 1 Aria Description");
-  field.set_placeholder(u"Field 1 Placeholder");
-  field.set_autocomplete_attribute("name");
-  field.set_pattern(u"[0-9]*");
-  field.set_form_control_type(FormControlType::kInputText);
-  field.set_value(u"initial value 1");
-  field.set_renderer_id(test::MakeFieldRendererId());
-  test_api(form).Append(field);
+  FormData form = test::GetFormData({
+      .fields = {{
+          .role = UNKNOWN_TYPE,
+          .renderer_id = test::MakeFieldRendererId(),
+          .label = u"Field 1 Label",
+          .name_attribute = u"field1-name",
+          .id_attribute = u"field1-id",
+          .value = u"initial value 1",
+          .placeholder = u"Field 1 Placeholder",
+          .placeholder_attribute = u"Field 1 Placeholder Attribute",
+          .aria_label = u"Field 1 Aria Label",
+          .aria_description = u"Field 1 Aria Description",
+          .autocomplete_attribute = "name",
+          .form_control_type = FormControlType::kInputText,
+          .pattern = u"[0-9]*",
+      }},
+      .url = "",
+      .action = "http://www.foo.com/submit",
+      .id_attribute = u"form-id",
+      .name_attribute = u"form-name",
+      .button_titles = {{u"Submit Button",
+                         mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE}},
+  });
+  const FormFieldData& field = form.fields()[0];
 
   FormStructure form_structure(form);
   EncodeUploadRequestOptions options;
@@ -1211,7 +1215,8 @@ TEST_P(AutofillCrowdsourcingEncodingUploadProto,
     EXPECT_EQ(field_metadata.aria_label(), StrToHash3Bit(field.aria_label()));
     EXPECT_EQ(field_metadata.aria_description(),
               StrToHash3Bit(field.aria_description()));
-    EXPECT_EQ(field_metadata.placeholder(), StrToHash3Bit(field.placeholder()));
+    EXPECT_EQ(field_metadata.placeholder(),
+              StrToHash3Bit(field.placeholder_attribute()));
     EXPECT_EQ(field_metadata.autocomplete(),
               StrToHash3Bit(field.autocomplete_attribute()));
     EXPECT_EQ(field_metadata.pattern(), StrToHash3Bit(field.pattern()));
@@ -1261,6 +1266,7 @@ TEST_P(AutofillCrowdsourcingEncodingQueryProto,
   field.set_aria_label(u"Field 1 Aria Label");
   field.set_aria_description(u"Field 1 Aria Description");
   field.set_placeholder(u"Field 1 Placeholder");
+  field.set_placeholder_attribute(u"Field 1 Placeholder Attribute");
   field.set_autocomplete_attribute("name");
   field.set_pattern(u"[0-9]*");
   field.set_form_control_type(FormControlType::kInputText);
@@ -1302,7 +1308,8 @@ TEST_P(AutofillCrowdsourcingEncodingQueryProto,
     EXPECT_EQ(field_metadata.aria_label(), StrToHash3Bit(field.aria_label()));
     EXPECT_EQ(field_metadata.aria_description(),
               StrToHash3Bit(field.aria_description()));
-    EXPECT_EQ(field_metadata.placeholder(), StrToHash3Bit(field.placeholder()));
+    EXPECT_EQ(field_metadata.placeholder(),
+              StrToHash3Bit(field.placeholder_attribute()));
     EXPECT_EQ(field_metadata.autocomplete(),
               StrToHash3Bit(field.autocomplete_attribute()));
     EXPECT_EQ(field_metadata.pattern(), StrToHash3Bit(field.pattern()));
@@ -1686,128 +1693,97 @@ TEST_F(AutofillCrowdsourcingEncoding, EncodeUploadRequest_IsFormTag) {
 }
 
 TEST_F(AutofillCrowdsourcingEncoding, EncodeUploadRequest_RichMetadata) {
-  struct FieldMetadata {
-    const char *id, *name, *label, *placeholder, *aria_label, *aria_description,
-        *css_classes, *autocomplete;
-    const size_t max_length;
-    const std::vector<SelectOption> options;
-  };
-
-  static const FieldMetadata kFieldMetadata[] = {
-      {"fname_id",
-       "fname_name",
-       "First Name:",
-       "Please enter your first name",
-       "Type your first name",
-       "You can type your first name here",
-       "blah",
-       "given-name",
-       0,
-       {}},
-      {"lname_id",
-       "lname_name",
-       "Last Name:",
-       "Please enter your last name",
-       "Type your lat name",
-       "You can type your last name here",
-       "blah",
-       "family-name",
-       0,
-       {}},
-      {"email_id",
-       "email_name",
-       "Email:",
-       "Please enter your email address",
-       "Type your email address",
-       "You can type your email address here",
-       "blah",
-       "email",
-       0,
-       {}},
-      {"id_only", "", "", "", "", "", "", "", 0, {}},
-      {"",
-       "name_only",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       FormFieldData::kDefaultMaxLength,
-       {}},
-      {"date1", "date1", "Year", "", "", "", "", "", 4, {}},
-      {"date2", "date2", "Month", "Month", "", "", "", "", 2, {}},
-      {"month",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       0,
-       {SelectOption{.value = u"0", .text = u"Select month"},
-        SelectOption{.value = u"1", .text = u"January"},
-        SelectOption{.value = u"2", .text = u"February"},
-        SelectOption{.value = u"12", .text = u"December"}}},
-      {"gender",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       0,
-       {SelectOption{.text = u"male"}, SelectOption{.value = u"female"}}},
-      {"silly-select",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       0,
-       {SelectOption{.text = u"you get no choice"}}},
-      {"silly-select-2",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       "",
-       0,
-       {SelectOption{.value = u"we are the same",
-                     .text = u"we are the same"}}}};
-
-  FormData form;
-  form.set_id_attribute(u"form-id");
-  form.set_url(GURL("http://www.foo.com/"));
-  form.set_button_titles({std::make_pair(
-      u"Submit", mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE)});
+  FormData form = test::GetFormData({
+      .fields =
+          {{.renderer_id = test::MakeFieldRendererId(),
+            .label = u"First Name:",
+            .name = u"fname_name",
+            .name_attribute = u"fname_name",
+            .id_attribute = u"fname_id",
+            .placeholder = u"Please enter your first name",
+            .placeholder_attribute = u"Please enter your first name attribute",
+            .aria_label = u"Type your first name",
+            .aria_description = u"You can type your first name here",
+            .max_length = 0,
+            .autocomplete_attribute = "given-name",
+            .css_classes = u"blah"},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .label = u"Last Name:",
+            .name = u"lname_name",
+            .name_attribute = u"lname_name",
+            .id_attribute = u"lname_id",
+            .placeholder = u"Please enter your last name",
+            .placeholder_attribute = u"Please enter your last name attribute",
+            .aria_label = u"Type your lat name",
+            .aria_description = u"You can type your last name here",
+            .max_length = 0,
+            .autocomplete_attribute = "family-name",
+            .css_classes = u"blah"},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .label = u"Email:",
+            .name = u"email_name",
+            .name_attribute = u"email_name",
+            .id_attribute = u"email_id",
+            .placeholder = u"Please enter your email address",
+            .placeholder_attribute =
+                u"Please enter your email address attribute",
+            .aria_label = u"Type your email address",
+            .aria_description = u"You can type your email address here",
+            .max_length = 0,
+            .autocomplete_attribute = "email",
+            .css_classes = u"blah"},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .id_attribute = u"id_only",
+            .max_length = 0},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .name = u"name_only",
+            .name_attribute = u"name_only"},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .label = u"Year",
+            .name = u"date1",
+            .name_attribute = u"date1",
+            .id_attribute = u"date1",
+            .max_length = 4},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .label = u"Month",
+            .name = u"date2",
+            .name_attribute = u"date2",
+            .id_attribute = u"date2",
+            .placeholder = u"Month",
+            .placeholder_attribute = u"Month attribute",
+            .max_length = 2},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .id_attribute = u"month",
+            .max_length = 0,
+            .form_control_type = FormControlType::kSelectOne,
+            .select_options =
+                {{SelectOption{.value = u"0", .text = u"Select month"},
+                  SelectOption{.value = u"1", .text = u"January"},
+                  SelectOption{.value = u"2", .text = u"February"},
+                  SelectOption{.value = u"12", .text = u"December"}}}},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .id_attribute = u"gender",
+            .max_length = 0,
+            .form_control_type = FormControlType::kSelectOne,
+            .select_options = {{SelectOption{.text = u"male"},
+                                SelectOption{.value = u"female"}}}},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .id_attribute = u"silly-select",
+            .max_length = 0,
+            .form_control_type = FormControlType::kSelectOne,
+            .select_options = {{SelectOption{.text = u"you get no choice"}}}},
+           {.renderer_id = test::MakeFieldRendererId(),
+            .id_attribute = u"silly-select-2",
+            .max_length = 0,
+            .form_control_type = FormControlType::kSelectOne,
+            .select_options = {{SelectOption{.value = u"we are the same",
+                                             .text = u"we are the same"}}}}},
+      .url = "http://www.foo.com/",
+      .id_attribute = u"form-id",
+      .button_titles = {{u"Submit",
+                         mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE}},
+  });
   form.set_full_url(GURL("http://www.foo.com/?foo=bar"));
-  for (const auto& f : kFieldMetadata) {
-    FormFieldData field;
-    field.set_id_attribute(ASCIIToUTF16(f.id));
-    field.set_name_attribute(ASCIIToUTF16(f.name));
-    field.set_name(field.name_attribute());
-    field.set_label(ASCIIToUTF16(f.label));
-    field.set_placeholder(ASCIIToUTF16(f.placeholder));
-    field.set_aria_label(ASCIIToUTF16(f.aria_label));
-    field.set_aria_description(ASCIIToUTF16(f.aria_description));
-    field.set_css_classes(ASCIIToUTF16(f.css_classes));
-    field.set_autocomplete_attribute(f.autocomplete);
-    field.set_parsed_autocomplete(ParseAutocompleteAttribute(f.autocomplete));
-    field.set_renderer_id(test::MakeFieldRendererId());
-    field.set_max_length(f.max_length);
-    field.set_options(f.options);
-    if (!f.options.empty()) {
-      field.set_form_control_type(FormControlType::kSelectOne);
-    }
-    test_api(form).Append(field);
-  }
 
   FormStructure form_structure(form);
   for (auto& field : form_structure) {
@@ -1852,7 +1828,7 @@ TEST_F(AutofillCrowdsourcingEncoding, EncodeUploadRequest_RichMetadata) {
             options.encoder->Encode(form_signature, FieldSignature(),
                                     RandomizedEncoder::kFormUrl, full_url));
   ASSERT_EQ(static_cast<size_t>(upload.field_data_size()),
-            std::size(kFieldMetadata));
+            form.fields().size());
 
   ASSERT_EQ(1, upload.randomized_form_metadata().button_title().size());
   EXPECT_EQ(

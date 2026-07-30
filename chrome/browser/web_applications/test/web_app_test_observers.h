@@ -7,6 +7,7 @@
 
 #include <set>
 
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
@@ -117,7 +118,7 @@ class WebAppTestRegistryObserverAdapter : public WebAppRegistrarObserver {
   ~WebAppTestRegistryObserverAdapter() override;
 
   using WebAppWillBeUpdatedFromSyncDelegate = base::RepeatingCallback<void(
-      const std::vector<const WebApp*>& new_apps_state)>;
+      base::span<const WebApp* const> new_apps_state)>;
   void SetWebAppWillBeUpdatedFromSyncDelegate(
       WebAppWillBeUpdatedFromSyncDelegate delegate);
 
@@ -151,7 +152,7 @@ class WebAppTestRegistryObserverAdapter : public WebAppRegistrarObserver {
   void OnWebAppEffectiveScopeChanged(const webapps::AppId& app_id,
                                      const WebAppScope& new_scope) override;
   void OnWebAppsWillBeUpdatedFromSync(
-      const std::vector<const WebApp*>& new_apps_state) override;
+      base::span<const WebApp* const> new_apps_state) override;
   void OnWebAppLastBadgingTimeChanged(const webapps::AppId& app_id,
                                       const base::Time& time) override;
   void OnWebAppPendingUpdateChanged(const webapps::AppId& app_id,

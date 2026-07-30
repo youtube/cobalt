@@ -403,6 +403,7 @@ Certaines fonctionnalités peuvent être indisponibles. Veuillez spécifier un r
 <translation id="5234764350956374838">Ignorer</translation>
 <translation id="5239627039202700673">Utilisez Chrome chaque fois que vous cliquez sur des liens dans des messages, des documents et d'autres applis</translation>
 <translation id="5251420635869119124">Les invités peuvent utiliser Chrome sans laisser aucune trace.</translation>
+<translation id="5271833978500241046">Utilisez-les avec d'autres fonctionnalités Gemini dans Chrome</translation>
 <translation id="5286907366254680517">Détecté</translation>
 <translation id="5320351714793324716">Si vous autorisez les cookies, Chrome peut les utiliser pour le préchargement</translation>
 <translation id="5321325624576443340">Google Lens n'est pas disponible. Réessayez plus tard.</translation>
@@ -441,15 +442,6 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="569897634095159764">Impossible de se connecter à Internet. Le serveur proxy exige que vous vous authentifiiez.</translation>
 <translation id="5709557627224531708">Définir Chrome comme navigateur par défaut</translation>
 <translation id="5719246646468301581">Conditions d'utilisation supplémentaires de Google Chrome et ChromeOS</translation>
-<translation id="5719324992913248873">Conséquences de cette action :
-          <ph name="LINE_BREAKS" />
-           • Les raccourcis et certains paramètres Chrome seront réinitialisés.
-           <ph name="LINE_BREAK" />
-           • Les extensions seront désactivées.
-           <ph name="LINE_BREAK" />
-           • Les cookies et les autres données de sites temporaires seront supprimés.
-            <ph name="LINE_BREAKS" />
-           Les favoris, l'historique et les mots de passe enregistrés ne seront pas affectés.</translation>
 <translation id="5736850870166430177">Si un site tente de voler votre mot de passe ou si vous téléchargez un fichier dangereux, Chrome peut également envoyer les URL concernées, y compris des extraits du contenu des pages, à la fonctionnalité de navigation sécurisée</translation>
 <translation id="5756509061973259733">Il existe déjà un profil Chrome associé à ce compte sur cet appareil</translation>
 <translation id="5759947850379142561">Sélectionnez le texte ou l'image à rechercher avec Google Lens ou appuyez sur Échap pour quitter Google Lens</translation>
@@ -647,6 +639,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Pour protéger vos données, autorisez Chrome à supprimer les autorisations des sites que vous n'avez pas consultés récemment.</translation>
 <translation id="7629695634924605473">Chrome vous indique si vos mots de passe ont été piratés</translation>
+<translation id="7629898584100520089">Les innovations d'IA comme les compétences sont enregistrées dans votre compte Google et gérées séparément de la synchronisation Chrome</translation>
 <translation id="7641148173327520642">Votre administrateur système a configuré Google Chrome de sorte que <ph name="ALTERNATIVE_BROWSER_NAME" /> s'ouvre pour accéder à <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Aide</translation>
 <translation id="7651907282515937834">Logo Chrome Enterprise</translation>

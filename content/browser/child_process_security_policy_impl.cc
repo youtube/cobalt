@@ -173,34 +173,32 @@ std::optional<T> CheckAndReturnOptionalRustAndCppResults(
 // Used internally only. These bit positions have no relationship to any
 // underlying OS and can be changed to accommodate finer-grained permissions.
 enum ChildProcessSecurityPermissions {
-  READ_FILE_PERMISSION             = 1 << 0,
-  WRITE_FILE_PERMISSION            = 1 << 1,
-  CREATE_NEW_FILE_PERMISSION       = 1 << 2,
+  READ_FILE_PERMISSION = 1 << 0,
+  WRITE_FILE_PERMISSION = 1 << 1,
+  CREATE_NEW_FILE_PERMISSION = 1 << 2,
   CREATE_OVERWRITE_FILE_PERMISSION = 1 << 3,
-  DELETE_FILE_PERMISSION           = 1 << 4,
+  DELETE_FILE_PERMISSION = 1 << 4,
 
   // Used by Media Galleries API
-  COPY_INTO_FILE_PERMISSION        = 1 << 5,
+  COPY_INTO_FILE_PERMISSION = 1 << 5,
 };
 
 // Used internally only. Bitmasks that are actually used by the Grant* and Can*
 // methods. These contain one or more ChildProcessSecurityPermissions.
 enum ChildProcessSecurityGrants {
-  READ_FILE_GRANT              = READ_FILE_PERMISSION,
-  WRITE_FILE_GRANT             = WRITE_FILE_PERMISSION,
+  READ_FILE_GRANT = READ_FILE_PERMISSION,
+  WRITE_FILE_GRANT = WRITE_FILE_PERMISSION,
 
-  CREATE_NEW_FILE_GRANT        = CREATE_NEW_FILE_PERMISSION |
-                                 COPY_INTO_FILE_PERMISSION,
+  CREATE_NEW_FILE_GRANT =
+      CREATE_NEW_FILE_PERMISSION | COPY_INTO_FILE_PERMISSION,
 
-  CREATE_READ_WRITE_FILE_GRANT = CREATE_NEW_FILE_PERMISSION |
-                                 CREATE_OVERWRITE_FILE_PERMISSION |
-                                 READ_FILE_PERMISSION |
-                                 WRITE_FILE_PERMISSION |
-                                 COPY_INTO_FILE_PERMISSION |
-                                 DELETE_FILE_PERMISSION,
+  CREATE_READ_WRITE_FILE_GRANT =
+      CREATE_NEW_FILE_PERMISSION | CREATE_OVERWRITE_FILE_PERMISSION |
+      READ_FILE_PERMISSION | WRITE_FILE_PERMISSION | COPY_INTO_FILE_PERMISSION |
+      DELETE_FILE_PERMISSION,
 
-  COPY_INTO_FILE_GRANT         = COPY_INTO_FILE_PERMISSION,
-  DELETE_FILE_GRANT            = DELETE_FILE_PERMISSION,
+  COPY_INTO_FILE_GRANT = COPY_INTO_FILE_PERMISSION,
+  DELETE_FILE_GRANT = DELETE_FILE_PERMISSION,
 };
 
 // https://crbug.com/646278 Valid blob URLs should contain canonically
@@ -528,18 +526,6 @@ bool ChildProcessSecurityPolicyImpl::Handle::CanAccessDataForOrigin(
   // TODO(crbug.com/379869738) Remove GetUnsafeValue.
   return policy->CanAccessDataForOrigin(child_id_.GetUnsafeValue(), origin);
 }
-
-ChildProcessSecurityPolicyImpl::OriginAgentClusterOptInEntry::
-    OriginAgentClusterOptInEntry(
-        const OriginAgentClusterIsolationState& oac_isolation_state_in,
-        const url::Origin& origin_in)
-    : oac_isolation_state(oac_isolation_state_in), origin(origin_in) {}
-
-ChildProcessSecurityPolicyImpl::OriginAgentClusterOptInEntry::
-    OriginAgentClusterOptInEntry(const OriginAgentClusterOptInEntry&) = default;
-
-ChildProcessSecurityPolicyImpl::OriginAgentClusterOptInEntry::
-    ~OriginAgentClusterOptInEntry() = default;
 
 // The SecurityState class is used to maintain per-child process security state
 // information.
@@ -2012,6 +1998,15 @@ bool ChildProcessSecurityPolicyImpl::HasPermissionsForFileSystemFile(
 bool ChildProcessSecurityPolicyImpl::FindPermissionPolicyForFileSystemType(
     storage::FileSystemType type,
     int& policy) {
+  RUST_CPP_RETURN_FUNCTION(
+      rust::child_process_security_policy::
+          find_permissions_for_file_system_type(type, policy),
+      FindPermissionPolicyForFileSystemType_Cpp(type, policy), bool);
+}
+
+bool ChildProcessSecurityPolicyImpl::FindPermissionPolicyForFileSystemType_Cpp(
+    storage::FileSystemType type,
+    int& policy) {
   base::AutoLock lock(lock_);
   auto found = file_system_policy_map_.find(type);
   if (found == file_system_policy_map_.end()) {
@@ -2796,6 +2791,15 @@ bool ChildProcessSecurityPolicyImpl::HasPermissionsForFileSystem(
 void ChildProcessSecurityPolicyImpl::RegisterFileSystemPermissionPolicy(
     storage::FileSystemType type,
     int policy) {
+  RUST_CPP_VOID_FUNCTION(
+      rust::child_process_security_policy::
+          register_file_system_permission_policy(type, policy),
+      RegisterFileSystemPermissionPolicy_Cpp(type, policy));
+}
+
+void ChildProcessSecurityPolicyImpl::RegisterFileSystemPermissionPolicy_Cpp(
+    storage::FileSystemType type,
+    int policy) {
   base::AutoLock lock(lock_);
   file_system_policy_map_[type] = policy;
 }
@@ -2967,16 +2971,32 @@ void ChildProcessSecurityPolicyImpl::RemoveStateForBrowserContext(
                   [](const auto& pair) { return pair.second.empty(); });
   }
 
-  {
-    base::AutoLock origins_isolation_opt_in_lock(
-        origins_isolation_opt_in_lock_);
-    origin_isolation_opt_ins_and_outs_.erase(browser_context.UniqueToken());
-  }
+  RemoveOriginAgentClusterRequestsForBrowserContext(browser_context);
 
   {
     base::AutoLock lock(lock_);
     security_states_.ClearBrowserContextIfMatches(browser_context);
   }
+}
+
+void ChildProcessSecurityPolicyImpl::
+    RemoveOriginAgentClusterRequestsForBrowserContext(
+        const BrowserContext& browser_context) {
+  // TODO(crbug.com/522298905): Add FFI for base::UnguessableToken so that
+  // `UniqueToken()` can be used to represent BrowserContext ID in Rust. For
+  // now, fall back to its string representation in `UniqueId()`.
+  RUST_CPP_VOID_FUNCTION(
+      rust::child_process_security_policy::
+          remove_origin_agent_cluster_requests_for_browser_context(
+              browser_context.UniqueId()),
+      RemoveOriginAgentClusterRequestsForBrowserContext_Cpp(browser_context));
+}
+
+void ChildProcessSecurityPolicyImpl::
+    RemoveOriginAgentClusterRequestsForBrowserContext_Cpp(
+        const BrowserContext& browser_context) {
+  base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
+  origin_agent_cluster_opt_ins_and_outs_.erase(browser_context.UniqueToken());
 }
 
 void ChildProcessSecurityPolicyImpl::SecurityStateMaps::
@@ -3082,18 +3102,6 @@ bool ChildProcessSecurityPolicyImpl::GetMatchingProcessIsolatedOrigin(
   CHECK_CURRENTLY_ON(BrowserThread::UI);
 
   *result = url::Origin();
-  base::AutoLock isolated_origins_lock(isolated_origins_lock_);
-
-  // If |isolation_context| does not specify a BrowsingInstance ID (which should
-  // only happen in tests), then assume that we want to retrieve the latest
-  // applicable information; i.e., return the latest matching isolated origins
-  // that would apply to future BrowsingInstances.  Using
-  // NextBrowsingInstanceId() will match all available IsolatedOriginEntries.
-  BrowsingInstanceId browsing_instance_id(
-      isolation_context.browsing_instance_id());
-  if (browsing_instance_id.is_null()) {
-    browsing_instance_id = SiteInstanceImpl::NextBrowsingInstanceId();
-  }
 
   // Check the opt-in isolation status of |origin| in |isolation_context|.
   // Note that while IsolatedOrigins considers any sub-origin of an isolated
@@ -3112,19 +3120,44 @@ bool ChildProcessSecurityPolicyImpl::GetMatchingProcessIsolatedOrigin(
   // case a SiteInstanceGroup will allow a logical group of SiteInstances that
   // live same-process.
   if (SiteIsolationPolicy::IsProcessIsolationForOriginAgentClusterEnabled()) {
-    OriginAgentClusterIsolationState oac_isolation_state_request =
+    OriginAgentClusterIsolationState oac_isolation_state =
         requests_origin_keyed_process
             ? OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
                   true /* has_oac_request */,
                   true /* requires_origin_keyed_process */)
             : OriginAgentClusterIsolationState::CreateNonIsolatedByDefault();
-    OriginAgentClusterIsolationState oac_isolation_state_result =
-        DetermineOriginAgentClusterIsolation(isolation_context, origin,
-                                             oac_isolation_state_request);
-    if (oac_isolation_state_result.requires_origin_keyed_process()) {
+    oac_isolation_state = DetermineOriginAgentClusterIsolation(
+        isolation_context, origin, oac_isolation_state);
+    if (oac_isolation_state.requires_origin_keyed_process()) {
       *result = origin;
       return true;
     }
+  }
+
+  return GetMatchingProcessIsolatedOriginFromLegacyOriginList(
+      isolation_context, origin, site_url, result);
+}
+
+bool ChildProcessSecurityPolicyImpl::
+    GetMatchingProcessIsolatedOriginFromLegacyOriginList(
+        const IsolationContext& isolation_context,
+        const url::Origin& origin,
+        const GURL& site_url,
+        url::Origin* result) {
+  CHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  *result = url::Origin();
+  base::AutoLock isolated_origins_lock(isolated_origins_lock_);
+
+  // If |isolation_context| does not specify a BrowsingInstance ID (which should
+  // only happen in tests), then assume that we want to retrieve the latest
+  // applicable information; i.e., return the latest matching isolated origins
+  // that would apply to future BrowsingInstances.  Using
+  // NextBrowsingInstanceId() will match all available IsolatedOriginEntries.
+  BrowsingInstanceId browsing_instance_id(
+      isolation_context.browsing_instance_id());
+  if (browsing_instance_id.is_null()) {
+    browsing_instance_id = SiteInstanceImpl::NextBrowsingInstanceId();
   }
 
   // Look up the list of origins corresponding to |origin|'s site.
@@ -3196,7 +3229,7 @@ ChildProcessSecurityPolicyImpl::DetermineOriginAgentClusterIsolation(
     const IsolationContext& isolation_context,
     const url::Origin& origin,
     const OriginAgentClusterIsolationState& requested_isolation_state) {
-  if (!IsolatedOriginUtil::IsValidOriginForOptInIsolation(origin)) {
+  if (!IsolatedOriginUtil::IsValidOriginForOriginAgentClusterOptIn(origin)) {
     return OriginAgentClusterIsolationState::CreateNonIsolatedByDefault();
   }
 
@@ -3210,12 +3243,11 @@ ChildProcessSecurityPolicyImpl::DetermineOriginAgentClusterIsolation(
       isolation_context.browsing_instance_id());
 
   if (!browsing_instance_id.is_null()) {
-    base::AutoLock origins_isolation_opt_in_lock(
-        origins_isolation_opt_in_lock_);
+    base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
 
     // Look for |origin| in the isolation status list.
     OriginAgentClusterIsolationState* oac_isolation_state =
-        LookupOriginIsolationState(browsing_instance_id, origin);
+        LookupOriginAgentClusterState(browsing_instance_id, origin);
 
     if (oac_isolation_state) {
       return *oac_isolation_state;
@@ -3223,7 +3255,7 @@ ChildProcessSecurityPolicyImpl::DetermineOriginAgentClusterIsolation(
   }
 
   // If we get to this point, then |origin| is neither opted-in nor opted-out.
-  // At this point we allow opting in if it's requested. This is true for
+  // At this point we allow opting in or out if it's requested. This is true for
   // either logical OriginAgentCluster, or OriginAgentCluster with an
   // origin-keyed process.
   return requested_isolation_state;
@@ -3233,46 +3265,57 @@ bool ChildProcessSecurityPolicyImpl::
     HasOriginEverRequestedOriginAgentClusterValue(
         BrowserContext* browser_context,
         const url::Origin& origin) {
+  // TODO(crbug.com/522298905): Add FFI for base::UnguessableToken so that
+  // `UniqueToken()` can be used to represent BrowserContext ID in Rust. For
+  // now, fall back to its string representation in `UniqueId()`.
+  RUST_CPP_RETURN_FUNCTION(
+      rust::child_process_security_policy::
+          has_origin_ever_requested_origin_agent_cluster_value(
+              browser_context->UniqueId(),
+              // Make a copy of the origin for Rust to own.
+              std::make_unique<url::Origin>(origin)),
+      HasOriginEverRequestedOriginAgentClusterValue_Cpp(browser_context,
+                                                        origin),
+      bool);
+}
+
+bool ChildProcessSecurityPolicyImpl::
+    HasOriginEverRequestedOriginAgentClusterValue_Cpp(
+        BrowserContext* browser_context,
+        const url::Origin& origin) {
+  base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
   const auto& browser_context_id = browser_context->UniqueToken();
-  base::AutoLock origins_isolation_opt_in_lock(origins_isolation_opt_in_lock_);
-  auto it = origin_isolation_opt_ins_and_outs_.find(browser_context_id);
-  return it != origin_isolation_opt_ins_and_outs_.end() &&
+  auto it = origin_agent_cluster_opt_ins_and_outs_.find(browser_context_id);
+  return it != origin_agent_cluster_opt_ins_and_outs_.end() &&
          it->second.contains(origin);
 }
 
 OriginAgentClusterIsolationState*
-ChildProcessSecurityPolicyImpl::LookupOriginIsolationState(
+ChildProcessSecurityPolicyImpl::LookupOriginAgentClusterState(
     const BrowsingInstanceId& browsing_instance_id,
     const url::Origin& origin) {
-  auto it_isolation_by_browsing_instance =
-      origin_isolation_by_browsing_instance_.find(browsing_instance_id);
-  if (it_isolation_by_browsing_instance ==
-      origin_isolation_by_browsing_instance_.end()) {
-    return nullptr;
-  }
-  auto& origin_list = it_isolation_by_browsing_instance->second;
-  auto it_origin_list = std::ranges::find(
-      origin_list, origin, &OriginAgentClusterOptInEntry::origin);
-  if (it_origin_list != origin_list.end()) {
-    return &(it_origin_list->oac_isolation_state);
+  if (auto* origin_map =
+          base::FindOrNull(origin_agent_cluster_states_by_browsing_instance_,
+                           browsing_instance_id)) {
+    return base::FindOrNull(*origin_map, origin);
   }
   return nullptr;
 }
 
 OriginAgentClusterIsolationState*
-ChildProcessSecurityPolicyImpl::LookupOriginIsolationStateForTesting(
+ChildProcessSecurityPolicyImpl::LookupOriginAgentClusterStateForTesting(
     const BrowsingInstanceId& browsing_instance_id,
     const url::Origin& origin) {
-  base::AutoLock lock(origins_isolation_opt_in_lock_);
-  return LookupOriginIsolationState(browsing_instance_id, origin);
+  base::AutoLock lock(origin_agent_cluster_lock_);
+  return LookupOriginAgentClusterState(browsing_instance_id, origin);
 }
 
-void ChildProcessSecurityPolicyImpl::AddDefaultIsolatedOriginIfNeeded(
+void ChildProcessSecurityPolicyImpl::RecordDefaultOriginAgentClusterOriginIfNew(
     const IsolationContext& isolation_context,
     const url::Origin& origin,
     bool is_global_walk_or_frame_removal) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (!IsolatedOriginUtil::IsValidOriginForOptInIsolation(origin)) {
+  CHECK_CURRENTLY_ON(BrowserThread::UI);
+  if (!IsolatedOriginUtil::IsValidOriginForOriginAgentClusterOptIn(origin)) {
     return;
   }
 
@@ -3284,8 +3327,6 @@ void ChildProcessSecurityPolicyImpl::AddDefaultIsolatedOriginIfNeeded(
   DCHECK(browser_context);
   CHECK(!browsing_instance_id.is_null());
 
-  base::AutoLock origins_isolation_opt_in_lock(origins_isolation_opt_in_lock_);
-
   // Commits of origins that have ever sent the OriginAgentCluster header in
   // this BrowserContext are tracked in every BrowsingInstance in this
   // BrowserContext, to avoid having to do multiple global walks. If the origin
@@ -3293,29 +3334,35 @@ void ChildProcessSecurityPolicyImpl::AddDefaultIsolatedOriginIfNeeded(
   // avoid unnecessary work, since this is called on every commit. Skip this
   // during global walks and frame removals, since we do want to track the
   // origin's non-isolated status in those cases.
-  if (!is_global_walk_or_frame_removal) {
-    const auto& browser_context_id = browser_context->UniqueToken();
-    auto it = origin_isolation_opt_ins_and_outs_.find(browser_context_id);
-    if (it == origin_isolation_opt_ins_and_outs_.end() ||
-        !it->second.contains(origin)) {
-      return;
-    }
+  if (!is_global_walk_or_frame_removal &&
+      !HasOriginEverRequestedOriginAgentClusterValue(browser_context, origin)) {
+    return;
   }
 
-  // If |origin| is already in the opt-in-out list, then we don't want to add it
-  // to the list. Technically this check is unnecessary during global
-  // walks (when the origin won't be in this list yet), but it matters during
-  // frame removal (when we don't want to add an opted-in origin to the
-  // list as non-isolated when its frame is removed).
-  if (LookupOriginIsolationState(browsing_instance_id, origin)) {
+  // Note: this lock is grabbed in the call to
+  // `HasOriginEverRequestedOriginAgentClusterValue` above, then released and
+  // reacquired here. This is safe, because once
+  // `HasOriginEverRequestedOriginAgentClusterValue()` returns true, it will
+  // keep returning true, as the OAC maps used here don't change origin values
+  // until the maps are cleared entirely. Also, their manipulation is restricted
+  // to the UI thread, so another thread can't concurrently add new values while
+  // we reacquire the lock.
+  base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
+
+  // If |origin| has already recorded an Origin-Agent-Cluster state, then we
+  // don't want to add it to the list. Technically this check is unnecessary
+  // during global walks (when the origin won't be in this list yet), but it
+  // matters during frame removal (when we don't want to add an opted-in origin
+  // to the list as non-isolated when its frame is removed).
+  if (LookupOriginAgentClusterState(browsing_instance_id, origin)) {
     return;
   }
 
   // Since there was no prior record for this BrowsingInstance, track that this
   // origin should use the default isolation model in use by the
   // BrowsingInstance.
-  origin_isolation_by_browsing_instance_[browsing_instance_id].emplace_back(
-      isolation_context.default_isolation_state(), origin);
+  origin_agent_cluster_states_by_browsing_instance_[browsing_instance_id]
+      .emplace(origin, isolation_context.default_isolation_state());
 }
 
 void ChildProcessSecurityPolicyImpl::RemoveAllStateForBrowsingInstance(
@@ -3362,9 +3409,9 @@ void ChildProcessSecurityPolicyImpl::RemoveAllStateForBrowsingInstanceInternal(
   }
 
   {
-    base::AutoLock origins_isolation_opt_in_lock(
-        origins_isolation_opt_in_lock_);
-    origin_isolation_by_browsing_instance_.erase(browsing_instance_id);
+    base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
+    origin_agent_cluster_states_by_browsing_instance_.erase(
+        browsing_instance_id);
   }
 
   {
@@ -3467,11 +3514,11 @@ void ChildProcessSecurityPolicyImpl::
   // origin isn't valid at this point, something has gone wrong.
   CHECK((oac_isolation_state.logical_oac_status() ==
              AgentClusterKey::OACStatus::kOriginKeyedByHeader &&
-         IsolatedOriginUtil::IsValidOriginForOptInIsolation(origin)) ||
+         IsolatedOriginUtil::IsValidOriginForOriginAgentClusterOptIn(origin)) ||
         // The second part of this check is specific to OAC-by-default, and is
         // required to allow explicit opt-outs for HTTP schemed origins. See
         // OriginAgentClusterInsecureEnabledBrowserTest.DocumentDomain_Disabled.
-        IsolatedOriginUtil::IsValidOriginForOptOutIsolation(origin))
+        IsolatedOriginUtil::IsValidOriginForOriginAgentClusterOptOut(origin))
       << "Trying to isolate invalid origin: " << origin;
 
   BrowsingInstanceId browsing_instance_id(
@@ -3480,41 +3527,47 @@ void ChildProcessSecurityPolicyImpl::
   // a new SiteInstance, so |browsing_instance_id| should always be defined.
   CHECK(!browsing_instance_id.is_null());
 
-  // For origin-keyed isolation, use the origin_isolation_by_browsing_instance_
-  // map.
-  base::AutoLock origins_isolation_opt_in_lock(origins_isolation_opt_in_lock_);
-  auto it = origin_isolation_by_browsing_instance_.find(browsing_instance_id);
-  if (it == origin_isolation_by_browsing_instance_.end()) {
-    std::tie(it, std::ignore) = origin_isolation_by_browsing_instance_.emplace(
-        browsing_instance_id, std::vector<OriginAgentClusterOptInEntry>());
-  }
-
-  // We only support adding new entries, not modifying existing ones. If at
-  // some point in the future we allow isolation status to change during the
-  // lifetime of a BrowsingInstance, then this will need to be updated.
-  if (!std::ranges::contains(it->second, origin,
-                             &OriginAgentClusterOptInEntry::origin)) {
-    it->second.emplace_back(oac_isolation_state, origin);
-  }
+  // Register the OAC state for `origin` in the per-BrowsingInstance map. We
+  // only support adding new entries, not modifying existing ones. If at some
+  // point in the future we allow isolation state to change during the lifetime
+  // of a BrowsingInstance, then this will need to be updated.
+  base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
+  origin_agent_cluster_states_by_browsing_instance_[browsing_instance_id]
+      .try_emplace(origin, oac_isolation_state);
 }
 
-bool ChildProcessSecurityPolicyImpl::UpdateOriginIsolationOptInListIfNecessary(
+bool ChildProcessSecurityPolicyImpl::RecordOriginAgentClusterRequestIfNew(
     BrowserContext* browser_context,
     const url::Origin& origin) {
-  if (!IsolatedOriginUtil::IsValidOriginForOptInIsolation(origin)) {
+  // TODO(crbug.com/522298905): Add FFI for base::UnguessableToken so that
+  // `UniqueToken()` can be used to represent BrowserContext ID in Rust. For
+  // now, fall back to its string representation in `UniqueId()`.
+  RUST_CPP_RETURN_FUNCTION(
+      rust::child_process_security_policy::
+          record_origin_agent_cluster_request_if_new(
+              browser_context->UniqueId(),
+              // Make a copy of the origin for Rust to own.
+              std::make_unique<url::Origin>(origin)),
+      RecordOriginAgentClusterRequestIfNew_Cpp(browser_context, origin), bool);
+}
+
+bool ChildProcessSecurityPolicyImpl::RecordOriginAgentClusterRequestIfNew_Cpp(
+    BrowserContext* browser_context,
+    const url::Origin& origin) {
+  if (!IsolatedOriginUtil::IsValidOriginForOriginAgentClusterOptIn(origin)) {
     return false;
   }
 
-  base::AutoLock origins_isolation_opt_in_lock(origins_isolation_opt_in_lock_);
+  base::AutoLock origin_agent_cluster_lock(origin_agent_cluster_lock_);
 
   const auto& browser_context_id = browser_context->UniqueToken();
-  auto it = origin_isolation_opt_ins_and_outs_.find(browser_context_id);
-  if (it != origin_isolation_opt_ins_and_outs_.end() &&
+  auto it = origin_agent_cluster_opt_ins_and_outs_.find(browser_context_id);
+  if (it != origin_agent_cluster_opt_ins_and_outs_.end() &&
       it->second.contains(origin)) {
     return false;
   }
 
-  origin_isolation_opt_ins_and_outs_[browser_context_id].insert(origin);
+  origin_agent_cluster_opt_ins_and_outs_[browser_context_id].insert(origin);
   return true;
 }
 

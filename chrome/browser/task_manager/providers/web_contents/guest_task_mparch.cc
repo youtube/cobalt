@@ -6,7 +6,6 @@
 
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/favicon_status.h"

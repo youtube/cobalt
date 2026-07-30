@@ -1253,6 +1253,13 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 
 // TODO(crbug.com/41352590) : Do not pass `baseViewController` through
 // dispatcher.
+- (void)showSyncPassphraseSettingsFromViewController:
+            (UIViewController*)baseViewController
+                                          completion:
+                                              (ProceduralBlock)completion {
+  [self showSyncPassphraseSettingsFromViewController:baseViewController];
+}
+
 - (void)showSavedPasswordsSettingsFromViewController:
     (UIViewController*)baseViewController {
   [self showSavedPasswords];

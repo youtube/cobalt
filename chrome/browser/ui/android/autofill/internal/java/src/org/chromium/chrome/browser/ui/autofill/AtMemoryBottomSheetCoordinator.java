@@ -45,6 +45,8 @@ public class AtMemoryBottomSheetCoordinator {
     interface Delegate {
         void onDismissed();
 
+        void onQuerySubmitted(String query);
+
         void onSuggestionClicked(AutofillSuggestion suggestion);
 
         void onFlyoutClicked(AutofillSuggestion suggestion);
@@ -77,10 +79,10 @@ public class AtMemoryBottomSheetCoordinator {
     }
 
     public void show(List<AutofillSuggestion> suggestions) {
-        mMediator.setSuggestions(suggestions);
-
         mBottomSheetController.addObserver(mBottomSheetObserver);
-        if (!mBottomSheetController.requestShowContent(mContent, /* animate= */ true)) {
+        if (mBottomSheetController.requestShowContent(mContent, /* animate= */ true)) {
+            mMediator.show(suggestions);
+        } else {
             onDismissed();
         }
     }
@@ -92,5 +94,9 @@ public class AtMemoryBottomSheetCoordinator {
     private void onDismissed() {
         mBottomSheetController.removeObserver(mBottomSheetObserver);
         mMediator.onDismissed();
+    }
+
+    AtMemoryBottomSheetContent getBottomSheetContentForTesting() {
+        return mContent;
     }
 }

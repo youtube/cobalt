@@ -32,6 +32,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
@@ -336,10 +337,24 @@ bool ShouldAssignURLToInstantRenderer(const GURL& url, Profile* profile) {
          url.SchemeIs(chrome::kChromeSearchScheme);
 }
 
-bool ShouldUseProcessPerSiteForInstantSiteURL(const GURL& site_url,
-                                              Profile* profile) {
-  return ShouldAssignURLToInstantRenderer(site_url, profile) &&
-         site_url.host() == chrome::kChromeSearchRemoteNtpHost;
+bool ShouldAssignSecurityPrincipalToInstantRenderer(
+    const content::SecurityPrincipal& security_principal,
+    Profile* profile) {
+  if (!profile || !IsInstantExtendedAPIEnabled()) {
+    return false;
+  }
+  // No need to check IsNTPOrRelatedURLHelper here: security_principal
+  // contains the effective URL produced by GetEffectiveURLForInstant(),
+  // which always uses the chrome-search: scheme.
+  return security_principal.SchemeIs(chrome::kChromeSearchScheme);
+}
+
+bool ShouldUseProcessPerSiteForSecurityPrincipal(
+    const content::SecurityPrincipal& security_principal,
+    Profile* profile) {
+  return ShouldAssignSecurityPrincipalToInstantRenderer(security_principal,
+                                                        profile) &&
+         security_principal.GetHost() == chrome::kChromeSearchRemoteNtpHost;
 }
 
 std::optional<GURL> GetEffectiveURLForInstant(const GURL& url,

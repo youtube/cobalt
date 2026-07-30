@@ -30,6 +30,10 @@ BASE_DECLARE_FEATURE(kOnDeviceModelLitertLmBackend);
 COMPONENT_EXPORT(ON_DEVICE_MODEL_CPP)
 BASE_DECLARE_FEATURE(kOnDeviceModelGpuCache);
 
+// Whether speculative decoding / MTP is enabled for the on-device model.
+COMPONENT_EXPORT(ON_DEVICE_MODEL_CPP)
+BASE_DECLARE_FEATURE(kOnDeviceModelSpeculativeDecoding);
+
 }  // namespace on_device_model::features
 
 #endif  // SERVICES_ON_DEVICE_MODEL_PUBLIC_CPP_FEATURES_H_

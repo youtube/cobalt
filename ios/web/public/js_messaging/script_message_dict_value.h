@@ -38,19 +38,19 @@ class ScriptMessageDictValue {
   bool contains(std::string_view key) const;
 
   // Finds the entry corresponding to `key` in this dictionary. Returns
-  // nullptr if there is no such entry.
-  std::unique_ptr<ScriptMessageValue> Find(std::string_view key);
+  // `std::nullopt` if there is no such entry.
+  std::optional<ScriptMessageValue> Find(std::string_view key);
 
-  // Similar to `Find()` above, but returns `std::nullopt`/`nullptr` if the type
-  // of the entry does not match.
+  // Similar to `Find()` above, but returns `std::nullopt` if the type/ of the
+  // entry does not match.
   std::optional<bool> FindBool(std::string_view key) const;
   std::optional<int> FindInt(std::string_view key) const;
   // Returns a non-null value for both `Value::Type::DOUBLE` and
   // `Value::Type::INT`, converting the latter to a double.
   std::optional<double> FindDouble(std::string_view key) const;
   std::optional<std::string> FindString(std::string_view key) const;
-  std::unique_ptr<ScriptMessageDictValue> FindDict(std::string_view key) const;
-  std::unique_ptr<ScriptMessageListValue> FindList(std::string_view key) const;
+  std::optional<ScriptMessageDictValue> FindDict(std::string_view key) const;
+  std::optional<ScriptMessageListValue> FindList(std::string_view key) const;
 
  private:
   NSDictionary* data_;

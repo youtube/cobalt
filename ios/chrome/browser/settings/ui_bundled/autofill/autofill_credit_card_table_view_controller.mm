@@ -61,6 +61,7 @@ enum SectionIdentifier : NSInteger {
   SectionIdentifierMandatoryReauthSwitch,
   SectionIdentifierCards,
   SectionIdentifierCVCStorage,
+  SectionIdentifierPayOverTime,
 };
 
 enum ItemType : NSInteger {
@@ -73,6 +74,7 @@ enum ItemType : NSInteger {
   ItemTypeMandatoryReauthSwitchSubtitle,
   ItemTypeCVCStorageButton,
   ItemTypeCVCStorageButtonSubtitle,
+  ItemTypePayOverTimeButton,
 };
 
 }  // namespace
@@ -216,6 +218,12 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
   [model setFooter:[self cvcStorageFooter]
       forSectionWithIdentifier:SectionIdentifierCVCStorage];
 
+  if (_personalDataManager->payments_data_manager().ShouldShowBnplSettings()) {
+    [model addSectionWithIdentifier:SectionIdentifierPayOverTime];
+    [model addItem:[self payOverTimeItem]
+        toSectionWithIdentifier:SectionIdentifierPayOverTime];
+  }
+
   [self populateCardSection];
 }
 
@@ -317,6 +325,16 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
   footer.text = l10n_util::GetNSString(
       IDS_PAYMENTS_AUTOFILL_ENABLE_SAVE_SECURITY_CODES_SUBLABEL);
   return footer;
+}
+
+- (TableViewItem*)payOverTimeItem {
+  TableViewTextItem* payOverTimeItem =
+      [[TableViewTextItem alloc] initWithType:ItemTypePayOverTimeButton];
+  payOverTimeItem.text = l10n_util::GetNSString(IDS_IOS_SETTINGS_PAY_OVER_TIME);
+  payOverTimeItem.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+  payOverTimeItem.accessibilityIdentifier = kAutofillPayOverTimeCellId;
+  payOverTimeItem.accessibilityTraits = UIAccessibilityTraitButton;
+  return payOverTimeItem;
 }
 
 - (TableViewHeaderFooterItem*)cardSectionHeader {
@@ -607,6 +625,11 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
     return;
   }
 
+  if (type == ItemTypePayOverTimeButton) {
+    [self openPayOverTimeSettings];
+    return;
+  }
+
   if (type != ItemTypeCard) {
     return;
   }
@@ -654,6 +677,11 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
                          browser:_browser];
   _cvcStorageCoordinator.delegate = self;
   [_cvcStorageCoordinator start];
+}
+
+- (void)openPayOverTimeSettings {
+  // TODO(crbug.com/517646489): Implement coordinator routing for Pay Over Time
+  // subpage.
 }
 
 - (void)openCreditCardDetails:(autofill::CreditCard)creditCard {

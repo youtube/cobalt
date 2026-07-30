@@ -23,6 +23,7 @@
 #include "net/base/net_export.h"
 #include "net/base/network_handle.h"
 #include "net/log/net_log_with_source.h"
+#include "net/socket/datagram_client_socket.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
 #include "net/socket/socket_descriptor.h"
@@ -90,6 +91,13 @@ class NET_EXPORT UDPSocketPosix {
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
+
+  base::expected<DatagramsMetadata, Error> ReadMultiple(
+      IOBuffer* buffer,
+      size_t buf_len,
+      size_t maximum_packet_size,
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback);
 
   // Writes to the socket.
   // Only usable from the client-side of a UDP socket, after the socket

@@ -180,12 +180,14 @@ enum class GlicInvokeError {
   // Could not create clipboard metadata for policy checks. This is likely due
   // to the context type not yet being supported.
   kAdditionalContextNoClipboardMetadata = 14,
-  kMaxValue = kAdditionalContextNoClipboardMetadata,
+  // The targeted Glic InstanceId could not be found or has closed.
+  kInstanceNotFound = 15,
+  kMaxValue = kInstanceNotFound,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvokeResult,//chrome/browser/glic/host/glic_internals_page_handler.cc:GlicInvokeError)
 
 // Details for invoking Glic with tabs shared. See
-// GlicSharingManager::PinTabs().
+// GlicSharingManagerInternal::PinTabs().
 struct TabSharingOptions {
   TabSharingOptions();
   TabSharingOptions(std::vector<tabs::TabHandle> tabs_to_pin,
@@ -200,6 +202,14 @@ struct TabSharingOptions {
   // Reason for pinning tabs, required to be set to something besides kUnknown
   // if `tabs_to_pin` isn't empty.
   GlicPinTrigger pin_trigger;
+};
+
+// Specifies how to wait for the First Run Experience (FRE) to complete.
+enum class FreCompletionWaitMode {
+  // Whether or not we wait depends on the FRE override.
+  kDefault,
+  // We do not wait for the FRE to complete, regardless of the FRE override.
+  kNever,
 };
 
 // Configuration options for invoking Glic.
@@ -269,6 +279,15 @@ struct GlicInvokeOptions {
   // Defaults to false. If the panel was already open when the invoke was
   // triggered, this flag is ignored.
   bool wait_for_panel_open = false;
+
+  // Specifies how to wait for the First Run Experience (FRE) to complete
+  // before proceeding with the invocation.
+  FreCompletionWaitMode fre_completion_wait_mode =
+      FreCompletionWaitMode::kDefault;
+
+  // Browser-specific callback for when the side panel is opened (and stabilized
+  // if wait_for_panel_open is true).
+  base::OnceClosure on_panel_opened;
 
   // Browser-specific callback for when the invocation successfully completes.
   // This is called asynchronously.

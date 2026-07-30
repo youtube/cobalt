@@ -29,7 +29,6 @@
 #include "mojo/public/cpp/bindings/lib/may_auto_lock.h"
 #include "mojo/public/cpp/bindings/mojo_buildflags.h"
 #include "mojo/public/cpp/bindings/sync_handle_watcher.h"
-#include "mojo/public/cpp/bindings/tracing_helpers.h"
 #include "mojo/public/cpp/system/wait.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_mojo_event_info.pbzero.h"
 

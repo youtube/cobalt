@@ -11,7 +11,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/common/extension.h"
 #include "extensions/test/test_extension_dir.h"
 
@@ -44,18 +44,17 @@ IN_PROC_BROWSER_TEST_F(ScopedTestMV2EnablerBrowserTest,
                        mojom::ManifestLocation::kInternal);
   ASSERT_TRUE(extension);
 
-  ManifestV2ExperimentManager* experiment_manager =
-      ManifestV2ExperimentManager::Get(profile());
+  ManifestV2Handler* handler = ManifestV2Handler::Get(profile());
 
-  // The experiment manager should not indicate the extension should be
-  // blocked from being installed.
-  EXPECT_FALSE(experiment_manager->ShouldBlockExtensionInstallation(
+  // The handler should not indicate the extension should be blocked from being
+  // installed.
+  EXPECT_FALSE(handler->ShouldBlockExtensionInstallation(
       extension->manifest_version(), extension->GetType(),
       extension->location()));
 
   // Even after disabling affected extensions, the extension should remain
   // enabled, since MV2 extensions are allowed for testing.
-  experiment_manager->DisableAffectedExtensionsForTesting();
+  handler->DisableAffectedExtensionsForTesting();
 
   EXPECT_TRUE(
       extension_registry()->enabled_extensions().Contains(extension->id()));

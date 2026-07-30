@@ -272,6 +272,10 @@ void SendTabToSelfBubbleController::OnManageDevicesClicked(
   Navigate(&params);
 }
 
+void SendTabToSelfBubbleController::PrimaryPageChanged(content::Page& page) {
+  HideBubble();
+}
+
 void SendTabToSelfBubbleController::OnWidgetDestroying(views::Widget* widget) {
   widget_observation_.Reset();
   send_tab_to_self_bubble_view_ = nullptr;
@@ -379,7 +383,8 @@ void SendTabToSelfBubbleController::RegisterProfilePrefs(
 SendTabToSelfBubbleController::SendTabToSelfBubbleController(
     content::WebContents* web_contents)
     : content::WebContentsUserData<SendTabToSelfBubbleController>(
-          *web_contents) {}
+          *web_contents),
+      content::WebContentsObserver(web_contents) {}
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(SendTabToSelfBubbleController);
 

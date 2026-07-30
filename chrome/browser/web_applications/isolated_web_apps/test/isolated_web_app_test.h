@@ -43,6 +43,7 @@ class IsolatedWebAppTest : public ::testing::Test {
   ~IsolatedWebAppTest() override;
 
   TestingProfile* profile();
+  TestingProfileManager& profile_manager() { return profile_manager_; }
   FakeWebAppProvider& provider();
   network::TestURLLoaderFactory& url_loader_factory();
   IwaTestServerConfigurator& test_update_server();

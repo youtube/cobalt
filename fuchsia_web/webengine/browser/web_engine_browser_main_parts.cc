@@ -196,8 +196,7 @@ int WebEngineBrowserMainParts::PreMainMessageLoopRun() {
   os_crypt_async_ =
       std::make_unique<os_crypt_async::OSCryptAsync>(std::move(key_providers));
   // Trigger async initialization of OSCrypt key providers.
-  os_crypt_async_->GetInstance(
-      base::DoNothing(), os_crypt_async::Encryptor::Option::kEncryptSyncCompat);
+  os_crypt_async_->GetInstance(base::DoNothing());
 
   network_connection_tracker_ = content::GetNetworkConnectionTracker();
 

@@ -5,6 +5,8 @@
 #include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
@@ -92,7 +94,9 @@ class FakePassageEmbeddingsService : public mojom::PassageEmbeddingsService {
 class FakePassageEmbeddingsServiceController
     : public PassageEmbeddingsServiceController {
  public:
-  FakePassageEmbeddingsServiceController() = default;
+  explicit FakePassageEmbeddingsServiceController(
+      bool execute_for_gemma = false)
+      : PassageEmbeddingsServiceController(execute_for_gemma) {}
   ~FakePassageEmbeddingsServiceController() override = default;
 
   void MaybeLaunchService() override {
@@ -372,6 +376,27 @@ TEST_F(PassageEmbeddingsServiceControllerTest, EmbedderRunningStatus) {
     EXPECT_EQ(future1.Get<1>(), ComputeEmbeddingsStatus::kExecutionFailure);
     EXPECT_EQ(future2.Get<1>(), ComputeEmbeddingsStatus::kExecutionFailure);
   }
+}
+
+TEST_F(PassageEmbeddingsServiceControllerTest, RecordsGemmaHistograms) {
+  auto gemma_service_controller =
+      std::make_unique<FakePassageEmbeddingsServiceController>(
+          /*execute_for_gemma=*/true);
+  EXPECT_TRUE(gemma_service_controller->MaybeUpdateModelInfo(
+      *GetBuilderWithValidModelInfo().Build()));
+
+  GetEmbeddingsTestFuture future;
+  gemma_service_controller->GetEmbeddings({"1.0"}, PassagePriority::kPassive,
+                                          future.GetCallback());
+  auto [results, status] = future.Take();
+
+  EXPECT_EQ(status, ComputeEmbeddingsStatus::kSuccess);
+  ASSERT_EQ(results.size(), 1u);
+  EXPECT_THAT(results[0]->embeddings, ElementsAre(1.0f));
+
+  histogram_tester_.ExpectTotalCount("AI.SemanticEmbedder.TaskDuration", 1);
+  histogram_tester_.ExpectTotalCount("AI.SemanticEmbedder.LaunchDuration", 1);
+  histogram_tester_.ExpectTotalCount("History.Embeddings.TaskDuration", 0);
 }
 
 }  // namespace passage_embeddings

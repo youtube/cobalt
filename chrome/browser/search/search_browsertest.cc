@@ -35,6 +35,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -199,7 +200,8 @@ IN_PROC_BROWSER_TEST_F(SearchTest, ShouldAssignURLToInstantRenderer) {
   }
 }
 
-IN_PROC_BROWSER_TEST_F(SearchTest, ShouldUseProcessPerSiteForInstantSiteURL) {
+IN_PROC_BROWSER_TEST_F(SearchTest,
+                       ShouldUseProcessPerSiteForSecurityPrincipal) {
   const auto kTestCases = std::to_array<SearchTestCase>({
       {"chrome-search://remote-ntp", true, "Remote NTP"},
       {"invalid-scheme://online-ntp", false, "Invalid Online NTP URL"},
@@ -216,8 +218,10 @@ IN_PROC_BROWSER_TEST_F(SearchTest, ShouldUseProcessPerSiteForInstantSiteURL) {
 
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     const SearchTestCase& test = kTestCases[i];
-    EXPECT_EQ(test.expected_result, ShouldUseProcessPerSiteForInstantSiteURL(
-                                        GURL(test.url), profile()))
+    std::unique_ptr<content::SecurityPrincipal> principal =
+        content::SecurityPrincipal::CreateForTesting(profile(), GURL(test.url));
+    EXPECT_EQ(test.expected_result, ShouldUseProcessPerSiteForSecurityPrincipal(
+                                        *principal, profile()))
         << test.url << " " << test.comment;
   }
 }

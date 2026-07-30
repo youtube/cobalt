@@ -337,7 +337,7 @@ void ToastService::RegisterToasts(
                                       ? vector_icons::kMarkEmailReadIcon
                                       : vector_icons::kMarkEmailReadOldIcon,
                                   IDS_EMAIL_VERIFIED)
-          .AddGlobalScoped()
+          .SetPersistOnNavigation()
           .AddMenu()
           .Build());
 
@@ -432,7 +432,9 @@ void ToastService::RegisterToasts(
           .Build());
 
   if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAiWalletPrivatePasses)) {
+          autofill::features::kAutofillAiWalletPrivatePasses) ||
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAmbientAutofill)) {
     toast_registry_->RegisterToast(
         ToastId::kAutofillAiFetchFromWalletErrorMessage,
         ToastSpecification::Builder(

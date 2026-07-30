@@ -70,12 +70,11 @@ class CORE_EXPORT AnchorEvaluatorImpl : public AnchorEvaluator {
   // (e.g., no target or wrong axis).
   std::optional<LayoutUnit> Evaluate(
       const AnchorQuery&,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&) override;
 
   std::optional<PositionAreaOffsets> ComputePositionAreaOffsetsForLayout(
-      const StylePositionAnchor& position_anchor,
-      PositionArea position_area) override;
+      const DefaultAnchorData&) override;
 
   std::optional<PhysicalOffset> ComputeAnchorCenterOffsets(
       const ComputedStyleBuilder&) override;
@@ -87,8 +86,7 @@ class CORE_EXPORT AnchorEvaluatorImpl : public AnchorEvaluator {
   const AnchorMap* GetAnchorMap() const { return anchor_map_; }
 
   // Given the computed value of `position-anchor`, returns the default anchor.
-  const LayoutObject* DefaultAnchor(
-      const StylePositionAnchor& position_anchor) const;
+  const LayoutObject* DefaultAnchor(const DefaultAnchorData&) const;
 
   // Returns the most recent anchor evaluated. If more than one anchor has been
   // evaluated so far, nullptr is returned. This is done to avoid extra noise
@@ -119,32 +117,31 @@ class CORE_EXPORT AnchorEvaluatorImpl : public AnchorEvaluator {
   // have a valid LayoutObject.
   const PhysicalAnchorReference* ResolveAnchorReference(
       const AnchorSpecifierValue& anchor_specifier,
-      const StylePositionAnchor& position_anchor) const;
+      const DefaultAnchorData&) const;
 
-  bool ShouldUseScrollAdjustmentFor(
-      const LayoutObject* anchor,
-      const StylePositionAnchor& position_anchor) const;
+  bool ShouldUseScrollAdjustmentFor(const LayoutObject* anchor,
+                                    const DefaultAnchorData&) const;
 
   std::optional<LayoutUnit> EvaluateAnchor(
       const AnchorSpecifierValue& anchor_specifier,
       CSSAnchorValue anchor_value,
       float percentage,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&);
   std::optional<LayoutUnit> EvaluateAnchorSize(
       const AnchorSpecifierValue& anchor_specifier,
       CSSAnchorSizeValue anchor_size_value,
-      const StylePositionAnchor& position_anchor);
+      const DefaultAnchorData&);
   const PhysicalAnchorReference* ResolveAnchorForEvaluation(
       const AnchorSpecifierValue&,
-      const StylePositionAnchor& position_anchor);
+      const DefaultAnchorData&);
   PhysicalRect CalculateAnchorRectWithScrollOffset(
       const PhysicalAnchorReference&);
 
   void UpdateAccessibilityAnchor(const LayoutObject* anchor);
 
   const PaintLayer* DefaultAnchorScrollContainerLayer(
-      const StylePositionAnchor& position_anchor) const;
+      const DefaultAnchorData&) const;
 
   bool AllowAnchor() const;
   bool AllowAnchorSize() const;
@@ -206,11 +203,11 @@ class CORE_EXPORT AnchorEvaluatorImpl : public AnchorEvaluator {
   };
 
   // Caches most recent result of DefaultAnchor.
-  mutable CachedValue<StylePositionAnchor, const LayoutObject*>
+  mutable CachedValue<DefaultAnchorData, const LayoutObject*>
       cached_default_anchor_;
 
   // Caches most recent result of DefaultAnchorScrollContainerLayer.
-  mutable CachedValue<StylePositionAnchor, const PaintLayer*>
+  mutable CachedValue<DefaultAnchorData, const PaintLayer*>
       cached_default_anchor_scroll_container_layer_;
 
   bool needs_scroll_adjustment_in_x_ = false;

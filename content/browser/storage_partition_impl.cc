@@ -27,6 +27,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/not_fatal_until.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/observer_list.h"
 #include "base/run_loop.h"
@@ -1232,6 +1233,11 @@ void StoragePartitionImpl::RestrictNetworkForIdsInNetworkContext(
     base::OnceClosure callback) {
   std::vector<network::mojom::IdAndAllowlistedPatternsPtr> dest_vector;
   for (const auto& pair : ids_to_allowlists) {
+    CHECK(pair.first != network::GetNoOpNetworkRestrictionsId(),
+          base::NotFatalUntil::M165);
+    CHECK(pair.first != network::GetTODONetworkRestrictionsId(),
+          base::NotFatalUntil::M165);
+
     // Create a new Mojo struct pointer for each map entry.
     auto id_and_patterns = network::mojom::IdAndAllowlistedPatterns::New();
     id_and_patterns->network_restrictions_id = pair.first;

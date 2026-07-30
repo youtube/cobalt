@@ -34,9 +34,11 @@ class AuthenticationService;
 @protocol BookmarksCommands;
 @protocol BrowserCoordinatorCommands;
 class BrowserPolicyConnectorIOS;
-@protocol BWGCommands;
+@protocol CobaltCommands;
 @protocol FindInPageCommands;
+@protocol GeminiCommands;
 @protocol HelpCommands;
+@class LayoutGuideCenter;
 @protocol LensOverlayCommands;
 @protocol LevelUpCommands;
 @protocol OverflowMenuCustomizationCommands;
@@ -55,13 +57,11 @@ class ReadingListModel;
 @protocol SceneCommands;
 @protocol SettingsCommands;
 class TabBasedIPHBrowserAgent;
-@protocol CobaltCommands;
 class TemplateURLService;
 @protocol TextZoomCommands;
 class WebNavigationBrowserAgent;
 class WebStateList;
 @protocol WhatsNewCommands;
-@class LayoutGuideCenter;
 
 // Mediator for the overflow menu. This object is in charge of creating and
 // updating the items of the overflow menu.
@@ -98,7 +98,7 @@ class WebStateList;
 @property(nonatomic, weak) id<WhatsNewCommands> whatsNewHandler;
 @property(nonatomic, weak) id<LevelUpCommands> levelUpHandler;
 @property(nonatomic, weak) id<ReaderModeCommands> readerModeHandler;
-@property(nonatomic, weak) id<BWGCommands> BWGHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 @property(nonatomic, weak) id<CobaltCommands> cobaltHandler;
 
 // Navigation agent for reloading pages.

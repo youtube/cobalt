@@ -10,8 +10,6 @@
 
 namespace apps::features {
 
-// TODO(crbug.com/377760841): Remove dead code flag; never enabled.
-BASE_DECLARE_FEATURE(kNavigationCapturingOnExistingFrames);
 
 // When enabled, updates the app settings string labels for browser-tab PWAs
 // that support target-existing client modes (focus-existing or
@@ -23,6 +21,9 @@ BASE_DECLARE_FEATURE(kUpdateAppStringsOnSettings);
 // to true on desktop platforms if kPwaNavigationCapturing is enabled, and
 // always on CrOS.
 bool ShouldShowLinkCapturingUX();
+
+// Returns true if navigation capturing is on by default.
+bool IsNavigationCapturingOnByDefault();
 
 }  // namespace apps::features
 

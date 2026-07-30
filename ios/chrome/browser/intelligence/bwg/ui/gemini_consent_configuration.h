@@ -64,7 +64,7 @@
 // and their order might change depending on the parameters.
 + (instancetype)configurationForManaged:(BOOL)isManaged
                                  strict:(BOOL)useStrict
-                                   type:(GeminiFREType)type
+                                   type:(GeminiFirstRunType)type
                                 country:(NSString*)country;
 
 - (instancetype)init NS_UNAVAILABLE;

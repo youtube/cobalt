@@ -4,17 +4,16 @@
 
 import 'chrome://intro/sign_in_promo_refresh.js';
 
-import {IntroBrowserProxyImpl} from 'chrome://intro/browser_proxy.js';
 import {IntroBrowserProxyImpl as IntroMojoBrowserProxyImpl} from 'chrome://intro/intro_browser_proxy.js';
+import {SignInPromoBrowserProxyImpl} from 'chrome://intro/sign_in_promo_browser_proxy.js';
 import type {SignInPromoRefreshElement} from 'chrome://intro/sign_in_promo_refresh.js';
 import {Variation} from 'chrome://intro/sign_in_promo_refresh.js';
-import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {TestIntroBrowserProxy} from './test_intro_browser_proxy.js';
 import {TestIntroMojoBrowserProxy} from './test_intro_mojo_browser_proxy.js';
+import {TestSignInPromoBrowserProxy} from './test_sign_in_promo_browser_proxy.js';
 
 function assertSignInButtonsDisabled(
     element: SignInPromoRefreshElement, assertDeclineButton: boolean = true) {
@@ -47,14 +46,14 @@ function variationToTestSuffix(variation: Variation): string {
 
 suite('SignInPromoRefreshTest', function() {
   let signInPromoElement: SignInPromoRefreshElement;
-  let testBrowserProxy: TestIntroBrowserProxy;
+  let testBrowserProxy: TestSignInPromoBrowserProxy;
   let testMojoBrowserProxy: TestIntroMojoBrowserProxy;
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    testBrowserProxy = new TestIntroBrowserProxy();
-    IntroBrowserProxyImpl.setInstance(testBrowserProxy);
+    testBrowserProxy = new TestSignInPromoBrowserProxy();
     testMojoBrowserProxy = new TestIntroMojoBrowserProxy();
+    SignInPromoBrowserProxyImpl.setInstance(testBrowserProxy);
     IntroMojoBrowserProxyImpl.setInstance(testMojoBrowserProxy);
     loadTimeData.overrideValues({
       isFirstRunDesktopRevampEnabled: true,
@@ -87,13 +86,17 @@ suite('SignInPromoRefreshTest', function() {
                 assertSignInButtonsEnabled(
                     signInPromoElement, assertDeclineButton);
                 assertEquals(
-                    0, testBrowserProxy.getCallCount('continueWithAccount'));
+                    0,
+                    testBrowserProxy.handler.getCallCount(
+                        'continueWithAccount'));
                 signInPromoElement.$.acceptSignInButton.click();
                 await microtasksFinished();
                 assertSignInButtonsDisabled(
                     signInPromoElement, assertDeclineButton);
                 assertEquals(
-                    1, testBrowserProxy.getCallCount('continueWithAccount'));
+                    1,
+                    testBrowserProxy.handler.getCallCount(
+                        'continueWithAccount'));
               });
 
               test('decline sign-in button clicked', async function() {
@@ -102,12 +105,16 @@ suite('SignInPromoRefreshTest', function() {
                 }
                 assertSignInButtonsEnabled(signInPromoElement);
                 assertEquals(
-                    0, testBrowserProxy.getCallCount('continueWithoutAccount'));
+                    0,
+                    testBrowserProxy.handler.getCallCount(
+                        'continueWithoutAccount'));
                 signInPromoElement.$.declineSignInButton.click();
                 await microtasksFinished();
                 assertSignInButtonsDisabled(signInPromoElement);
                 assertEquals(
-                    1, testBrowserProxy.getCallCount('continueWithoutAccount'));
+                    1,
+                    testBrowserProxy.handler.getCallCount(
+                        'continueWithoutAccount'));
               });
 
               test(
@@ -119,7 +126,7 @@ suite('SignInPromoRefreshTest', function() {
                     await microtasksFinished();
                     assertSignInButtonsDisabled(
                         signInPromoElement, assertDeclineButton);
-                    webUIListenerCallback('reset-intro-buttons');
+                    testBrowserProxy.page.onResetButtons();
                     await microtasksFinished();
                     assertSignInButtonsEnabled(
                         signInPromoElement, assertDeclineButton);
@@ -154,8 +161,7 @@ suite('SignInPromoRefreshTest', function() {
             assertEquals(
                 '', signInPromoElement.$.disclaimerText.textContent.trim());
 
-            webUIListenerCallback(
-                'managed-device-disclaimer-updated', 'managedDeviceDisclaimer');
+            testBrowserProxy.resolveDisclaimer('managedDeviceDisclaimer');
             await microtasksFinished();
             assertEquals(
                 'managedDeviceDisclaimer',
@@ -269,6 +275,44 @@ suite('SignInPromoRefreshTest', function() {
     assertTrue(rightAnimation.animationUrl.includes('dark'));
     assertTrue(bottomAnimation.animationUrl.includes('dark'));
   });
+
+  test(
+      'change animation file depending on the theme with revamp disabled',
+      async function() {
+        loadTimeData.overrideValues({
+          isDeviceManaged: false,
+          signInPromoVariation: Variation.DEFAULT,
+          isFirstRunDesktopRevampEnabled: false,
+        });
+
+        testBrowserProxy.setMatchMediaMatches(false);
+
+        signInPromoElement = document.createElement('sign-in-promo-refresh');
+        document.body.appendChild(signInPromoElement);
+        await microtasksFinished();
+
+        const leftAnimation = signInPromoElement.$.leftAnimation;
+        const rightAnimation = signInPromoElement.$.rightAnimation;
+        const bottomAnimation = signInPromoElement.$.bottomAnimation;
+
+        assertTrue(!!leftAnimation);
+        assertTrue(leftAnimation.animationUrl.includes('light_left_static'));
+        assertTrue(!!rightAnimation);
+        assertTrue(rightAnimation.animationUrl.includes('light_right_static'));
+        assertTrue(!!bottomAnimation);
+        assertTrue(
+            bottomAnimation.animationUrl.includes('light_bottom_static'));
+
+        testBrowserProxy.setMatchMediaMatches(true);
+        await microtasksFinished();
+
+        assertTrue(leftAnimation.animationUrl.includes('dark_left'));
+        assertFalse(leftAnimation.animationUrl.includes('static'));
+        assertTrue(rightAnimation.animationUrl.includes('dark_right'));
+        assertFalse(rightAnimation.animationUrl.includes('static'));
+        assertTrue(bottomAnimation.animationUrl.includes('dark_bottom'));
+        assertFalse(bottomAnimation.animationUrl.includes('static'));
+      });
 
   test('toggles animations', async function() {
     loadTimeData.overrideValues({

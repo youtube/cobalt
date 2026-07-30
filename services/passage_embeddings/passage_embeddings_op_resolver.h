@@ -9,12 +9,22 @@
 
 namespace passage_embeddings {
 
-// This class maintains the supported TFLite operations for the passage
-// embeddings model.
-class PassageEmbeddingsOpResolver
-    : public optimization_guide::TFLiteOpResolver {
+class HistoryOpResolver : public optimization_guide::TFLiteOpResolver {
  public:
-  explicit PassageEmbeddingsOpResolver(bool allow_gpu_execution);
+  explicit HistoryOpResolver(bool allow_gpu_execution);
+  HistoryOpResolver(const HistoryOpResolver&) = delete;
+  HistoryOpResolver& operator=(const HistoryOpResolver&) = delete;
+
+  ~HistoryOpResolver() override = default;
+};
+
+class GemmaOpResolver : public optimization_guide::TFLiteOpResolver {
+ public:
+  GemmaOpResolver();
+  GemmaOpResolver(const GemmaOpResolver&) = delete;
+  GemmaOpResolver& operator=(const GemmaOpResolver&) = delete;
+
+  ~GemmaOpResolver() override = default;
 };
 
 }  // namespace passage_embeddings

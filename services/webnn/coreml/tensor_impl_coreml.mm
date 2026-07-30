@@ -73,7 +73,6 @@ NSArray<NSNumber*>* ShapeToNSArray(base::span<const uint32_t> shape) {
 
 // Creates an MLMultiArray given a data type and shape. See documentation here:
 // https://developer.apple.com/documentation/coreml/mlmultiarray/init(shape:datatype:)
-API_AVAILABLE(macos(12.3))
 MLMultiArray* CreateMultiArrayFromDescriptor(OperandDescriptor descriptor) {
   NSArray<NSNumber*>* shape = ShapeToNSArray(descriptor.shape());
 
@@ -108,7 +107,6 @@ MLMultiArray* CreateMultiArrayFromDescriptor(OperandDescriptor descriptor) {
 // Creates an MLMultiArray by wrapping an IOSurface wrapped by a CVPixelBuffer.
 // This is only supported for float16 tensors. See the documentation here:
 // https://developer.apple.com/documentation/coreml/mlmultiarray/init(pixelbuffer:shape:)
-API_AVAILABLE(macos(12.0))
 MLMultiArray* CreateMultiArrayBackedByIOSurface(OperandDescriptor descriptor) {
   CHECK_EQ(descriptor.data_type(), OperandDataType::kFloat16);
 

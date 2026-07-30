@@ -154,7 +154,8 @@ void MouseWheelPhaseHandler::TouchpadScrollingMayBegin() {
   // End the timer-based wheel scroll sequence before starting a touchpad scroll
   // sequence.
   if (mouse_wheel_end_dispatch_timer_.IsRunning()) {
-    DCHECK_EQ(TOUCHPAD_SCROLL_STATE_UNKNOWN, touchpad_scroll_phase_state_);
+    CHECK_EQ(TOUCHPAD_SCROLL_STATE_UNKNOWN, touchpad_scroll_phase_state_,
+             base::NotFatalUntil::M152);
     DispatchPendingWheelEndEvent();
   }
 
@@ -205,7 +206,8 @@ bool MouseWheelPhaseHandler::IsWithinSlopRegion(
   // This function is called to check if breaking timer-based wheel scroll
   // latching sequence is needed or not, and timer-based wheel scroll latching
   // happens only when scroll state is unknown.
-  DCHECK(touchpad_scroll_phase_state_ == TOUCHPAD_SCROLL_STATE_UNKNOWN);
+  CHECK(touchpad_scroll_phase_state_ == TOUCHPAD_SCROLL_STATE_UNKNOWN,
+        base::NotFatalUntil::M152);
   gfx::Vector2dF current_wheel_location(wheel_event.PositionInWidget().x(),
                                         wheel_event.PositionInWidget().y());
   return (current_wheel_location - first_wheel_location_).LengthSquared() <
@@ -217,7 +219,8 @@ bool MouseWheelPhaseHandler::HasDifferentModifiers(
   // This function is called to check if breaking timer-based wheel scroll
   // latching sequence is needed or not, and timer-based wheel scroll latching
   // happens only when scroll state is unknown.
-  DCHECK(touchpad_scroll_phase_state_ == TOUCHPAD_SCROLL_STATE_UNKNOWN);
+  CHECK(touchpad_scroll_phase_state_ == TOUCHPAD_SCROLL_STATE_UNKNOWN,
+        base::NotFatalUntil::M152);
   return wheel_event.GetModifiers() != initial_wheel_event_.GetModifiers();
 }
 
@@ -226,7 +229,8 @@ bool MouseWheelPhaseHandler::ShouldBreakLatchingDueToDirectionChange(
   // This function is called to check if breaking timer-based wheel scroll
   // latching sequence is needed or not, and timer-based wheel scroll latching
   // happens only when scroll state is unknown.
-  DCHECK(touchpad_scroll_phase_state_ == TOUCHPAD_SCROLL_STATE_UNKNOWN);
+  CHECK(touchpad_scroll_phase_state_ == TOUCHPAD_SCROLL_STATE_UNKNOWN,
+        base::NotFatalUntil::M152);
   if (first_scroll_update_ack_state_ != FirstScrollUpdateAckState::kNotConsumed)
     return false;
 

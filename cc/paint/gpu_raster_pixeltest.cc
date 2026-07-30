@@ -251,7 +251,8 @@ class GpuRasterPixelTest : public testing::Test,
         options.full_raster_rect, options.playback_rect, options.post_translate,
         gfx::Vector2dF(options.post_scale, options.post_scale),
         options.requires_clear, /*raster_inducing_scroll_offsets=*/nullptr,
-        &max_op_size_limit);
+        &max_op_size_limit,
+        base::RepeatingCallback<void(SkCanvas*, uint32_t)>());
     for (const auto& list : options.additional_lists) {
       ri->RasterCHROMIUM(list.get(), &image_provider, options.content_size,
                          options.full_raster_rect, options.playback_rect,
@@ -259,7 +260,8 @@ class GpuRasterPixelTest : public testing::Test,
                          gfx::Vector2dF(options.post_scale, options.post_scale),
                          options.requires_clear,
                          /*raster_inducing_scroll_offsets=*/nullptr,
-                         &max_op_size_limit);
+                         &max_op_size_limit,
+                         base::RepeatingCallback<void(SkCanvas*, uint32_t)>());
     }
     ri->EndRasterCHROMIUM();
 
@@ -1062,6 +1064,7 @@ TEST_F(GpuRasterPixelTest, DrawHdrImageWithMetadata) {
   };
   sk_sp<SkImage> image_500_nits = make_image(0.6765848107833876f);
   sk_sp<SkImage> image_250_nits = make_image(0.6025591549907524f);
+  sk_sp<SkImage> image_100_nits = make_image(0.508078421517399f);
 
   const auto make_display_item_list =
       [&](sk_sp<SkImage> image,
@@ -1171,6 +1174,21 @@ TEST_F(GpuRasterPixelTest, DrawHdrImageWithMetadata) {
     EXPECT_NEAR(color.fR, kExpected10kToSdr, kEpsilon);
     EXPECT_NEAR(color.fG, kExpected10kToSdr, kEpsilon);
     EXPECT_NEAR(color.fB, kExpected10kToSdr, kEpsilon);
+  }
+
+  // Draw with PaintFlags ignoring all HDR metadata.
+  {
+    constexpr float kExpected = 100.f / 203.f;
+    PaintFlags flags;
+    flags.setTargetedHdrHeadroom(
+        PaintFlags::TargetedHdrHeadroom::kDisableEverything);
+    scoped_refptr<DisplayItemList> display_item_list_10k_nits_sdr =
+        make_display_item_list(image_100_nits, 1000.f, 50.f, &flags);
+    auto actual = Raster(display_item_list_10k_nits_sdr, options);
+    auto color = actual.getColor4f(0, 0);
+    EXPECT_NEAR(color.fR, kExpected, kEpsilon);
+    EXPECT_NEAR(color.fG, kExpected, kEpsilon);
+    EXPECT_NEAR(color.fB, kExpected, kEpsilon);
   }
 }
 
@@ -1329,6 +1347,8 @@ class TestMailboxBacking : public TextureBacking {
 
   const SkImageInfo& GetSkImageInfo() override { return info_; }
   gpu::Mailbox GetMailbox() const override { return mailbox_; }
+  void Bind(scoped_refptr<TextureBackingContext>) override {}
+  void Unbind() override {}
   sk_sp<SkImage> GetSkImageViaReadback() override { return nullptr; }
   bool readPixels(const SkImageInfo& dstInfo,
                   void* dstPixels,

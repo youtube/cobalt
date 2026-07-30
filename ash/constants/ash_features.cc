@@ -1674,10 +1674,6 @@ BASE_FEATURE(kSessionManagerLongKillTimeout, base::FEATURE_DISABLED_BY_DEFAULT);
 // file session_manager_service.cc.
 BASE_FEATURE(kSessionManagerLivenessCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Whether theme changes should be animated for the Settings app.
-BASE_FEATURE(kSettingsAppThemeChangeAnimation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Whether we should track auto-hide preferences separately between clamshell
 // and tablet.
 BASE_FEATURE(kShelfAutoHideSeparation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1855,10 +1851,6 @@ BASE_FEATURE(kWebAuthNAuthDialogMerge, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kUseMessagesStagingUrl, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLiveCaptionUserMicrophone, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Remap search+click to right click instead of the legacy alt+click on
-// ChromeOS.
-BASE_FEATURE(kUseSearchClickForRightClick, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use the Stork production SM-DS server when fetching pending eSIM profiles.
 BASE_FEATURE(kUseStorkSmdsServerAddress, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -3137,10 +3129,6 @@ bool IsSeparateNetworkIconsEnabled() {
 
 bool IsSeparateWebAppShortcutBadgeIconEnabled() {
   return base::FeatureList::IsEnabled(kSeparateWebAppShortcutBadgeIcon);
-}
-
-bool IsSettingsAppThemeChangeAnimationEnabled() {
-  return base::FeatureList::IsEnabled(kSettingsAppThemeChangeAnimation);
 }
 
 bool IsShimlessRMAOsUpdateEnabled() {

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/ash/settings/services/metrics/per_session_settings_user_action_tracker.h"
 
 #include "ash/constants/ash_login_pref_names.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -13,7 +14,6 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/metrics/chrome_metrics_service_client.h"
 #include "chrome/browser/ui/webui/ash/settings/services/metrics/os_settings_metrics_provider.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -37,16 +37,16 @@ namespace {
 class TestUserMetricsServiceClient
     : public ::metrics::TestMetricsServiceClient {
  public:
-  std::optional<bool> GetCurrentUserMetricsConsent() const override {
-    return current_user_metrics_consent_;
+  std::optional<bool> GetCurrentUserMetricsChoice() const override {
+    return current_user_choice_;
   }
 
-  void UpdateCurrentUserMetricsConsent(bool metrics_consent) override {
-    current_user_metrics_consent_ = metrics_consent;
+  void UpdateCurrentUserMetricsChoice(bool user_choice) override {
+    current_user_choice_ = user_choice;
   }
 
  private:
-  bool current_user_metrics_consent_ = true;
+  bool current_user_choice_ = true;
 };
 }  // namespace
 
@@ -316,7 +316,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest, TestEndSessionWithBlur) {
 
 TEST_F(PerSessionSettingsUserActionTrackerTest, TestUniqueChangedSettings) {
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
   std::set<std::string> expected_set;
 
   // Flip the WiFi toggle in Settings, this is a unique Setting that is changing
@@ -394,7 +395,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
   test_pref_service_->SetTime(::ash::prefs::kOobeOnboardingTime,
                               base::Time::Now());
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
 
   std::set<std::string> expected_set;
 
@@ -632,7 +634,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
   test_pref_service_->SetTime(::ash::prefs::kOobeOnboardingTime,
                               base::Time::Now());
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
   std::set<std::string> expected_set;
 
   // Flip the Do Not Disturb and WiFi toggles in Settings, these are unique
@@ -677,7 +680,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
   test_pref_service_->SetTime(::ash::prefs::kOobeOnboardingTime,
                               base::Time::Now());
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
   std::set<std::string> expected_set;
   // Fast forward the time for 7 days and 1 second. We will now record data to
   // .SubsequentWeeks instead of .FirstWeek.
@@ -723,7 +727,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
 TEST_F(PerSessionSettingsUserActionTrackerTest,
        TestNoTimeDeltaOpenCloseSettings) {
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
   // Focus on page, close the page immediately. total_time_session_active_
   // should be 0 seconds.
   tracker_->RecordPageFocus();
@@ -740,7 +745,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
 TEST_F(PerSessionSettingsUserActionTrackerTest,
        TestTotalTimeSessionActiveWithBlurAndFocus) {
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
   // Focus on page, wait for 16 seconds to pass, and blur the page.
   // total active time should be 16 seconds.
   tracker_->RecordPageFocus();
@@ -780,7 +786,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
 TEST_F(PerSessionSettingsUserActionTrackerTest,
        TestMultipleTotalTimeSessionActive) {
   // Simulate that the user has granted UMA consent by default.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
   // Focus on page, wait for 22 seconds to pass.
   tracker_->RecordPageFocus();
   task_environment_.FastForwardBy(base::Seconds(22));
@@ -839,13 +846,14 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
   test_pref_service_->SetTime(::ash::prefs::kOobeOnboardingTime,
                               base::Time::Now());
   // Simulate the initial state, ie the user has not yet set their consent pref.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
 
   // Simulate that the user has granted UMA consent initially.
   // NOTE: revoking UMA consent will clear the pref that stores the current
   // unique settings that the user has used. Now that the consent has been
   // granted, we will record that Settings changes to .DeviceLifetime histogram.
-  test_metrics_service_client_->UpdateCurrentUserMetricsConsent(true);
+  test_metrics_service_client_->UpdateCurrentUserMetricsChoice(true);
   std::set<std::string> expected_set;
 
   tracker_->RecordPageFocus();
@@ -909,7 +917,7 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
 
   // Simulate that the user has revoked UMA consent, no data will be recorded
   // to UMA.
-  test_metrics_service_client_->UpdateCurrentUserMetricsConsent(false);
+  test_metrics_service_client_->UpdateCurrentUserMetricsChoice(false);
 
   // Flip the WiFi toggle in Settings, the is a unique Setting that is changing
   // so the number of unique settings that have been changed is 1.
@@ -965,8 +973,8 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
   // to UMA because they have previously revoked their consent and have made a
   // change in Settings. The data we are recording is no longer accurate so we
   // will no longer record the data to UMA. See
-  // ::prefs::kHasEverRevokedMetricsConsent for more information.
-  test_metrics_service_client_->UpdateCurrentUserMetricsConsent(true);
+  // ash::prefs::kHasEverRevokedMetricsChoice for more information.
+  test_metrics_service_client_->UpdateCurrentUserMetricsChoice(true);
 
   // Flip the WiFi toggle in Settings, the is a unique Setting that is changing
   // so the number of unique settings that have been changed is 1.
@@ -1043,26 +1051,27 @@ TEST_F(PerSessionSettingsUserActionTrackerTest,
   test_pref_service_->SetTime(::ash::prefs::kOobeOnboardingTime,
                               base::Time::Now());
   // Simulate the initial state, ie the user has not yet set their consent pref.
-  test_pref_service_->SetBoolean(::prefs::kHasEverRevokedMetricsConsent, false);
+  test_pref_service_->SetBoolean(ash::prefs::kHasEverRevokedMetricsConsent,
+                                 false);
 
   // Simulate that the user has granted UMA consent initially.
   // NOTE: revoking UMA consent will clear the pref that stores the current
   // unique settings that the user has used. Now that the consent has been
   // granted, we will record that Settings changes to .DeviceLifetime histogram.
-  test_metrics_service_client_->UpdateCurrentUserMetricsConsent(true);
+  test_metrics_service_client_->UpdateCurrentUserMetricsChoice(true);
   std::set<std::string> expected_set;
 
   // Simulate that the user has revoked UMA consent, the function
   // ProvideCurrentSessionData will not get called and no data will be recorded
   // to UMA.
-  test_metrics_service_client_->UpdateCurrentUserMetricsConsent(false);
+  test_metrics_service_client_->UpdateCurrentUserMetricsChoice(false);
 
   // Simulate that the user has re-granted UMA consent, no data will be recorded
   // to UMA because they have previously revoked their consent. Once a user
   // revokes their consent, re-granting it without making a Setting change will
   // result in recording of their data, since we will not have any discrepancy
   // in the data we are recording.
-  test_metrics_service_client_->UpdateCurrentUserMetricsConsent(true);
+  test_metrics_service_client_->UpdateCurrentUserMetricsChoice(true);
 
   // Flip the WiFi toggle in Settings, the is a unique Setting that is changing
   // so the number of unique settings that have been changed is 1.

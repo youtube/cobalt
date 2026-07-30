@@ -138,7 +138,7 @@ void SecureChannelImpl::OnResponseReceived(
                                          static_cast<int>(response.error()),
                                          static_cast<int>(state_)));
 
-    StatusCode status_code = StatusCode::kError;
+    StatusCode status_code = StatusCode::kUnexpectedTransportError;
     switch (state_) {
       case State::kPerformingAttestation:
         status_code = StatusCode::kAttestationFailed;
@@ -147,7 +147,10 @@ void SecureChannelImpl::OnResponseReceived(
         status_code = StatusCode::kHandshakeFailed;
         break;
       case State::kEstablished:
-        status_code = StatusCode::kNetworkError;
+        status_code =
+            response.error() == Transport::TransportError::kSocketClosed
+                ? StatusCode::kConnectionClosedByServer
+                : StatusCode::kNetworkError;
         break;
       case State::kWaitingHandshakeMessage:
       case State::kVerifyingHandshake:

@@ -1878,13 +1878,13 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.finishScrollForTesting();
 
         // optimalEndDelta =
-        // stripWidth(800) - rightPadding(60) - rightFade(136) - selectedTab.idealX -
+        // stripWidth(800) - PADDING_RIGHT(20) - rightFade(136) - selectedTab.idealX -
         // mCachedTabWidth(108)
         // expectedOffset = scrollOffsetBefore + optimalEndDelta
         float expectedOffset =
                 scrollOffsetBefore
                         + STRIP_WIDTH
-                        - 60
+                        - PADDING_RIGHT
                         - mStripLayoutHelper.getRightFadeWidthForTesting()
                         - selectedTab.getIdealX()
                         - 108;
@@ -1908,13 +1908,13 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.finishScrollForTesting();
 
         // optimalEndDelta =
-        // stripWidth(800) - rightPadding(60) - rightFade(72) - selectedTab.idealX -
+        // stripWidth(800) - PADDING_RIGHT(20) - rightFade(72) - selectedTab.idealX -
         // mCachedTabWidth(108)
         // expectedOffset = scrollOffsetBefore + optimalEndDelta
         float expectedOffset =
                 scrollOffsetBefore
                         + STRIP_WIDTH
-                        - 60
+                        - PADDING_RIGHT
                         - mStripLayoutHelper.getRightFadeWidthForTesting()
                         - selectedTab.getIdealX()
                         - 108;
@@ -1967,11 +1967,11 @@ public class StripLayoutHelperTest {
                 STRIP_WIDTH, STRIP_HEIGHT, true, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
 
         // Assert: finalX value after orientation change.
-        // stripWidth(800) - rightPadding(60) - rightFade(72) - selectedTab.idealX -
+        // stripWidth(800) - PADDING_RIGHT(20) - rightFade(72) - selectedTab.idealX -
         // mCachedTabWidth(108)
         float expectedFinalX =
                 STRIP_WIDTH
-                        - 60
+                        - PADDING_RIGHT
                         - mStripLayoutHelper.getRightFadeWidthForTesting()
                         - selectedTab.getIdealX()
                         - 108;

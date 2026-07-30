@@ -47,6 +47,7 @@ class CompilerContextImplOrt final : public GraphBuilderContext,
 
   CompilerContextImplOrt(
       scoped_refptr<Environment> env,
+      scoped_refptr<SessionOptions> session_options,
       mojom::CreateContextOptionsPtr options,
       ContextProperties properties,
       mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,

@@ -14,7 +14,7 @@ These builders must pass before a CL may land that affects files outside of
 ### chrome
 * [chromeos-betty-chrome-gtest](https://ci.chromium.org/p/chrome/builders/try/chromeos-betty-chrome-gtest) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""chromeos-betty-chrome-gtest""))
 
-    * Replaced with builder: [chromeos-betty-chrome-gtest-and-cqtast](https://ci.chromium.org/p/chrome/builders/try/chromeos-betty-chrome-gtest-and-cqtast) when CL owner is in group [google/chromeos-pa](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chromeos-pa)
+    * Replaced with builder: [chromeos-betty-chrome-gtest-and-cqtast](https://ci.chromium.org/p/chrome/builders/try/chromeos-betty-chrome-gtest-and-cqtast) when CL owner is in group [google/chromeos-pa@google.com](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chromeos-pa@google.com)
 
 * [chromeos-betty-compile-chrome](https://ci.chromium.org/p/chrome/builders/try/chromeos-betty-compile-chrome) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""chromeos-betty-compile-chrome""))
 
@@ -33,15 +33,13 @@ These builders must pass before a CL may land that affects files outside of
 
 * [android-desktop-x64-rel](https://ci.chromium.org/p/chromium/builders/try/android-desktop-x64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-desktop-x64-rel""))
 
+    * Replaced with builder: [android-internal-desktop-x64-rel](https://ci.chromium.org/p/chrome/builders/try/android-internal-desktop-x64-rel) when CL owner is in group [google/chrome-al-eng@google.com](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chrome-al-eng@google.com)
+
 * [android-x64-rel](https://ci.chromium.org/p/chromium/builders/try/android-x64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-x64-rel""))
 
 * [android-x86-rel](https://ci.chromium.org/p/chromium/builders/try/android-x86-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-x86-rel""))
 
 * [android_compile_dbg](https://ci.chromium.org/p/chromium/builders/try/android_compile_dbg) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android_compile_dbg""))
-
-* [chromeos-amd64-generic-rel-gtest](https://ci.chromium.org/p/chromium/builders/try/chromeos-amd64-generic-rel-gtest) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""chromeos-amd64-generic-rel-gtest""))
-
-    * Replaced with builder: [chromeos-amd64-generic-rel-gtest-and-tast](https://ci.chromium.org/p/chromium/builders/try/chromeos-amd64-generic-rel-gtest-and-tast) when CL owner is in group [google/chromeos-pa@google.com](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chromeos-pa@google.com)
 
 * [chromeos-arm64-generic-rel](https://ci.chromium.org/p/chromium/builders/try/chromeos-arm64-generic-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""chromeos-arm64-generic-rel""))
 
@@ -968,12 +966,6 @@ by CQ. These are often used to test new configurations before they are added
 as required builders.
 
 ### chrome
-* [android-internal-desktop-x64-rel](https://ci.chromium.org/p/chrome/builders/try/android-internal-desktop-x64-rel) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""android-internal-desktop-x64-rel""))
-  * Experiment percentage: 100.0
-
-  This builder is only run when the CL owner is in the group:
-  * [`google/chrome-al-eng@google.com`](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chrome-al-eng@google.com)
-
 * [linux-perf-trigger](https://ci.chromium.org/p/chrome/builders/try/linux-perf-trigger) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""linux-perf-trigger""))
   * Experiment percentage: 100.0
 

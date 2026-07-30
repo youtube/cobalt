@@ -368,7 +368,9 @@ ShelfWidgetDelegateView::ShelfWidgetDelegateView(ShelfWidget* shelf_widget,
       opaque_background_(shelf, this),
       animating_background_(ui::LAYER_SOLID_COLOR),
       animating_drag_handle_(ui::LAYER_SOLID_COLOR) {
-  animating_background_.SetName("shelf/Animation");
+  animating_background_.SetName("shelf/AnimatingBackground");
+  animating_drag_handle_.SetName("shelf/AnimatingDragHandle");
+
   animating_background_.Add(&animating_drag_handle_);
 
   opaque_background_.Initialize();

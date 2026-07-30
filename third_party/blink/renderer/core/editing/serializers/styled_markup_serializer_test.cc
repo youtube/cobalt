@@ -351,7 +351,7 @@ TEST_F(StyledMarkupSerializerTest, SkipUnselectableContent) {
                                  ShouldSkipUnselectableContentOptions()));
 }
 
-TEST_F(StyledMarkupSerializerTest, SkipUnselectableContentInShadowDOM) {
+TEST_F(StyledMarkupSerializerTest, SkipUnselectableContentInShadowDom) {
   const char* body_content =
       "<span style=\"user-select: all;\">SELECTABLE_1<span "
       "style=\"user-select: none;\">NON_SELECTABLE_1<span style=\"user-select: "

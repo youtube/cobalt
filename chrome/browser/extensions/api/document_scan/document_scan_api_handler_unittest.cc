@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/auto_reset.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
@@ -27,7 +28,6 @@
 #include "chrome/browser/extensions/api/document_scan/start_scan_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_constants.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -144,7 +144,7 @@ class DocumentScanAPIHandlerTest : public testing::Test {
   // list of trusted document scan extensions.
   void MarkExtensionTrusted(const ExtensionId extension_id) {
     testing_profile_->GetTestingPrefService()->SetList(
-        prefs::kDocumentScanAPITrustedExtensions,
+        ash::prefs::kDocumentScanAPITrustedExtensions,
         base::ListValue().Append(extension_id));
   }
 

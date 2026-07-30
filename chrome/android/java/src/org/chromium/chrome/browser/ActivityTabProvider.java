@@ -102,7 +102,7 @@ public class ActivityTabProvider implements Destroyable, Supplier<@Nullable Tab>
                     public void onStartedHiding(@LayoutType int layout) {
                         if (mTabModelSelector == null) return;
 
-                        if (LayoutType.TAB_SWITCHER == layout) {
+                        if (LayoutType.HUB == layout) {
                             mObservableSupplier.set(mTabModelSelector.getCurrentTab());
                         }
                     }

@@ -8,6 +8,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
@@ -317,8 +318,13 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
 
 // Verify that the Skill data passed to ShowDialog correctly populates the
 // HTML input fields in the WebUI.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SkillPopulatesUIFields DISABLED_SkillPopulatesUIFields
+#else
+#define MAYBE_SkillPopulatesUIFields SkillPopulatesUIFields
+#endif
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
-                       SkillPopulatesUIFields) {
+                       MAYBE_SkillPopulatesUIFields) {
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
 
   // Setup a specific test skill.

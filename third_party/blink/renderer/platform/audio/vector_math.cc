@@ -71,7 +71,7 @@ void PrepareFilterForConv(base::span<const float> filter,
 void Conv(base::span<const float> source,
           base::span<const float> filter,
           base::span<float> dest,
-          uint32_t frames_to_process,
+          size_t frames_to_process,
           const AudioFloatArray& prepared_filter) {
   // Only contiguous convolution is implemented by all implementations.
   // Correlation (positive |filter_stride|) and support for non-contiguous
@@ -87,17 +87,17 @@ void Conv(base::span<const float> source,
 void Vadd(base::span<const float> source1,
           base::span<const float> source2,
           base::span<float> dest,
-          uint32_t frames_to_process) {
-  impl::Vadd(source1.data(), 1, source2.data(), 1, dest.data(), 1,
-             frames_to_process);
+          size_t frames_to_process) {
+  impl::Vadd(source1.first(frames_to_process), source2.first(frames_to_process),
+             dest.first(frames_to_process));
 }
 
 void Vsub(base::span<const float> source1,
           base::span<const float> source2,
           base::span<float> dest,
-          uint32_t frames_to_process) {
-  impl::Vsub(source1.data(), 1, source2.data(), 1, dest.data(), 1,
-             frames_to_process);
+          size_t frames_to_process) {
+  impl::Vsub(source1.first(frames_to_process), source2.first(frames_to_process),
+             dest.first(frames_to_process));
 }
 
 void Vclip(base::span<const float> source,
@@ -115,14 +115,14 @@ void Vclip(base::span<const float> source,
 #endif
 
   impl::Vclip(source.data(), 1, &low_threshold, &high_threshold, dest.data(), 1,
-              base::checked_cast<uint32_t>(dest.size()));
+              dest.size());
 }
 
 void Vclip(base::span<const float> source,
            float low_threshold,
            float high_threshold,
            base::span<float> dest,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
 #if DCHECK_IS_ON()
   // Do the same DCHECKs that |ClampTo| would do so that optimization paths do
   // not have to do them.
@@ -137,7 +137,7 @@ void Vclip(base::span<const float> source,
               frames_to_process);
 }
 
-float Vmaxmgv(base::span<const float> source, uint32_t frames_to_process) {
+float Vmaxmgv(base::span<const float> source, size_t frames_to_process) {
   float max = 0;
 
   impl::Vmaxmgv(source.data(), 1, &max, frames_to_process);
@@ -148,33 +148,33 @@ float Vmaxmgv(base::span<const float> source, uint32_t frames_to_process) {
 void Vmul(base::span<const float> source1,
           base::span<const float> source2,
           base::span<float> dest,
-          uint32_t frames_to_process) {
-  impl::Vmul(source1.data(), 1, source2.data(), 1, dest.data(), 1,
-             frames_to_process);
+          size_t frames_to_process) {
+  impl::Vmul(source1.first(frames_to_process), source2.first(frames_to_process),
+             dest.first(frames_to_process));
 }
 
 void Vsma(base::span<const float> source,
           float scale,
           base::span<float> dest,
-          uint32_t frames_to_process) {
+          size_t frames_to_process) {
   impl::Vsma(source.data(), 1, &scale, dest.data(), 1, frames_to_process);
 }
 
 void Vsmul(base::span<const float> source,
            float scale,
            base::span<float> dest,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   impl::Vsmul(source.data(), 1, &scale, dest.data(), 1, frames_to_process);
 }
 
 void Vsadd(base::span<const float> source,
            float addend,
            base::span<float> dest,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   impl::Vsadd(source.data(), 1, &addend, dest.data(), 1, frames_to_process);
 }
 
-float Vsvesq(base::span<const float> source, uint32_t frames_to_process) {
+float Vsvesq(base::span<const float> source, size_t frames_to_process) {
   float sum = 0;
 
   impl::Vsvesq(source.data(), 1, &sum, frames_to_process);
@@ -188,7 +188,7 @@ void Zvmul(base::span<const float> real1,
            base::span<const float> imag2,
            base::span<float> real_dest,
            base::span<float> imag_dest,
-           uint32_t frames_to_process) {
+           size_t frames_to_process) {
   impl::Zvmul(real1.data(), imag1.data(), real2.data(), imag2.data(),
               real_dest.data(), imag_dest.data(), frames_to_process);
 }

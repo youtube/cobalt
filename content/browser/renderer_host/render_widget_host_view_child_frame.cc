@@ -36,6 +36,7 @@
 #include "content/common/input/synthetic_gesture_target.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom.h"
@@ -180,12 +181,22 @@ void RenderWidgetHostViewChildFrame::SetFrameConnector(
 #endif
     }
   }
+
+  if (frame_connector_ && pending_sizing_info_) {
+    DCHECK(base::FeatureList::IsEnabled(blink::features::kResponsiveIframes));
+    frame_connector_->SendIntrinsicSizingInfoToParent(
+        std::move(pending_sizing_info_));
+  }
 }
 
 void RenderWidgetHostViewChildFrame::UpdateIntrinsicSizingInfo(
     blink::mojom::IntrinsicSizingInfoPtr sizing_info) {
-  if (frame_connector_)
+  if (frame_connector_) {
     frame_connector_->SendIntrinsicSizingInfoToParent(std::move(sizing_info));
+  } else if (base::FeatureList::IsEnabled(
+                 blink::features::kResponsiveIframes)) {
+    pending_sizing_info_ = std::move(sizing_info);
+  }
 }
 
 std::unique_ptr<SyntheticGestureTarget>
@@ -239,17 +250,6 @@ bool RenderWidgetHostViewChildFrame::HasFocus() {
 
 bool RenderWidgetHostViewChildFrame::IsSurfaceAvailableForCopy() {
   return GetLocalSurfaceId().is_valid();
-}
-
-void RenderWidgetHostViewChildFrame::EnsureSurfaceSynchronizedForWebTest() {
-  // The capture sequence number which would normally be updated here is
-  // actually retrieved from the frame connector.
-}
-
-uint32_t RenderWidgetHostViewChildFrame::GetCaptureSequenceNumber() const {
-  if (!frame_connector_)
-    return 0u;
-  return frame_connector_->GetCaptureSequenceNumber();
 }
 
 void RenderWidgetHostViewChildFrame::ShowWithVisibility(
@@ -909,8 +909,8 @@ bool RenderWidgetHostViewChildFrame::IsRenderWidgetHostViewChildFrame() const {
 
 void RenderWidgetHostViewChildFrame::
     InvalidateLocalSurfaceIdAndAllocationGroup() {
-  // This should only be handled by the top frame.
-  NOTREACHED();
+  // Child frames do not manage their own LocalSurfaceId or allocation groups in
+  // the browser process.
 }
 
 #if BUILDFLAG(IS_MAC)

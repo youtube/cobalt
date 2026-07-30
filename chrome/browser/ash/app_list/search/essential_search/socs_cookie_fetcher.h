@@ -11,7 +11,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace network {
@@ -65,7 +64,6 @@ class SocsCookieFetcher final {
 
  private:
   void OnSimpleLoaderComplete(std::optional<std::string> response_body);
-  void OnJsonParsed(data_decoder::DataDecoder::ValueOrError result);
   void ProcessValidTokenResponse(base::DictValue json_response);
 
   // `consumer_` to call back when this request completes.
