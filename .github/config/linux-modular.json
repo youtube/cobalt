@@ -1,0 +1,26 @@
+{
+    "docker_service": "linux",
+    "platforms": [
+      "linux-x64x11-modular"
+    ],
+    "test_on_host": true,
+    "test_root_target": "//cobalt:gn_all",
+    "num_gtest_shards": 10,
+    "targets": [
+      "cobalt:gn_all",
+      "dump_syms",
+      "minidump_stackwalk"
+    ],
+    "build_configs": [
+      "debug",
+      "devel",
+      "qa",
+      "gold"
+    ],
+    "includes": [
+      {
+        "name": "x64",
+        "platform": "linux-x64x11-modular"
+      }
+    ]
+  }

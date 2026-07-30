@@ -515,6 +515,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
           !SecurityOrigin::Create(url)->IsOpaque();
       resource_request.SetSharedStorageWritableOptedIn(
           shared_storage_writable_opted_in);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
       if (GetElement()->FastHasAttribute(html_names::kBrowsingtopicsAttr) &&
           RuntimeEnabledFeatures::TopicsAPIEnabled(
               GetElement()->GetExecutionContext()) &&
@@ -524,6 +525,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
         Deprecation::CountDeprecation(GetElement()->GetExecutionContext(),
                                       WebFeature::kTopicsAPIAll);
       }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     }
 
     bool page_is_being_dismissed =
@@ -806,7 +808,6 @@ void ImageLoader::ImageNotifyFinished(ImageResourceContent* content) {
       svg_image->MaybeRecordSvgImageProcessingTime(GetElement()->GetDocument());
     }
   }
-
 
   DispatchDecodeRequestsIfComplete();
 

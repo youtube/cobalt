@@ -47,12 +47,17 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
+<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_AV1_DECODER)
 #include "third_party/blink/renderer/platform/image-decoders/avif/avif_image_decoder.h"
 #endif
 
 #if BUILDFLAG(ENABLE_JXL_DECODER)
 #include "third_party/blink/renderer/platform/image-decoders/jxl/jxl_image_decoder.h"
+=======
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+#include "third_party/blink/renderer/platform/image-decoders/avif/crabbyavif_image_decoder.h"
+>>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 namespace blink {
@@ -78,7 +83,7 @@ cc::ImageType FileExtensionToImageType(String image_extension) {
   if (image_extension == "bmp") {
     return cc::ImageType::kBMP;
   }
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
   if (image_extension == "avif") {
     return cc::ImageType::kAVIF;
   }
@@ -212,8 +217,13 @@ String SniffMimeTypeInternal(scoped_refptr<SegmentReader> reader) {
   if (MatchesBMPSignature(contents)) {
     return "image/bmp";
   }
+<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_AV1_DECODER)
   if (AVIFImageDecoder::MatchesAVIFSignature(fast_reader)) {
+=======
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+  if (CrabbyAVIFImageDecoder::MatchesAVIFSignature(fast_reader)) {
+>>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return "image/avif";
   }
 #endif
@@ -324,10 +334,16 @@ std::unique_ptr<ImageDecoder> ImageDecoder::CreateByMimeType(
     decoder = std::make_unique<ICOImageDecoder>(alpha_option, color_behavior,
                                                 max_decoded_bytes);
   } else if (mime_type == "image/bmp" || mime_type == "image/x-xbitmap") {
+<<<<<<< HEAD
     decoder =
         CreateBmpImageDecoder(alpha_option, high_bit_depth_decoding_option,
                               color_behavior, max_decoded_bytes);
 #if BUILDFLAG(ENABLE_AV1_DECODER)
+=======
+    decoder = std::make_unique<BMPImageDecoder>(alpha_option, color_behavior,
+                                                max_decoded_bytes);
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+>>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   } else if (mime_type == "image/avif") {
     decoder = std::make_unique<AVIFImageDecoder>(
         alpha_option, high_bit_depth_decoding_option, color_behavior, aux_image,
@@ -362,7 +378,7 @@ bool ImageDecoder::HasSufficientDataToSniffMimeType(const SharedBuffer& data) {
     return false;
   }
 
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
   {
     // Check for an ISO BMFF File Type Box. Assume that 'largesize' is not used.
     // The first eight bytes would be a big-endian 32-bit unsigned integer
@@ -455,7 +471,7 @@ ImageDecoder::CompressionFormat ImageDecoder::GetCompressionFormat(
     }
   }
 
-#if BUILDFLAG(ENABLE_AV1_DECODER)
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
   // Attempt to sniff whether an AVIF image is using a lossy or lossless
   // compression algorithm.
   // TODO(wtc): Implement this. Figure out whether to return kUndefinedFormat or

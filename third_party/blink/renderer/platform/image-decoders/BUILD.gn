@@ -78,7 +78,7 @@ component("image_decoders") {
     "//ui/gfx/geometry:geometry_skia",
   ]
 
-  if (enable_av1_decoder) {
+  if (enable_dav1d_decoder) {
     sources += [
       "avif/avif_image_decoder.cc",
       "avif/avif_image_decoder.h",
@@ -129,6 +129,7 @@ source_set("unit_tests") {
     deps += [ "//ui/base:pixel_diff_test_support" ]
   }
 
+<<<<<<< HEAD
   if (enable_av1_decoder) {
     sources += [ "avif/avif_image_decoder_test.cc" ]
   }
@@ -136,6 +137,10 @@ source_set("unit_tests") {
   if (enable_jxl_decoder) {
     sources += [ "jxl/jxl_image_decoder_test.cc" ]
     deps += [ "//third_party/rust/jxl/v0_2/wrapper:jxl_rs" ]
+=======
+  if (enable_dav1d_decoder) {
+    sources += [ "avif/crabbyavif_image_decoder_test.cc" ]
+>>>>>>> parent of 4144fed3b05 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
