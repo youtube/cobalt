@@ -613,9 +613,13 @@ void SbPlayerTestFixture::WriteEndOfStream(SbMediaType media_type) {
 void SbPlayerTestFixture::WaitAndProcessNextEvent(int64_t timeout) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
+  // RunTestBlockingAction() is necessary to prevent deadlocks during NPLB tests
+  // on platforms such as tvOS, where the main thread could be blocked waiting
+  // for a condition variable while worker threads are simultaneously blocked
+  // waiting for the main thread to handle application events.
   CallbackEvent event;
   starboard::RunTestBlockingAction(
-      [&]() { event = callback_event_queue_.GetTimed(timeout); });
+      [&] { event = callback_event_queue_.GetTimed(timeout); });
 
   // Ignore callback events for previous Seek().
   if (event.ticket != ticket_) {
