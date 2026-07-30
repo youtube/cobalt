@@ -8,6 +8,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/webui_url_constants.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "ash/webui/common/trusted_types_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"

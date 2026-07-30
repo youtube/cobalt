@@ -69,6 +69,11 @@ class ProfileAttributesIOS {
   bool IsAuthenticated() const;
   SessionIds GetDiscardedSessions() const;
   const base::DictValue* GetNotificationPermissions() const;
+  bool HasSessionScopedPrefs(std::string_view session_id) const;
+  bool GetSessionScopedBoolPref(std::string_view session_id,
+                                std::string_view pref_name) const;
+  base::Time GetSessionScopedTimePref(std::string_view session_id,
+                                      std::string_view pref_name) const;
 
   // Sets information related to the profile.
   void ClearIsNewProfile();
@@ -79,6 +84,13 @@ class ProfileAttributesIOS {
   void SetLastActiveTime(base::Time time);
   void SetDiscardedSessions(const SessionIds& session_ids);
   void SetNotificationPermissions(base::DictValue permissions);
+  void ClearSessionScopedPrefs(std::string_view session_id);
+  void SetSessionScopedBoolPref(std::string_view session_id,
+                                std::string_view pref_name,
+                                bool value);
+  void SetSessionScopedTimePref(std::string_view session_id,
+                                std::string_view pref_name,
+                                base::Time value);
 
   // Returns the storage.
   base::DictValue GetStorage() &&;

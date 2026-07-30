@@ -146,8 +146,8 @@ bool AVFoundationOutputStream::Open() {
   asbd.mBytesPerFrame = asbd.mChannelsPerFrame * asbd.mBitsPerChannel / 8;
   asbd.mBytesPerPacket = asbd.mFramesPerPacket * asbd.mBytesPerFrame;
 
-  auto scoped_layout = ChannelLayoutToAudioChannelLayout(
-      params_.channel_layout(), params_.channels());
+  auto scoped_layout =
+      ChannelLayoutToAudioChannelLayout(params_.channel_layout_config());
   if (!scoped_layout) {
     LOG(ERROR) << "Failed to create audio channel layout.";
     return false;

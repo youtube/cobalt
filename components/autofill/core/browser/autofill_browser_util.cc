@@ -15,18 +15,6 @@
 
 namespace autofill {
 
-bool IsFormOrClientNonSecure(const AutofillClient& client,
-                             const FormData& form) {
-  return !client.IsContextSecure() ||
-         (form.action().is_valid() && form.action().SchemeIs("http"));
-}
-
-bool IsFormOrClientNonSecure(const AutofillClient& client,
-                             const FormStructure& form) {
-  return !client.IsContextSecure() ||
-         (form.target_url().is_valid() && form.target_url().SchemeIs("http"));
-}
-
 bool IsFormMixedContent(const AutofillClient& client, const FormData& form) {
   return client.IsContextSecure() && form.action().is_valid() &&
          security_interstitials::IsInsecureFormAction(form.action());

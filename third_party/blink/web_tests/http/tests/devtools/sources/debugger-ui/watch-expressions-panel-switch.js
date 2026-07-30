@@ -37,21 +37,26 @@ import * as Sources from 'devtools/panels/sources/sources.js';
 
   function waitForUpdate() {
     return new Promise(resolve => {
+      const pane = Sources.WatchExpressionsSidebarPane.WatchExpressionsSidebarPane.instance();
       TestRunner.addSniffer(
-          Sources.WatchExpressionsSidebarPane.WatchExpression.prototype, 'createWatchExpression',
+          pane, 'performUpdate',
           watchExpressionsUpdated);
+      async function watchExpressionsUpdated() {
+        // Yield to event loop
+        await new Promise(r => setTimeout(r, 0));
+        const treeElement = pane.contentElement.querySelector('devtools-tree');
+        const watchElements = treeElement ? treeElement.shadowRoot.querySelectorAll('.watch-expression-tree-item') : [];
       const watches = [];
-      async function watchExpressionsUpdated(result, exceptionDetails) {
-        if (await result !== undefined || exceptionDetails !== undefined) {
-          watches.push(this.element.deepTextContent().trim());
+        for (const el of watchElements) {
+          watches.push(el.deepTextContent().trim());
+        }
           if (watches.length === 2) {
             watches.sort().forEach(TestRunner.addResult);
             resolve();
             return;
           }
-        }
         TestRunner.addSniffer(
-            Sources.WatchExpressionsSidebarPane.WatchExpression.prototype, 'createWatchExpression',
+            pane, 'performUpdate',
             watchExpressionsUpdated);
       }
     });

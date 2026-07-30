@@ -1,0 +1,11 @@
+This is a testharness.js-based test.
+[FAIL] Check that child of EditContext is editable and the parent EditContext gets the events
+  assert_array_equals: expected property 0 to be "beforeinput: edit-context-top-1" but got "beforeinput: default-1" (expected array ["beforeinput: edit-context-top-1", "textupdate: edit-context-top-1"] got ["beforeinput: default-1", "input: edit-context-top-1"])
+[FAIL] Check that a contenteditable child of a contenteditable is editable, but the parent contenteditable gets the events
+  assert_array_equals: expected property 0 to be "beforeinput: editable-in-noteditable-3" but got "beforeinput: contenteditable-in-contenteditable-3" (expected array ["beforeinput: editable-in-noteditable-3", "input: editable-in-noteditable-3"] got ["beforeinput: contenteditable-in-contenteditable-3", "input: editable-in-noteditable-3"])
+[FAIL] Check that an contenteditable child of an EditContext is editable, but the EditContext gets the events
+  assert_array_equals: expected property 0 to be "beforeinput: edit-context-top-5" but got "beforeinput: contenteditable-in-ec-5" (expected array ["beforeinput: edit-context-top-5", "textupdate: edit-context-top-5"] got ["beforeinput: contenteditable-in-ec-5", "input: edit-context-top-5"])
+[FAIL] Check that for an EditContext child of an EditContext, the parent is the one that gets the events
+  assert_array_equals: expected property 0 to be "beforeinput: edit-context-top-7" but got "beforeinput: edit-context-in-ec-7" (expected array ["beforeinput: edit-context-top-7", "textupdate: edit-context-top-7"] got ["beforeinput: edit-context-in-ec-7", "textupdate: edit-context-in-ec-7"])
+Harness: the test ran to completion.
+

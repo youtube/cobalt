@@ -1,5 +1,5 @@
 AXWebArea
-++AXGroup AXSubrole=AXApplicationGroup AXDescription='Guests'
+++AXGroup AXSubrole=AXFieldset AXDescription='Guests'
 ++++AXGroup
 ++++++AXStaticText AXValue='Guests'
 ++++AXGroup

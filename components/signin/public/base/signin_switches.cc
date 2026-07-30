@@ -118,9 +118,18 @@ BASE_FEATURE(kCctSignInPrompt, base::FEATURE_ENABLED_BY_DEFAULT);
 // the response count for 1 week to give around 2000 responses per milestone for
 // total stable population.
 BASE_FEATURE(kChromeAndroidIdentitySurveyFirstRun,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kChromeAndroidIdentitySurveyWeb,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(double,
+                   kChromeAndroidIdentitySurveyFirstRunProbability,
+                   &kChromeAndroidIdentitySurveyFirstRun,
+                   kHatsSurveyProbabilityName,
+                   0.004);
+BASE_FEATURE(kChromeAndroidIdentitySurveyWeb, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(double,
+                   kChromeAndroidIdentitySurveyWebProbability,
+                   &kChromeAndroidIdentitySurveyWeb,
+                   kHatsSurveyProbabilityName,
+                   1.0);
 BASE_FEATURE(kChromeAndroidIdentitySurveyNtpSigninButton,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(double,
@@ -530,6 +539,15 @@ bool IsFirstRunDesktopRevampEnabled(bool is_in_search_engine_choice_region) {
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kFirstRunDesktopRevampNoFeatureShowcaseSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kFirstRunDesktopRevampSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kForceHistoryOptInScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -577,7 +595,13 @@ BASE_FEATURE(kMagiChromeSignInExperimentsBatch1,
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_ANDROID)
+// When enabled, IdentityManager is used as source of accounts instead of
+// AccountManagerFacade.
 BASE_FEATURE(kMakeIdentityManagerSourceOfAccounts,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, IdentityManager is used as source of accounts instead of
+// AccountManagerFacade. This flag is used for changes merged after M150.
+BASE_FEATURE(kMakeIdentityManagerSourceOfAccountsPart2,
              base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled a new library is used to fetch accounts via
 // AccountManagerAccountManagerDelegate

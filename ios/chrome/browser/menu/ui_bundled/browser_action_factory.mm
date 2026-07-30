@@ -535,10 +535,6 @@
 // Helper method for completion block to hide Gemini Floaty. Ensures that the
 // floaty is hidden before the view invoked from an UIAction is presented.
 - (void)hideGeminiFloatyIfInvoked {
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
-
   id<GeminiCommands> geminiHandler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), GeminiCommands);
   [geminiHandler

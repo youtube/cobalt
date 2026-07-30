@@ -5,9 +5,6 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_NETWORK_AUTOFILL_AI_MOCK_PERSONAL_CONTEXT_ACCESS_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_NETWORK_AUTOFILL_AI_MOCK_PERSONAL_CONTEXT_ACCESS_MANAGER_H_
 
-#include <optional>
-#include <vector>
-
 #include "base/containers/span.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
@@ -22,27 +19,23 @@ class MockPersonalContextAccessManager : public PersonalContextAccessManager {
   ~MockPersonalContextAccessManager() override;
 
   MOCK_METHOD(void,
-              PrefetchAmbientAutofillContext,
+              PrefetchContext,
               (base::span<const EntityType> requested_types),
               (override));
-  MOCK_METHOD(std::optional<EntityInstance>,
-              GetCachedEntity,
-              (const EntityInstance::EntityId& id),
-              (const, override));
   MOCK_METHOD(void,
               GetUnmaskedSpiiEntity,
               (const EntityInstance::EntityId& id,
                GetUnmaskedSpiiEntityCallback callback),
               (override));
-  MOCK_METHOD(std::vector<EntityInstance>,
-              GetCachedEntities,
-              (),
-              (const, override));
-  MOCK_METHOD(bool, IsTypeCached, (EntityType type), (const, override));
+  MOCK_METHOD(bool, IsTypePrefetched, (EntityType type), (const, override));
   MOCK_METHOD(void, AddObserver, (Observer * observer), (override));
   MOCK_METHOD(void, RemoveObserver, (Observer * observer), (override));
   MOCK_METHOD(RequestStatus,
-              GetPrefetchAmbientAutofillStatusByEntityType,
+              GetPrefetchStatusByEntityType,
+              (EntityType type),
+              (const, override));
+  MOCK_METHOD(bool,
+              ServerHasDataAvailable,
               (EntityType type),
               (const, override));
 };

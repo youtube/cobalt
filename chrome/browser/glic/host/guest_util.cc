@@ -9,21 +9,32 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/supports_user_data.h"
+#include "base/version_info/version_info.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
+#include "chrome/browser/glic/glic_hotkey.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/features.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
+#include "chrome/browser/permissions/system/system_permission_settings.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/google/core/common/google_util.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/guest_view/browser/guest_view_manager.h"
 #include "components/guest_view/buildflags/buildflags.h"
 #include "components/prefs/pref_service.h"
+#include "components/skills/features.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -31,10 +42,13 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "content/public/common/content_features.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "net/base/url_util.h"
+#include "pdf/buildflags.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/autoplay/autoplay.mojom.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
@@ -386,6 +400,129 @@ mojom::Platform GetGlicPlatform() {
 #else
   return mojom::Platform::kUnknown;
 #endif
+}
+
+void PopulateGlobalClientInitialState(mojom::WebClientInitialState* state,
+                                      Profile* profile) {
+  state->chrome_version = version_info::GetVersion();
+  state->platform = GetGlicPlatform();
+  state->form_factor = GetGlicFormFactor(ui::GetDeviceFormFactor());
+
+  PrefService* pref_service = profile->GetPrefs();
+  state->microphone_permission_enabled =
+      pref_service->GetBoolean(prefs::kGlicMicrophoneEnabled);
+  state->location_permission_enabled =
+      pref_service->GetBoolean(prefs::kGlicGeolocationEnabled);
+  state->tab_context_permission_enabled =
+      pref_service->GetBoolean(prefs::kGlicTabContextEnabled);
+  state->os_location_permission_enabled =
+      system_permission_settings::IsAllowed(ContentSettingsType::GEOLOCATION);
+
+#if !BUILDFLAG(IS_ANDROID)
+  state->hotkey = GetHotkeyString();
+#endif
+
+  state->enable_zero_state_suggestions = IsZeroStateSuggestionsEnabled();
+  state->enable_cached_get_user_profile_info = base::FeatureList::IsEnabled(
+      features::kGlicEnableCachedGetUserProfileInfo);
+  state->enable_act_in_focused_tab =
+      base::FeatureList::IsEnabled(features::kGlicActor);
+  state->enable_scroll_to =
+      base::FeatureList::IsEnabled(features::kGlicScrollTo);
+  state->enable_default_tab_context_setting_feature =
+      base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting);
+  state->default_tab_context_setting_enabled =
+      pref_service->GetBoolean(prefs::kGlicDefaultTabContextEnabled);
+  state->closed_captioning_setting_enabled =
+      pref_service->GetBoolean(prefs::kGlicClosedCaptioningEnabled);
+  state->enable_maybe_refresh_user_status =
+      base::FeatureList::IsEnabled(features::kGlicUserStatusCheck) &&
+      features::kGlicUserStatusRefreshApi.Get();
+  state->enable_get_context_actor =
+      base::FeatureList::IsEnabled(glic::mojom::features::kGlicActorTabContext);
+  state->enable_web_actuation_setting_feature =
+      base::FeatureList::IsEnabled(features::kGlicWebActuationSetting);
+
+  auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  state->actuation_on_web_setting_enabled =
+      glic_service ? glic_service->enabling().GetUserEnabledActuationOnWeb()
+                   : false;
+
+#if BUILDFLAG(ENABLE_PDF)
+  if (features::kGlicScrollToPDF.Get()) {
+    state->host_capabilities.push_back(mojom::HostCapability::kScrollToPdf);
+  }
+#endif
+  state->host_capabilities.push_back(mojom::HostCapability::kMultiInstance);
+
+  if (base::FeatureList::IsEnabled(features::kGlicNoWebUiLoader)) {
+    state->host_capabilities.push_back(mojom::HostCapability::kNoWebUiLoader);
+  }
+
+  if (GlicEnabling::IsAutoOpenForPdfEnabled(profile)) {
+    state->host_capabilities.push_back(mojom::HostCapability::kPdfZeroState);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kGlicInvoke)) {
+    state->host_capabilities.push_back(mojom::HostCapability::kInvoke);
+  }
+
+  if (!GlicEnabling::HasConsentedForProfile(profile)) {
+    state->host_capabilities.push_back(
+        mojom::HostCapability::kTrustFirstOnboardingArm2);
+  }
+  if (GlicEnabling::IsShareImageEnabledForProfile(profile)) {
+    state->host_capabilities.push_back(
+        mojom::HostCapability::kShareAdditionalImageContext);
+  }
+  if (!GlicEnabling::IsLiveAndFloatyEnabledByFlags()) {
+    state->host_capabilities.push_back(mojom::HostCapability::kNoLiveMode);
+  }
+  if (base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin)) {
+    state->host_capabilities.push_back(
+        mojom::HostCapability::kAutoLoginSignInWithGoogle);
+  }
+  state->enable_get_page_metadata =
+      base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
+  if (base::FeatureList::IsEnabled(
+          glic::mojom::features::kGlicAppendModelQualityClientId)) {
+    state->host_capabilities.push_back(
+        mojom::HostCapability::kGetModelQualityClientId);
+  }
+  state->enable_capture_region =
+      base::FeatureList::IsEnabled(features::kGlicCaptureRegion);
+  state->can_act_on_web = false;
+  if (base::FeatureList::IsEnabled(features::kGlicActor)) {
+    state->can_act_on_web =
+        glic_service ? glic_service->actor_policy_checker().CanActOnWeb()
+                     : false;
+  }
+  state->enable_activate_tab =
+      base::FeatureList::IsEnabled(glic::mojom::features::kGlicActivateTabApi);
+  state->enable_get_tab_by_id =
+      base::FeatureList::IsEnabled(features::kGlicGetTabByIdApi);
+  state->enable_open_password_manager_settings_page =
+      base::FeatureList::IsEnabled(
+          features::kGlicOpenPasswordManagerSettingsPageApi);
+  state->enable_trust_first_onboarding =
+      !GlicEnabling::HasConsentedForProfile(profile);
+  state->onboarding_completed = GlicEnabling::HasConsentedForProfile(profile);
+  state->enable_skills = base::FeatureList::IsEnabled(features::kSkillsEnabled);
+  state->enable_get_tab_favicon_by_id =
+      base::FeatureList::IsEnabled(features::kGlicGetTabFaviconById);
+  state->enable_process_counter_abuse_verdict =
+      base::FeatureList::IsEnabled(features::kGlicProcessCounterAbuseVerdict);
+
+  std::optional<glic::mojom::GeminiEnterpriseSettings>
+      gemini_enterprise_settings =
+          GlicEnabling::GetGeminiEnterpriseSettings(profile);
+  if (gemini_enterprise_settings.has_value()) {
+    state->gemini_enterprise_settings =
+        glic::mojom::GeminiEnterpriseSettings::New(
+            gemini_enterprise_settings->project_id,
+            gemini_enterprise_settings->app_id,
+            gemini_enterprise_settings->location);
+  }
 }
 
 }  // namespace glic

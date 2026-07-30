@@ -19,8 +19,10 @@
 #include "components/user_education/common/feature_promo/feature_promo_session_policy.h"
 #include "components/user_education/common/feature_promo/feature_promo_specification.h"
 #include "components/user_education/common/help_bubble/help_bubble_params.h"
+#include "components/user_education/common/user_education_data.h"
 #include "components/user_education/test/feature_promo_controller_test_base.h"
 #include "components/user_education/test/mock_user_education_context.h"
+#include "components/user_education/test/test_help_bubble.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -790,6 +792,56 @@ TEST_F(FeaturePromoControllerQueueTest, CallsTestCallbackOnFailure) {
           FeaturePromoResult(FeaturePromoResult::kAnchorNotVisible)),
       promo_controller().MaybeShowPromo(kIPHTestLowPriorityToast,
                                         promo_context()));
+}
+
+TEST_F(FeaturePromoControllerQueueTest,
+       GetCurrentPromoSpecificationForAnchor_CloseAndContinue) {
+  EXPECT_EQ(nullptr, promo_controller().GetCurrentPromoSpecificationForAnchor(
+                         kAnchorElementId));
+  UNCALLED_MOCK_CALLBACK(FeaturePromoController::ShowPromoResultCallback,
+                         result);
+  FeaturePromoParams params(kIPHTestLowPriorityToast);
+  params.show_promo_result_callback = result.Get();
+  EXPECT_ASYNC_CALL_IN_SCOPE(result, Run(FeaturePromoResult::Success()),
+                             promo_controller().MaybeShowStartupPromo(
+                                 std::move(params), promo_context()));
+  const auto* const spec =
+      promo_controller().GetCurrentPromoSpecificationForAnchor(
+          kAnchorElementId);
+  ASSERT_NE(nullptr, spec);
+  ASSERT_EQ(&kIPHTestLowPriorityToast, spec->feature());
+  {
+    auto handle = promo_controller().CloseBubbleAndContinuePromo(
+        kIPHTestLowPriorityToast);
+    EXPECT_EQ(nullptr, promo_controller().GetCurrentPromoSpecificationForAnchor(
+                           kAnchorElementId));
+  }
+  EXPECT_EQ(nullptr, promo_controller().GetCurrentPromoSpecificationForAnchor(
+                         kAnchorElementId));
+}
+
+TEST_F(FeaturePromoControllerQueueTest,
+       GetCurrentPromoSpecificationForAnchor_CloseBubble) {
+  EXPECT_EQ(nullptr, promo_controller().GetCurrentPromoSpecificationForAnchor(
+                         kAnchorElementId));
+  UNCALLED_MOCK_CALLBACK(FeaturePromoController::ShowPromoResultCallback,
+                         result);
+  FeaturePromoParams params(kIPHTestLowPriorityToast);
+  params.show_promo_result_callback = result.Get();
+  EXPECT_ASYNC_CALL_IN_SCOPE(result, Run(FeaturePromoResult::Success()),
+                             promo_controller().MaybeShowStartupPromo(
+                                 std::move(params), promo_context()));
+  const auto* const spec =
+      promo_controller().GetCurrentPromoSpecificationForAnchor(
+          kAnchorElementId);
+  ASSERT_NE(nullptr, spec);
+  ASSERT_EQ(&kIPHTestLowPriorityToast, spec->feature());
+  promo_controller()
+      .promo_bubble_for_testing()
+      ->AsA<test::TestHelpBubble>()
+      ->SimulateDismiss();
+  EXPECT_EQ(nullptr, promo_controller().GetCurrentPromoSpecificationForAnchor(
+                         kAnchorElementId));
 }
 
 class FeaturePromoControllerQueueNoInitializationTest

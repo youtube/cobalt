@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/waap/waap_ui_metrics_recorder.h"
+#include "chrome/browser/ui/waap/waap_ui_metrics_service.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
@@ -53,6 +54,15 @@ WaapUIMetricsRecorder::ReloadButtonMode ToRecorderButtonMode(
   NOTREACHED();
 }
 
+static constexpr views::SingleAnimatedImageContainer::AnimationBoundary
+    kReloadStopAnimationBoundary = {.start_offset = 0.0f,
+                                    .end_offset = 123.0f / 400.0f};
+static constexpr views::SingleAnimatedImageContainer::AnimationBoundary
+    kStopReloadAnimationBoundary = {.start_offset = 200 / 400.0f,
+                                    .end_offset = 300 / 400.0f};
+static constexpr base::TimeDelta kIconAnimationTime = base::Milliseconds(300);
+static constexpr gfx::Tween::Type kIconAnimationTween =
+    gfx::Tween::Type::FAST_OUT_SLOW_IN_3;
 }  // namespace
 
 // ReloadButton ---------------------------------------------------------------
@@ -81,7 +91,8 @@ ReloadButton::ReloadButton(
                            : kNavigateStopTouchOldIcon),
       double_click_timer_delay_(views::GetDoubleClickInterval()),
       mode_switch_timer_delay_(base::Milliseconds(1350)),
-      window_metrics_manager_(window_metrics_manager) {
+      window_metrics_manager_(window_metrics_manager),
+      profile_(*profile) {
   if (window_metrics_manager_) {
     window_metrics_manager_->OnReloadButtonCreated();
   }
@@ -227,40 +238,101 @@ void ReloadButton::SetVisibleMode(Mode mode) {
   metrics_recorder_->OnChangeVisibleMode(ToRecorderButtonMode(visible_mode_),
                                          ToRecorderButtonMode(mode),
                                          base::TimeTicks::Now());
-  const bool play_animation =
-      features::IsToolbarGlowUpEnabled() && visible_mode_ != mode &&
-      !ui::TouchUiController::Get()->touch_ui() && animate_transitions_;
+  const bool play_animation = features::IsToolbarGlowUpEnabled() &&
+                              !ui::TouchUiController::Get()->touch_ui() &&
+                              animate_transitions_;
 
-  visible_mode_ = mode;
   switch (mode) {
     case Mode::kReload:
       if (play_animation) {
-        views::SingleAnimatedImageContainer::AnimationConfig config{
-            .direction = views::SingleAnimatedImageContainer::
-                AnimationDirection::kForward,
-            .end_behavior = views::SingleAnimatedImageContainer::
-                AnimationEndBehavior::kReset};
-        animated_image_container().PlayAnimation(
-            {IDR_STOP_TO_RELOAD_LOTTIE, GetForegroundColor(GetState())},
-            config);
+        std::optional<float> progress =
+            animated_image_container().animation_progress();
+
+        if (progress.has_value()) {
+          if (visible_mode_ == Mode::kStop &&
+              progress > kReloadStopAnimationBoundary.start_offset &&
+              progress < kReloadStopAnimationBoundary.end_offset) {
+            // We are interrupted to go to reload while animating reload to
+            // stop. In this case we will play the rest of our current animation
+            // and then immediately animate stop to reload, but with the
+            // duration scaled down depending on how far along we are in the
+            // reload to stop animation.
+
+            static constexpr float kMinAnimationTimeScale = 0.66f;
+            const float time_scale = gfx::Tween::FloatValueBetween(
+                progress.value() / (kReloadStopAnimationBoundary.end_offset -
+                                    kReloadStopAnimationBoundary.start_offset),
+                kMinAnimationTimeScale, 1.0f);
+
+            std::vector<views::SingleAnimatedImageContainer::AnimationConfig>
+                configs;
+            configs.push_back(
+                {.boundary =
+                     views::SingleAnimatedImageContainer::AnimationBoundary{
+                         .start_offset = progress.value(),
+                         .end_offset = kReloadStopAnimationBoundary.end_offset},
+                 .tween = kIconAnimationTween,
+                 .duration = time_scale * kIconAnimationTime});
+            configs.push_back({.boundary = kStopReloadAnimationBoundary,
+                               .tween = kIconAnimationTween,
+                               .duration = time_scale * kIconAnimationTime});
+
+            animated_image_container().PlayAnimation(
+                {IDR_RELOAD_LOTTIE, GetForegroundColor(GetState()),
+                 views::SingleAnimatedImageContainer::AnimationDirection::
+                     kForward,
+                 views::SingleAnimatedImageContainer::AnimationEndBehavior::
+                     kReset},
+                configs);
+          }
+        } else {
+          std::vector<views::SingleAnimatedImageContainer::AnimationConfig>
+              configs;
+          if (visible_mode_ == Mode::kReload) {
+            // Animate reload to stop to reload at normal speed.
+            configs.push_back({.boundary = kReloadStopAnimationBoundary,
+                               .tween = kIconAnimationTween,
+                               .duration = kIconAnimationTime});
+            configs.push_back({.boundary = kStopReloadAnimationBoundary,
+                               .tween = kIconAnimationTween,
+                               .duration = kIconAnimationTime});
+
+          } else {
+            // Animate stop to reload at a normal speed.
+            configs.push_back({.boundary = kStopReloadAnimationBoundary,
+                               .tween = kIconAnimationTween,
+                               .duration = kIconAnimationTime});
+          }
+          animated_image_container().PlayAnimation(
+              {IDR_RELOAD_LOTTIE, GetForegroundColor(GetState()),
+               views::SingleAnimatedImageContainer::AnimationDirection::
+                   kForward,
+               views::SingleAnimatedImageContainer::AnimationEndBehavior::
+                   kReset},
+              configs);
+        }
       }
       animate_transitions_ = false;
       SetVectorIcons(*reload_icon_, *reload_touch_icon_);
       break;
     case Mode::kStop:
-      if (play_animation) {
+      if (play_animation && visible_mode_ == Mode::kReload) {
+        // Animate reload to stop.
         views::SingleAnimatedImageContainer::AnimationConfig config{
-            .direction = views::SingleAnimatedImageContainer::
-                AnimationDirection::kForward,
-            .end_behavior = views::SingleAnimatedImageContainer::
-                AnimationEndBehavior::kPause};
+            .boundary = kReloadStopAnimationBoundary,
+            .tween = kIconAnimationTween,
+            .duration = kIconAnimationTime};
+
         animated_image_container().PlayAnimation(
-            {IDR_RELOAD_TO_STOP_LOTTIE, GetForegroundColor(GetState())},
+            {IDR_RELOAD_LOTTIE, GetForegroundColor(GetState()),
+             views::SingleAnimatedImageContainer::AnimationDirection::kForward,
+             views::SingleAnimatedImageContainer::AnimationEndBehavior::kReset},
             config);
       }
       SetVectorIcons(*stop_icon_, *stop_touch_icon_);
       break;
   }
+  visible_mode_ = mode;
 
   UpdateCachedTooltipText();
   OnPropertyChanged(&visible_mode_, views::PropertyEffects::kNone);
@@ -324,6 +396,21 @@ void ReloadButton::ButtonPressed(const ui::Event& event) {
     ExecuteBrowserCommand(command, flags);
     metrics_recorder_->DidExecuteReloadCommand(base::TimeTicks::Now());
     ++testing_reload_count_;
+
+    auto* metrics_service = WaapUIMetricsService::Get(&profile_.get());
+    if (metrics_service) {
+      std::optional<WaapUIMetricsRecorder::ReloadButtonInputType> input_type;
+      if (event.IsKeyEvent()) {
+        input_type = WaapUIMetricsRecorder::ReloadButtonInputType::kKeyPress;
+      } else if (event.IsMouseEvent()) {
+        input_type =
+            WaapUIMetricsRecorder::ReloadButtonInputType::kMouseRelease;
+      }
+      if (input_type) {
+        metrics_service->RecordReloadButtonInteractionToReload(
+            event.time_stamp(), base::TimeTicks::Now(), *input_type);
+      }
+    }
   }
 }
 

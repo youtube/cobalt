@@ -47,6 +47,7 @@ suite('PaymentsSectionIban', function() {
       migrationEnabled: true,
       showIbansSettings: true,
       autofillEnableWalletBranding: true,
+      autofillEnableGradientGoogleLogos: false,
     });
   });
 
@@ -153,6 +154,28 @@ suite('PaymentsSectionIban', function() {
     assertEquals('My doctor\'s IBAN', ibanItemLabel.textContent.trim());
     assertEquals(
         'BA39 **** **** **** 1234', ibanItemSubLabel.textContent.trim());
+  });
+
+  test('verifyNicknameCharacterCount', async function() {
+    const iban = createIbanEntry('', '');
+    const ibanDialog = createIbanDialog(iban);
+
+    await whenAttributeIs(ibanDialog.$.dialog, 'open', '');
+
+    const charCount =
+        ibanDialog.shadowRoot!.querySelector<HTMLElement>('#charCount');
+    assertTrue(!!charCount);
+    assertTrue(charCount.hidden);
+
+    // It should be visible when nickname is present.
+    const nicknameInput = ibanDialog.$.nicknameInput;
+    await updateIbanTextboxValue(nicknameInput, 'NickName');
+    assertFalse(charCount.hidden);
+    assertEquals('8/25', charCount.textContent.trim());
+
+    // It should be hidden when nickname is empty.
+    await updateIbanTextboxValue(nicknameInput, '');
+    assertTrue(charCount.hidden);
   });
 
   test('verifySavingNewIBAN', async function() {
@@ -443,5 +466,63 @@ suite('PaymentsSectionIban', function() {
     assertTrue(!!outlinkButton);
 
     assertEquals('Your payment methods in Google Wallet', outlinkButton.title);
+  });
+
+  test('verifyGooglePayLogoWithGradient', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableGradientGoogleLogos: true,
+    });
+    const iban = createIbanEntry();
+    iban.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], [iban], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+    const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
+    const paymentsIcon = rowShadowRoot.querySelector('#paymentsIcon');
+    // #paymentsIcon is only present in Google Chrome branded builds.
+    if (paymentsIcon) {
+      const source = paymentsIcon.querySelector('source');
+      const img = paymentsIcon.querySelector('img');
+      assertTrue(!!source);
+      assertTrue(!!img);
+      assertTrue(source.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_DARK_SMALL'));
+      assertTrue(img.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_WITH_GRADIENT_SMALL'));
+    } else {
+      const textIndicator =
+          rowShadowRoot.querySelector('#paymentsIndicator .sub-label');
+      assertTrue(!!textIndicator);
+      assertTrue(isVisible(textIndicator));
+    }
+  });
+
+  test('verifyGooglePayLogoWithoutGradient', async function() {
+    loadTimeData.overrideValues({
+      autofillEnableGradientGoogleLogos: false,
+    });
+    const iban = createIbanEntry();
+    iban.metadata!.isLocal = false;
+    const section = await createPaymentsSection(
+        /*creditCards=*/[], [iban], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
+    const rowShadowRoot = getIbanRowShadowRoot(section.$.paymentsList);
+    const paymentsIcon = rowShadowRoot.querySelector('#paymentsIcon');
+    // #paymentsIcon is only present in Google Chrome branded builds.
+    if (paymentsIcon) {
+      const source = paymentsIcon.querySelector('source');
+      const img = paymentsIcon.querySelector('img');
+      assertTrue(!!source);
+      assertTrue(!!img);
+      assertTrue(source.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_DARK_SMALL'));
+      assertTrue(img.srcset.includes(
+          'IDR_AUTOFILL_GOOGLE_PAY_SMALL'));
+    } else {
+      const textIndicator =
+          rowShadowRoot.querySelector('#paymentsIndicator .sub-label');
+      assertTrue(!!textIndicator);
+      assertTrue(isVisible(textIndicator));
+    }
   });
 });

@@ -57,6 +57,15 @@ void RecordMemoryMetricsImpl(
           MEMORY_METRICS_HISTOGRAM_MB("Memory.Browser.ResidentSetPeak",
                                       rss_peak_mb);
         }
+
+        std::optional<uint64_t> malloc_pa_allocated_objects_bytes =
+            process_dump.GetMetric("malloc/partitions",
+                                   "allocated_objects_size");
+        if (malloc_pa_allocated_objects_bytes) {
+          MEMORY_METRICS_HISTOGRAM_MB(
+              "Memory.Browser.PartitionAlloc.Malloc.AllocatedObjects",
+              *malloc_pa_allocated_objects_bytes / (1024 * 1024));
+        }
         break;
       }
       case memory_instrumentation::mojom::ProcessType::RENDERER: {
@@ -175,7 +184,8 @@ void MemoryMetricsLogger::RecordMemoryMetrics(scoped_refptr<State> state,
     return;
   }
   instrumentation->RequestGlobalDump(
-      {}, base::BindOnce(&RecordMemoryMetricsImpl, std::move(done_callback)));
+      {"malloc/partitions"},
+      base::BindOnce(&RecordMemoryMetricsImpl, std::move(done_callback)));
   RecordMemoryMetricsAfterDelay(state);
 }
 

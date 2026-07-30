@@ -34,9 +34,9 @@ namespace accessibility_annotator {
 // Retrieve relevant context to a query from a set of docs.
 //
 // Lifecycle and Ownership:
-// LiveTabRetriever is owned by the AccessibilityQueryServiceDelegateImpl.
+// LiveTabRetriever is owned by the AtMemoryQueryServiceDelegateImpl.
 //
-// Through this delegate, its lifecycle is tied to AccessibilityQueryService,
+// Through this delegate, its lifecycle is tied to AtMemoryQueryService,
 // which is a KeyedService (one instance per Profile). It is created when the
 // service is initialized and lives as long as the service.
 //

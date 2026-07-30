@@ -1455,9 +1455,6 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, Shim_TestAllowTransparencyAttribute) {
   TestHelper("testAllowTransparencyAttribute", "web_view/shim", NO_TEST_SERVER);
 }
 
-constexpr char kAutoSizeUsesScrollWidthForOverflow[] =
-    "AutoSizeUsesScrollWidthForOverflow";
-
 class WebViewSizeTestAutosizeHeight
     : public WebViewTestBase,
       public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
@@ -1473,7 +1470,7 @@ class WebViewSizeTestAutosizeHeight
         auto_size_uses_scroll_width_for_overflow_enabled()
             ? ::switches::kEnableBlinkFeatures
             : ::switches::kDisableBlinkFeatures,
-        kAutoSizeUsesScrollWidthForOverflow);
+        "AutoSizeUsesScrollWidthForOverflow");
     if (use_device_scale_factor()) {
       command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor,
                                       base::NumberToString(2.0f));

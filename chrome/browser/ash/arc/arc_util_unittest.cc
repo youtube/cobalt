@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/system/sys_info.h"
@@ -431,8 +432,12 @@ TEST_F(ChromeArcUtilTest, ArcPlayStoreEnabledForProfile_Managed) {
   EXPECT_FALSE(IsArcPlayStoreEnabledPreferenceManagedForProfile(profile()));
 }
 
-// Test the AreArcAllOptInPreferencesIgnorableForProfile() function.
+// Test the AreArcAllOptInPreferencesIgnorableForProfile() legacy behavior (Pre
+// Privacy Hub).
 TEST_F(ChromeArcUtilTest, AreArcAllOptInPreferencesIgnorableForProfile) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(ash::features::kCrosPrivacyHub);
+
   base::CommandLine::ForCurrentProcess()->InitFromArgv(
       {"", "--arc-availability=officially-supported"});
   // OptIn prefs are unset, the function returns false.
@@ -499,6 +504,44 @@ TEST_F(ChromeArcUtilTest, AreArcAllOptInPreferencesIgnorableForProfile) {
   profile()->GetTestingPrefService()->SetManagedPref(
       prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(true));
   EXPECT_TRUE(AreArcAllOptInPreferencesIgnorableForProfile(profile()));
+}
+
+// PrivacyHub introduces a system-wide location setting that Android should
+// respect. In essence, this new preference, `kUserGeolocationAccessLevel`,
+// replaces the functionality of `kArcLocationServiceEnabled`. Therefore, this
+// utility function should check if `kUserGeolocationAccessLevel` has been set
+// by policy.
+TEST_F(ChromeArcUtilTest,
+       AreArcAllOptInPreferencesIgnorableForProfile_PrivacyHubEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(ash::features::kCrosPrivacyHub);
+
+  // In the legacy flow (without Privacy Hub), having both
+  // `kArcBackupRestoreEnabled` and `kArcLocationServiceEnabled` managed would
+  // make the function return true. With Privacy Hub enabled, it now requires
+  // `kUserGeolocationAccessLevel` instead of `kArcLocationServiceEnabled` to be
+  // managed; hence return false.
+  profile()->GetTestingPrefService()->SetManagedPref(
+      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(false));
+  profile()->GetTestingPrefService()->SetManagedPref(
+      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(false));
+  EXPECT_FALSE(AreArcAllOptInPreferencesIgnorableForProfile(profile()));
+
+  // Remove `kArcLocationServiceEnabled` pref and set
+  // `kUserGeolocationAccessLevel` as managed. Now the function should return
+  // true.
+  profile()->GetTestingPrefService()->RemoveManagedPref(
+      prefs::kArcLocationServiceEnabled);
+  profile()->GetTestingPrefService()->SetManagedPref(
+      ash::prefs::kUserGeolocationAccessLevel,
+      std::make_unique<base::Value>(1));
+  EXPECT_TRUE(AreArcAllOptInPreferencesIgnorableForProfile(profile()));
+
+  // Cleanup
+  profile()->GetTestingPrefService()->RemoveManagedPref(
+      prefs::kArcBackupRestoreEnabled);
+  profile()->GetTestingPrefService()->RemoveManagedPref(
+      ash::prefs::kUserGeolocationAccessLevel);
 }
 
 TEST_F(ChromeArcUtilTest, TermsOfServiceNegotiationNeededForAlreadyAccepted) {
@@ -701,40 +744,30 @@ TEST_P(ArcOobeTest, TermsOfServiceOobeNegotiationNeededForManagedUser) {
   EXPECT_TRUE(IsArcTermsOfServiceNegotiationNeeded(profile()));
   EXPECT_TRUE(IsArcTermsOfServiceOobeNegotiationNeeded());
 
+  // Set `kArcBackupRestoreEnabled`as managed, this is not sufficient to skip
+  // the negotiation, the location preference has to be set too.
   profile()->GetTestingPrefService()->SetManagedPref(
       prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(false));
-  // When PrivacyHubLocation is enabled, location setting is no longer ARC++
-  // specific. `kArcBackupRestoreEnabled` is the only pref of interest.
-  EXPECT_EQ(ash::features::IsCrosPrivacyHubLocationEnabled(),
-            !IsArcTermsOfServiceNegotiationNeeded(profile()));
-  EXPECT_EQ(ash::features::IsCrosPrivacyHubLocationEnabled(),
-            !IsArcTermsOfServiceOobeNegotiationNeeded());
+  EXPECT_TRUE(IsArcTermsOfServiceOobeNegotiationNeeded());
+  EXPECT_TRUE(IsArcTermsOfServiceNegotiationNeeded(profile()));
 
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(false));
-  EXPECT_FALSE(IsArcTermsOfServiceNegotiationNeeded(profile()));
-  EXPECT_FALSE(IsArcTermsOfServiceOobeNegotiationNeeded());
-
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(true));
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(false));
-  EXPECT_FALSE(IsArcTermsOfServiceNegotiationNeeded(profile()));
-  EXPECT_FALSE(IsArcTermsOfServiceOobeNegotiationNeeded());
-
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(false));
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(true));
-  EXPECT_FALSE(IsArcTermsOfServiceNegotiationNeeded(profile()));
-  EXPECT_FALSE(IsArcTermsOfServiceOobeNegotiationNeeded());
-
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(true));
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(true));
-  EXPECT_FALSE(IsArcTermsOfServiceNegotiationNeeded(profile()));
-  EXPECT_FALSE(IsArcTermsOfServiceOobeNegotiationNeeded());
+  if (ash::features::IsCrosPrivacyHubLocationEnabled()) {
+    // When Privacy Hub is enabled, location setting is controlled by
+    // `kUserGeolocationAccessLevel`.
+    profile()->GetTestingPrefService()->SetManagedPref(
+        ash::prefs::kUserGeolocationAccessLevel,
+        std::make_unique<base::Value>(1));
+    EXPECT_FALSE(IsArcTermsOfServiceOobeNegotiationNeeded());
+    EXPECT_FALSE(IsArcTermsOfServiceNegotiationNeeded(profile()));
+  } else {
+    // When Privacy Hub is disabled, location setting is controlled by
+    // `kArcLocationServiceEnabled`.
+    profile()->GetTestingPrefService()->SetManagedPref(
+        prefs::kArcLocationServiceEnabled,
+        std::make_unique<base::Value>(false));
+    EXPECT_FALSE(IsArcTermsOfServiceOobeNegotiationNeeded());
+    EXPECT_FALSE(IsArcTermsOfServiceNegotiationNeeded(profile()));
+  }
 }
 
 TEST_P(ArcOobeTest, ShouldStartArcSilentlyForManagedProfile) {
@@ -753,34 +786,27 @@ TEST_P(ArcOobeTest, ShouldStartArcSilentlyForManagedProfile) {
       prefs::kArcEnabled, std::make_unique<base::Value>(true));
   EXPECT_FALSE(ShouldStartArcSilentlyForManagedProfile(profile()));
 
+  // Set `kArcBackupRestoreEnabled`as managed. ARC++ should not start silently,
+  // location preference has to be set first.
   profile()->GetTestingPrefService()->SetManagedPref(
       prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(false));
-  // When PrivacyHubLocation is enabled, location setting is no longer ARC++
-  // specific. `kArcBackupRestoreEnabled` is the only pref of interest.
-  EXPECT_EQ(ash::features::IsCrosPrivacyHubLocationEnabled(),
-            ShouldStartArcSilentlyForManagedProfile(profile()));
+  EXPECT_FALSE(ShouldStartArcSilentlyForManagedProfile(profile()));
 
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(false));
-  EXPECT_TRUE(ShouldStartArcSilentlyForManagedProfile(profile()));
-
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(true));
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(false));
-  EXPECT_TRUE(ShouldStartArcSilentlyForManagedProfile(profile()));
-
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(false));
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(true));
-  EXPECT_TRUE(ShouldStartArcSilentlyForManagedProfile(profile()));
-
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcBackupRestoreEnabled, std::make_unique<base::Value>(true));
-  profile()->GetTestingPrefService()->SetManagedPref(
-      prefs::kArcLocationServiceEnabled, std::make_unique<base::Value>(true));
-  EXPECT_TRUE(ShouldStartArcSilentlyForManagedProfile(profile()));
+  if (ash::features::IsCrosPrivacyHubLocationEnabled()) {
+    // When Privacy Hub is enabled, location setting is controlled by
+    // `kUserGeolocationAccessLevel`.
+    profile()->GetTestingPrefService()->SetManagedPref(
+        ash::prefs::kUserGeolocationAccessLevel,
+        std::make_unique<base::Value>(1));
+    EXPECT_TRUE(ShouldStartArcSilentlyForManagedProfile(profile()));
+  } else {
+    // When Privacy Hub is disabled, location setting is controlled by
+    // `kArcLocationServiceEnabled`.
+    profile()->GetTestingPrefService()->SetManagedPref(
+        prefs::kArcLocationServiceEnabled,
+        std::make_unique<base::Value>(false));
+    EXPECT_TRUE(ShouldStartArcSilentlyForManagedProfile(profile()));
+  }
 }
 
 using ArcOobeOptInActiveInTest = ArcOobeTest;
@@ -861,8 +887,7 @@ TEST_F(ChromeUnaffiliatedDevicesArcRestrictionTest,
                     AccountId::FromUserEmailGaiaId(
                         profile()->GetProfileUserName(), kTestGaiaId));
   SetProfileIsManagedForTesting(profile());
-  profile()->GetPrefs()->SetBoolean(prefs::kUnaffiliatedDeviceArcAllowed,
-                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kUnaffiliatedDeviceArcAllowed, true);
 
   EXPECT_TRUE(IsArcAllowedForProfileOnFirstCall(profile()));
 }
@@ -875,8 +900,7 @@ TEST_F(ChromeUnaffiliatedDevicesArcRestrictionTest,
                     AccountId::FromUserEmailGaiaId(
                         profile()->GetProfileUserName(), kTestGaiaId));
   SetProfileIsManagedForTesting(profile());
-  profile()->GetPrefs()->SetBoolean(prefs::kUnaffiliatedDeviceArcAllowed,
-                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kUnaffiliatedDeviceArcAllowed, true);
 
   EXPECT_TRUE(IsArcAllowedForProfileOnFirstCall(profile()));
 }
@@ -888,8 +912,7 @@ TEST_F(ChromeUnaffiliatedDevicesArcRestrictionTest,
   ScopedLogIn login(false, GetFakeUserManager(),
                     AccountId::FromUserEmailGaiaId(
                         profile()->GetProfileUserName(), kTestGaiaId));
-  profile()->GetPrefs()->SetBoolean(prefs::kUnaffiliatedDeviceArcAllowed,
-                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kUnaffiliatedDeviceArcAllowed, true);
 
   EXPECT_TRUE(IsArcAllowedForProfileOnFirstCall(profile()));
 }

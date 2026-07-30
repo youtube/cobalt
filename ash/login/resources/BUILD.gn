@@ -10,7 +10,7 @@ import("//tools/grit/grit_rule.gni")
 assert(is_chromeos)
 
 grit_strings("login_strings") {
-  source = "login_strings.grd"
+  source = "ash_login_strings.grd"
   defines = chrome_grit_defines
   outputs = [ "grit/ash_login_strings.h" ]
   output_prefix = "ash_login_strings_"

@@ -10,7 +10,9 @@
 #include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/animation/animation_timeline.h"
 #include "third_party/blink/renderer/core/animation/css/css_animation.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "ui/gfx/animation/keyframe/keyframe_model.h"
 
 namespace blink {
@@ -224,9 +226,8 @@ bool AnimationTrigger::CanCompositeBehavior(Behavior behavior) {
     case Behavior::kPlayOnce:
     case Behavior::kPlayForwards:
     case Behavior::kPlayBackwards:
-      return true;
     case Behavior::kReset:
-      return false;
+      return true;
   }
   NOTREACHED();
 }
@@ -457,7 +458,6 @@ bool AnimationTrigger::IsTriggeredOnCompositor(
 
 void AnimationTrigger::Trace(Visitor* visitor) const {
   visitor->Trace(animation_behavior_map_);
-  visitor->Trace(owning_element_);
   ScriptWrappable::Trace(visitor);
 }
 

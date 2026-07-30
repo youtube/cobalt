@@ -357,26 +357,6 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
 }
 
 IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
-                       InvokeUi_AutofillProfile_Selected_Content_WithSubpoup) {
-  std::vector<Suggestion> suggestions = CreateAutofillProfileSuggestions();
-  suggestions[0].children = CreateAutofillProfileSuggestions();
-
-  PrepareSuggestions(std::move(suggestions));
-  PrepareSelectedCell(CellIndex{0, CellType::kContent});
-  ShowAndVerifyUi();
-}
-
-IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
-                       InvokeUi_AutofillProfile_Selected_Control_WithSubpoup) {
-  std::vector<Suggestion> suggestions = CreateAutofillProfileSuggestions();
-  suggestions[0].children = CreateAutofillProfileSuggestions();
-
-  PrepareSuggestions(std::move(suggestions));
-  PrepareSelectedCell(CellIndex{0, CellType::kControl});
-  ShowAndVerifyUi();
-}
-
-IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
                        InvokeUi_AutofillProfile_Selected_Footer) {
   PrepareSuggestions(CreateAutofillProfileSuggestions());
   PrepareSelectedCell(CellIndex{3, CellType::kContent});

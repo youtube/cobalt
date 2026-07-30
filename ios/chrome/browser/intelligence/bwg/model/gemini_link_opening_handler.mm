@@ -41,11 +41,11 @@
 }
 
 - (void)openURLInNewTab:(NSString*)URL {
-  [self openURL:URL closePresentedViews:!IsGeminiCopresenceEnabled()];
+  [self openURL:URL closePresentedViews:NO];
 }
 
 - (void)closePresentedViewsAndOpenURLInNewTab:(NSString*)URL {
-  [self openURL:URL closePresentedViews:true];
+  [self openURL:URL closePresentedViews:YES];
 }
 
 - (void)openURL:(NSString*)URL closePresentedViews:(BOOL)closePresentedViews {
@@ -70,10 +70,6 @@
   }
 
   RecordURLOpened();
-
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
 
   [self.geminiViewStateDelegate
       switchToViewState:ios::provider::GeminiViewState::kCollapsed];

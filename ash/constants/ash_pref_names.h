@@ -2799,6 +2799,10 @@ inline constexpr char kAppListPreferredOrder[] = "app_list.preferred_order";
 // up the device.
 inline constexpr char kDeviceWeeklyScheduledSuspend[] =
     "device_weekly_scheduled_suspend";
+// The delay in milliseconds before the device re-suspends during a scheduled
+// suspend interval if woken up manually.
+inline constexpr char kDeviceWeeklyScheduledResuspendDelayMs[] =
+    "device_weekly_scheduled_resuspend_delay_ms";
 
 // Boolean pref recording whether cookie and data would be used only for
 // essential purposes.
@@ -3766,6 +3770,16 @@ inline constexpr char kHatsStabilitySurveyCycleEndTs[] =
 // survey
 inline constexpr char kHatsStabilityDeviceIsSelected[] =
     "hats_stability_device_is_selected";
+
+// An int64 pref. This is the timestamp, microseconds after epoch, that
+// indicates the end of the slow and laggy deep dive HaTS survey.
+inline constexpr char kHatsSlowAndLaggyDeepDiveSurveyCycleEndTs[] =
+    "hats_slow_and_laggy_deep_dive_cycle_end_timestamp";
+
+// A boolean pref. Indicates if the device is selected for the slow and laggy
+// deep dive HaTS survey.
+inline constexpr char kHatsSlowAndLaggyDeepDiveSurveyIsSelected[] =
+    "hats_slow_and_laggy_deep_dive_device_is_selected";
 
 // An int64 pref. This is the timestamp, microseconds after epoch, that
 // indicates the end of the most recent survey cycle (general survey).

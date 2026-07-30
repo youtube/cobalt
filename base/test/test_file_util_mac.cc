@@ -39,8 +39,8 @@ bool EvictFileFromSystemCache(const FilePath& file) {
     return false;
   }
 
-  if (msync(const_cast<uint8_t*>(mapped_file.data()), mapped_file.length(),
-            MS_INVALIDATE) != 0) {
+  if (const base::span<uint8_t> bytes = mapped_file.mutable_bytes();
+      msync(bytes.data(), bytes.size(), MS_INVALIDATE) != 0) {
     DPLOG(WARNING) << "failed to invalidate memory map of " << file.value();
     return false;
   }

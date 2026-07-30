@@ -150,7 +150,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.EventDispatcher.RendererResolvedTargetResult"
-    enum="RendererResolvedTargetResult" expires_after="2026-10-11">
+    enum="RendererResolvedTargetResult" expires_after="2026-12-16">
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>
@@ -183,7 +183,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.ExecutionEngine.Action.ResultCode"
-    enum="ActionResultCode" expires_after="2026-10-11">
+    enum="ActionResultCode" expires_after="2026-12-16">
   <owner>kmg@google.com</owner>
   <owner>boujane@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -409,7 +409,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.DarkLaunchConfirmationRequestLatency"
-    units="ms" expires_after="2026-10-04">
+    units="ms" expires_after="2026-12-16">
   <owner>masnoble@google.com</owner>
   <owner>dylancutler@google.com</owner>
   <summary>
@@ -431,7 +431,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.NavigationGating.PermissionGranted" enum="Boolean"
-    expires_after="2026-10-04">
+    expires_after="2026-12-16">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -486,7 +486,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.ObservationDelay.DidTimeout" enum="Boolean"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -497,7 +497,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.ObservationDelay.LcpDelayNeeded" enum="Boolean"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -558,7 +558,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.PageContext.APC.Duration" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -579,7 +579,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.PageContext.Screenshot.Duration" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -587,7 +587,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.PageContext.TabCount" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -676,7 +676,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.RendererPageStability.Outcome"
-    enum="PageStabilityOutcome" expires_after="2026-10-11">
+    enum="PageStabilityOutcome" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -688,7 +688,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Actor.RendererPageStability.TimeFromMonitoringToNetworkAndMainThreadIdle"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -704,7 +704,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Actor.RendererPageStability.TimeFromMonitoringToPaintStability"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -719,7 +719,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.RendererPageStability.TimeFromMonitoringToStable"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -732,7 +732,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.RendererPageStability.TotalTimeToRenderFrameGoingAway"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -744,7 +744,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.RendererPageStability.TotalTimeToStable" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -758,7 +758,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Actor.RendererPaintStability.SubsequentInteractionContentfulPaintCount"
-    units="paints" expires_after="2026-10-11">
+    units="paints" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -771,7 +771,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Actor.RendererPaintStability.TimeBetweenInteractionContentfulPaints"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -785,7 +785,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Actor.RendererPaintStability.TimeToFirstInteractionContentfulPaint"
-    units="ms" expires_after="2026-10-11">
+    units="ms" expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -819,7 +819,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.Count.{StoppedReason}" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>erikchen@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -830,7 +830,7 @@ chromium-metrics-reviews@google.com.
   <token key="StoppedReason" variants="StoppedReason"/>
 </histogram>
 
-<histogram name="Actor.Task.Created" enum="Boolean" expires_after="2026-10-11">
+<histogram name="Actor.Task.Created" enum="Boolean" expires_after="2026-12-16">
   <owner>kenok@google.com</owner>
   <owner>chrstne@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -871,7 +871,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.Duration.Visible.{StoppedReason}" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>kenok@google.com</owner>
   <owner>chrstne@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -886,7 +886,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.Duration.WallClock.{StoppedReason}" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -898,7 +898,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.Duration.{StoppedReason}" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>erikchen@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -910,7 +910,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.Interruptions.{StoppedReason}" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -922,7 +922,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.StateTransition.ActionCount.{OldState}_{NewState}"
-    units="count" expires_after="2026-10-11">
+    units="count" expires_after="2026-12-16">
   <owner>kenok@google.com</owner>
   <owner>chrstne@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -956,7 +956,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.SubsequentWaits" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -968,7 +968,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.SubsequentWaits.{ToolRequest}" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>linnan@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -1080,7 +1080,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Ui.GlobalTaskIndicator.Nudge.Shown"
-    enum="TaskNudgeState" expires_after="2026-10-11">
+    enum="TaskNudgeState" expires_after="2026-12-16">
   <owner>kenok@google.com</owner>
   <owner>chrstne@google.com</owner>
   <owner>koilos@google.com</owner>

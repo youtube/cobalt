@@ -4,8 +4,12 @@
 
 #include "ui/views/input_event_activation_protector.h"
 
+#include <utility>
+
 #include "base/command_line.h"
 #include "ui/events/event.h"
+#include "ui/views/input_protection/default_input_protector_delegate.h"
+#include "ui/views/input_protection/input_protector_delegate.h"
 #include "ui/views/metrics.h"
 #include "ui/views/views_switches.h"
 
@@ -13,6 +17,13 @@ namespace views {
 
 InputEventActivationProtector::InputEventActivationProtector() {
   WindowsStationarityMonitor::GetInstance()->AddObserver(this);
+  delegates_.push_back(std::make_unique<DefaultInputProtectorDelegate>());
+}
+
+InputEventActivationProtector::InputEventActivationProtector(
+    std::unique_ptr<InputProtectorDelegate> delegate) {
+  WindowsStationarityMonitor::GetInstance()->AddObserver(this);
+  delegates_.push_back(std::move(delegate));
 }
 
 InputEventActivationProtector::~InputEventActivationProtector() {
@@ -62,20 +73,22 @@ bool InputEventActivationProtector::IsPossiblyUnintendedInteraction(
     }
   }
 
-  const base::TimeDelta kShortInterval = GetDoubleClickInterval();
-  const bool short_event_after_last_event =
-      event.time_stamp() < last_event_timestamp_ + kShortInterval;
-  last_event_timestamp_ = event.time_stamp();
+  // Update the protector state for the given event and ask delegates if the
+  // interaction should be blocked.
+  UpdateStateForEvent(event);
 
-  // Unintended if the user has been clicking with short intervals.
-  if (short_event_after_last_event) {
-    repeated_event_count_++;
-    return true;
+  for (const auto& delegate : delegates_) {
+    if (delegate->IsPossiblyUnintendedInteraction(event, this)) {
+      return true;
+    }
   }
-  repeated_event_count_ = 0;
 
-  // Unintended if the user clicked right after the view was protected.
-  return event.time_stamp() < view_protected_time_stamp_ + kShortInterval;
+  return false;
+}
+
+void InputEventActivationProtector::AddDelegate(
+    std::unique_ptr<InputProtectorDelegate> delegate) {
+  delegates_.push_back(std::move(delegate));
 }
 
 void InputEventActivationProtector::OnWindowStationaryStateChanged() {
@@ -86,6 +99,20 @@ void InputEventActivationProtector::ResetForTesting() {
   view_protected_time_stamp_ = base::TimeTicks();
   last_event_timestamp_ = base::TimeTicks();
   repeated_event_count_ = 0;
+}
+
+void InputEventActivationProtector::UpdateStateForEvent(
+    const ui::Event& event) {
+  const base::TimeDelta kShortInterval = GetDoubleClickInterval();
+  const bool short_event_after_last_event =
+      event.time_stamp() < last_event_timestamp_ + kShortInterval;
+  last_event_timestamp_ = event.time_stamp();
+
+  if (short_event_after_last_event) {
+    repeated_event_count_++;
+  } else {
+    repeated_event_count_ = 0;
+  }
 }
 
 }  // namespace views

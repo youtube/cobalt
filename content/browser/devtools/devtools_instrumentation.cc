@@ -582,6 +582,9 @@ EmailVerificationRequestResultToProtocol(
         kTokenVerificationSdJwtUnsupportedHeaderAlg:
       return EmailVerificationRequestIssueReasonEnum::
           TokenVerificationSdJwtUnsupportedHeaderAlg;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidTyp:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtInvalidTyp;
     case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIss:
       return EmailVerificationRequestIssueReasonEnum::
           TokenVerificationSdJwtMissingIss;

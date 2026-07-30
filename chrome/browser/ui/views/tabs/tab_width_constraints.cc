@@ -6,8 +6,6 @@
 
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/tabs/tab_types.h"
-#include "chrome/browser/ui/views/tabs/tab_strip_layout.h"
-#include "ui/gfx/animation/tween.h"
 
 TabWidthConstraints::TabWidthConstraints(const TabLayoutState& state,
                                          const TabSizeInfo& size_info)

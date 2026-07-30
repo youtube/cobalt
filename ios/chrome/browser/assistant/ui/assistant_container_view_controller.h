@@ -49,6 +49,11 @@ enum class AssistantContainerDetent : NSInteger;
                duration:(NSTimeInterval)duration
                   curve:(UIViewAnimationCurve)curve;
 
+// Animates the layout state cutout radius alongside sheet transitions.
+// `presented` indicates whether the transition is a presentation or a
+// dismissal.
+- (void)animateAlongsideTransitionPresented:(BOOL)presented;
+
 // Default initializer.
 - (instancetype)initWithViewController:(UIViewController*)viewController
     NS_DESIGNATED_INITIALIZER;

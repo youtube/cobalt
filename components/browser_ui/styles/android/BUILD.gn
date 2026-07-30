@@ -287,6 +287,7 @@ android_resources("java_resources") {
     "java/res/values/styles.xml",
     "java/res/values/themes.xml",
     "java/res/values/values.xml",
+    "java/res/xml/expressive_button_shape_state_list.xml",
     "java/res_chromium/drawable-hdpi/fre_product_logo.png",
     "java/res_chromium/drawable-hdpi/product_logo_name.png",
     "java/res_chromium/drawable-mdpi/fre_product_logo.png",

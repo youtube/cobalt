@@ -118,21 +118,12 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestForwardFocus
   EXPECT_TRUE(new_tab_button()->HasFocus());
 
   press_right();
-  if (tabs::GetTabSearchPosition(browser()) !=
-      tabs::TabSearchPosition::kToolbarButton) {
-    EXPECT_TRUE(tab_search_button()->HasFocus());
-  } else {
-    EXPECT_TRUE(tab_0->HasFocus());
-    EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
-  }
+  EXPECT_TRUE(tab_search_button()->HasFocus());
 
-  if (tabs::GetTabSearchPosition(browser()) !=
-      tabs::TabSearchPosition::kToolbarButton) {
-    // Focus should cycle back around to tab_0.
-    press_right();
-    EXPECT_TRUE(tab_0->HasFocus());
-    EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
-  }
+  // Focus should cycle back around to tab_0.
+  press_right();
+  EXPECT_TRUE(tab_0->HasFocus());
+  EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
 }
 
 IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestReverseFocus) {
@@ -164,26 +155,13 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestReverseFocus
 
   // Pressing left should immediately cycle back around to the last button.
   press_left();
-  if (tabs::GetTabSearchPosition(browser()) ==
-      tabs::TabSearchPosition::kToolbarButton) {
-    EXPECT_TRUE(new_tab_button()->HasFocus());
-  } else {
-    EXPECT_TRUE(tab_search_button()->HasFocus());
-  }
+  EXPECT_TRUE(tab_search_button()->HasFocus());
 
   press_left();
-  if (tabs::GetTabSearchPosition(browser()) !=
-      tabs::TabSearchPosition::kToolbarButton) {
-    EXPECT_TRUE(new_tab_button()->HasFocus());
-  } else {
-    EXPECT_TRUE(tab_2->HasFocus());
-  }
+  EXPECT_TRUE(new_tab_button()->HasFocus());
 
-  if (tabs::GetTabSearchPosition(browser()) !=
-      tabs::TabSearchPosition::kToolbarButton) {
-    move_back_to_tab(tab_2);
-    EXPECT_TRUE(tab_2->HasFocus());
-  }
+  move_back_to_tab(tab_2);
+  EXPECT_TRUE(tab_2->HasFocus());
 
   move_back_to_tab(tab_1);
   EXPECT_TRUE(tab_1->HasFocus());
@@ -215,13 +193,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestBeginEndFocu
 
     EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
         tab_strip_region_view()->home_key()));
-    if (tabs::GetTabSearchPosition(browser()) ==
-        tabs::TabSearchPosition::kToolbarButton) {
-      EXPECT_TRUE(new_tab_button()->HasFocus());
-    } else {
-      EXPECT_TRUE(tab_search_button()->HasFocus());
-    }
-
+    EXPECT_TRUE(tab_search_button()->HasFocus());
   } else {
     // The first tab should be active.
     EXPECT_TRUE(tab_0->HasFocus());
@@ -229,12 +201,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestBeginEndFocu
 #if !BUILDFLAG(IS_WIN)
     EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
         tab_strip_region_view()->end_key()));
-    if (tabs::GetTabSearchPosition(browser()) ==
-        tabs::TabSearchPosition::kToolbarButton) {
-      EXPECT_TRUE(new_tab_button()->HasFocus());
-    } else {
-      EXPECT_TRUE(tab_search_button()->HasFocus());
-    }
+    EXPECT_TRUE(tab_search_button()->HasFocus());
 #endif  // !BUILDFLAG(IS_WIN)
 
     EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
@@ -260,8 +227,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest,
 
     EXPECT_EQ(tab_search_button()->bounds().right(),
               tab_search_button_expected_end);
-  } else if (tabs::GetTabSearchPosition(browser()) !=
-             tabs::TabSearchPosition::kToolbarButton) {
+  } else {
     const int tab_search_button_expected_end =
         tab_strip_region_view()->GetLocalBounds().right() -
         GetLayoutConstant(LayoutConstant::kTabStripPadding);

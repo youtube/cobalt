@@ -16,6 +16,9 @@
   <message name="IDS_AUTOFILL_WARNING_MIXED_FORM" desc="Warning text shown when autofill is disabled due to a form on a secure site being submitted over an insecure connection.">
     This form is not secure. Autofill has been turned off.
   </message>
+  <message name="IDS_AUTOFILL_AI_FETCHING_AMBIENT_DATA" translateable="false" desc="Suggestion text shown when fetching Autofill AI suggestions.">
+    Finding info with Gemini
+  </message>
   <if expr="is_ios">
     <message name="IDS_AUTOFILL_AI_FILLING_REAUTH" desc="Message shown to the user when they need to authenticate to fill an Autofill AI form.">
       Chrome is trying to fill your sensitive info on <ph name="APP_NAME">$1<ex>google.com</ex></ph>.
@@ -820,6 +823,9 @@
   <message name="IDS_AUTOFILL_AT_MEMORY_NO_CONNECTION" desc="Message shown when @memory search fails to connect to the server." translateable="false">
     No server connection
   </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_GENERIC_ERROR" desc="Message shown when @memory search fails due to a generic or internal error." translateable="false">
+    Something went wrong
+  </message>
   <message name="IDS_AUTOFILL_AT_MEMORY_SEARCH_AFFORDANCE_SUBTITLE" desc="Subtitle of the AtMemory search trigger affordance." translateable="false">
     Find and fill info with Gemini
   </message>
@@ -1265,6 +1271,25 @@
     </message>
     <message name="IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved. For example, the user previously saved information related to their known redress number. Now, the user is filling out a new form either with additional details associated with the redress number or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the redress number that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome. Now a user can also save a “Redress number”. This is designed for redress numbers issued by the United States only. For more info, see https://www.dhs.gov/dhs-trip.">
       Update redress number
+    </message>
+
+    <message name="IDS_AUTOFILL_AI_UPDATE_DRIVERS_LICENSE_ENTITY_DIALOG_TITLE_BRANDED" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved, with Google Wallet branding.">
+      Update driver's license in Google Wallet
+    </message>
+    <message name="IDS_AUTOFILL_AI_UPDATE_ID_CARD_ENTITY_DIALOG_TITLE_BRANDED" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved, with Google Wallet branding.">
+      Update ID card in Google Wallet
+    </message>
+    <message name="IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_BRANDED" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved, with Google Wallet branding.">
+      Update passport in Google Wallet
+    </message>
+    <message name="IDS_AUTOFILL_AI_UPDATE_VEHICLE_ENTITY_DIALOG_TITLE_BRANDED" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved, with Google Wallet branding.">
+      Update vehicle in Google Wallet
+    </message>
+    <message name="IDS_AUTOFILL_AI_UPDATE_KNOWN_TRAVELER_NUMBER_ENTITY_DIALOG_TITLE_BRANDED" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved, with Google Wallet branding.">
+      Update KTN in Google Wallet
+    </message>
+    <message name="IDS_AUTOFILL_AI_UPDATE_REDRESS_NUMBER_ENTITY_DIALOG_TITLE_BRANDED" desc="The title of a dialog that prompts the user to update information associated with something they have previously saved, with Google Wallet branding.">
+      Update redress number in Google Wallet
     </message>
 
     <message name="IDS_AUTOFILL_AI_UPDATE_ENTITY_DIALOG_SUBTITLE" desc="A description that appears beneath the Update title prompt asking users whether they want to update their data stored locally. For example, the user previously saved information related to their passport. Now, the user is filling out a new form either with additional details associated with the passport or with different values than what was previously saved. The interface shows new or modified values at the top with blue dots to indicate they’re new. Existing information associated with the passport that isn’t changing appears at the bottom without blue dots. Depending on the form and what Chrome recognizes, there might be just one or several pieces of data updated at this moment. This is a similar moment to updating a password or credit card with Chrome.">

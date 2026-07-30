@@ -133,7 +133,9 @@ void OverscrollAreaTracker::OpenArea(Element* overscroll_area) {
       overscroll_area->GetPseudoElement(kPseudoIdOverscrollAreaParent);
   auto* overscroll_area_object =
       DynamicTo<LayoutBox>(overscroll_area_parent->GetLayoutObject());
-  CHECK(overscroll_area_object);
+  if (!overscroll_area_object) {
+    return;
+  }
 
   const auto& second_data = container_data->at(1);
   gfx::PointF scroll_origin(scrollable_area->ScrollOrigin());

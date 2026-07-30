@@ -1015,7 +1015,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         }
 
         return closingSource == TabClosingSource.TABLET_TAB_STRIP
-                || closingSource == TabClosingSource.KEYBOARD_SHORTCUT;
+                || closingSource == TabClosingSource.KEYBOARD_SHORTCUT
+                || closingSource == TabClosingSource.VERTICAL_TAB_STRIP;
     }
 
     private void onNewTabButtonClick(View view) {
@@ -1195,7 +1196,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getActivityResultTracker(),
                             glicClickHandler,
                             ((TabbedRootUiCoordinator) mRootUiCoordinator)
-                                    .getSideUiStateProviderSupplier());
+                                    .getSideUiStateProviderSupplier(),
+                            mRootUiCoordinator.getTabObscuringHandler());
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -1468,10 +1470,17 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         try (TraceEvent e =
                 TraceEvent.scoped(
                         "ChromeTabbedActivity.maybeCreateIncognitoTabSnapshotController")) {
-            IncognitoTabbedSnapshotController.createIncognitoTabSnapshotController(
-                    this, mLayoutManager, mTabModelSelector, getLifecycleDispatcher());
+            if (!ChromeFeatureList.sEnableAndroidEnterpriseScreenshotProtection.isEnabled()) {
+                IncognitoTabbedSnapshotController.createIncognitoTabSnapshotController(
+                        this, mLayoutManager, mTabModelSelector, getLifecycleDispatcher());
 
-            mUiWithNativeInitialized = true;
+                mUiWithNativeInitialized = true;
+            } else {
+                mScreenshotProtectionControllerSupplier.addSyncObserverAndCallIfNonNull(
+                        (ignored) -> {
+                            mUiWithNativeInitialized = true;
+                        });
+            }
 
             // The dataset has already been created, we need to initialize our state.
             mTabModelSelector.notifyChanged();
@@ -1497,6 +1506,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             (profileProvider) -> {
                                 UsageStatsService.createPageViewObserverIfEnabled(
                                         this,
+                                        getLifecycleDispatcher(),
                                         profileProvider.getOriginalProfile(),
                                         getActivityTabProvider(),
                                         getTabContentManagerSupplier());
@@ -2782,7 +2792,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             new TipsPromoCoordinator(
                                     this,
                                     assertNonNull(mRootUiCoordinator.getBottomSheetController()),
-                                    getQuickDeleteController(),
+                                    this::createQuickDeleteController,
                                     createBottomSheetSigninCoordinator(
                                             new BottomSheetSigninAndHistorySyncCoordinator
                                                     .Delegate() {},
@@ -4502,7 +4512,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                         QuickDeleteMetricsDelegate.QuickDeleteAction.MENU_ITEM_CLICKED);
             }
 
-            getQuickDeleteController().showDialog();
+            createQuickDeleteController().showDialog();
         } else if (id == R.id.ntp_customization_id) {
             Supplier<@Nullable Profile> profileSupplier =
                     () -> {
@@ -4661,7 +4671,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         return true;
     }
 
-    private QuickDeleteController getQuickDeleteController() {
+    private QuickDeleteController createQuickDeleteController() {
         Profile profile = mTabModelProfileSupplier.get();
         return new QuickDeleteController(
                 this,

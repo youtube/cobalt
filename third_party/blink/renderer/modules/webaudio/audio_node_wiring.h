@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBAUDIO_AUDIO_NODE_WIRING_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBAUDIO_AUDIO_NODE_WIRING_H_
 
+#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
@@ -13,6 +14,7 @@ namespace blink {
 class AudioNodeInput;
 class AudioNodeOutput;
 class AudioParamHandler;
+class AudioHandler;
 
 // Utilities for connecting AudioHandlers to one another, via AudioNodeInput and
 // AudioNodeOutput. Gathered into one place that can see the internals of both,
@@ -32,11 +34,19 @@ class MODULES_EXPORT AudioNodeWiring {
   static void Disconnect(AudioNodeOutput&, AudioNodeInput&);
   static void Disconnect(AudioNodeOutput&, AudioParamHandler&);
 
-  // Disable the connection from an output to an input, setting it aside in
-  // a separate list of disabled connections. Enabling does the reverse.
-  // Should be called only from AudioNodeOutput, when its state has changed.
-  static void Disable(AudioNodeOutput&, AudioNodeInput&);
-  static void Enable(AudioNodeOutput&, AudioNodeInput&);
+  // Disables the connection from an output to an input, moving it to the
+  // disabled connections list.
+  //
+  // Returns the downstream `AudioHandler` if the connection transitioned from
+  // active to disabled, which indicates that the downstream node may also
+  // need to be disabled. Returns nullptr if the connection was already
+  // disabled. Should be called only from AudioNodeOutput, when its state has
+  // changed.
+  static scoped_refptr<AudioHandler> Disable(AudioNodeOutput&, AudioNodeInput&);
+  // Returns the downstream `AudioHandler` if the connection transitioned from
+  // disabled to active, which indicates that the downstream node may also
+  // need to be enabled. Returns nullptr if the connection was already active.
+  static scoped_refptr<AudioHandler> Enable(AudioNodeOutput&, AudioNodeInput&);
 
   // Queries whether a connection exists, disabled or not.
   static bool IsConnected(AudioNodeOutput&, AudioNodeInput&);

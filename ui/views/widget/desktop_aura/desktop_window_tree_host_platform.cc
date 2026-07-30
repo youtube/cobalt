@@ -555,7 +555,11 @@ bool DesktopWindowTreeHostPlatform::IsStackedAbove(aura::Window* window) {
 }
 
 void DesktopWindowTreeHostPlatform::CenterWindow(const gfx::Size& size) {
+  auto weak_ptr = weak_factory_.GetWeakPtr();
   gfx::Rect parent_bounds = GetWorkAreaBoundsInScreen();
+  if (!weak_ptr) {
+    return;
+  }
 
   // If |window_|'s transient parent bounds are big enough to contain |size|,
   // use them instead.

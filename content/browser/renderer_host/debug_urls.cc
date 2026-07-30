@@ -4,6 +4,7 @@
 
 #include "content/browser/renderer_host/debug_urls.h"
 
+#include <optional>
 #include <vector>
 
 #include "base/command_line.h"
@@ -14,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/immediate_crash.h"
 #include "base/memory/memory_pressure_listener.h"
+#include "base/notreached.h"
 #include "base/sanitizer_buildflags.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
@@ -25,6 +27,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/url_constants.h"
+#include "services/viz/privileged/mojom/gl/gpu_service.mojom.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "url/gurl.h"
 
@@ -41,30 +44,64 @@ class ScopedAllowWaitForDebugURL {
 
 namespace {
 
-// Define the Asan debug URLs.
-const char kAsanCrashDomain[] = "crash";
-const char kAsanHeapOverflow[] = "/browser-heap-overflow";
-const char kAsanHeapUnderflow[] = "/browser-heap-underflow";
-const char kAsanUseAfterFree[] = "/browser-use-after-free";
-
 #if BUILDFLAG(IS_WIN)
+const char kAsanCrashDomain[] = "crash";
 const char kAsanCorruptHeapBlock[] = "/browser-corrupt-heap-block";
 const char kAsanCorruptHeap[] = "/browser-corrupt-heap";
 #endif
 
+std::optional<viz::mojom::MemoryInvalidAccessType> MapCrashTypeToMojom(
+    const std::string& crash_type) {
+  if (crash_type == blink::kAsanHeapOverflowAction) {
+    return viz::mojom::MemoryInvalidAccessType::kHeapOverflow;
+  }
+  if (crash_type == blink::kAsanHeapUnderflowAction) {
+    return viz::mojom::MemoryInvalidAccessType::kHeapUnderflow;
+  }
+  if (crash_type == blink::kAsanUseAfterFreeAction) {
+    return viz::mojom::MemoryInvalidAccessType::kUseAfterFree;
+  }
+  if (crash_type == blink::kAsanMemberDereferenceAfterFreeAction) {
+    return viz::mojom::MemoryInvalidAccessType::kMemberDereferenceAfterFree;
+  }
+  return std::nullopt;
+}
+
+void ExecuteBrowserCrashAction(viz::mojom::MemoryInvalidAccessType action) {
+  switch (action) {
+    case viz::mojom::MemoryInvalidAccessType::kHeapOverflow:
+      base::debug::AsanHeapOverflow();
+      return;
+    case viz::mojom::MemoryInvalidAccessType::kHeapUnderflow:
+      base::debug::AsanHeapUnderflow();
+      return;
+    case viz::mojom::MemoryInvalidAccessType::kUseAfterFree:
+      base::debug::AsanHeapUseAfterFree();
+      return;
+    case viz::mojom::MemoryInvalidAccessType::kMemberDereferenceAfterFree:
+      base::debug::AsanHeapMemberDereferenceAfterFree();
+      return;
+  }
+  NOTREACHED();
+}
+
 // The conditions here must stay in sync with |HandleAsanDebugURL|.
 bool IsAsanDebugURL(const GURL& url) {
+  std::string process;
+  std::string crash_type;
+  if (blink::ParseCrashURL(url, &process, &crash_type)) {
+    if (process == blink::kAsanBrowserProcess ||
+        process == blink::kAsanGpuProcess) {
+      return MapCrashTypeToMojom(crash_type).has_value();
+    }
+    return false;
+  }
+
+#if BUILDFLAG(IS_WIN)
   if (!(url.is_valid() && url.SchemeIs(kChromeUIScheme) &&
         url.DomainIs(kAsanCrashDomain) && url.has_path())) {
     return false;
   }
-
-  if (url.path() == kAsanHeapOverflow || url.path() == kAsanHeapUnderflow ||
-      url.path() == kAsanUseAfterFree) {
-    return true;
-  }
-
-#if BUILDFLAG(IS_WIN)
   if (url.path() == kAsanCorruptHeapBlock || url.path() == kAsanCorruptHeap) {
     return true;
   }
@@ -77,6 +114,31 @@ bool IsAsanDebugURL(const GURL& url) {
 // |IsAsanDebugURL|.
 void HandleAsanDebugURL(const GURL& url) {
   CHECK(IsAsanDebugURL(url));
+
+  std::string process;
+  std::string crash_type;
+  if (blink::ParseCrashURL(url, &process, &crash_type)) {
+    if (process == blink::kAsanBrowserProcess) {
+      auto mapped_type = MapCrashTypeToMojom(crash_type);
+      if (mapped_type) {
+        ExecuteBrowserCrashAction(*mapped_type);
+      } else {
+        NOTREACHED();
+      }
+      return;
+    }
+    if (process == blink::kAsanGpuProcess) {
+      auto* host = GpuProcessHost::Get();
+      if (host) {
+        auto mapped_type = MapCrashTypeToMojom(crash_type);
+        if (mapped_type) {
+          host->gpu_service()->InduceMemoryInvalidAccess(*mapped_type);
+        }
+      }
+      return;
+    }
+  }
+
 #if defined(ADDRESS_SANITIZER) || BUILDFLAG(IS_HWASAN)
 #if BUILDFLAG(IS_WIN)
   if (url.path() == kAsanCorruptHeapBlock) {
@@ -89,18 +151,6 @@ void HandleAsanDebugURL(const GURL& url) {
   }
 #endif  // BUILDFLAG(IS_WIN)
 
-  if (url.path() == kAsanHeapOverflow) {
-    base::debug::AsanHeapOverflow();
-    return;
-  }
-  if (url.path() == kAsanHeapUnderflow) {
-    base::debug::AsanHeapUnderflow();
-    return;
-  }
-  if (url.path() == kAsanUseAfterFree) {
-    base::debug::AsanHeapUseAfterFree();
-    return;
-  }
 #endif
 }
 

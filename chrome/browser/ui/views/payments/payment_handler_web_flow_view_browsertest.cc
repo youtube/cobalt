@@ -169,4 +169,101 @@ IN_PROC_BROWSER_TEST_F(PaymentHandlerWebFlowViewTest, UserInteractionRecorded) {
   EXPECT_TRUE(request_state->user_interaction_in_web_payment_app());
 }
 
+class PaymentHandlerWebFlowViewMandatoryUiEnabledTest
+    : public PaymentRequestBrowserTestBase {
+ public:
+  PaymentHandlerWebFlowViewMandatoryUiEnabledTest() {
+    feature_list_.InitAndEnableFeature(
+        payments::features::kPaymentRequestMandatoryPaymentAppUi);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(PaymentHandlerWebFlowViewMandatoryUiEnabledTest,
+                       PaymentResponseDeferredUntilUserInteraction) {
+  NavigateTo("/payment_handler.html");
+  std::string method_name;
+  InstallPaymentApp("a.com", "/payment_handler_sw.js", &method_name);
+
+  // Trigger PaymentRequest.
+  ResetEventWaiterForSequence({DialogEvent::PROCESSING_SPINNER_SHOWN,
+                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
+                               DialogEvent::DIALOG_OPENED,
+                               DialogEvent::PROCESSING_SPINNER_SHOWN,
+                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
+                               DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED,
+                               DialogEvent::PAYMENT_HANDLER_TITLE_SET});
+  ASSERT_EQ("success",
+            content::EvalJs(
+                GetActiveWebContents(),
+                content::JsReplace("launchAndComplete($1)", method_name)));
+  ASSERT_TRUE(WaitForObservedEvent());
+
+  // Check that user interaction has not been recorded yet.
+  auto payment_requests = GetPaymentRequests();
+  ASSERT_EQ(1u, payment_requests.size());
+  PaymentRequestState* request_state = payment_requests[0]->state().get();
+  ASSERT_NE(nullptr, request_state);
+  EXPECT_FALSE(request_state->user_interaction_in_web_payment_app());
+
+  // Get the payment handler web contents.
+  views::View* top_view = dialog_view()->view_stack_for_testing()->top();
+  auto* sheet_controller =
+      dialog_view()->controller_map_for_testing()->at(top_view).get();
+  auto* web_flow_controller =
+      static_cast<PaymentHandlerWebFlowViewController*>(sheet_controller);
+  content::WebContents* payment_handler_contents =
+      web_flow_controller->web_contents();
+
+  // Wait for the payment to be processed.
+  ResetEventWaiterForSequence(
+      {DialogEvent::PROCESSING_SPINNER_SHOWN, DialogEvent::DIALOG_CLOSED});
+
+  // Simulate click on the page.
+  content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(
+      payment_handler_contents);
+  content::SimulateMouseClick(payment_handler_contents, /*modifiers=*/0,
+                              blink::WebMouseEvent::Button::kLeft);
+
+  EXPECT_TRUE(request_state->user_interaction_in_web_payment_app());
+  ASSERT_TRUE(WaitForObservedEvent());
+}
+
+class PaymentHandlerWebFlowViewMandatoryUiDisabledTest
+    : public PaymentRequestBrowserTestBase {
+ public:
+  PaymentHandlerWebFlowViewMandatoryUiDisabledTest() {
+    feature_list_.InitAndDisableFeature(
+        payments::features::kPaymentRequestMandatoryPaymentAppUi);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(PaymentHandlerWebFlowViewMandatoryUiDisabledTest,
+                       PaymentResponseCompletesImmediately) {
+  NavigateTo("/payment_handler.html");
+  std::string method_name;
+  InstallPaymentApp("a.com", "/payment_handler_sw.js", &method_name);
+
+  // Trigger PaymentRequest. We expect it to complete and close the dialog
+  // automatically because the mandatory UI feature is disabled.
+  ResetEventWaiterForSequence(
+      {DialogEvent::PROCESSING_SPINNER_SHOWN,
+       DialogEvent::PROCESSING_SPINNER_HIDDEN, DialogEvent::DIALOG_OPENED,
+       DialogEvent::PROCESSING_SPINNER_SHOWN,
+       DialogEvent::PROCESSING_SPINNER_HIDDEN,
+       DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED,
+       DialogEvent::PAYMENT_HANDLER_TITLE_SET,
+       DialogEvent::PROCESSING_SPINNER_SHOWN, DialogEvent::DIALOG_CLOSED});
+  ASSERT_EQ("success",
+            content::EvalJs(
+                GetActiveWebContents(),
+                content::JsReplace("launchAndComplete($1)", method_name)));
+  ASSERT_TRUE(WaitForObservedEvent());
+}
+
 }  // namespace payments

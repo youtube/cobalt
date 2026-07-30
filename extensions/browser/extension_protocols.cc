@@ -25,6 +25,7 @@
 #include "base/hash/sha1.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/self_deleting.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
@@ -1021,8 +1022,7 @@ class ExtensionURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
       return pending_remote;
     }
 
-    // Manages its own lifetime.
-    new ExtensionURLLoaderFactory(
+    base::MakeSelfDeleting<ExtensionURLLoaderFactory>(
         browser_context, is_web_view_request, render_process_id,
         std::move(initiator_origin),
         pending_remote.InitWithNewPipeAndPassReceiver());
@@ -1030,11 +1030,6 @@ class ExtensionURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
     return pending_remote;
   }
 
-  static void EnsureShutdownNotifierFactoryBuilt() {
-    ExtensionProtocolShutdownNotifierFactory::GetInstance();
-  }
-
- private:
   // Constructs ExtensionURLLoaderFactory bound to the |factory_receiver|.
   //
   // The factory is self-owned - it will delete itself once there are no more
@@ -1046,8 +1041,9 @@ class ExtensionURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
       bool is_web_view_request,
       content::ChildProcessId render_process_id,
       std::optional<url::Origin> initiator_origin,
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
         browser_context_(browser_context),
         is_web_view_request_(is_web_view_request),
         render_process_id_(render_process_id),
@@ -1065,6 +1061,11 @@ class ExtensionURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
                 base::Unretained(this)));
   }
 
+  static void EnsureShutdownNotifierFactoryBuilt() {
+    ExtensionProtocolShutdownNotifierFactory::GetInstance();
+  }
+
+ private:
   ~ExtensionURLLoaderFactory() override = default;
 
   // network::mojom::URLLoaderFactory:

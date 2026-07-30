@@ -69,7 +69,12 @@ class TestHttpClient {
     AddressList addresses(address);
     NetLogSource source;
     socket_ = std::make_unique<TCPClientSocket>(addresses, nullptr, nullptr,
-                                                nullptr, source);
+                                                nullptr, source,
+                                                // No need to use a target
+                                                // network here. This is used
+                                                // only for testing in
+                                                // non-multi-network scenarios.
+                                                handles::kInvalidNetworkHandle);
 
     TestCompletionCallback callback;
     int rv = socket_->Connect(callback.callback());

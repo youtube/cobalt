@@ -21,6 +21,8 @@
 #include "absl/log/absl_check.h"
 #include "absl/log/globals.h"
 #include "absl/log/absl_log.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/string_view.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -36,16 +38,10 @@
 #include <windows.h>
 #endif
 
-using char32 = uint32_t;
-
-static constexpr uint32_t kUnicodeError = 0xFFFD;
-
 #define FRIEND_TEST(a, b) friend class a##_Test_##b;
 
-#define RETURN_IF_ERROR(expr)          \
-  do {                                 \
-    const auto _status = expr;         \
-    if (!_status.ok()) return _status; \
-  } while (0)
+#ifndef RETURN_IF_ERROR
+#define RETURN_IF_ERROR(...) ABSL_RETURN_IF_ERROR(__VA_ARGS__)
+#endif
 
 #endif  // COMMON_H_

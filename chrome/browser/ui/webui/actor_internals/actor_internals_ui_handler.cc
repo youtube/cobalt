@@ -64,7 +64,7 @@ void ActorInternalsUIHandler::WillAddJournalEntry(
       std::string(actor::JournalEntryTypeToString(entry.data->type)),
       std::move(details), entry.data->timestamp, entry.data->task_id.value(),
       actor::TrackToString(entry.data->track_uuid, entry.data->task_id),
-      entry.screenshot));
+      entry.screenshot, entry.iframe_screenshot));
 }
 
 void ActorInternalsUIHandler::StartLogging() {

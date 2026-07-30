@@ -22,6 +22,7 @@
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "content/common/android/gin_java_bridge_value.h"
+#include "mojo/public/cpp/bindings/message.h"
 
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
@@ -689,7 +690,11 @@ jvalue CoerceGinJavaBridgeValueToJavaValue(JNIEnv* env,
                                            bool coerce_to_string,
                                            const ObjectRefs& object_refs,
                                            mojom::GinJavaBridgeError* error) {
-  DCHECK(GinJavaBridgeValue::ContainsGinJavaBridgeValue(&value));
+  if (!GinJavaBridgeValue::ContainsGinJavaBridgeValue(&value)) {
+    mojo::ReportBadMessage("Malformed GinJavaBridgeValue");
+    *error = mojom::GinJavaBridgeError::kGinJavaBridgeNonAssignableTypes;
+    return jvalue();
+  }
   std::unique_ptr<const GinJavaBridgeValue> gin_value(
       GinJavaBridgeValue::FromValue(&value));
   switch (gin_value->GetType()) {

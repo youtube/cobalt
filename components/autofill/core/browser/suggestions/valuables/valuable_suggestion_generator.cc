@@ -299,6 +299,13 @@ void LoyaltyCardSuggestionGenerator::GenerateSuggestions(
     const AutofillField* trigger_autofill_field,
     AutofillClient& client,
     base::FunctionRef<void(ReturnedSuggestions)> callback) {
+  if (client.IsAutofillTypeBlockedByPolicy(
+          client.GetLastCommittedPrimaryMainFrameURL(),
+          AutofillClient::AutofillPolicyDataCategory::kPayments)) {
+    callback({SuggestionDataSource::kLoyaltyCard, {}});
+    return;
+  }
+
   if (!trigger_autofill_field || !client.GetValuablesDataManager() ||
       trigger_autofill_field->Type().GetTypes().contains_none(
           {LOYALTY_MEMBERSHIP_ID, EMAIL_OR_LOYALTY_MEMBERSHIP_ID})) {

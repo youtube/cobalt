@@ -75,6 +75,7 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="1820835682567584003">„Chromium“ bando <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Kitą kartą atidarius „Chromium“ įrenginyje „<ph name="DEVICE_TYPE" />“, bus pateiktas raginimas naudoti „Google“ slaptažodžių tvarkyklę.</translation>
 <translation id="1838374766361614909">Išvalyti paiešką</translation>
+<translation id="1846849503013521481">Kad apsaugotų jūsų darbą sistemoje „Chromium“, jūsų organizacija galės peržiūrėti arba tvarkyti tam tikrą informaciją</translation>
 <translation id="18552579716432081">Norėdami ištrinti naršymo duomenis tik iš šio įrenginio ir palikti juos „Google“ paskyroje, <ph name="BEGIN_LINK" />atsijunkite nuo „Chromium“<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Atsisiųskite „Chromium“ į telefoną, kad galėtumėte atidaryti arba kurti naujas skirtukų grupes keliaudami.</translation>
 <translation id="185970820835152459">Galite tvarkyti „Google“ paskyras, prie kurių prisijungiate. Jūsų „Google“ paskyros naudojamos naršyklei „Chromium“, „Play“ parduotuvei, „Gmail“ ir kt. Jei norite kam nors pridėti paskyrą, pvz., šeimos grupės nariui, pridėkite naują asmenį prie „<ph name="DEVICE_TYPE" />“ įrenginio. <ph name="LINK_BEGIN" />Sužinokite daugiau<ph name="LINK_END" /></translation>
@@ -437,6 +438,7 @@ Jei šis puslapis neveikia taip, kaip tikimasi, pabandykite leisti naudoti optim
 <translation id="5953657885167112863">„Chromium“ suasmeninimas</translation>
 <translation id="5960071705175224773">Nustatymus pakeitė nežinoma programa</translation>
 <translation id="5968400720580217226">DI režimas</translation>
+<translation id="5977420883993828287">Prisegta! Vėl naudokite kontekstines užduotis iš įrankių juostos</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Organizacija automatiškai uždaro „Chromium“, kai nenaudojama vieną minutę.}one{Organizacija automatiškai uždaro „Chromium“, kai nenaudojama # minutę.}few{Organizacija automatiškai uždaro „Chromium“, kai nenaudojama # minutes.}many{Organizacija automatiškai uždaro „Chromium“, kai nenaudojama # minutės.}other{Organizacija automatiškai uždaro „Chromium“, kai nenaudojama # minučių.}}</translation>
 <translation id="5987687638152509985">Atnaujinkite „Chromium“, kad galėtumėte pradėti sinchronizuoti</translation>
 <translation id="6003112304606738118">Atsisiunčiama… Liko <ph name="HOURS" /> val.</translation>
@@ -541,6 +543,17 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="6896758677409633944">Kopijuoti</translation>
 <translation id="6901631050894301805">Nustatykite „Chromium“ kaip numatytąją naršyklę ir prisekite ją prie užduočių juostos</translation>
 <translation id="6909503629704372277">&amp;Tvarkyti „Chromium“ profilius</translation>
+<translation id="6919942714452658456">Atlikus šį veiksmą bus:
+          <ph name="LINE_BREAKS" />
+            • iš naujo nustatyti paleidimo puslapis, naujo skirtuko puslapis, paieškos variklis ir prisegti skirtukai;
+            <ph name="LINE_BREAK" />
+            • išjungti plėtiniai;
+            <ph name="LINE_BREAK" />
+            • ištrinti slapukai ir kiti laikini svetainės duomenys;
+            <ph name="LINE_BREAK" />
+            • iš naujo nustatyti „Chromium“ spartieji klavišai.
+            <ph name="LINE_BREAKS" />
+            Tai neturės įtakos žymėms, istorijai ir išsaugotiems slaptažodžiams.</translation>
 <translation id="6934579572334859869">Klausti vaizdų paieškos apie šį vaizdą</translation>
 <translation id="6948031725951063910">Pasiekėte „Chromium“ žymių apribojimą (<ph name="BOOKMARK_LIMIT" />), todėl kai kurios žymės dar neišsaugotos „Google“ paskyroje.
 
@@ -610,6 +623,7 @@ Naujų žymių negalima išsaugoti paskyroje, kol ištrinsite kai kurias žymes.
 <translation id="7686590090926151193">„Chromium“ nėra numatytoji naršyklė</translation>
 <translation id="7689606757190482937">Sinchronizuokite ir suasmeninkite „Chromium“ skirtinguose įrenginiuose</translation>
 <translation id="7699779824407626136">„Chromium“ naujinys</translation>
+<translation id="7700735928747402058">Jūsų darbas apsaugotas sistemoje „Chromium“</translation>
 <translation id="7716950018788545737">Užduotis (-ys) baigėsi.</translation>
 <translation id="77283119132245232">Naršyklei „<ph name="BROWSER_NAME" />“ teikiamos sistemos stebėjimo paslaugos. Jei ši paslauga išjungta, sistemos lygio įvykiai, pvz., konteksto perjungimai ir grupių parengties įvykiai, neįtraukiami naršyklės sugeneruotus našumo stebėjimo duomenis.</translation>
 <translation id="7745317241717453663">Atlikus šį veiksmą iš šio įrenginio bus ištrinti naršymo duomenys. Jei vėliau norėsite gauti duomenis, prisijunkite prie „Chromium“ kaip <ph name="USER_EMAIL" />.</translation>
@@ -641,6 +655,7 @@ Naujų žymių negalima išsaugoti paskyroje, kol ištrinsite kai kurias žymes.
 <translation id="8031714377769448844">Prisekite „Chromium“ prie užduočių juostos, kad bet kada galėtumėte greitai ją pasiekti</translation>
 <translation id="80471789339884597">Dėkojame už diegimą. Turite iš naujo paleisti visas naršykles, prieš naudodami „<ph name="BUNDLE_NAME" />“.</translation>
 <translation id="8054112667659782652">Visada rodyti vaizdų paieškos šaukinį</translation>
+<translation id="8069447462453318634">Pasirinkite „Prisegti prie įrankių juostos“</translation>
 <translation id="8077498902115777962">Išjungti „Chromium“ vykdymą fone programose</translation>
 <translation id="80790299200510644">Vaizdų paieška</translation>
 <translation id="8086881907087796310">Įdiegti nepavyko, nes kompiuteris neatitinka minimalių aparatinės įrangos reikalavimų.</translation>
@@ -722,6 +737,15 @@ Naujų žymių negalima išsaugoti paskyroje, kol ištrinsite kai kurias žymes.
 <translation id="8907580949721785412">„Chromium“ bando rodyti slaptažodžius. Įveskite „Windows“ slaptažodį, kad tai leistumėte.</translation>
 <translation id="8932992523185907506">„Chromium“ nebėra numatytoji naršyklė. Padaryti „Chromium“ numatytąja naršykle?</translation>
 <translation id="8941642502866065432">Nepavyko atnaujinti „Chromium“</translation>
+<translation id="8944232836376404813">Atlikus šį veiksmą bus:
+          <ph name="LINE_BREAKS" />
+            • iš naujo nustatyti paleidimo puslapis, naujo skirtuko puslapis, paieškos variklis ir prisegti skirtukai;
+            <ph name="LINE_BREAK" />
+            • išjungti plėtiniai;
+            <ph name="LINE_BREAK" />
+            • ištrinti slapukai ir kiti laikini svetainės duomenys.
+            <ph name="LINE_BREAKS" />
+            Tai neturės įtakos žymėms, istorijai ir išsaugotiems slaptažodžiams.</translation>
 <translation id="897581876605952338">„Chromium Enterprise“ logotipas</translation>
 <translation id="8981150672034878610">Negalima paleisti „Chromium“, nes atidarant jūsų profilį įvyko klaida. Pabandykite paleisti „Chromium“ iš naujo.</translation>
 <translation id="8988036198400390003">Tvarkyti „Chromium“ profilius</translation>

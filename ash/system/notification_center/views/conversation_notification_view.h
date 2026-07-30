@@ -90,6 +90,8 @@ class ASH_EXPORT ConversationNotificationView
   raw_ptr<views::Label> title_ = nullptr;
   raw_ptr<views::Label> app_name_view_ = nullptr;
   raw_ptr<views::Label> app_name_divider_ = nullptr;
+
+  base::WeakPtrFactory<ConversationNotificationView> weak_factory_{this};
 };
 }  // namespace ash
 

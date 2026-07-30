@@ -103,7 +103,8 @@ class NET_EXPORT HostResolverSystemTask {
 
   struct CacheParams {
     CacheParams(HostResolverCache& cache,
-                NetworkAnonymizationKey network_anonymization_key);
+                NetworkAnonymizationKey network_anonymization_key,
+                handles::NetworkHandle network);
     CacheParams(const CacheParams&);
     CacheParams& operator=(const CacheParams&) = default;
     CacheParams(CacheParams&&);
@@ -112,6 +113,7 @@ class NET_EXPORT HostResolverSystemTask {
 
     base::raw_ref<HostResolverCache> cache;
     NetworkAnonymizationKey network_anonymization_key;
+    handles::NetworkHandle target_network = handles::kInvalidNetworkHandle;
   };
 
   static std::unique_ptr<HostResolverSystemTask> Create(

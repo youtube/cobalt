@@ -8,6 +8,8 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
+import 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
+import 'chrome://resources/cr_elements/cr_tabs/cr_tabs.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
 import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
@@ -23,6 +25,7 @@ import type {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js'
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {CrMenuSelectorElement} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
+import type {CrPageSelectorElement} from 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -38,6 +41,7 @@ export interface UserEducationInternalsElement {
     content: HTMLElement,
     errorMessageToast: CrToastElement,
     menu: CrMenuSelectorElement,
+    selector: CrPageSelectorElement,
     // <if expr="not is_chromeos">
     whatsNewVersionOverride: CrInputElement,
     // </if>
@@ -76,6 +80,7 @@ export class UserEducationInternalsElement extends
       featurePromoErrorMessage_: {type: String},
       narrow_: {type: Boolean},
       newBadges_: {type: Array},
+      nonIphPromos_: {type: Array},
 
       /**
        * Indicates if the information about session data is expanded or
@@ -103,6 +108,7 @@ export class UserEducationInternalsElement extends
       ntpPromoPreferences_: {type: Array},
       sessionData_: {type: Array},
       currentChromeVersion_: {type: Number},
+      selectedTabIndex_: {type: Number},
     };
   }
 
@@ -110,6 +116,7 @@ export class UserEducationInternalsElement extends
   protected accessor tutorials_: FeaturePromoDemoPageInfo[] = [];
   protected accessor featurePromos_: FeaturePromoDemoPageInfo[] = [];
   protected accessor newBadges_: FeaturePromoDemoPageInfo[] = [];
+  protected accessor nonIphPromos_: FeaturePromoDemoPageInfo[] = [];
   protected accessor whatsNewModules_: WhatsNewModuleDemoPageInfo[] = [];
   protected accessor whatsNewEditions_: WhatsNewEditionDemoPageInfo[] = [];
   protected accessor ntpPromos_: FeaturePromoDemoPageInfo[] = [];
@@ -123,6 +130,7 @@ export class UserEducationInternalsElement extends
       loadTimeData.getInteger('whatsNewVersionToRequest');
   protected accessor currentChromeVersion_: number =
       loadTimeData.getInteger('currentChromeVersion');
+  protected accessor selectedTabIndex_ = -1;
 
   private handler_: UserEducationInternalsPageHandlerInterface;
 
@@ -148,6 +156,10 @@ export class UserEducationInternalsElement extends
 
     this.handler_.getNewBadges().then(({newBadges}) => {
       this.newBadges_ = newBadges;
+    });
+
+    this.handler_.getNonIphPromos().then(({nonIphPromos}) => {
+      this.nonIphPromos_ = nonIphPromos;
     });
 
     this.handler_.getWhatsNewModules().then(({whatsNewModules}) => {
@@ -301,6 +313,23 @@ export class UserEducationInternalsElement extends
     });
   }
 
+  protected onNonIphClearPromoData_(e: CustomEvent<string>) {
+    const id = e.detail;
+    this.featurePromoErrorMessage_ = '';
+
+    this.handler_.clearNonIphPromoData(id).then(({errorMessage}) => {
+      this.featurePromoErrorMessage_ = errorMessage;
+      if (errorMessage !== '') {
+        this.$.errorMessageToast.show();
+      } else {
+        this.handler_.getNonIphPromos().then(({nonIphPromos}) => {
+          this.nonIphPromos_ = nonIphPromos;
+          this.requestUpdate();
+        });
+      }
+    });
+  }
+
   protected onClearWhatsNewData_() {
     this.featurePromoErrorMessage_ = '';
 
@@ -376,11 +405,14 @@ export class UserEducationInternalsElement extends
   }
 
   protected onSelectorIronActivate_(event: CustomEvent<{selected: string}>) {
-    const url = event.detail.selected;
-    this.$.menu.selected = url;
-    const idx = url.lastIndexOf('#');
-    const el = this.$.content.querySelector(url.substring(idx));
-    el?.scrollIntoView(true);
+    const index = Number(event.detail.selected);
+    this.$.menu.selected = index;
+    if (index >= 0) {
+      this.$.selector.removeAttribute('show-all');
+      this.selectedTabIndex_ = index;
+    } else {
+      this.$.selector.setAttribute('show-all', 'true');
+    }
   }
 
   protected onNarrowChanged_(e: CustomEvent<{value: boolean}>) {

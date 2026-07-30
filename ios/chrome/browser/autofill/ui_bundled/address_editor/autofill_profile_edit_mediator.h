@@ -55,6 +55,9 @@ class PersonalDataManager;
 // Saves the profile and dismisses the view.
 - (void)saveChangesForDismiss;
 
+// Disconnects the mediator.
+- (void)disconnect;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_AUTOFILL_UI_BUNDLED_ADDRESS_EDITOR_AUTOFILL_PROFILE_EDIT_MEDIATOR_H_

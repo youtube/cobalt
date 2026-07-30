@@ -135,7 +135,6 @@ void RegisterBrowserUserPrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kPinSplitTabButton, false,
                                 pref_registration_flags);
 
-  registry->RegisterInt64Pref(prefs::kDefaultBrowserInfobarLastDeclined, 0);
   registry->RegisterBooleanPref(prefs::kWebAppCreateOnDesktop, true);
   registry->RegisterBooleanPref(prefs::kWebAppCreateInAppsMenu, true);
   registry->RegisterBooleanPref(prefs::kWebAppCreateInQuickLaunchBar, true);

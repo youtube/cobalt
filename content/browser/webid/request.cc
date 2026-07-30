@@ -29,7 +29,6 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/browser/webid/disconnect_request.h"
 #include "content/browser/webid/fake_identity_request_dialog_controller.h"
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/identity_registry.h"
@@ -159,7 +158,7 @@ Request::AutoReauthnInfo& Request::AutoReauthnInfo::operator=(
 
 Request::Request(
     RenderFrameHost* rfh,
-    RequestService* request_service,
+    RequestService& request_service,
     FederatedIdentityApiPermissionContextDelegate* api_permission_delegate,
     FederatedIdentityAutoReauthnPermissionContextDelegate*
         auto_reauthn_permission_delegate,
@@ -185,17 +184,6 @@ Request::~Request() {
                              TokenStatus::kUnhandledRequest,
                              /*should_delay_callback=*/false);
   }
-  // Calls |UserInfoRequest|'s destructor to complete the user
-  // info request. This is needed because otherwise some resources like
-  // `fedcm_metrics_` may no longer be usable when the destructor get invoked
-  // naturally.
-  user_info_requests_.clear();
-
-  // Calls |DisconnectRequest|'s destructor to complete the
-  // revocation request. This is needed because otherwise some resources like
-  // `fedcm_metrics_` may no longer be usable when the destructor get invoked
-  // naturally.
-  disconnect_request_.reset();
 }
 
 void Request::BindReceiver(
@@ -219,9 +207,12 @@ void Request::ResetAndDeleteThisForTesting() {
   // and is what our tests expect.
   auth_request_receivers_.Clear();
   receivers_.Clear();
-  if (request_service_) {
-    request_service_->OnRequestDestroyed(this);
-  }
+  // TODO(crbug.com/519217823): Refactor this to avoid "delete this" pattern by
+  // having tests request destruction via RequestService directly.
+  // WARNING: Calling OnRequestDestroyed(this) will destroy 'this' immediately
+  // because the request is owned by request_service_. Do not add any code
+  // after this call!
+  request_service_->OnRequestDestroyed(this);
 }
 
 std::vector<IdentityProviderRequestOptionsPtr>
@@ -578,32 +569,20 @@ void Request::RequestToken(
 
 void Request::RequestUserInfo(blink::mojom::IdentityProviderConfigPtr provider,
                               RequestUserInfoCallback callback) {
-  // Enforce identity-credentials-get Permissions Policy browser-side.
-  // The renderer checks this, but a compromised renderer can bypass it.
-  if (!render_frame_host().IsFeatureEnabled(
-          network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
-    ReportBadMessage("identity-credentials-get permissions policy not enabled");
-    return;
-  }
-
-  if (!render_frame_host().GetPage().IsPrimary()) {
-    ReportBadMessage("FedCM should not be allowed in nested frame trees.");
-    return;
-  }
-  // FedCmMetrics class is currently not used for UserInfo API. If we log UKM
-  // metrics later on, we should call CreateFedCmMetrics() here.
-
-  auto network_manager = IdpNetworkRequestManager::Create(
-      static_cast<RenderFrameHostImpl*>(&render_frame_host()));
-  auto user_info_request = UserInfoRequest::Create(
-      std::move(network_manager), permission_delegate_,
-      api_permission_delegate_, &render_frame_host(), std::move(provider));
-  UserInfoRequest* user_info_request_ptr = user_info_request.get();
-  user_info_requests_.insert(std::move(user_info_request));
-
-  user_info_request_ptr->SetCallbackAndStart(base::BindOnce(
-      &Request::CompleteUserInfoRequest, weak_ptr_factory_.GetWeakPtr(),
-      user_info_request_ptr, std::move(callback)));
+  request_service_->RequestUserInfo(
+      std::move(provider),
+      base::BindOnce(
+          [](RequestUserInfoCallback callback,
+             blink::mojom::RequestUserInfoResultPtr result) {
+            if (result->is_status()) {
+              std::move(callback).Run(result->get_status(), std::nullopt);
+            } else {
+              std::move(callback).Run(
+                  blink::mojom::RequestUserInfoStatus::kSuccess,
+                  std::move(result->get_user_info()));
+            }
+          },
+          std::move(callback)));
 }
 
 void Request::CancelTokenRequest() {
@@ -692,53 +671,11 @@ void Request::SetIdpSigninStatus(
 }
 
 void Request::RegisterIdP(const GURL& idp, RegisterIdPCallback callback) {
-  if (!IsIdPRegistrationEnabled()) {
-    std::move(callback).Run(RegisterIdpStatus::kErrorFeatureDisabled);
-    return;
-  }
-
-  if (!origin().IsSameOriginWith(url::Origin::Create(idp))) {
-    std::move(callback).Run(RegisterIdpStatus::kErrorCrossOriginConfig);
-    return;
-  }
-
-  if (!network_manager_) {
-    network_manager_ = CreateNetworkManager();
-  }
-
-  fedcm_idp_registration_handler_ = std::make_unique<IdpRegistrationHandler>(
-      render_frame_host(), network_manager_.get(), idp);
-  fedcm_idp_registration_handler_->FetchConfig(
-      base::BindOnce(&Request::OnIdpRegistrationConfigFetched,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback), idp));
-}
-
-void Request::OnIdpRegistrationConfigFetched(
-    RegisterIdPCallback callback,
-    const GURL& idp,
-    std::vector<ConfigFetcher::FetchResult> fetch_results) {
-  CHECK_EQ(fetch_results.size(), 1u);
-  fedcm_idp_registration_handler_.reset();
-  if (fetch_results[0].error) {
-    std::move(callback).Run(RegisterIdpStatus::kErrorInvalidConfig);
-    return;
-  }
-
-  permission_delegate_->RegisterIdP(idp);
-  std::move(callback).Run(RegisterIdpStatus::kSuccess);
+  request_service_->RegisterIdP(idp, std::move(callback));
 }
 
 void Request::UnregisterIdP(const GURL& idp, UnregisterIdPCallback callback) {
-  if (!IsIdPRegistrationEnabled()) {
-    std::move(callback).Run(false);
-    return;
-  }
-  if (!origin().IsSameOriginWith(url::Origin::Create(idp))) {
-    std::move(callback).Run(false);
-    return;
-  }
-  permission_delegate_->UnregisterIdP(idp);
-  std::move(callback).Run(true);
+  request_service_->UnregisterIdP(idp, std::move(callback));
 }
 
 void Request::OnIdpSigninStatusReceived(const url::Origin& idp_config_origin,
@@ -866,20 +803,6 @@ void Request::OnAccountsResultsReceived(
     OnFetchDataForIdpSucceeded(std::move(*result.accounts),
                                std::move(result.idp_info));
   }
-}
-
-void Request::CompleteDisconnectRequest(DisconnectCallback callback,
-                                        blink::mojom::DisconnectStatus status) {
-  // `disconnect_request_` may be null here if the completion is invoked from
-  // the Request destructor, which destroys
-  // `disconnect_request_`. The DisconnectRequest destructor would
-  // trigger the callback.
-  if (!disconnect_request_ &&
-      status == blink::mojom::DisconnectStatus::kSuccess) {
-    NOTREACHED() << "The successful disconnect request is nowhere to be found";
-  }
-  std::move(callback).Run(status);
-  disconnect_request_.reset();
 }
 
 bool Request::CanShowContinueOnPopup() const {
@@ -2313,38 +2236,8 @@ url::Origin Request::GetEmbeddingOrigin() const {
   return render_frame_host().GetMainFrame()->GetLastCommittedOrigin();
 }
 
-void Request::CompleteUserInfoRequest(
-    UserInfoRequest* request,
-    RequestUserInfoCallback callback,
-    blink::mojom::RequestUserInfoStatus status,
-    std::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info) {
-  auto it =
-      std::find_if(user_info_requests_.begin(), user_info_requests_.end(),
-                   [request](const std::unique_ptr<UserInfoRequest>& ptr) {
-                     return ptr.get() == request;
-                   });
-  // The request may not be found if the completion is invoked from
-  // Request destructor. The destructor clears
-  // `user_info_requests_`, which destroys the FederatedAuthUserInfoRequests it
-  // contains. The FederatedAuthUserInfoRequest destructor invokes this
-  // callback.
-  if (it == user_info_requests_.end() &&
-      status == blink::mojom::RequestUserInfoStatus::kSuccess) {
-    NOTREACHED() << "The successful user info request is nowhere to be found";
-  }
-  std::move(callback).Run(status, std::move(user_info));
-  if (it != user_info_requests_.end()) {
-    user_info_requests_.erase(it);
-  }
-}
-
 std::unique_ptr<IdpNetworkRequestManager> Request::CreateNetworkManager() {
-  if (mock_network_manager_) {
-    return std::move(mock_network_manager_);
-  }
-
-  return IdpNetworkRequestManager::Create(
-      static_cast<RenderFrameHostImpl*>(&render_frame_host()));
+  return request_service_->CreateNetworkManager();
 }
 
 std::unique_ptr<IdentityRequestDialogController>
@@ -2372,7 +2265,7 @@ Request::CreateDialogController() {
 
 void Request::SetNetworkManagerForTests(
     std::unique_ptr<IdpNetworkRequestManager> manager) {
-  mock_network_manager_ = std::move(manager);
+  request_service_->SetNetworkManagerForTests(std::move(manager));
 }
 
 void Request::SetDialogControllerForTests(
@@ -2727,14 +2620,8 @@ bool Request::RequiresUserMediation() {
 
 void Request::SetRequiresUserMediation(bool requires_user_mediation,
                                        base::OnceClosure callback) {
-  auto_reauthn_permission_delegate_->SetRequiresUserMediation(
-      origin(), requires_user_mediation);
-  if (permission_delegate_) {
-    permission_delegate_->OnSetRequiresUserMediation(origin(),
-                                                     std::move(callback));
-  } else {
-    std::move(callback).Run();
-  }
+  request_service_->SetRequiresUserMediation(requires_user_mediation,
+                                             std::move(callback));
 }
 
 void Request::LoginToIdP(bool can_append_hints,
@@ -2781,65 +2668,13 @@ void Request::MaybeShowActiveModeModalDialog(const GURL& idp_config_url,
 }
 
 void Request::PreventSilentAccess(PreventSilentAccessCallback callback) {
-  SetRequiresUserMediation(true, std::move(callback));
-  if (permission_delegate_->HasSharingPermission(GetEmbeddingOrigin())) {
-    // Ensure the lifecycle state as GetPageUkmSourceId doesn't support the
-    // prerendering page. As FederatedAuthRequest runs behind the
-    // BrowserInterfaceBinders, the service doesn't receive any request while
-    // prerendering, and the CHECK should always meet the condition.
-    CHECK(!render_frame_host().IsInLifecycleState(
-        RenderFrameHost::LifecycleState::kPrerendering));
-    RecordPreventSilentAccess(
-        ComputeRequesterFrameType(render_frame_host(), origin(),
-                                  GetEmbeddingOrigin()),
-        render_frame_host().GetPageUkmSourceId());
-  }
+  request_service_->PreventSilentAccess(std::move(callback));
 }
 
 void Request::Disconnect(
     blink::mojom::IdentityCredentialDisconnectOptionsPtr options,
     DisconnectCallback callback) {
-  // Enforce identity-credentials-get Permissions Policy browser-side.
-  // The renderer checks this, but a compromised renderer can bypass it.
-  if (!render_frame_host().IsFeatureEnabled(
-          network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
-    ReportBadMessage("identity-credentials-get permissions policy not enabled");
-    return;
-  }
-
-  std::unique_ptr<Metrics> disconnect_metrics = CreateFedCmMetrics();
-  if (disconnect_request_) {
-    // Since we do not send any fetches in this case, consider the request to be
-    // instant, e.g. duration is 0.
-    render_frame_host().AddMessageToConsole(
-        blink::mojom::ConsoleMessageLevel::kError,
-        GetDisconnectConsoleErrorMessage(DisconnectStatus::kTooManyRequests));
-    disconnect_metrics->RecordDisconnectMetrics(
-        DisconnectStatus::kTooManyRequests, std::nullopt,
-        ComputeRequesterFrameType(render_frame_host(), origin(),
-                                  GetEmbeddingOrigin()),
-        options->config->config_url);
-    std::move(callback).Run(
-        blink::mojom::DisconnectStatus::kErrorTooManyRequests);
-    return;
-  }
-
-  bool intercept = false;
-  bool should_complete_request_immediately = false;
-  devtools_instrumentation::WillSendFedCmRequest(
-      render_frame_host(), &intercept, &should_complete_request_immediately);
-
-  auto network_manager = CreateNetworkManager();
-
-  disconnect_request_ = DisconnectRequest::Create(
-      std::move(network_manager), permission_delegate_, &render_frame_host(),
-      std::move(disconnect_metrics), std::move(options));
-  DisconnectRequest* disconnect_request_ptr = disconnect_request_.get();
-
-  disconnect_request_ptr->SetCallbackAndStart(
-      base::BindOnce(&Request::CompleteDisconnectRequest,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
-      api_permission_delegate_);
+  request_service_->Disconnect(std::move(options), std::move(callback));
 }
 
 void Request::RecordErrorMetrics(

@@ -44,7 +44,6 @@ public class ContextualTaskBottomSheetComponentProvider implements CoBrowseCompo
             @ColorInt int backgroundColor,
             @Px int peekViewHeight,
             @IdRes int peekViewContainerId,
-            @IdRes int emptyPlaceholderContainerId,
             Runnable onBackPressed) {
         return new ContextualTaskBottomSheetContent(
                 contentView,
@@ -52,7 +51,6 @@ public class ContextualTaskBottomSheetComponentProvider implements CoBrowseCompo
                 backgroundColor,
                 peekViewHeight,
                 peekViewContainerId,
-                emptyPlaceholderContainerId,
                 onBackPressed);
     }
 }

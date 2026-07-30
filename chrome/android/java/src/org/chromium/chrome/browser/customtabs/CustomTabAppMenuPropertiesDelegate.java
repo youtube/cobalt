@@ -346,8 +346,9 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
         }
 
         // --- Reader Mode ---
+        boolean shouldShowIconBeforeItem = shouldShowIconBeforeItem();
         if (shouldShowReaderModeItem()) {
-            modelList.add(buildReaderModeItem(currentTab));
+            modelList.add(buildReaderModeItem(currentTab, shouldShowIconBeforeItem));
         }
 
         // --- Share ---
@@ -417,7 +418,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
 
         // --- Site controls ---
         if (shouldShowPageInfoItem()) {
-            modelList.add(buildPageInfoItem(currentTab));
+            modelList.add(buildPageInfoItem(currentTab, shouldShowIconBeforeItem));
         }
 
         // --- Open with ---

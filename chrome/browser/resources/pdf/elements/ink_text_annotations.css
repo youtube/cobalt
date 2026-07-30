@@ -8,14 +8,12 @@
  * #css_wrapper_metadata_end */
 
 :host {
+  left: 0;
+  overflow: hidden;
+  pointer-events: none; /* Let clicks pass through to PDF plugin */
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* Let clicks pass through to PDF plugin */
   z-index: 1; /* Position over the plugin so that the focus ring is visible. */
-  overflow: hidden;
 }
 
 #container {
@@ -26,7 +24,8 @@
 
 .placeholder {
   position: absolute;
-  pointer-events: none; /* Let clicks pass through to PDF plugin */
+  pointer-events: auto;
+  cursor: text;
   border: var(--viewer-text-annotation-border-width) solid transparent;
   box-sizing: border-box;
   outline: none;
@@ -55,4 +54,8 @@
 /* Show focus ring when tabbed to */
 .placeholder:focus-visible {
   border-color: var(--viewer-text-annotation-active-color);
+}
+
+ink-text-box {
+  pointer-events: auto;
 }

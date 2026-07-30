@@ -729,6 +729,10 @@ public abstract class ContentUriUtils {
         if (uri == null || !ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) return false;
         String authority = uri.getAuthority();
         if (TextUtils.isEmpty(authority)) return false;
+
+        // Remove userId prefix in the authority.
+        authority = authority.substring(authority.lastIndexOf('@') + 1);
+
         PackageManager pm = context.getPackageManager();
         ProviderInfo info = pm.resolveContentProvider(authority, 0);
         return info != null && TextUtils.equals(info.packageName, context.getPackageName());

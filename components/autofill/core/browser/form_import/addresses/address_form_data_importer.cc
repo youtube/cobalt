@@ -201,6 +201,12 @@ void AddressFormDataImporter::OnAddressDataChanged() {
 size_t AddressFormDataImporter::ExtractAddressProfiles(
     const FormStructure& form,
     std::vector<ExtractedAddressProfile>* extracted_address_profiles) {
+  if (client_->IsAutofillTypeBlockedByPolicy(
+          client_->GetLastCommittedPrimaryMainFrameURL(),
+          AutofillClient::AutofillPolicyDataCategory::kContactInfo)) {
+    return 0;
+  }
+
   // Create a buffer to collect logging output for the autofill-internals.
   LogManager* log_manager = client_->GetCurrentLogManager();
   LogBuffer import_log_buffer(IsLoggingActive(log_manager));

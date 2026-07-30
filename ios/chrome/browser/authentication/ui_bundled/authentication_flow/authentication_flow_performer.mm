@@ -403,6 +403,19 @@ policy::ProfileSeparationPolicies GetFakePolicyResponseForTesting() {
   [_delegate didCompleteReauthWithSuccess:success];
 }
 
+- (void)confirmChangeProfile:
+            (SigninChangeProfileConfirmationBlock)confirmChangeProfile
+                 forIdentity:(id<SystemIdentity>)identity {
+  if (!confirmChangeProfile) {
+    [_delegate didConfirmChangeProfileCanProceed:YES];
+    return;
+  }
+  __weak __typeof(_delegate) delegate = _delegate;
+  confirmChangeProfile(^(BOOL canProceed) {
+    [delegate didConfirmChangeProfileCanProceed:canProceed];
+  });
+}
+
 #pragma mark - AuthenticationFlowPerformerBase
 
 - (void)checkNoDialog {

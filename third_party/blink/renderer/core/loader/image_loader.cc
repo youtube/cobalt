@@ -69,6 +69,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
+#include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
 #include "third_party/blink/renderer/platform/heap/cross_thread_handle.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -637,7 +638,9 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
     }
   }
 
-  ResetAnimation();
+  ResetAnimation(update_behavior == kUpdateForcedReload
+                     ? ResetTimeline::kAll
+                     : ResetTimeline::kSharedOnly);
 }
 
 void ImageLoader::UpdateFromElement(UpdateFromElementBehavior update_behavior,
@@ -897,10 +900,10 @@ void ImageLoader::OnAttachLayoutTree() {
   image_resource->SetImageResource(image_content_);
 }
 
-void ImageLoader::ResetAnimation() {
+void ImageLoader::ResetAnimation(ResetTimeline timeline) {
   if (!RuntimeEnabledFeatures::SvgImageAnimationResetEnabled()) {
     if (LayoutImageResource* image_resource = GetLayoutImageResource()) {
-      image_resource->ResetAnimation();
+      image_resource->ResetAnimation(timeline);
     }
     return;
   }
@@ -909,7 +912,12 @@ void ImageLoader::ResetAnimation() {
     return;
   }
 
-  image_content_->GetImage()->ResetAnimation();
+  if (auto* image = DynamicTo<BitmapImage>(image_content_->GetImage());
+      image && timeline == ImageLoader::ResetTimeline::kSharedOnly) {
+    image->ResetAnimationSharedTimelineOnly();
+  } else {
+    image_content_->GetImage()->ResetAnimation();
+  }
 
   if (LayoutImageResource* image_resource = GetLayoutImageResource();
       image_resource && image_resource->CachedImage() == image_content_) {

@@ -17,6 +17,7 @@
 
 #include <string.h>
 
+#include <memory>
 #include <vector>
 
 namespace sentencepiece {
@@ -25,19 +26,25 @@ namespace model {
 // Simple FreeList that allocates a chunk of T at once.
 template <class T>
 class FreeList {
+  static_assert(std::is_trivially_copyable<T>::value,
+                "T must be trivially copyable.");
+  static_assert(std::is_standard_layout<T>::value,
+                "T must be a standard layout type.");
+
  public:
   FreeList() = delete;
   explicit FreeList(size_t chunk_size) : chunk_size_(chunk_size) {}
-  virtual ~FreeList() {
-    for (auto& chunk : freelist_) delete[] chunk;
-  }
+  virtual ~FreeList() = default;
+
+  FreeList(const FreeList&) = delete;
+  FreeList& operator=(const FreeList&) = delete;
+  FreeList(FreeList&& other) noexcept = default;
+  FreeList& operator=(FreeList&& other) noexcept = default;
 
   // `Free` doesn't free the object but reuse the allocated memory chunks.
   void Free() {
-    const int size = std::min<int>(chunk_index_ + 1, freelist_.size());
-    for (int i = 0; i < size; ++i) {
-      T* chunk = freelist_[i];
-      memset(static_cast<void*>(chunk), 0, sizeof(*chunk) * chunk_size_);
+    for (auto& chunk : freelist_) {
+      memset(static_cast<void*>(chunk.get()), 0, sizeof(T) * chunk_size_);
     }
     chunk_index_ = 0;
     element_index_ = 0;
@@ -45,18 +52,6 @@ class FreeList {
 
   // Returns the number of allocated elements.
   size_t size() const { return chunk_size_ * chunk_index_ + element_index_; }
-
-  void swap(FreeList<T>& other) {
-    std::swap(freelist_, other.freelist_);
-    std::swap(element_index_, other.element_index_);
-    std::swap(chunk_index_, other.chunk_index_);
-    std::swap(chunk_size_, other.chunk_size_);
-  }
-
-  // Returns the element as an array.
-  T* operator[](size_t index) const {
-    return freelist_[index / chunk_size_] + index % chunk_size_;
-  }
 
   // Allocates new element.
   T* Allocate() {
@@ -66,19 +61,19 @@ class FreeList {
     }
 
     if (chunk_index_ == freelist_.size()) {
-      T* chunk = new T[chunk_size_];
-      memset(static_cast<void*>(chunk), 0, sizeof(*chunk) * chunk_size_);
-      freelist_.push_back(chunk);
+      auto chunk = std::make_unique<T[]>(chunk_size_);
+      memset(static_cast<void*>(chunk.get()), 0, sizeof(T) * chunk_size_);
+      freelist_.push_back(std::move(chunk));
     }
 
-    T* result = freelist_[chunk_index_] + element_index_;
+    T* result = freelist_[chunk_index_].get() + element_index_;
     ++element_index_;
 
     return result;
   }
 
  private:
-  std::vector<T*> freelist_;
+  std::vector<std::unique_ptr<T[]>> freelist_;
 
   // The last element is stored at freelist_[chunk_index_][element_index_]
   size_t element_index_ = 0;

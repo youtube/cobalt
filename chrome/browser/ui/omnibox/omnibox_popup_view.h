@@ -77,8 +77,9 @@ class OmniboxPopupView {
   // Saves state to the given tab.
   virtual void SaveStateToTab(content::WebContents* contents) {}
 
-  // Pushes the current text to the WebUI.
-  virtual void PushTextToWebUI(bool is_double_click) {}
+  // Syncs the text and selection state from the native location bar to the
+  // WebUI omnibox.
+  virtual void SyncNativeStateToWebUI(bool is_double_click) {}
 
   // Called when the active tab changes.
   virtual void OnTabChanged(content::WebContents* contents) {}

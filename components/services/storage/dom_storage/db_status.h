@@ -10,6 +10,7 @@
 #include <string_view>
 
 #include "base/types/expected.h"
+#include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 
 namespace storage {
 
@@ -45,8 +46,10 @@ class DbStatus {
   std::string ToString() const;
 
   // Logs the Type of this status to the given histogram name with the
-  // appropriate suffix based on whether the database is in-memory or on-disk.
-  void Log(std::string_view histogram_base, bool in_memory) const;
+  // appropriate suffix for `metrics_type` (e.g. ".InMemory", ".OnDisk",
+  // ".OnDiskExperimental").
+  void Log(std::string_view histogram_base,
+           DatabaseMetricsType metrics_type) const;
 
  private:
   // These values are persisted to logs. Entries should not be renumbered and

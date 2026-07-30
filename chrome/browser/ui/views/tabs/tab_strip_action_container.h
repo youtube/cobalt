@@ -6,10 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_ACTION_CONTAINER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/glic/browser_ui/glic_actor_nudge_delegate.h"
-#include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 #include "chrome/browser/ui/views/glic/glic_button_interface.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
@@ -27,6 +24,8 @@ class Insets;
 }
 namespace glic {
 class TabStripGlicActorTaskIcon;
+class GlicNudgeController;
+class GlicButtonController;
 }
 class BrowserWindowInterface;
 class GlicAndActorButtonsContainer;
@@ -40,9 +39,7 @@ enum class LockedExpansionMode {
 class TabStripActionContainer : public views::View,
                                 public views::AnimationDelegateViews,
                                 public views::MouseWatcherListener,
-                                public glic::GlicNudgeDelegate,
-                                public glic::GlicActorNudgeDelegate,
-                                public glic::GlicButtonControllerDelegate {
+                                public glic::GlicSplitButtonDelegate {
   METADATA_HEADER(TabStripActionContainer, views::View)
 
  public:
@@ -118,17 +115,13 @@ class TabStripActionContainer : public views::View,
   // views::MouseWatcherListener:
   void MouseMovedOutOfHost() override;
 
-  // GlicNudgeDelegate:
+  // GlicSplitButtonDelegate:
+  void SetGlicShowState(bool show) override;
+  void SetGlicPanelIsOpen(bool open) override;
+  void SetButtonController(glic::GlicButtonController* controller) override;
   void OnTriggerGlicNudgeUI(glic::NudgeParams params) override;
   void OnHideGlicNudgeUI() override;
   bool GetIsShowingGlicNudge() override;
-
-  // GlicButtonControllerDelegate:
-  void SetButtonController(glic::GlicButtonController* controller) override;
-  void SetGlicShowState(bool show) override;
-  void SetGlicPanelIsOpen(bool open) override;
-
-  // GlicActorNudgeDelegate:
   void ShowGlicActorTaskIcon() override;
   void HideGlicActorTaskIcon() override;
   bool GetIsShowingGlicActorTaskIconNudge() override;

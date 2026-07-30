@@ -4,6 +4,17 @@
 
 #import "ios/chrome/browser/intelligence/bwg/model/fake_gemini_service.h"
 
+FakeGeminiService::FakeGeminiService() = default;
+FakeGeminiService::~FakeGeminiService() = default;
+
+void FakeGeminiService::AddObserver(GeminiService::Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void FakeGeminiService::RemoveObserver(GeminiService::Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 bool FakeGeminiService::IsProfileEligibleForGemini() {
   return !ineligibility_reasons_.has_value();
 }

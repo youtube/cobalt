@@ -354,7 +354,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
       const media::VideoPixelFormat pixel_format = media::PIXEL_FORMAT_I420A;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -393,7 +393,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
       const media::VideoPixelFormat pixel_format = media::PIXEL_FORMAT_I420;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -427,7 +427,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
       const media::VideoPixelFormat pixel_format = media::PIXEL_FORMAT_I444;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -459,7 +459,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
       const media::VideoPixelFormat pixel_format = media::PIXEL_FORMAT_I422;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -492,7 +492,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
           media::PIXEL_FORMAT_YUV420P10;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -530,7 +530,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
           media::PIXEL_FORMAT_YUV422P10;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -568,7 +568,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
           media::PIXEL_FORMAT_YUV444P10;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kU, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();
@@ -605,7 +605,7 @@ scoped_refptr<media::VideoFrame> ConvertFromMappedWebRtcVideoFrameBuffer(
       const media::VideoPixelFormat pixel_format = media::PIXEL_FORMAT_NV12;
       const size_t luma_rows = size.height();
       const size_t luma_width = size.width();
-      const gfx::Size chroma_size = media::VideoFrame::PlaneSizeInSamples(
+      const gfx::Size chroma_size = media::VideoFrame::PlaneSize(
           pixel_format, media::VideoFrame::Plane::kUV, size);
       const size_t chroma_width = chroma_size.width();
       const size_t chroma_rows = chroma_size.height();

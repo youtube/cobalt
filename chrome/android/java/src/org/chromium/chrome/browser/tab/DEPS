@@ -187,6 +187,8 @@ specific_include_rules = {
   ],
   'TabHelpers\\.java': [
     "+chrome/android/java/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutTabHelper.java",
-    "+chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeUtils.java"
+    "+chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeUtils.java",
+    "+chrome/android/java/src/org/chromium/chrome/browser/app/tabmodel/TabStateStore.java",
+    "+chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabPersistentStoreImpl.java"
   ]
 }

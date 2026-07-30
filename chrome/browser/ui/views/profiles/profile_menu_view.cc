@@ -44,6 +44,7 @@
 #include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/signin/signin_util.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -89,6 +90,7 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/vector_icons/vector_icons.h"
@@ -920,6 +922,15 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
     params.button_action = base::BindRepeating(
         &ProfileMenuView::OnSigninButtonClicked, base::Unretained(this),
         account_info_for_signin_action, button_type, access_point);
+  }
+
+  // TODO(crbug.com/522296672): Specify the right way to obtain this information
+  // as `GetAiSubscriptionTier` only works for certain groups of users.
+  subscription_eligibility::SubscriptionEligibilityService*
+      subscription_service = subscription_eligibility::
+          SubscriptionEligibilityServiceFactory::GetForProfile(&profile());
+  if (subscription_service) {
+    params.ai_subscription_tier = subscription_service->GetAiSubscriptionTier();
   }
 
   return params;

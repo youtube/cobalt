@@ -8,8 +8,17 @@
 
 namespace syncer {
 
-InMemoryMetadataChangeList::InMemoryMetadataChangeList() = default;
-InMemoryMetadataChangeList::~InMemoryMetadataChangeList() = default;
+InMemoryMetadataChangeList::InMemoryMetadataChangeList(
+    bool allow_changes_on_destruction)
+    : allow_changes_on_destruction_(allow_changes_on_destruction) {}
+
+InMemoryMetadataChangeList::~InMemoryMetadataChangeList() {
+  if (!allow_changes_on_destruction_) {
+    // Verify that all changes were transferred or dropped.
+    CHECK(metadata_changes_.empty(), base::NotFatalUntil::M153);
+    CHECK(!state_change_, base::NotFatalUntil::M153);
+  }
+}
 
 void InMemoryMetadataChangeList::TransferChangesTo(MetadataChangeList* other) {
   DCHECK(other);

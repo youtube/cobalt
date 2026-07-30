@@ -35,7 +35,7 @@
     {
       "name": "LayoutBlockFlow (positioned, children-inline) DIV id='outer'",
       "bounds": [650, 600],
-      "backgroundColor": "#0000FF80",
+      "drawsContent": false,
       "transform": 2
     },
     {

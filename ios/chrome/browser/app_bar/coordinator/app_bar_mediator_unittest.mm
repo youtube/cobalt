@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/test/test_fullscreen_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/model/fake_gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_configuration.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
@@ -569,29 +570,6 @@ TEST_F(AppBarMediatorTest, TestCreateNewTabTabGridInGroupDisabledByPolicy) {
 }
 
 // Tests that buttons are enabled/disabled based on policy.
-TEST_F(AppBarMediatorTest, TestSetButtonsEnabledByPolicy) {
-  tab_grid_state_.currentPage = TabGridPageRegularTabs;
-  tab_grid_state_.tabGridVisible = YES;
-
-  // Disable incognito by policy.
-  regular_profile_->GetTestingPrefService()->SetManagedPref(
-      policy::policy_prefs::kIncognitoModeAvailability,
-      std::make_unique<base::Value>(
-          static_cast<int>(IncognitoModePrefs::kForced)));
-
-  // Switch to incognito page: buttons should be disabled.
-  OCMExpect([consumer_ setButtonsEnabled:YES]);
-  tab_grid_state_.currentPage = TabGridPageIncognitoTabs;
-  EXPECT_OCMOCK_VERIFY(consumer_);
-
-  // Switch to regular page: buttons should be enabled.
-  OCMExpect([consumer_ setButtonsEnabled:NO]);
-  tab_grid_state_.currentPage = TabGridPageRegularTabs;
-  EXPECT_OCMOCK_VERIFY(consumer_);
-}
-
-// Tests that the consumer is updated when opening the app on a regular tabs
-// while having the TabGrid in incognito but not visible.
 TEST_F(AppBarMediatorTest, TestLaunchInRegularTabNonTabGrid) {
   tab_grid_state_.tabGridVisible = NO;
   tab_grid_state_.currentPage = TabGridPageIncognitoTabs;
@@ -744,8 +722,7 @@ TEST_F(AppBarMediatorTest, TestFullscreenEvent) {
 // floaty invocation state changes and Gemini is available.
 TEST_F(AppBarMediatorTest, TestAssistantButtonHighlighted_GeminiAvailable) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures({kPageActionMenu, kGeminiCopresence},
-                                       {});
+  scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
 
   GeminiBrowserAgent* agent =
       GeminiBrowserAgent::FromBrowser(regular_browser_.get());
@@ -862,10 +839,9 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonTappedEligible) {
 
 // Tests that the assistant button is in the kAIM state when the correct
 // features are enabled.
-// Tests that the assistant button falls back to kLens when the AIM is disabled
+// Tests that the assistant button state is kLens when the AIM is disabled
 // by enterprise policy and Lens is available.
-TEST_F(AppBarMediatorTest,
-       TestAssistantButtonStateAIM_DisabledByPolicyLensFallback) {
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAIM_DisabledByPolicyLens) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
       {kAssistantContainer, kAimCobrowse, kGeminiKillSwitch},
@@ -884,10 +860,10 @@ TEST_F(AppBarMediatorTest,
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
-// Tests that the assistant button falls back to kAccount when the AIM is
+// Tests that the assistant button state is kAccount when the AIM is
 // disabled by enterprise policy and Lens is NOT available.
 TEST_F(AppBarMediatorTest,
-       TestAssistantButtonStateAIM_DisabledByPolicyAccountFallback) {
+       TestAssistantButtonStateAIM_DisabledByPolicyAccount) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
       {kAssistantContainer, kAimCobrowse, kGeminiKillSwitch},
@@ -924,8 +900,8 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAIM) {
 }
 
 // Tests that the assistant button is in the kLens state when location is
-// ineligible (fallback state).
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensFallback) {
+// ineligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensWhenIneligible) {
   SetLocationEligible(false);
   mediator_.overrideLensAvailabilityForTesting = YES;
 
@@ -952,7 +928,7 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateEEACountryGated) {
   SignInAndSetCapability(true);
   mediator_.overrideLensAvailabilityForTesting = YES;
 
-  // Expect fallback to kLens instead of kAsk.
+  // Expect state to be kLens instead of kAsk.
   OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
                                    highlighted:NO
                                        enabled:YES
@@ -976,7 +952,7 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateJapanCountryGated) {
   SignInAndSetCapability(true);
   mediator_.overrideLensAvailabilityForTesting = YES;
 
-  // Expect fallback to kLens instead of kAsk.
+  // Expect state to be kLens instead of kAsk.
   OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
                                    highlighted:NO
                                        enabled:YES
@@ -1010,8 +986,8 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateNonEEANonJapanEligible) {
 }
 
 // Tests that the assistant button remains in the kLens state when signed in but
-// not location eligible (fallback state).
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensFallbackSignedIn) {
+// not location eligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensWhenIneligibleSignedIn) {
   // Tear down mediator and agent before changing location eligibility.
   [mediator_ disconnect];
   mediator_ = nil;
@@ -1156,15 +1132,35 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccountWithAvatar) {
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
-// Tests that the assistant button falls back to kAccount when Gemini is
+// Tests that the assistant button state is kAccount when Gemini is
 // disabled by enterprise policy, even if location is eligible.
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccountFallbackPolicy) {
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccountWhenPolicyDisabled) {
   SetLocationEligible(true);
 
   // Set policy to disabled.
   regular_profile_->GetTestingPrefService()->SetInteger(
       prefs::kGeminiEnabledByPolicy,
       static_cast<int>(gemini::SettingsPolicy::kNotAllowed));
+
+  OCMExpect([consumer_
+      setAssistantButtonState:AppBarAssistantButtonState::kAccount
+                  highlighted:NO
+                      enabled:YES
+                       avatar:nil
+                     signedIn:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button state is kAccount when GenAi is
+// disabled by enterprise policy, even if location is eligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccountGenAiPolicy) {
+  SetLocationEligible(true);
+
+  // Disable GenAi using the GenAiDefaultSettings enterprise policy.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGenAiEnabledByPolicy,
+      static_cast<int>(gemini::GenAiDefaultSettingsPolicy::kNotAllowed));
 
   OCMExpect([consumer_
       setAssistantButtonState:AppBarAssistantButtonState::kAccount
@@ -1206,5 +1202,207 @@ TEST_F(AppBarMediatorTest, TestWebStateSelectionNTPUpdatesConsumer) {
       std::move(start_web_state),
       WebStateList::InsertionParams::AtIndex(1).Activate());
 
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that when GeminiService's eligibility changes, the mediator receives
+// the notification and updates the assistant button's state on the consumer.
+TEST_F(AppBarMediatorTest, TestGeminiEligibilityChangeUpdatesAssistantButton) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
+
+  FakeGeminiService fake_gemini_service;
+  fake_gemini_service.SetIsEligible(false);
+
+  BrowserActionFactory* regular_action_factory =
+      [[BrowserActionFactory alloc] initWithBrowser:regular_browser_.get()
+                                           scenario:kTestMenuScenario];
+  BrowserActionFactory* incognito_action_factory =
+      [[BrowserActionFactory alloc] initWithBrowser:incognito_browser_.get()
+                                           scenario:kTestMenuScenario];
+
+  AppBarMediator* mediator = [[AppBarMediator alloc]
+          initWithRegularWebStateList:regular_web_state_list_
+                incognitoWebStateList:incognito_web_state_list_
+          regularFullscreenController:TestFullscreenController::FromBrowser(
+                                          regular_browser_.get())
+        incognitoFullscreenController:TestFullscreenController::FromBrowser(
+                                          incognito_browser_.get())
+        regularFullscreenBrowserAgent:FullscreenBrowserAgent::FromBrowser(
+                                          regular_browser_.get())
+      incognitoFullscreenBrowserAgent:FullscreenBrowserAgent::FromBrowser(
+                                          incognito_browser_.get())
+                 regularActionFactory:regular_action_factory
+               incognitoActionFactory:incognito_action_factory
+                          prefService:regular_profile_->GetTestingPrefService()
+                   templateURLService:search_engines_test_environment_
+                                          .template_url_service()
+                authenticationService:auth_service_
+                      identityManager:IdentityManagerFactory::GetForProfile(
+                                          regular_profile_.get())
+                        geminiService:&fake_gemini_service
+                   geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
+                                          regular_browser_.get())
+                            URLLoader:url_loader_
+                         tabGridState:tab_grid_state_
+                       incognitoState:incognito_state_];
+
+  id consumer = OCMProtocolMock(@protocol(TestAppBarConsumer));
+  mediator.consumer = consumer;
+
+  // Change from ineligible (no kAsk button or disabled state) to eligible.
+  // When eligible, it should update state to kAsk.
+  OCMExpect([consumer setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                  highlighted:NO
+                                      enabled:NO
+                                       avatar:nil
+                                     signedIn:NO]);
+
+  fake_gemini_service.SetIsEligible(true);
+
+  EXPECT_OCMOCK_VERIFY(consumer);
+
+  [mediator disconnect];
+}
+
+// Tests that buttons are enabled/disabled based on policy.
+TEST_F(AppBarMediatorTest, TestSetButtonsEnabledByPolicy) {
+  tab_grid_state_.currentPage = TabGridPageRegularTabs;
+  tab_grid_state_.tabGridVisible = YES;
+
+  // Disable incognito by policy.
+  regular_profile_->GetTestingPrefService()->SetManagedPref(
+      policy::policy_prefs::kIncognitoModeAvailability,
+      std::make_unique<base::Value>(
+          static_cast<int>(IncognitoModePrefs::kForced)));
+
+  // Switch to incognito page: buttons should be disabled.
+  OCMExpect([consumer_ setButtonsEnabled:YES]);
+  tab_grid_state_.currentPage = TabGridPageIncognitoTabs;
+  EXPECT_OCMOCK_VERIFY(consumer_);
+
+  // Switch to regular page: buttons should be enabled.
+  OCMExpect([consumer_ setButtonsEnabled:NO]);
+  tab_grid_state_.currentPage = TabGridPageRegularTabs;
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the Gemini button is dimmed (disabled) when the user is signed out
+// but the GeminiSettings policy allows it.
+TEST_F(AppBarMediatorTest,
+       TestAssistantButtonStateAsk_DimmedByPolicyWhenSignedOut) {
+  SetLocationEligible(true);
+
+  // Ensure GeminiSettings enterprise policy allows Gemini.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGeminiEnabledByPolicy,
+      static_cast<int>(gemini::SettingsPolicy::kAllowed));
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                   highlighted:NO
+                                       enabled:NO
+                                        avatar:nil
+                                      signedIn:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the Gemini button is not shown when the GeminiSettings enterprise
+// policy explicitly disables Gemini.
+TEST_F(AppBarMediatorTest, TestAssistantButtonState_HiddenWhenPolicyDisabled) {
+  SetLocationEligible(true);
+
+  // Disable Gemini using the GeminiSettings enterprise policy.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGeminiEnabledByPolicy,
+      static_cast<int>(gemini::SettingsPolicy::kNotAllowed));
+
+  // Force Lens to deterministically check the state.
+  mediator_.overrideLensAvailabilityForTesting = YES;
+
+  // When Gemini is disabled by policy, the button state is set to Lens.
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
+                                   highlighted:NO
+                                       enabled:YES
+                                        avatar:nil
+                                      signedIn:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the Gemini button is not shown when the GenAiDefaultSettings
+// enterprise policy explicitly disables Gemini.
+TEST_F(AppBarMediatorTest,
+       TestAssistantButtonState_HiddenWhenGenAiPolicyDisabled) {
+  SetLocationEligible(true);
+
+  // Disable GenAi using the GenAiDefaultSettings enterprise policy.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGenAiEnabledByPolicy,
+      static_cast<int>(gemini::GenAiDefaultSettingsPolicy::kNotAllowed));
+
+  // Force Lens to deterministically check the state.
+  mediator_.overrideLensAvailabilityForTesting = YES;
+  SignInAndSetCapability(true);
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
+                                   highlighted:NO
+                                       enabled:YES
+                                        avatar:nil
+                                      signedIn:YES]);
+
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button state is kAIM when Gemini is disabled
+// by GeminiSettings policy, but AIM features are allowed.
+TEST_F(AppBarMediatorTest,
+       TestAssistantButtonStateAIM_WhenGeminiDisabledByPolicy) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {kPageActionMenu, kAssistantContainer, kAimCobrowse},
+      {kGeminiKillSwitch});
+
+  SetLocationEligible(true);
+
+  // Disable Gemini using the GeminiSettings enterprise policy.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGeminiEnabledByPolicy,
+      static_cast<int>(gemini::SettingsPolicy::kNotAllowed));
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAIM
+                                   highlighted:NO
+                                       enabled:YES
+                                        avatar:nil
+                                      signedIn:NO]);
+
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button state is kAIM when Gemini is disabled
+// by GenAiDefaultSettings policy, but AIM features are allowed.
+TEST_F(AppBarMediatorTest,
+       TestAssistantButtonStateAIM_WhenGenAiDisabledByPolicy) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {kPageActionMenu, kAssistantContainer, kAimCobrowse},
+      {kGeminiKillSwitch});
+
+  SetLocationEligible(true);
+
+  // Disable GenAi using the GenAiDefaultSettings enterprise policy.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGenAiEnabledByPolicy,
+      static_cast<int>(gemini::GenAiDefaultSettingsPolicy::kNotAllowed));
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAIM
+                                   highlighted:NO
+                                       enabled:YES
+                                        avatar:nil
+                                      signedIn:NO]);
+
+  [mediator_ updateAssistantButton];
   EXPECT_OCMOCK_VERIFY(consumer_);
 }

@@ -94,10 +94,20 @@ using ::chrome_test_util::TabGridSearchTabsButton;
 // Tests that the swipe IPH can be shown and dismissed on mode change.
 - (void)testSwipeForIncognitoGesturalIPHAndChangeMode {
   AssertGestureIPHVisibleWithDismissAction(
-      @"IPH doesn't show after the user taps to go to incognito twice.", ^{
-        [[EarlGrey selectElementWithMatcher:TabGridSearchTabsButton()]
-            performAction:grey_tap()];
-      });
+      @"IPH doesn't show after the user taps to go to incognito twice.", nil);
+
+  // Wait for the IPH presentation layout and animations to settle.
+  base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(0.5));
+
+  {
+    ScopedSynchronizationDisabler sync_disabler;
+    [[EarlGrey selectElementWithMatcher:TabGridSearchTabsButton()]
+        performAction:grey_tap()];
+  }
+
+  // Wait for the search transition and IPH dismissal animations to complete.
+  base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(1.0));
+
   // Should NOT show IPH after mode change.
   AssertGestureIPHInvisible(
       @"IPH still displaying after the user changes mode.");

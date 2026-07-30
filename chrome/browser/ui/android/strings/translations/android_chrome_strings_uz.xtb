@@ -117,6 +117,7 @@ Chromeni yaxshilashda ishlatiladigan maʼlumotlar qoʻshimcha sozlamalarini <ph 
 <translation id="1435593198351412143">PDF fayllar avtomatik ochilsin</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> ilovasida ochilgan</translation>
 <translation id="1448440926884431741">Kuzatiladigan mahsulotlarni bukmarklarda tartiblang</translation>
+<translation id="1452651021404174820">Qurilmani tanlang</translation>
 <translation id="1455845192930279203"><ph name="FILE_NAME" /> fayli (<ph name="FILE_SIZE" />) <ph name="DOWNLOAD_DOMAIN" /> domenidan baribir yuklab olinsinmi?</translation>
 <translation id="1460751212339734034">Vaqtni tejang, kamroq yozing</translation>
 <translation id="146522654774760805">Parollar va avtomatik kiritish</translation>
@@ -124,6 +125,7 @@ Chromeni yaxshilashda ishlatiladigan maʼlumotlar qoʻshimcha sozlamalarini <ph 
 <translation id="1477626028522505441">Serverdagi turli muammolar tufayli “<ph name="FILE_NAME" />” fayli yuklab olinmadi.</translation>
 <translation id="147982357559798527">Oʻzgardi</translation>
 <translation id="1480287803138246127">Ayrim ochilgan sahifalar tarixi bu yerda chiqmaydi. Chromeda ochilgan barcha sahifalarni koʻrish uchun Chrome butun tarixini oching.</translation>
+<translation id="1483493594462132177">Yuborish</translation>
 <translation id="1495677929897281669">Varaqqa qaytish</translation>
 <translation id="1496514951988037011">foydalanuvchi nomi</translation>
 <translation id="1501480321619201731">Ha</translation>
@@ -1273,6 +1275,7 @@ Masalan, qaysi sahifalarga kirganligingizdan qat’i nazar, ba’zi saytlarda re
 <translation id="634208815998129842">Vazifalar menejeri</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 va yana <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ta}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 va yana <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ta}}</translation>
 <translation id="6345878117466430440">Ochildi deb belgilash</translation>
+<translation id="6350745006329795504">Qurilmalarni boshqarish</translation>
 <translation id="6356893102071098867">Kerakli hisob tanlanganini tekshiring</translation>
 <translation id="6364438453358674297">Bu taklif tarixdan o‘chirib tashlansinmi?</translation>
 <translation id="6380100320871303656">Aksariyat oldindan yuklanadigan sahifalar – Chrome sizni ularga kirishni istaydi, deb hisoblagan sahifalardir. Bu sozlama ortiqcha trafik sarfiga sabab boʻlishi mumkin.</translation>

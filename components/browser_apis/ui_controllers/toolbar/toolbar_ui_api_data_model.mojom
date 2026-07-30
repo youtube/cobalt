@@ -227,6 +227,7 @@ struct AvatarControlState {
   mojo_base.mojom.String16 tooltip;
   mojo_base.mojom.String16 accessibility_name;
   mojo_base.mojom.String16 accessibility_description;
+  bool enabled = true;
 };
 
 // The type of the content setting image model.
@@ -269,7 +270,8 @@ enum ContentSettingImageType {
 
 // These fields correspond to the accessors of ContentSettingImageModel.
 struct ContentSettingImageState {
-  // The type of icon to display.
+  // The specific content setting icon button to display, described by this
+  // state.
   ContentSettingImageType type;
 
   // Accessible name for the icon. If empty, `tooltip` is used instead.
@@ -304,6 +306,67 @@ struct ContentSettingImageState {
 
   // NOTE: The visual icon to display is determined by `type`
   // and `is_blocked`.
+};
+
+// LINT.IfChange(PageActionId)
+// Enum of all page actions listed in kPageActionProperties.
+enum PageActionId {
+  kActionAiMode,
+  kActionIndigo,
+  kActionMultistepFilter,
+  kActionSidePanelShowLensOverlayResults,
+  kActionLensOverlayHomework,
+  kActionShowTranslate,
+  kActionShowMemorySaverChip,
+  kActionShowJsOptimizationsIcon,
+  kActionRecordReplay,
+  kActionShowIntentPicker,
+  kActionZoomNormal,
+  kActionSidePanelShowReadAnything,
+  kActionOffersAndRewardsForPage,
+  kActionShowFileSystemAccess,
+  kActionInstallPwa,
+  kActionCommercePriceInsights,
+  kActionCommerceDiscounts,
+  kActionShowPasswordsBubbleOrPage,
+  kActionShowCollaborationRecentActivity,
+  kActionAutofillMandatoryReauth,
+  kActionFind,
+  kActionShowCookieControls,
+  kActionShowAddressesBubbleOrPage,
+  kActionVirtualCardEnroll,
+  kActionFilledCardInformation,
+  kActionShowPaymentsBubbleOrPage,
+  kActionSidePanelShowContextualTasks,
+  kActionBookmarkThisTab,
+  kActionFederation,
+  kActionGlicContextualCueing,
+  kActionAnchoredContextualCue,
+  kActionWebAuthnAmbientSignin,
+  kActionAutofillPayment,
+};
+// LINT.ThenChange(//chrome/browser/ui/page_action/page_action_properties_provider.cc:kPageActionProperties)
+
+// The input modality that causes the page action to trigger: click, keyboard
+// key, or touch gesture.
+enum PageActionTrigger {
+  kMouse = 0,
+  kKeyboard = 1,
+  kGesture = 2,
+};
+
+// These fields correspond to PageActionModel accessors.
+struct PageActionState {
+  // The specific page action icon button to display, described by this state.
+  PageActionId page_action_id;
+
+  // Alternative text for a11y screen readers.
+  mojo_base.mojom.String16 accessible_name;
+
+  // Mouseover tooltip to display.
+  mojo_base.mojom.String16 tooltip_text;
+
+  // TODO: crbug.com/501449027 - Add remaining fields.
 };
 
 // Colors used by the omnibox.
@@ -439,8 +502,12 @@ struct PinnedToolbarActionState {
 struct LocationBarState {
   OmniboxViewState omnibox_view_state;
   LocationBarFlags location_bar_flags;
-  // The set of content setting icon state for each visible RHS icon.
+  // The set of content setting icon states for each visible RHS icon. Displayed
+  // in the same order as in the array.
   array<ContentSettingImageState> content_setting_image_states;
+  // The set of page action setting icon states for each visible RHS icon.
+  // Displayed in the same order as in the array.
+  array<PageActionState> page_action_states;
   // LHS location bar chips states.
   LhsChipsState lhs_chips_state;
 

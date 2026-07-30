@@ -53,7 +53,8 @@ Specifically, a top-level activity UI component (like `RootUiCoordinator`)
 instantiates the **BottomSheetController** using the
 **BottomSheetControllerFactory** since it manages the root view hierarchy,
 whereas individual feature components (such as
-`AutofillSaveCardBottomSheetBridge` or `TouchToFillBridge`) retrieve the shared
+`AutofillSaveCardBottomSheetBridge` or `TouchToFillPasswordManagerBridge`)
+retrieve the shared
 controller from the `WindowAndroid` via the **BottomSheetControllerProvider**.
 
 The **Coordinator** also creates and stores both the **BottomSheetContent** to

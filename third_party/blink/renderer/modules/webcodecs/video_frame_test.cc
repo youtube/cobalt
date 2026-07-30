@@ -152,6 +152,38 @@ TEST_F(VideoFrameTest, ConstructorWithTimestamp) {
   frame_default->close();
 }
 
+TEST_F(VideoFrameTest, CreateFromVideoFrameWithTimestampOverride) {
+  V8TestingScope scope;
+
+  scoped_refptr<media::VideoFrame> media_frame = CreateBlackMediaVideoFrame(
+      base::Microseconds(1000), media::PIXEL_FORMAT_I420,
+      gfx::Size(112, 208) /* coded_size */,
+      gfx::Size(100, 200) /* visible_size */);
+
+  VideoFrame* frame_with_ts = MakeGarbageCollected<VideoFrame>(
+      media_frame, scope.GetExecutionContext(), "source_id", nullptr,
+      base::Microseconds(2000));
+
+  auto* source = MakeGarbageCollected<V8CanvasImageSource>(frame_with_ts);
+  auto* init = VideoFrameInit::Create();
+
+  // Creating a VideoFrame from another VideoFrame should bring over the
+  // overridden timestamp.
+  VideoFrame* new_frame = VideoFrame::Create(scope.GetScriptState(), source,
+                                             init, scope.GetExceptionState());
+  ASSERT_TRUE(new_frame);
+  EXPECT_EQ(2000, new_frame->timestamp());
+
+  // Also verify explicit override works.
+  init->setTimestamp(3000);
+  VideoFrame* new_frame_override = VideoFrame::Create(
+      scope.GetScriptState(), source, init, scope.GetExceptionState());
+  ASSERT_TRUE(new_frame_override);
+  EXPECT_EQ(3000, new_frame_override->timestamp());
+
+  frame_with_ts->close();
+}
+
 TEST_F(VideoFrameTest, ConstructorOddSize) {
   V8TestingScope scope;
 

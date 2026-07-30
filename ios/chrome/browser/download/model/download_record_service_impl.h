@@ -5,15 +5,14 @@
 #ifndef IOS_CHROME_BROWSER_DOWNLOAD_MODEL_DOWNLOAD_RECORD_SERVICE_IMPL_H_
 #define IOS_CHROME_BROWSER_DOWNLOAD_MODEL_DOWNLOAD_RECORD_SERVICE_IMPL_H_
 
-#import <map>
 #import <string>
 
-#import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "base/observer_list.h"
 #import "base/scoped_multi_source_observation.h"
 #import "base/sequence_checker.h"
 #import "base/task/sequenced_task_runner.h"
+#import "base/threading/sequence_bound.h"
 #import "ios/chrome/browser/download/model/download_record.h"
 #import "ios/chrome/browser/download/model/download_record_observer.h"
 #import "ios/chrome/browser/download/model/download_record_service.h"
@@ -24,7 +23,7 @@ namespace base {
 class FilePath;
 }  // namespace base
 
-class DownloadRecordDatabase;
+class DownloadRecordStore;
 
 // Implementation class that manages download records with persistent storage.
 class DownloadRecordServiceImpl : public DownloadRecordService,
@@ -70,38 +69,30 @@ class DownloadRecordServiceImpl : public DownloadRecordService,
   void NotifyDownloadsRemoved(
       const std::vector<std::string_view>& download_ids);
 
-  // Determines whether a download record update should be persisted to the
-  // database by comparing critical fields between the new and cached records.
-  bool ShouldPersistUpdate(const DownloadRecord& new_record,
-                           const DownloadRecord& cached_record);
+  // Reply for the asynchronous InsertRecord write started by
+  // `RecordDownload()`, run on the main sequence. Observes `task` and
+  // notifies observers when the insert succeeded.
+  void OnRecordInserted(base::WeakPtr<web::DownloadTask> weak_task,
+                        const DownloadRecord& record,
+                        bool success);
 
-  // Initializes database operations, called on database_task_runner_.
-  void InitializeDatabase(const base::FilePath& profile_path);
-  void LoadHistoricalRecords();
-  void CleanupInconsistentStates();
+  // Snapshot of `IsDownloadListPaginationEnabled()` taken at construction
+  // time, so an in-process Finch flip cannot change the path chosen at
+  // startup. Every pagination-gated code path reads this member, not the
+  // live function.
+  const bool pagination_enabled_;
 
-  // Database CRUD operations, called on database_task_runner_.
-  bool InsertRecord(const DownloadRecord& record);
-  std::optional<DownloadRecord> UpdateRecord(const DownloadRecord& record);
-  bool DeleteRecord(std::string_view id);
-  bool UpdateRecordsState(const std::vector<std::string>& download_ids,
-                          web::DownloadTask::State new_state);
-  std::optional<DownloadRecord> UpdateFilePathInRecord(
-      const std::string& download_id,
-      const base::FilePath& file_path);
+  // Task runner for database operations. `store_` is bound to it at
+  // construction.
+  scoped_refptr<base::SequencedTaskRunner> database_task_runner_;
 
-  // Cache query operations, called on database_task_runner_.
-  std::vector<DownloadRecord> GetAllFromCache();
-  std::optional<DownloadRecord> GetByIdFromCache(std::string_view id);
-
-  // Cache containing all download records (persistent and transient).
-  // Includes progress information and incognito downloads not stored in
-  // database. Accessed on database_task_runner_.
-  std::map<std::string, DownloadRecord> record_cache_;
-
-  // Database for persistent download records.
-  // Accessed on database_task_runner_.
-  std::unique_ptr<DownloadRecordDatabase> database_;
+  // Owns the SQLite-backed database and the in-memory record cache. All
+  // CRUD runs on `database_task_runner_` via `AsyncCall`; `SequenceBound`
+  // also destroys the store on that sequence, so any in-flight DB-task
+  // observes a live store even after `this` is gone on the main thread.
+  // The two preceding members are declared first because they feed this
+  // constructor (member init runs in declaration order).
+  base::SequenceBound<DownloadRecordStore> store_;
 
   // ObserverList for download record changes.
   base::ObserverList<DownloadRecordObserver, /* check_empty= */ true>
@@ -111,15 +102,8 @@ class DownloadRecordServiceImpl : public DownloadRecordService,
                                      web::DownloadTaskObserver>
       download_task_observations_{this};
 
-  // Task runner for database operations.
-  scoped_refptr<base::SequencedTaskRunner> database_task_runner_;
-
   // Main thread sequence checker for public API calls.
   SEQUENCE_CHECKER(main_sequence_checker_);
-
-  // Database thread sequence checker. Will be bound on first database thread
-  // access.
-  SEQUENCE_CHECKER(database_sequence_checker_);
 
   base::WeakPtrFactory<DownloadRecordServiceImpl> weak_ptr_factory_{this};
 };

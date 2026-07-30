@@ -187,8 +187,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest, CreateRoutineSuccess) {
   auto create_result =
       routine_manager().CreateRoutine(kExtensionId1, GetMemoryArgument());
 
-  fake_service().FlushForTesting();
-
   EXPECT_TRUE(create_result.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
 
@@ -203,8 +201,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest, CreateRoutineSuccess) {
   // Closing the tab cuts the observation.
   browser()->tab_strip_model()->CloseWebContentsAt(0,
                                                    TabCloseTypes::CLOSE_NONE);
-
-  fake_service().FlushForTesting();
 
   EXPECT_FALSE(app_ui_observers().contains(kExtensionId1));
   EXPECT_FALSE(
@@ -224,8 +220,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
   auto create_result =
       routine_manager().CreateRoutine(kExtensionId1, GetMemoryArgument());
 
-  fake_service().FlushForTesting();
-
   EXPECT_TRUE(create_result.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
 
@@ -241,8 +235,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
   auto create_result_id2 =
       routine_manager().CreateRoutine(kExtensionId2, GetMemoryArgument());
 
-  fake_service().FlushForTesting();
-
   EXPECT_TRUE(create_result_id2.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId2));
@@ -250,8 +242,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
   // Close the app UI of extension 1.
   browser()->tab_strip_model()->CloseWebContentsAt(1,
                                                    TabCloseTypes::CLOSE_NONE);
-
-  fake_service().FlushForTesting();
 
   EXPECT_FALSE(app_ui_observers().contains(kExtensionId1));
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId2));
@@ -261,8 +251,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
   // Close the app UI of extension 2.
   browser()->tab_strip_model()->CloseWebContentsAt(0,
                                                    TabCloseTypes::CLOSE_NONE);
-
-  fake_service().FlushForTesting();
 
   EXPECT_FALSE(app_ui_observers().contains(kExtensionId1));
   EXPECT_FALSE(app_ui_observers().contains(kExtensionId2));
@@ -278,8 +266,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
                                           /*cert_status=*/net::OK);
   auto create_result =
       routine_manager().CreateRoutine(kExtensionId1, GetMemoryArgument());
-
-  fake_service().FlushForTesting();
 
   EXPECT_TRUE(create_result.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
@@ -312,8 +298,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
   auto create_result =
       routine_manager().CreateRoutine(kExtensionId1, GetMemoryArgument());
 
-  fake_service().FlushForTesting();
-
   EXPECT_TRUE(create_result.has_value());
   EXPECT_TRUE(app_ui_observers().contains(kExtensionId1));
   auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
@@ -326,8 +310,6 @@ TEST_F(TelemetryExtensionDiagnosticRoutinesManagerTest,
       kExtensionId1));
   extensions::ExtensionRegistry::Get(profile())->TriggerOnUnloaded(
       extension.get(), extensions::UnloadedExtensionReason::TERMINATE);
-
-  fake_service().FlushForTesting();
 
   auto create_result_2 =
       routine_manager().CreateRoutine(kExtensionId1, GetMemoryArgument());

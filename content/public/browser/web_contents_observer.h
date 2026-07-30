@@ -753,9 +753,12 @@ class CONTENT_EXPORT WebContentsObserver : public base::CheckedObserver {
   // it is recommended to call WebContents::GetFaviconURLs() to get the current
   // list as this callback will not be executed unless there is an update.
   // `render_frame_host` is the main RenderFrameHost for the primary page.
+  // `reason` is the reason for the favicon list update, which can be used to
+  // filter irrelevant updates.
   virtual void DidUpdateFaviconURL(
       RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) {}
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) {}
 
   // Called when an audio change occurs to this WebContents. If |audible| is
   // true then one or more frames or child contents are emitting audio; if

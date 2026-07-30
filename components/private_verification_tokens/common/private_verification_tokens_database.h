@@ -99,6 +99,10 @@ class PrivateVerificationTokensDatabase {
   // Delete all tokens that are marked as redeemed.
   bool DeleteRedeemedTokens();
 
+  // Delete tokens filtered by creation time and registrable domain.
+  bool DeleteTokens(std::optional<base::Time> delete_begin,
+                    std::optional<std::string> etld_plus_one);
+
   // Mark token with the given id as redeemed.
   bool SetRedeemed(int64_t token_id);
 

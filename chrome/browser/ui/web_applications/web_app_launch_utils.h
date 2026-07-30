@@ -122,19 +122,13 @@ Browser* CreateWebAppWindowMaybeWithHomeTab(
 
 content::WebContents* NavigateWebAppUsingParams(NavigateParams& nav_params);
 
-// RecordLaunchMetrics methods report UMA metrics. It shouldn't have other
-// side-effects (e.g. updating app launch time).
-void RecordLaunchMetrics(const webapps::AppId& app_id,
-                         apps::LaunchContainer container,
-                         apps::LaunchSource launch_source,
-                         const GURL& launch_url,
-                         content::WebContents* web_contents);
-
-// Updates statistics about web app launch. For example, app's last launch time
-// (populates recently launched app list) and site engagement stats.
-void UpdateLaunchStats(content::WebContents* web_contents,
-                       const webapps::AppId& app_id,
-                       const GURL& launch_url);
+// Report UMA metrics and updates  app's last launch time, site engagement
+// stats, etc.
+void UpdateLaunchMetricsAndStats(const webapps::AppId& app_id,
+                                 apps::LaunchContainer container,
+                                 apps::LaunchSource launch_source,
+                                 const GURL& launch_url,
+                                 content::WebContents* web_contents);
 
 // Locks that lock apps all have the WithAppResources mixin, allowing any
 // app-locking lock to call this method.

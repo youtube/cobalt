@@ -68,6 +68,7 @@ mojom::blink::FrameReplicationStatePtr ToBlinkFrameReplicationState(
   result->has_received_user_gesture_before_nav =
       to_convert->has_received_user_gesture_before_nav;
   result->is_ad_frame = to_convert->is_ad_frame;
+  result->is_secure_context_root = to_convert->is_secure_context_root;
   return result;
 }
 
@@ -463,6 +464,7 @@ void WebRemoteFrameImpl::SetReplicatedState(
   remote_frame->SetInsecureRequestPolicy(state->insecure_request_policy);
   remote_frame->EnforceInsecureNavigationsSet(state->insecure_navigations_set);
   remote_frame->SetReplicatedIsAdFrame(state->is_ad_frame);
+  remote_frame->SetReplicatedIsSecureContextRoot(state->is_secure_context_root);
 
   if (state->has_active_user_gesture) {
     // TODO(crbug.com/1087963): This should be hearing about sticky activations

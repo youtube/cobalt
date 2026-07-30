@@ -350,8 +350,6 @@ android_resources("java_resources") {
     "java/res/values/ids.xml",
     "java/res/values/styles.xml",
     "java/res/values/values.xml",
-    "java/res/xml/rich_radio_button_horizontal_constraints.xml",
-    "java/res/xml/rich_radio_button_vertical_constraints.xml",
   ]
   deps = [
     "shared_with_webview:java_resources",
@@ -508,8 +506,8 @@ robolectric_library("junit") {
     "java/src/org/chromium/components/browser_ui/widget/ChromeDialogUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ChromeTransitionDrawableTest.java",
     "java/src/org/chromium/components/browser_ui/widget/CompositeTouchDelegateUnitTest.java",
-    "java/src/org/chromium/components/browser_ui/widget/CoordinatorLayoutForPointerUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ContextMenuDialogUnitTest.java",
+    "java/src/org/chromium/components/browser_ui/widget/CoordinatorLayoutForPointerUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/DateDividedAdapterUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/FullscreenAlertDialogUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ListItemBuilderUnitTest.java",

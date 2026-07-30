@@ -26,6 +26,7 @@
 #include "chrome/browser/web_applications/web_install_service_impl.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/webapps/browser/install_result_code.h"
@@ -584,6 +585,7 @@ IN_PROC_BROWSER_TEST_F(InstallElementBrowserTest,
 
   // Verify promptaction event was fired.
   WaitForPromptActionEvent(kInstallElementId);
+  test::CompletePageLoadForAllWebContents();
 
   // Verify the app is still installed.
   EXPECT_TRUE(provider().registrar_unsafe().AppMatches(

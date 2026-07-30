@@ -103,8 +103,6 @@ class SharesheetInstance;
 class SystemStateHost;
 class SystemStateInstance;
 class SystemUiInstance;
-class TimerHost;
-class TimerInstance;
 class TracingInstance;
 class TtsHost;
 class TtsInstance;
@@ -322,9 +320,6 @@ class ArcBridgeService {
     return &system_state_;
   }
   ConnectionHolder<mojom::SystemUiInstance>* system_ui() { return &system_ui_; }
-  ConnectionHolder<mojom::TimerInstance, mojom::TimerHost>* timer() {
-    return &timer_;
-  }
   ConnectionHolder<mojom::TracingInstance>* tracing() { return &tracing_; }
   ConnectionHolder<mojom::TtsInstance, mojom::TtsHost>* tts() { return &tts_; }
   ConnectionHolder<mojom::UsbHostInstance, mojom::UsbHostHost>* usb_host() {
@@ -420,7 +415,6 @@ class ArcBridgeService {
   ConnectionHolder<mojom::SystemStateInstance, mojom::SystemStateHost>
       system_state_;
   ConnectionHolder<mojom::SystemUiInstance> system_ui_;
-  ConnectionHolder<mojom::TimerInstance, mojom::TimerHost> timer_;
   ConnectionHolder<mojom::TracingInstance> tracing_;
   ConnectionHolder<mojom::TtsInstance, mojom::TtsHost> tts_;
   ConnectionHolder<mojom::UsbHostInstance, mojom::UsbHostHost> usb_host_;

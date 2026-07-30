@@ -5,12 +5,12 @@
 #ifndef COMPONENTS_BROWSER_APIS_TAB_DRAG_SESSIONS_DROP_TARGET_REGISTRY_IMPL_H_
 #define COMPONENTS_BROWSER_APIS_TAB_DRAG_SESSIONS_DROP_TARGET_REGISTRY_IMPL_H_
 
-#include <functional>
 #include <map>
-#include <optional>
+#include <memory>
 
 #include "base/memory/weak_ptr.h"
-#include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
+#include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/tab_drag_api.mojom.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -18,7 +18,7 @@
 
 namespace tabs_api {
 
-class TabDragWindowAdapter;
+class DropTarget;
 
 class DropTargetRegistryImpl : public DropTargetRegistry {
  public:
@@ -28,19 +28,24 @@ class DropTargetRegistryImpl : public DropTargetRegistry {
   ~DropTargetRegistryImpl() override;
 
   // DropTargetRegistry:
-  void RegisterDropTarget(
-      TabDragWindowAdapter* window_adapter,
+  DropTargetId RegisterDropTarget(
+      TabDragWindowAdapter* window,
+      gfx::NativeView native_view,
       mojo::PendingAssociatedRemote<mojom::DropTarget> target,
       mojo::PendingAssociatedReceiver<mojom::DropTargetRegistration>
           registration) override;
-  void UnregisterDropTarget(TabDragWindowAdapter* window_adapter) override;
+  void UnregisterDropTarget(DropTargetId target_id) override;
 
-  std::optional<std::reference_wrapper<TabDragWindowAdapter>> FindTargetWindow(
-      const gfx::Point& screen_point,
-      TabDragWindowAdapter* exclude_window) const override;
+  DropTargetId FindTargetAtPoint(const gfx::Point& screen_point,
+                                 DropTargetId exclude_target) const override;
+  DropTargetId FindTargetForWindow(TabDragWindowId window_id) const override;
 
-  std::optional<std::reference_wrapper<mojom::DropTarget>> GetDropTarget(
-      TabDragWindowAdapter* window_adapter) const override;
+  DropTarget* GetDropTarget(DropTargetId target_id) const override;
+
+  std::optional<gfx::Rect> GetCachedBounds(
+      DropTargetId target_id) const override;
+  void UpdateTargetBounds(DropTargetId target_id,
+                          const gfx::Rect& bounds) override;
 
   base::WeakPtr<DropTargetRegistryImpl> AsWeakPtr() {
     return weak_factory_.GetWeakPtr();
@@ -49,8 +54,8 @@ class DropTargetRegistryImpl : public DropTargetRegistry {
   size_t drop_targets_count_for_testing() const { return drop_targets_.size(); }
 
  private:
-  std::map<TabDragWindowAdapter*, mojo::AssociatedRemote<mojom::DropTarget>>
-      drop_targets_;
+  std::map<DropTargetId, std::unique_ptr<DropTarget>> drop_targets_;
+  DropTargetId::Generator id_generator_;
 
   base::WeakPtrFactory<DropTargetRegistryImpl> weak_factory_{this};
 };

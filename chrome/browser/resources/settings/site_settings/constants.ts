@@ -47,7 +47,6 @@ export enum ContentSettingsTypes {
   PERFORMANCE = 'performance',
   POINTER_LOCK = 'pointer-lock',
   POPUPS = 'popups',
-  PRIVATE_NETWORK_DEVICES = 'private-network-devices',
   PROTECTED_CONTENT = 'protected-content',
   PROTOCOL_HANDLERS = 'register-protocol-handler',
   SENSORS = 'sensors',
@@ -94,7 +93,6 @@ export enum ChooserType {
   SERIAL_PORTS = 'serial-ports-data',
   HID_DEVICES = 'hid-devices-data',
   BLUETOOTH_DEVICES = 'bluetooth-devices-data',
-  PRIVATE_NETWORK_DEVICES = 'private-network-devices-data',
   // <if expr="is_chromeos">
   SMART_CARD_READERS_DEVICES = 'smart-card-readers-data',
   // </if>

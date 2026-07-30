@@ -27,6 +27,7 @@
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #include "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
 #include "components/send_tab_to_self/target_device_info.h"
@@ -84,7 +85,7 @@ class SendTabToSelfInteractiveUiTest : public InteractiveBrowserTest {
     return Do([this]() {
       SendTabToSelfBubbleController::GetOrCreateForWebContents(
           browser()->tab_strip_model()->GetActiveWebContents())
-          ->ShowBubble();
+          ->ShowBubble(ShareEntryPoint::kToolbarIcon);
     });
   }
 

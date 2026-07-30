@@ -26,10 +26,8 @@ include_rules = [
   "+chrome/browser/ash/settings",
   "+chrome/browser/browser_process.h",
   "+chrome/browser/browser_process_platform_part_ash.h",
-  "+chrome/browser/browser_process_platform_part.h",
   "+chrome/browser/content_settings",
   "+chrome/browser/enterprise/connectors/device_trust/common",
-  "+chrome/browser/net",
   "+chrome/browser/notifications",
   "+chrome/browser/policy",
   "+chrome/browser/profiles",
@@ -41,6 +39,5 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/login",
   "+chrome/browser/ui/webui/signin",
   "+chrome/common/chrome_paths.h",
-  "+chrome/grit",
   "+chrome/test/base",
 ]

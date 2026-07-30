@@ -185,7 +185,11 @@ public class NtpThemeCollectionManager {
                             bitmap, info, backgroundImageInfo);
                     mOnThemeImageSelectedCallback.onResult(bitmap);
                     NtpCustomizationUtils.saveBackgroundInfo(
-                            info, bitmap, backgroundImageInfo, /* skipSavingPrimaryColor= */ true);
+                            info,
+                            bitmap,
+                            backgroundImageInfo,
+                            /* skipSavingPrimaryColor= */ true,
+                            /* ntpBackgroundData= */ null);
 
                     if (mFetchNextImageRunnable != null) {
                         mFetchNextImageRunnable.run();

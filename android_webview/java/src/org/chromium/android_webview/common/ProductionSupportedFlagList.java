@@ -233,9 +233,6 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.HIT_TEST_BORDER_RADIUS_FOR_STACKING_CONTEXT,
                 "Hit testing should respect border-radius clips when creating a stacking context."),
         Flag.baseFeature(
-                BlinkFeatures.PAINT_OFFSET_TRANSLATION_FOR_COMPOSITED,
-                "Creates a paint offset translation for composited objects."),
-        Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME,
                 "Enable lazily initializing framework Autofill wrapper."),
         Flag.baseFeature(
@@ -367,9 +364,6 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_ANDROID_FORM_DATA_COMPARE_FIELD_GLOBAL_ID,
                 "If enabled, form fields are retrieved by comparing FormFieldIds"
                         + "instead of the set of attributes."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_SUPPORT_PHONETIC_NAME_FOR_JP,
-                "When enabled, Autofill will support phonetic name for Japan."),
         Flag.baseFeature(
                 FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARD_FEATURE,
                 "When enabled, merchant bound virtual cards will be offered in the keyboard "
@@ -917,7 +911,7 @@ public final class ProductionSupportedFlagList {
                 ContentFeatures.IDB_SQLITE_ON_DISK_ROLLOUT,
                 "Enables the SQLite backing store rollout for on-disk IndexedDB."),
         Flag.baseFeature(
-                ContentFeatures.IGNORE_DUPLICATE_NAVS,
+                "WebViewIgnoreDuplicateNavs",
                 "Ignore duplicate navigations, keeping the older navigations instead."),
         Flag.baseFeature("OverrideAPIKey"),
         Flag.baseFeature("CacheStylusSettings", "Cache stylus related settings."),

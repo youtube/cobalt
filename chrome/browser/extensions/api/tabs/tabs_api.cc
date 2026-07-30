@@ -143,6 +143,12 @@ constexpr char kWindowCreateCannotUseTabIdWithIwaError[] =
     "tab by its ID.";
 constexpr char kCannotMoveIwaTabError[] =
     "The tab of an Isolated Web App cannot be moved.";
+constexpr char kTabsCreateIwaUrlNotAllowedError[] =
+    "URLs with the 'isolated-app:' scheme cannot be opened with tabs.create. "
+    "Use windows.create instead.";
+constexpr char kTabsUpdateIwaUrlNotAllowedError[] =
+    "Cannot navigate to a URL with the 'isolated-app:' scheme via tabs.update. "
+    "Use windows.create instead.";
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -2102,6 +2108,14 @@ ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
     validated_url_ = std::move(maybe_url.value());
   }
 
+#if !BUILDFLAG(IS_ANDROID)
+  // Isolated Web Apps must be opened at their start URL with the requested
+  // URL routed via launchQueue, which is handled by `windows.create`.
+  if (validated_url_.SchemeIs(webapps::kIsolatedAppScheme)) {
+    return RespondNow(Error(kTabsCreateIwaUrlNotAllowedError));
+  }
+#endif
+
   opener_tab_id_ = create_properties.opener_tab_id;
 
   // TODO(jstritar): Add a constant, chrome.tabs.TAB_ID_ACTIVE, that
@@ -2816,6 +2830,15 @@ bool TabsUpdateFunction::UpdateURL(content::WebContents* web_contents,
     *error = std::move(url.error());
     return false;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Isolated Web Apps must be opened at their start URL with the requested
+  // URL routed via launchQueue, which is handled by `windows.create`.
+  if (url->SchemeIs(webapps::kIsolatedAppScheme)) {
+    *error = kTabsUpdateIwaUrlNotAllowedError;
+    return false;
+  }
+#endif
 
   if (IsDSERedirect(extension()->id(), *browser_context(), render_frame_host(),
                     *web_contents, *url, user_gesture())) {

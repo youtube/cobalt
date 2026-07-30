@@ -141,6 +141,7 @@ import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfCoordinator;
+import org.chromium.chrome.browser.share.send_tab_to_self.ShareEntryPoint;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.tab.SadTab;
 import org.chromium.chrome.browser.tab.Tab;
@@ -181,7 +182,6 @@ import org.chromium.chrome.browser.toolbar.load_progress.LoadProgressCoordinator
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator.VisibilityDelegate;
-import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonState;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.top.ActionModeController;
 import org.chromium.chrome.browser.toolbar.top.ActionModeController.ActionBarDelegate;
@@ -205,6 +205,7 @@ import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoord
 import org.chromium.chrome.browser.ui.actions.ActionId;
 import org.chromium.chrome.browser.ui.actions.ActionProperties;
 import org.chromium.chrome.browser.ui.actions.ActionRegistry;
+import org.chromium.chrome.browser.ui.actions.appmenu.MenuButtonState;
 import org.chromium.chrome.browser.ui.actions.glic.GlicActionCoordinator;
 import org.chromium.chrome.browser.ui.actions.tabswitcher.TabSwitcherActionProvider;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
@@ -427,6 +428,7 @@ public class ToolbarManager
 
     private boolean mInitializedWithNative;
     private @Nullable Runnable mMenuStateObserver;
+    private final OneshotSupplier<AppMenuCoordinator> mAppMenuCoordinatorSupplier;
     private @MonotonicNonNull UpdateMenuItemHelper mUpdateMenuItemHelper;
 
     private boolean mShouldUpdateToolbarPrimaryColor = true;
@@ -835,6 +837,7 @@ public class ToolbarManager
         mOmniboxFocusStateSupplier = omniboxFocusStateSupplier;
         mPromoShownOneshotSupplier = promoShownOneshotSupplier;
         mAppMenuDelegate = appMenuDelegate;
+        mAppMenuCoordinatorSupplier = appMenuCoordinatorSupplier;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mStatusBarColorController = statusBarColorController;
         mUrlFocusChangedCallback = urlFocusChangedCallback;
@@ -2453,7 +2456,8 @@ public class ToolbarManager
                         mHomepageEnabledSupplier,
                         mProfileSupplier,
                         mOmniboxFocusStateSupplier,
-                        mModalDialogManagerSupplier);
+                        mModalDialogManagerSupplier,
+                        mAppMenuCoordinatorSupplier);
         bottomBarContainerOneshotSupplier.set(bottomBarContainerCoordinator);
 
         if (mBottomBarHostManager != null) {
@@ -3595,7 +3599,8 @@ public class ToolbarManager
                         SigninAndHistorySyncActivityLauncherImpl.get(),
                         mActivityResultTracker,
                         mModalDialogManagerSupplier,
-                        mSnackbarManager);
+                        mSnackbarManager,
+                        ShareEntryPoint.OMNIBOX_MENU);
         sttsCoordinator.show();
     }
 

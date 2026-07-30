@@ -184,6 +184,9 @@ class WebState : public base::SupportsUserData {
     // Removes a callback added by AddInterface.
     void RemoveInterface(std::string_view interface_name);
 
+    // Returns true if any interface is registered on this InterfaceBinder.
+    bool HasRegisteredInterfaces() const;
+
     // Attempts to bind `receiver` by matching its interface name against the
     // callbacks registered on this InterfaceBinder.
     void BindInterface(mojo::GenericPendingReceiver receiver);

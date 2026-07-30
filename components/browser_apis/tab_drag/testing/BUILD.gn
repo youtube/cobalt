@@ -8,6 +8,8 @@ source_set("testing") {
   sources = [
     "toy_drop_target.cc",
     "toy_drop_target.h",
+    "toy_drop_target_registry.cc",
+    "toy_drop_target_registry.h",
     "toy_tab_drag_session_input_adapter.cc",
     "toy_tab_drag_session_input_adapter.h",
     "toy_tab_drag_session_listener.cc",

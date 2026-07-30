@@ -1,8 +1,8 @@
 diff --git a/javascript/atoms/dom.js b/javascript/atoms/dom.js
-index d4a9aae978..ccf4f8c452 100644
+index d604d3c..c028e59 100644
 --- a/javascript/atoms/dom.js
 +++ b/javascript/atoms/dom.js
-@@ -587,14 +587,8 @@ bot.dom.isShown = function(elem, opt_ignoreOpacity) {
+@@ -609,14 +609,8 @@ bot.dom.isShown = function (elem, opt_ignoreOpacity) {
      var parent = bot.dom.getParentNodeInComposedDom(e);
  
      if (bot.dom.IS_SHADOW_DOM_ENABLED && (parent instanceof ShadowRoot)) {
@@ -19,8 +19,8 @@ index d4a9aae978..ccf4f8c452 100644
      }
  
      if (parent && (parent.nodeType == goog.dom.NodeType.DOCUMENT ||
-@@ -1272,13 +1266,6 @@ bot.dom.getOpacityNonIE_ = function(elem) {
- bot.dom.getParentNodeInComposedDom = function(node) {
+@@ -1298,12 +1292,6 @@ bot.dom.getOpacityNonIE_ = function (elem) {
+ bot.dom.getParentNodeInComposedDom = function (node) {
    var /**@type {Node}*/ parent = node.parentNode;
  
 -  // Shadow DOM v1
@@ -29,11 +29,10 @@ index d4a9aae978..ccf4f8c452 100644
 -    // it hasn't yet been slotted
 -    return node.assignedSlot ? node.assignedSlot.parentNode : null;
 -  }
--
+ 
    // Shadow DOM V0 (deprecated)
    if (node.getDestinationInsertionPoints) {
-     var destinations = node.getDestinationInsertionPoints();
-@@ -1287,6 +1274,13 @@ bot.dom.getParentNodeInComposedDom = function(node) {
+@@ -1313,6 +1301,13 @@ bot.dom.getParentNodeInComposedDom = function (node) {
      }
    }
  
@@ -48,7 +47,7 @@ index d4a9aae978..ccf4f8c452 100644
  };
  
 diff --git a/javascript/atoms/mouse.js b/javascript/atoms/mouse.js
-index cdf195cf18..321c983220 100644
+index 6003df4..e4b659c 100644
 --- a/javascript/atoms/mouse.js
 +++ b/javascript/atoms/mouse.js
 @@ -143,7 +143,7 @@ bot.Mouse.NO_BUTTON_VALUE_INDEX_ = 3;
@@ -59,7 +58,7 @@ index cdf195cf18..321c983220 100644
 + * WEBKIT/IE9    0 1 2 X   0 1 2 X    0 1 2 4    0 1 2 4    X X 2 X
   * GECKO         0 1 2 X   0 1 2 X    0 0 0 0    0 0 0 0    X X 2 X
   * </pre>
-  * @private {!Object.<bot.events.EventType, !Array.<?number>>}
+  * @private {!Object<?, !Array.<?number>>}
 @@ -163,8 +163,8 @@ bot.Mouse.MOUSE_BUTTON_VALUE_MAP_ = (function () {
      buttonValueMap[bot.events.EventType.CLICK] = [0, 1, 2, null];
      buttonValueMap[bot.events.EventType.CONTEXTMENU] = [null, null, 2, null];
@@ -72,7 +71,7 @@ index cdf195cf18..321c983220 100644
      buttonValueMap[bot.events.EventType.CLICK] = [0, 1, 2, null];
      buttonValueMap[bot.events.EventType.CONTEXTMENU] = [null, null, 2, null];
 diff --git a/javascript/chrome-driver/atoms.js b/javascript/chrome-driver/atoms.js
-index 5185e010fb..3febbeba5c 100644
+index 5185e01..3febbeb 100644
 --- a/javascript/chrome-driver/atoms.js
 +++ b/javascript/chrome-driver/atoms.js
 @@ -211,7 +211,7 @@ webdriver.chrome.getFirstClientRect = function(elem) {

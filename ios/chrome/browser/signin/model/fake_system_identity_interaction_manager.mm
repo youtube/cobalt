@@ -41,7 +41,7 @@ BOOL gUsingUnknownCapabilities;
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  // Obnovious color, this is a test screen.
+  // Obnoxious color, this is a test screen.
   UIView* mainView = self.view;
   mainView.backgroundColor = [UIColor magentaColor];
   mainView.accessibilityIdentifier = kFakeAuthActivityViewIdentifier;
@@ -49,23 +49,23 @@ BOOL gUsingUnknownCapabilities;
   UIButton* addAccountButton =
       [self createButtonWithTitle:@"Add Account"
                            action:@selector(didTapAddAccount:)
-           accessibilitIdentifier:kFakeAuthAddAccountButtonIdentifier];
+          accessibilityIdentifier:kFakeAuthAddAccountButtonIdentifier];
   UIButton* cancelButton =
       [self createButtonWithTitle:@"Cancel"
                            action:@selector(didTapCancel:)
-           accessibilitIdentifier:kFakeAuthCancelButtonIdentifier];
+          accessibilityIdentifier:kFakeAuthCancelButtonIdentifier];
   NSMutableArray<UIButton*>* subviews =
       [NSMutableArray arrayWithObjects:addAccountButton, cancelButton, nil];
   if (!@available(iOS 26, *)) {
     // Up to iOS 18, the view can disappear without calling the callback. This
-    // occur when the user turn off and on the screen while iOS asks whether
-    // they accept to use google.com to authentify. This button simulate this
+    // occurs when the user turns off and on the screen while iOS asks whether
+    // they accept to use google.com to authenticate. This button simulates this
     // issue. It can be removed once the minimal version is iOS 26.  See
     // crbug.com/395959814.
     UIButton* dismissButton =
         [self createButtonWithTitle:@"Dismiss without callback"
                              action:@selector(didTapDismiss:)
-             accessibilitIdentifier:kFakeAuthDismissButtonIdentifier];
+            accessibilityIdentifier:kFakeAuthDismissButtonIdentifier];
     [subviews addObject:dismissButton];
   }
   // Container StackView
@@ -87,10 +87,10 @@ BOOL gUsingUnknownCapabilities;
 
 - (UIButton*)createButtonWithTitle:(NSString*)title
                             action:(SEL)action
-            accessibilitIdentifier:(NSString*)accessibilityIdentitier {
+           accessibilityIdentifier:(NSString*)accessibilityIdentifier {
   UIButton* button = [UIButton buttonWithType:UIButtonTypeCustom];
   [button setTitle:title forState:UIControlStateNormal];
-  [button setAccessibilityIdentifier:accessibilityIdentitier];
+  [button setAccessibilityIdentifier:accessibilityIdentifier];
   [button addTarget:self
                 action:action
       forControlEvents:UIControlEventTouchUpInside];

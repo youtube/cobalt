@@ -1,0 +1,22 @@
+upstream {
+  artifacts {
+    name: "usb_ids.tar.xz"
+    http: {
+      url: "https://deb.debian.org/debian/pool/main/u/usb.ids/usb.ids_2025.12.13.orig.tar.xz"
+      digest: "sha256:492edc99d85a25dca388930c304e85543ef5913b63b5f2fdfa2c213d77709784"
+    }
+  }
+}
+stages {
+  input {
+    unpack {
+      default { strip_components: 1 }
+    }
+    patch { copybara: {} }
+  }
+  output {
+    update { git {} }
+  }
+}
+
+# LATEST: Check deb-src for latest version.

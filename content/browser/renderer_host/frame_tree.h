@@ -694,10 +694,8 @@ class CONTENT_EXPORT FrameTree {
 
   bool is_being_destroyed_ = false;
 
-#if DCHECK_IS_ON()
   // Whether Shutdown() was called.
   bool was_shut_down_ = false;
-#endif
 
   // The root FrameTreeNode.
   //

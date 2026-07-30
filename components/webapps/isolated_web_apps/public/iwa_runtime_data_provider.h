@@ -7,12 +7,19 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/one_shot_event.h"
+#include "base/types/pass_key.h"
 #include "base/values.h"
+#include "components/webapps/isolated_web_apps/public/iwa_entitlements.h"
+
+class BrowserProcessImpl;
+class TestingBrowserProcess;
 
 namespace web_app {
 
@@ -39,6 +46,34 @@ class IwaRuntimeDataProvider {
     std::optional<PublicKeyData> previous_key;
   };
 
+  struct SpecialAppPermissionsInfo {
+    base::Value AsDebugValue() const;
+    bool skip_capture_started_notification;
+  };
+
+  struct UserInstallAllowlistItemData {
+    explicit UserInstallAllowlistItemData(
+        const std::string& enterprise_name,
+        std::vector<IwaEntitlementsSet> entitlements = {});
+    ~UserInstallAllowlistItemData();
+    UserInstallAllowlistItemData(const UserInstallAllowlistItemData&);
+
+    base::Value AsDebugValue() const;
+
+    std::string enterprise_name;
+    std::vector<IwaEntitlementsSet> entitlements;
+  };
+
+  static IwaRuntimeDataProvider& GetInstance();
+
+  // Note that these methods do not take ownership of `instance`; the lifetime
+  // management remains the caller's responsibility.
+  static void SetInstance(
+      base::PassKey<BrowserProcessImpl, TestingBrowserProcess>,
+      IwaRuntimeDataProvider* instance);
+  static base::AutoReset<IwaRuntimeDataProvider*> SetInstanceForTesting(
+      IwaRuntimeDataProvider* instance);
+
   virtual ~IwaRuntimeDataProvider() = default;
 
   virtual const KeyRotationInfo* GetKeyRotationInfo(
@@ -54,6 +89,23 @@ class IwaRuntimeDataProvider {
   // data that it can have within a reasonable time budget. The concrete
   // implementation is left to the embedder.
   virtual base::OneShotEvent& OnBestEffortRuntimeDataReady() = 0;
+
+  // Only bundles present in the managed allowlist can be installed and updated.
+  virtual bool IsManagedInstallPermitted(
+      std::string_view web_bundle_id) const = 0;
+  virtual bool IsManagedUpdatePermitted(
+      std::string_view web_bundle_id) const = 0;
+  virtual bool IsBundleBlocklisted(std::string_view web_bundle_id) const = 0;
+
+  virtual const SpecialAppPermissionsInfo* GetSpecialAppPermissionsInfo(
+      const std::string& web_bundle_id) const = 0;
+  virtual std::vector<std::string> GetSkipMultiCaptureNotificationBundleIds()
+      const = 0;
+
+  virtual const UserInstallAllowlistItemData* GetUserInstallAllowlistData(
+      const std::string& web_bundle_id) const = 0;
+
+  virtual void WriteDebugMetadata(base::DictValue& log) const = 0;
 };
 
 }  // namespace web_app

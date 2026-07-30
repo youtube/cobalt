@@ -11,21 +11,28 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/ash/app_mode/auto_sleep/device_weekly_scheduled_suspend_test_policy_builder.h"
 #include "chrome/browser/ash/app_mode/auto_sleep/weekly_interval_timer.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/policy/weekly_time/weekly_time.h"
 #include "chromeos/ash/components/policy/weekly_time/weekly_time_interval.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "chromeos/dbus/power/power_manager_client.h"
+#include "components/account_id/account_id.h"
 #include "components/prefs/pref_service.h"
+#include "components/session_manager/core/fake_session_manager_delegate.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/scoped_user_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -35,12 +42,22 @@ using WeeklyTimeIntervals = std::vector<std::unique_ptr<WeeklyTimeInterval>>;
 
 using DayOfWeek = DeviceWeeklyScheduledSuspendTestPolicyBuilder::DayOfWeek;
 
-class DeviceWeeklyScheduledSuspendControllerTest : public testing::Test {
+enum class TestUserType { kKiosk, kMgs, kRegular, kNotLoggedIn };
+
+// Simulates a login into the given `TestUserType` and verifies the
+// `DeviceWeeklyScheduledSuspend` policy.
+class DeviceWeeklyScheduledSuspendControllerTest
+    : public testing::TestWithParam<std::tuple<bool, TestUserType>> {
  protected:
   DeviceWeeklyScheduledSuspendControllerTest() = default;
 
-  // testing::Test:
+  bool IsEnabledInMgs() const { return std::get<0>(GetParam()); }
+  TestUserType GetTestUserType() const { return std::get<1>(GetParam()); }
+
   void SetUp() override {
+    scoped_feature_list_.InitWithFeatureState(
+        ash::features::kDeviceWeeklyScheduledSuspendMgs, IsEnabledInMgs());
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     chromeos::PowerManagerClient::InitializeFake();
     InitController();
     chromeos::FakePowerManagerClient::Get()->set_tick_clock(
@@ -49,11 +66,13 @@ class DeviceWeeklyScheduledSuspendControllerTest : public testing::Test {
         ->SetWeeklyIntervalTimerFactoryForTesting(
             std::make_unique<WeeklyIntervalTimer::Factory>(
                 task_environment_.GetMockClock(),
-                base::DefaultTickClock::GetInstance()));
+                task_environment_.GetMockTickClock()));
     user_activity_calls_ = 0;
     chromeos::FakePowerManagerClient::Get()->set_user_activity_callback(
         base::BindRepeating([](int& count) { ++count; },
                             std::ref(user_activity_calls_)));
+
+    LoginUser(GetTestUserType());
   }
 
   void TearDown() override {
@@ -65,6 +84,41 @@ class DeviceWeeklyScheduledSuspendControllerTest : public testing::Test {
     chromeos::FakePowerManagerClient::Get()->set_user_activity_callback(
         base::NullCallback());
     chromeos::PowerManagerClient::Shutdown();
+    fake_user_manager_.Reset();
+  }
+
+  void LoginUser(TestUserType user_type) {
+    switch (user_type) {
+      case TestUserType::kRegular: {
+        auto account_id = AccountId::FromUserEmail("user@example.com");
+        fake_user_manager_->AddUser(account_id);
+        fake_user_manager_->LoginUser(account_id);
+        fake_user_manager_->SwitchActiveUser(account_id);
+        session_manager_.SetSessionState(session_manager::SessionState::ACTIVE);
+        break;
+      }
+      case TestUserType::kMgs: {
+        auto account_id = AccountId::FromUserEmail("mgs@example.com");
+        auto* user = fake_user_manager_->AddPublicAccountUser(account_id);
+        fake_user_manager_->LoginUser(user->GetAccountId());
+        fake_user_manager_->SwitchActiveUser(user->GetAccountId());
+        session_manager_.SetSessionState(session_manager::SessionState::ACTIVE);
+        break;
+      }
+      case TestUserType::kKiosk: {
+        auto account_id = AccountId::FromUserEmail("kiosk@example.com");
+        auto* user = fake_user_manager_->AddKioskWebAppUser(account_id);
+        fake_user_manager_->LoginUser(user->GetAccountId());
+        fake_user_manager_->SwitchActiveUser(user->GetAccountId());
+        session_manager_.SetSessionState(session_manager::SessionState::ACTIVE);
+        break;
+      }
+      case TestUserType::kNotLoggedIn: {
+        session_manager_.SetSessionState(
+            session_manager::SessionState::LOGIN_PRIMARY);
+        break;
+      }
+    }
   }
 
   void UpdatePolicyPref(base::ListValue schedule_list) {
@@ -72,10 +126,26 @@ class DeviceWeeklyScheduledSuspendControllerTest : public testing::Test {
         ash::prefs::kDeviceWeeklyScheduledSuspend, std::move(schedule_list));
   }
 
+  bool IsPolicyActive() const {
+    switch (GetTestUserType()) {
+      case TestUserType::kKiosk:
+        return true;
+      case TestUserType::kMgs:
+      case TestUserType::kNotLoggedIn:
+        return IsEnabledInMgs();
+      case TestUserType::kRegular:
+        return false;
+    }
+  }
+
   void UpdatePolicyAndCheckIntervals(
       const DeviceWeeklyScheduledSuspendTestPolicyBuilder& policy_builder) {
     UpdatePolicyPref(policy_builder.GetAsPrefValue());
-    CheckIntervalsInController(policy_builder.GetAsWeeklyTimeIntervals());
+    if (IsPolicyActive()) {
+      CheckIntervalsInController(policy_builder.GetAsWeeklyTimeIntervals());
+    } else {
+      CheckIntervalsInController({});
+    }
   }
 
   void CheckIntervalsInController(
@@ -112,31 +182,41 @@ class DeviceWeeklyScheduledSuspendControllerTest : public testing::Test {
     device_weekly_scheduled_suspend_controller_ =
         std::make_unique<DeviceWeeklyScheduledSuspendController>(
             TestingBrowserProcess::GetGlobal()->local_state());
+    device_weekly_scheduled_suspend_controller_->InitUserManagerObservation(
+        user_manager::UserManager::Get());
+    device_weekly_scheduled_suspend_controller_->InitSessionObservation();
   }
 
   int user_activity_calls() const { return user_activity_calls_; }
 
- private:
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::MainThreadType::IO,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+
+ private:
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
+  session_manager::SessionManager session_manager_{
+      std::make_unique<session_manager::FakeSessionManagerDelegate>()};
   std::unique_ptr<DeviceWeeklyScheduledSuspendController>
       device_weekly_scheduled_suspend_controller_;
   int user_activity_calls_;
 };
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        HandlesEmptyIntervalsWithNoPolicy) {
   WeeklyTimeIntervals empty_intervals;
   CheckIntervalsInController(empty_intervals);
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest, HandlesEmptyPolicy) {
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest, HandlesEmptyPolicy) {
   DeviceWeeklyScheduledSuspendTestPolicyBuilder empty_policy;
   UpdatePolicyAndCheckIntervals(empty_policy);
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        HandlesValidPolicyWithMultipleIntervals) {
   UpdatePolicyAndCheckIntervals(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
@@ -146,7 +226,7 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
                                     DayOfWeek::MONDAY, base::Hours(8)));
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        UpdatesIntervalsOnPolicyChange) {
   UpdatePolicyAndCheckIntervals(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
@@ -161,7 +241,7 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
           base::Hours(8)));
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        ClearsIntervalsOnEmptyPolicy) {
   UpdatePolicyAndCheckIntervals(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
@@ -175,7 +255,7 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
   CheckIntervalsInController({});
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        HandlesInvalidPolicyWithMissingStartTime) {
   UpdatePolicyPref(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
@@ -185,7 +265,7 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
   CheckIntervalsInController({});
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        HandlesInvalidPolicyWithMissingEndTime) {
   UpdatePolicyPref(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
@@ -195,7 +275,7 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
   CheckIntervalsInController({});
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        HandlesInvalidPolicyWithOverlappingIntervals) {
   UpdatePolicyPref(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
@@ -208,8 +288,11 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
   CheckIntervalsInController({});
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        DoesNotCallSuspendWhenOutsideOfInterval) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   auto builder =
       DeviceWeeklyScheduledSuspendTestPolicyBuilder().AddWeeklySuspendInterval(
           DayOfWeek::FRIDAY, base::Hours(0), DayOfWeek::FRIDAY, base::Hours(9));
@@ -223,8 +306,11 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
       chromeos::FakePowerManagerClient::Get()->num_request_suspend_calls(), 0);
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        CallsSuspendOnIntervalStartEveryWeek) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   auto builder =
       DeviceWeeklyScheduledSuspendTestPolicyBuilder().AddWeeklySuspendInterval(
           DayOfWeek::MONDAY, base::Hours(21), DayOfWeek::TUESDAY,
@@ -234,6 +320,10 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
   EXPECT_EQ(
       chromeos::FakePowerManagerClient::Get()->num_request_suspend_calls(), 0);
   UpdatePolicyPref(builder.GetAsPrefValue());
+  EXPECT_EQ(device_weekly_scheduled_suspend_controller()
+                ->GetWeeklyIntervalTimersForTesting()
+                .size(),
+            1u);
   FastForwardTimeTo(intervals[0]->start());
   EXPECT_EQ(
       chromeos::FakePowerManagerClient::Get()->num_request_suspend_calls(), 1);
@@ -243,8 +333,11 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
       chromeos::FakePowerManagerClient::Get()->num_request_suspend_calls(), 2);
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        CallsSuspendForEverySuspendInterval) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   auto builder =
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
           .AddWeeklySuspendInterval(DayOfWeek::MONDAY, base::Hours(0),
@@ -268,8 +361,11 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
   }
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        DeviceFullyResumesWhenIntervalEnds) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   auto builder =
       DeviceWeeklyScheduledSuspendTestPolicyBuilder().AddWeeklySuspendInterval(
           DayOfWeek::THURSDAY, base::Hours(21), DayOfWeek::FRIDAY,
@@ -298,8 +394,11 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
       chromeos::FakePowerManagerClient::Get()->num_request_suspend_calls(), 1);
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
        DeviceDoesNotFullyResumeBeforeIntervalEnds) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   auto builder =
       DeviceWeeklyScheduledSuspendTestPolicyBuilder().AddWeeklySuspendInterval(
           DayOfWeek::THURSDAY, base::Hours(21), DayOfWeek::FRIDAY,
@@ -341,6 +440,29 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerTest,
       chromeos::FakePowerManagerClient::Get()->num_request_suspend_calls(), 1);
 }
 
+TEST_P(DeviceWeeklyScheduledSuspendControllerTest,
+       ClearsIntervalsWhenSessionEnds) {
+  if (!IsPolicyActive()) {
+    return;
+  }
+  UpdatePolicyPref(
+      DeviceWeeklyScheduledSuspendTestPolicyBuilder()
+          .AddWeeklySuspendInterval(DayOfWeek::WEDNESDAY, base::Hours(12),
+                                    DayOfWeek::WEDNESDAY, base::Hours(15))
+          .GetAsPrefValue());
+  EXPECT_EQ(device_weekly_scheduled_suspend_controller()
+                ->GetWeeklyIntervalTimersForTesting()
+                .size(),
+            1u);
+
+  // Simulate session end by changing user type to regular user.
+  LoginUser(TestUserType::kRegular);
+  CheckIntervalsInController({});
+}
+
+// Simulates a login into the given `TestUserType` and verifies the
+// `DeviceWeeklyScheduledSuspend` policy behavior when the PowerManager
+// service availability changes.
 class DeviceWeeklyScheduledSuspendControllerPowerServiceTest
     : public DeviceWeeklyScheduledSuspendControllerTest {
  public:
@@ -353,8 +475,11 @@ class DeviceWeeklyScheduledSuspendControllerPowerServiceTest
   }
 };
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
        PolicyNotSetWhenPowerServiceIsNotAvailable) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   UpdatePolicyPref(
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
           .AddWeeklySuspendInterval(DayOfWeek::WEDNESDAY, base::Hours(12),
@@ -365,8 +490,11 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
   CheckIntervalsInController({});
 }
 
-TEST_F(DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
+TEST_P(DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
        PolicyGetsSetWhenPowerManagerIsAvailable) {
+  if (!IsPolicyActive()) {
+    return;
+  }
   auto policy_builder =
       DeviceWeeklyScheduledSuspendTestPolicyBuilder()
           .AddWeeklySuspendInterval(DayOfWeek::WEDNESDAY, base::Hours(12),
@@ -378,5 +506,62 @@ TEST_F(DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
   chromeos::FakePowerManagerClient::Get()->SetServiceAvailability(true);
   CheckIntervalsInController(policy_builder.GetAsWeeklyTimeIntervals());
 }
+
+// Simulates a login into the login screen and verifies the
+// `DeviceWeeklyScheduledSuspend` policy.
+using DeviceWeeklyScheduledSuspendControllerLoginScreenTest =
+    DeviceWeeklyScheduledSuspendControllerTest;
+
+TEST_P(DeviceWeeklyScheduledSuspendControllerLoginScreenTest,
+       AppliesPolicyOnLoginScreen) {
+  UpdatePolicyPref(
+      DeviceWeeklyScheduledSuspendTestPolicyBuilder()
+          .AddWeeklySuspendInterval(DayOfWeek::WEDNESDAY, base::Hours(12),
+                                    DayOfWeek::WEDNESDAY, base::Hours(15))
+          .GetAsPrefValue());
+  EXPECT_EQ(device_weekly_scheduled_suspend_controller()
+                ->GetWeeklyIntervalTimersForTesting()
+                .size(),
+            IsEnabledInMgs() ? 1u : 0u);
+}
+
+// Simulates a login into a regular user session and verifies the
+// `DeviceWeeklyScheduledSuspend` policy.
+using DeviceWeeklyScheduledSuspendControllerRegularUserTest =
+    DeviceWeeklyScheduledSuspendControllerTest;
+
+TEST_P(DeviceWeeklyScheduledSuspendControllerRegularUserTest,
+       DoesNotApplyPolicyForRegularUsers) {
+  UpdatePolicyPref(
+      DeviceWeeklyScheduledSuspendTestPolicyBuilder()
+          .AddWeeklySuspendInterval(DayOfWeek::WEDNESDAY, base::Hours(12),
+                                    DayOfWeek::WEDNESDAY, base::Hours(15))
+          .GetAsPrefValue());
+  CheckIntervalsInController({});
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         DeviceWeeklyScheduledSuspendControllerTest,
+                         testing::Combine(testing::Bool(),
+                                          testing::Values(TestUserType::kKiosk,
+                                                          TestUserType::kMgs)));
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    DeviceWeeklyScheduledSuspendControllerLoginScreenTest,
+    testing::Combine(testing::Bool(),
+                     testing::Values(TestUserType::kNotLoggedIn)));
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    DeviceWeeklyScheduledSuspendControllerRegularUserTest,
+    testing::Combine(testing::Bool(),
+                     testing::Values(TestUserType::kRegular)));
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         DeviceWeeklyScheduledSuspendControllerPowerServiceTest,
+                         testing::Combine(testing::Bool(),
+                                          testing::Values(TestUserType::kKiosk,
+                                                          TestUserType::kMgs)));
 
 }  // namespace ash

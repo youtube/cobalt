@@ -35,10 +35,74 @@ using ::testing::Return;
 using device_reauth::BiometricStatus;
 #endif
 
+namespace {
+
+class ForwardingDeviceAuthenticator
+    : public device_reauth::DeviceAuthenticator {
+ public:
+  explicit ForwardingDeviceAuthenticator(
+      device_reauth::DeviceAuthenticator* delegate)
+      : delegate_(delegate) {}
+  ~ForwardingDeviceAuthenticator() override = default;
+
+  bool CanAuthenticateWithBiometrics() override {
+    return delegate_->CanAuthenticateWithBiometrics();
+  }
+
+  bool CanAuthenticateWithBiometricOrScreenLock() override {
+    return delegate_->CanAuthenticateWithBiometricOrScreenLock();
+  }
+
+  void AuthenticateWithMessage(const std::u16string& message,
+                               AuthenticateCallback callback) override {
+    delegate_->AuthenticateWithMessage(message, std::move(callback));
+  }
+
+  void Cancel() override { delegate_->Cancel(); }
+
+#if BUILDFLAG(IS_ANDROID)
+  device_reauth::BiometricStatus GetBiometricAvailabilityStatus() override {
+    return delegate_->GetBiometricAvailabilityStatus();
+  }
+#endif
+
+ private:
+  raw_ptr<device_reauth::DeviceAuthenticator> delegate_;
+};
+
+class MockAutofillClient : public TestAutofillClient {
+ public:
+  MockAutofillClient() {
+    mock_authenticator_ = std::make_unique<
+        testing::NiceMock<device_reauth::MockDeviceAuthenticator>>();
+  }
+  ~MockAutofillClient() override = default;
+
+  std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
+      std::string histogram) const override {
+    return std::make_unique<ForwardingDeviceAuthenticator>(
+        mock_authenticator_.get());
+  }
+
+  device_reauth::MockDeviceAuthenticator* GetMockDeviceAuthenticator() {
+    return mock_authenticator_.get();
+  }
+
+  void ResetMockDeviceAuthenticator() {
+    mock_authenticator_ = std::make_unique<
+        testing::NiceMock<device_reauth::MockDeviceAuthenticator>>();
+  }
+
+ private:
+  std::unique_ptr<device_reauth::MockDeviceAuthenticator> mock_authenticator_;
+};
+
+}  // namespace
+
 class MandatoryReauthManagerTest : public testing::Test {
  public:
   void SetUp() override {
-    autofill_client_ = std::make_unique<TestAutofillClient>();
+    autofill_client_ = std::make_unique<MockAutofillClient>();
     mandatory_reauth_manager_ =
         std::make_unique<MandatoryReauthManager>(autofill_client_.get());
     SetUpAuthentication(/*biometrics_available=*/true,
@@ -49,8 +113,7 @@ class MandatoryReauthManagerTest : public testing::Test {
   }
 
   device_reauth::MockDeviceAuthenticator& device_authenticator() {
-    return *static_cast<device_reauth::MockDeviceAuthenticator*>(
-        mandatory_reauth_manager_->GetDeviceAuthenticatorPtrForTesting());
+    return *autofill_client_->GetMockDeviceAuthenticator();
   }
 
  protected:
@@ -82,7 +145,7 @@ class MandatoryReauthManagerTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-  std::unique_ptr<TestAutofillClient> autofill_client_;
+  std::unique_ptr<MockAutofillClient> autofill_client_;
   std::unique_ptr<MandatoryReauthManager> mandatory_reauth_manager_;
   base::HistogramTester histogram_tester_;
   CreditCard local_card_ = test::GetCreditCard();
@@ -338,11 +401,7 @@ TEST_F(MandatoryReauthManagerTest, OnUserAcceptedOptInPrompt) {
                 prefs::kAutofillPaymentMethodsMandatoryReauthPromoShownCounter),
             1);
 
-  auto mock_device_authenticator2 =
-      std::make_unique<device_reauth::MockDeviceAuthenticator>();
-
-  mandatory_reauth_manager_->SetDeviceAuthenticatorPtrForTesting(
-      std::move(mock_device_authenticator2));
+  autofill_client_->ResetMockDeviceAuthenticator();
 
   ON_CALL(device_authenticator(), AuthenticateWithMessage)
       .WillByDefault(RunOnceCallbackRepeatedly<1>(true));
@@ -413,8 +472,7 @@ class MandatoryReauthManagerOptInFlowTest
  protected:
   void SetUp() override {
     MandatoryReauthManagerTest::SetUp();
-    mandatory_reauth_manager_->SetDeviceAuthenticatorPtrForTesting(
-        std::make_unique<device_reauth::MockDeviceAuthenticator>());
+    autofill_client_->ResetMockDeviceAuthenticator();
     SetUpAuthentication(/*biometrics_available=*/true,
                         /*screen_lock_available=*/true);
   }
@@ -523,11 +581,7 @@ TEST_P(MandatoryReauthManagerOptInFlowTest, OptInSuccess) {
   // Verify that we shall offer opt in.
   EXPECT_TRUE(mandatory_reauth_manager_->ShouldOfferOptin(GetParam()));
 
-  auto mock_device_authenticator2 =
-      std::make_unique<device_reauth::MockDeviceAuthenticator>();
-
-  mandatory_reauth_manager_->SetDeviceAuthenticatorPtrForTesting(
-      std::move(mock_device_authenticator2));
+  autofill_client_->ResetMockDeviceAuthenticator();
 
   SetUpDeviceAuthenticator(/*success=*/true);
 
@@ -575,11 +629,7 @@ TEST_P(MandatoryReauthManagerOptInFlowTest, OptInShownButAuthFailure) {
   // Verify that we shall offer opt in.
   EXPECT_TRUE(mandatory_reauth_manager_->ShouldOfferOptin(GetParam()));
 
-  auto mock_device_authenticator2 =
-      std::make_unique<device_reauth::MockDeviceAuthenticator>();
-
-  mandatory_reauth_manager_->SetDeviceAuthenticatorPtrForTesting(
-      std::move(mock_device_authenticator2));
+  autofill_client_->ResetMockDeviceAuthenticator();
 
   // Simulate authentication failure.
   SetUpDeviceAuthenticator(/*success=*/false);

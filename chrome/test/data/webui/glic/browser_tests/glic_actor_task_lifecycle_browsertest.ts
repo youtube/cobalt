@@ -80,6 +80,43 @@ class GlicActorTaskLifecycleFunctionalBrowserTest extends ApiTestFixtureBase {
     await this.host.stopActorTask(taskId, ActorTaskStopReason.TASK_COMPLETE);
   }
 
+  async testPauseAndResumeCreatedTaskWithIframe() {
+    assertDefined(this.host.createTask);
+    assertDefined(this.host.performActions);
+    assertDefined(this.host.pauseActorTask);
+    assertDefined(this.host.resumeActorTask);
+    assertDefined(this.host.stopActorTask);
+
+    const taskId = await this.host.createTask();
+    assertTrue(taskId > 0);
+
+    const focusedTabId = await this.getFocusedTabId();
+
+    await this.host.pauseActorTask(
+        taskId, ActorTaskPauseReason.PAUSED_BY_USER, focusedTabId);
+    await this.waitForTaskState(taskId, ActorTaskState.PAUSED);
+    await this.advanceToNextStep({taskId});
+
+    // Resume the task, requesting viewport screenshot.
+    const resumeResult = await this.host.resumeActorTask(taskId, {
+      viewportScreenshot: true,
+    });
+    assertEquals(0, resumeResult.actionResult);
+
+    // Verify that screenshotInfo in resumeResult is populated.
+    assertDefined(resumeResult.screenshotInfo);
+    const bytes = await new Response(resumeResult.screenshotInfo).bytes();
+    assertTrue(bytes.length > 0, 'screenshotInfo should not be empty');
+
+    const decoded = new TextDecoder().decode(bytes);
+    assertTrue(
+        decoded.includes('blank.html'),
+        `screenshotInfo should contain the iframe URL 'blank.html', got: ${
+            decoded}`);
+
+    await this.host.stopActorTask(taskId, ActorTaskStopReason.TASK_COMPLETE);
+  }
+
   async testPauseAndResumeInvalidTask() {
     assertDefined(this.host.pauseActorTask);
     assertDefined(this.host.resumeActorTask);

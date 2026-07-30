@@ -129,7 +129,7 @@ MediaStreamDevice::MediaStreamDevice(
     const std::string& id,
     const std::string& name,
     int sample_rate,
-    const media::ChannelLayoutConfig& channel_layout_config,
+    media::ChannelLayoutConfig channel_layout_config,
     int frames_per_buffer)
     : type(type),
       id(id),

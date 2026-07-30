@@ -5,6 +5,8 @@
 #include "chrome/browser/signin/signin_promo.h"
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -124,19 +126,27 @@ GURL GetChromeSyncURLForDice(ChromeSyncUrlArgs args) {
   static const char kMagiChromeHybridTransportSupportedHistogram[] =
       "Signin.MagiChrome.HybridTransportSupported";
   // Record hybrid transport signal histogram.
-  if (!device::BluetoothAdapterFactory::Get()->IsLowEnergySupported()) {
+  IsHybridTransportSupportedForQrCodeSignin(base::BindOnce([](bool can_start) {
     base::UmaHistogramBoolean(kMagiChromeHybridTransportSupportedHistogram,
-                              false);
-  } else {
-    device::BluetoothAdapterFactory::Get()->GetAdapter(
-        base::BindOnce([](scoped_refptr<device::BluetoothAdapter> adapter) {
-          bool is_present = adapter && adapter->IsPresent();
-          base::UmaHistogramBoolean(
-              kMagiChromeHybridTransportSupportedHistogram, is_present);
-        }));
-  }
+                              can_start);
+  }));
 
   return url;
+}
+
+void IsHybridTransportSupportedForQrCodeSignin(
+    base::OnceCallback<void(bool)> callback) {
+  if (!device::BluetoothAdapterFactory::Get()->IsLowEnergySupported()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  device::BluetoothAdapterFactory::Get()->GetAdapter(base::BindOnce(
+      [](base::OnceCallback<void(bool)> callback,
+         scoped_refptr<device::BluetoothAdapter> adapter) {
+        bool is_present = adapter && adapter->IsPresent();
+        std::move(callback).Run(is_present);
+      },
+      std::move(callback)));
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

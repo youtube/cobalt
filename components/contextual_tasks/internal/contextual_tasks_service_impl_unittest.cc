@@ -1340,6 +1340,51 @@ TEST_F(ContextualTasksServiceImplTest, GetContextualTaskForTab_NotFound) {
   EXPECT_FALSE(recent_task.has_value());
 }
 
+TEST_F(ContextualTasksServiceImplTest, GetContextualTaskForTab_StickyEnabled) {
+  ScopedStickyConversationEnabledForTesting scoped_enabled(true);
+
+  ContextualTask task = service_->CreateTask();
+  base::Uuid task_id = task.GetTaskId();
+
+  service_->SetLastActiveTask(task_id);
+
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+  std::optional<ContextualTask> result =
+      service_->GetContextualTaskForTab(tab_id);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->GetTaskId(), task_id);
+}
+
+TEST_F(ContextualTasksServiceImplTest, GetContextualTaskForTab_StickyDisabled) {
+  ScopedStickyConversationEnabledForTesting scoped_enabled(false);
+
+  ContextualTask task = service_->CreateTask();
+  base::Uuid task_id = task.GetTaskId();
+
+  service_->SetLastActiveTask(task_id);
+
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+  std::optional<ContextualTask> result =
+      service_->GetContextualTaskForTab(tab_id);
+  EXPECT_FALSE(result.has_value());
+}
+
+TEST_F(ContextualTasksServiceImplTest,
+       GetContextualTaskForTab_StickyClearedOnDelete) {
+  ScopedStickyConversationEnabledForTesting scoped_enabled(true);
+
+  ContextualTask task = service_->CreateTask();
+  base::Uuid task_id = task.GetTaskId();
+
+  service_->SetLastActiveTask(task_id);
+  service_->DeleteTask(task_id);
+
+  SessionID tab_id = SessionID::FromSerializedValue(1);
+  std::optional<ContextualTask> result =
+      service_->GetContextualTaskForTab(tab_id);
+  EXPECT_FALSE(result.has_value());
+}
+
 TEST_F(ContextualTasksServiceImplTest, DisassociateAllTabsFromTask) {
   service_->AddObserver(&observer_);
 

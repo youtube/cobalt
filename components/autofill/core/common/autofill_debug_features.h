@@ -17,9 +17,13 @@ namespace autofill::features::debug {
 // All features in alphabetical order.
 
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAtMemorySkipEligibilityChecks);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAiDisableReauthRequirement);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAiForceOptIn);
+COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillAmbientAutofillSkipEligibilityChecks);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillCapturedSiteTestsMetricsScraper);
 COMPONENT_EXPORT(AUTOFILL)

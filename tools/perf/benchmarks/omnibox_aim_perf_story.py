@@ -146,7 +146,7 @@ class OmniboxPerf(perf_benchmark.PerfBenchmark):
   def SetExtraBrowserOptions(self, options):
     options.AppendExtraBrowserArgs('--enable-ui-devtools=0')
     options.AppendExtraBrowserArgs('--disable-field-trial-config')
-    options.RemoveExtraBrowserArg('--enable-field-trial-config')
+    self.RemoveExtraBrowserArgWithValues(options, '--enable-field-trial-config')
     options.AppendExtraBrowserArgs(
         '--enable-features=ui-debug-tools-enable-synthetic-events,'
         'WebUIOmniboxPopup,'

@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/settings/ui_bundled/password/password_details/cells/table_view_stacked_details_item.h"
 
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
@@ -23,9 +22,7 @@ TEST_F(TableViewStackedDetailsItemTest,
   id view = [[[item cellClass] alloc] init];
   ASSERT_TRUE([view isMemberOfClass:[TableViewStackedDetailsCell class]]);
   TableViewStackedDetailsCell* cell = view;
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(cell.accessibilityLabel, @"title, first, second");
   EXPECT_TRUE(cell.isAccessibilityElement);
@@ -42,9 +39,7 @@ TEST_F(TableViewStackedDetailsItemTest,
   id view = [[[item cellClass] alloc] init];
   ASSERT_TRUE([view isMemberOfClass:[TableViewStackedDetailsCell class]]);
   TableViewStackedDetailsCell* cell = view;
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(cell.titleLabel.text, @"title");
 
@@ -65,9 +60,7 @@ TEST_F(TableViewStackedDetailsItemTest,
   id view = [[[item cellClass] alloc] init];
   ASSERT_TRUE([view isMemberOfClass:[TableViewStackedDetailsCell class]]);
   TableViewStackedDetailsCell* cell = view;
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(cell.titleLabel.text, @"title");
 
@@ -81,7 +74,7 @@ TEST_F(TableViewStackedDetailsItemTest,
   item.detailTexts =
       [NSArray<NSString*> arrayWithObjects:@"first", @"second", @"third", nil];
 
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(cell.titleLabel.text, @"title1");
 
@@ -96,7 +89,7 @@ TEST_F(TableViewStackedDetailsItemTest,
   item.detailTexts =
       [NSArray<NSString*> arrayWithObjects:@"first", @"second", nil];
 
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(cell.titleLabel.text, @"title");
 
@@ -117,9 +110,7 @@ TEST_F(TableViewStackedDetailsItemTest,
   id view = [[[item cellClass] alloc] init];
   ASSERT_TRUE([view isMemberOfClass:[TableViewStackedDetailsCell class]]);
   TableViewStackedDetailsCell* cell = view;
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   EXPECT_NSEQ(cell.titleLabel.text, @"title");
 

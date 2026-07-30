@@ -55,6 +55,7 @@ import org.chromium.chrome.browser.pdf.PdfPage;
 import org.chromium.chrome.browser.printing.PrintHelper;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsPage;
+import org.chromium.chrome.browser.settings.SettingsPageFragmentDelegateImpl;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -435,7 +436,15 @@ public class NativePageFactory {
                             tab,
                             mBrowserControlsManager,
                             mTabModelSelector,
-                            mEdgeToEdgeControllerSupplier));
+                            mEdgeToEdgeControllerSupplier),
+                    new SettingsPageFragmentDelegateImpl(
+                            mActivity,
+                            tab.getProfile(),
+                            mWindowAndroid,
+                            mActivityResultTracker,
+                            mSnackbarManagerSupplier.get(),
+                            mBottomSheetController,
+                            mModalDialogManagerSupplier.get()));
         }
 
         private @Nullable IncognitoNtpMetrics createIncognitoNtpMetrics() {

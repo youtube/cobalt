@@ -1494,6 +1494,12 @@ bool IsAXCustomActionNamesForTestingProjectionEnabled() {
     return NSAccessibilityContentListSubrole;
   }
 
+  if ([self internalRole] == ax::mojom::Role::kGroup &&
+      _owner->GetStringAttribute(ax::mojom::StringAttribute::kHtmlTag) ==
+          "fieldset") {
+    return @"AXFieldset";
+  }
+
   return [AXPlatformNodeCocoa nativeSubroleFromAXRole:[self internalRole]];
 }
 

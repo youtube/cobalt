@@ -132,7 +132,7 @@ try_.orchestrator_builder(
     # use_orchestrator_pool = True,
     cq_settings = try_.cq_settings(
         equivalent_builder = "chrome:try/android-internal-desktop-x64-rel",
-        equivalent_builder_percentage = 100,
+        equivalent_builder_percentage = 25,
         equivalent_builder_whitelist = "google/chrome-al-eng@google.com",
         on_default_cq = True,
     ),

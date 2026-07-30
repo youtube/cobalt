@@ -29,15 +29,15 @@ enum class AccountMenuAccessPoint {
 
 // The accessibility identifier of the view controller's view.
 extern NSString* const kAccountMenuTableViewId;
-// The accessibility identifier of the view controlle's close button.
+// The accessibility identifier of the view controller's close button.
 extern NSString* const kAccountMenuCloseButtonId;
-// The accessibility identifier of the view controlle's ellipsis button.
+// The accessibility identifier of the view controller's ellipsis button.
 extern NSString* const kAccountMenuSecondaryActionMenuButtonId;
-// The accessibility identifier of the Error mmesage.
+// The accessibility identifier of the Error message.
 extern NSString* const kAccountMenuErrorMessageId;
 // The accessibility identifier of the Error button.
 extern NSString* const kAccountMenuErrorActionButtonId;
-// The accessibility identifier of the Add Account.
+// The accessibility identifier of the Add Account button.
 extern NSString* const kAccountMenuAddAccountButtonId;
 // The accessibility identifier of the Sign out.
 extern NSString* const kAccountMenuSignoutButtonId;
@@ -49,7 +49,7 @@ extern NSString* const kAccountMenuActivityIndicatorId;
 extern NSString* const kAccountMenuManageAccountsButtonId;
 // The accessibility identifier for the "edit account list" menu entry.
 extern NSString* const kAccountMenuEditAccountListId;
-// The accessibility ideentifier for the "manage your account" menu entry.
+// The accessibility identifier for the "manage your account" menu entry.
 extern NSString* const kAccountMenuManageYourGoogleAccountId;
 
 #endif  // IOS_CHROME_BROWSER_AUTHENTICATION_ACCOUNT_MENU_PUBLIC_ACCOUNT_MENU_CONSTANTS_H_

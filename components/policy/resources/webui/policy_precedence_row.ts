@@ -4,27 +4,36 @@
 
 import '/strings.m.js';
 
-import {CustomElement} from 'chrome://resources/js/custom_element.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './policy_precedence_row.html.js';
+import {getCss} from './policy_precedence_row.css.js';
+import {getHtml} from './policy_precedence_row.html.js';
 
-export class PolicyPrecedenceRowElement extends CustomElement {
-  static override get template() {
-    return getTemplate();
+export class PolicyPrecedenceRowElement extends CrLitElement {
+  static get is() {
+    return 'policy-precedence-row';
   }
 
-  connectedCallback() {
+  static override get styles() {
+    return getCss();
+  }
+
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
+    return {
+      precedenceOrder: {type: Array},
+    };
+  }
+
+  accessor precedenceOrder: string[] = [];
+
+  override connectedCallback() {
+    super.connectedCallback();
     this.setAttribute('role', 'rowgroup');
     this.classList.add('policy-precedence-data');
-  }
-
-  /**
-   * @param precedenceOrder array containing ordered strings
-   * which represent the order of policy precedence.
-   */
-  initialize(precedenceOrder: string[]) {
-    this.shadowRoot!.querySelector('.precedence.row > .value')!.textContent =
-        precedenceOrder.join(' > ');
   }
 }
 
@@ -34,4 +43,5 @@ declare global {
   }
 }
 
-customElements.define('policy-precedence-row', PolicyPrecedenceRowElement);
+customElements.define(
+    PolicyPrecedenceRowElement.is, PolicyPrecedenceRowElement);

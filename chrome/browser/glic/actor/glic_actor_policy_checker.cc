@@ -283,44 +283,20 @@ void GlicActorPolicyChecker::OnAiSubscriptionTierUpdated(
 }
 
 // static
-bool GlicActorPolicyChecker::IsEnterpriseAccount(
+bool GlicActorPolicyChecker::IsEnterpriseAccountForActor(
     Profile& profile,
     actor::AggregatedJournal& journal) {
-  // Note: both `is_enterprise_account_data_protected` and
-  // `AccountInfo::IsManaged()` check for Workspace accounts. They are backed
-  // by two different Google API endpoints. Both are checked for completeness.
-
-  bool is_enterprise_account_data_protected = false;
-  // Ensure that assumptions about when we do or do not update the cached user
-  // status are not broken.
-  // LINT.IfChange(GlicCachedUserStatusScope)
-  if (base::FeatureList::IsEnabled(features::kGlicUserStatusCheck)) {
-    std::optional<glic::CachedUserStatus> cached_user_status =
-        glic::GlicUserStatusFetcher::GetCachedUserStatus(&profile);
-    if (cached_user_status.has_value()) {
-      is_enterprise_account_data_protected =
-          cached_user_status->is_enterprise_account_data_protected;
-    } else {
-      // NOTE: Do not return false as a fail-closed here. CachedUserStatus is
-      // only fetched when `is_managed` of
-      // GlicUserStatusFetcher::UpdateUserStatus is true. Returning false means
-      // gating all the non-enterprise accounts from actuation.
-    }
-  }
-  // LINT.ThenChange(//chrome/browser/glic/glic_user_status_fetcher.cc:GlicCachedUserStatusScope)
-
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(&profile);
-  if (!identity_manager) {
-    return false;
-  }
-  // `account_info` is empty if the user has not signed in.
-  const CoreAccountInfo account_info =
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
-  const AccountInfo extended_account_info =
-      identity_manager->FindExtendedAccountInfoByAccountId(
-          account_info.account_id);
-  signin::Tribool is_managed = extended_account_info.IsManaged();
+  // Note: Delegated to GlicEnabling to evaluate both Workspace data protection
+  // (`IsAccountDataProtected()`) and identity domain management
+  // (`IsAccountManaged()`), which are backed by two different Google API
+  // endpoints.
+  //
+  // GlicEnabling internally enforces the GlicCachedUserStatusScope LINT
+  // invariants when checking user status. Both signals are extracted and
+  // logged to the Actuation journal for completeness.
+  bool is_enterprise_account_data_protected =
+      GlicEnabling::IsAccountDataProtected(&profile);
+  signin::Tribool is_managed = GlicEnabling::IsAccountManaged(&profile);
 
   journal.Log(GURL(), actor::TaskId(), "IsEnterpriseAccount",
               actor::JournalDetailsBuilder()
@@ -329,17 +305,12 @@ bool GlicActorPolicyChecker::IsEnterpriseAccount(
                   .Add("is_managed", signin::TriboolToString(is_managed))
                   .Build());
 
-  return is_enterprise_account_data_protected ||
-         (is_managed == signin::Tribool::kTrue);
+  return GlicEnabling::IsEnterpriseAccount(&profile);
 }
 
 // static
-bool GlicActorPolicyChecker::IsBrowserManaged(Profile& profile) {
-  auto* management_service_factory =
-      policy::ManagementServiceFactory::GetInstance();
-  auto* browser_management_service =
-      management_service_factory->GetForProfile(&profile);
-  return browser_management_service && browser_management_service->IsManaged();
+bool GlicActorPolicyChecker::IsBrowserManagedForActor(Profile& profile) {
+  return GlicEnabling::IsBrowserManaged(&profile);
 }
 
 bool GlicActorPolicyChecker::CanActOnWeb() const {
@@ -413,8 +384,8 @@ GlicActorPolicyChecker::ComputeActOnWebCapability() {
 
   // Consumer checks.
 
-  bool enterprise_account = IsEnterpriseAccount(*profile_, *journal_);
-  bool has_management = IsBrowserManaged(*profile_);
+  bool enterprise_account = IsEnterpriseAccountForActor(*profile_, *journal_);
+  bool has_management = IsBrowserManagedForActor(*profile_);
   if (!enterprise_account && !has_management) {
     if (AccountHasChromeBenefits(*profile_, *journal_)) {
       // Only respect the consumer check if the browser is not managed.

@@ -132,11 +132,22 @@ Embedder::Job SchedulingEmbedder::ComputePassagesEmbeddings(
 
   // Limit the number of jobs accepted to avoid high memory use when
   // waiting a long time to process the queue.
-  while (jobs_.size() >= max_jobs_ && !jobs_.back().in_progress) {
-    Job canceled_job = std::move(jobs_.back());
-    jobs_.pop_back();
-    FinishJob(std::move(canceled_job), ComputeEmbeddingsStatus::kCanceled,
-              /*record_histograms=*/!execute_for_gemma_);
+  if (jobs_.size() >= max_jobs_) {
+    auto worst_job_it = FindWorstJob(jobs_);
+
+    if (worst_job_it == jobs_.end() || priority >= worst_job_it->priority) {
+      // Drop the new job immediately.
+      FinishJob(Job(priority, job_id, std::move(passages), std::move(callback)),
+                ComputeEmbeddingsStatus::kCanceled,
+                /*record_histograms=*/!execute_for_gemma_);
+      return Embedder::Job(weak_ptr_factory_.GetWeakPtr(), job_id);
+    } else {
+      // Drop the worst job from the queue to make room for the new job.
+      Job canceled_job = std::move(*worst_job_it);
+      jobs_.erase(worst_job_it);
+      FinishJob(std::move(canceled_job), ComputeEmbeddingsStatus::kCanceled,
+                /*record_histograms=*/!execute_for_gemma_);
+    }
   }
 
   jobs_.emplace_back(priority, job_id, std::move(passages),
@@ -228,6 +239,21 @@ bool SchedulingEmbedder::IsPerformanceScenarioReady() {
   return (loading_scenario == LoadingScenario::kNoPageLoading ||
           loading_scenario == LoadingScenario::kBackgroundPageLoading) &&
          input_scenario == InputScenario::kNoInput;
+}
+
+// static
+std::deque<SchedulingEmbedder::Job>::iterator SchedulingEmbedder::FindWorstJob(
+    std::deque<Job>& jobs) {
+  auto worst_job_it = jobs.end();
+  for (auto it = jobs.begin(); it != jobs.end(); ++it) {
+    if (it->in_progress) {
+      continue;
+    }
+    if (worst_job_it == jobs.end() || it->priority >= worst_job_it->priority) {
+      worst_job_it = it;
+    }
+  }
+  return worst_job_it;
 }
 
 void SchedulingEmbedder::ReprioritizeJobs(PassagePriority priority,

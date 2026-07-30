@@ -5,7 +5,11 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_UNITTEST_H_
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_UNITTEST_H_
 
+#include <optional>
+
+#include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
@@ -174,6 +178,7 @@ class ExtensionsToolbarUnitTest : public TestWithBrowserView {
   raw_ptr<extensions::PermissionsManager, DanglingUntriaged>
       permissions_manager_ = nullptr;
   std::unique_ptr<extensions::SitePermissionsHelper> permissions_helper_;
+  std::optional<base::AutoReset<base::TimeDelta>> cooldown_reset_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_UNITTEST_H_

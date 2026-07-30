@@ -248,8 +248,10 @@ ScopedJavaLocalRef<jobject> AutocompleteControllerAndroid::Classify(
     return ScopedJavaLocalRef<jobject>();
   }
 
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile_);
   return ScopedJavaLocalRef<jobject>(
-      result.begin()->GetOrCreateJavaObject(env));
+      result.begin()->GetOrCreateJavaObject(env, template_url_service));
 }
 
 void AutocompleteControllerAndroid::OnOmniboxFocused(
@@ -652,8 +654,11 @@ void AutocompleteControllerAndroid::NotifySuggestionsReceived(
 
   JNIEnv* env = AttachCurrentThread();
 
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile_);
   Java_AutocompleteController_onSuggestionsReceived(
-      env, java_controller_, autocomplete_result.GetOrCreateJavaObject(env),
+      env, java_controller_,
+      autocomplete_result.GetOrCreateJavaObject(env, template_url_service),
       autocomplete_controller_->done());
 }
 

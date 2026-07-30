@@ -15,9 +15,9 @@
 #include "chrome/browser/ash/policy/affiliation/affiliation_mixin.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_test_helper.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
@@ -106,7 +106,8 @@ IN_PROC_BROWSER_TEST_P(UnaffiliatedArcAllowedTest, ProfileTest) {
   AffiliationTestHelper::LoginUser(affiliation_mixin_.account_id());
   const user_manager::User* user = user_manager::UserManager::Get()->FindUser(
       affiliation_mixin_.account_id());
-  const Profile* profile = ash::ProfileHelper::Get()->GetProfileByUser(user);
+  const Profile* profile = Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetBrowserContextByUser(user));
   const bool affiliated = GetParam().affiliated;
 
   EXPECT_EQ(affiliated, user->IsAffiliated());

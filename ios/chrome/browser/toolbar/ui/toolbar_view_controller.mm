@@ -48,30 +48,46 @@
 
 namespace {
 
+// Spacing between buttons in the toolbar's horizontal stack view.
 constexpr CGFloat kStackViewSpacing = 9;
+
+// Duration of the banner promo slide animation.
 const base::TimeDelta kBannerPromoAnimationDuration = base::Seconds(0.5);
 
-constexpr CGFloat kButtonMinScale = 0.2;
+// The minimum scale factor for a button.
+constexpr CGFloat kButtonMinScale = 0.37;
 
-constexpr CGFloat kAnimationDuration = 0.2f;
+// Duration of standard toolbar transition animations (fade, scale).
+constexpr CGFloat kAnimationDuration = 0.2;
 
+// Margin between the location bar and the tab group indicator view.
 constexpr CGFloat kLocationBarToTabGroupMargin = 6;
 
 // The margin for the leading/trailing edges of the stack view.
+// Regular-Regular (iPad) size class margin.
 constexpr CGFloat kStackViewMarginRegularRegular = 16;
+// iPhone landscape margin.
 constexpr CGFloat kStackViewMarginLandscape = 46;
+// iPhone portrait margin.
 constexpr CGFloat kStackViewMarginPortrait = 9;
 
 // The margin between the stack views and the location bar.
+// Regular-Regular (iPad) size class margin.
 constexpr CGFloat kLocationBarStackViewMarginRegularRegular = 40;
+// iPhone portrait margin.
 constexpr CGFloat kLocationBarStackViewMarginPortrait = 9;
+// iPhone landscape margin.
 constexpr CGFloat kLocationBarStackViewMarginLandscape = 18;
 
-// Max width of the location bar.
+// Maximum allowed width for the location bar.
 constexpr CGFloat kLocationBarMaxWidth = 600;
 
 // The threshold for the fullscreen progress of a collapsed toolbar.
 constexpr CGFloat kFullscreenCollapsedThreshold = 0.05;
+
+// The threshold for fullscreen progress above which buttons are fully visible
+// and unscaled.
+constexpr CGFloat kFullscreenProgressThreshold = 0.99;
 
 // Timing to finish the animation of the progress bar before hiding it.
 const base::TimeDelta kProgressBarEndAnimationDuration =
@@ -420,6 +436,10 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 - (void)setAssistantButtonVisible:(BOOL)visible enabled:(BOOL)enabled {
   _assistantButton.forceHidden = !visible;
   _assistantButton.enabled = enabled;
+  if (self.isViewLoaded) {
+    [self updateButtons:@[ _assistantButton ]
+        forFullscreenProgress:_fullscreenProgress];
+  }
 }
 
 - (void)setCanGoBack:(BOOL)canGoBack {
@@ -896,12 +916,13 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
       button.alpha = 0;
       continue;
     }
-    if (progress > 0.99) {
+    if (progress > kFullscreenProgressThreshold) {
       button.alpha = 1;
       button.transform = CGAffineTransformIdentity;
     } else {
       button.alpha = progress;
-      CGFloat scale = progress + (1 - progress) * kButtonMinScale;
+      // Linearly interpolates the scale between kButtonMinScale and 1.0.
+      CGFloat scale = progress + (1.0 - progress) * kButtonMinScale;
       button.transform = CGAffineTransformMakeScale(scale, scale);
     }
   }

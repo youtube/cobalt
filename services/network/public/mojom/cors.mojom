@@ -141,7 +141,7 @@ struct CorsErrorStatus {
   // or
   //
   //   * The request connects to two different IP address spaces. See the
-  //     comment in services/network/private_network_access_checker.cc.
+  //     comment in services/network/local_network_access_checker.cc.
   //     In this case, this will be set to the second IP address space.
   //
   // TODO(crbug.com/394636065): consider using 2 separate fields for the two

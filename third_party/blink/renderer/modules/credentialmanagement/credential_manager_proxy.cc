@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -18,6 +19,7 @@ CredentialManagerProxy::CredentialManagerProxy(LocalDOMWindow& window)
       webotp_service_(window.GetExecutionContext()),
       spc_service_(window.GetExecutionContext()),
       federated_auth_request_(window.GetExecutionContext()),
+      federated_request_service_(window.GetExecutionContext()),
       digital_identity_request_(window.GetExecutionContext()) {}
 
 CredentialManagerProxy::~CredentialManagerProxy() = default;
@@ -98,6 +100,22 @@ void CredentialManagerProxy::OnFederatedAuthRequestConnectionError() {
   // appropriate error message.
 }
 
+mojom::blink::FederatedRequestService*
+CredentialManagerProxy::FederatedRequestService() {
+  CHECK(RuntimeEnabledFeatures::FedCmMultipleRequestsEnabled(
+      GetSupplementable()));
+  BindRemoteForFedCm(
+      federated_request_service_,
+      BindOnce(
+          &CredentialManagerProxy::OnFederatedRequestServiceConnectionError,
+          WrapWeakPersistent(this)));
+  return federated_request_service_.get();
+}
+
+void CredentialManagerProxy::OnFederatedRequestServiceConnectionError() {
+  federated_request_service_.reset();
+}
+
 mojom::blink::DigitalIdentityRequest*
 CredentialManagerProxy::DigitalIdentityRequest() {
   BindRemoteForFedCm(
@@ -152,6 +170,7 @@ void CredentialManagerProxy::Trace(Visitor* visitor) const {
   visitor->Trace(webotp_service_);
   visitor->Trace(spc_service_);
   visitor->Trace(federated_auth_request_);
+  visitor->Trace(federated_request_service_);
   visitor->Trace(digital_identity_request_);
   Supplement<LocalDOMWindow>::Trace(visitor);
 }

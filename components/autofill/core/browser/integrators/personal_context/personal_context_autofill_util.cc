@@ -5,6 +5,7 @@
 #include "components/autofill/core/browser/integrators/personal_context/personal_context_autofill_util.h"
 
 #include "base/feature_list.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/personal_context/core/personal_context_enablement_service.h"
 #include "components/personal_context/core/personal_context_types.h"
@@ -30,9 +31,10 @@ bool ShouldShowPersonalContextAutofillSetting(
   }
 }
 
-bool AreAutofillPersonalContextFeaturesSupported() {
+bool AreAutofillPersonalContextFeaturesSupported(
+    const GoogleGroupsManager* google_groups_manager) {
   return base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill) ||
-         base::FeatureList::IsEnabled(features::kAutofillAtMemory);
+         IsAtMemoryFeatureEnabled(google_groups_manager);
 }
 
 }  // namespace autofill

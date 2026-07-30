@@ -27,6 +27,9 @@ using base::test::ios::kWaitForActionTimeout;
 using base::test::ios::kWaitForPageLoadTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 
+@interface CWVAutofillController (Testing)
+- (void)setForceSubmittedByUserForTesting:(BOOL)force;
+@end
 
 // A stub object that observes the |webViewDidFinishNavigation| event of
 // CWVNavigationDelegate. CWVNavigationDelegate is also used as navigation
@@ -99,6 +102,7 @@ class WebViewAutofillTest : public WebViewInttestBase {
     CWVSyncController.dataSource = data_source_;
     autofill_controller_ = web_view_.autofillController;
     autofill_controller_.delegate = autofill_controller_delegate_;
+    [autofill_controller_ setForceSubmittedByUserForTesting:YES];
   }
 
   void TearDown() override {

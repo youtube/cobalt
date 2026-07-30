@@ -256,12 +256,7 @@ void MayActOnUrlInternal(const GURL& url,
     return;
   }
 
-  // Blocklist is checked by `ShouldBlockNavigationUrlForOriginGating` when this
-  // feature is enabled, and origins the user allowed the actor to interact with
-  // will be included in the `origin_gating_cache`. If `url`'s origin has not
-  // been confirmed by the user, we may apply the optimization guide check.
-  if (IsNavigationGatingEnabled() &&
-      origin_gating_cache.IsNavigationConfirmedByUser(
+  if (origin_gating_cache.IsNavigationConfirmedByUser(
           url::Origin::Create(url))) {
     decision_wrapper->Accept();
     return;

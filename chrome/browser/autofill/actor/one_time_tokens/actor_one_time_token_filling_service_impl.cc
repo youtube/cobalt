@@ -31,6 +31,7 @@
 #include "components/autofill/core/common/form_data.h"
 #include "components/one_time_tokens/core/browser/one_time_token.h"
 #include "components/one_time_tokens/core/browser/one_time_token_service.h"
+#include "components/one_time_tokens/core/common/one_time_token_features.h"
 #include "components/tabs/public/tab_interface.h"
 
 namespace autofill {
@@ -85,6 +86,13 @@ void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
   tabs::TabInterface* tab = tab_handle.Get();
   if (!tab || !tab->GetContents()) {
     std::move(callback).Run("");
+    return;
+  }
+
+  if (std::string mock_otp =
+          one_time_tokens::features::kMockGmailOtpValue.Get();
+      !mock_otp.empty()) {
+    std::move(callback).Run(mock_otp);
     return;
   }
 

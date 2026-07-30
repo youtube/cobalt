@@ -153,24 +153,29 @@ public class AwPermissionManagerTest extends AwParameterizedTest {
         AwContents awContents = setUpEnumerateDevicesTest(null);
 
         TestWebServer secondServer = TestWebServer.startAdditional();
-        String secondPage =
-                secondServer.setResponse(
-                        "/new-page", EMPTY_PAGE, CommonResources.getTextHtmlHeaders(true));
+        try {
+            String secondPage =
+                    secondServer.setResponse(
+                            "/new-page", EMPTY_PAGE, CommonResources.getTextHtmlHeaders(true));
 
-        mActivityTestRule.loadUrlSync(awContents, mContentsClient.getOnPageFinishedHelper(), mPage);
-        JavaScriptUtils.runJavascriptWithUserGestureAndAsyncResult(
-                awContents.getWebContents(), GUM_JS);
-        JavaScriptUtils.runJavascriptWithUserGestureAndAsyncResult(
-                awContents.getWebContents(), ENUMERATE_DEVICES_JS);
+            mActivityTestRule.loadUrlSync(
+                    awContents, mContentsClient.getOnPageFinishedHelper(), mPage);
+            JavaScriptUtils.runJavascriptWithUserGestureAndAsyncResult(
+                    awContents.getWebContents(), GUM_JS);
+            JavaScriptUtils.runJavascriptWithUserGestureAndAsyncResult(
+                    awContents.getWebContents(), ENUMERATE_DEVICES_JS);
 
-        // Navigate to a page with a different origin.
-        mActivityTestRule.loadUrlSync(
-                awContents, mContentsClient.getOnPageFinishedHelper(), secondPage);
-        String devices =
-                JavaScriptUtils.runJavascriptWithUserGestureAndAsyncResult(
-                        awContents.getWebContents(), ENUMERATE_DEVICES_JS);
+            // Navigate to a page with a different origin.
+            mActivityTestRule.loadUrlSync(
+                    awContents, mContentsClient.getOnPageFinishedHelper(), secondPage);
+            String devices =
+                    JavaScriptUtils.runJavascriptWithUserGestureAndAsyncResult(
+                            awContents.getWebContents(), ENUMERATE_DEVICES_JS);
 
-        assertDeviceLabels(devices, true);
+            assertDeviceLabels(devices, true);
+        } finally {
+            secondServer.shutdown();
+        }
     }
 
     @Test

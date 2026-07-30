@@ -723,7 +723,7 @@ TEST_F(IndigoPageActionControllerTest, OnboardingSuccessTriggersContinuation) {
           }));
 
   IndigoPageActionController::TestApi(controller_.get())
-      .CheckEligibilityForOnboarding(eligibility);
+      .CheckEligibilityForOnboarding(/*skip_glic_invoke=*/false, eligibility);
 
   ASSERT_TRUE(!captured_callback.is_null());
   EXPECT_EQ(user_action_tester.GetActionCount("Indigo.Onboarding.Trigger"), 1);
@@ -757,7 +757,8 @@ TEST_F(IndigoPageActionControllerTest, OnboardingCancelledDoesNotTrigger) {
           }));
 
   IndigoPageActionController::TestApi(controller_.get())
-      .CheckOnboardingResult(OnboardingDisposition::kDefault, result);
+      .CheckOnboardingResult(OnboardingDisposition::kDefault,
+                             /*skip_glic_invoke=*/false, result);
 
   EXPECT_FALSE(fetcher_called.IsReady());
   EXPECT_FALSE(profile_->GetPrefs()->GetBoolean(prefs::kIndigoHasOnboarded));
@@ -767,6 +768,12 @@ TEST_F(IndigoPageActionControllerTest, OnboardingCancelledDoesNotTrigger) {
 TEST_F(IndigoPageActionControllerTest,
        OnReplaceOriginalPhotoTriggersOnboardingWithParam) {
   CreateController();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigoOpenGlic, {{"indigo_glic_prompt", "test prompt"}});
+
+  EXPECT_CALL(*mock_glic_keyed_service_, InvokeWithAutoSubmit(_, _)).Times(0);
 
   profile_->GetPrefs()->SetBoolean(prefs::kIndigoHasOnboarded, true);
 
@@ -1228,6 +1235,30 @@ TEST_F(IndigoPageActionControllerTest,
   navigation->Commit();
 
   controller_->InvokeAction(EntryPoint::kSuggestionChip);
+}
+
+TEST_F(IndigoPageActionControllerTest, InvokeActionErrorToastDoesNotOpenGlic) {
+  CreateController();
+  SetupEligibleAndOnboarded();
+
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigoOpenGlic, {{"indigo_glic_prompt", "test prompt"}});
+
+  // Need to set an active page so IndigoAgentHost can be created and Invoked.
+  GURL url("https://example.com");
+  ExpectOptimizationGuideDecision(url, OptimizationGuideDecision::kTrue);
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      url, tab_interface_->GetContents());
+  navigation->Commit();
+
+  // Glic should NOT be invoked.
+  EXPECT_CALL(*mock_glic_keyed_service_, InvokeWithAutoSubmit(_, _)).Times(0);
+
+  // We also should NOT show the anchored message.
+  EXPECT_CALL(*page_action_controller_, ShowAnchoredMessage(_, _)).Times(0);
+
+  controller_->InvokeAction(EntryPoint::kErrorToast);
 }
 
 TEST_F(IndigoPageActionControllerTest, DelayAgentInvokeUntilGlicPanelOpened) {

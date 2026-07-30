@@ -27,9 +27,8 @@
 #pragma mark CollectionViewItem
 
 - (void)configureHeaderFooterView:
-            (TableViewAttributedStringHeaderFooterView*)headerFooter
-                       withStyler:(ChromeTableViewStyler*)styler {
-  [super configureHeaderFooterView:headerFooter withStyler:styler];
+    (TableViewAttributedStringHeaderFooterView*)headerFooter {
+  [super configureHeaderFooterView:headerFooter];
   headerFooter.attributedString = self.attributedString;
 }
 

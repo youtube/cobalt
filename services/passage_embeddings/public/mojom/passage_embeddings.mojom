@@ -46,6 +46,11 @@ struct PassageEmbeddingsLoadModelsParams {
   mojo_base.mojom.ReadOnlyFile sp_model;
   // The input window size expected by the embeddings model.
   uint32 input_window_size;
+  // Indicates if the model should be executed with Gemma specific logic.
+  // Note: We use 'execute_for_gemma' instead of a generic 'is_web_api' flag
+  // because future Web API models (e.g. LLaMA) may have completely different
+  // tokenization, prompt formatting, and signature selection requirements.
+  bool execute_for_gemma;
 };
 
 // Parameters used to run the passage embedder.

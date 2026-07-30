@@ -169,6 +169,9 @@ void InjectTabIdIntoAction(optimization_guide::proto::Action& action,
     case optimization_guide::proto::Action::kScrollTo:
       action.mutable_scroll_to()->set_tab_id(tab_id);
       break;
+    case optimization_guide::proto::Action::kAttemptLogin:
+      action.mutable_attempt_login()->set_tab_id(tab_id);
+      break;
     default:
       break;
   }

@@ -37,6 +37,10 @@ void ExternalDisplayLinkMac::TryRecordDisplayLinkCreation(
   auto& globals = DisplayLinkGlobals::Get();
   base::AutoLock lock(globals.lock);
 
+  if (!VSyncProviderMac::GetInstance()->IsConnectedToBrowser()) {
+    return;
+  }
+
   auto [it, inserted] = globals.recorded_displays.insert(display_id);
   if (inserted) {
     UMA_HISTOGRAM_BOOLEAN("Viz.DisplayLink.Create.GPU.ExternalDisplayLink",

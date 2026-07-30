@@ -7,4 +7,5 @@ include_rules = [
   "+components/optimization_guide/proto",
   "+components/language/core/browser",
   "+components/proto_extras",
+  "+components/actor/public/mojom",
 ]

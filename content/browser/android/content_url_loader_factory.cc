@@ -283,8 +283,9 @@ class ContentURLLoader : public network::mojom::URLLoader {
 
 ContentURLLoaderFactory::ContentURLLoaderFactory(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-    : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
+    mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+    base::SelfDeletingPassKey key)
+    : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
       task_runner_(std::move(task_runner)) {}
 
 ContentURLLoaderFactory::~ContentURLLoaderFactory() = default;
@@ -309,7 +310,7 @@ ContentURLLoaderFactory::Create() {
   // The ContentURLLoaderFactory will delete itself when there are no more
   // receivers - see the network::SelfDeletingURLLoaderFactory::OnDisconnect
   // method.
-  new ContentURLLoaderFactory(
+  base::MakeSelfDeleting<ContentURLLoaderFactory>(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
            base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN}),

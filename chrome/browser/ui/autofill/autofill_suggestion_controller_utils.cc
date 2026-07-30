@@ -112,7 +112,9 @@ SuggestionSection GetSuggestionSection(SuggestionType type) {
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return SuggestionSection::kBody;
 
     case SuggestionType::kWebauthnSignInWithAnotherDevice:

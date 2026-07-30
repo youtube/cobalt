@@ -3037,6 +3037,15 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
         ["#innerDiv", "#parentDiv", "#heading"])
     self.assertEqual("Child", elem.GetText())
 
+  def testTextTransformCapitalize(self):
+    self._driver.Load('about:blank')
+    self._driver.ExecuteScript(
+        'document.body.innerHTML = '
+        '"<div id=\'test\' style=\'text-transform: capitalize;\'>'
+        'test_text</div>";')
+    elem = self._driver.FindElement('css selector', '#test')
+    self.assertEqual('Test_text', elem.GetText())
+
   def testShadowDomSendKeys(self):
     """Checks that chromedriver can call SendKeys on a shadow DOM element."""
     self._driver.Load(self.GetHttpUrlForFile(

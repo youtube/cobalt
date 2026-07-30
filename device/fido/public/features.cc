@@ -197,11 +197,6 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kWebAuthnIWARemoteDesktopAllowedOriginsPolicy,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Deprecation flag. Disabled by default in M142. Remove in or after M145.
-BASE_FEATURE(kWebAuthnSendPinGeneration,
-             "WebAuthenticationSendPinGeneration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Disabled by default.
 BASE_FEATURE(kWebAuthnOpportunisticRetrieval,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -243,5 +238,10 @@ BASE_FEATURE(kWebAuthnSocketMaxPriorityMode, base::FEATURE_ENABLED_BY_DEFAULT);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_FEATURE(kWebAuthnStripUnusedEnclaveParameters,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Disabled by default.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_FEATURE(kWebAuthnGpmPasskeyEmbeddedRecoveryUrl,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace device

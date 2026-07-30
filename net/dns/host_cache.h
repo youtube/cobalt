@@ -35,6 +35,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/dns/public/dns_query_type.h"
 #include "net/dns/public/host_resolver_results.h"
 #include "net/dns/public/host_resolver_source.h"
@@ -60,7 +61,8 @@ class NET_EXPORT HostCache {
         DnsQueryType dns_query_type,
         HostResolverFlags host_resolver_flags,
         HostResolverSource host_resolver_source,
-        const NetworkAnonymizationKey& network_anonymization_key);
+        const NetworkAnonymizationKey& network_anonymization_key,
+        handles::NetworkHandle target_network);
     Key();
     Key(const Key& key);
     Key(Key&& key);
@@ -73,7 +75,7 @@ class NET_EXPORT HostCache {
     static auto GetTuple(const Key* key) {
       return std::tie(key->dns_query_type, key->host_resolver_flags, key->host,
                       key->host_resolver_source, key->network_anonymization_key,
-                      key->secure);
+                      key->secure, key->target_network);
     }
 
     bool operator==(const Key& other) const {
@@ -90,6 +92,7 @@ class NET_EXPORT HostCache {
     HostResolverSource host_resolver_source = HostResolverSource::ANY;
     NetworkAnonymizationKey network_anonymization_key;
     bool secure = false;
+    handles::NetworkHandle target_network = handles::kInvalidNetworkHandle;
   };
 
   struct NET_EXPORT EntryStaleness {

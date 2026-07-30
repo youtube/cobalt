@@ -139,7 +139,10 @@ void WalletPassAccessManagerImpl::GetUnmaskedWalletEntityInstance(
     std::move(callback).Run(std::nullopt);
     return;
   }
-  CHECK(masked_entity->IsMaskedEntity() && masked_entity->IsServerInstance());
+  CHECK(
+      masked_entity->IsMaskedEntity() &&
+      GetWalletPassType(masked_entity->type(), masked_entity->record_type()) ==
+          EntityInstance::WalletPassType::kPrivate);
   auto maybe_cache_response = base::BindOnce(
       [](base::WeakPtr<WalletPassAccessManagerImpl> access_manager,
          std::optional<EntityInstance> entity) {
@@ -179,7 +182,9 @@ WalletPassAccessManagerImpl::GetUnmaskResponseToUnmaskedEntityCallback(
         EntityInstance unmasked_entity = masked_entity.CopyWithUpdatedAttribute(
             std::move(*unmasked_pass_number));
         CHECK(unmasked_entity.IsUnmaskedEntity());
-        CHECK(unmasked_entity.IsServerInstance());
+        CHECK(GetWalletPassType(unmasked_entity.type(),
+                                unmasked_entity.record_type()) ==
+              EntityInstance::WalletPassType::kPrivate);
         return unmasked_entity;
       },
       masked_entity);
@@ -190,7 +195,9 @@ base::OnceCallback<std::optional<EntityInstance>(
 WalletPassAccessManagerImpl::GetUpsertResponseToMaskedEntityCallback(
     const EntityInstance& unmasked_entity) const {
   CHECK(unmasked_entity.IsUnmaskedEntity() &&
-        unmasked_entity.IsServerInstance());
+        GetWalletPassType(unmasked_entity.type(),
+                          unmasked_entity.record_type()) ==
+            EntityInstance::WalletPassType::kPrivate);
   return base::BindOnce(
       [](EntityInstance unmasked_entity,
          const base::expected<PrivatePass, WalletRequestError>& response)
@@ -212,7 +219,9 @@ WalletPassAccessManagerImpl::GetUpsertResponseToMaskedEntityCallback(
                     EntityInstance::EntityId(response->pass_id()))
                 .CopyWithUpdatedAttribute(std::move(*masked_pass_number));
         CHECK(masked_entity.IsMaskedEntity() &&
-              masked_entity.IsServerInstance());
+              GetWalletPassType(masked_entity.type(),
+                                masked_entity.record_type()) ==
+                  EntityInstance::WalletPassType::kPrivate);
         return masked_entity;
       },
       unmasked_entity);

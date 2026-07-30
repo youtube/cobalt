@@ -1501,18 +1501,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderPrewarmDefaultSearchEngineTest,
       *GetActiveWebContents(), prerender_url_3);
 }
 
-class PrerenderFormSubmissionBrowserTest : public PrerenderBrowserTest {
- public:
-  PrerenderFormSubmissionBrowserTest() {
-    feature_list_.InitAndEnableFeature(
-        blink::features::kPrerenderActivationByFormSubmission);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest, UseCounter) {
+IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
+                       PrerenderFormSubmissionUseCounter) {
   base::HistogramTester histogram_tester;
 
   // Navigate to an initial page.
@@ -1542,7 +1532,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest, UseCounter) {
 
 // Verifies that HTTP to HTTP, prerender form submission can work as expected
 // without being blocked.
-IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest, HTTPFormActivation) {
+IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, HTTPFormActivation) {
   base::HistogramTester histogram_tester;
 
   // Navigate to an initial page.
@@ -1577,8 +1567,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest, HTTPFormActivation) {
 }
 
 // Verifies that a search form will not be blocked.
-IN_PROC_BROWSER_TEST_F(PrerenderFormSubmissionBrowserTest,
-                       SearchableFormActivation) {
+IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SearchableFormActivation) {
   base::HistogramTester histogram_tester;
 
   // Navigate to an initial page.

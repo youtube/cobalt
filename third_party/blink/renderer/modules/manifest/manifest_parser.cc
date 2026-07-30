@@ -306,7 +306,7 @@ std::vector<T> ToStdVector(const Vector<T>& blink_vector) {
 template <typename T>
 Vector<T> ToBlinkVector(const std::vector<T>& std_vector) {
   Vector<T> blink_vector;
-  blink_vector.reserve(std_vector.size());
+  blink_vector.reserve(base::checked_cast<wtf_size_t>(std_vector.size()));
   for (const auto& p : std_vector) {
     blink_vector.push_back(p);
   }

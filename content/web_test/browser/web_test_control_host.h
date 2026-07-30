@@ -190,7 +190,8 @@ class WebTestControlHost : public WebContentsObserver,
   void WebContentsDestroyed() override;
   void DidUpdateFaviconURL(
       RenderFrameHost* render_frame_host,
-      const std::vector<blink::mojom::FaviconURLPtr>& candidates) override;
+      const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+      blink::mojom::FaviconUpdateReason reason) override;
   void RenderFrameHostChanged(RenderFrameHost* old_host,
                               RenderFrameHost* new_host) override;
   void RenderViewDeleted(RenderViewHost* render_view_host) override;

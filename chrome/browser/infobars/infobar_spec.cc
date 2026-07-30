@@ -58,6 +58,12 @@ InfoBarSpec::Builder& InfoBarSpec::Builder::SetExpireOnNavigation(
   return *this;
 }
 
+InfoBarSpec::Builder& InfoBarSpec::Builder::SetShouldHideInFullscreen(
+    bool should_hide_in_fullscreen) {
+  spec_.should_hide_in_fullscreen_ = should_hide_in_fullscreen;
+  return *this;
+}
+
 InfoBarSpec::Builder& InfoBarSpec::Builder::AddOkButton(
     const std::u16string& label,
     ActionCallback callback) {

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/preloading/search_preload/search_preload_service.h"
 
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/preloading/search_preload/search_preload_features.h"
 #include "chrome/browser/preloading/search_preload/search_preload_service_factory.h"
@@ -14,6 +15,7 @@
 #include "components/omnibox/browser/omnibox.mojom-shared.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_contents.h"
+#include "net/http/http_no_vary_search_data.h"
 #include "services/network/public/mojom/no_vary_search.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 
@@ -46,6 +48,19 @@ SearchPreloadService::SearchPreloadService(Profile* profile)
       TemplateURLServiceFactory::GetForProfile(profile_);
   CHECK(template_url_service);
   observer_.Observe(template_url_service);
+
+  std::string initial_nvs_hint =
+      features::kDsePreload2InitialNoVarySearchHint.Get();
+  if (!initial_nvs_hint.empty()) {
+    auto parsed =
+        net::HttpNoVarySearchData::ParseFromHeaderValue(initial_nvs_hint);
+    if (parsed.has_value()) {
+      no_vary_search_data_cache_ = std::move(parsed.value());
+    } else {
+      LOG(WARNING) << "Failed to parse initial No-Vary-Search hint: "
+                   << initial_nvs_hint;
+    }
+  }
 }
 
 SearchPreloadService::~SearchPreloadService() = default;

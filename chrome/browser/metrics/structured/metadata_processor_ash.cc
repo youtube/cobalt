@@ -5,13 +5,13 @@
 #include "chrome/browser/metrics/structured/metadata_processor_ash.h"
 
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/metrics/usertype_by_devicetype_metrics_provider.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/user.h"
@@ -76,8 +76,9 @@ MetadataProcessorAsh::GetPrimaryUserSegment() {
       return StructuredEventProto::UNKNOWN_PRIMARY_USER_TYPE;
     }
 
-    Profile* profile =
-        ash::ProfileHelper::Get()->GetProfileByUser(primary_user);
+    Profile* profile = Profile::FromBrowserContext(
+        ash::BrowserContextHelper::Get()->GetBrowserContextByUser(
+            primary_user));
     DCHECK(profile);
 
     switch (UserTypeByDeviceTypeMetricsProvider::GetUserSegment(profile)) {

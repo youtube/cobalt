@@ -622,6 +622,11 @@ class WrappedWebNNTensorCompoundImageRepresentation
   Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Buffer() const final {
     return wrapped_->GetD3D12Buffer();
   }
+
+  base::win::ScopedHandle GetD3D12HeapHandle() const final {
+    return wrapped_->GetD3D12HeapHandle();
+  }
+
 #endif
 
 #if BUILDFLAG(IS_APPLE)

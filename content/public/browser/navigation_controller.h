@@ -17,6 +17,7 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/global_request_id.h"
+#include "content/public/browser/initiator_navigation_state.h"
 #include "content/public/browser/navigation_ui_data.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/render_frame_host.h"
@@ -188,6 +189,16 @@ class NavigationController {
     // also be null for non-about:blank/about:srcdoc navigations.
     std::optional<GURL> initiator_base_url;
 
+    // A record of the state of the navigation initiator when the navigation
+    // started. This should be non-null for all web contents initiated
+    // navigations.
+    scoped_refptr<InitiatorNavigationState> initiator_navigation_state;
+
+    // Whether initiator web security policies can be inherited when navigating
+    // to a local scheme. Except in specific cases (e.g. PDF viewer), this
+    // should be true.
+    bool should_ignore_initiator_policies_for_inheritance = false;
+
     // SiteInstance of the frame that initiated the navigation or null if we
     // don't know it.
     scoped_refptr<SiteInstance> source_site_instance;
@@ -322,6 +333,16 @@ class NavigationController {
 
     // Indicates that this navigation is for PDF content in a renderer.
     bool is_pdf = false;
+
+    // When true, this navigation establishes a fresh embedder-imposed
+    // isolation domain: `NavigationRequest` mints a unique per-instance id, and
+    // the committing document plus any descendant frames inherit that id from
+    // their parent SiteInstance, so the whole subtree stays isolated from every
+    // other instance. Set only on the root navigation of a MimeHandler subtree
+    // (the initial navigation to content handled by a MimeHandler extension,
+    // which may itself be a subframe), not on the outermost main frame in
+    // general.
+    bool requests_unique_instance_isolation = false;
 
     // Indicates this navigation should use a new BrowsingInstance. For example,
     // this is used in web platform tests to guarantee that each test starts in

@@ -63,12 +63,12 @@ class CupsPrintJobNotificationTest : public testing::Test,
     if (IsWebPrintingTest()) {
       return CupsPrintJob(
           printer, /*job_id=*/0, /*document_title=*/std::string(),
-          total_page_number, crosapi::mojom::PrintJob::Source::kIsolatedWebApp,
+          total_page_number, ::printing::PrintJob::Source::kIsolatedWebApp,
           /*source_id=*/kAppId, printing::proto::PrintSettings());
     } else {
       return CupsPrintJob(
           printer, /*job_id=*/0, /*document_title=*/std::string(),
-          total_page_number, crosapi::mojom::PrintJob::Source::kUnknown,
+          total_page_number, ::printing::PrintJob::Source::kPrintPreview,
           /*source_id=*/std::string(), printing::proto::PrintSettings());
     }
   }

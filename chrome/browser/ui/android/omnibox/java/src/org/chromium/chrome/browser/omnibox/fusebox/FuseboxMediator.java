@@ -128,6 +128,7 @@ import java.util.function.Supplier;
     private final Runnable mOnActivationChipClickedWithQuery;
     private final Runnable mClearUrlBarTextRunnable;
     private final Supplier<String> mUrlBarTextSupplier;
+    private final boolean mIsDesktopPlatform;
 
     private boolean mIsTextWrapping;
     private boolean mHasContextualTasksFocus;
@@ -195,6 +196,7 @@ import java.util.function.Supplier;
         // TODO(https://crbug.com/520528598): Remove current text supplier once AutocompleteInput
         // has uncommitted text, and use that instead.
         mUrlBarTextSupplier = urlBarTextSupplier;
+        mIsDesktopPlatform = OmniboxCapabilities.isDesktopPlatform();
 
         // Create the upload failed snackbar.
         mAttachmentUploadFailedSnackbar =
@@ -220,9 +222,8 @@ import java.util.function.Supplier;
 
         mModel.set(
                 FuseboxProperties.POPUP_ATTACH_TAB_PICKER_VISIBLE,
-                !OmniboxCapabilities.isDesktopPlatform()
-                        && ChromeFeatureList.sChromeItemPickerUi.isEnabled());
-        mModel.set(FuseboxProperties.POPUP_ATTACH_CAMERA_VISIBLE, true);
+                !mIsDesktopPlatform && ChromeFeatureList.sChromeItemPickerUi.isEnabled());
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CAMERA_VISIBLE, !mIsDesktopPlatform);
         mModel.set(FuseboxProperties.POPUP_ATTACH_GALLERY_VISIBLE, true);
         mModel.set(FuseboxProperties.POPUP_TOOL_DIVIDER_VISIBLE, true);
         mModel.set(
@@ -438,8 +439,7 @@ import java.util.function.Supplier;
         if (!isInInputSession()) return;
 
         // On Desktop, dedicated button shows in specialized modes only, and reverts to AI Mode.
-        if (ToolModeUtils.isAimRequest(mInput.getRequestType())
-                && !OmniboxCapabilities.isDesktopPlatform()) {
+        if (ToolModeUtils.isAimRequest(mInput.getRequestType()) && !mIsDesktopPlatform) {
             activateSearchMode();
         } else {
             activateAiMode(
@@ -548,7 +548,7 @@ import java.util.function.Supplier;
             // Never show mode button if in Search mode.
             return false;
         } else if (mInput.getRequestType() == AutocompleteRequestType.AI_MODE
-                && OmniboxCapabilities.isDesktopPlatform()) {
+                && mIsDesktopPlatform) {
             // Special Desktop case -> AI Mode only changes the status icon.
             return false;
         }
@@ -661,7 +661,7 @@ import java.util.function.Supplier;
                         && !mModelList
                                 .getAttachedTabIds()
                                 .contains(tabSelector.getCurrentTab().getId())
-                        && !OmniboxCapabilities.isDesktopPlatform()
+                        && !mIsDesktopPlatform
                         && OmniboxFeatures.sAllowCurrentTab.getValue();
 
         mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_VISIBLE, shouldShowCurrentTab);
@@ -692,7 +692,7 @@ import java.util.function.Supplier;
     }
 
     private void updateModelForRecentTabs() {
-        if (!isInInputSession() || !OmniboxCapabilities.isDesktopPlatform()) return;
+        if (!isInInputSession() || !mIsDesktopPlatform) return;
         var selector = mTabModelSelectorSupplier.get();
         if (selector == null) {
             mModel.set(FuseboxProperties.POPUP_RECENT_TABS_BUTTON_DATA_LIST, List.of());
@@ -1058,21 +1058,28 @@ import java.util.function.Supplier;
         mModel.set(FuseboxProperties.POPUP_ATTACH_FILE_ENABLED, allowNonImage);
     }
 
+    private PopupButtonData createAiModeToolButtonData() {
+        boolean selected =
+                mInput != null && mInput.getRequestType() == AutocompleteRequestType.AI_MODE;
+        return new PopupButtonData(
+                this::onDynamicButtonClicked,
+                mContext.getString(R.string.ai_mode_entrypoint_label),
+                IconResourceIds.SEARCH_LOUPE_WITH_SPARKLE_VALUE,
+                /* enabled= */ true,
+                selected,
+                PopupButtonType.TOOL,
+                ToolMode.TOOL_MODE_UNSPECIFIED_VALUE,
+                /* hasColor= */ false);
+    }
+
     private void updateClientControlledToolButtonList() {
         assert !OmniboxFeatures.sShowModelPicker.getValue();
         if (!isInInputSession()) return;
         List<PopupButtonData> toolButtons = new ArrayList<>();
 
-        toolButtons.add(
-                new PopupButtonData(
-                        this::onDynamicButtonClicked,
-                        mContext.getString(R.string.ai_mode_entrypoint_label),
-                        IconResourceIds.SEARCH_LOUPE_WITH_SPARKLE_VALUE,
-                        /* enabled= */ true,
-                        mInput.getRequestType() == AutocompleteRequestType.AI_MODE,
-                        PopupButtonType.TOOL,
-                        ToolMode.TOOL_MODE_UNSPECIFIED_VALUE,
-                        /* hasColor= */ false));
+        if (!OmniboxCapabilities.isDesktopPlatform()) {
+            toolButtons.add(createAiModeToolButtonData());
+        }
 
         if (mComposeboxQueryControllerBridge.isCreateImagesEligible()) {
             toolButtons.add(
@@ -1323,17 +1330,9 @@ import java.util.function.Supplier;
                 inputState.toolsSectionConfig.getHeader());
 
         List<PopupButtonData> toolButtonDataList = new ArrayList<>();
-        toolButtonDataList.add(
-                new PopupButtonData(
-                        this::onDynamicButtonClicked,
-                        mContext.getString(R.string.ai_mode_entrypoint_label),
-                        IconResourceIds.SEARCH_LOUPE_WITH_SPARKLE_VALUE,
-                        /* enabled= */ true,
-                        mInput != null
-                                && mInput.getRequestType() == AutocompleteRequestType.AI_MODE,
-                        PopupButtonType.TOOL,
-                        ToolMode.TOOL_MODE_UNSPECIFIED_VALUE,
-                        /* hasColor= */ false));
+        if (!OmniboxCapabilities.isDesktopPlatform()) {
+            toolButtonDataList.add(createAiModeToolButtonData());
+        }
 
         for (ToolConfig toolConfig : inputState.toolConfigs) {
             int toolMode = toolConfig.getToolValue();

@@ -66,4 +66,11 @@
   _target->OnGeminiLiveUserDidBargeIn();
 }
 
+- (void)geminiUIDidAppear {
+  if (!_target) {
+    return;
+  }
+  _target->OnGeminiUIDidAppear();
+}
+
 @end

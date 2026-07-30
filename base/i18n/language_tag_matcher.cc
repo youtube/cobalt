@@ -57,8 +57,8 @@ std::vector<LanguageTag> GetFallbackLocales(const IcuFallbacker& icu_fallbacker,
                                             const LanguageTag& locale) {
   rust::Vec<Icu4xLocale> fallback_locales =
       icu_fallbacker.fallback_to_vec(rust::Slice<const uint8_t>(
-          reinterpret_cast<const uint8_t*>(locale.ToString().data()),
-          locale.ToString().size()));
+          reinterpret_cast<const uint8_t*>(locale.tag_string().data()),
+          locale.tag_string().size()));
   if (fallback_locales.empty()) {
     return {};
   }

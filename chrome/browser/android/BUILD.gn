@@ -14,6 +14,7 @@ source_set("tabs_public") {
   public = [
     "tab_android.h",
     "tab_android_data_provider.h",
+    "tab_favicon.h",
     "tab_features.h",
   ]
 
@@ -22,10 +23,12 @@ source_set("tabs_public") {
     "//chrome/browser/tab",
     "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/common:buildflags",
+    "//components/favicon/core",
     "//components/sessions:session_id",
     "//components/split_tabs",
     "//components/tab_groups",
     "//components/tabs:public",
+    "//skia",
     "//ui/base/unowned_user_data",
   ]
 }
@@ -381,7 +384,6 @@ if (is_android) {
       "tab_android_user_data.h",
       "tab_browser_controls_constraints_helper.cc",
       "tab_favicon.cc",
-      "tab_favicon.h",
       "tab_group_android.cc",
       "tab_group_android.h",
       "tab_group_collection_data_android.cc",
@@ -724,6 +726,9 @@ if (is_android) {
       "//services/device/public/cpp/geolocation",
       "//services/proxy_resolver:lib",
       "//third_party/android_opengl/etc1",
+      "//third_party/androidx/local_modifications/graphics_core:graphics_core_native",
+      "//third_party/androidx/local_modifications/ink:ink_native",
+      "//third_party/androidx/third_party/ink",
       "//third_party/blink/public/common",
       "//third_party/blink/public/mojom:android_mojo_bindings_blink_headers",
       "//third_party/cpu_features:ndk_compat",

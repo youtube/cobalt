@@ -143,6 +143,7 @@
 #include "net/disk_cache/buildflags.h"
 #include "net/ssl/client_cert_store.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
@@ -1220,9 +1221,12 @@ void StoragePartitionImpl::RegisterKeepAliveHandle(
     mojo::PendingReceiver<blink::mojom::NavigationStateKeepAliveHandle>
         receiver,
     std::unique_ptr<NavigationStateKeepAlive> handle) {
-  navigation_state_keep_alive_map_.erase(handle->frame_token());
+  auto frame_token = static_cast<InitiatorNavigationStateImpl*>(
+                         handle->initiator_navigation_state().get())
+                         ->frame_token();
+  navigation_state_keep_alive_map_.erase(frame_token);
   navigation_state_keep_alive_map_.insert(
-      std::make_pair(handle->frame_token(), handle.get()));
+      std::make_pair(frame_token, handle.get()));
 
   keep_alive_handles_receiver_set_.Add(std::move(handle), std::move(receiver));
 }
@@ -2236,7 +2240,7 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
       rfh = context.navigation_or_document()->GetDocument();
     } else if (context.navigation_or_document()->GetNavigationRequest()) {
       // Currently the LNA permission only applies to subframe navigations.
-      // See content/browser/renderer_host/private_network_access_util.cc for
+      // See content/browser/renderer_host/local_network_access_util.cc for
       // current feature state to policy mapping logic.
       //
       // For other types of navigation, we either default-allow or default-block
@@ -3681,6 +3685,7 @@ StoragePartitionImpl::CreateURLLoaderFactoryParams() {
   params->disable_web_security =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableWebSecurity);
+  params->network_restrictions_id = network::GetNoOpNetworkRestrictionsId();
   return params;
 }
 

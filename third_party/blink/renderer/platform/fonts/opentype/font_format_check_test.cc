@@ -12,8 +12,12 @@ namespace blink {
 class FontFormatCheckTest : public testing::Test {
  protected:
   void EnsureFontData(String font_file_name) {
-    sk_sp<SkData> font_file_data(SkData::MakeFromFileName(
-        test::PlatformTestDataPath(font_file_name).Utf8().data()));
+    EnsureFontDataFromPath(test::PlatformTestDataPath(font_file_name));
+  }
+
+  void EnsureFontDataFromPath(const String& font_file_path) {
+    sk_sp<SkData> font_file_data(
+        SkData::MakeFromFileName(font_file_path.Utf8().data()));
     ASSERT_FALSE(font_file_data->isEmpty());
     font_data_ = font_file_data;
   }
@@ -40,6 +44,22 @@ TEST_F(FontFormatCheckTest, COLRV0) {
   FontFormatCheck format_check(font_data_);
   ASSERT_TRUE(format_check.IsColrCpalColorFontV0());
   ASSERT_FALSE(format_check.IsColrCpalColorFontV1());
+}
+
+TEST_F(FontFormatCheckTest, EbdtEblc) {
+  EnsureFontDataFromPath(test::BlinkWebTestsDir() +
+                         "/resources/EbdtMono/ebdt_fmt1.ttf");
+  FontFormatCheck format_check(font_data_);
+  ASSERT_TRUE(format_check.IsEbdtEblcMonochromeFont());
+  ASSERT_FALSE(format_check.IsCbdtCblcColorFont());
+  ASSERT_FALSE(format_check.IsColrCpalColorFontV0());
+  ASSERT_FALSE(format_check.IsColrCpalColorFontV1());
+}
+
+TEST_F(FontFormatCheckTest, NoEbdtEblc) {
+  EnsureFontData("roboto-a.ttf");
+  FontFormatCheck format_check(font_data_);
+  ASSERT_FALSE(format_check.IsEbdtEblcMonochromeFont());
 }
 
 }  // namespace blink

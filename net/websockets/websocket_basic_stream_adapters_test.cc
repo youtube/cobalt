@@ -1789,7 +1789,8 @@ TEST_P(WebSocketQuicStreamAdapterTest, OnHeadersReceivedThenDisconnect) {
           /*fin=*/false, ConvertRequestPriorityToQuicPriority(LOWEST),
           std::move(request_header_block), nullptr));
 
-  quiche::HttpHeaderBlock response_header_block = WebSocketHttp2Response({});
+  quiche::HttpHeaderBlock response_header_block =
+      WebSocketHttp2Response({{"content-length", "0"}});
   mock_quic_data_.AddRead(
       ASYNC, server_maker_.MakeResponseHeadersPacket(
                  /*packet_number=*/1, client_data_stream_id1_, /*fin=*/false,
@@ -1799,11 +1800,14 @@ TEST_P(WebSocketQuicStreamAdapterTest, OnHeadersReceivedThenDisconnect) {
   mock_quic_data_.AddWrite(
       SYNCHRONOUS, ConstructAckAndRstPacket(packet_number++,
                                             quic::QUIC_STREAM_CANCELLED, 1, 0));
-  base::RunLoop run_loop;
-  auto quit_closure = run_loop.QuitClosure();
-  EXPECT_CALL(mock_delegate_, OnHeadersReceived(_)).WillOnce([&]() {
-    std::move(quit_closure).Run();
-  });
+  bool headers_received = false;
+  EXPECT_CALL(mock_delegate_, OnHeadersReceived(_))
+      .WillOnce([&](const quiche::HttpHeaderBlock& response_headers) {
+        auto it = response_headers.find("content-length");
+        EXPECT_NE(response_headers.end(), it);
+        EXPECT_EQ("0", it->second);
+        headers_received = true;
+      });
 
   Initialize();
 
@@ -1821,7 +1825,7 @@ TEST_P(WebSocketQuicStreamAdapterTest, OnHeadersReceivedThenDisconnect) {
   adapter->WriteHeaders(RequestHeaders(), false);
 
   session_->StartReading();
-  run_loop.Run();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return headers_received; }));
 
   adapter->Disconnect();
 

@@ -16,7 +16,6 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_feature_availability.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
@@ -36,6 +35,7 @@
 #import "ios/chrome/browser/shared/public/commands/tab_strip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/omnibox_util.h"
 #import "ui/base/device_form_factor.h"
 
 @interface BubblePresenterCoordinator () <HelpCommands, BooleanObserver>
@@ -172,10 +172,8 @@
       break;
     }
     case InProductHelpType::kToolbarSwipe: {
-      OmniboxPositionBrowserAgent* omniboxAgent =
-          OmniboxPositionBrowserAgent::FromBrowser(self.browser);
       if (!IsChromeNextIaEnabled() ||
-          (omniboxAgent && omniboxAgent->IsCurrentLayoutBottomOmnibox())) {
+          IsCurrentLayoutBottomOmnibox(self.browser)) {
         [_presenter presentToolbarSwipeGestureInProductHelp];
       }
       break;

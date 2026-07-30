@@ -139,8 +139,7 @@ ResponseAction PasswordsPrivateRequestPlaintextPasswordFunction::Run() {
           parameters->id, parameters->reason,
           base::BindOnce(
               &PasswordsPrivateRequestPlaintextPasswordFunction::GotPassword,
-              this),
-          GetSenderWebContents());
+              this));
 
   // GotPassword() might respond before we reach this point.
   return did_respond() ? AlreadyResponded() : RespondLater();
@@ -255,8 +254,7 @@ ResponseAction PasswordsPrivateMovePasswordsToAccountFunction::Run() {
   auto parameters =
       api::passwords_private::MovePasswordsToAccount::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(parameters);
-  GetDelegate(browser_context())
-      ->MovePasswordsToAccount(parameters->ids, GetSenderWebContents());
+  GetDelegate(browser_context())->MovePasswordsToAccount(parameters->ids);
   return RespondNow(NoArguments());
 }
 
@@ -343,8 +341,7 @@ ResponseAction PasswordsPrivateContinueImportFunction::Run() {
       ->ContinueImport(
           parameters->selected_ids,
           base::BindOnce(
-              &PasswordsPrivateContinueImportFunction::ImportCompleted, this),
-          GetSenderWebContents());
+              &PasswordsPrivateContinueImportFunction::ImportCompleted, this));
 
   // `ImportCompleted()` might respond before we reach this point.
   return did_respond() ? AlreadyResponded() : RespondLater();
@@ -558,8 +555,7 @@ ResponseAction PasswordsPrivateAddPasswordFunction::Run() {
                          base::UTF8ToUTF16(parameters->options.username),
                          base::UTF8ToUTF16(parameters->options.password),
                          base::UTF8ToUTF16(parameters->options.note),
-                         parameters->options.use_account_store,
-                         GetSenderWebContents())) {
+                         parameters->options.use_account_store)) {
     return RespondNow(Error(
         "Could not add the password. Either the url is invalid, the password "
         "is empty or an entry with such origin and username already exists."));
@@ -587,7 +583,6 @@ ResponseAction PasswordsPrivateShowExportedFileInShellFunction::Run() {
 ResponseAction PasswordsPrivateDisconnectCloudAuthenticatorFunction::Run() {
   if (auto delegate = GetDelegate(browser_context())) {
     delegate->DisconnectCloudAuthenticator(
-        GetSenderWebContents(),
         base::BindOnce(&PasswordsPrivateDisconnectCloudAuthenticatorFunction::
                            OnDisconnectCloudAuthenticatorCompleted,
                        this));
@@ -605,8 +600,8 @@ void PasswordsPrivateDisconnectCloudAuthenticatorFunction::
 // PasswordsPrivateIsConnectedToCloudAuthenticatorFunction
 ResponseAction PasswordsPrivateIsConnectedToCloudAuthenticatorFunction::Run() {
   if (auto delegate = GetDelegate(browser_context())) {
-    return RespondNow(WithArguments(
-        delegate->IsConnectedToCloudAuthenticator(GetSenderWebContents())));
+    return RespondNow(
+        WithArguments(delegate->IsConnectedToCloudAuthenticator()));
   }
 
   return RespondNow(Error(kNoDelegateError));

@@ -43,21 +43,16 @@ public class HistoryPaneStation extends HubBaseStation {
         return noopTo().enterFacility(new HistoryWithEntriesFacility(isLargeFormFactorDevice));
     }
 
-    /** Expect no history to be displayed in the history pane. */
-    public void expectEmptyState(boolean isLargeFormFactorDevice) {
+    /**
+     * Expect that the empty placeholder is shown when there are no entries. This should only be
+     * used on phones since the behavior can be buggy on LFF with varying keyboard connections.
+     */
+    public void expectEmptyState() {
         var emptyHistory = new Facility<>("EmptyState");
 
-        emptyHistory.declareView(withText("You’ll find your history here"));
+        emptyHistory.declareView(withText(R.string.history_manager_empty_state));
         emptyHistory.declareView(
-                withText(
-                        "You can see the pages you’ve visited or delete them from your"
-                                + " history"));
-
-        if (!isLargeFormFactorDevice) {
-            emptyHistory.declareNoView(withId(R.id.history_page_recycler_view));
-        } else {
-            emptyHistory.declareView(withId(R.id.history_page_recycler_view));
-        }
+                withText(R.string.history_manager_empty_state_view_or_clear_page_visited));
         noopTo().enterFacility(emptyHistory);
     }
 

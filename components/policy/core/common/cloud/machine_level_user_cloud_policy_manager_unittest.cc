@@ -33,6 +33,7 @@ class MockMachineLevelUserCloudPolicyStore
             scoped_refptr<base::SequencedTaskRunner>()) {}
 
   MOCK_METHOD0(LoadImmediately, void(void));
+  MOCK_METHOD0(Clear, void());
 };
 
 class MachineLevelUserCloudPolicyManagerTest : public ::testing::Test {
@@ -75,6 +76,18 @@ TEST_F(MachineLevelUserCloudPolicyManagerTest, InitManager) {
   EXPECT_CALL(*extension_install_store_, LoadImmediately());
 #endif
   manager_->Init(&schema_registry_);
+  ::testing::Mock::VerifyAndClearExpectations(store_);
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  ::testing::Mock::VerifyAndClearExpectations(extension_install_store_);
+#endif
+}
+
+TEST_F(MachineLevelUserCloudPolicyManagerTest, DisconnectAndRemovePolicy) {
+  EXPECT_CALL(*store_, Clear());
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  EXPECT_CALL(*extension_install_store_, Clear());
+#endif
+  manager_->DisconnectAndRemovePolicy();
   ::testing::Mock::VerifyAndClearExpectations(store_);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   ::testing::Mock::VerifyAndClearExpectations(extension_install_store_);

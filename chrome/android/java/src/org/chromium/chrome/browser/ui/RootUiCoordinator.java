@@ -782,7 +782,8 @@ public class RootUiCoordinator
                             }
                         },
                         mPageZoomManager,
-                        /* useSlider= */ true);
+                        /* useSlider= */ true,
+                        getBottomSheetControllerSupplier());
 
         if (ChromeFeatureList.sEnableExclusiveAccessManager.isEnabled()) {
             mExclusiveAccessManager =
@@ -2644,9 +2645,6 @@ public class RootUiCoordinator
                                             mContextualSearchManagerSupplier.get();
                                     if (manager != null) manager.onBottomSheetVisible(true);
                                 }
-
-                                // On visible bottom sheet, hide page zoom dialog
-                                mPageZoomBarCoordinator.hide();
                                 break;
                             case SheetState.HIDDEN:
                                 mOpened = false;

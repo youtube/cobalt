@@ -6,6 +6,7 @@
 
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/bubble_anchor_util.h"
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -51,10 +52,8 @@ AnchorConfiguration GetPageInfoAnchorConfiguration(
               views::BubbleBorder::TOP_LEFT};
     }
   } else {
-    auto chip_anchor = browser->GetBrowserForMigrationOnly()
-                           ->window()
-                           ->GetLocationBar()
-                           ->GetChipAnchor();
+    auto chip_anchor =
+        BrowserWindow::FromBrowser(browser)->GetLocationBar()->GetChipAnchor();
     if (anchor == Anchor::kLocationBar && chip_anchor) {
       return *chip_anchor;
     }

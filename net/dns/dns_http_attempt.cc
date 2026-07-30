@@ -7,7 +7,6 @@
 #include <stdint.h>
 
 #include <string>
-#include <unordered_map>
 
 #include "base/base64url.h"
 #include "base/memory/weak_ptr.h"
@@ -38,6 +37,7 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -89,7 +89,7 @@ DnsHTTPAttempt::DnsHTTPAttempt(base::WeakPtr<ResolveContext> resolve_context,
   } else {
     // Set url for a GET request
     std::string url_string;
-    std::unordered_map<std::string, std::string> parameters;
+    absl::flat_hash_map<std::string, std::string> parameters;
     std::string encoded_query;
     base::Base64UrlEncode(std::string_view(query_->io_buffer()->data(),
                                            query_->io_buffer()->size()),

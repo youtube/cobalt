@@ -33,7 +33,7 @@ BASE_DECLARE_FEATURE(kContextMenuAnimationLimiting);
 
 // If enabled, the composebox context menu will stay open on selection for
 // realbox.
-BASE_DECLARE_FEATURE(kKeepMenuOpenOnTabSelectForRealbox);
+extern const base::FeatureParam<bool> kKeepMenuOpenOnTabSelectForRealbox;
 
 }  // namespace omnibox
 

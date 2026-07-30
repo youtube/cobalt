@@ -7,6 +7,7 @@
 
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/browser_controls_adapter.h"
+#include "content/public/browser/web_contents_observer.h"
 
 class CommandUpdater;
 class BrowserWindowInterface;
@@ -14,10 +15,12 @@ class BrowserWindowInterface;
 namespace browser_controls_api {
 
 // Adapter implementation for the desktop platform.
-class BrowserControlsAdapterImpl : public BrowserControlsAdapter {
+class BrowserControlsAdapterImpl : public BrowserControlsAdapter,
+                                   public content::WebContentsObserver {
  public:
   BrowserControlsAdapterImpl(BrowserWindowInterface* browser_interface,
-                             CommandUpdater* command_updater);
+                             CommandUpdater* command_updater,
+                             content::WebContents* web_contents);
   BrowserControlsAdapterImpl(const BrowserControlsAdapterImpl&&) = delete;
   BrowserControlsAdapterImpl operator=(const BrowserControlsAdapterImpl&&) =
       delete;
@@ -32,9 +35,13 @@ class BrowserControlsAdapterImpl : public BrowserControlsAdapter {
   void CreateNewSplitTab() override;
   void NavigateHome(WindowOpenDisposition disposition) override;
   void Navigate(const GURL& url) override;
+  void NavigateText(const std::string& text) override;
   webui_toolbar::TabSplitStatus ComputeSplitTabStatus() override;
 
  private:
+  // Helper to retrieve and reset the drag origin state.
+  bool GetDragOriginatedFromRendererAndReset();
+
   // Not owned.
   const base::raw_ref<BrowserWindowInterface> browser_;
   const base::raw_ref<CommandUpdater> command_updater_;

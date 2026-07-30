@@ -164,7 +164,7 @@ class ClipboardHtmlWriter final : public ClipboardStringWriter {
     DCHECK(doc);
 
     system_clipboard()->WriteHTML(
-        CreateMarkup(doc, kIncludeNode, kResolveAllURLs), url);
+        CreateMarkup(doc, kIncludeNode, ResolveUrls::kAll), url);
     promise_->CompleteWriteRepresentation();
   }
 };
@@ -186,7 +186,7 @@ class ClipboardSvgWriter final : public ClipboardStringWriter {
         V8SupportedType(V8SupportedType::Enum::kImageSvgXml));
     promise_->GetExecutionContext()->CountUse(WebFeature::kClipboardSvgWrite);
     system_clipboard()->WriteSvg(
-        CreateMarkup(doc, kIncludeNode, kResolveAllURLs));
+        CreateMarkup(doc, kIncludeNode, ResolveUrls::kAll));
     promise_->CompleteWriteRepresentation();
   }
 };

@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/tabs/vertical/vertical_unpinned_tab_container_view.h"
 
-#include "base/containers/adapters.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_animating_layout_manager.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
@@ -14,8 +13,6 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
-#include "components/tabs/public/tab_group.h"
-#include "components/tabs/public/tab_group_tab_collection.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/controls/scroll_view.h"

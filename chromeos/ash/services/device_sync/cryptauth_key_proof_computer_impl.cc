@@ -13,8 +13,8 @@
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/services/device_sync/cryptauth_key.h"
 #include "chromeos/ash/services/device_sync/proto/cryptauth_common.pb.h"
-#include "crypto/hkdf.h"
 #include "crypto/hmac.h"
+#include "crypto/kdf.h"
 #include "crypto/keypair.h"
 #include "crypto/sign.h"
 
@@ -85,13 +85,15 @@ CryptAuthKeyProofComputerImpl::ComputeSymmetricKeyProof(
     const std::string& payload,
     const std::string& salt,
     const std::string& info) {
-  std::string derived_symmetric_key_material =
-      crypto::HkdfSha256(symmetric_key.symmetric_key(), salt, info,
-                         NumBytesForSymmetricKeyType(symmetric_key.type()));
+  std::vector<uint8_t> derived_symmetric_key_material(
+      NumBytesForSymmetricKeyType(symmetric_key.type()));
+  crypto::kdf::Hkdf(crypto::hash::kSha256,
+                    base::as_byte_span(symmetric_key.symmetric_key()),
+                    base::as_byte_span(salt), base::as_byte_span(info),
+                    derived_symmetric_key_material);
 
   return std::string(base::as_string_view(crypto::hmac::SignSha256(
-      base::as_byte_span(derived_symmetric_key_material),
-      base::as_byte_span(payload))));
+      derived_symmetric_key_material, base::as_byte_span(payload))));
 }
 
 std::optional<std::string>

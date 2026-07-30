@@ -13,6 +13,7 @@
 #include "content/browser/webid/accounts_fetcher.h"
 #include "content/browser/webid/identity_registry.h"
 #include "content/browser/webid/request.h"
+#include "content/browser/webid/request_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -55,7 +56,7 @@ class MockFederatedAuthRequest : public Request {
   explicit MockFederatedAuthRequest(RenderFrameHost* rfh)
       : Request(
             rfh,
-            /*manager=*/nullptr,
+            *RequestService::GetOrCreateForCurrentDocument(rfh),
             rfh->GetBrowserContext()
                 ->GetFederatedIdentityApiPermissionContext(),
             rfh->GetBrowserContext()
@@ -234,11 +235,12 @@ TEST_F(NavigationInterceptorTest, WillProcessResponse) {
   // Uses an in-process data decoder service for testing.
   data_decoder::test::InProcessDataDecoder in_process_data_decoder;
 
+  NavigateAndCommit(GURL("https://rp.example/"));
+
   std::unique_ptr<MockFederatedAuthRequest> federated_auth_request =
       std::make_unique<MockFederatedAuthRequest>(
           web_contents()->GetPrimaryMainFrame());
 
-  NavigateAndCommit(GURL("https://rp.example/"));
   InterceptorMockNavigationHandle mock_navigation_handle(web_contents());
   mock_navigation_handle.set_url(base_url_);
   EXPECT_CALL(mock_navigation_handle, GetPreviousRenderFrameHostId)
@@ -287,11 +289,12 @@ TEST_F(NavigationInterceptorTest,
   // Uses an in-process data decoder service for testing.
   data_decoder::test::InProcessDataDecoder in_process_data_decoder;
 
+  NavigateAndCommit(GURL("https://rp.example/"));
+
   std::unique_ptr<MockFederatedAuthRequest> federated_auth_request =
       std::make_unique<MockFederatedAuthRequest>(
           web_contents()->GetPrimaryMainFrame());
 
-  NavigateAndCommit(GURL("https://rp.example/"));
   InterceptorMockNavigationHandle mock_navigation_handle(web_contents());
   mock_navigation_handle.set_url(base_url_);
   EXPECT_CALL(mock_navigation_handle, GetPreviousRenderFrameHostId)
@@ -339,11 +342,12 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseWithRedirect) {
   // Uses an in-process data decoder service for testing.
   data_decoder::test::InProcessDataDecoder in_process_data_decoder;
 
+  NavigateAndCommit(GURL("https://rp.example/"));
+
   std::unique_ptr<MockFederatedAuthRequest> federated_auth_request =
       std::make_unique<MockFederatedAuthRequest>(
           web_contents()->GetPrimaryMainFrame());
 
-  NavigateAndCommit(GURL("https://rp.example/"));
   InterceptorMockNavigationHandle mock_navigation_handle(web_contents());
   mock_navigation_handle.set_url(base_url_);
   EXPECT_CALL(mock_navigation_handle, GetPreviousRenderFrameHostId)
@@ -393,11 +397,12 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseWithRedirect) {
 }
 
 TEST_F(NavigationInterceptorTest, WillProcessResponseNoActivation) {
+  NavigateAndCommit(GURL("https://rp.example/"));
+
   std::unique_ptr<MockFederatedAuthRequest> federated_auth_request =
       std::make_unique<MockFederatedAuthRequest>(
           web_contents()->GetPrimaryMainFrame());
 
-  NavigateAndCommit(GURL("https://rp.example/"));
   // MockNavigationHandle (as opposed to InterceptorNavigationHandle) does not
   // have activation.
   MockNavigationHandle mock_navigation_handle(web_contents());
@@ -479,10 +484,11 @@ TEST_F(NavigationInterceptorTest, WillProcessResponseTokenRequestFails) {
   // Uses an in-process data decoder service for testing.
   data_decoder::test::InProcessDataDecoder in_process_data_decoder;
 
+  NavigateAndCommit(GURL("https://rp.example/"));
+
   auto federated_auth_request = std::make_unique<MockFederatedAuthRequest>(
       web_contents()->GetPrimaryMainFrame());
 
-  NavigateAndCommit(GURL("https://rp.example/"));
   InterceptorMockNavigationHandle mock_navigation_handle(web_contents());
   mock_navigation_handle.set_url(base_url_);
   EXPECT_CALL(mock_navigation_handle, GetPreviousRenderFrameHostId)

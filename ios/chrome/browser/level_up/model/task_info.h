@@ -10,6 +10,8 @@
 #include "base/functional/callback.h"
 #include "ios/chrome/browser/level_up/model/task_types.h"
 
+@class CommandDispatcher;
+
 // Interface that provides information about a task in the Level Up feature.
 class TaskInfo {
  public:
@@ -36,8 +38,11 @@ class TaskInfo {
   // The user action string that triggers completion of this task.
   virtual std::string GetTriggerUserAction() const = 0;
 
-  // Callback to navigate the user to the task's entry point.
-  virtual base::RepeatingClosure GetNavigationAction() const = 0;
+  // Callback to navigate the user to the task's entry point using the
+  // dispatcher.
+  using NavigationAction =
+      base::RepeatingCallback<void(CommandDispatcher* dispatcher)>;
+  virtual NavigationAction GetNavigationAction() const = 0;
 };
 
 #endif  // IOS_CHROME_BROWSER_LEVEL_UP_MODEL_TASK_INFO_H_

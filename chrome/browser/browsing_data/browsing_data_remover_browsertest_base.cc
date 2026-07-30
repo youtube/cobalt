@@ -18,6 +18,7 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -229,6 +230,13 @@ int BrowsingDataRemoverBrowserTestBase::GetSiteDataCount(
       ->CountAndDestroySelfWhenFinished();
   run_loop.Run();
   return count;
+}
+
+bool BrowsingDataRemoverBrowserTestBase::WaitForSiteDataCount(
+    int expected_count,
+    content::WebContents* web_contents) {
+  return base::test::RunUntil(
+      [&]() { return GetSiteDataCount(web_contents) == expected_count; });
 }
 
 network::mojom::NetworkContext*

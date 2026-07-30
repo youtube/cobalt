@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 #include "chromecast/app/grit/shell_resources.h"
 #include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/resource/resource_bundle.h"
 
 namespace chromecast {
@@ -67,6 +68,12 @@ std::string CastDevToolsManagerDelegate::GetDiscoveryPageHTML() {
   return ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
       IDR_CAST_SHELL_DEVTOOLS_DISCOVERY_PAGE);
 #endif
+}
+
+bool CastDevToolsManagerDelegate::AllowInspectingRenderFrameHost(
+    content::RenderFrameHost* rfh) {
+  content::WebContents* wc = content::WebContents::FromRenderFrameHost(rfh);
+  return wc && enabled_webcontents_.count(wc) != 0;
 }
 
 }  // namespace shell

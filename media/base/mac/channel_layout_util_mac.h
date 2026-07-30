@@ -71,8 +71,7 @@ MEDIA_EXPORT std::optional<Channels> AudioChannelLabelToChannel(
 
 // Mapping from Chrome's layout to CoreAudio's layout.
 MEDIA_EXPORT std::unique_ptr<ScopedAudioChannelLayout>
-ChannelLayoutToAudioChannelLayout(ChannelLayout input_layout,
-                                  int input_channels);
+ChannelLayoutToAudioChannelLayout(ChannelLayoutConfig input_config);
 
 // Mapping from CoreAudio's layout to Chrome's layout.
 // Return false if couldn't find a matched layout.

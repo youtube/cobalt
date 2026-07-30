@@ -253,6 +253,25 @@ std::optional<std::u16string> GetPageObjectMarkStringParam(
   return value;
 }
 
+std::optional<std::vector<unsigned char>> GetPageObjectMarkBlobParam(
+    FPDF_PAGEOBJECTMARK mark,
+    const std::string& key) {
+  // FPDFPageObjMark_GetParamBlobValue() naturally handles null `mark` inputs,
+  // so no explicit check.
+  unsigned long buflen = 0;
+  if (!FPDFPageObjMark_GetParamBlobValue(mark, key.c_str(), nullptr, 0,
+                                         &buflen) ||
+      buflen == 0) {
+    return std::nullopt;
+  }
+  std::vector<unsigned char> value(buflen);
+  unsigned long actual_buflen = 0;
+  CHECK(FPDFPageObjMark_GetParamBlobValue(mark, key.c_str(), value.data(),
+                                          buflen, &actual_buflen));
+  CHECK_EQ(actual_buflen, buflen);
+  return value;
+}
+
 std::optional<PdfRect> GetTextCharBox(FPDF_TEXTPAGE text_page, int index) {
   double left;
   double right;

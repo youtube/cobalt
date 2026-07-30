@@ -247,16 +247,17 @@ PassageEmbedderImpl::GenerateEmbeddings(const std::vector<std::string>& inputs,
     mojom::PassageEmbeddingsResultPtr result =
         mojom::PassageEmbeddingsResult::New();
 
-    base::LRUCache<std::string, std::vector<float>>::iterator cache_value =
-        embeddings_cache_.Get(input);
-    bool cache_hit = cache_value != embeddings_cache_.end();
+    // OOM Cache Bypass: Only History Embeddings checks the cache.
     if (!execute_for_gemma_) {
+      base::LRUCache<std::string, std::vector<float>>::iterator cache_value =
+          embeddings_cache_.Get(input);
+      bool cache_hit = cache_value != embeddings_cache_.end();
       base::UmaHistogramBoolean(kCacheHitMetricName, cache_hit);
-    }
-    if (cache_hit) {
-      result->embeddings = cache_value->second;
-      results.push_back(std::move(result));
-      continue;
+      if (cache_hit) {
+        result->embeddings = cache_value->second;
+        results.push_back(std::move(result));
+        continue;
+      }
     }
 
     std::vector<int> tokenized;
@@ -314,7 +315,11 @@ PassageEmbedderImpl::GenerateEmbeddings(const std::vector<std::string>& inputs,
             ? std::optional<base::TimeDelta>(execute_thread_timer.Elapsed())
             : std::nullopt);
 
-    embeddings_cache_.Put(input, execution_result->embeddings);
+    // OOM Cache Bypass: Only save History Embeddings results to the cache.
+    // Must Put() before std::move() to avoid storing an empty vector.
+    if (!execute_for_gemma_) {
+      embeddings_cache_.Put(input, execution_result->embeddings);
+    }
     result->embeddings = std::move(execution_result->embeddings);
 
     results.push_back(std::move(result));

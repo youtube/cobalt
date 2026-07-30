@@ -262,6 +262,7 @@ source_set("unit_tests") {
     "//components/test/ios",
     "//components/trusted_vault",
     "//components/ukm:test_support",
+    "//components/webauthn/ios:features",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/affiliations/model",
     "//ios/chrome/browser/autofill/form_input_accessory/coordinator",

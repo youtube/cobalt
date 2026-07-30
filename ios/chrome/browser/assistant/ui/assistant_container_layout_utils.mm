@@ -8,6 +8,7 @@
 #import <cmath>
 
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/layout_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
@@ -42,6 +43,7 @@ const CGFloat kAssistantSidePanelCornerRadius = 22.0;
 const NSTimeInterval kAssistantSheetSpringDuration = 0.3;
 
 const NSTimeInterval kAssistantSidePanelInsetAnimationDuration = 0.2;
+const NSTimeInterval kAssistantBottomSheetAnimationDuration = 0.4;
 const CGFloat kAssistantSheetSpringDamping = 0.85;
 
 const CGFloat kAssistantSheetMomentumProjectionSeconds = 0.2;

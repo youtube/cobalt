@@ -324,7 +324,6 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        /* lastUploadImageFilePath= */ "",
                         backgroundImageInfo,
                         bitmap,
                         /* primaryColor= */ null,

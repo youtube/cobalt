@@ -5244,6 +5244,11 @@ enum WebFeature {
   kSVGPathElementGetPathData = 5927,
   kSVGPathElementGetPathDataNormalized = 5928,
   kDownloadFromAdScript = 5929,
+  kCompositorKeyframeSnapshotMissing = 5930,
+  kTimelineTrigger = 5931,
+  kContainerTimingAttribute = 5932,
+  kContainerTimingAttributeHasRootName = 5933,
+  kContainerTimingIgnoreAttribute = 5934,
 
   // Add new features immediately above this line. Don't change the existing
   // numbers of any item, and don't reuse removed slots. Also don't add extra

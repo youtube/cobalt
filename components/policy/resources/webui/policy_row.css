@@ -1,0 +1,197 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+/*
+ * TODO(crbug.com/521988139): some styles below are duplicated across a few and
+ * HTMLCSS files (policy_row, policy_precedence_row, policy_conflict,
+ * policy_table). They should be consolidated into a single stylesheet.
+ */
+:host {
+  --table-row-expanded-background: var(--color-sys-surface-variant, var(--google-grey-100));
+}
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    --table-row-expanded-background: var(--color-sys-surface-variant, var(--google-grey-900));
+  }
+}
+
+:host(:not([hidden])) {
+  display: block;
+}
+
+.row:not([hidden]) {
+  display: flex;
+}
+
+.row:not(.policy.row) {
+  background-color: var(--table-row-expanded-background);
+}
+
+.row > * {
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: var(--cr-section-vertical-padding, 12px) var(--cr-section-padding, 20px);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row:not(.policy.row) .name {
+  flex: 0 0 25%;
+  text-align: end;
+}
+
+.row.header {
+  background-color: var(--table-header);
+  border-bottom: 1px solid var(--cr-separator-color);
+}
+
+.policy.row {
+  display: grid;
+  grid-template-columns: 25% 30% 10% 10% 10% 10% 5%;
+  grid-template-areas: 'name value source scope level messages toggle';
+  border-bottom: 1px solid var(--cr-separator-color);
+}
+
+.policy.row .name {
+  grid-area: name;
+}
+
+.policy.row .value {
+  grid-area: value;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy.row .source {
+  grid-area: source;
+}
+
+.policy.row .scope {
+  grid-area: scope;
+}
+
+.policy.row .level {
+  grid-area: level;
+}
+
+.policy.row .messages {
+  grid-area: messages;
+}
+
+.policy.row .toggle {
+  grid-area: toggle;
+}
+
+.value.row .value {
+  font-family: monospace;
+}
+
+.expanded .policy.row,
+.policy.row:hover {
+  background-color: var(--cr-hover-background-color);
+}
+
+.warnings.row .value,
+.errors.row .value,
+.infos.row .value,
+.value.row .value {
+  max-height: 200px;
+  overflow: auto;
+  overflow-wrap: break-word;
+  text-overflow: unset;
+  white-space: pre-wrap;
+}
+
+a {
+  color: var(--cr-link-color);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.toggle {
+  cursor: pointer;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.toggle cr-icon-button {
+  --cr-icon-button-size: 20px;
+  --cr-icon-button-icon-size: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.name .link {
+  align-items: center;
+  display: flex;
+}
+
+.link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link img {
+  height: 12px;
+  width: 12px;
+}
+
+.copy {
+  flex: 0 0 auto;
+}
+
+:host([no-help-link]) .name .link {
+  color: inherit;
+  pointer-events: none;
+  text-decoration: none;
+}
+
+:host([no-help-link]) .link img {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .level.row,
+  .messages.row,
+  .scope.row {
+    display: none;
+  }
+
+}
+
+@media (max-width: 768px) {
+  .policy.row .value,
+  .policy.row .level,
+  .policy.row .messages,
+  .policy.row .scope {
+    display: none;
+  }
+
+  .policy.row {
+    grid-template-columns: 50% 25% 25%;
+    grid-template-areas: 'name source toggle';
+  }
+
+  .level.row,
+  .messages.row,
+  .scope.row {
+    border-inline-end: none;
+  }
+
+  .row:not(.policy.row) .name {
+    flex: 0 0 50%;
+  }
+}

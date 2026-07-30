@@ -55,7 +55,6 @@ build_webui("build") {
   web_component_files = [
     "a11y_page/a11y_page.ts",
     "a11y_page/a11y_page_index.ts",
-    "about_page/about_page.ts",
     "ai_page/ai_info_card.ts",
     "ai_page/ai_logging_info_bullet.ts",
     "ai_page/ai_mode_search_page.ts",
@@ -326,6 +325,8 @@ build_webui("build") {
   ts_files = [
     "a11y_page/a11y_browser_proxy.ts",
     "about_page/about_page_browser_proxy.ts",
+    "about_page/about_page.html.ts",
+    "about_page/about_page.ts",
     "ai_page/ai_learn_more_url_util.ts",
     "ai_page/constants.ts",
     "appearance_page/appearance_browser_proxy.ts",
@@ -361,6 +362,7 @@ build_webui("build") {
     "privacy_page/security/security_keys_browser_proxy.ts",
     "privacy_sandbox/privacy_sandbox_browser_proxy.ts",
     "relaunch_mixin.ts",
+    "relaunch_mixin_lit.ts",
     "reset_page/reset_browser_proxy.ts",
     "route.ts",
     "router.ts",
@@ -423,9 +425,11 @@ build_webui("build") {
   css_files = [
     "settings_columned_section.css",
     "settings_shared.css",
+    "settings_shared_lit.css",
     "settings_vars.css",
 
     # subfolder files
+    "about_page/about_page.css",
     "autofill_page/passwords_shared.css",
     "autofill_page/screen_reader_only.css",
     "autofill_page/your_saved_info_shared.css",

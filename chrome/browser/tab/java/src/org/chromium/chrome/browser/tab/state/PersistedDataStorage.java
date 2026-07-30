@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tab.state;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /** Provides key -> byte[] array mapping storage with namespace support for PersistedData */
 @NullMarked
@@ -19,13 +20,15 @@ public interface PersistedDataStorage {
 
     /**
      * Asynchronous restore byte array corresponding to a key
+     *
      * @param key identifier in the database
      * @param callback to pass the data back in
      */
-    void load(String key, Callback<byte[]> callback);
+    void load(String key, Callback<byte @Nullable []> callback);
 
     /**
      * Delete data corresponding to a key
+     *
      * @param key identifier in the database
      */
     void delete(String key);

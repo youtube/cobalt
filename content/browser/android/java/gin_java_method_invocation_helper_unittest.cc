@@ -11,7 +11,11 @@
 
 #include "base/android/jni_android.h"
 #include "base/values.h"
+#include "base/test/task_environment.h"
+#include "content/browser/android/java/gin_java_script_to_java_types_coercion.h"
 #include "content/common/android/gin_java_bridge_value.h"
+#include "mojo/public/cpp/test_support/fake_message_dispatch_context.h"
+#include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content {
@@ -73,6 +77,8 @@ class NullDispatcherDelegate
 }  // namespace
 
 class GinJavaMethodInvocationHelperTest : public testing::Test {
+ private:
+  base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
 namespace {
@@ -334,6 +340,27 @@ TEST_F(GinJavaMethodInvocationHelperTest, HandleGetClassInvocation) {
   EXPECT_EQ(
       mojom::GinJavaBridgeError::kGinJavaBridgeAccessToObjectGetClassIsBlocked,
       helper->GetInvocationError());
+}
+
+TEST_F(GinJavaMethodInvocationHelperTest, MalformedBinaryValueKillsRenderer) {
+  // Create a malformed BinaryValue (only 4 bytes, header requires 12).
+  std::vector<uint8_t> bad_data(4, 0);
+  base::Value bad_value(bad_data);
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JavaType target_type = JavaType::CreateFromBinaryName("java.lang.Object");
+  ObjectRefs object_refs;
+  mojom::GinJavaBridgeError error =
+      mojom::GinJavaBridgeError::kGinJavaBridgeNoError;
+
+  mojo::FakeMessageDispatchContext fake_dispatch_context;
+  mojo::test::BadMessageObserver bad_message_observer;
+
+  CoerceJavaScriptValueToJavaValue(env, bad_value, target_type, true,
+                                   object_refs, &error);
+
+  EXPECT_EQ("Malformed GinJavaBridgeValue",
+            bad_message_observer.WaitForBadMessage());
 }
 
 }  // namespace content

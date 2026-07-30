@@ -14,11 +14,13 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_metrics.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
+#include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/page_target_util.h"
 #include "chrome/browser/autofill/actor/actor_form_filling_service.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor_webui.mojom.h"
+#include "chrome/common/chrome_features.h"
 #include "components/actor/core/actor_logging.h"
 #include "components/actor/core/actor_switches.h"
 #include "components/actor/core/journal_details_builder.h"
@@ -65,10 +67,12 @@ AttemptFormFillingTool::AttemptFormFillingTool(
     TaskId task_id,
     ToolDelegate& tool_delegate,
     tabs::TabInterface& tab,
-    std::vector<AttemptFormFillingToolRequest::FormFillingRequest> requests)
+    std::vector<AttemptFormFillingToolRequest::FormFillingRequest> requests,
+    bool enqueued_click)
     : Tool(task_id, tool_delegate),
       tab_handle_(tab.GetHandle()),
-      tool_fill_requests_(std::move(requests)) {}
+      tool_fill_requests_(std::move(requests)),
+      enqueued_click_(enqueued_click) {}
 
 AttemptFormFillingTool::~AttemptFormFillingTool() = default;
 
@@ -76,6 +80,26 @@ void AttemptFormFillingTool::Invoke(ToolCallback callback) {
   // `service_fill_requests_` must have been set by TimeOfUseValidation() or
   // otherwise an error was returned by TimeOfUseValidation().
   CHECK(!service_fill_requests_.empty());
+
+  if (base::FeatureList::IsEnabled(features::kGlicActorAutofillPreClick) &&
+      !enqueued_click_) {
+    if (!tool_fill_requests_.empty() &&
+        !tool_fill_requests_[0].trigger_fields.empty()) {
+      PageTarget target = tool_fill_requests_[0].trigger_fields[0];
+
+      tool_delegate().EnqueueFollowupAction(
+          std::make_unique<AttemptFormFillingToolRequest>(
+              tab_handle_, std::move(tool_fill_requests_),
+              /*enqueued_click=*/true));
+
+      tool_delegate().EnqueueFollowupAction(std::make_unique<ClickToolRequest>(
+          tab_handle_, std::move(target), mojom::ClickType::kLeft,
+          mojom::ClickCount::kSingle));
+
+      std::move(callback).Run(MakeOkResult());
+      return;
+    }
+  }
 
   form_fill_metrics::RecordOnInvokeMetrics();
 

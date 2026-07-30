@@ -123,7 +123,7 @@ This collects each top-level device metric type. For example,
 </variants>
 
 <histogram name="Cras.A2dp100msFailureOverStream" units="units"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>hychao@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>
@@ -134,7 +134,7 @@ This collects each top-level device metric type. For example,
 </histogram>
 
 <histogram name="Cras.A2dp20msFailureOverStream" units="units"
-    expires_after="2026-10-18">
+    expires_after="2026-12-20">
   <owner>hychao@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>
@@ -464,7 +464,7 @@ This collects each top-level device metric type. For example,
   <token key="DlcType" variants="CrasDlcType"/>
 </histogram>
 
-<histogram name="Cras.FetchDelayCount" units="count" expires_after="2026-10-11">
+<histogram name="Cras.FetchDelayCount" units="count" expires_after="2026-12-16">
 <!-- Name completed by histogram_suffixes
      name="Cras.ClientType" and
      name="Cras.StreamType" -->
@@ -819,7 +819,7 @@ This collects each top-level device metric type. For example,
 </histogram>
 
 <histogram name="Cras.RtcDevicePair" enum="CrasDevicePair"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>yuhsuan@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>

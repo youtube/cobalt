@@ -897,6 +897,7 @@ TEST(CBORReaderTest, TestReadFloatingPointNumbers) {
       {-0.0, {0xf9, 0x80, 0x00}},
       {std::numeric_limits<double>::infinity(), {0xf9, 0x7c, 0x00}},
       {-std::numeric_limits<double>::infinity(), {0xf9, 0xfc, 0x00}},
+      {std::numeric_limits<double>::quiet_NaN(), {0xf9, 0x7e, 0x00}},
       {std::scalbn(1023.0, -24), {0xf9, 0x03, 0xFF}},
       {65504, {0xf9, 0x7b, 0xff}},
       // 32 bit floating point value.
@@ -919,7 +920,11 @@ TEST(CBORReaderTest, TestReadFloatingPointNumbers) {
     std::optional<Value> cbor = Reader::Read(test_case.cbor_data, config);
     ASSERT_TRUE(cbor.has_value());
     ASSERT_EQ(cbor.value().type(), Value::Type::FLOAT_VALUE);
-    EXPECT_EQ(cbor.value().GetDouble(), test_case.value);
+    if (std::isnan(test_case.value)) {
+      EXPECT_TRUE(std::isnan(cbor.value().GetDouble()));
+    } else {
+      EXPECT_EQ(cbor.value().GetDouble(), test_case.value);
+    }
 
     config.error_code_out = &error_code;
     auto cbor_data_with_extra_byte = WithExtraneousData(test_case.cbor_data);
@@ -932,7 +937,11 @@ TEST(CBORReaderTest, TestReadFloatingPointNumbers) {
     cbor = Reader::Read(cbor_data_with_extra_byte, config);
     ASSERT_TRUE(cbor.has_value());
     ASSERT_EQ(cbor.value().type(), Value::Type::FLOAT_VALUE);
-    EXPECT_EQ(cbor.value().GetDouble(), test_case.value);
+    if (std::isnan(test_case.value)) {
+      EXPECT_TRUE(std::isnan(cbor.value().GetDouble()));
+    } else {
+      EXPECT_EQ(cbor.value().GetDouble(), test_case.value);
+    }
     EXPECT_EQ(error_code, Reader::DecoderError::CBOR_NO_ERROR);
     EXPECT_EQ(num_bytes_consumed, test_case.cbor_data.size());
   }
@@ -940,11 +949,24 @@ TEST(CBORReaderTest, TestReadFloatingPointNumbers) {
 
 TEST(CBORReaderTest, TestReadNonMinimalFloatingPointNumbers) {
   static const std::vector<uint8_t> test_case_inputs[] = {
+      // 32 bit floats.
       {0xfa, 0x00, 0x00, 0x00, 0x00},  // 0 as 32 bit float.
       {0xfa, 0x7f, 0x80, 0x00, 0x00},  // infinity as 32 bit float.
       {0xfa, 0xff, 0x80, 0x00, 0x00},  // -infinity as 32 bit float.
-      {0xfa, 0x7f, 0xC0, 0x00, 0x00},  // -NaN as 32 bit float.
+      {0xfa, 0x7f, 0xc0, 0x00, 0x00},  // NaN as 32 bit float.
       {0xfa, 0xff, 0xc0, 0x00, 0x00},  // -NaN as 32 bit float.
+
+      // 64 bit floats.
+      {0xfb, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00},  // 0 as 64 bit double.
+      {0xfb, 0x7f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00},  // infinity as 64 bit double.
+      {0xfb, 0xff, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00},  // -infinity as 64 bit double.
+      {0xfb, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00},  // NaN as 64 bit double.
+      {0xfb, 0xff, 0xf8, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x00},  // -NaN as 64 bit double.
       // 3.1415927410125732 as 64 bit double (fits in 32 bits).
       {0xfb, 0x40, 0x09, 0x21, 0xfb, 0x60, 0x00, 0x00, 0x00},
   };

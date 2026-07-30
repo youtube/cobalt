@@ -6,6 +6,7 @@
 
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/attempt_login_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/click_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/history_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/navigate_tool.h"
@@ -23,7 +24,13 @@ ActorToolFactory::ActorToolFactory(ProfileIOS* profile) : profile_(profile) {}
 ActorToolFactory::~ActorToolFactory() = default;
 
 base::expected<std::unique_ptr<ActorTool>, ToolExecutionResult>
-ActorToolFactory::CreateTool(const optimization_guide::proto::Action& action) {
+ActorToolFactory::CreateTool(const optimization_guide::proto::Action& action,
+                             ToolDelegate* tool_delegate) {
+  if (IsToolDisabled(action.action_case())) {
+    return base::unexpected(
+        ToolExecutionResult(InternalToolErrorCode::kToolDisabledByFeature));
+  }
+
   // LINT.IfChange(CreateTool)
   switch (action.action_case()) {
     case optimization_guide::proto::Action::kNavigate:
@@ -44,6 +51,9 @@ ActorToolFactory::CreateTool(const optimization_guide::proto::Action& action) {
       return ScrollTool::Create(action.scroll(), profile_);
     case optimization_guide::proto::Action::kScrollTo:
       return ScrollToTool::Create(action.scroll_to(), profile_);
+    case optimization_guide::proto::Action::kAttemptLogin:
+      return AttemptLoginTool::Create(action.attempt_login(), tool_delegate,
+                                      profile_);
     default:
       return base::unexpected(
           ToolExecutionResult(InternalToolErrorCode::kUnsupportedAction));
@@ -69,6 +79,7 @@ ActorToolFactory::GetSupportedCapabilities() const {
       optimization_guide::proto::Action::kScroll,
       optimization_guide::proto::Action::kScrollTo,
       optimization_guide::proto::Action::kSelect,
+      optimization_guide::proto::Action::kAttemptLogin,
   };
   // LINT.ThenChange(//ios/chrome/browser/intelligence/actor/tools/model/actor_tool_factory.mm:CreateTool)
 

@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -14,21 +14,21 @@
 namespace autofill {
 
 std::optional<AtMemoryDataType> ToAtMemoryDataType(
-    accessibility_annotator::EntryType entry_type) {
-#define INTENT_TO_FIELD_TYPE(intent, field_type)   \
-  case accessibility_annotator::EntryType::intent: \
+    accessibility_annotator::MemoryDataType memory_data_type) {
+#define INTENT_TO_FIELD_TYPE(intent, field_type)        \
+  case accessibility_annotator::MemoryDataType::intent: \
     return field_type
-#define INTENT_TO_ENTITY_TYPE(intent, entity_type) \
-  case accessibility_annotator::EntryType::intent: \
+#define INTENT_TO_ENTITY_TYPE(intent, entity_type)      \
+  case accessibility_annotator::MemoryDataType::intent: \
     return EntityType(EntityTypeName::entity_type)
-#define INTENT_TO_ATTRIBUTE_TYPE(intent_and_attribute_type)           \
-  case accessibility_annotator::EntryType::intent_and_attribute_type: \
+#define INTENT_TO_ATTRIBUTE_TYPE(intent_and_attribute_type)                \
+  case accessibility_annotator::MemoryDataType::intent_and_attribute_type: \
     return AttributeType(AttributeTypeName::intent_and_attribute_type)
 #define INTENT_TO_ATTRIBUTE_TYPE_WITH_NAME(intent, attribute_type) \
-  case accessibility_annotator::EntryType::intent:                 \
+  case accessibility_annotator::MemoryDataType::intent:            \
     return AttributeType(AttributeTypeName::attribute_type)
 
-  switch (entry_type) {
+  switch (memory_data_type) {
     INTENT_TO_FIELD_TYPE(kNameFull, NAME_FULL);
     INTENT_TO_FIELD_TYPE(kAddressFull, ADDRESS_HOME_ADDRESS);
     INTENT_TO_FIELD_TYPE(kAddressStreetAddress, ADDRESS_HOME_STREET_ADDRESS);
@@ -102,12 +102,12 @@ std::optional<AtMemoryDataType> ToAtMemoryDataType(
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentCarrierDomain);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentEstimatedDeliveryDate);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentDeliveryZipCode);
-    case accessibility_annotator::EntryType::kUnknown:
-    case accessibility_annotator::EntryType::kIbanNickname:
-    case accessibility_annotator::EntryType::kCreditCardNickname:
-    case accessibility_annotator::EntryType::kFlightReservationArrivalDate:
-    case accessibility_annotator::EntryType::kOrderGrandTotal:
-    case accessibility_annotator::EntryType::kShipmentDeliveryAddress:
+    case accessibility_annotator::MemoryDataType::kUnknown:
+    case accessibility_annotator::MemoryDataType::kIbanNickname:
+    case accessibility_annotator::MemoryDataType::kCreditCardNickname:
+    case accessibility_annotator::MemoryDataType::kFlightReservationArrivalDate:
+    case accessibility_annotator::MemoryDataType::kOrderGrandTotal:
+    case accessibility_annotator::MemoryDataType::kShipmentDeliveryAddress:
       return std::nullopt;
   }
 

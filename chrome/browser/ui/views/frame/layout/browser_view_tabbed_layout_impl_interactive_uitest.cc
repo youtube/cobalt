@@ -664,7 +664,7 @@ IN_PROC_BROWSER_TEST_P(BrowserViewTabbedLayoutImplTopContainerBackgroundUiTest,
 #endif
       break;
   }
-  EXPECT_EQ(expected, background->primary_color());
+  EXPECT_EQ(expected, background->primary_color().color);
 }
 
 INSTANTIATE_TEST_SUITE_P(

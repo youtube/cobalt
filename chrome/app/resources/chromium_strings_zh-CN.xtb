@@ -538,6 +538,17 @@
 <translation id="6896758677409633944">复制</translation>
 <translation id="6901631050894301805">将 Chromium 设为默认浏览器，并将其固定到任务栏</translation>
 <translation id="6909503629704372277">管理 Chromium 个人资料(&amp;M)</translation>
+<translation id="6919942714452658456">此操作将会：
+          <ph name="LINE_BREAKS" />
+            • 重置启动页、新标签页、搜索引擎和固定标签页
+            <ph name="LINE_BREAK" />
+            • 停用扩展程序
+            <ph name="LINE_BREAK" />
+            • 删除 Cookie 和其他临时网站数据
+            <ph name="LINE_BREAK" />
+            • 重置 Chromium 快捷方式
+            <ph name="LINE_BREAKS" />
+            书签、历史记录和已保存的密码不会受到影响。</translation>
 <translation id="6934579572334859869">向图片搜索功能询问此图片</translation>
 <translation id="6948031725951063910">您已达到 Chromium 的书签数量上限（<ph name="BOOKMARK_LIMIT" /> 个），因此部分书签尚未保存到您的 Google 账号中。
 
@@ -719,6 +730,15 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8907580949721785412">Chromium正在尝试显示密码，请输入您的Windows密码以允许此操作。</translation>
 <translation id="8932992523185907506">Chromium 不再是默认浏览器。要将 Chromium 设置为默认浏览器吗？</translation>
 <translation id="8941642502866065432">无法更新 Chromium</translation>
+<translation id="8944232836376404813">此操作将会：
+          <ph name="LINE_BREAKS" />
+            • 重置启动页、新标签页、搜索引擎和固定标签页
+            <ph name="LINE_BREAK" />
+            • 停用扩展程序
+            <ph name="LINE_BREAK" />
+            • 删除 Cookie 和其他临时网站数据
+            <ph name="LINE_BREAKS" />
+            书签、历史记录和已保存的密码不会受到影响。</translation>
 <translation id="897581876605952338">Chromium 企业版徽标</translation>
 <translation id="8981150672034878610">无法启动 Chromium，因为打开您的个人资料时出了点问题。请尝试重启 Chromium。</translation>
 <translation id="8988036198400390003">管理 Chromium 个人资料</translation>

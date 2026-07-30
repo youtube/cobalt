@@ -101,7 +101,7 @@ class PrerenderHostObserver {
 class PrerenderHostCreationWaiter {
  public:
   PrerenderHostCreationWaiter();
-  ~PrerenderHostCreationWaiter() = default;
+  ~PrerenderHostCreationWaiter();
 
   PrerenderHostId Wait();
 

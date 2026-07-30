@@ -474,6 +474,8 @@ static_library("common") {
     "host_window.h",
     "host_window_proxy.cc",
     "host_window_proxy.h",
+    "input_pipeline.cc",
+    "input_pipeline.h",
     "it2me_desktop_environment.cc",
     "it2me_desktop_environment.h",
     "legacy_interaction_strategy.cc",
@@ -556,6 +558,11 @@ static_library("common") {
       "mojo_video_capturer.h",
       "mojo_video_capturer_list.cc",
       "mojo_video_capturer_list.h",
+      "peer_connection_process.cc",
+      "peer_connection_process.h",
+      "peer_connection_process_handler.cc",
+      "peer_connection_process_handler.h",
+      "peer_connection_process_main.cc",
       "worker_process_launcher.cc",
     ]
   }

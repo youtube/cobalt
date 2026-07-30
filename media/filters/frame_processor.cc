@@ -238,6 +238,13 @@ void MseTrackBuffer::SetHighestPresentationTimestampIfIncreased(
 
 bool MseTrackBuffer::EnqueueProcessedFrame(
     scoped_refptr<StreamParserBuffer> frame) {
+  if (stream_->type() == DemuxerStream::AUDIO && !processed_frames_.empty() &&
+      frame->timestamp() == processed_frames_.back()->timestamp() &&
+      frame->duration().is_zero() &&
+      processed_frames_.back()->duration().is_zero()) {
+    processed_frames_.pop_back();
+  }
+
   if (frame->is_key_frame()) {
     last_keyframe_presentation_timestamp_ = frame->timestamp();
   } else {

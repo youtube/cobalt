@@ -8,6 +8,7 @@
 #include "base/containers/span.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "services/webnn/ort/context_impl_ort.h"
+#include "services/webnn/ort/ort_data_type.h"
 #include "services/webnn/ort/ort_status.h"
 #include "services/webnn/ort/platform_functions_ort.h"
 #include "services/webnn/public/mojom/webnn_tensor.mojom.h"
@@ -39,11 +40,14 @@ TensorImplOrt::TensorImplOrt(
     mojom::TensorInfoPtr tensor_info,
     RepresentationPtr representation,
     size_t size,
+    ScopedOrtExternalMemoryHandle d3d_heap_external_memory_handle,
     ScopedOrtValue tensor)
     : WebNNTensorImpl(std::move(receiver),
                       context,
                       std::move(tensor_info),
                       std::move(representation)),
+      d3d_heap_external_memory_handle_(
+          std::move(d3d_heap_external_memory_handle)),
       tensor_(std::move(tensor)),
       size_(size) {}
 

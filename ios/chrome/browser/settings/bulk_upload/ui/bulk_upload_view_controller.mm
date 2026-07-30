@@ -10,7 +10,6 @@
 #import "ios/chrome/browser/settings/bulk_upload/ui/bulk_upload_table_view_controller.h"
 #import "ios/chrome/browser/settings/bulk_upload/ui/bulk_upload_view_controller_presentation_delegate.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_controller_protocol.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/highlight_button.h"
@@ -56,7 +55,7 @@ const char kBulkUploadCloseUserAction[] = "Signin_BulkUpload_Close";
   _tableViewController.mutator = self.mutator;
   // Make sure the main view has the same background color than the table view.
   self.view.backgroundColor =
-      _tableViewController.styler.tableViewBackgroundColor;
+      [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
   [self addChildViewController:_tableViewController];
   UIView* tableView = _tableViewController.view;
   tableView.translatesAutoresizingMaskIntoConstraints = NO;

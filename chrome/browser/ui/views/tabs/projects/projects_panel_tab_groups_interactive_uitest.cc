@@ -11,7 +11,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_tabs_menu_model.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_tab_groups_item_view.h"
@@ -25,7 +24,6 @@
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/views/controls/button/menu_button.h"
-#include "ui/views/interaction/interactive_views_test.h"
 
 class ProjectsPanelTabGroupsInteractiveUiTest : public InteractiveBrowserTest {
  public:

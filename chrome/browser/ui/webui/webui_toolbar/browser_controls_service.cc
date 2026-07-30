@@ -4,16 +4,21 @@
 
 #include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "base/types/expected_macros.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/waap/waap_ui_metrics_service.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "content/public/browser/render_frame_host.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/events/event_constants.h"
@@ -81,11 +86,13 @@ BrowserControlsService::BrowserControlsService(
     mojo::PendingReceiver<mojom::BrowserControlsService> service,
     std::unique_ptr<BrowserControlsAdapter> browser_adapter,
     MetricsReporter* metrics_reporter,
-    BrowserControlsServiceDelegate* delegate)
+    BrowserControlsServiceDelegate* delegate,
+    content::RenderFrameHost* toolbar_rfh)
     : service_(&bridge_, std::move(service)),
       browser_adapter_(std::move(browser_adapter)),
       metrics_reporter_(metrics_reporter),
-      delegate_(delegate) {
+      delegate_(delegate),
+      toolbar_rfh_(toolbar_rfh) {
   CHECK(browser_adapter_);
 }
 
@@ -95,7 +102,24 @@ BrowserControlsService::ReloadFromClickResult
 BrowserControlsService::ReloadFromClick(
     bool bypass_cache,
     const std::vector<browser_controls_api::mojom::EventDispositionFlag>&
-        click_flags) {
+        click_flags,
+    mojom::ReloadInteractionMetadataPtr metadata) {
+  const base::TimeTicks now = base::TimeTicks::Now();
+
+  base::TimeTicks reconstructed_ticks;
+  bool validation_succeeded = false;
+
+  if (metadata) {
+    auto result = ReconstructAndValidateInteractionTime(*metadata, now);
+    if (!result.has_value()) {
+      VLOG(1) << "Interaction time validation failed: "
+              << result.error()->message;
+    } else {
+      reconstructed_ticks = *result;
+      validation_succeeded = true;
+    }
+  }
+
   // This is called in order to signal that external protocol dialogs are
   // allowed to show due to a user action, which are likely to happen on the
   // next page load after the reload button is clicked.
@@ -112,8 +136,8 @@ BrowserControlsService::ReloadFromClick(
   browser_adapter_->Reload(bypass_cache,
                            ui::DispositionFromEventFlags(converted));
 
+  // TODO(crbug.com/524100102): Clean this up in a follow-up CL.
   // Gets the current time immediately after executing the command.
-  const base::TimeTicks now = base::TimeTicks::Now();
   // MouseRelease
   metrics_reporter_->Measure(
       kInputMouseReleaseStartMark, now,
@@ -122,6 +146,12 @@ BrowserControlsService::ReloadFromClick(
                      kInputToReloadMouseReleaseHistogram,
                      kInputMouseReleaseStartMark));
   // TODO(crbug.com/448794588): Handle KeyPress events.
+
+  if (metadata && validation_succeeded) {
+    MaybeRecordInteractionToReloadMetric(reconstructed_ticks,
+                                         metadata->input_type);
+  }
+
   return std::monostate();
 }
 
@@ -185,6 +215,12 @@ BrowserControlsService::NavigateResult BrowserControlsService::Navigate(
   return std::monostate();
 }
 
+BrowserControlsService::NavigateTextResult BrowserControlsService::NavigateText(
+    const std::string& text) {
+  browser_adapter_->NavigateText(text);
+  return std::monostate();
+}
+
 void BrowserControlsService::SetDelegate(
     BrowserControlsServiceDelegate* delegate) {
   delegate_ = delegate;
@@ -197,6 +233,91 @@ void BrowserControlsService::OnMeasureResultAndClearMark(
   base::UmaHistogramCustomTimes(histogram_name, duration, base::Milliseconds(1),
                                 base::Minutes(3), 100);
   metrics_reporter_->ClearMark(start_mark);
+}
+
+base::expected<base::TimeTicks, mojo_base::mojom::ErrorPtr>
+BrowserControlsService::ReconstructAndValidateInteractionTime(
+    const mojom::ReloadInteractionMetadata& metadata,
+    base::TimeTicks evaluation_time) {
+  // 1. Monotonicity check: Time delta offset must be positive.
+  if (metadata.interaction_time_offset.is_negative()) {
+    return base::unexpected(
+        Error::New(Code::kInvalidArgument, "negative offset"));
+  }
+
+  // 2. User intent check: Enforce that the user actually interacted with the
+  // page to prevent a compromised renderer from sending programmatic clicks.
+  if (!toolbar_rfh_->HasTransientUserActivation()) {
+    return base::unexpected(
+        Error::New(Code::kFailedPrecondition, "no transient activation"));
+  }
+
+  // 3. Baseline check: Query the delegate on-demand. This retrieves the
+  // shared document-scoped navigation start ticks from the active WebUI
+  // controller.
+  base::TimeTicks navigation_start_ticks = delegate_->GetNavigationStartTicks();
+  if (navigation_start_ticks.is_null()) {
+    return base::unexpected(
+        Error::New(Code::kFailedPrecondition, "no navigation start ticks"));
+  }
+
+  base::TimeTicks reconstructed_ticks =
+      navigation_start_ticks + metadata.interaction_time_offset;
+
+  // 4. Future check: The interaction cannot happen in the future (allowing
+  // 1ms for clock drift / scheduling jitter).
+  if (reconstructed_ticks > evaluation_time + base::Milliseconds(1)) {
+    return base::unexpected(
+        Error::New(Code::kFailedPrecondition, "future interaction"));
+  }
+
+  // 5. Staleness check: Reject old telemetry to prevent stale data from
+  // polluting metrics or replay of old events. A 10-second threshold is chosen
+  // to avoid discarding valid metrics during heavy jank, aligning with the
+  // downstream UMA histogram's maximum range of 10s.
+  if (evaluation_time - reconstructed_ticks > base::Seconds(10)) {
+    return base::unexpected(
+        Error::New(Code::kFailedPrecondition, "stale interaction"));
+  }
+
+  // 6. Monotonicity / Replay check: Enforce that interaction ticks strictly
+  // increase to prevent replay of duplicate telemetry events.
+  if (reconstructed_ticks <= last_processed_interaction_ticks_) {
+    return base::unexpected(
+        Error::New(Code::kFailedPrecondition, "duplicate interaction"));
+  }
+
+  last_processed_interaction_ticks_ = reconstructed_ticks;
+  return reconstructed_ticks;
+}
+
+void BrowserControlsService::MaybeRecordInteractionToReloadMetric(
+    base::TimeTicks interaction_ticks,
+    mojom::ReloadInputType input_type) const {
+  auto* profile =
+      Profile::FromBrowserContext(toolbar_rfh_->GetBrowserContext());
+  auto* metrics_service = WaapUIMetricsService::Get(profile);
+  if (!metrics_service) {
+    return;
+  }
+  std::optional<WaapUIMetricsRecorder::ReloadButtonInputType> target_input_type;
+  switch (input_type) {
+    case mojom::ReloadInputType::kUnspecified:
+      break;
+    case mojom::ReloadInputType::kMouseRelease:
+      target_input_type =
+          WaapUIMetricsRecorder::ReloadButtonInputType::kMouseRelease;
+      break;
+    case mojom::ReloadInputType::kKeyPress:
+      target_input_type =
+          WaapUIMetricsRecorder::ReloadButtonInputType::kKeyPress;
+      break;
+  }
+
+  if (target_input_type) {
+    metrics_service->RecordReloadButtonInteractionToReload(
+        interaction_ticks, base::TimeTicks::Now(), *target_input_type);
+  }
 }
 
 }  // namespace browser_controls_api

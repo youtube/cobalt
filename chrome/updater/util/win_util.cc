@@ -301,6 +301,17 @@ std::optional<std::vector<std::wstring>> CommandLineToArgv(
          (::GetLastError() != ERROR_SERVICE_MARKED_FOR_DELETE);
 }
 
+// Replaces '\' with '_' in `app_id`. Useful for preventing subkey injection
+// when using AppIds as registry keys. It is not expected that any valid AppId
+// contains '\', and this is enforced during installation and registration.
+// TODO(crbug.com/522930760): It would be preferable to not permit invalid
+// AppIds in such contexts instead.
+std::wstring SanitizeAppId(const std::wstring& app_id) {
+  std::wstring sanitized_app_id;
+  base::ReplaceChars(app_id, L"\\", L"_", &sanitized_app_id);
+  return sanitized_app_id;
+}
+
 }  // namespace
 
 NamedObjectAttributes::NamedObjectAttributes(const std::wstring& name,
@@ -421,7 +432,7 @@ std::wstring GetAppClientsKey(const std::string& app_id) {
 }
 
 std::wstring GetAppClientsKey(const std::wstring& app_id) {
-  return base::StrCat({CLIENTS_KEY, app_id});
+  return base::StrCat({CLIENTS_KEY, SanitizeAppId(app_id)});
 }
 
 std::wstring GetAppClientStateKey(const std::string& app_id) {
@@ -429,7 +440,7 @@ std::wstring GetAppClientStateKey(const std::string& app_id) {
 }
 
 std::wstring GetAppClientStateKey(const std::wstring& app_id) {
-  return base::StrCat({CLIENT_STATE_KEY, app_id});
+  return base::StrCat({CLIENT_STATE_KEY, SanitizeAppId(app_id)});
 }
 
 std::wstring GetAppClientStateMediumKey(const std::string& app_id) {
@@ -437,7 +448,7 @@ std::wstring GetAppClientStateMediumKey(const std::string& app_id) {
 }
 
 std::wstring GetAppClientStateMediumKey(const std::wstring& app_id) {
-  return base::StrCat({CLIENT_STATE_MEDIUM_KEY, app_id});
+  return base::StrCat({CLIENT_STATE_MEDIUM_KEY, SanitizeAppId(app_id)});
 }
 
 std::wstring GetAppCohortKey(const std::string& app_id) {
@@ -1340,7 +1351,6 @@ bool MigrateLegacyUpdaters(
 
   return true;
 }
-
 
 struct ScopedWtsConnectStateCloseTraits {
   static WTS_CONNECTSTATE_CLASS* InvalidValue() { return nullptr; }

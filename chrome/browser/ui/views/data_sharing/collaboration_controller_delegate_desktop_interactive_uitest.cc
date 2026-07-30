@@ -628,7 +628,9 @@ IN_PROC_BROWSER_TEST_F(
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Offered",
       signin_metrics::AccessPoint::kCollaborationJoinTabGroup, 1);
-  histogram_tester.ExpectTotalCount("Signin.SignIn.Started", 0);
+  histogram_tester.ExpectBucketCount(
+      "Signin.SignIn.Started",
+      signin_metrics::AccessPoint::kCollaborationJoinTabGroup, 1);
   histogram_tester.ExpectBucketCount(
       "Signin.SignIn.Completed",
       signin_metrics::AccessPoint::kCollaborationJoinTabGroup, 1);

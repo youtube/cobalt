@@ -8,7 +8,9 @@
 
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
+#include "base/hash/hash.h"
 #include "base/json/json_writer.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -22,6 +24,7 @@
 #include "components/policy/core/common/schema.h"
 #include "components/policy/core/common/schema_map.h"
 #include "components/policy/core/common/schema_registry.h"
+#include "components/policy/core/common/values_util.h"
 #include "components/policy/policy_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/strings/grit/components_strings.h"
@@ -331,6 +334,37 @@ base::DictValue PolicyConversionsClient::GetPolicyValue(
 
   if (future_policies.find(policy_name) != future_policies.end())
     value.Set("future", true);
+
+  // Check dynamic refresh and policy change to set restartRequired status
+  if (known_policy_schema) {
+    const policy::PolicyDetails* policy_details =
+        GetChromePolicyDetails(policy_name);
+    PolicyService* policy_service = GetPolicyService();
+
+    if (policy_details && !policy_details->supports_dynamic_refresh) {
+      bool policy_changed = false;
+      // Check if value has changed or policy is newly set
+      if (policy_service &&
+          policy_service->IsFirstPolicyLoadComplete(POLICY_DOMAIN_CHROME)) {
+        const base::Value* policy_value = policy.value_unsafe();
+        std::optional<size_t> current_value_hash;
+        if (policy_value) {
+          current_value_hash = PolicyValueHash(*policy_value);
+        }
+
+        std::optional<size_t> startup_value_hash =
+            policy_service->GetInitialChromePolicyValueHash(policy_name);
+
+        // A policy is considered changed if its current hash differs from its
+        // hash at startup. This covers cases where the policy was added,
+        // removed, or its value was modified.
+        policy_changed = (current_value_hash != startup_value_hash);
+      }
+      if (policy_changed) {
+        value.Set("restartRequired", true);
+      }
+    }
+  }
 
   if (!policy.conflicts.empty()) {
     base::ListValue override_values;

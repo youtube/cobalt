@@ -11,9 +11,8 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/animated_scoped_fullscreen_disabler.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/scoped_fullscreen_disabler.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observer_bridge.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observing.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
@@ -21,7 +20,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 
-@interface ContextualSheetCoordinator () <OmniboxPositionBrowserAgentObserving,
+@interface ContextualSheetCoordinator () <LayoutStateObserver,
                                           TraitCollectionChangeDelegate>
 
 @end
@@ -37,15 +36,13 @@
   std::unique_ptr<AnimatedScopedFullscreenDisabler>
       _legacyAnimatedFullscreenDisabler;
 
-  // Bridge to observe the OmniboxPositionBrowserAgent.
-  std::unique_ptr<OmniboxPositionBrowserAgentObserverBridge> _observerBridge;
+  // The LayoutState observed by this coordinator.
+  __weak LayoutState* _layoutState;
 }
 
 - (void)start {
-  OmniboxPositionBrowserAgent* browserAgent =
-      OmniboxPositionBrowserAgent::FromBrowser(self.browser);
-  _observerBridge = std::make_unique<OmniboxPositionBrowserAgentObserverBridge>(
-      self, browserAgent);
+  _layoutState = self.browser->GetSceneState().layoutState;
+  [_layoutState addObserver:self];
 
   // On iPad, let the panel coordinator present directly using iOS's built-in
   // UISheetController.
@@ -73,7 +70,8 @@
 
   _fullscreenDisabler = nullptr;
   _legacyAnimatedFullscreenDisabler = nullptr;
-  _observerBridge = nullptr;
+  [_layoutState removeObserver:self];
+  _layoutState = nil;
 }
 
 - (void)traitCollectionDidChangeForViewController:
@@ -141,9 +139,7 @@
 
   [_viewController didMoveToParentViewController:self.baseViewController];
 
-  OmniboxPositionBrowserAgent* browserAgent =
-      OmniboxPositionBrowserAgent::FromBrowser(self.browser);
-  if (browserAgent->IsCurrentLayoutBottomOmnibox()) {
+  if (_layoutState.toolbarPosition == ToolbarPosition::kBottom) {
     [self disableFullscreen];
   }
 
@@ -174,11 +170,11 @@
   _legacyAnimatedFullscreenDisabler = nullptr;
 }
 
-#pragma mark - Boolean Observer
+#pragma mark - LayoutStateObserver
 
-- (void)omniboxPositionBrowserAgent:(OmniboxPositionBrowserAgent*)browser_agent
-                  didUpdatePosition:(BOOL)isCurrentLayoutBottomOmnibox {
-  if (isCurrentLayoutBottomOmnibox) {
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
+  if (toolbarPosition == ToolbarPosition::kBottom) {
     [self disableFullscreen];
   } else {
     [self enableFullscreen];

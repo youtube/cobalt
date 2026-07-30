@@ -150,6 +150,10 @@ class CONTENT_EXPORT GeneratedCodeCache {
   // Clears the in-memory cache.
   void ClearInMemoryCache();
 
+  // Destroys the instance's backend and waits for all shutdown tasks to
+  // complete. The callback is run when the backend is fully cleaned up.
+  void ShutdownForTesting(base::OnceClosure callback);
+
   void CollectStatisticsForTest(const GURL& resource_url,
                                 const GURL& origin_lock,
                                 GeneratedCodeCache::CacheEntryStatus status);

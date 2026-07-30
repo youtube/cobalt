@@ -153,9 +153,13 @@ ThreadCacheProcessScopeForTesting::~ThreadCacheProcessScopeForTesting() {
                                     kDefaultRootThreadCacheIndex);
       }
     }
+    if (regular_allocator != root_) {
+      DisableThreadCacheForRootIfEnabled(root_);
+    }
   } else {
     // ThreadCache for all processes was disabled.
     DisableThreadCacheForRootIfEnabled(regular_allocator);
+    DisableThreadCacheForRootIfEnabled(root_);
     ThreadCache::SwapForTesting(nullptr, kDefaultRootThreadCacheIndex);
   }
 #else

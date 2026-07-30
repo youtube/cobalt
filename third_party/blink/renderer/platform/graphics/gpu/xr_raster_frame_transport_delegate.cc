@@ -11,22 +11,6 @@ namespace blink {
 
 void XRRasterFrameTransportDelegate::WaitOnFence(gfx::GpuFence* fence) {}
 
-gpu::SyncToken XRRasterFrameTransportDelegate::GenerateSyncToken() {
-  auto wrapper = SharedGpuContext::ContextProviderWrapper();
-  if (!wrapper) {
-    return gpu::SyncToken();
-  }
-  gpu::raster::RasterInterface* ri =
-      wrapper->ContextProvider().RasterInterface();
-  if (!ri) {
-    return gpu::SyncToken();
-  }
-  gpu::SyncToken sync_token;
-  ri->GenSyncTokenCHROMIUM(sync_token.GetData());
-  ri->Flush();
-  return sync_token;
-}
-
 void XRRasterFrameTransportDelegate::VerifySyncToken(
     gpu::SyncToken& sync_token) {}
 

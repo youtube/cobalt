@@ -184,8 +184,7 @@ inline void HasEncryptionData(
     std::optional<std::tuple<GURL,
                              XKeyTagMethod,
                              XKeyTagKeyFormat,
-                             MediaSegment::EncryptionData::IVContainer,
-                             MediaSegment::EncryptionData::KeyLocation>> pack,
+                             MediaSegment::EncryptionData::IVContainer>> pack,
     const base::Location& from,
     const MediaSegment& segment) {
   auto enc_data = segment.GetEncryptionData();
@@ -197,14 +196,12 @@ inline void HasEncryptionData(
     XKeyTagMethod method;
     XKeyTagKeyFormat format;
     MediaSegment::EncryptionData::IVContainer iv;
-    MediaSegment::EncryptionData::KeyLocation location;
-    std::tie(uri, method, format, iv, location) = pack.value();
+    std::tie(uri, method, format, iv) = pack.value();
     EXPECT_EQ(enc_data->GetUri(), uri) << from.ToString();
     EXPECT_EQ(enc_data->GetMethod(), method) << from.ToString();
     EXPECT_EQ(enc_data->GetKeyFormat(), format) << from.ToString();
     EXPECT_EQ(enc_data->GetIV(segment.GetMediaSequenceNumber()), iv)
         << from.ToString();
-    EXPECT_EQ(enc_data->GetKeyLocation(), location) << from.ToString();
   }
 }
 

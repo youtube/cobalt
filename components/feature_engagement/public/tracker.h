@@ -202,7 +202,18 @@ class Tracker : public KeyedService, public base::SupportsUserData {
   // but not limited to - trigger and used event data.
   //
   // This method is used by specific internals and test code.
-  virtual void ClearEventData(const base::Feature& feature) = 0;
+  template <typename T>
+    requires std::same_as<T, UserEducationInternalsPageHandlerImpl>
+  void ClearEventData(const base::Feature& feature, base::PassKey<T>) {
+    ClearEventData(feature);
+  }
+
+  // Retrieves the configuration.
+  template <typename T>
+    requires std::same_as<T, UserEducationInternalsPageHandlerImpl>
+  const Configuration* GetConfiguration(base::PassKey<T>) const {
+    return GetConfiguration();
+  }
 
   // Retrieves information about each event condition and event count associated
   // with a feature. The count will reflect the time window in EventConfig.
@@ -319,6 +330,16 @@ class Tracker : public KeyedService, public base::SupportsUserData {
       const base::Feature& feature,
       std::optional<SnoozeAction> snooze_action) = 0;
 
+#if !BUILDFLAG(IS_ANDROID)
+
+  // Erases all event data associated with a particular `feature`, including -
+  // but not limited to - trigger and used event data.
+  //
+  // This method is used by specific internals and test code.
+  virtual void ClearEventData(const base::Feature& feature) = 0;
+
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   // Acquiring a display lock means that no in-product help can be displayed
   // while it is held. To release the lock, delete the handle.
   // If in-product help is already displayed while the display lock is
@@ -380,7 +401,9 @@ class Tracker : public KeyedService, public base::SupportsUserData {
 #endif
 
   // Returns the configuration associated with the tracker for testing purposes.
-  virtual const Configuration* GetConfigurationForTesting() const = 0;
+  const Configuration* GetConfigurationForTesting() const {
+    return GetConfiguration();
+  }
 
   // Set a testing clock for the tracker. It's recommended to use a
   // SimpleTestClock, so we can advance the clock in test.
@@ -407,6 +430,8 @@ class Tracker : public KeyedService, public base::SupportsUserData {
   }
 
  protected:
+  virtual const Configuration* GetConfiguration() const = 0;
+
   Tracker() = default;
 };
 

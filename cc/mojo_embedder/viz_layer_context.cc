@@ -1358,11 +1358,9 @@ viz::mojom::AnimationKeyframeModelPtr SerializeAnimationKeyframeModel(
                                                                      *wire);
       break;
     case gfx::AnimationCurve::SIZE:
-      SerializeAnimationCurve<gfx::KeyframedSizeAnimationCurve>(model, *wire);
-      break;
     case gfx::AnimationCurve::RECT:
-      SerializeAnimationCurve<gfx::KeyframedRectAnimationCurve>(model, *wire);
-      break;
+      // SIZE and RECT are not supported by the compositor.
+      return nullptr;
     case gfx::AnimationCurve::FILTER:
     case gfx::AnimationCurve::SCROLL_OFFSET:
       // TODO(rockot): Support these curve types too.

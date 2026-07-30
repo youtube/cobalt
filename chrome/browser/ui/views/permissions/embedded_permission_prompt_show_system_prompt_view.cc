@@ -17,9 +17,9 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
 
 EmbeddedPermissionPromptShowSystemPromptView::
     EmbeddedPermissionPromptShowSystemPromptView(
-        Browser* browser,
+        content::WebContents* web_contents,
         base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate)
-    : EmbeddedPermissionPromptBaseView(browser, delegate) {
+    : EmbeddedPermissionPromptBaseView(web_contents, delegate) {
   SetProperty(views::kElementIdentifierKey, kMainViewId);
 }
 

@@ -765,7 +765,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Add Supervision"/>
   <int value="10" label="Parent Access"/>
   <int value="11" label="Data Sharing"/>
-  <int value="12" label="Launcher item suggest"/>
+  <int value="12" label="Launcher item suggest (deprecated 06/2026)"/>
   <int value="13" label="Marketing backend connector"/>
   <int value="14" label="Password Sync token fetcher"/>
   <int value="15" label="Locale Switch Screen"/>
@@ -1094,6 +1094,7 @@ chromium-metrics-reviews@google.com.
   <int value="104" label="Gemini Toolbar button (iOS only)"/>
   <int value="105" label="Indigo"/>
   <int value="106" label="Overflow Menu (iOS only)"/>
+  <int value="107" label="Level Up (iOS only)"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

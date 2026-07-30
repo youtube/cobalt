@@ -12,13 +12,14 @@
 #include "content/browser/android/java/gin_java_bound_object.h"
 #include "content/browser/android/java/java_type.h"
 #include "content/common/android/gin_java_bridge_errors.h"
+#include "content/common/content_export.h"
 
 namespace content {
 
 typedef std::map<GinJavaBoundObject::ObjectID, JavaObjectWeakGlobalRef>
     ObjectRefs;
 
-jvalue CoerceJavaScriptValueToJavaValue(JNIEnv* env,
+CONTENT_EXPORT jvalue CoerceJavaScriptValueToJavaValue(JNIEnv* env,
                                         const base::Value& value,
                                         const JavaType& target_type,
                                         bool coerce_to_string,

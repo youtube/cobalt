@@ -32,6 +32,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "base/types/expected.h"
+#include "services/webnn/public/cpp/ep_device_info.h"
 #endif
 
 namespace gpu {
@@ -191,17 +192,13 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
   // enabled. Launches the compiler and requests a CompilerContext before
   // completing context creation.
   void OnDispatchContextCreated(
+      EpDeviceInfo target_device,
       CreateWebNNContextCallback callback,
       mojo::PendingRemote<mojom::WebNNContext> remote,
       mojo::ScopedDataPipeProducerHandle write_tensor_producer,
       mojo::ScopedDataPipeConsumerHandle read_tensor_consumer,
       gpu::SequenceId sequence_id,
       WebNNContextImplPtr context_impl);
-
-  // Returns a clone of the cached EP package info for forwarding to the
-  // Compiler process via Mojo.
-  base::flat_map<std::string, mojom::EpPackageInfoPtr>
-  CloneEpPackageInfoForCompiler() const;
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(WEBNN_USE_TFLITE)
@@ -287,13 +284,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
 
   const gpu::GpuFeatureInfo gpu_feature_info_;
   const gpu::GPUInfo gpu_info_;
-
-#if BUILDFLAG(IS_WIN)
-  // EP package information received from the Browser process, cached for
-  // forwarding to the Compiler process for Environment initialization.
-  base::flat_map<std::string, mojom::EpPackageInfoPtr>
-      ep_package_info_for_compiler_ GUARDED_BY_CONTEXT(main_sequence_checker_);
-#endif  // BUILDFLAG(IS_WIN)
 
   // The lifetime of the shared image manager is managed by the GPU service and
   // is destroyed after this WebNNProviderImpl is destroyed, which makes it

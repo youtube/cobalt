@@ -23,10 +23,8 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant
 import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
-import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
-import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.url.GURL;
 
@@ -142,17 +140,6 @@ public class ReaderModeToolbarButtonController extends BaseButtonDataProvider
         ReaderModeMetrics.recordReaderModeContextualPageActionEvent(
                 ReaderModeMetrics.ReaderModeContextualPageActionEvent.CLICKED);
         readerModeManager.activateReaderMode(EntryPoint.TOOLBAR_BUTTON);
-    }
-
-    @Override
-    protected IphCommandBuilder getIphCommandBuilder(Tab tab) {
-        IphCommandBuilder iphCommandBuilder =
-                new IphCommandBuilder(
-                        tab.getContext().getResources(),
-                        FeatureConstants.CONTEXTUAL_PAGE_ACTIONS_QUIET_VARIANT,
-                        /* stringId= */ R.string.reader_mode_message_title,
-                        /* accessibilityStringId= */ R.string.show_reading_mode_text);
-        return iphCommandBuilder;
     }
 
     @Override

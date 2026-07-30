@@ -16,12 +16,14 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace permissions {
 enum class PermissionAction;
 enum class RequestType;
 }  // namespace permissions
-
-class Browser;
 
 constexpr int DISTANCE_BUTTON_VERTICAL = 8;
 
@@ -45,7 +47,7 @@ class PermissionPromptBubbleBaseView : public PermissionPromptBaseView {
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kAllowButtonElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kAllowOnceButtonElementId);
   PermissionPromptBubbleBaseView(
-      Browser* browser,
+      content::WebContents* web_contents,
       base::WeakPtr<permissions::PermissionPrompt::Delegate> delegate,
       PermissionPromptStyle prompt_style);
   PermissionPromptBubbleBaseView(const PermissionPromptBubbleBaseView&) =

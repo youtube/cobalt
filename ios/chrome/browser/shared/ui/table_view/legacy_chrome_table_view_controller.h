@@ -17,7 +17,6 @@ extern const CGFloat kTableViewSeparatorInset;
 // is the default value for LegacyChromeTableViewController.
 extern const CGFloat kTableViewSeparatorInsetWithIcon;
 
-@class ChromeTableViewStyler;
 @class TableViewItem;
 
 @protocol TableViewIllustratedEmptyViewDelegate;
@@ -36,18 +35,13 @@ extern const CGFloat kTableViewSeparatorInsetWithIcon;
 @property(nonatomic, readonly, strong)
     TableViewModel<TableViewItem*>* tableViewModel;
 
-// The styler that controls how this table view and its cells are
-// displayed. Styler changes should be made before viewDidLoad is called; any
-// changes made afterwards are not guaranteed to take effect.
-@property(nonatomic, readwrite, strong) ChromeTableViewStyler* styler;
-
 // Top offset of the empty view which will be applied in addition to the safe
 // area insets. Useful when a non-content cell (eg. sign-in promo) is shown at
 // the top of the table view.
 @property(nonatomic, readwrite, assign) CGFloat emptyViewTopOffset;
 
-// Initializes the view controller, configured with `style`. The default
-// ChromeTableViewStyler will be used.
+// Initializes the view controller, configured with `style`. Default styling
+// will be used.
 - (instancetype)initWithStyle:(UITableViewStyle)style NS_DESIGNATED_INITIALIZER;
 // Unavailable initializers.
 - (instancetype)initWithCoder:(NSCoder*)aDecoder NS_UNAVAILABLE;

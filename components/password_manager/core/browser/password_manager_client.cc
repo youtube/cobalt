@@ -217,4 +217,8 @@ bool PasswordManagerClient::IsActorTaskActive() {
   return false;
 }
 
+bool PasswordManagerClient::IsChromeSigninPage() const {
+  return false;
+}
+
 }  // namespace password_manager

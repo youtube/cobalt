@@ -98,14 +98,17 @@ export class PasswordsExporterElement extends PasswordsExporterElementBase {
    * Tells the PasswordsPrivate API to export saved passwords in a .csv file.
    */
   private onExportClick_() {
-    PasswordManagerImpl.getInstance().exportPasswords().catch((error) => {
-      if (error === 'in-progress') {
-        // Exporting was started by a different call to exportPasswords() and is
-        // is still in progress. This UI needs to be updated to the current
-        // status.
-        this.showExportInProgress_ = true;
-      }
-    });
+    PasswordManagerImpl.getInstance().exportPasswords().catch(
+        (error: unknown) => {
+          // Extension APIs reject with an Error object containing the message.
+          const errorMessage = error instanceof Error ? error.message : error;
+          if (errorMessage === 'in-progress') {
+            // Exporting was started by a different call to exportPasswords()
+            // and is still in progress. This UI needs to be updated to the
+            // current status.
+            this.showExportInProgress_ = true;
+          }
+        });
   }
 
   /**

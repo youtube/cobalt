@@ -94,10 +94,13 @@ public class PrintingContext {
     @CalledByNative
     public void showPrintDialog() {
         ThreadUtils.assertOnUiThread();
+        if (mController.isBusy()) {
+            // Already printing. Resolve the native callback with CANCEL immediately.
+            showSystemDialogDone();
+            return;
+        }
+        mController.setPendingPrintCallback(this::showSystemDialogDone);
         mController.startPendingPrint();
-        // Reply to native side with |CANCEL| since there is no printing settings available yet at
-        // this stage.
-        showSystemDialogDone();
     }
 
     @CalledByNative

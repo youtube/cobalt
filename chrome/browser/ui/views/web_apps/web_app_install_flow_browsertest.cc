@@ -57,9 +57,7 @@ namespace {
 
 class WebAppInstallFlowBrowserTest : public WebAppBrowserTestBase {
  public:
-  WebAppInstallFlowBrowserTest()
-      : progress_delay_override_(ProgressDelay::SetDurationOverrideForTesting(
-            base::Milliseconds(0))) {}
+  WebAppInstallFlowBrowserTest() = default;
 
   ~WebAppInstallFlowBrowserTest() override = default;
 
@@ -144,7 +142,6 @@ class WebAppInstallFlowBrowserTest : public WebAppBrowserTestBase {
   }
 
  private:
-  base::AutoReset<std::optional<base::TimeDelta>> progress_delay_override_;
   base::test::ScopedFeatureList feature_list_{features::kWebAppInstallDialog};
 };
 

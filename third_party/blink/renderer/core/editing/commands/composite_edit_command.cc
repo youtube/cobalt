@@ -1626,6 +1626,130 @@ void CompositeEditCommand::SetEndingSelectionToDelete(const Position& start,
   }
 }
 
+void CompositeEditCommand::InsertPlaceholderBrIfPruningCollapsed(
+    const Position& before_paragraph,
+    const Position& after_paragraph,
+    EditingState* editing_state) {
+  // Add a br if pruning an empty block level element caused a collapse. For
+  // example:
+  // foo^
+  // <div>bar</div>
+  // baz
+  // Imagine moving 'bar' to ^. 'bar' will be deleted and its div pruned. That
+  // would cause 'baz' to collapse onto the line with 'foobar' unless we insert
+  // a br. Must recononicalize these two VisiblePositions after the pruning
+  // above.
+  VisiblePosition before_vp = CreateVisiblePosition(before_paragraph);
+  VisiblePosition after_vp = CreateVisiblePosition(after_paragraph);
+  if (before_vp.IsNotNull() &&
+      ((!IsStartOfParagraph(before_vp) && !IsEndOfParagraph(before_vp)) ||
+       before_vp.DeepEquivalent() == after_vp.DeepEquivalent())) {
+    // FIXME: Trim text between beforeParagraph and afterParagraph if they
+    // aren't equal.
+    InsertNodeAt(MakeGarbageCollected<HTMLBRElement>(GetDocument()),
+                 before_vp.DeepEquivalent(), editing_state);
+  }
+}
+
+bool CompositeEditCommand::DestinationStillEditableForPaste(
+    const VisiblePosition& destination) {
+  if (!RuntimeEnabledFeatures::
+          PartialCompletionNotAllowedInMoveParagraphsEnabled()) {
+    return true;
+  }
+  const VisibleSelection& destination_selection =
+      CreateVisibleSelection(SelectionInDomTree::Builder()
+                                 .Collapse(destination.ToPositionWithAffinity())
+                                 .Build());
+  return destination_selection.RootEditableElement() &&
+         EndingVisibleSelection().RootEditableElement();
+}
+
+int CompositeEditCommand::ComputeDestinationIndex(
+    const VisiblePosition& destination) {
+  const TextIteratorBehavior behavior =
+      RuntimeEnabledFeatures::EnterInOpenShadowRootsEnabled()
+          ? TextIteratorBehavior::
+                AllVisiblePositionsIncludingShadowRootRangeLengthBehavior()
+          : TextIteratorBehavior::AllVisiblePositionsRangeLengthBehavior();
+  return TextIterator::RangeLength(
+      Position::FirstPositionInNode(*GetDocument().documentElement()),
+      destination.ToParentAnchoredPosition(), behavior);
+}
+
+bool CompositeEditCommand::SetDestinationSelectionAndPasteFragment(
+    const VisiblePosition& destination,
+    DocumentFragment* fragment,
+    ShouldPreserveStyle should_preserve_style,
+    EditingState* editing_state) {
+  const VisibleSelection& destination_selection =
+      CreateVisibleSelection(SelectionInDomTree::Builder()
+                                 .Collapse(destination.ToPositionWithAffinity())
+                                 .Build());
+  if (EndingSelection().IsNone()) {
+    // We abort executing command since |destination| becomes invisible.
+    editing_state->Abort();
+    return false;
+  }
+  SetEndingSelection(
+      SelectionForUndoStep::From(destination_selection.AsSelection()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(
+        SelectionForUndoStep::From(destination_selection.AsSelection()));
+  }
+  ReplaceSelectionCommand::CommandOptions options =
+      ReplaceSelectionCommand::kSelectReplacement |
+      ReplaceSelectionCommand::kMovingParagraph;
+  if (should_preserve_style == kDoNotPreserveStyle) {
+    options |= ReplaceSelectionCommand::kMatchStyle;
+  }
+  ApplyCommandToComposite(MakeGarbageCollected<ReplaceSelectionCommand>(
+                              GetDocument(), fragment, options,
+                              EditCommand::PasswordEchoBehavior::kDoNotEcho),
+                          editing_state);
+  if (editing_state->IsAborted()) {
+    return false;
+  }
+  if (!EndingSelection().IsValidFor(GetDocument())) {
+    editing_state->Abort();
+    return false;
+  }
+  return true;
+}
+
+void CompositeEditCommand::RestoreSelectionFromPlainText(
+    int destination_index,
+    int start_index,
+    int end_index,
+    Element& document_element) {
+  // Fragment creation (using createMarkup) incorrectly uses regular spaces
+  // instead of nbsps for some spaces that were rendered (11475), which causes
+  // spaces to be collapsed during the move operation. This results in a call
+  // to rangeFromLocationAndLength with a location past the end of the
+  // document (which will return null).
+  EphemeralRange start_range = PlainTextRange(destination_index + start_index)
+                                   .CreateRangeForSelection(document_element);
+  if (start_range.IsNull()) {
+    return;
+  }
+  EphemeralRange end_range = PlainTextRange(destination_index + end_index)
+                                 .CreateRangeForSelection(document_element);
+  if (end_range.IsNull()) {
+    return;
+  }
+  const VisibleSelection& visible_selection =
+      CreateVisibleSelection(SelectionInDomTree::Builder()
+                                 .Collapse(start_range.StartPosition())
+                                 .Extend(end_range.StartPosition())
+                                 .Build());
+  SetEndingSelection(
+      SelectionForUndoStep::From(visible_selection.AsSelection()));
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    SetEndingDomSelection(
+        SelectionForUndoStep::From(visible_selection.AsSelection()));
+  }
+}
+
 void CompositeEditCommand::MoveParagraphs(
     const VisiblePosition& start_of_paragraph_to_move,
     const VisiblePosition& end_of_paragraph_to_move,
@@ -1752,16 +1876,8 @@ void CompositeEditCommand::MoveParagraphs(
 
   SetEndingSelectionToDelete(start, end);
 
-  if (RuntimeEnabledFeatures::
-          PartialCompletionNotAllowedInMoveParagraphsEnabled()) {
-    const VisibleSelection& destination_selection = CreateVisibleSelection(
-        SelectionInDomTree::Builder()
-            .Collapse(destination.ToPositionWithAffinity())
-            .Build());
-    if (!destination_selection.RootEditableElement() ||
-        !EndingVisibleSelection().RootEditableElement()) {
-      return;
-    }
+  if (!DestinationStillEditableForPaste(destination)) {
+    return;
   }
   if (!DeleteSelection(
           editing_state,
@@ -1781,72 +1897,21 @@ void CompositeEditCommand::MoveParagraphs(
 
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
-  // Add a br if pruning an empty block level element caused a collapse. For
-  // example:
-  // foo^
-  // <div>bar</div>
-  // baz
-  // Imagine moving 'bar' to ^. 'bar' will be deleted and its div pruned. That
-  // would cause 'baz' to collapse onto the line with 'foobar' unless we insert
-  // a br. Must recononicalize these two VisiblePositions after the pruning
-  // above.
-  VisiblePosition before_paragraph =
-      CreateVisiblePosition(before_paragraph_position->GetPosition());
-  VisiblePosition after_paragraph =
-      CreateVisiblePosition(after_paragraph_position->GetPosition());
-  if (before_paragraph.IsNotNull() &&
-      ((!IsStartOfParagraph(before_paragraph) &&
-        !IsEndOfParagraph(before_paragraph)) ||
-       before_paragraph.DeepEquivalent() == after_paragraph.DeepEquivalent())) {
-    // FIXME: Trim text between beforeParagraph and afterParagraph if they
-    // aren't equal.
-    InsertNodeAt(MakeGarbageCollected<HTMLBRElement>(GetDocument()),
-                 before_paragraph.DeepEquivalent(), editing_state);
-    if (editing_state->IsAborted())
-      return;
+  InsertPlaceholderBrIfPruningCollapsed(
+      before_paragraph_position->GetPosition(),
+      after_paragraph_position->GetPosition(), editing_state);
+  if (editing_state->IsAborted()) {
+    return;
   }
 
   // TextIterator::rangeLength requires clean layout.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
-  if (RuntimeEnabledFeatures::EnterInOpenShadowRootsEnabled()) {
-    destination_index = TextIterator::RangeLength(
-        Position::FirstPositionInNode(*GetDocument().documentElement()),
-        destination.ToParentAnchoredPosition(),
-        TextIteratorBehavior::
-            AllVisiblePositionsIncludingShadowRootRangeLengthBehavior());
-  } else {
-    destination_index = TextIterator::RangeLength(
-        Position::FirstPositionInNode(*GetDocument().documentElement()),
-        destination.ToParentAnchoredPosition(),
-        TextIteratorBehavior::AllVisiblePositionsRangeLengthBehavior());
-  }
-  const VisibleSelection& destination_selection =
-      CreateVisibleSelection(SelectionInDomTree::Builder()
-                                 .Collapse(destination.ToPositionWithAffinity())
-                                 .Build());
-  if (EndingSelection().IsNone()) {
-    // We abort executing command since |destination| becomes invisible.
-    editing_state->Abort();
+  destination_index = ComputeDestinationIndex(destination);
+
+  if (!SetDestinationSelectionAndPasteFragment(
+          destination, fragment, should_preserve_style, editing_state)) {
     return;
   }
-  SetEndingSelection(
-      SelectionForUndoStep::From(destination_selection.AsSelection()));
-  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
-    SetEndingDomSelection(
-        SelectionForUndoStep::From(destination_selection.AsSelection()));
-  }
-  ReplaceSelectionCommand::CommandOptions options =
-      ReplaceSelectionCommand::kSelectReplacement |
-      ReplaceSelectionCommand::kMovingParagraph;
-  if (should_preserve_style == kDoNotPreserveStyle)
-    options |= ReplaceSelectionCommand::kMatchStyle;
-  ApplyCommandToComposite(MakeGarbageCollected<ReplaceSelectionCommand>(
-                              GetDocument(), fragment, options,
-                              EditCommand::PasswordEchoBehavior::kDoNotEcho),
-                          editing_state);
-  if (editing_state->IsAborted())
-    return;
-  ABORT_EDITING_COMMAND_IF(!EndingSelection().IsValidFor(GetDocument()));
 
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
@@ -1871,30 +1936,8 @@ void CompositeEditCommand::MoveParagraphs(
   // We need clean layout in order to compute plain-text ranges below.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
-  // Fragment creation (using createMarkup) incorrectly uses regular spaces
-  // instead of nbsps for some spaces that were rendered (11475), which causes
-  // spaces to be collapsed during the move operation. This results in a call
-  // to rangeFromLocationAndLength with a location past the end of the
-  // document (which will return null).
-  EphemeralRange start_range = PlainTextRange(destination_index + start_index)
-                                   .CreateRangeForSelection(*document_element);
-  if (start_range.IsNull())
-    return;
-  EphemeralRange end_range = PlainTextRange(destination_index + end_index)
-                                 .CreateRangeForSelection(*document_element);
-  if (end_range.IsNull())
-    return;
-  const VisibleSelection& visible_selection =
-      CreateVisibleSelection(SelectionInDomTree::Builder()
-                                 .Collapse(start_range.StartPosition())
-                                 .Extend(end_range.StartPosition())
-                                 .Build());
-  SetEndingSelection(
-      SelectionForUndoStep::From(visible_selection.AsSelection()));
-  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
-    SetEndingDomSelection(
-        SelectionForUndoStep::From(visible_selection.AsSelection()));
-  }
+  RestoreSelectionFromPlainText(destination_index, start_index, end_index,
+                                *document_element);
 }
 
 // FIXME: Send an appropriate shouldDeleteRange call.

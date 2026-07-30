@@ -432,6 +432,10 @@
     "dependencies": ["manifest:devtools_page"],
     "contexts": ["privileged_extension"]
   },
+  "dictationPrivate": {
+    "dependencies": ["permission:dictationPrivate"],
+    "contexts": ["privileged_extension"]
+  },
   "documentScan": {
     "dependencies": ["permission:documentScan"],
     "contexts": ["privileged_extension"]

@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
 #import "ios/chrome/browser/shared/public/commands/web_content_commands.h"
 #import "ios/web/public/download/download_task.h"
+#import "ios/web/public/navigation/navigation_context.h"
 
 const char kUmaDownloadPassKitResult[] = "Download.IOSDownloadPassKitResult";
 const char kUmaDownloadBundledPassKitResult[] =
@@ -80,6 +81,15 @@ void PassKitTabHelper::WasShown(web::WebState* web_state) {
   CHECK_EQ(web_state_, web_state);
   if (handler_ && pending_passes_) {
     [handler_ showDialogForPassKitPasses:pending_passes_];
+    pending_passes_ = nil;
+  }
+}
+
+void PassKitTabHelper::DidStartNavigation(
+    web::WebState* web_state,
+    web::NavigationContext* navigation_context) {
+  CHECK_EQ(web_state_, web_state);
+  if (!navigation_context->IsSameDocument()) {
     pending_passes_ = nil;
   }
 }

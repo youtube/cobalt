@@ -19,23 +19,28 @@
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/token.h"
+#include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/features.h"
+#include "components/services/storage/dom_storage/leveldb/session_storage_leveldb.h"
 #include "components/services/storage/dom_storage/test_support/dom_storage_database_testing.h"
 #include "components/services/storage/dom_storage/test_support/fake_dom_storage_database.h"
 #include "components/services/storage/dom_storage/test_support/fake_dom_storage_database_factory.h"
 #include "components/services/storage/dom_storage/test_support/storage_area_test_util.h"
-#include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/functions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -52,19 +57,12 @@ std::vector<uint8_t> StringViewToUint8Vector(std::string_view s) {
 }
 
 }  // namespace
+
 // Base test fixture for `SessionStorageImpl` tests. Provides common setup
 // including database initialization, storage area binding, and helper methods.
-// Subclasses can parameterize tests to run on SQLite or LevelDB using
-// `is_sqlite_enabled`.
 class SessionStorageImplTestBase : public testing::Test {
  public:
-  explicit SessionStorageImplTestBase(bool is_sqlite_enabled) {
-    feature_list_.InitWithFeatureStates(
-        {{kDomStorageSqlite, is_sqlite_enabled},
-         {kDomStorageSqliteInMemory, is_sqlite_enabled}});
-    task_environment_ = std::make_unique<base::test::TaskEnvironment>();
-    CHECK(temp_dir_.CreateUniqueTempDir());
-  }
+  SessionStorageImplTestBase() { CHECK(temp_dir_.CreateUniqueTempDir()); }
 
   SessionStorageImplTestBase(const SessionStorageImplTestBase&) = delete;
   SessionStorageImplTestBase& operator=(const SessionStorageImplTestBase&) =
@@ -80,8 +78,9 @@ class SessionStorageImplTestBase : public testing::Test {
   }
 
   void TearDown() override {
-    if (session_storage_)
+    if (session_storage_) {
       ShutDownSessionStorage();
+    }
     mojo::SetDefaultProcessErrorHandler(base::NullCallback());
   }
 
@@ -203,8 +202,16 @@ class SessionStorageImplTestBase : public testing::Test {
 
   bool bad_message_called_ = false;
 
- private:
+ protected:
+  // Derived fixtures must initialize `feature_list_` and then call this from
+  // their constructor.
+  void InitializeTaskEnvironment() {
+    task_environment_ = std::make_unique<base::test::TaskEnvironment>();
+  }
+
   base::test::ScopedFeatureList feature_list_;
+
+ private:
   // TaskEnvironment initialization results in threads calling
   // `FeatureList::IsEnabled()`. On Android tests, this can race with
   // `FeatureList::InitWithFeatureState()` in the constructor. So, we hold the
@@ -222,11 +229,28 @@ class SessionStorageImplTest
     : public testing::WithParamInterface</*is_sqlite_enabled=*/bool>,
       public SessionStorageImplTestBase {
  public:
-  SessionStorageImplTest()
-      : SessionStorageImplTestBase(/*is_sqlite_enabled=*/GetParam()) {}
+  SessionStorageImplTest() {
+    if (GetParam()) {
+      feature_list_.InitWithFeatures(
+          /*enabled_features=*/{kDomStorageSqlite, kDomStorageSqliteInMemory},
+          /*disabled_features=*/{});
+    } else {
+      feature_list_.InitWithFeatures(
+          /*enabled_features=*/{},
+          /*disabled_features=*/{kDomStorageSqlite, kDomStorageSqliteInMemory});
+    }
+    InitializeTaskEnvironment();
+  }
   ~SessionStorageImplTest() override = default;
 
   bool IsSqliteEnabled() const { return GetParam(); }
+
+  base::FilePath GetDatabasePath() {
+    return IsSqliteEnabled() ? DomStorageDatabase::GetSqlitePath(
+                                   StorageType::kSessionStorage, temp_path())
+                             : DomStorageDatabase::GetLevelDbPath(
+                                   StorageType::kSessionStorage, temp_path());
+  }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -315,6 +339,9 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
   // namespace so it can be loaded again.
   session_storage()->DeleteNamespace(namespace_id1, true);
   ShutDownSessionStorage();
+  int expected_storage_areas_shutdown = 1;
+  histograms.ExpectUniqueSample("Storage.SessionStorage.ShutdownDroppedChanges",
+                                false, expected_storage_areas_shutdown);
 
   // This will re-initialize Session Storage and load the persisted namespace.
   session_storage()->CreateNamespace(namespace_id1);
@@ -326,10 +353,21 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
   EXPECT_EQ(1ul, data.size());
   area_n1.reset();
 
+  // On low end devices, `BindStorageArea()` purges the storage area loaded from
+  // disk before rebinding.
+  if (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()) {
+    ++expected_storage_areas_shutdown;
+  }
+  histograms.ExpectUniqueSample("Storage.SessionStorage.ShutdownDroppedChanges",
+                                false, expected_storage_areas_shutdown);
+
   // Delete the namespace, shut down Session Storage, and do not persist the
   // data.
   session_storage()->DeleteNamespace(namespace_id1, false);
   ShutDownSessionStorage();
+  ++expected_storage_areas_shutdown;
+  histograms.ExpectUniqueSample("Storage.SessionStorage.ShutdownDroppedChanges",
+                                false, expected_storage_areas_shutdown);
 
   // This will re-initialize Session Storage and the namespace should be empty.
   session_storage()->CreateNamespace(namespace_id1);
@@ -372,9 +410,9 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
       "Storage.SessionStorage.Duration.PutMetadata.OnDisk", 2);
 
   ShutDownSessionStorage();
-
+  ++expected_storage_areas_shutdown;
   histograms.ExpectUniqueSample("Storage.SessionStorage.ShutdownDroppedChanges",
-                                false, 1);
+                                false, expected_storage_areas_shutdown);
 }
 
 TEST_P(SessionStorageImplTest, ShutdownDroppedChanges) {
@@ -400,33 +438,138 @@ TEST_P(SessionStorageImplTest, ShutdownDroppedChanges) {
 
   // Reload the database.
   ShutDownSessionStorage();
-
+  int expected_storage_areas_shutdown = 1;
   histograms.ExpectUniqueSample("Storage.SessionStorage.ShutdownDroppedChanges",
-                                false, 1);
-
+                                false, expected_storage_areas_shutdown);
+  histograms.ExpectTotalCount("Storage.SessionStorage.ShutdownDroppedChanges",
+                              expected_storage_areas_shutdown);
   EnsureDatabaseOpen();
 
+  // Re-open the namespace.
   session_storage_impl()->CreateNamespace(namespace_id);
+  SessionStorageNamespaceImpl* namespace_impl =
+      session_storage_impl()->GetNamespaceForTesting(namespace_id);
+  ASSERT_NE(namespace_impl, nullptr);
 
+  // Re-open the storage area.
   area.reset();
   session_storage_impl()->BindStorageArea(storage_key, namespace_id,
                                           area.BindNewPipeAndPassReceiver());
+  StorageAreaImpl* storage_area_impl =
+      namespace_impl->GetStorageAreaForTesting(storage_key);
+  ASSERT_NE(storage_area_impl, nullptr);
 
-  auto key2 = StringViewToUint8Vector("key2");
-  auto value2 = StringViewToUint8Vector("value2");
+  // On low end devices, `BindStorageArea()` purges the storage area loaded from
+  // disk before rebinding.
+  if (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()) {
+    ++expected_storage_areas_shutdown;
+  }
+  histograms.ExpectUniqueSample("Storage.SessionStorage.ShutdownDroppedChanges",
+                                false, expected_storage_areas_shutdown);
+  histograms.ExpectTotalCount("Storage.SessionStorage.ShutdownDroppedChanges",
+                              expected_storage_areas_shutdown);
+
+  // Create a `RunLoop` that quits when the storage area starts loading.
+  base::RunLoop storage_area_loading_run_loop;
+  storage_area_impl->SetLoadingStartedCallbackForTesting(
+      storage_area_loading_run_loop.QuitClosure());
 
   // Put a value in the area, forcing the area to load and then immediately
   // shutdown while the area is loading.
-  session_storage_impl()->PutValueForTesting(
-      namespace_id, storage_key, key2, value2, /*callback=*/base::DoNothing());
+  auto key2 = StringViewToUint8Vector("key2");
+  auto value2 = StringViewToUint8Vector("value2");
+  area->Put(key2, value2, /*client_old_value=*/std::nullopt, /*source=*/nullptr,
+            /*callback=*/base::DoNothing());
+
+  // Shutdown immediately after the area starts loading.
+  storage_area_loading_run_loop.Run();
   ResetSessionStorage();
+  ++expected_storage_areas_shutdown;
 
   // Shutdown discards the put, which prevents `key2` and `value2` from
   // persisting to the database.
   histograms.ExpectBucketCount("Storage.SessionStorage.ShutdownDroppedChanges",
                                true, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.ShutdownDroppedChanges",
+                               false, expected_storage_areas_shutdown - 1);
   histograms.ExpectTotalCount("Storage.SessionStorage.ShutdownDroppedChanges",
-                              2);
+                              expected_storage_areas_shutdown);
+
+  // Re-open the database, which allows test tear down to wait for shutdown to
+  // complete.
+  EnsureDatabaseOpen();
+}
+
+TEST_P(SessionStorageImplTest, ShutdownWithPendingSyncGetAll) {
+  std::string namespace_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  session_storage()->CreateNamespace(namespace_id);
+
+  blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com");
+
+  mojo::Remote<blink::mojom::StorageArea> area;
+  session_storage()->BindStorageArea(storage_key, namespace_id,
+                                     area.BindNewPipeAndPassReceiver());
+
+  // Add a key/value pair to the storage area.  Next time, the area will load as
+  // non-empty, providing the test an opportunity to drop tasks on shutdown
+  // during the load.
+  EXPECT_TRUE(
+      test::PutSync(area.get(), StringViewToUint8Vector("key1"),
+                    StringViewToUint8Vector("value1"), std::nullopt,
+                    test::MakeStorageAreaSource(GURL(), kTestSourceToken)));
+
+  // Reload the database.
+  ShutDownSessionStorage();
+  EnsureDatabaseOpen();
+
+  // Re-open the namespace.
+  session_storage_impl()->CreateNamespace(namespace_id);
+  SessionStorageNamespaceImpl* namespace_impl =
+      session_storage_impl()->GetNamespaceForTesting(namespace_id);
+  ASSERT_NE(namespace_impl, nullptr);
+
+  // Re-open the storage area.
+  area.reset();
+  session_storage_impl()->BindStorageArea(storage_key, namespace_id,
+                                          area.BindNewPipeAndPassReceiver());
+  StorageAreaImpl* storage_area_impl =
+      namespace_impl->GetStorageAreaForTesting(storage_key);
+  ASSERT_NE(storage_area_impl, nullptr);
+
+  // Create a `RunLoop` that quits when the storage area starts loading.
+  base::RunLoop storage_area_loading_run_loop;
+  storage_area_impl->SetLoadingStartedCallbackForTesting(
+      storage_area_loading_run_loop.QuitClosure());
+
+  // Use another sequence to simulate a renderer that uses synchronous mojo to
+  // get all of the map's key/value pairs.
+  base::RunLoop sync_get_all_run_loop;
+  mojo::PendingRemote<blink::mojom::StorageArea> pending_area = area.Unbind();
+  scoped_refptr<base::SequencedTaskRunner> mojo_task_runner =
+      base::ThreadPool::CreateSequencedTaskRunner(
+          /*task_traits=*/{});
+
+  mojo_task_runner->PostTask(
+      FROM_HERE, base::BindLambdaForTesting([&]() {
+        base::ScopedAllowBaseSyncPrimitivesForTesting sync_primitives;
+        mojo::Remote<blink::mojom::StorageArea> area(std::move(pending_area));
+
+        std::vector<blink::mojom::KeyValuePtr> data;
+        area->GetAll(/*new_observer=*/mojo::NullRemote(), &data);
+
+        // `SessionStorageImpl` dropped the `GetAll()` request during shutdown
+        // before it completed.
+        EXPECT_EQ(data.size(), 0u);
+        sync_get_all_run_loop.Quit();
+      }));
+
+  // Shutdown immediately after the area starts loading.
+  storage_area_loading_run_loop.Run();
+  ResetSessionStorage();
+
+  // Wait for the synchronous get all to finish.
+  sync_get_all_run_loop.Run();
 
   // Re-open the database, which allows test tear down to wait for shutdown to
   // complete.
@@ -716,12 +859,10 @@ void SessionStorageImplTestBase::TestInvalidVersionOnDisk(
     // Re-open the database.
     base::RunLoop open_db_run_loop;
     DbStatus status;
-    base::FilePath database_path =
-        DomStorageDatabase::GetPath(StorageType::kSessionStorage, temp_path());
 
     std::unique_ptr<AsyncDomStorageDatabase> database =
         AsyncDomStorageDatabase::Open(
-            StorageType::kSessionStorage, database_path,
+            StorageType::kSessionStorage, temp_path(),
             /*memory_dump_id=*/std::nullopt,
             base::BindLambdaForTesting([&](DbStatus callback_status) {
               status = callback_status;
@@ -782,8 +923,7 @@ TEST_P(SessionStorageImplTest, CorruptionOnDisk) {
 
   ShutDownSessionStorage();
 
-  base::FilePath db_path =
-      DomStorageDatabase::GetPath(StorageType::kSessionStorage, temp_path());
+  base::FilePath db_path = GetDatabasePath();
   if (IsSqliteEnabled()) {
     // Replace the SQLite database file with plain text.
     ASSERT_TRUE(base::WriteFile(db_path, "Corrupt database"));
@@ -1066,12 +1206,195 @@ TEST_P(SessionStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
   ShutDownSessionStorage();
 }
 
+class SessionStorageImplOnDiskSQLiteRolloutTestBase
+    : public SessionStorageImplTestBase {
+ public:
+  // Shared helpers for the `SessionStorageImplOnDiskSQLiteRolloutTest` fixture.
+  base::FilePath LevelDbDir() const {
+    return DomStorageDatabase::GetLevelDbPath(StorageType::kSessionStorage,
+                                              temp_path());
+  }
+
+  base::FilePath SqliteDbPath() const {
+    return DomStorageDatabase::GetSqlitePath(StorageType::kSessionStorage,
+                                             temp_path());
+  }
+
+  base::FilePath ExpTagPath() const {
+    return LevelDbDir().AppendASCII("exp-v1");
+  }
+
+  bool LevelDbDirHasContents() const {
+    return base::PathExists(LevelDbDir()) &&
+           !base::IsDirectoryEmpty(LevelDbDir());
+  }
+
+  // Creates a real on-disk LevelDB database at `LevelDbDir()`. If `with_tag`
+  // is true, also writes the experimental tag file next to the database.
+  void CreateOnDiskLevelDb(bool with_tag) {
+    scoped_refptr<base::SequencedTaskRunner> runner =
+        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
+    {
+      base::SequenceBound<SessionStorageLevelDB> db(
+          runner, DomStorageDatabaseFactory::CreatePassKeyForTesting(),
+          /*write_exp_tag=*/false);
+      base::test::TestFuture<DbStatus> open_future;
+      db.AsyncCall(&SessionStorageLevelDB::Open)
+          .WithArgs(LevelDbDir(), std::nullopt)
+          .Then(open_future.GetCallback());
+      ASSERT_TRUE(open_future.Take().ok());
+    }
+
+    // Drain `runner` so the DB's destruction completes and releases its LOCK
+    // before we touch the directory.
+    base::RunLoop flush;
+    runner->PostTask(FROM_HERE, flush.QuitClosure());
+    flush.Run();
+
+    if (with_tag) {
+      ASSERT_TRUE(base::WriteFile(ExpTagPath(), ""));
+    }
+  }
+};
+
+class SessionStorageImplOnDiskSQLiteRolloutTest
+    : public SessionStorageImplOnDiskSQLiteRolloutTestBase,
+      public testing::WithParamInterface<DomStorageSqliteRolloutStage> {
+ public:
+  SessionStorageImplOnDiskSQLiteRolloutTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{kDomStorageSqliteNewDatabases,
+                               {{"DomStorageSqliteNewDatabasesStage",
+                                 kDomStorageSqliteNewDatabasesStage.GetName(
+                                     stage())}}}},
+        /*disabled_features=*/{kDomStorageSqlite, kDomStorageSqliteInMemory});
+    InitializeTaskEnvironment();
+  }
+
+  DomStorageSqliteRolloutStage stage() const { return GetParam(); }
+
+  // Whether a newly-created on-disk database uses the SQLite backend.
+  bool UsesSqliteForNewDb() const {
+    return stage() == DomStorageSqliteRolloutStage::kUseSqliteForNewDatabases ||
+           stage() == DomStorageSqliteRolloutStage::kUseSqliteOnly;
+  }
+
+  // Whether new on-disk databases are attributed to the experiment (the
+  // "OnDiskExperimental" histogram) rather than "OnDisk".
+  bool IsExperimentalStage() const {
+    return stage() == DomStorageSqliteRolloutStage::kUseLevelDbAsControl ||
+           stage() == DomStorageSqliteRolloutStage::kUseSqliteForNewDatabases;
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    /*no prefix*/,
+    SessionStorageImplOnDiskSQLiteRolloutTest,
+    testing::Values(DomStorageSqliteRolloutStage::kUseLevelDbOnly,
+                    DomStorageSqliteRolloutStage::kUseLevelDbAsControl,
+                    DomStorageSqliteRolloutStage::kUseSqliteForNewDatabases,
+                    DomStorageSqliteRolloutStage::kUseSqliteOnly),
+    [](const testing::TestParamInfo<DomStorageSqliteRolloutStage>& info) {
+      return kDomStorageSqliteNewDatabasesStage.GetName(info.param);
+    });
+
+TEST_P(SessionStorageImplOnDiskSQLiteRolloutTest,
+       NewDatabase_UsesConfiguredBackend) {
+  base::HistogramTester histograms;
+  std::string namespace_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://example.com");
+
+  DoTestPut(namespace_id, storage_key, "key", "value",
+            /*should_persist=*/true);
+  ShutDownSessionStorage();
+
+  if (UsesSqliteForNewDb()) {
+    EXPECT_TRUE(base::PathExists(SqliteDbPath()));
+    EXPECT_FALSE(LevelDbDirHasContents());
+  } else {
+    EXPECT_FALSE(base::PathExists(SqliteDbPath()));
+    EXPECT_TRUE(LevelDbDirHasContents());
+  }
+  // Only the control arm tags a newly-created LevelDB.
+  EXPECT_EQ(base::PathExists(ExpTagPath()),
+            stage() == DomStorageSqliteRolloutStage::kUseLevelDbAsControl);
+  histograms.ExpectUniqueSample(
+      IsExperimentalStage()
+          ? "Storage.SessionStorage.OpenDatabase.OnDiskExperimental"
+          : "Storage.SessionStorage.OpenDatabase.OnDisk",
+      /*sample=*/0, /*expected_bucket_count=*/1);
+}
+
+TEST_P(SessionStorageImplOnDiskSQLiteRolloutTest, PreExistingUntaggedLevelDb) {
+  ASSERT_NO_FATAL_FAILURE(CreateOnDiskLevelDb(/*with_tag=*/false));
+  base::HistogramTester histograms;
+  std::string namespace_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://example.com");
+
+  DoTestPut(namespace_id, storage_key, "key", "value",
+            /*should_persist=*/true);
+  // The value round-trips through the active backend (SQLite for
+  // kUseSqliteOnly, the reused LevelDB otherwise), proving the write landed
+  // there rather than in an orphaned LevelDB.
+  EXPECT_EQ(DoTestGet(namespace_id, storage_key, "key"),
+            StringViewToUint8Vector("value"));
+  ShutDownSessionStorage();
+
+  // kUseSqliteOnly creates a SQLite database, orphaning the existing LevelDB.
+  // The other stages reuse the existing LevelDB. Either way, the LevelDB
+  // directory stays on disk and the open is attributed to "OnDisk".
+  EXPECT_EQ(base::PathExists(SqliteDbPath()),
+            stage() == DomStorageSqliteRolloutStage::kUseSqliteOnly);
+  EXPECT_TRUE(LevelDbDirHasContents());
+  EXPECT_FALSE(base::PathExists(ExpTagPath()));
+  histograms.ExpectUniqueSample("Storage.SessionStorage.OpenDatabase.OnDisk",
+                                /*sample=*/0,
+                                /*expected_bucket_count=*/1);
+}
+
+TEST_P(SessionStorageImplOnDiskSQLiteRolloutTest, PreExistingTaggedLevelDb) {
+  ASSERT_NO_FATAL_FAILURE(CreateOnDiskLevelDb(/*with_tag=*/true));
+  base::HistogramTester histograms;
+  std::string namespace_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://example.com");
+
+  DoTestPut(namespace_id, storage_key, "key", "value",
+            /*should_persist=*/true);
+  // The value round-trips through the active backend (SQLite for
+  // kUseSqliteOnly, the reused LevelDB otherwise), proving the write landed
+  // there rather than in an orphaned LevelDB.
+  EXPECT_EQ(DoTestGet(namespace_id, storage_key, "key"),
+            StringViewToUint8Vector("value"));
+  ShutDownSessionStorage();
+
+  // kUseSqliteOnly creates a SQLite database, orphaning the existing LevelDB;
+  // the other stages reuse it. The LevelDB directory and its tag stay on disk.
+  EXPECT_EQ(base::PathExists(SqliteDbPath()),
+            stage() == DomStorageSqliteRolloutStage::kUseSqliteOnly);
+  EXPECT_TRUE(LevelDbDirHasContents());
+  EXPECT_TRUE(base::PathExists(ExpTagPath()));
+  // Only the control arm attributes a previously-tagged LevelDB to the
+  // experiment; the other stages emit to "OnDisk".
+  histograms.ExpectUniqueSample(
+      stage() == DomStorageSqliteRolloutStage::kUseLevelDbAsControl
+          ? "Storage.SessionStorage.OpenDatabase.OnDiskExperimental"
+          : "Storage.SessionStorage.OpenDatabase.OnDisk",
+      /*sample=*/0, /*expected_bucket_count=*/1);
+}
+
 // Test fixture for tests that use fake database implementations. These tests
 // do not depend on the real SQLite/LevelDB backend and run only once.
 class SessionStorageImplFakeDbTest : public SessionStorageImplTestBase {
  public:
-  SessionStorageImplFakeDbTest()
-      : SessionStorageImplTestBase(/*is_sqlite_enabled=*/false) {}
+  SessionStorageImplFakeDbTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{kDomStorageSqlite, kDomStorageSqliteInMemory});
+    InitializeTaskEnvironment();
+  }
 };
 
 // After recovery, some commit errors occur but resolve via a successful commit.
@@ -1087,16 +1410,21 @@ TEST_F(SessionStorageImplFakeDbTest, TransientErrorsAfterRecovery) {
   // actually destroyed and re-created the database.
   ScopedDomStorageDatabaseFactoryForTesting scoped_factory(
       base::BindLambdaForTesting(
-          [](StorageType, bool, scoped_refptr<base::SequencedTaskRunner> runner)
-              -> base::SequenceBound<DomStorageDatabase> {
-            auto fake = base::SequenceBound<FakeDomStorageDatabase>(
-                std::move(runner), DbStatus::OK());
-            fake.AsyncCall(&FakeDomStorageDatabase::SetUpdateMapsStatus)
-                .WithArgs(DbStatus::IOError("test"));
-            return fake;
+          [](StorageType, const base::FilePath& storage_partition_dir,
+             const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&,
+             DomStorageDatabaseFactory::OpenResultCallback callback) {
+            auto fake =
+                std::make_unique<FakeDomStorageDatabase>(DbStatus::OK());
+            fake->SetUpdateMapsStatus(DbStatus::IOError("test"));
+            DomStorageDatabaseFactory::OpenResult result;
+            result.SetDatabase(GetTaskRunnerForDb(storage_partition_dir),
+                               std::move(fake));
+            result.metrics_type = DatabaseMetricsType::kOnDisk;
+            result.open_status = DbStatus::OK();
+            std::move(callback).Run(std::move(result));
           }),
       base::BindLambdaForTesting(
-          [&](const base::FilePath&,
+          [&](const base::FilePath&, bool /*is_sqlite*/,
               DomStorageDatabaseFactory::StatusCallback callback) {
             ++num_databases_destroyed;
             base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -1305,7 +1633,7 @@ TEST_F(SessionStorageImplFakeDbTest, FallbackToInMemory_SecondDestroyFailed) {
   FakeDomStorageDatabaseFactory fake_factory(
       /*num_open_failures=*/2,
       base::BindLambdaForTesting(
-          [&destroy_count](const base::FilePath&,
+          [&destroy_count](const base::FilePath&, bool /*is_sqlite*/,
                            DomStorageDatabaseFactory::StatusCallback cb) {
             base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
                 FROM_HERE,
@@ -1334,7 +1662,7 @@ TEST_F(SessionStorageImplFakeDbTest, GaveUp_SecondDestroyFailed) {
   FakeDomStorageDatabaseFactory fake_factory(
       /*num_open_failures=*/3,
       base::BindLambdaForTesting(
-          [&destroy_count](const base::FilePath&,
+          [&destroy_count](const base::FilePath&, bool /*is_sqlite*/,
                            DomStorageDatabaseFactory::StatusCallback cb) {
             base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
                 FROM_HERE,
@@ -1411,17 +1739,22 @@ TEST_F(SessionStorageImplFakeDbTest, MetadataReadFailure) {
   bool first_create = true;
   ScopedDomStorageDatabaseFactoryForTesting scoped_factory(
       base::BindLambdaForTesting(
-          [&](StorageType, bool,
-              scoped_refptr<base::SequencedTaskRunner> runner)
-              -> base::SequenceBound<DomStorageDatabase> {
-            auto fake = base::SequenceBound<FakeDomStorageDatabase>(
-                std::move(runner), DbStatus::OK());
+          [&](StorageType, const base::FilePath& storage_partition_dir,
+              const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&,
+              DomStorageDatabaseFactory::OpenResultCallback callback) {
+            auto fake =
+                std::make_unique<FakeDomStorageDatabase>(DbStatus::OK());
             if (first_create) {
               first_create = false;
-              fake.AsyncCall(&FakeDomStorageDatabase::SetReadAllMetadataResult)
-                  .WithArgs(base::unexpected(DbStatus::Corruption("test")));
+              fake->SetReadAllMetadataResult(
+                  base::unexpected(DbStatus::Corruption("test")));
             }
-            return fake;
+            DomStorageDatabaseFactory::OpenResult result;
+            result.SetDatabase(GetTaskRunnerForDb(storage_partition_dir),
+                               std::move(fake));
+            result.metrics_type = DatabaseMetricsType::kOnDisk;
+            result.open_status = DbStatus::OK();
+            std::move(callback).Run(std::move(result));
           }));
 
   EnsureDatabaseOpen();

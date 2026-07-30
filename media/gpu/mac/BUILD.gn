@@ -95,6 +95,7 @@ source_set("unit_tests") {
     "video_toolbox_output_queue_unittest.cc",
     "video_toolbox_vp9_accelerator_unittest.cc",
     "vt_config_util_unittest.mm",
+    "vt_video_encode_accelerator_mac_unittest.cc",
   ]
   if (enable_hevc_parser_and_hw_decoder) {
     sources += [ "video_toolbox_h265_accelerator_unittest.cc" ]

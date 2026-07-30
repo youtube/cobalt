@@ -448,8 +448,8 @@ TEST_F(LocalPrinterImplTest, GetPrinterTest) {
 
 TEST_F(LocalPrinterImplTest, GetStatus) {
   chromeos::CupsPrinterStatus printer1("printer1");
-  printer1.AddStatusReason(crosapi::mojom::StatusReason::Reason::kPaperJam,
-                           crosapi::mojom::StatusReason::Severity::kError);
+  printer1.AddStatusReason(::printing::CupsPrinterStatusReason::kPaperJam,
+                           ::printing::CupsPrinterStatusSeverity::kError);
   printers_manager().SetPrinterStatus(printer1);
 
   std::optional<chromeos::CupsPrinterStatus> printer_status;

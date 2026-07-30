@@ -827,6 +827,11 @@
       ],
     },
   },
+  'mac_x64_wpt_child_processes': {
+    'args': [
+      '--child-processes=3',
+    ],
+  },
   'no_gpu': {
     'fail_if_unused': False,
     'swarming': {

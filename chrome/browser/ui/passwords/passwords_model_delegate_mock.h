@@ -134,6 +134,12 @@ class PasswordsModelDelegateMock : public PasswordsModelDelegate {
   MOCK_METHOD(void, NavigateToPasswordChangeSettings, (), (override));
   MOCK_METHOD(void, OnMouseEntered, (), (override));
   MOCK_METHOD(void, OnMouseExited, (), (override));
+  MOCK_METHOD(void,
+              SavePasswordAfterTrustedVaultErrorResolution,
+              (),
+              (override));
+  MOCK_METHOD(void, StartTrustedVaultErrorResolutionFlow, (), (override));
+  MOCK_METHOD(bool, IsSavingBlockedByTrustedVaultError, (), (const, override));
 
   base::WeakPtr<PasswordsModelDelegateMock> AsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();

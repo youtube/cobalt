@@ -165,15 +165,14 @@ void MaybeMapRearSurroundChannelToSurroundChannel(
 
 // Converts |channel_layout| into CoreAudio format and sets up the AUHAL with
 // our layout information so it knows how to remap the channels.
-void SetAudioChannelLayout(int channels,
-                           ChannelLayout channel_layout,
+void SetAudioChannelLayout(const ChannelLayoutConfig& channel_layout_config,
                            AudioUnit audio_unit) {
   DCHECK(audio_unit);
-  DCHECK_GT(channels, 0);
-  DCHECK_GT(channel_layout, CHANNEL_LAYOUT_UNSUPPORTED);
+  DCHECK_GT(channel_layout_config.channels(), 0);
+  DCHECK_GT(channel_layout_config.channel_layout(), CHANNEL_LAYOUT_UNSUPPORTED);
 
   auto coreaudio_layout =
-      ChannelLayoutToAudioChannelLayout(channel_layout, channels);
+      ChannelLayoutToAudioChannelLayout(channel_layout_config);
   if (!coreaudio_layout) {
     DLOG(ERROR) << "Failed to create audio channel layout.";
     return;
@@ -651,7 +650,7 @@ bool AUHALStream::ConfigureAUHAL() {
   if (result != noErr)
     return false;
 
-  SetAudioChannelLayout(params_.channels(), params_.channel_layout(),
+  SetAudioChannelLayout(params_.channel_layout_config(),
                         local_audio_unit->audio_unit());
 
   result = AudioUnitInitialize(local_audio_unit->audio_unit());

@@ -11,7 +11,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "components/file_access/scoped_file_access.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/network_context_client_base.h"
 #include "content/public/common/child_process_id.h"

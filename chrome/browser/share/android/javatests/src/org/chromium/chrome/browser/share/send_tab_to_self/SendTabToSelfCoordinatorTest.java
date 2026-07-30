@@ -148,7 +148,8 @@ public class SendTabToSelfCoordinatorTest {
 
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
-                        .expectIntRecord("Sharing.SendTabToSelf.AndroidDevicePickerTargetCount", 1)
+                        // 2 corresponds to SendTabToSelfDeviceCount::kOneDevice
+                        .expectIntRecord("Sharing.SendTabToSelf.TargetDeviceCount", 2)
                         .build();
 
         buildAndShowCoordinator();
@@ -194,6 +195,17 @@ public class SendTabToSelfCoordinatorTest {
     public void testShowSigninPromoIfSignedOut_activitylessSignin() {
         // An account must be added to the device so the promo is offered.
         mSyncTestRule.addTestAccount();
+        // Two samples are expected because:
+        // 1. Initial invocation while signed out records 0 (kNoTargetDevicesBecauseSignedOut).
+        // 2. Sign-in completion automatically triggers a second show() invocation, which
+        //    records 2 (kOneDevice) since 1 test device is active.
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        // 0 corresponds to SendTabToSelfDeviceCount::kNoTargetDevicesBecauseSignedOut
+                        .expectIntRecord("Sharing.SendTabToSelf.TargetDeviceCount", 0)
+                        // 2 corresponds to SendTabToSelfDeviceCount::kOneDevice
+                        .expectIntRecord("Sharing.SendTabToSelf.TargetDeviceCount", 2)
+                        .build();
         buildAndShowCoordinator();
 
         // Check the promo is displayed, in particular the sign-in button.
@@ -204,6 +216,7 @@ public class SendTabToSelfCoordinatorTest {
                 .perform(click());
 
         onView(withId(R.id.device_picker_list)).check(matches(isDisplayed()));
+        histogramWatcher.assertExpected();
     }
 
     @Test
@@ -265,7 +278,8 @@ public class SendTabToSelfCoordinatorTest {
 
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
-                        .expectIntRecord("Sharing.SendTabToSelf.AndroidDevicePickerTargetCount", 3)
+                        // 4 corresponds to SendTabToSelfDeviceCount::kThreeDevices
+                        .expectIntRecord("Sharing.SendTabToSelf.TargetDeviceCount", 4)
                         .build();
 
         buildAndShowCoordinator();
@@ -394,7 +408,8 @@ public class SendTabToSelfCoordinatorTest {
                                     SigninAndHistorySyncActivityLauncherImpl.get(),
                                     activity.getActivityResultTracker(),
                                     activity.getModalDialogManagerSupplier(),
-                                    activity.getSnackbarManager());
+                                    activity.getSnackbarManager(),
+                                    ShareEntryPoint.SHARE_SHEET);
                     coordinator.show();
                 });
     }

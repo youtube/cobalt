@@ -32,6 +32,7 @@
 #include "media/base/test_data_util.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_spatial_format.h"
 #include "media/formats/mp4/es_descriptor.h"
 #include "media/formats/mp4/fourccs.h"
 #include "media/media_buildflags.h"
@@ -1293,6 +1294,20 @@ MatrixRotationTestCaseParam rotation_test_cases[6] = {
 INSTANTIATE_TEST_SUITE_P(CheckMath,
                          MP4StreamParserRotationMatrixEvaluatorTest,
                          testing::ValuesIn(rotation_test_cases));
+
+TEST_F(MP4StreamParserTest, ParseEquirectangularProjection) {
+  auto params = GetDefaultInitParametersExpectations();
+  params.detected_audio_track_count = 0;
+  params.duration = base::Milliseconds(6700);
+  params.liveness = StreamLiveness::kRecorded;
+  InitializeParserWithInitParametersExpectations(params);
+  ParseMP4File("spherical_frag.mp4", 512);
+
+  EXPECT_EQ(video_decoder_config_.spatial_format().stereo_mode,
+            VideoStereoMode::kTopBottomLeftFirst);
+  EXPECT_EQ(video_decoder_config_.spatial_format().projection_type,
+            VideoProjectionType::kEquirect360);
+}
 
 }  // namespace mp4
 }  // namespace media

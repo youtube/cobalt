@@ -332,16 +332,14 @@ IN_PROC_BROWSER_TEST_P(IsolatedWebAppFileHandlingApprovalBrowserTest,
           parent_url_info.origin().GetURL(), parent_url_info.origin().GetURL(),
           ContentSettingsType::SUB_APPS_WITHOUT_PROMPTS, CONTENT_SETTING_ALLOW);
 
-  // Open parent app and call navigator.subApps.add.
+  // Open parent app and call window.subApps.add.
   auto* iwa_frame = OpenApp(parent_app_id);
 
   WebAppTestInstallObserver observer(profile());
   observer.BeginListening({});
 
   EXPECT_TRUE(content::ExecJs(iwa_frame, R"(
-    navigator.subApps.add({
-      "/sub1/page.html": {"installURL": "/sub1/page.html"}
-    })
+    window.subApps.add(["/sub1/page.html"])
   )"));
 
   auto sub_app_id = observer.Wait();

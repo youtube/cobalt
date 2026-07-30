@@ -5,9 +5,10 @@
 package org.chromium.chrome.browser.customtabs;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -118,7 +119,6 @@ public class NavigationInfoCaptureTriggerTest {
     /** Tests that navigation resets the state. */
     @Test
     @Feature({"CustomTabs"})
-    @SuppressWarnings("unchecked")
     public void testResetOnNavigation() {
         testNormalFlow();
 

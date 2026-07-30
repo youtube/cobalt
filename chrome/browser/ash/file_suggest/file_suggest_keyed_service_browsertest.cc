@@ -12,7 +12,6 @@
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/drive/drive_integration_service_browser_test_base.h"
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
-#include "chrome/browser/ash/file_suggest/drive_file_suggestion_provider.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_keyed_service_factory.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_test_util.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_util.h"
@@ -67,56 +66,14 @@ class FakeSearchQuery : public drivefs::mojom::SearchQuery {
   bool next_page_called_ = false;
 };
 
-class MockObserver : public FileSuggestKeyedService::Observer {
- public:
-  explicit MockObserver(FileSuggestKeyedService* file_suggest_service)
-      : file_suggest_service_(file_suggest_service) {
-    file_suggest_service_observation_.Observe(file_suggest_service_.get());
-  }
-  MockObserver(const MockObserver&) = delete;
-  MockObserver& operator=(const MockObserver&) = delete;
-  ~MockObserver() override = default;
-
-  void WaitUntilFetchingSuggestData() { run_loop_.Run(); }
-
-  // Returns the most recently fetched suggest data.
-  const std::optional<std::vector<FileSuggestData>>& last_fetched_data() const {
-    return last_fetched_data_;
-  }
-
- private:
-  void OnSuggestFileDataFetched(
-      const std::optional<std::vector<FileSuggestData>>& suggest_data_array) {
-    last_fetched_data_ = suggest_data_array;
-    run_loop_.Quit();
-  }
-
-  // FileSuggestKeyedService::Observer:
-  void OnFileSuggestionUpdated(FileSuggestionType type) override {
-    EXPECT_EQ(FileSuggestionType::kDriveFile, type);
-    file_suggest_service_->GetSuggestFileData(
-        type, base::BindOnce(&MockObserver::OnSuggestFileDataFetched,
-                             base::Unretained(this)));
-  }
-
-  const raw_ptr<FileSuggestKeyedService> file_suggest_service_;
-  base::RunLoop run_loop_;
-  std::optional<std::vector<FileSuggestData>> last_fetched_data_;
-  base::ScopedObservation<FileSuggestKeyedService,
-                          FileSuggestKeyedService::Observer>
-      file_suggest_service_observation_{this};
-};
-
 }  // namespace
 
 class FileSuggestKeyedServiceBrowserTest
-    : public drive::DriveIntegrationServiceBrowserTestBase,
-      public ::testing::WithParamInterface<bool> {
+    : public drive::DriveIntegrationServiceBrowserTestBase {
  public:
   FileSuggestKeyedServiceBrowserTest() {
-    scoped_feature_list_.InitWithFeatureState(
-        ash::features::kLauncherContinueSectionWithRecentsRollout,
-        UseDriveRecents());
+    scoped_feature_list_.InitAndEnableFeature(
+        ash::features::kLauncherContinueSectionWithRecentsRollout);
   }
   // drive::DriveIntegrationServiceBrowserTestBase:
   void SetUpOnMainThread() override {
@@ -128,20 +85,18 @@ class FileSuggestKeyedServiceBrowserTest
 
     InitTestFileMountRoot(profile);
 
-    if (UseDriveRecents()) {
-      ON_CALL(*GetFakeDriveFsForProfile(profile), StartSearchQuery(_, _))
-          .WillByDefault([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                                 pending_receiver,
-                             drivefs::mojom::QueryParametersPtr query_params) {
-            auto search_query = std::make_unique<FakeSearchQuery>();
-            mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                        std::move(pending_receiver));
-          });
-      // Flush any drive FS search requests that may have been initialized in
-      // response to Drive FS, and FileSuggestKeyedService initialization, so
-      // they don't interfere with the test flow.
-      FlushDriveFsSearch();
-    }
+    ON_CALL(*GetFakeDriveFsForProfile(profile), StartSearchQuery(_, _))
+        .WillByDefault([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                               pending_receiver,
+                           drivefs::mojom::QueryParametersPtr query_params) {
+          auto search_query = std::make_unique<FakeSearchQuery>();
+          mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                      std::move(pending_receiver));
+        });
+    // Flush any drive FS search requests that may have been initialized in
+    // response to Drive FS, and FileSuggestKeyedService initialization, so
+    // they don't interfere with the test flow.
+    FlushDriveFsSearch();
 
     // Add two drive files.
     const std::string file_id1("abc123");
@@ -180,8 +135,6 @@ class FileSuggestKeyedServiceBrowserTest
     result->metadata->capabilities = drivefs::mojom::Capabilities::New();
     return result;
   }
-
-  bool UseDriveRecents() const { return GetParam(); }
 
   const std::vector<std::string>& available_files() const {
     return available_files_;
@@ -245,38 +198,24 @@ class FileSuggestKeyedServiceBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-INSTANTIATE_TEST_SUITE_P(UseDriveRecents,
-                         FileSuggestKeyedServiceBrowserTest,
-                         ::testing::Bool());
-
-// Verifies that the file suggest keyed service works as expected when the item
-// suggest cache is empty.
-IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
-                       QueryWithEmptyCache) {
-  // TODO(http://b/349164737): Re-enable this test with forest feature enabled.
-  if (!UseDriveRecents()) {
-    GTEST_SKIP() << "Skipping test body for Forest Feature enabled and Drive "
-                    "Recents disabled.";
-  }
-
+// Verifies that the file suggest keyed service works as expected when the Drive
+// recent files are empty.
+IN_PROC_BROWSER_TEST_F(FileSuggestKeyedServiceBrowserTest,
+                       QueryWithEmptyDriveRecentFiles) {
   base::HistogramTester histogram_tester;
 
   auto* fake_drivefs = GetFakeDriveFsForProfile(browser()->profile());
-  if (UseDriveRecents()) {
-    EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _))
-        .Times(3)
-        .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                                pending_receiver,
-                            drivefs::mojom::QueryParametersPtr query_params) {
-          auto search_query = std::make_unique<FakeSearchQuery>();
-          mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                      std::move(pending_receiver));
-        });
-    // Invalidate cached suggestions by notifying that new files are present.
-    NotifyFilesCreated({});
-  } else {
-    EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _)).Times(0);
-  }
+  EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _))
+      .Times(3)
+      .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                              pending_receiver,
+                          drivefs::mojom::QueryParametersPtr query_params) {
+        auto search_query = std::make_unique<FakeSearchQuery>();
+        mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                    std::move(pending_receiver));
+      });
+  // Invalidate cached suggestions by notifying that new files are present.
+  NotifyFilesCreated({});
 
   base::RunLoop suggest_file_data_waiter;
 
@@ -287,8 +226,8 @@ IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
       FileSuggestionType::kDriveFile,
       base::BindLambdaForTesting(
           [&](const std::optional<std::vector<FileSuggestData>>& suggest_data) {
-            EXPECT_EQ(UseDriveRecents(), suggest_data.has_value());
-            if (UseDriveRecents()) {
+            EXPECT_TRUE(suggest_data.has_value());
+            if (suggest_data.has_value()) {
               EXPECT_EQ(0u, suggest_data->size());
             }
             suggest_file_data_waiter.Quit();
@@ -296,93 +235,70 @@ IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
 
   suggest_file_data_waiter.Run();
 
-  if (UseDriveRecents()) {
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 0, 1);
-  }
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 0, 1);
 }
 
-// Verifies that the file suggest keyed service responds to the update in
-// the item suggest cache correctly.
-IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
-                       RespondToItemSuggestCacheUpdate) {
-  // TODO(http://b/349164737): Re-enable this test with forest feature enabled.
-  if (!UseDriveRecents()) {
-    GTEST_SKIP() << "Skipping test body for Forest Feature enabled and Drive "
-                    "Recents disabled.";
-  }
+// Verifies that the file suggest keyed service responds to the updates of
+// Drive recent files correctly.
+IN_PROC_BROWSER_TEST_F(FileSuggestKeyedServiceBrowserTest,
+                       RespondToDriveRecentFilesUpdate) {
   base::HistogramTester histogram_tester;
 
   Profile* profile = browser()->profile();
   FileSuggestKeyedService* service =
       FileSuggestKeyedServiceFactory::GetInstance()->GetService(profile);
 
-  MockObserver observer(service);
-
   ASSERT_GE(available_files().size(), 2u);
 
   auto* fake_drivefs = GetFakeDriveFsForProfile(browser()->profile());
-  if (UseDriveRecents()) {
-    EXPECT_CALL(
-        *fake_drivefs,
-        StartSearchQuery(
-            _,
-            Not(Pointee(Field(
-                &drivefs::mojom::QueryParameters::sort_field,
-                drivefs::mojom::QueryParameters::SortField::kSharedWithMe)))))
-        .Times(2)
-        .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                                pending_receiver,
-                            drivefs::mojom::QueryParametersPtr query_params) {
-          std::vector<drivefs::mojom::QueryItemPtr> results;
-          results.push_back(CreateQueryItemForTestFile(available_files()[0],
-                                                       base::Time::Now()));
-          results.push_back(CreateQueryItemForTestFile(
-              available_files()[1], base::Time::Now() - base::Seconds(1)));
-          auto search_query =
-              std::make_unique<FakeSearchQuery>(std::move(results));
-          mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                      std::move(pending_receiver));
-        })
-        .RetiresOnSaturation();
-    EXPECT_CALL(
-        *fake_drivefs,
-        StartSearchQuery(
-            _, Pointee(Field(
-                   &drivefs::mojom::QueryParameters::sort_field,
-                   drivefs::mojom::QueryParameters::SortField::kSharedWithMe))))
-        .WillOnce([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                          pending_receiver,
-                      drivefs::mojom::QueryParametersPtr query_params) {
-          auto search_query = std::make_unique<FakeSearchQuery>();
-          mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                      std::move(pending_receiver));
-        });
-    // Invalidate cached suggestions by notifying that new files are present.
-    NotifyFilesCreated({available_files()[0], available_files()[1]});
-  } else {
-    EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _)).Times(0);
-
-    // Update the item suggest cache with two file ids: one is valid and the
-    // other is not.
-    std::string json_string = CreateItemSuggestUpdateJsonString(
-        {{available_files()[0], "display text 1", "You edited · just now"},
-         {available_files()[1], "display text 2", "You edited · just now"}},
-        "suggestion id 1");
-    DriveFileSuggestionProvider* file_suggestion_provider =
-        static_cast<DriveFileSuggestionProvider*>(
-            service->drive_file_suggestion_provider_for_test());
-    file_suggestion_provider->item_suggest_cache_for_test()
-        ->UpdateCacheWithJsonForTest(json_string);
-    observer.WaitUntilFetchingSuggestData();
-  }
+  EXPECT_CALL(
+      *fake_drivefs,
+      StartSearchQuery(
+          _, Not(Pointee(Field(
+                 &drivefs::mojom::QueryParameters::sort_field,
+                 drivefs::mojom::QueryParameters::SortField::kSharedWithMe)))))
+      .Times(2)
+      .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                              pending_receiver,
+                          drivefs::mojom::QueryParametersPtr query_params) {
+        std::vector<drivefs::mojom::QueryItemPtr> results;
+        results.push_back(CreateQueryItemForTestFile(available_files()[0],
+                                                     base::Time::Now()));
+        results.push_back(CreateQueryItemForTestFile(
+            available_files()[1], base::Time::Now() - base::Seconds(1)));
+        auto search_query =
+            std::make_unique<FakeSearchQuery>(std::move(results));
+        mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                    std::move(pending_receiver));
+      })
+      .RetiresOnSaturation();
+  EXPECT_CALL(
+      *fake_drivefs,
+      StartSearchQuery(
+          _, Pointee(Field(
+                 &drivefs::mojom::QueryParameters::sort_field,
+                 drivefs::mojom::QueryParameters::SortField::kSharedWithMe))))
+      .WillOnce([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                        pending_receiver,
+                    drivefs::mojom::QueryParametersPtr query_params) {
+        auto search_query = std::make_unique<FakeSearchQuery>();
+        mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                    std::move(pending_receiver));
+      });
+  // Invalidate cached suggestions by notifying that new files are present.
+  NotifyFilesCreated({available_files()[0], available_files()[1]});
 
   base::RunLoop suggest_file_data_waiter;
   service->GetSuggestFileData(
       FileSuggestionType::kDriveFile,
       base::BindLambdaForTesting(
           [&](const std::optional<std::vector<FileSuggestData>>& suggest_data) {
-            ASSERT_TRUE(suggest_data.has_value());
+            EXPECT_TRUE(suggest_data.has_value());
+            if (!suggest_data.has_value()) {
+              suggest_file_data_waiter.Quit();
+              return;
+            }
             EXPECT_EQ(2u, suggest_data->size());
             if (suggest_data->size() < 2u) {
               suggest_file_data_waiter.Quit();
@@ -401,85 +317,45 @@ IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
           }));
   suggest_file_data_waiter.Run();
 
-  const auto& fetched_data = observer.last_fetched_data();
-  EXPECT_TRUE(fetched_data.has_value());
-  ASSERT_EQ(2u, fetched_data->size());
-
-  const auto& item1 = (*fetched_data)[0];
-  EXPECT_EQ(GetTestFilePath(available_files()[0]), item1.file_path);
-  EXPECT_EQ(u"You edited · just now", item1.prediction_reason);
-
-  const auto& item2 = (*fetched_data)[1];
-  EXPECT_EQ(GetTestFilePath(available_files()[1]), item2.file_path);
-  EXPECT_EQ(u"You edited · just now", item2.prediction_reason);
-
-  if (UseDriveRecents()) {
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Viewed", 0, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Modified", 0, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Shared", 0, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 2, 1);
-  }
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Viewed", 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Modified", 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Shared", 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 2, 1);
 }
 
-// Verifies that the file suggest keyed service responds to the update in
-// the item suggest cache correctly when item fetch fails.
-IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
-                       RespondToItemSuggestCacheInvalidUpdate) {
-  // TODO(http://b/349164737): Re-enable this test with forest feature enabled.
-  if (!UseDriveRecents()) {
-    GTEST_SKIP() << "Skipping test body for Forest Feature enabled and Drive "
-                    "Recents disabled.";
-  }
-
+// Verifies that the file suggest keyed service responds correctly when Drive
+// recent files fetch fails.
+IN_PROC_BROWSER_TEST_F(FileSuggestKeyedServiceBrowserTest,
+                       RespondToDriveRecentFilesInvalidUpdate) {
   base::HistogramTester histogram_tester;
 
   Profile* profile = browser()->profile();
   FileSuggestKeyedService* service =
       FileSuggestKeyedServiceFactory::GetInstance()->GetService(profile);
 
-  // Ensure that `observer` exists before updating the suggest cache. Because
-  // notifying the observer of the suggest cache update is synchronous.
-  MockObserver observer(service);
-
   auto* fake_drivefs = GetFakeDriveFsForProfile(browser()->profile());
-  if (UseDriveRecents()) {
-    EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _))
-        .Times(3)
-        .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                                pending_receiver,
-                            drivefs::mojom::QueryParametersPtr query_params) {
-          auto search_query = std::make_unique<FakeFailedSearchQuery>();
-          mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                      std::move(pending_receiver));
-        });
-    NotifyFilesCreated({});
-  } else {
-    EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _)).Times(0);
-
-    // Update the item suggest cache with a non-existed file id.
-    DriveFileSuggestionProvider* file_suggestion_provider =
-        static_cast<DriveFileSuggestionProvider*>(
-            service->drive_file_suggestion_provider_for_test());
-    file_suggestion_provider->item_suggest_cache_for_test()
-        ->UpdateCacheWithJsonForTest(CreateItemSuggestUpdateJsonString(
-            {{"unknown", "display text 1", "prediction reason 1"}},
-            "suggestion id 0"));
-    observer.WaitUntilFetchingSuggestData();
-    const auto& fetched_data = observer.last_fetched_data();
-    EXPECT_FALSE(fetched_data.has_value());
-  }
+  EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _))
+      .Times(3)
+      .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                              pending_receiver,
+                          drivefs::mojom::QueryParametersPtr query_params) {
+        auto search_query = std::make_unique<FakeFailedSearchQuery>();
+        mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                    std::move(pending_receiver));
+      });
+  NotifyFilesCreated({});
 
   base::RunLoop suggest_file_data_waiter;
   service->GetSuggestFileData(
       FileSuggestionType::kDriveFile,
       base::BindLambdaForTesting(
           [&](const std::optional<std::vector<FileSuggestData>>& suggest_data) {
-            EXPECT_EQ(UseDriveRecents(), suggest_data.has_value());
-            if (UseDriveRecents()) {
+            EXPECT_TRUE(suggest_data.has_value());
+            if (suggest_data.has_value()) {
               EXPECT_EQ(0u, suggest_data->size());
             }
             suggest_file_data_waiter.Quit();
@@ -487,106 +363,76 @@ IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
 
   suggest_file_data_waiter.Run();
 
-  if (UseDriveRecents()) {
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Viewed", 1, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Modified", 1, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Shared", 1, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 0, 1);
-  }
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Viewed", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Modified", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Shared", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 0, 1);
 }
 
-// Verifies that the file suggest keyed service responds to the update in
-// the item suggest cache correctly if some item fetches fail.
-IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
-                       RespondToItemSuggestCachePartiallyInvalidUpdate) {
-  // TODO(http://b/349164737): Re-enable this test with forest feature enabled.
-  if (!UseDriveRecents()) {
-    GTEST_SKIP() << "Skipping test body for Forest Feature enabled and Drive "
-                    "Recents disabled.";
-  }
-
+// Verifies that the file suggest keyed service responds correctly if some Drive
+// recent files fetches fail.
+IN_PROC_BROWSER_TEST_F(FileSuggestKeyedServiceBrowserTest,
+                       RespondToDriveRecentFilesPartiallyInvalidUpdate) {
   base::HistogramTester histogram_tester;
 
   Profile* profile = browser()->profile();
   FileSuggestKeyedService* service =
       FileSuggestKeyedServiceFactory::GetInstance()->GetService(profile);
 
-  MockObserver observer(service);
-
   ASSERT_GE(available_files().size(), 1u);
   const std::string file_id = available_files()[0];
 
   auto* fake_drivefs = GetFakeDriveFsForProfile(browser()->profile());
-  if (UseDriveRecents()) {
-    EXPECT_CALL(
-        *fake_drivefs,
-        StartSearchQuery(
-            _, Pointee(Field(
-                   &drivefs::mojom::QueryParameters::sort_field,
-                   drivefs::mojom::QueryParameters::SortField::kLastModified))))
-        .WillOnce([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                          pending_receiver,
-                      drivefs::mojom::QueryParametersPtr query_params) {
-          std::vector<drivefs::mojom::QueryItemPtr> results;
-          results.push_back(
-              CreateQueryItemForTestFile(file_id, base::Time::Now()));
-          auto search_query =
-              std::make_unique<FakeSearchQuery>(std::move(results));
-          mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                      std::move(pending_receiver));
-        })
-        .RetiresOnSaturation();
-    EXPECT_CALL(
-        *fake_drivefs,
-        StartSearchQuery(
-            _,
-            Not(Pointee(Field(
-                &drivefs::mojom::QueryParameters::sort_field,
-                drivefs::mojom::QueryParameters::SortField::kLastModified)))))
-        .Times(2)
-        .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
-                                pending_receiver,
-                            drivefs::mojom::QueryParametersPtr query_params) {
-          auto search_query = std::make_unique<FakeFailedSearchQuery>();
-          mojo::MakeSelfOwnedReceiver(std::move(search_query),
-                                      std::move(pending_receiver));
-        });
+  EXPECT_CALL(
+      *fake_drivefs,
+      StartSearchQuery(
+          _, Pointee(Field(
+                 &drivefs::mojom::QueryParameters::sort_field,
+                 drivefs::mojom::QueryParameters::SortField::kLastModified))))
+      .WillOnce([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                        pending_receiver,
+                    drivefs::mojom::QueryParametersPtr query_params) {
+        std::vector<drivefs::mojom::QueryItemPtr> results;
+        results.push_back(
+            CreateQueryItemForTestFile(file_id, base::Time::Now()));
+        auto search_query =
+            std::make_unique<FakeSearchQuery>(std::move(results));
+        mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                    std::move(pending_receiver));
+      })
+      .RetiresOnSaturation();
+  EXPECT_CALL(
+      *fake_drivefs,
+      StartSearchQuery(
+          _, Not(Pointee(Field(
+                 &drivefs::mojom::QueryParameters::sort_field,
+                 drivefs::mojom::QueryParameters::SortField::kLastModified)))))
+      .Times(2)
+      .WillRepeatedly([&](mojo::PendingReceiver<drivefs::mojom::SearchQuery>
+                              pending_receiver,
+                          drivefs::mojom::QueryParametersPtr query_params) {
+        auto search_query = std::make_unique<FakeFailedSearchQuery>();
+        mojo::MakeSelfOwnedReceiver(std::move(search_query),
+                                    std::move(pending_receiver));
+      });
 
-    // Invalidate cached suggestions by notifying that new files are present.
-    NotifyFilesCreated({file_id});
-  } else {
-    EXPECT_CALL(*fake_drivefs, StartSearchQuery(_, _)).Times(0);
-
-    // Update the item suggest cache with two file ids: one is valid and the
-    // other is not.
-    std::string json_string = CreateItemSuggestUpdateJsonString(
-        {{file_id, "display text 1", "You edited · just now"},
-         {"unknown", "display text 2", "prediction reason 2"}},
-        "suggestion id 1");
-    DriveFileSuggestionProvider* file_suggestion_provider =
-        static_cast<DriveFileSuggestionProvider*>(
-            service->drive_file_suggestion_provider_for_test());
-    file_suggestion_provider->item_suggest_cache_for_test()
-        ->UpdateCacheWithJsonForTest(json_string);
-    observer.WaitUntilFetchingSuggestData();
-
-    const auto& fetched_data = observer.last_fetched_data();
-    EXPECT_TRUE(fetched_data.has_value());
-    EXPECT_EQ(1u, fetched_data->size());
-    EXPECT_EQ(GetTestFilePath(file_id), fetched_data->at(0).file_path);
-    EXPECT_EQ(u"You edited · just now", *fetched_data->at(0).prediction_reason);
-  }
+  // Invalidate cached suggestions by notifying that new files are present.
+  NotifyFilesCreated({file_id});
 
   base::RunLoop suggest_file_data_waiter;
   service->GetSuggestFileData(
       FileSuggestionType::kDriveFile,
       base::BindLambdaForTesting(
           [&](const std::optional<std::vector<FileSuggestData>>& suggest_data) {
-            ASSERT_TRUE(suggest_data.has_value());
+            EXPECT_TRUE(suggest_data.has_value());
+            if (!suggest_data.has_value()) {
+              suggest_file_data_waiter.Quit();
+              return;
+            }
             EXPECT_EQ(1u, suggest_data->size());
             if (suggest_data->size() < 1u) {
               suggest_file_data_waiter.Quit();
@@ -601,16 +447,14 @@ IN_PROC_BROWSER_TEST_P(FileSuggestKeyedServiceBrowserTest,
           }));
   suggest_file_data_waiter.Run();
 
-  if (UseDriveRecents()) {
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Viewed", 1, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Modified", 0, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Shared", 1, 1);
-    histogram_tester.ExpectUniqueSample(
-        "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 1, 1);
-  }
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Viewed", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Modified", 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.QueryResult.Shared", 1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Ash.Search.FileSuggestions.DriveRecents.ItemCount.Total", 1, 1);
 }
 
 }  // namespace ash::test

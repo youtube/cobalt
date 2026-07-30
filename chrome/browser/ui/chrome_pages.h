@@ -37,11 +37,11 @@ namespace signin {
 enum class ConsentLevel;
 }  // namespace signin
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if !BUILDFLAG(IS_ANDROID)
 namespace web_app {
 enum class AppSettingsPageEntryPoint;
 }  // namespace web_app
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 class BrowserWindowInterface;
 class Profile;
@@ -162,15 +162,16 @@ void ShowSharedTabGroupActivity(Profile* profile);
 void ShowEnterpriseManagementPageInTabbedBrowser(
     BrowserWindowInterface* browser);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// Show chrome://app-settings/<app-id> page.
+#if !BUILDFLAG(IS_ANDROID)
+// Show chrome://app-settings/<app-id> page on desktop, or OS Settings on
+// ChromeOS.
 void ShowWebAppSettings(BrowserWindowInterface* browser,
                         const std::string& app_id,
                         web_app::AppSettingsPageEntryPoint entry_point);
 void ShowWebAppSettings(Profile* profile,
                         const std::string& app_id,
                         web_app::AppSettingsPageEntryPoint entry_point);
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace chrome
 

@@ -9,6 +9,8 @@
 
 #import "base/files/file_path.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/web/js_messaging/web_view_web_state_map.h"
+#import "ios/web/public/web_state.h"
 #import "ios/web/webui/url_fetcher_block_adapter.h"
 #import "ios/web/webui/web_ui_constants.h"
 #import "ios/web/webui/web_ui_ios_controller_factory_registry.h"
@@ -64,22 +66,23 @@ NSInteger GetErrorCodeForUrl(const GURL& URL) {
   // The "Access-Control-Allow-Origin" header is required below to allow
   // requests from any WebUI page to load chrome://resources URLs. However,
   // requests between different WebUI pages are blocked directly instead.
-  // Anchor the same-origin check on the *last-committed* URL rather than
-  // `webView.URL`. `webView.URL` flips to the destination as soon as a
-  // provisional load starts (see crw_web_view_navigation_observer.mm:275-278),
-  // while the previous (potentially compromised) document is still live and
-  // can issue WKURLSchemeTasks.
-  NSURL* sameOriginCheckURL = webView.backForwardList.currentItem.URL;
-  if (!sameOriginCheckURL) {
-    sameOriginCheckURL = webView.URL;
-  }
+
   // Allow the main-frame navigation request itself (its URL matches the
   // provisional webView.URL).
-  BOOL isMainFrameNavigation = (URL == net::GURLWithNSURL(webView.URL));
-  if (!isMainFrameNavigation &&
-      (!URL.DomainIs(web::kWebUIResourcesHost) &&
-       url::SchemeHostPort(URL) !=
-           url::SchemeHostPort(net::GURLWithNSURL(sameOriginCheckURL)))) {
+  // Subresource requests are gated on the WebState's last committed URL
+  // because both `webView.URL` and `backForwardList.currentItem.URL` may
+  // already point at the destination of an in-progress navigation. The main
+  // document request itself is loaded before commit and is identified by
+  // matching `webView.URL`.
+  GURL webViewURL = net::GURLWithNSURL(webView.URL);
+  web::WebState* webState = web::GetWebStateForWebView(webView);
+  GURL committedURL = webState ? webState->GetLastCommittedURL() : GURL();
+  BOOL isMainDocumentRequest = URL.EqualsIgnoringRef(webViewURL);
+  BOOL isSharedResourceRequest = URL.DomainIs(web::kWebUIResourcesHost) &&
+                                 GetErrorCodeForUrl(committedURL) == 0;
+  if (!webState || !webViewURL.is_valid() ||
+      (!isMainDocumentRequest && !isSharedResourceRequest &&
+       url::SchemeHostPort(URL) != url::SchemeHostPort(committedURL))) {
     NSError* error = [NSError
         errorWithDomain:NSURLErrorDomain
                    code:NSURLErrorNoPermissionsToReadFile

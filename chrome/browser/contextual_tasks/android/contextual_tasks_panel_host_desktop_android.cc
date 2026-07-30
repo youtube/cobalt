@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/android/jni_android.h"
+#include "base/check.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_container_type.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_views_bridge.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/tab_bottom_sheet_client_type.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui_provider.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
@@ -35,6 +37,7 @@ namespace contextual_tasks {
 ContextualTasksPanelHostDesktopAndroid::ContextualTasksPanelHostDesktopAndroid(
     BrowserWindowInterface* browser_window)
     : browser_window_(browser_window) {
+  CHECK(browser_window_);
   MaybeRegisterEntry();
   MaybeCreateBridge();
 }
@@ -242,6 +245,19 @@ content::WebContents* ContextualTasksPanelHostDesktopAndroid::OpenURLFromTab(
                                     std::move(navigation_handle_callback));
   }
   return nullptr;
+}
+
+bool ContextualTasksPanelHostDesktopAndroid::HandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser_window_)->GetActiveTab();
+  if (active_tab && active_tab->GetContents() &&
+      active_tab->GetContents()->GetDelegate()) {
+    return active_tab->GetContents()->GetDelegate()->HandleKeyboardEvent(source,
+                                                                         event);
+  }
+  return false;
 }
 
 }  // namespace contextual_tasks

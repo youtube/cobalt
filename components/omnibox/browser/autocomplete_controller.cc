@@ -120,7 +120,6 @@
 
 namespace {
 
-
 using ScoringSignals = ::metrics::OmniboxScoringSignals;
 using ProviderType = AutocompleteProvider::Type;
 
@@ -1016,7 +1015,6 @@ void AutocompleteController::SetSmartComposeStats(
   smart_compose_stats_ = stats;
 }
 
-
 void AutocompleteController::SetMatchDestinationURL(
     AutocompleteMatch* match) const {
   TRACE_EVENT0("omnibox", "AutocompleteController::SetMatchDestinationURL");
@@ -1583,13 +1581,17 @@ void AutocompleteController::AggregateNewMatches() {
       continue;
     }
 
-    // Append the new matches and conditionally set a swap bit. This logic
-    // was previously within `AppendMatches` but here is the only place
-    // where it's still needed, and even this should ideally be cleaned up.
+    // Append the new matches and conditionally set a swap bit. This logic was
+    // previously within `AppendMatches` but here is the only place where it's
+    // still needed, and even this should ideally be cleaned up.
     size_t match_index = internal_result_.size();
     internal_result_.AppendMatches(provider->matches());
     for (; match_index < internal_result_.size(); match_index++) {
       AutocompleteMatch* match = internal_result_.match_at(match_index);
+      // `associated_keyword` should only be written in
+      // `AutocompleteController::UpdateAssociatedKeywords()`, and not in
+      // individual providers.
+      CHECK(match->associated_keyword.empty());
       if (!match->description.empty() &&
           !AutocompleteMatch::IsSearchType(match->type) &&
           match->type != AutocompleteMatchType::DOCUMENT_SUGGESTION) {

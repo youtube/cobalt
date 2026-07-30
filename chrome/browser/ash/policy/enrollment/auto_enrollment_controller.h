@@ -11,6 +11,7 @@
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/policy/enrollment/auto_enrollment_state.h"
@@ -19,6 +20,8 @@
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chromeos/ash/components/dbus/device_management/device_management_interface.pb.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
+
+class PrefService;
 
 namespace ash {
 class NetworkStateHandler;
@@ -41,8 +44,15 @@ class AutoEnrollmentController : public ash::NetworkStateHandlerObserver {
   using RlweClientFactory =
       policy::psm::RlweDmserverClientImpl::RlweClientFactory;
 
-  explicit AutoEnrollmentController(
-      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory);
+  // `local_state` must be non-null and must outlive `this`.
+  // `shared_url_loader_factory` must be non-null.
+  // `device_management_service` and `state_keys_broker` may be null in tests.
+  // If they are non-null, they must outlive `this`.
+  AutoEnrollmentController(
+      PrefService* local_state,
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      DeviceManagementService* device_management_service,
+      ServerBackedStateKeysBroker* state_keys_broker);
 
   AutoEnrollmentController(const AutoEnrollmentController&) = delete;
   AutoEnrollmentController& operator=(const AutoEnrollmentController&) = delete;
@@ -90,14 +100,19 @@ class AutoEnrollmentController : public ash::NetworkStateHandlerObserver {
 
  protected:
   // Complete constructor which can be used to inject testing modules.
+  // `local_state` must be non-null and must outlive `this`.
+  // `shared_url_loader_factory` must be non-null.
+  // `device_management_service` and `state_keys_broker` may be null in tests.
+  // If they are non-null, they must outlive `this`.
   AutoEnrollmentController(
+      PrefService* local_state,
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
       ash::DeviceSettingsService* device_settings_service,
       DeviceManagementService* device_management_service,
       ServerBackedStateKeysBroker* state_keys_broker,
       ash::NetworkStateHandler* network_state_handler,
       RlweClientFactory psm_rlwe_client_factory,
-      EnrollmentStateFetcher::Factory enrollment_state_fetcher_factory,
-      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory);
+      EnrollmentStateFetcher::Factory enrollment_state_fetcher_factory);
 
  private:
   // Sets `state_` and notifies `progress_callbacks_`.
@@ -145,14 +160,20 @@ class AutoEnrollmentController : public ash::NetworkStateHandlerObserver {
   // Handles timeout of the safeguard timer and stops waiting for a result.
   void Timeout();
 
+  const raw_ref<PrefService> local_state_;
+
+  // Shared factory for outgoing network requests.
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      shared_url_loader_factory_;
+
   // Used for checking ownership.
-  raw_ptr<ash::DeviceSettingsService> device_settings_service_;
+  const raw_ptr<ash::DeviceSettingsService> device_settings_service_;
 
   // Used for communication with management service.
-  raw_ptr<DeviceManagementService> device_management_service_;
+  const raw_ptr<DeviceManagementService> device_management_service_;
 
   // Used for retrieving device state keys.
-  raw_ptr<ServerBackedStateKeysBroker> state_keys_broker_;
+  const raw_ptr<ServerBackedStateKeysBroker> state_keys_broker_;
 
   std::optional<AutoEnrollmentState> state_;
   ProgressCallbackList progress_callbacks_;
@@ -182,10 +203,7 @@ class AutoEnrollmentController : public ash::NetworkStateHandlerObserver {
   // `SetEnrollmentStateFetcherFactoryForTesting`.
   EnrollmentStateFetcher::Factory enrollment_state_fetcher_factory_;
 
-  // Shared factory for outgoing network requests.
-  scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
-
-  raw_ptr<ash::NetworkStateHandler> network_state_handler_;
+  const raw_ptr<ash::NetworkStateHandler> network_state_handler_;
   // Observes network state and calls `PortalStateChanged` when it changes from
   // the start until the auto-enrollment state is resolved. Triggers a retry
   // when the device goes online.

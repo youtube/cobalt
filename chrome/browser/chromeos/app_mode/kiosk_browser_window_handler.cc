@@ -222,7 +222,7 @@ bool KioskBrowserWindowHandler::PreTriageNewBrowserWindowWithoutUrl(
   }
 
   if (IsDevToolsAllowedBrowser(browser)) {
-    MakeWindowResizable(browser->window());
+    MakeWindowResizable(BrowserWindow::FromBrowser(browser));
     base::UmaHistogramEnumeration(
         kKioskNewBrowserWindowHistogram,
         KioskBrowserWindowType::kOpenedDevToolsBrowser);
@@ -231,7 +231,7 @@ bool KioskBrowserWindowHandler::PreTriageNewBrowserWindowWithoutUrl(
   }
 
   if (IsNormalTroubleshootingBrowserAllowed(browser)) {
-    MakeWindowResizable(browser->window());
+    MakeWindowResizable(BrowserWindow::FromBrowser(browser));
     base::UmaHistogramEnumeration(
         kKioskNewBrowserWindowHistogram,
         KioskBrowserWindowType::kOpenedTroubleshootingNormalBrowser);

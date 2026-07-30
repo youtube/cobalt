@@ -16,6 +16,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.text.format.DateUtils;
 
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -256,18 +257,24 @@ public class AuthTabVerifier implements NativeInitObserver, DestroyObserver {
         if (mVerificationStartTime != null) {
             long elapsedSinceVerificationStart =
                     SystemClock.elapsedRealtime() - mVerificationStartTime;
-            RecordHistogram.recordTimesHistogram(
-                    "CustomTabs.AuthTab.TimeToDalVerification.SinceStart",
-                    elapsedSinceVerificationStart);
+            RecordHistogram.recordCustomTimesHistogram(
+                    "CustomTabs.AuthTab.TimeToDalVerification.SinceStart2",
+                    elapsedSinceVerificationStart,
+                    1,
+                    100 * DateUtils.SECOND_IN_MILLIS,
+                    50);
             mVerificationStartTime = null;
         }
 
         if (mHttpsReturnAttemptTime != null) {
             long elapsedSinceReturnAttempt =
                     SystemClock.elapsedRealtime() - mHttpsReturnAttemptTime;
-            RecordHistogram.recordTimesHistogram(
-                    "CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion",
-                    elapsedSinceReturnAttempt);
+            RecordHistogram.recordCustomTimesHistogram(
+                    "CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion2",
+                    elapsedSinceReturnAttempt,
+                    1,
+                    100 * DateUtils.SECOND_IN_MILLIS,
+                    50);
             mHttpsReturnAttemptTime = null;
         }
 

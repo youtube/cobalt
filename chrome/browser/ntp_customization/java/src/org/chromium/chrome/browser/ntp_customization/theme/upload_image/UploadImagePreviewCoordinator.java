@@ -106,7 +106,7 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
             Activity activity,
             Profile profile,
             Bitmap bitmap,
-            String fileIdHash,
+            @Nullable String fileIdHash,
             Callback<Boolean> onBottomSheetClickedCallback) {
         mPreviewPropertyModel = new PropertyModel(PREVIEW_KEYS);
         mActivity = activity;
@@ -355,7 +355,7 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
     @VisibleForTesting
     void onSaveButtonClicked(
             Bitmap bitmap,
-            String fileIdHash,
+            @Nullable String fileIdHash,
             Callback<Boolean> onBottomSheetClickedCallback,
             ChromeDialog dialog) {
         assumeNonNull(mCropImageView);
@@ -375,7 +375,6 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
         NtpBackgroundDataUploadImage uploadImageData =
                 new NtpBackgroundDataUploadImage(
                         PlatformType.ANDROID_LOCAL,
-                        NtpCustomizationUtils.createBackgroundImageFile().getAbsolutePath(),
                         info,
                         bitmap,
                         /* primaryColor= */ null,

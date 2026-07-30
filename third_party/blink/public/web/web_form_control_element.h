@@ -80,6 +80,7 @@ class BLINK_EXPORT WebFormControlElement : public WebElement {
   struct TextInfo {
     std::vector<TextRunInfo> text_runs;
     float effective_zoom;
+    float primary_ascent;
   };
 
   explicit WebFormControlElement(

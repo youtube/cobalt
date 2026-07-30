@@ -28,34 +28,30 @@ err() {
 }
 
 usage() {
-  echo "Usage: $0 SRC_OUT_DIR PAGE_SET_DIR OUTPUT_DIR" >&2
-  echo "  SRC_OUT_DIR:  Full path to the Chromium build output directory." >&2
-  echo "                Must be a Release build (is_debug=false)." >&2
-  echo "  PAGE_SET_DIR: Directory containing the httparchive page sets" >&2
-  echo "                for the top websites, used by filter_many.sh." >&2
-  echo "  OUTPUT_DIR:   Path to save all output and intermediate files." >&2
+  echo "Usage: $0 SRC_OUT_DIR PAGE_SET_DIR OUTPUT_DIR [ADS_HOSTS_CSV]" >&2
+  echo "  SRC_OUT_DIR:   Full path to the Chromium build output directory." >&2
+  echo "                 Must be a Release build (is_debug=false)." >&2
+  echo "  PAGE_SET_DIR:  Directory containing the httparchive page sets" >&2
+  echo "                 for the top websites, used by filter_many.sh." >&2
+  echo "  OUTPUT_DIR:    Path to save all output and intermediate files." >&2
+  echo "  ADS_HOSTS_CSV: (Optional) Path to pre-generated ads hosts CSV." >&2
+  echo "                 If not provided, the script will generate it." >&2
 }
 
 main() {
-  if [[ $# -ne 3 ]]; then
+  if [[ $# -lt 3 || $# -gt 4 ]]; then
     err "Illegal number of parameters."
     usage
     exit 2
   fi
 
   # Check for necessary commands
-  local cmds=("realpath" "autoninja" "wget" "curl" "gunzip" "awk" "sed" "sort" \
-              "uniq" "cut" "head" "grep" "parallel")
+  local cmds=("realpath" "autoninja" "wget" "awk" "uniq" "cut" \
+              "head" "grep")
   for cmd in "${cmds[@]}"; do
     command -v "${cmd}" >/dev/null 2>&1 || \
       { err "${cmd} not found. Please install it."; exit 1; }
   done
-
-  # Specific check for GNU parallel
-  if ! parallel --version 2>/dev/null | grep -iq "gnu parallel"; then
-    err "GNU parallel is required, but a different version was found."
-    exit 1
-  fi
 
   # Validate input directories before resolving paths
   if [[ ! -d "$1" ]]; then
@@ -70,6 +66,7 @@ main() {
   local src_out_dir
   local page_set_dir
   local output_dir
+  local ads_hosts_csv_input=""
 
   # Resolve paths to absolute paths before we cd to the output_dir.
   src_out_dir=$(realpath "$1")
@@ -77,11 +74,25 @@ main() {
   # Use -m for output_dir, as it might not exist yet.
   output_dir=$(realpath -m "$3")
 
+  if [[ $# -eq 4 ]]; then
+    if [[ ! -f "$4" ]]; then
+      err "Provided ADS_HOSTS_CSV file not found: $4"
+      exit 1
+    fi
+    ads_hosts_csv_input=$(realpath "$4")
+  fi
+
   # Create output directory and change into it
   mkdir -p "${output_dir}"
   cd "${output_dir}" || { err "Failed to change to output directory: \
                               ${output_dir}"; exit 1; }
   info "Output and intermediate files will be in $(pwd)"
+
+  # If a pre-generated ads hosts CSV is provided, copy it to output_dir
+  if [[ -n "${ads_hosts_csv_input}" ]]; then
+    info "Using provided ads hosts CSV: ${ads_hosts_csv_input}"
+    cp "${ads_hosts_csv_input}" "ads_hosts.csv"
+  fi
 
   local chromium_src_dir
   chromium_src_dir=$(realpath "${src_out_dir}/../../")
@@ -97,69 +108,30 @@ main() {
   wget -O easylist.txt https://easylist.to/easylist/easylist.txt
   wget -O easyprivacy.txt https://easylist.to/easylist/easyprivacy.txt
 
-  info "Downloading top 1000 sites list from CrUX..."
-  curl -sL "https://github.com/zakird/crux-top-lists/raw/refs/heads/main/data/global/current.csv.gz" | \
-    gunzip -c | \
-    awk -F ',' 'NR > 1 && $2 + 0 <= 1000 { print $1 }' > top1000.txt
-
-  info "Scraping ads.txt to find ad tech domains (this may take a while)..."
-
-  # Temporarily disable exit on error and pipefail for the scraping pipeline
-  # since some sites don't have ads.txt files.
-  set +e
-  set +o pipefail
-
-  # 1. Download ads.txt from the given URL.
-  # 2. Filter out lines that don't contain a domain.
-  # 3. Convert to lowercase.
-  # 4. Remove the "ownerdomain" line.
-  # 5. Sort and deduplicate the domains.
-  fetch_ads_data() {
-      local url="$1"
-      # Clean the URL (remove trailing slash)
-      local target=$(echo "$url" | sed 's/\/$//')
-
-      wget -qO- "$target/ads.txt" 2>/dev/null | \
-      grep -E "^[a-zA-Z0-9-]+\." | \
-      awk -F, '{print tolower($1)}' | \
-      grep -v "^ownerdomain$" | \
-      sort -u
-  }
-
-  # 2. Export the function for GNU Parallel
-  export -f fetch_ads_data
-
-  # 1. Read the top 1000 sites.
-  # 2. Run fetch_ads_data in parallel for each site.
-  # 3. Count the number of times each domain appears.
-  # 4. Filter out domains that appear in fewer than 5 ads.txt files.
-  # 5. Output the domains to ads_hosts.csv.
-  cat top1000.txt | \
-    parallel --timeout 3 --progress -j 32 fetch_ads_data {} | \
-    sort | \
-    uniq -c | \
-    sort -nr | \
-    awk '$1 >= 5 {print $1 "," $2}' > ads_hosts.csv
-
-  SCRAPING_EC=$?
-
-  # Restore shell options
-  set -e
-  set -o pipefail
-
-  if [[ ${SCRAPING_EC} -ne 0 ]]; then
-    err "The ads.txt scraping pipeline finished with a non-zero exit code: \
-         ${SCRAPING_EC}."
-    exit 1
+  if [[ -f "ads_hosts.csv" ]]; then
+    if [[ ! -s "ads_hosts.csv" ]]; then
+      err "ads_hosts.csv is present but empty."
+      exit 1
+    fi
   else
-    info "ads.txt scraping pipeline completed without error."
+    local tools_dir="${chromium_src_dir}/components/subresource_filter/tools"
+    local generator="${tools_dir}/generate_ads_hosts.sh"
+    if [[ ! -f "${generator}" ]]; then
+      err "Generator script not found: ${generator}"
+      exit 1
+    fi
+    info "Running generator to generate ads_hosts.csv..."
+    bash "${generator}" "ads_hosts.csv"
   fi
 
-  if [[ ! -s "ads_hosts.csv" ]]; then
-    err "ads_hosts.csv is missing or empty."
+  # Validate ads_hosts.csv to ensure it only contains safe 'count,domain' lines
+  if grep -q -v -E "^[0-9]+,[a-z0-9.-]+$" ads_hosts.csv; then
+    err "ads_hosts.csv contains invalid or unsafe lines!"
+    err "Only lines matching the pattern 'count,domain' (e.g.,"
+    err "'5,doubleclick.net') are allowed."
+    err "First few invalid lines:"
+    grep -v -E "^[0-9]+,[a-z0-9.-]+$" ads_hosts.csv | head -n 5 >&2
     exit 1
-  else
-    info "ads_hosts.csv generated with $(wc -l < ads_hosts.csv) lines."
   fi
 
   info "Extracting domain-blocking rules for ad hosts from EasyPrivacy..."

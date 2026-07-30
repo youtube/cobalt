@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/self_deleting.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
@@ -23,7 +24,7 @@
 #include "components/file_access/scoped_file_access.h"
 #include "components/file_access/scoped_file_access_delegate.h"
 #include "components/services/filesystem/public/mojom/types.mojom.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_host.h"
@@ -656,8 +657,9 @@ class FileSystemURLLoaderFactory
   FileSystemURLLoaderFactory(
       FactoryParams params,
       scoped_refptr<base::SequencedTaskRunner> io_task_runner,
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver)
-      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver)),
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+      base::SelfDeletingPassKey key)
+      : network::SelfDeletingURLLoaderFactory(std::move(factory_receiver), key),
         params_(std::move(params)),
         io_task_runner_(io_task_runner) {}
 
@@ -665,9 +667,8 @@ class FileSystemURLLoaderFactory
   FileSystemURLLoaderFactory& operator=(const FileSystemURLLoaderFactory&) =
       delete;
 
-  ~FileSystemURLLoaderFactory() override = default;
-
  private:
+  ~FileSystemURLLoaderFactory() override = default;
   void CreateLoaderAndStart(
       mojo::PendingReceiver<network::mojom::URLLoader> loader,
       int32_t request_id,
@@ -717,7 +718,7 @@ CreateFileSystemURLLoaderFactory(
   // The FileSystemURLLoaderFactory will delete itself when there are no more
   // receivers - see the network::SelfDeletingURLLoaderFactory::OnDisconnect
   // method.
-  new FileSystemURLLoaderFactory(
+  base::MakeSelfDeleting<FileSystemURLLoaderFactory>(
       std::move(params), GetIOThreadTaskRunner({}),
       pending_remote.InitWithNewPipeAndPassReceiver());
 

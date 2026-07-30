@@ -92,9 +92,9 @@ class PLATFORM_EXPORT HarfBuzzFace final
 
   static void Init();
 
-  static VariationSelectorMode GetVariationSelectorMode();
+  VariationSelectorMode GetVariationSelectorMode();
 
-  static void SetVariationSelectorMode(VariationSelectorMode value);
+  void SetVariationSelectorMode(VariationSelectorMode value);
 
  private:
   void PrepareHarfBuzzFontData();

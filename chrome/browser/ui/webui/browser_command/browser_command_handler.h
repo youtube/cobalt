@@ -64,9 +64,9 @@ class BrowserCommandHandler : public CommandUpdaterDelegate,
                       ExecuteCommandCallback callback) override;
 
   // CommandUpdaterDelegate:
-  void ExecuteCommandWithDisposition(
-      int command_id,
-      WindowOpenDisposition disposition) override;
+  void HandleCommandWithDisposition(int command_id,
+                                    WindowOpenDisposition disposition,
+                                    base::TimeTicks time_stamp) override;
 
   void ConfigureFeedbackCommand(FeedbackCommandSettings settings);
 

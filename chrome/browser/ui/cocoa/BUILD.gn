@@ -113,24 +113,9 @@ source_set("cocoa") {
     "window_size_autosaver.mm",
   ]
 
-  deps = [
-    "//chrome/browser/ui:recently_audible_helper",
-    "//chrome/browser/ui:simple_message_box_internal",
-  ]
-
-  if (enable_updater) {
-    public += [ "keystone_infobar_delegate.h" ]
-    sources += [ "keystone_infobar_delegate.cc" ]
-    deps += [
-      "//chrome/browser/infobars",
-      "//chrome/browser/updater",
-      "//components/infobars/content",
-    ]
-  }
-
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
-  deps += [
+  deps = [
     "//chrome/app:command_ids",
     "//chrome/app/theme:chrome_unscaled_resources_grit",
     "//chrome/browser:app_controller_mac",
@@ -142,6 +127,7 @@ source_set("cocoa") {
     "//chrome/browser:primitives",
     "//chrome/browser/apps/platform_apps",
     "//chrome/browser/bookmarks",
+    "//chrome/browser/devtools",
     "//chrome/browser/favicon",
     "//chrome/browser/feedback:feedback_impl",
     "//chrome/browser/headless",
@@ -151,17 +137,19 @@ source_set("cocoa") {
     "//chrome/browser/notifications",
     "//chrome/browser/prefs",
     "//chrome/browser/printing",
-    "//chrome/browser/profiles",
     "//chrome/browser/profiles:misc",
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles:profile_util",
+    "//chrome/browser/profiles",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/search_engines",
     "//chrome/browser/spellchecker",
     "//chrome/browser/status_icons",
     "//chrome/browser/themes",
     "//chrome/browser/ui:accelerator_utils_headers",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui:simple_message_box_headers",
+    "//chrome/browser/ui:simple_message_box_internal",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/bookmarks",
@@ -199,4 +187,14 @@ source_set("cocoa") {
     "//ui/snapshot",
     "//ui/views",
   ]
+
+  if (enable_updater) {
+    public += [ "keystone_infobar_delegate.h" ]
+    sources += [ "keystone_infobar_delegate.cc" ]
+    deps += [
+      "//chrome/browser/infobars",
+      "//chrome/browser/updater",
+      "//components/infobars/content",
+    ]
+  }
 }

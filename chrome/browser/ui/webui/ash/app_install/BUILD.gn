@@ -54,7 +54,11 @@ static_library("app_install") {
     "//chrome/browser/apps/app_service",
     "//chrome/browser/apps/app_service/app_icon",
     "//chrome/browser/resources/chromeos/app_install:resources",
-    "//chrome/browser/ui",
+
+    # This target includes //chrome/browser/ui:ui's headers, but :ui depends
+    # back on this target (it compiles the desktop interface-binders file that
+    # registers this dialog), so :ui allows the circular include instead of
+    # this target depending on the :ui monolith directly.
     "//chrome/browser/web_applications",
     "//chrome/common",
     "//chromeos/constants",

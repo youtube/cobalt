@@ -746,7 +746,6 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoOnlyChild:
     case CSSSelector::kPseudoOnlyOfType:
     case CSSSelector::kPseudoOptional:
-    case CSSSelector::kPseudoOverscrollTarget:
     case CSSSelector::kPseudoOverscrollOpen:
     case CSSSelector::kPseudoPart:
     case CSSSelector::kPseudoPermissionGranted:
@@ -3237,8 +3236,7 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         return false;
       }
       return context.search_text_request_is_current;
-    case CSSSelector::kPseudoOverscrollTarget:
-      return SelectorChecker::MatchesOverscrollTarget(element);
+
     case CSSSelector::kPseudoUnknown:
     default:
       NOTREACHED();
@@ -3788,10 +3786,6 @@ bool SelectorChecker::MatchesActiveViewTransitionPseudoClass(
   return GetTransitionForScope(element) != nullptr;
 }
 
-bool SelectorChecker::MatchesOverscrollTarget(const Element& element) {
-  return RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
-         element.GetDocument().OverscrollCommandTargets().Contains(&element);
-}
 
 bool SelectorChecker::MatchesFocusPseudoClass(
     const Element& element,

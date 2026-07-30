@@ -63,7 +63,8 @@ PersonalContextAccessManagerFactory::BuildServiceInstanceForBrowserContext(
   }
 
   return std::make_unique<PersonalContextAccessManagerImpl>(
-      personal_context_service, personal_context_enablement_service);
+      personal_context_service, personal_context_enablement_service,
+      profile->GetPrefs());
 }
 
 }  // namespace autofill

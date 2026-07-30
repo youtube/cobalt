@@ -666,9 +666,11 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
   // Special case <video> and VideoFrame to directly use the underlying frame.
   if (source->IsVideoFrame() || source->IsHTMLVideoElement()) {
     scoped_refptr<media::VideoFrame> source_frame;
+    std::optional<base::TimeDelta> source_timestamp;
     switch (source->GetContentType()) {
       case V8CanvasImageSource::ContentType::kVideoFrame:
         source_frame = source->GetAsVideoFrame()->frame();
+        source_timestamp = source->GetAsVideoFrame()->handle()->timestamp();
         break;
       case V8CanvasImageSource::ContentType::kHTMLVideoElement:
         if (auto* wmp = source->GetAsHTMLVideoElement()->GetWebMediaPlayer())
@@ -682,6 +684,15 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
       exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                         "Invalid source state");
       return nullptr;
+    }
+
+    std::optional<base::TimeDelta> final_timestamp;
+    if (init->hasTimestamp()) {
+      final_timestamp = base::Microseconds(init->timestamp());
+    } else if (source_timestamp != source_frame->timestamp()) {
+      final_timestamp = source_timestamp;
+    } else {
+      // `source_frame->timestamp()` will be used.
     }
 
     const bool force_opaque = init->alpha() == V8AlphaOption::Enum::kDiscard &&
@@ -701,8 +712,8 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
 
     // We can't modify frame metadata directly since there may be other owners
     // accessing these fields concurrently.
-    if (init->hasTimestamp() || init->hasDuration() || force_opaque ||
-        init->hasVisibleRect() || transformed || init->hasDisplayWidth()) {
+    if (init->hasDuration() || force_opaque || init->hasVisibleRect() ||
+        transformed || init->hasDisplayWidth()) {
       auto wrapped_frame = media::VideoFrame::WrapVideoFrame(
           source_frame, wrapped_format, parsed_init.visible_rect,
           parsed_init.display_size);
@@ -720,9 +731,6 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
       }
 
       wrapped_frame->set_color_space(source_frame->ColorSpace());
-      if (init->hasTimestamp()) {
-        wrapped_frame->set_timestamp(base::Microseconds(init->timestamp()));
-      }
       if (init->hasDuration()) {
         wrapped_frame->metadata().frame_duration =
             base::Microseconds(init->duration());
@@ -752,7 +760,8 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
 
     return MakeGarbageCollected<VideoFrame>(
         std::move(source_frame), ExecutionContext::From(script_state),
-        /* monitoring_source_id */ std::string(), std::move(sk_image));
+        /*monitoring_source_id=*/std::string(), std::move(sk_image),
+        final_timestamp);
   }
 
   // Some elements like OffscreenCanvas won't choose a default size, so we must

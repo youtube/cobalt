@@ -14,13 +14,10 @@
 
 #include "init.h"
 #include "testharness.h"
+#include "util.h"
 
-#ifdef OS_WIN
-ABSL_FLAG(std::string, test_srcdir, "..\\data", "Data directory.");
-#else
-ABSL_FLAG(std::string, test_srcdir, "../data", "Data directory.");
-#endif
-
+ABSL_FLAG(std::string, test_srcdir, sentencepiece::util::JoinPath("..", "data"),
+          "Data directory.");
 ABSL_FLAG(std::string, test_tmpdir, "test_tmp", "Temporary directory.");
 
 int main(int argc, char **argv) {

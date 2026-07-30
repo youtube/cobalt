@@ -21,5 +21,10 @@ include_rules = [
 specific_include_rules = {
   ".*browsertest\\.cc": [
     "+chrome/browser/browser_process.h",
+    "+chrome/browser/browser_process_platform_part.h",
+    "+chrome/browser/ash/policy/core/browser_policy_connector_ash.h",
+  ],
+  ".*unittest\\.cc": [
+    "+chrome/browser/ash/login/users/fake_chrome_user_manager.h",
   ]
 }

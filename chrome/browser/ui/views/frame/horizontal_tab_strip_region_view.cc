@@ -20,7 +20,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/frame/window_frame_util.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -169,72 +168,9 @@ std::unique_ptr<TabStrip> CreateTabStrip(
 
 }  // namespace
 
-// Logger that periodically saves the tab search position. There should be 1
-// instance per tabstrip.
-class TabSearchPositionMetricsLogger {
- public:
-  explicit TabSearchPositionMetricsLogger(
-      const BrowserWindowInterface* browser_window,
-      base::TimeDelta logging_interval = base::Hours(1))
-      : browser_window_(browser_window),
-        logging_interval_(logging_interval),
-        weak_ptr_factory_(this) {
-    LogMetrics();
-    ScheduleNextLog();
-  }
-
-  ~TabSearchPositionMetricsLogger() = default;
-
-  void LogMetricsForTesting() { LogMetrics(); }
-
- private:
-  // Logs the UMA metric for the tab search position.
-  void LogMetrics() {
-    const tabs::TabSearchPosition position =
-        tabs::GetTabSearchPosition(browser_window_);
-    if (position == tabs::TabSearchPosition::kLeadingHorizontalTabstrip ||
-        position == tabs::TabSearchPosition::kTrailingHorizontalTabstrip) {
-      base::UmaHistogramEnumeration(
-          "Tabs.TabSearch.PositionInTabstrip2",
-          position == tabs::TabSearchPosition::kTrailingHorizontalTabstrip
-              ? HorizontalTabStripRegionView::TabSearchPositionEnum::kTrailing
-              : HorizontalTabStripRegionView::TabSearchPositionEnum::kLeading);
-    }
-  }
-
-  // Sets up a task runner that calls back into the logging data.
-  void ScheduleNextLog() {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&TabSearchPositionMetricsLogger::LogMetricAndReschedule,
-                       weak_ptr_factory_.GetWeakPtr()),
-        logging_interval_);
-  }
-
-  // Helper method for posting the task which logs and schedules the next log.
-  void LogMetricAndReschedule() {
-    LogMetrics();
-    ScheduleNextLog();
-  }
-
-  // Browser window for checking the pref value.
-  const raw_ptr<const BrowserWindowInterface> browser_window_;
-
-  // Time in which this metric should be logged. Default is hourly.
-  const base::TimeDelta logging_interval_;
-
-  base::WeakPtrFactory<TabSearchPositionMetricsLogger> weak_ptr_factory_;
-};
-
 HorizontalTabStripRegionView::HorizontalTabStripRegionView(
     BrowserView* browser_view)
     : profile_(browser_view->GetProfile()),
-      render_tab_search_before_tab_strip_(
-          !tabs::GetDefaultTabSearchRightAligned() ||
-          base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)),
-      tab_search_position_metrics_logger_(
-          std::make_unique<TabSearchPositionMetricsLogger>(
-              browser_view->browser())),
       action_view_controller_(std::make_unique<views::ActionViewController>()) {
   views::SetCascadingColorProviderColor(
       this, views::kCascadingBackgroundColor,
@@ -298,7 +234,7 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
     }
   }
 
-  if (tab_search_button && render_tab_search_before_tab_strip_) {
+  if (tab_search_button) {
     tab_search_button->SetPaintToLayer();
     tab_search_button->layer()->SetFillsBoundsOpaquely(false);
 
@@ -354,13 +290,6 @@ HorizontalTabStripRegionView::HorizontalTabStripRegionView(
 
   SetProperty(views::kElementIdentifierKey, kTabStripRegionElementId);
 
-  if (browser && tab_search_button && !render_tab_search_before_tab_strip_) {
-    tab_search_button_ = AddChildView(std::move(tab_search_button));
-    tab_search_button_->SetProperty(
-        views::kMarginsKey,
-        gfx::Insets::TLBR(0, 0, 0,
-                          GetLayoutConstant(LayoutConstant::kTabStripPadding)));
-  }
   if (tab_strip_action_container) {
     tab_strip_action_container_ =
         AddChildView(std::move(tab_strip_action_container));
@@ -397,8 +326,7 @@ bool HorizontalTabStripRegionView::IsPositionInWindowCaption(
     return false;
   }
 
-  if (render_tab_search_before_tab_strip_ && tab_search_button_ &&
-      IsHitInView(tab_search_button_, point)) {
+  if (tab_search_button_ && IsHitInView(tab_search_button_, point)) {
     return false;
   }
 
@@ -471,17 +399,11 @@ void HorizontalTabStripRegionView::Layout(PassKey) {
     return;
   }
 
-  const bool tab_search_button_before_tab_strip =
-      tab_search_button_ && render_tab_search_before_tab_strip_;
-  if (tab_search_button_before_tab_strip ||
-      (unfocus_button_ && unfocus_button_->GetVisible()) || combo_button_) {
-    UpdateTabStripMargin();
-  }
-
+  UpdateTabStripMargin();
   LayoutSuperclass<views::AccessiblePaneView>(this);
 
   int leading_offset = 0;
-  if (tab_search_button_before_tab_strip) {
+  if (tab_search_button_) {
     AdjustViewBoundsRect(tab_search_button_, leading_offset);
     leading_offset += tab_search_button_->GetPreferredSize().width() +
                       GetLayoutConstant(LayoutConstant::kTabStripPadding);
@@ -720,15 +642,10 @@ bool HorizontalTabStripRegionView::HasLeadingButtons() const {
   if (unfocus_button_ && unfocus_button_->GetVisible()) {
     return true;
   }
-  if (tab_search_button_ && render_tab_search_before_tab_strip_ &&
-      tab_search_button_->GetVisible()) {
+  if (tab_search_button_ && tab_search_button_->GetVisible()) {
     return true;
   }
   return false;
-}
-
-void HorizontalTabStripRegionView::LogTabSearchPositionForTesting() {
-  tab_search_position_metrics_logger_->LogMetricsForTesting();  // IN-TEST
 }
 
 void HorizontalTabStripRegionView::UpdateButtonBorders() {
@@ -805,7 +722,7 @@ void HorizontalTabStripRegionView::UpdateTabStripMargin() {
   std::optional<int> tab_strip_left_margin;
   int current_leading_width = 0;
 
-  if (tab_search_button_ && render_tab_search_before_tab_strip_) {
+  if (tab_search_button_) {
     // The `tab_search_button_` is being laid out manually.
     CHECK(tab_search_button_->GetProperty(views::kViewIgnoredByLayoutKey));
     current_leading_width +=

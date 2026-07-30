@@ -451,6 +451,8 @@ TEST_F(HTMLTextAreaElementTest, GetTextInfoFonts) {
 
   {
     WebFormControlElement::TextInfo text_info = textarea.GetTextInfo();
+    EXPECT_GT(text_info.primary_ascent, 0);
+
     ASSERT_EQ(3u, text_info.text_runs.size());
     ASSERT_EQ(1u, text_info.text_runs[0].typeface_runs.size());
     ASSERT_EQ(1u, text_info.text_runs[1].typeface_runs.size());

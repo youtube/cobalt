@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabGridDialogHandler;
+import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListLayoutType;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.tab_ui.R;
@@ -71,10 +72,10 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
     private final @Nullable TabGridDialogHandler mTabGridDialogHandler;
     private final int mLongPressDpThresholdSquared;
     private final TabGroupCreationDialogManager mTabGroupCreationDialogManager;
+    private final @TabListLayoutType int mLayoutType;
     private float mSwipeToDismissThreshold;
     private float mMergeThreshold;
     private float mUngroupThreshold;
-    private boolean mActionsOnAllRelatedTabs;
     private boolean mIsSwipingToDismiss;
     private int mDragFlags;
     private int mHoveredTabIndex = TabModel.INVALID_TAB_INDEX;
@@ -93,7 +94,7 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
      * @param tabClosedListener The listener to invoke when a tab is closed.
      * @param tabGridDialogHandler The interface for sending updates when using a tab grid dialog.
      * @param componentName The name of the component for metrics logging.
-     * @param actionsOnAllRelatedTabs Whether to operate on related tabs.
+     * @param layoutType The layout type of the tab list.
      * @param onDragStateChangedListener The listener to notify when the active drag state changes.
      */
     public TabGridItemTouchHelperCallback(
@@ -104,12 +105,12 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
             TabActionListener tabClosedListener,
             @Nullable TabGridDialogHandler tabGridDialogHandler,
             String componentName,
-            boolean actionsOnAllRelatedTabs,
+            @TabListLayoutType int layoutType,
             Runnable onDragStateChangedListener) {
         super(context, tabListModel, currentTabModelSupplier);
         mTabClosedListener = tabClosedListener;
         mComponentName = componentName;
-        mActionsOnAllRelatedTabs = actionsOnAllRelatedTabs;
+        mLayoutType = layoutType;
         mTabGridDialogHandler = tabGridDialogHandler;
         mTabGroupCreationDialogManager = tabGroupCreationDialogManager;
         mOnDragStateChangedListener = onDragStateChangedListener;
@@ -228,7 +229,7 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
         @TabId int destinationTabId = model.get(TabProperties.TAB_ID);
         int distance = toViewHolder.getAdapterPosition() - fromViewHolder.getAdapterPosition();
         TabModel tabModel = mCurrentTabModelSupplier.get();
-        if (!mActionsOnAllRelatedTabs) {
+        if (mLayoutType == TabListLayoutType.FLAT) {
             int destinationIndex = tabModel.indexOf(tabModel.getTabById(destinationTabId));
             tabModel.moveTab(currentTabId, destinationIndex);
         } else {
@@ -283,7 +284,7 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
                     && mSelectedTabIndex != TabModel.INVALID_TAB_INDEX) {
                 onDropOnArchivalMessageCard();
             } else if (mHoveredTabIndex != TabModel.INVALID_TAB_INDEX
-                    && mActionsOnAllRelatedTabs
+                    && mLayoutType == TabListLayoutType.GROUPED
                     && !hasCollaboration(viewHolder)
                     && !isPinnedRegularTab(viewHolder)) {
                 if (selectedViewHolder != null
@@ -470,7 +471,8 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
         }
 
         mCurrentActionState = actionState;
-        if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && mActionsOnAllRelatedTabs) {
+        if (actionState == ItemTouchHelper.ACTION_STATE_DRAG
+                && mLayoutType == TabListLayoutType.GROUPED) {
             int prevHovered = mHoveredTabIndex;
             mHoveredTabIndex =
                     TabListRecyclerView.getHoveredCardIndex(
@@ -704,12 +706,6 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
         }
 
         return true;
-    }
-
-    void setActionsOnAllRelatedTabsForTesting(boolean flag) {
-        var oldValue = mActionsOnAllRelatedTabs;
-        mActionsOnAllRelatedTabs = flag;
-        ResettersForTesting.register(() -> mActionsOnAllRelatedTabs = oldValue);
     }
 
     void setHoveredTabIndexForTesting(int index) {

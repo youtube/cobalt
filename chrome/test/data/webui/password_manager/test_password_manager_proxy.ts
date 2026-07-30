@@ -64,6 +64,8 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     fileName: '',
   };
 
+  private exportPasswordsError_: Error|null = null;
+
   constructor() {
     super([
       'addPassword',
@@ -301,7 +303,14 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
 
   exportPasswords() {
     this.methodCalled('exportPasswords');
+    if (this.exportPasswordsError_ !== null) {
+      return Promise.reject(this.exportPasswordsError_);
+    }
     return Promise.resolve();
+  }
+
+  setExportPasswordsError(error: Error) {
+    this.exportPasswordsError_ = error;
   }
 
   addPasswordsFileExportProgressListener(

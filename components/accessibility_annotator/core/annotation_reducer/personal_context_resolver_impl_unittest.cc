@@ -16,7 +16,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
-#include "components/accessibility_annotator/core/annotation_reducer/entry_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/personal_context/core/mock_personal_context_service.h"
 #include "components/personal_context/proto/features/at_memory.pb.h"
@@ -45,9 +45,15 @@ class PersonalContextResolverImplTest : public ::testing::Test {
 TEST_F(PersonalContextResolverImplTest, QueryWhenNullServiceReturnsEmpty) {
   PersonalContextResolverImpl resolver(nullptr, "en-US");
 
-  base::test::TestFuture<std::vector<MemorySearchResult>> future;
+  base::test::TestFuture<base::expected<std::vector<MemorySearchResult>,
+                                        personal_context::ContextMemoryError>>
+      future;
   resolver.Query(u"my query", future.GetCallback());
-  EXPECT_TRUE(future.Get().empty());
+  auto result = future.Get();
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(
+      result.error().error(),
+      personal_context::ContextMemoryError::ExecutionError::kGenericFailure);
 }
 
 // Tests that a Query request is correctly forwarded to the
@@ -80,14 +86,22 @@ TEST_F(PersonalContextResolverImplTest, QuerySendsCorrectRequest) {
 TEST_F(PersonalContextResolverImplTest, QuerySavesCallbackAndCancelsPrevious) {
   PersonalContextResolverImpl resolver(&mock_service_, "en-US");
 
-  base::test::TestFuture<std::vector<MemorySearchResult>> future1;
-  base::test::TestFuture<std::vector<MemorySearchResult>> future2;
+  base::test::TestFuture<base::expected<std::vector<MemorySearchResult>,
+                                        personal_context::ContextMemoryError>>
+      future1;
+  base::test::TestFuture<base::expected<std::vector<MemorySearchResult>,
+                                        personal_context::ContextMemoryError>>
+      future2;
 
   resolver.Query(u"query 1", future1.GetCallback());
-  // The second query should immediately cancel the first and return empty.
+  // The second query should immediately cancel the first and return cancelled
+  // error.
   resolver.Query(u"query 2", future2.GetCallback());
 
-  EXPECT_TRUE(future1.Get().empty());
+  auto result1 = future1.Get();
+  EXPECT_FALSE(result1.has_value());
+  EXPECT_EQ(result1.error().error(),
+            personal_context::ContextMemoryError::ExecutionError::kCancelled);
 }
 
 // Tests that the resolver correctly translates a successful
@@ -105,7 +119,9 @@ TEST_F(PersonalContextResolverImplTest,
             captured_callback = std::move(callback);
           }));
 
-  base::test::TestFuture<std::vector<MemorySearchResult>> future;
+  base::test::TestFuture<base::expected<std::vector<MemorySearchResult>,
+                                        personal_context::ContextMemoryError>>
+      future;
   resolver.Query(u"some query", future.GetCallback());
   ASSERT_TRUE(captured_callback);
 
@@ -116,6 +132,7 @@ TEST_F(PersonalContextResolverImplTest,
           QUERY_CLASSIFICATION_AT_MEMORY);
   personal_context::proto::AtMemorySearchResult* result =
       response.add_results();
+  result->set_relevance_score(1.0);
 
   // Primary Attribute: Schemaful key
   personal_context::proto::Attribute* primary =
@@ -147,9 +164,11 @@ TEST_F(PersonalContextResolverImplTest,
 
   std::move(captured_callback).Run(std::move(fetch_result));
 
-  std::vector<MemorySearchResult> parsed_results = future.Get();
+  auto query_result = future.Get();
+  ASSERT_TRUE(query_result.has_value());
+  std::vector<MemorySearchResult> parsed_results = query_result.value();
   ASSERT_EQ(parsed_results.size(), 1u);
-  EXPECT_EQ(parsed_results[0].type, EntryType::kNameFull);
+  EXPECT_EQ(parsed_results[0].type, MemoryDataType::kNameFull);
   EXPECT_EQ(parsed_results[0].value, u"John Doe");
   EXPECT_DOUBLE_EQ(parsed_results[0].confidence_score, 1.0);
 
@@ -162,7 +181,7 @@ TEST_F(PersonalContextResolverImplTest,
             "http://photos.google.com/item/2");
 
   ASSERT_EQ(parsed_results[0].metadata_list.size(), 1u);
-  EXPECT_EQ(parsed_results[0].metadata_list[0].type, EntryType::kEmail);
+  EXPECT_EQ(parsed_results[0].metadata_list[0].type, MemoryDataType::kEmail);
   EXPECT_EQ(parsed_results[0].metadata_list[0].value, u"johndoe@example.com");
 }
 

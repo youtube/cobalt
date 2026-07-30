@@ -9,9 +9,7 @@
 #include <memory>
 #include <utility>
 
-#include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
@@ -29,25 +27,18 @@
 #include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_title.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
-#include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/collaboration/public/messaging/message.h"
-#include "components/content_settings/core/common/features.h"
-#include "components/tab_groups/tab_group_id.h"
-#include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_alert.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/base/models/list_selection_model.h"
 #include "ui/base/pointer/touch_ui_controller.h"
-#include "ui/base/ui_base_switches.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
-#include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -1302,3 +1293,38 @@ TEST_F(TabTest, SingleElementCentering) {
               GetCloseButton(tab)->bounds().CenterPoint().x());
   }
 }
+
+#if BUILDFLAG(IS_MAC)
+class TestContextMenuController : public views::ContextMenuController {
+ public:
+  TestContextMenuController() = default;
+  ~TestContextMenuController() override = default;
+
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override {
+    opened_ = true;
+  }
+
+  bool opened() const { return opened_; }
+
+ private:
+  bool opened_ = false;
+};
+
+TEST_F(TabTest, ContextMenuFromControlReturnMac) {
+  auto controller = std::make_unique<FakeTabSlotController>();
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  Tab* tab = widget->SetContentsView(
+      std::make_unique<Tab>(tabs::TabHandle(1), controller.get()));
+
+  TestContextMenuController menu_controller;
+  tab->set_context_menu_controller(&menu_controller);
+
+  EXPECT_TRUE(tab->OnKeyPressed(ui::KeyEvent(
+      ui::EventType::kKeyPressed, ui::VKEY_RETURN, ui::EF_CONTROL_DOWN)));
+  EXPECT_TRUE(menu_controller.opened());
+}
+#endif

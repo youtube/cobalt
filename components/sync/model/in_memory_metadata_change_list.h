@@ -21,7 +21,12 @@ namespace syncer {
 // changes to another instance.
 class InMemoryMetadataChangeList : public MetadataChangeList {
  public:
-  InMemoryMetadataChangeList();
+  // If `allow_changes_on_destruction` is false (default), the destructor will
+  // CHECK that there are no pending changes. This should only be used in cases
+  // where the change list can be destroyed without being applied (e.g. when
+  // it's propagated using PostTask()).
+  explicit InMemoryMetadataChangeList(
+      bool allow_changes_on_destruction = false);
   ~InMemoryMetadataChangeList() override;
 
   // Allows ignoring metadata changes reported by the processor, for advanced
@@ -52,6 +57,8 @@ class InMemoryMetadataChangeList : public MetadataChangeList {
     sync_pb::DataTypeState state;
   };
 
+  // If true, destructor will not assert if there are pending changes.
+  const bool allow_changes_on_destruction_;
   std::map<std::string, MetadataChange> metadata_changes_;
   std::unique_ptr<DataTypeStateChange> state_change_;
 };

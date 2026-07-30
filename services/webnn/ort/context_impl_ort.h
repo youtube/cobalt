@@ -120,6 +120,11 @@ class ContextImplOrt : public WebNNContextImpl {
   // device tensor is not supported.
   scoped_refptr<DeviceAllocator> device_allocator_;
 
+  // The importer for external resources like D3D12 buffers. It is used for
+  // importing D3D12 buffers into ORT tensors. May be nullptr if the EP does
+  // not support external resource import.
+  ScopedOrtExternalResourceImporter external_resource_importer_;
+
   // Cancels pending graph compilation tasks when destructing.
   base::CancelableTaskTracker cancelable_task_tracker_;
 

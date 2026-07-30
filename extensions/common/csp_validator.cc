@@ -30,9 +30,7 @@
 #include "extensions/common/manifest_constants.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 
-namespace extensions {
-
-namespace csp_validator {
+namespace extensions::csp_validator {
 
 namespace {
 
@@ -65,10 +63,10 @@ const char kAllowTopNavigation[] = "allow-top-navigation";
 // List of CSP hash-source prefixes that are accepted. Blink is a bit more
 // lenient, but we only accept standard hashes to be forward-compatible.
 // http://www.w3.org/TR/2015/CR-CSP2-20150721/#hash_algo
-const char* const kHashSourcePrefixes[] = {
-  "'sha256-",
-  "'sha384-",
-  "'sha512-"
+constexpr std::string_view kHashSourcePrefixes[] = {
+    "'sha256-",
+    "'sha384-",
+    "'sha512-",
 };
 
 constexpr char kChromeResourcesUrl[] = "chrome://resources";
@@ -220,10 +218,10 @@ bool IsHashSource(std::string_view source) {
     return false;
 
   size_t hash_end = source.length() - 1;
-  for (const char* prefix : kHashSourcePrefixes) {
+  for (std::string_view prefix : kHashSourcePrefixes) {
     if (base::StartsWith(source, prefix,
                          base::CompareCase::INSENSITIVE_ASCII)) {
-      for (size_t i = strlen(prefix); i < hash_end; ++i) {
+      for (size_t i = prefix.length(); i < hash_end; ++i) {
         const char c = source[i];
         // The hash must be base64-encoded. Do not allow any other characters.
         if (!base::IsAsciiAlpha(c) && !base::IsAsciiDigit(c) && c != '+' &&
@@ -396,7 +394,7 @@ class CSPEnforcer {
   CSPEnforcer(const CSPEnforcer&) = delete;
   CSPEnforcer& operator=(const CSPEnforcer&) = delete;
 
-  virtual ~CSPEnforcer() {}
+  virtual ~CSPEnforcer() = default;
 
   // Returns the enforced CSP.
   // Emits warnings in |warnings| for insecure directive values. If
@@ -511,7 +509,7 @@ class ExtensionCSPEnforcer : public CSPEnforcer {
 
 class AppSandboxPageCSPEnforcer : public CSPEnforcer {
  public:
-  AppSandboxPageCSPEnforcer(std::string manifest_key)
+  explicit AppSandboxPageCSPEnforcer(std::string manifest_key)
       : CSPEnforcer(std::move(manifest_key),
                     false,
                     base::BindRepeating(&GetAppSandboxSecureDirectiveValues)) {
@@ -651,7 +649,8 @@ bool DoesCSPDisallowRemoteCode(const std::string& extension_id,
   DCHECK(error);
 
   struct DirectiveMapping {
-    DirectiveMapping(DirectiveStatus status) : status(std::move(status)) {}
+    explicit DirectiveMapping(DirectiveStatus status)
+        : status(std::move(status)) {}
 
     DirectiveStatus status;
     raw_ptr<const CSPParser::Directive, DanglingUntriaged> directive = nullptr;
@@ -784,6 +783,4 @@ bool IsExtensionAllowedToUseChromeResources(const std::string& extension_id) {
                                extension_id);
 }
 
-}  // namespace csp_validator
-
-}  // namespace extensions
+}  // namespace extensions::csp_validator

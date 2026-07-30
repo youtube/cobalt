@@ -134,4 +134,15 @@ void RecordCommitErrorCountAtReset(std::string_view storage_type_prefix,
   }
 }
 
+std::string_view GetHistogramSuffix(DatabaseMetricsType type) {
+  switch (type) {
+    case DatabaseMetricsType::kInMemory:
+      return ".InMemory";
+    case DatabaseMetricsType::kOnDisk:
+      return ".OnDisk";
+    case DatabaseMetricsType::kOnDiskExperimental:
+      return ".OnDiskExperimental";
+  }
+}
+
 }  // namespace storage

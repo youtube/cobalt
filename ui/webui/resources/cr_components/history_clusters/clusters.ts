@@ -22,11 +22,11 @@ import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {Time} from '//resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
-import {BrowserProxyImpl} from './browser_proxy.js';
 import {getCss} from './clusters.css.js';
 import {getHtml} from './clusters.html.js';
 import type {Cluster, URLVisit} from './history_cluster_types.mojom-webui.js';
-import type {PageCallbackRouter, PageHandlerRemote, QueryResult} from './history_clusters.mojom-webui.js';
+import {browserProxyFactory} from './history_clusters.mojom-webui.js';
+import type {BrowserProxy, QueryResult} from './history_clusters.mojom-webui.js';
 
 function jsDateToMojoDate(date: Date): Time {
   const windowsEpoch = Date.UTC(1601, 0, 1, 0, 0, 0, 0);
@@ -135,7 +135,7 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
   protected accessor clusters_: Cluster[] = [];
   protected accessor hasResult_: boolean = false;
   protected accessor resultQuery_: string = '';
-  private callbackRouter_: PageCallbackRouter;
+  private browserProxy_: BrowserProxy;
   private accessor inSidePanel_: boolean =
       loadTimeData.getBoolean('inSidePanel');
   private lastOffsetHeight_: number = 0;
@@ -156,7 +156,7 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
   private onVisitsRemovedListenerId_: number|null = null;
   private onHistoryDeletedListenerId_: number|null = null;
   private onQueryChangedByUserListenerId_: number|null = null;
-  private pageHandler_: PageHandlerRemote;
+
   protected accessor showConfirmationDialog_: boolean = false;
   protected accessor showSpinner_: boolean = false;
   private scrollTimeout_: number|null = null;
@@ -168,8 +168,7 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
 
   constructor() {
     super();
-    this.pageHandler_ = BrowserProxyImpl.getInstance().handler;
-    this.callbackRouter_ = BrowserProxyImpl.getInstance().callbackRouter;
+    this.browserProxy_ = browserProxyFactory.getInstance();
   }
 
   override connectedCallback() {
@@ -180,42 +179,47 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
     FocusOutlineManager.forDocument(document);
 
     this.onClustersQueryResultListenerId_ =
-        this.callbackRouter_.onClustersQueryResult.addListener(
+        this.browserProxy_.callbackRouter.onClustersQueryResult.addListener(
             this.onClustersQueryResult_.bind(this));
     this.onClusterImageUpdatedListenerId_ =
-        this.callbackRouter_.onClusterImageUpdated.addListener(
+        this.browserProxy_.callbackRouter.onClusterImageUpdated.addListener(
             this.onClusterImageUpdated_.bind(this));
     this.onVisitsRemovedListenerId_ =
-        this.callbackRouter_.onVisitsRemoved.addListener(
+        this.browserProxy_.callbackRouter.onVisitsRemoved.addListener(
             this.onVisitsRemoved_.bind(this));
     this.onHistoryDeletedListenerId_ =
-        this.callbackRouter_.onHistoryDeleted.addListener(
+        this.browserProxy_.callbackRouter.onHistoryDeleted.addListener(
             this.onHistoryDeleted_.bind(this));
     this.onQueryChangedByUserListenerId_ =
-        this.callbackRouter_.onQueryChangedByUser.addListener(
+        this.browserProxy_.callbackRouter.onQueryChangedByUser.addListener(
             this.onQueryChangedByUser_.bind(this));
 
     if (this.inSidePanel_) {
-      this.pageHandler_.showSidePanelUI();
+      this.browserProxy_.handler.showSidePanelUI();
     }
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     assert(this.onClustersQueryResultListenerId_);
-    this.callbackRouter_.removeListener(this.onClustersQueryResultListenerId_);
+    this.browserProxy_.callbackRouter.removeListener(
+        this.onClustersQueryResultListenerId_);
     this.onClustersQueryResultListenerId_ = null;
     assert(this.onVisitsRemovedListenerId_);
-    this.callbackRouter_.removeListener(this.onVisitsRemovedListenerId_);
+    this.browserProxy_.callbackRouter.removeListener(
+        this.onVisitsRemovedListenerId_);
     this.onVisitsRemovedListenerId_ = null;
     assert(this.onHistoryDeletedListenerId_);
-    this.callbackRouter_.removeListener(this.onHistoryDeletedListenerId_);
+    this.browserProxy_.callbackRouter.removeListener(
+        this.onHistoryDeletedListenerId_);
     this.onHistoryDeletedListenerId_ = null;
     assert(this.onQueryChangedByUserListenerId_);
-    this.callbackRouter_.removeListener(this.onQueryChangedByUserListenerId_);
+    this.browserProxy_.callbackRouter.removeListener(
+        this.onQueryChangedByUserListenerId_);
     this.onQueryChangedByUserListenerId_ = null;
     assert(this.onClusterImageUpdatedListenerId_);
-    this.callbackRouter_.removeListener(this.onClusterImageUpdatedListenerId_);
+    this.browserProxy_.callbackRouter.removeListener(
+        this.onClusterImageUpdatedListenerId_);
     this.onClusterImageUpdatedListenerId_ = null;
   }
 
@@ -297,7 +301,7 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
       this.showSpinner_ = true;
       // Prevent sending further load-more requests until this one finishes.
       this.canLoadMore_ = false;
-      this.pageHandler_.loadMoreClusters(this.resultQuery_);
+      this.browserProxy_.handler.loadMoreClusters(this.resultQuery_);
     }
   }
 
@@ -310,14 +314,14 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
    * Called with `event` received from a visit requesting to be hidden.
    */
   protected onHideVisit_(event: CustomEvent<URLVisit>) {
-    this.pageHandler_.hideVisits([event.detail]);
+    this.browserProxy_.handler.hideVisits([event.detail]);
   }
 
   /**
    * Called with `event` received from visits requesting to be hidden.
    */
   protected onHideVisits_(event: CustomEvent<URLVisit[]>) {
-    this.pageHandler_.hideVisits(event.detail);
+    this.browserProxy_.handler.hideVisits(event.detail);
   }
 
   /**
@@ -486,7 +490,7 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
         // Prevent sending further load-more requests until this one finishes.
         this.canLoadMore_ = false;
       }
-      this.pageHandler_.startQueryClusters(
+      this.browserProxy_.handler.startQueryClusters(
           this.query.trim(),
           this.timeRangeStart ? jsDateToMojoDate(this.timeRangeStart) : null,
           new URLSearchParams(window.location.search).has('recluster'));
@@ -544,12 +548,13 @@ export class HistoryClustersElement extends HistoryClustersElementBase {
   }
 
   private removeVisits_() {
-    this.pageHandler_.removeVisits(this.visitsToBeRemoved_).then(() => {
-      // The returned promise resolves with whether the request succeeded in the
-      // browser. That value may be used to show a toast but is ignored for now.
-      // Allow remove requests again.
-      this.visitsToBeRemoved_ = [];
-    });
+    this.browserProxy_.handler.removeVisits(this.visitsToBeRemoved_)
+        .then(() => {
+          // The returned promise resolves with whether the request succeeded in
+          // the browser. That value may be used to show a toast but is ignored
+          // for now. Allow remove requests again.
+          this.visitsToBeRemoved_ = [];
+        });
   }
 }
 

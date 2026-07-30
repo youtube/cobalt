@@ -14,9 +14,12 @@
 #include "base/run_loop.h"
 #include "base/scoped_clear_last_error.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_run_loop_timeout.h"
+#include "base/test/test_future.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -196,6 +199,43 @@ class UDPSocketTest : public PlatformTest, public WithTaskEnvironment {
     return callback.GetResult(rv);
   }
 
+  base::expected<DatagramsMetadata, Error> ReadMultipleExpectedCount(
+      UDPSocket* socket,
+      IOBuffer* buffer,
+      size_t buf_len,
+      size_t maximum_packet_size,
+      size_t expected_count) {
+    CHECK_GE(buf_len, maximum_packet_size * expected_count);
+    DatagramsMetadata accumulated_metadata;
+    while (accumulated_metadata.size() < expected_count) {
+      base::test::ScopedRunLoopTimeout timeout(FROM_HERE, base::Seconds(5));
+      base::test::TestFuture<base::expected<DatagramsMetadata, Error>> future;
+      size_t current_offset = accumulated_metadata.size() * maximum_packet_size;
+      auto sub_span =
+          buffer->span().subspan(current_offset, buf_len - current_offset);
+      auto sub_buffer = base::MakeRefCounted<WrappedIOBuffer>(sub_span);
+      auto rv = socket->ReadMultiple(sub_buffer.get(), sub_span.size(),
+                                     maximum_packet_size, future.GetCallback());
+      base::expected<DatagramsMetadata, Error> result;
+      if (!rv.has_value() && rv.error() == ERR_IO_PENDING) {
+        result = future.Get();
+      } else {
+        result = std::move(rv);
+      }
+      if (!result.has_value()) {
+        return base::unexpected(result.error());
+      }
+      for (const auto& datagram_metadata : result.value()) {
+        accumulated_metadata.push_back(DatagramMetadata{
+            .offset = datagram_metadata.offset + current_offset,
+            .length = datagram_metadata.length,
+            .tos = datagram_metadata.tos,
+        });
+      }
+    }
+    return accumulated_metadata;
+  }
+
   // Run unit test for a connection test.
   // |use_nonblocking_io| is used to switch between overlapped and non-blocking
   // IO on Windows. It has no effect in other ports.
@@ -232,7 +272,12 @@ void UDPSocketTest::ConnectTest(bool use_nonblocking_io, bool use_async) {
 
   // Setup the client.
   auto client = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      // Currently no tests that rely on this test multi-network scenarios.
+      // This makes it safe to always target the default network. Consider
+      // exposing a `target_network` parameter to this method if
+      // this changes.
+      handles::kInvalidNetworkHandle);
   if (use_nonblocking_io)
     client->UseNonBlockingIO();
 
@@ -357,7 +402,8 @@ TEST_F(UDPSocketTest, ConnectRestrictedPort) {
   ReloadLocalhostRestrictedPortsForTesting();
   // Setup the client.
   auto client = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
   EXPECT_THAT(client->Connect(server_address), IsError(ERR_UNSAFE_PORT));
   histogram_tester.ExpectTotalCount("Net.RestrictedLocalhostPorts", 1);
   histogram_tester.ExpectBucketCount("Net.RestrictedLocalhostPorts",
@@ -379,7 +425,7 @@ TEST_F(UDPSocketTest, PartialRecv) {
   ASSERT_THAT(server_socket.GetLocalAddress(&server_address), IsOk());
 
   UDPClientSocket client_socket(DatagramSocket::DEFAULT_BIND, nullptr,
-                                NetLogSource());
+                                NetLogSource(), handles::kInvalidNetworkHandle);
   ASSERT_THAT(client_socket.Connect(server_address), IsOk());
 
   std::string test_packet("hello world!");
@@ -471,8 +517,8 @@ TEST_F(UDPSocketTest, ConnectRandomBind) {
 
   std::vector<int> used_ports;
   for (int i = 0; i < kIterations; ++i) {
-    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr,
-                           NetLogSource());
+    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                           handles::kInvalidNetworkHandle);
     EXPECT_THAT(socket.Connect(IPEndPoint(IPAddress::IPv4Localhost(), 53)),
                 IsOk());
 
@@ -596,7 +642,8 @@ TEST_F(UDPSocketTest, VerifyConnectBindsAddr) {
   ASSERT_THAT(server2.Listen(server2_address), IsOk());
 
   // Setup the client, connected to server 1.
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   EXPECT_THAT(client.Connect(server1_address), IsOk());
 
   // Client sends to server1.
@@ -652,7 +699,7 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
     IPEndPoint local_address(ip_address, 80);
 
     UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr,
-                           NetLogSource());
+                           NetLogSource(), handles::kInvalidNetworkHandle);
     int rv = client.Connect(remote_address);
     if (test.may_fail && rv == ERR_ADDRESS_UNREACHABLE) {
       // Connect() may return ERR_ADDRESS_UNREACHABLE for IPv6
@@ -709,7 +756,7 @@ TEST_F(UDPSocketTest, ServerGetPeerAddress) {
 TEST_F(UDPSocketTest, ClientSetDoNotFragment) {
   for (std::string ip : {"127.0.0.1", "::1"}) {
     UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr,
-                           NetLogSource());
+                           NetLogSource(), handles::kInvalidNetworkHandle);
     IPAddress ip_address;
     EXPECT_TRUE(ip_address.AssignFromIPLiteral(ip));
     IPEndPoint remote_address(ip_address, 80);
@@ -856,7 +903,7 @@ TEST_F(UDPSocketTest, MAYBE_SharedMulticastAddress) {
   // Setup client socket.
   IPEndPoint send_address(group_ip, receive_address.port());
   UDPClientSocket client_socket(DatagramSocket::DEFAULT_BIND, nullptr,
-                                NetLogSource());
+                                NetLogSource(), handles::kInvalidNetworkHandle);
   ASSERT_THAT(client_socket.Connect(send_address), IsOk());
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -933,7 +980,8 @@ TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeV4) {
   ASSERT_THAT(server.Listen(server_address), IsOk());
   // Get bound port.
   ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   client.Connect(server_address);
   EXPECT_EQ(client.SetRecvTos(), 0);
   EXPECT_EQ(server.SetRecvTos(), 0);
@@ -998,7 +1046,8 @@ TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeV6) {
   ASSERT_THAT(server.Listen(server_address), IsOk());
   // Get bound port.
   ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   EXPECT_THAT(client.Connect(server_address), IsOk());
   EXPECT_EQ(client.SetRecvTos(), 0);
   EXPECT_EQ(server.SetRecvTos(), 0);
@@ -1067,7 +1116,8 @@ TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeDualStack) {
   // to localhost.
   IPEndPoint server_v4_address(IPAddress::IPv4Localhost(),
                                server_v6_address.port());
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   EXPECT_THAT(client.Connect(server_v4_address), IsOk());
   EXPECT_EQ(server.SetRecvTos(), 0);
 
@@ -1138,7 +1188,8 @@ TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeDualStackV4Mapped) {
   ASSERT_THAT(server.GetLocalAddress(&server_v6_address), IsOk());
   IPEndPoint server_v4_address(IPAddress::IPv4Localhost(),
                                server_v6_address.port());
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   EXPECT_THAT(client.Connect(server_v4_address), IsOk());
   EXPECT_EQ(server.SetRecvTos(), 0);
 
@@ -1206,7 +1257,8 @@ TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeNonBlocking) {
   ASSERT_THAT(server.Listen(server_address), IsOk());
   // Get bound port.
   ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   client.UseNonBlockingIO();
   client.Connect(server_address);
   EXPECT_EQ(client.SetRecvTos(), 0);
@@ -1275,8 +1327,8 @@ TEST_F(UDPSocketTest, ConnectUsingNetwork) {
   {
     // Connecting using a not existing network should fail but not report
     // ERR_NOT_IMPLEMENTED when network handles are supported.
-    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr,
-                           NetLogSource());
+    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                           handles::kInvalidNetworkHandle);
     int rv =
         socket.ConnectUsingNetwork(wrong_network_handle, fake_server_address);
     EXPECT_NE(ERR_NOT_IMPLEMENTED, rv);
@@ -1287,8 +1339,8 @@ TEST_F(UDPSocketTest, ConnectUsingNetwork) {
   {
     // Connecting using an existing network should succeed when
     // NetworkChangeNotifier returns a valid default network.
-    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr,
-                           NetLogSource());
+    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                           handles::kInvalidNetworkHandle);
     const handles::NetworkHandle network_handle =
         NetworkChangeNotifier::GetDefaultNetwork();
     if (network_handle != handles::kInvalidNetworkHandle) {
@@ -1298,7 +1350,8 @@ TEST_F(UDPSocketTest, ConnectUsingNetwork) {
     }
   }
 #else
-  UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource());
+  UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   EXPECT_EQ(
       ERR_NOT_IMPLEMENTED,
       socket.ConnectUsingNetwork(wrong_network_handle, fake_server_address));
@@ -1321,8 +1374,8 @@ TEST_F(UDPSocketTest, ConnectUsingNetworkAsync) {
   {
     // Connecting using a not existing network should fail but not report
     // ERR_NOT_IMPLEMENTED when network handles are supported.
-    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr,
-                           NetLogSource());
+    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                           handles::kInvalidNetworkHandle);
     TestCompletionCallback callback;
     int rv = socket.ConnectUsingNetworkAsync(
         wrong_network_handle, fake_server_address, callback.callback());
@@ -1337,8 +1390,8 @@ TEST_F(UDPSocketTest, ConnectUsingNetworkAsync) {
   {
     // Connecting using an existing network should succeed when
     // NetworkChangeNotifier returns a valid default network.
-    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr,
-                           NetLogSource());
+    UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                           handles::kInvalidNetworkHandle);
     TestCompletionCallback callback;
     const handles::NetworkHandle network_handle =
         NetworkChangeNotifier::GetDefaultNetwork();
@@ -1353,7 +1406,8 @@ TEST_F(UDPSocketTest, ConnectUsingNetworkAsync) {
     }
   }
 #else
-  UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource());
+  UDPClientSocket socket(DatagramSocket::RANDOM_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_NOT_IMPLEMENTED, socket.ConnectUsingNetworkAsync(
                                      wrong_network_handle, fake_server_address,
@@ -1745,7 +1799,8 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimization) {
 
   // Setup the client, enable experimental optimization and connected to the
   // server.
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   client.EnableRecvOptimization();
   EXPECT_THAT(client.Connect(server_address), IsOk());
 
@@ -1786,7 +1841,8 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimizationTruncation) {
 
   // Setup the client, enable experimental optimization and connected to the
   // server.
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   client.EnableRecvOptimization();
   EXPECT_THAT(client.Connect(server_address), IsOk());
 
@@ -1864,7 +1920,8 @@ TEST_F(UDPSocketTest, Tag) {
   IPEndPoint server_address;
   ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
 
-  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+                         handles::kInvalidNetworkHandle);
   ASSERT_THAT(client.Connect(server_address), IsOk());
 
   // Verify UDP packets are tagged and counted properly.
@@ -2023,10 +2080,12 @@ TEST_F(UDPSocketTest, LimitClientSocket) {
   EXPECT_EQ(GetGlobalUDPSocketCountForTesting(),
             OwnedUDPSocketCount::kMaxUdpSockets - 2);
 
-  auto socket1 = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
-                                                   nullptr, NetLogSource());
-  auto socket2 = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
-                                                   nullptr, NetLogSource());
+  auto socket1 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+      handles::kInvalidNetworkHandle);
+  auto socket2 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+      handles::kInvalidNetworkHandle);
 
   // Simply constructing a UDPClientSocket does not increase the limit (no
   // Connect() or Bind() has been called yet).
@@ -2049,8 +2108,9 @@ TEST_F(UDPSocketTest, LimitClientSocket) {
             OwnedUDPSocketCount::kMaxUdpSockets);
 
   // Attempting a third Connect() should fail with ERR_INSUFFICIENT_RESOURCES.
-  auto socket3 = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
-                                                   nullptr, NetLogSource());
+  auto socket3 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+      handles::kInvalidNetworkHandle);
   EXPECT_THAT(socket3->Connect(server_address),
               IsError(ERR_INSUFFICIENT_RESOURCES));
   EXPECT_EQ(GetGlobalUDPSocketCountForTesting(),
@@ -2068,8 +2128,9 @@ TEST_F(UDPSocketTest, LimitClientSocket) {
 
   // Now that the count is below limit, try to connect another socket. This time
   // it will work.
-  auto socket4 = std::make_unique<UDPClientSocket>(DatagramSocket::DEFAULT_BIND,
-                                                   nullptr, NetLogSource());
+  auto socket4 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource(),
+      handles::kInvalidNetworkHandle);
   EXPECT_THAT(socket4->Connect(server_address), IsOk());
   EXPECT_EQ(GetGlobalUDPSocketCountForTesting(),
             OwnedUDPSocketCount::kMaxUdpSockets);
@@ -2135,7 +2196,8 @@ TEST_F(UDPSocketTest, LimitConnectMultithreaded) {
           IPEndPoint server_address(IPAddress::IPv4Localhost(), 8080);
 
           UDPClientSocket socket(DatagramSocket::DEFAULT_BIND, nullptr,
-                                 NetLogSource());
+                                 NetLogSource(),
+                                 handles::kInvalidNetworkHandle);
           EXPECT_THAT(socket.Connect(server_address), IsOk());
         }));
   }
@@ -2485,5 +2547,270 @@ TEST_F(UDPSocketTest, SSMSourceFilteringMultiNICIPv6) {
   EXPECT_THAT(socket.LeaveSourceGroup(group_address, source_address1), IsOk());
   EXPECT_THAT(socket.LeaveSourceGroup(group_address, source_address2), IsOk());
 }
+
+// ReadMultiple is only implemented on POSIX and Fuchsia platforms. On Windows,
+// UDPSocketWin::ReadMultiple is not implemented and will hit NOTREACHED().
+// On POSIX platforms that do not support recvmmsg (e.g., macOS, iOS, or
+// Fuchsia), the implementation falls back to calling recvmsg (via
+// InternalRecvFrom).
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+TEST_F(UDPSocketTest, ReadMultiple) {
+  // Create sender and receiver sockets.
+  UDPSocket sender(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPSocket receiver(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+
+  // Bind sender to loopback.
+  IPEndPoint local_address(IPAddress::IPv4Localhost(), 0);
+  ASSERT_THAT(sender.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(sender.Bind(local_address), IsOk());
+
+  // Get sender's actual address.
+  IPEndPoint sender_addr;
+  ASSERT_THAT(sender.GetLocalAddress(&sender_addr), IsOk());
+
+  // Connect receiver to sender. This implicitly binds receiver.
+  ASSERT_THAT(receiver.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(receiver.Connect(sender_addr), IsOk());
+
+  // Get receiver's actual address (assigned by system).
+  IPEndPoint receiver_addr;
+  ASSERT_THAT(receiver.GetLocalAddress(&receiver_addr), IsOk());
+
+  // Enable TOS/ECN propagation on receiver.
+  ASSERT_THAT(receiver.SetRecvTos(), IsOk());
+
+  // Prepare packets to send.
+  struct PacketToSend {
+    std::string data;
+    DiffServCodePoint dscp;
+    EcnCodePoint ecn;
+  };
+  std::vector<PacketToSend> packets = {
+      {"packet_1", DSCP_CS1, ECN_ECT1},
+      {"packet_2_longer", DSCP_CS2, ECN_ECT0},
+      {"pkt3", DSCP_CS3, ECN_CE},
+  };
+
+  // Send packets sequentially.
+  for (const auto& packet : packets) {
+    ASSERT_THAT(sender.SetTos(packet.dscp, packet.ecn), IsOk());
+    auto write_buf = base::MakeRefCounted<StringIOBuffer>(packet.data);
+    TestCompletionCallback write_callback;
+    int write_rv = sender.SendTo(write_buf.get(), write_buf->size(),
+                                 receiver_addr, write_callback.callback());
+    ASSERT_EQ(write_callback.GetResult(write_rv), write_buf->size());
+  }
+
+  // Prepare receiver buffer.
+  constexpr size_t kMaxPacketSize = 1024;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(
+      base::checked_cast<int>(packets.size() * kMaxPacketSize));
+
+  // Read datagrams.
+  base::expected<DatagramsMetadata, Error> read_result =
+      ReadMultipleExpectedCount(&receiver, read_buf.get(),
+                                read_buf->span().size(), kMaxPacketSize,
+                                packets.size());
+
+  ASSERT_TRUE(read_result.has_value())
+      << "ReadMultiple failed with error: " << read_result.error();
+  const DatagramsMetadata& datagrams = read_result.value();
+
+  size_t expected_total_bytes = 0;
+  for (const auto& packet : packets) {
+    expected_total_bytes += packet.data.size();
+  }
+  size_t actual_total_bytes = 0;
+  for (const auto& datagram_metadata : datagrams) {
+    actual_total_bytes += datagram_metadata.length;
+  }
+  EXPECT_EQ(actual_total_bytes, expected_total_bytes);
+  ASSERT_EQ(datagrams.size(), packets.size());
+
+  for (size_t i = 0; i < packets.size(); ++i) {
+    const auto& expected = packets[i];
+    const auto& actual = datagrams[i];
+
+    EXPECT_EQ(actual.length, expected.data.size());
+    EXPECT_EQ(actual.offset, i * static_cast<size_t>(kMaxPacketSize));
+
+    // Verify TOS/ECN.
+    uint8_t expected_tos = (expected.dscp << 2) | expected.ecn;
+    EXPECT_EQ(actual.tos, expected_tos);
+
+    // Verify data content.
+    auto packet_span = read_buf->span().subspan(actual.offset, actual.length);
+    EXPECT_EQ(base::as_string_view(packet_span), expected.data);
+  }
+}
+
+// This test is only run on platforms that support the recvmmsg-based
+// implementation of ReadMultiple (Linux, Android, ChromeOS).
+// On fallback POSIX platforms (macOS, iOS, Fuchsia), ReadMultiple delegates
+// to the standard RecvFrom method, which uses a large 512-byte control buffer.
+// Because this 512-byte buffer is large enough to accommodate the IP_PKTINFO
+// control message, the kernel does not set the MSG_CTRUNC flag on those
+// platforms. Consequently, the read operation succeeds instead of failing, and
+// we cannot test the control message truncation behavior on fallback platforms
+// without modifying the general-purpose RecvFrom implementation.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+TEST_F(UDPSocketTest, ReadMultipleControlTruncated) {
+  // Create sender and receiver sockets.
+  UDPSocket sender(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPSocket receiver(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+
+  // Bind sender to loopback.
+  IPEndPoint local_address(IPAddress::IPv4Localhost(), 0);
+  ASSERT_THAT(sender.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(sender.Bind(local_address), IsOk());
+
+  // Get sender's actual address.
+  IPEndPoint sender_addr;
+  ASSERT_THAT(sender.GetLocalAddress(&sender_addr), IsOk());
+
+  // Connect receiver to sender. This implicitly binds receiver.
+  ASSERT_THAT(receiver.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(receiver.Connect(sender_addr), IsOk());
+
+  // Get receiver's actual address (assigned by system).
+  IPEndPoint receiver_addr;
+  ASSERT_THAT(receiver.GetLocalAddress(&receiver_addr), IsOk());
+
+  // Enable TOS/ECN propagation on receiver.
+  ASSERT_THAT(receiver.SetRecvTos(), IsOk());
+
+  // Force MSG_CTRUNC by enabling IP_PKTINFO, which is not accommodated by the
+  // ReadMultiple control buffer size (CMSG_SPACE(sizeof(int))).
+  int fd = receiver.SocketDescriptorForTesting();
+  int opt = 1;
+  int rv = setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt));
+  ASSERT_EQ(0, rv);
+
+  // Send a packet.
+  ASSERT_THAT(sender.SetTos(DSCP_CS1, ECN_ECT1), IsOk());
+  std::string data = "packet";
+  auto write_buf = base::MakeRefCounted<StringIOBuffer>(data);
+  TestCompletionCallback write_callback;
+  int write_rv = sender.SendTo(write_buf.get(), write_buf->size(),
+                               receiver_addr, write_callback.callback());
+  ASSERT_EQ(write_callback.GetResult(write_rv), write_buf->size());
+
+  // Prepare receiver buffer.
+  constexpr size_t kMaxPacketSize = 1024;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(
+      base::checked_cast<int>(kMaxPacketSize));
+
+  // Read datagrams. We expect this to fail with ERR_CONTROL_MSG_TOO_BIG because
+  // of MSG_CTRUNC.
+  base::expected<DatagramsMetadata, Error> read_result =
+      ReadMultipleExpectedCount(&receiver, read_buf.get(),
+                                read_buf->span().size(), kMaxPacketSize, 1);
+
+  // Verify that the read failed. On Linux/Android/ChromeOS, it fails with
+  // ERR_CONTROL_MSG_TOO_BIG.
+  ASSERT_FALSE(read_result.has_value());
+  EXPECT_EQ(read_result.error(), ERR_CONTROL_MSG_TOO_BIG);
+}
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_ANDROID)
+
+TEST_F(UDPSocketTest, ReadMultiple_TooBig) {
+  // Create sender and receiver sockets.
+  UDPSocket sender(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPSocket receiver(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+
+  // Bind sender to loopback.
+  IPEndPoint local_address(IPAddress::IPv4Localhost(), 0);
+  ASSERT_THAT(sender.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(sender.Bind(local_address), IsOk());
+
+  // Get sender's actual address.
+  IPEndPoint sender_addr;
+  ASSERT_THAT(sender.GetLocalAddress(&sender_addr), IsOk());
+
+  // Connect receiver to sender. This implicitly binds receiver.
+  ASSERT_THAT(receiver.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(receiver.Connect(sender_addr), IsOk());
+
+  // Get receiver's actual address (assigned by system).
+  IPEndPoint receiver_addr;
+  ASSERT_THAT(receiver.GetLocalAddress(&receiver_addr), IsOk());
+
+  // Send a packet that is larger than receiver's max packet size.
+  std::string large_packet(50, 'a');
+  auto write_buf = base::MakeRefCounted<StringIOBuffer>(large_packet);
+  TestCompletionCallback write_callback;
+  int write_rv = sender.SendTo(write_buf.get(), write_buf->size(),
+                               receiver_addr, write_callback.callback());
+  ASSERT_EQ(write_callback.GetResult(write_rv), write_buf->size());
+
+  // Receiver reads with max packet size smaller than send size.
+  constexpr size_t kMaxPacketSize = 40;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(100);
+
+  base::expected<DatagramsMetadata, Error> read_result =
+      ReadMultipleExpectedCount(&receiver, read_buf.get(),
+                                read_buf->span().size(), kMaxPacketSize, 1);
+
+  ASSERT_FALSE(read_result.has_value());
+  EXPECT_EQ(read_result.error(), ERR_MSG_TOO_BIG);
+}
+
+TEST_F(UDPSocketTest, ReadMultiple_Async) {
+  // Create sender and receiver sockets.
+  UDPSocket sender(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  UDPSocket receiver(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+
+  // Bind sender to loopback.
+  IPEndPoint local_address(IPAddress::IPv4Localhost(), 0);
+  ASSERT_THAT(sender.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(sender.Bind(local_address), IsOk());
+
+  // Get sender's actual address.
+  IPEndPoint sender_addr;
+  ASSERT_THAT(sender.GetLocalAddress(&sender_addr), IsOk());
+
+  // Connect receiver to sender. This implicitly binds receiver.
+  ASSERT_THAT(receiver.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(receiver.Connect(sender_addr), IsOk());
+
+  // Get receiver's actual address (assigned by system).
+  IPEndPoint receiver_addr;
+  ASSERT_THAT(receiver.GetLocalAddress(&receiver_addr), IsOk());
+
+  // Receiver calls ReadMultiple when NO data is available yet.
+  constexpr size_t kMaxPacketSize = 100;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(200);
+
+  base::test::TestFuture<base::expected<DatagramsMetadata, Error>> future;
+
+  auto rv_read = receiver.ReadMultiple(read_buf.get(), read_buf->span().size(),
+                                       kMaxPacketSize, future.GetCallback());
+
+  // It MUST be async because we haven't sent anything yet.
+  ASSERT_FALSE(rv_read.has_value());
+  ASSERT_EQ(rv_read.error(), ERR_IO_PENDING);
+
+  // Now sender sends data.
+  std::string packet("async_packet");
+  auto write_buf = base::MakeRefCounted<StringIOBuffer>(packet);
+  TestCompletionCallback write_callback;
+  int write_rv = sender.SendTo(write_buf.get(), write_buf->size(),
+                               receiver_addr, write_callback.callback());
+  ASSERT_EQ(write_callback.GetResult(write_rv), write_buf->size());
+
+  // Wait for callback.
+  base::expected<DatagramsMetadata, Error> read_result = future.Get();
+
+  ASSERT_TRUE(read_result.has_value());
+  ASSERT_GE(read_result.value().size(), 1u);
+  EXPECT_EQ(read_result.value()[0].length, packet.size());
+  EXPECT_EQ(read_result.value()[0].offset, 0u);
+
+  auto packet_span = read_buf->span().subspan(read_result.value()[0].offset,
+                                              read_result.value()[0].length);
+  EXPECT_EQ(base::as_string_view(packet_span), packet);
+}
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 }  // namespace net

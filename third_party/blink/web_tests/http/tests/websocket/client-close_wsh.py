@@ -1,8 +1,8 @@
 import struct
 
-from mod_pywebsocket import msgutil
-from mod_pywebsocket import stream
-from mod_pywebsocket import util
+from pywebsocket3 import msgutil
+from pywebsocket3 import stream
+from pywebsocket3 import util
 
 
 def web_socket_do_extra_handshake(request):

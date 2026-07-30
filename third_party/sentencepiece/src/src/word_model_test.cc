@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.!
 
+#include "word_model.h"
+
 #include <string>
 
 #include "sentencepiece_model.pb.h"
 #include "testharness.h"
 #include "util.h"
-#include "word_model.h"
 
 namespace sentencepiece {
 namespace word {

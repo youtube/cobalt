@@ -31,8 +31,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
-import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
 import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData.PriceDrop;
@@ -216,18 +214,8 @@ public class TabGridViewBinder {
             TabListViewBinderUtils.setNullableContextClickListener(
                     model.get(TabProperties.TAB_CONTEXT_CLICK_LISTENER), view, model);
         } else if (TabProperties.ACTOR_UI_STATE == propertyKey) {
-            UiTabState state = model.get(TabProperties.ACTOR_UI_STATE);
-            boolean shouldBeVisible =
-                    state != null
-                            && (state.tabIndicator == TabIndicatorStatus.DYNAMIC
-                                    || state.tabIndicator == TabIndicatorStatus.STATIC);
+            boolean shouldBeVisible = TabListViewBinderUtils.setupActorIndicator(model, view);
             ((TabGridView) view).setActorActiveUiVisible(shouldBeVisible);
-            if (shouldBeVisible) {
-                String title = model.get(TabProperties.TITLE);
-                String accessibilityDesc =
-                        view.getResources().getString(R.string.tab_ax_label_actor_accessing, title);
-                view.setContentDescription(accessibilityDesc);
-            }
         }
     }
 

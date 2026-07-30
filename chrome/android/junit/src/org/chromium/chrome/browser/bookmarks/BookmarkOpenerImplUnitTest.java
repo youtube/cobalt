@@ -5,23 +5,13 @@
 package org.chromium.chrome.browser.bookmarks;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Activity;
-import android.app.ActivityManager.AppTask;
-import android.app.Application;
 import android.content.ComponentName;
 import android.content.Intent;
-
-import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -32,13 +22,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 
-import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.ChromeTabbedActivity;
-import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
-import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
-import org.chromium.chrome.browser.tabwindow.TabWindowManager;
-import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.bookmarks.BookmarkItem;
 import org.chromium.components.bookmarks.BookmarkType;
@@ -52,9 +36,6 @@ public class BookmarkOpenerImplUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private BookmarkModel mBookmarkModel;
-    @Mock private TabWindowManager mTabWindowManager;
-    @Mock private ChromeTabbedActivity mChromeTabbedActivity;
-    @Mock private AppTask mAppTask;
 
     private Activity mActivity;
     private BookmarkOpenerImpl mOpener;
@@ -64,7 +45,6 @@ public class BookmarkOpenerImplUnitTest {
     @Before
     public void setUp() {
         mActivity = Robolectric.buildActivity(Activity.class).get();
-        TabWindowManagerSingleton.setTabWindowManagerForTesting(mTabWindowManager);
 
         mBookmarkId = new BookmarkId(1, BookmarkType.NORMAL);
         mBookmarkItem =
@@ -91,124 +71,20 @@ public class BookmarkOpenerImplUnitTest {
     }
 
     @Test
-    public void testOpenBookmarkInCurrentTab_routesToWindowInstance() {
-        int windowId = 2;
-        int taskId = 10;
-
-        // Stub TabWindowManager to return a valid window ID.
-        when(mTabWindowManager.getIdForWindow(mActivity)).thenReturn(windowId);
-
-        // Associate the window ID with a ChromeTabbedActivity and AppTask.
-        MultiWindowUtils.setActivityByWindowIdForTesting(windowId, mChromeTabbedActivity);
-        when(mChromeTabbedActivity.getTaskId()).thenReturn(taskId);
-        AndroidTaskUtils.setAppTaskForTesting(mAppTask);
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-
+    public void testOpenBookmarkInCurrentTab() {
         assertTrue(mOpener.openBookmarkInCurrentTab(mBookmarkId, false));
-
-        // Verify the intent was routed via AppTask.startActivity rather than Context.startActivity.
-        verify(mAppTask).startActivity(eq(ContextUtils.getApplicationContext()), any(), eq(null));
-        assertNull(shadowOf(mActivity).getNextStartedActivity());
-        assertNull(
-                shadowOf((Application) ApplicationProvider.getApplicationContext())
-                        .getNextStartedActivity());
-    }
-
-    @Test
-    public void testOpenBookmarkInCurrentTab_invalidWindowId_fallsBackToActivityContext() {
-        when(mTabWindowManager.getIdForWindow(mActivity))
-                .thenReturn(TabWindowManager.INVALID_WINDOW_ID);
-
-        assertTrue(mOpener.openBookmarkInCurrentTab(mBookmarkId, false));
-
-        // Verify no routing via AppTask.
-        verify(mAppTask, never())
-                .startActivity(eq(ContextUtils.getApplicationContext()), any(), eq(null));
-
-        // Verify the regression: launched via mActivity (Activity Context) instead of Application
-        // Context.
-        Intent startedIntent = shadowOf(mActivity).getNextStartedActivity();
-        assertNotNull(startedIntent);
-        assertNull(
-                shadowOf((Application) ApplicationProvider.getApplicationContext())
-                        .getNextStartedActivity());
-    }
-
-    @Test
-    public void testOpenBookmarkInCurrentTab_nonTabbedActivity_fallsBackToActivityContext() {
-        int windowId = 2;
-        Activity regularActivity = mock(Activity.class);
-
-        when(mTabWindowManager.getIdForWindow(mActivity)).thenReturn(windowId);
-        MultiWindowUtils.setActivityByWindowIdForTesting(windowId, regularActivity);
-
-        assertTrue(mOpener.openBookmarkInCurrentTab(mBookmarkId, false));
-
-        // Verify fallback is executed via Activity Context.
-        Intent startedIntent = shadowOf(mActivity).getNextStartedActivity();
-        assertNotNull(startedIntent);
-        assertNull(
-                shadowOf((Application) ApplicationProvider.getApplicationContext())
-                        .getNextStartedActivity());
-    }
-
-    @Test
-    public void testOpenBookmarksInNewTabs_routesToWindowInstance() {
-        int windowId = 2;
-        int taskId = 10;
-
-        when(mTabWindowManager.getIdForWindow(mActivity)).thenReturn(windowId);
-        MultiWindowUtils.setActivityByWindowIdForTesting(windowId, mChromeTabbedActivity);
-        when(mChromeTabbedActivity.getTaskId()).thenReturn(taskId);
-        AndroidTaskUtils.setAppTaskForTesting(mAppTask);
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-
-        assertTrue(
-                mOpener.openBookmarksInNewTabs(
-                        Collections.singletonList(mBookmarkId), /* incognito= */ false));
-
-        verify(mAppTask).startActivity(eq(ContextUtils.getApplicationContext()), any(), eq(null));
-        assertNull(shadowOf(mActivity).getNextStartedActivity());
-        assertNull(
-                shadowOf((Application) ApplicationProvider.getApplicationContext())
-                        .getNextStartedActivity());
-    }
-
-    @Test
-    public void testOpenBookmarksInNewTabs_invalidWindowId_fallsBackToActivityContext() {
-        when(mTabWindowManager.getIdForWindow(mActivity))
-                .thenReturn(TabWindowManager.INVALID_WINDOW_ID);
-
-        assertTrue(
-                mOpener.openBookmarksInNewTabs(
-                        Collections.singletonList(mBookmarkId), /* incognito= */ false));
-
-        verify(mAppTask, never())
-                .startActivity(eq(ContextUtils.getApplicationContext()), any(), eq(null));
 
         Intent startedIntent = shadowOf(mActivity).getNextStartedActivity();
         assertNotNull(startedIntent);
-        assertNull(
-                shadowOf((Application) ApplicationProvider.getApplicationContext())
-                        .getNextStartedActivity());
     }
 
     @Test
-    public void testOpenBookmarksInNewTabs_nonTabbedActivity_fallsBackToActivityContext() {
-        int windowId = 2;
-        Activity regularActivity = mock(Activity.class);
-
-        when(mTabWindowManager.getIdForWindow(mActivity)).thenReturn(windowId);
-        MultiWindowUtils.setActivityByWindowIdForTesting(windowId, regularActivity);
-
+    public void testOpenBookmarksInNewTabs() {
         assertTrue(
                 mOpener.openBookmarksInNewTabs(
                         Collections.singletonList(mBookmarkId), /* incognito= */ false));
 
         Intent startedIntent = shadowOf(mActivity).getNextStartedActivity();
         assertNotNull(startedIntent);
-        assertNull(
-                shadowOf((Application) ApplicationProvider.getApplicationContext())
-                        .getNextStartedActivity());
     }
 }

@@ -11,7 +11,7 @@ import {loadTimeData, MetricsBrowserProxyImpl} from 'chrome://settings/settings.
 import type {CrInputElement, SettingsCreditCardEditDialogElement, SettingsIbanEditDialogElement, SettingsPaymentsSectionElement} from 'chrome://settings/lazy_load.js';
 import {PaymentsManagerImpl} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise, isVisible, microtasksFinished, whenAttributeIs} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, microtasksFinished, whenAttributeIs} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {createCreditCardEntry, createIbanEntry, TestPaymentsManager} from './autofill_fake_data.js';
@@ -599,50 +599,6 @@ suite('PaymentsSectionCreditCardEditDialogTest', function() {
     assertFalse(saveButton!.disabled);
   });
 
-  test('only show nickname character count when focused', async function() {
-    const creditCardDialog = await createAddCreditCardDialogFromDropdown();
-
-    // Wait for the dialog to open.
-    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
-
-    const nicknameInput =
-        creditCardDialog.shadowRoot!.querySelector<CrInputElement>(
-            '#nicknameInput');
-    assertTrue(!!nicknameInput);
-    const characterCount =
-        creditCardDialog.shadowRoot!.querySelector<HTMLElement>('#charCount')!;
-    // Character count is not shown when add card dialog is open (not focusing
-    // on nickname input field).
-    assertFalse(isVisible(characterCount));
-
-    // User clicks on nickname input.
-    nicknameInput.focus();
-    // Character count is shown when nickname input field is focused.
-    assertTrue(isVisible(characterCount));
-    // For new card, the nickname is unset.
-    assertTrue(characterCount.textContent.includes('0/25'));
-
-    // User types in one character. Ensure the character count is dynamically
-    // updated.
-    await typeInNickname(nicknameInput, 'a');
-    assertTrue(characterCount.textContent.includes('1/25'));
-    // User types in total 5 characters.
-    await typeInNickname(nicknameInput, 'abcde');
-    assertTrue(characterCount.textContent.includes('5/25'));
-
-    // User click outside of nickname input, the character count isn't shown.
-    nicknameInput.blur();
-    await nicknameInput.updateComplete;
-    assertFalse(isVisible(characterCount));
-
-    // User clicks on nickname input again.
-    nicknameInput.focus();
-    await nicknameInput.updateComplete;
-    // Character count is shown when nickname input field is re-focused.
-    assertTrue(isVisible(characterCount));
-    assertTrue(characterCount.textContent.includes('5/25'));
-  });
-
   test('expired card', async function() {
     const creditCard = createCreditCardEntry();
     // Set the expiration year to the previous year to simulate expired card.
@@ -718,23 +674,8 @@ suite('PaymentsSectionCreditCardEditDialogTest', function() {
 
     const nicknameInput = ibanDialog.$.nicknameInput;
     const valueInput = ibanDialog.$.valueInput;
-    const characterCount =
-        ibanDialog.shadowRoot!.querySelector<HTMLElement>('#charCount');
 
-    assertTrue(!!characterCount);
-    assertFalse(isVisible(characterCount));
-    // User clicks on nickname input.
-    nicknameInput.focus();
-    // Character count is shown when nickname input field is focused.
-    assertTrue(isVisible(characterCount));
-    // For new IBAN, the nickname is unset.
-    assertTrue(characterCount.textContent.includes('0/25'));
-
-    // Fill in IBAN value and nickname, and trigger the on-input handler.
-    nicknameInput.value = 'My doctor\'s IBAN';
-    await nicknameInput.updateComplete;
-    assertTrue(characterCount.textContent.includes('16/25'));
-
+    await typeInNickname(nicknameInput, 'My doctor\'s IBAN');
     valueInput.value = 'IT60X0542811101000000123456';
 
     // IBAN validation is asynchronous, so wait for it to complete and the save

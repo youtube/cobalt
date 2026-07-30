@@ -89,7 +89,6 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
         }
 
         CustomTabAuthUrlHeuristics.recordUrlParamsHistogram(intentDataProvider.getUrlToLoad());
-        CustomTabAuthUrlHeuristics.recordRedirectUriSchemeHistogram(intentDataProvider);
     }
 
     // The hidden tab case needs a bit of special treatment.

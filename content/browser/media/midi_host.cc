@@ -13,7 +13,7 @@
 #include "base/trace_event/trace_event.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/browser_main_loop.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_process_host.h"
 #include "media/midi/message_util.h"

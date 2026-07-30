@@ -94,6 +94,7 @@
 #import "ios/chrome/browser/https_upgrades/model/https_upgrade_service_factory.h"
 #import "ios/chrome/browser/image_fetcher/model/image_fetcher_service_factory.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_capabilities_manager_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/page_content_cache_service_factory.h"
 #import "ios/chrome/browser/invalidation/model/ios_chrome_profile_invalidation_provider_factory.h"
@@ -319,6 +320,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   DownloadFileServiceFactory::GetInstance();
   DownloadRecordServiceFactory::GetInstance();
   ExternalFileRemoverFactory::GetInstance();
+  GeminiCapabilitiesManagerFactory::GetInstance();
   GeminiServiceFactory::GetInstance();
   GoogleGroupsManagerFactory::GetInstance();
   GoogleLogoServiceFactory::GetInstance();

@@ -173,8 +173,11 @@ std::optional<uint32_t> RTCEncodedAudioFrameDelegate::Ssrc() const {
 
 std::optional<uint8_t> RTCEncodedAudioFrameDelegate::PayloadType() const {
   base::AutoLock lock(lock_);
-  return webrtc_frame_ ? std::make_optional(webrtc_frame_->GetPayloadType())
-                       : post_neuter_metadata_.payload_type;
+  if (webrtc_frame_) {
+    return static_cast<uint8_t>(webrtc_frame_->GetPayloadType());
+  } else {
+    return post_neuter_metadata_.payload_type;
+  }
 }
 
 std::optional<std::string> RTCEncodedAudioFrameDelegate::MimeType() const {
@@ -261,7 +264,8 @@ RTCEncodedAudioFrameDelegate::PassWebRtcFrame() {
   if (base::FeatureList::IsEnabled(kWebRtcEncodedTransformRememberMetadata) &&
       webrtc_frame_) {
     post_neuter_metadata_.ssrc = webrtc_frame_->GetSsrc();
-    post_neuter_metadata_.payload_type = webrtc_frame_->GetPayloadType();
+    post_neuter_metadata_.payload_type =
+        static_cast<uint8_t>(webrtc_frame_->GetPayloadType());
     post_neuter_metadata_.mime_type = webrtc_frame_->GetMimeType();
     post_neuter_metadata_.receive_time = ComputeReceiveTime();
     post_neuter_metadata_.capture_time_info = ComputeCaptureTime();

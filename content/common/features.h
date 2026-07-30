@@ -67,7 +67,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kCachedFirstRectAllowInvalidSelection);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCancelCompositionWhenWindowLosesFocus);
 #endif  // BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCDPScreenshotNewSurface);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kCompositeClipPathAnimation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCodeCacheDeletionWithoutFilter);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCopyFromSurfaceAlwaysCallCallback);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCriticalClientHint);
@@ -214,9 +213,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kPartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSandboxedProcessServiceLimitOnAndroid);
-CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    int,
-    kSandboxedProcessServiceLimitOnAndroidCount);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kScrollAfterOSKViewportShrinkFix);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSanitizeLocationHeadersDuringNavigation);

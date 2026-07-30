@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/command_line.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/screens/marketing_opt_in_screen.h"

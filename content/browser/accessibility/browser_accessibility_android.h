@@ -82,6 +82,10 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   bool IsVisibleToUser() const;
   bool ShouldUsePaneTitle() const;
 
+  const std::string& GetMathTag() const;
+  const std::string& GetMathIntent() const;
+  const std::string& GetMathArg() const;
+
   // This returns true for all nodes that we should navigate to.
   // Nodes that have a generic role, no accessible name, and aren't
   // focusable or clickable aren't interesting.

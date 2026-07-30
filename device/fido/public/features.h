@@ -151,10 +151,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kWebAuthnImmediateMediationTimeoutMilliseconds);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnIWARemoteDesktopAllowedOriginsPolicy);
 
-// Sends a PIN generation number to the enclave on a PIN wrapping request.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnSendPinGeneration);
-
 // Enables to save keys from out of context ("opportunistic") retrieval.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnOpportunisticRetrieval);
@@ -201,6 +197,10 @@ BASE_DECLARE_FEATURE(kWebAuthnGpmPinResetUsesAccountIndex);
 // Omit unused parameters when building requests to the cloud enclave.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnStripUnusedEnclaveParameters);
+
+// Enables the new embedded recovery URL for GPM keychain recovery.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE(kWebAuthnGpmPasskeyEmbeddedRecoveryUrl);
 
 }  // namespace device
 

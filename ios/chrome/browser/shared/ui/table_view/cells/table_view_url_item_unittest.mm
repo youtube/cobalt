@@ -9,7 +9,6 @@
 #import "components/url_formatter/elide_url.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "net/base/apple/url_conversions.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -33,9 +32,7 @@ TEST_F(TableViewURLItemTest, TextLabels) {
 
   LegacyTableViewCell* cell = [[LegacyTableViewCell alloc] init];
   ASSERT_EQ([item cellClass], cell.class);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   ASSERT_TRUE([cell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);
@@ -64,9 +61,7 @@ TEST_F(TableViewURLItemTest, ThirdRowText) {
 
   LegacyTableViewCell* cell = [[LegacyTableViewCell alloc] init];
   ASSERT_EQ([item cellClass], cell.class);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureCell:cell withStyler:styler];
+  [item configureCell:cell];
 
   ASSERT_TRUE([cell.contentConfiguration
       isMemberOfClass:TableViewCellContentConfiguration.class]);

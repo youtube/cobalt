@@ -124,7 +124,7 @@ void ShowIntentPickerBubbleForApps(
     return;
   }
 
-  browser->GetBrowserForMigrationOnly()->window()->ShowIntentPickerBubble(
+  BrowserWindow::FromBrowser(browser)->ShowIntentPickerBubble(
       std::move(apps), show_stay_in_chrome, show_remember_selection,
       apps::IntentPickerBubbleType::kLinkCapturing, std::nullopt,
       std::move(callback));
@@ -365,7 +365,7 @@ void IntentPickerTabHelper::ShowOrHideIconInternal(bool should_show_icon) {
         tabs::TabInterface::GetFromContents(&GetWebContents());
     UpdatePageAction(tab_interface, should_show_icon);
   } else {
-    browser->GetBrowserForMigrationOnly()->window()->UpdatePageActionIcon(
+    BrowserWindow::FromBrowser(browser)->UpdatePageActionIcon(
         PageActionIconType::kIntentPicker);
   }
 

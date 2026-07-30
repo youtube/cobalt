@@ -9,9 +9,4 @@ This is a testharness.js-based test.
   assert_true: link-parameters doesn't seem to be supported in the computed style expected true got false
 [FAIL] Property link-parameters value 'param(--a, ), param(--b, )'
   assert_true: link-parameters doesn't seem to be supported in the computed style expected true got false
-[FAIL] Property link-parameters value 'param(--a)'
-  assert_true: link-parameters doesn't seem to be supported in the computed style expected true got false
-[FAIL] Property link-parameters value 'param(--a), param(--b)'
-  assert_true: link-parameters doesn't seem to be supported in the computed style expected true got false
 Harness: the test ran to completion.
-

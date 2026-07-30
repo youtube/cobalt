@@ -98,7 +98,8 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(
       prefs::kGlicSelectionHotkey,
       ui::Command::AcceleratorToString(
-          GlicLauncherConfiguration::GetDefaultSelectionHotkey()));
+          LocalHotkeyManager::GetDefaultAccelerator(
+              LocalHotkeyManager::Command::kCaptureRegion)));
   registry->RegisterStringPref(
       prefs::kGlicFocusToggleHotkey,
       ui::Command::AcceleratorToString(

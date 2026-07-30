@@ -180,6 +180,9 @@ public class EphemeralTabSheetContent implements BottomSheetContent {
 
         mToolbarView.setOnClickListener(view -> mToolbarClickCallback.run());
 
+        View dragHandlebar = mToolbarView.findViewById(R.id.drag_handlebar);
+        dragHandlebar.setOnClickListener(view -> mToolbarClickCallback.run());
+
         View closeButton = mToolbarView.findViewById(R.id.close);
         closeButton.setOnClickListener(view -> mCloseButtonCallback.run());
 

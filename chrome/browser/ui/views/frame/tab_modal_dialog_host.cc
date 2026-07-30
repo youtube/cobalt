@@ -57,7 +57,7 @@ gfx::Point TabModalDialogHost::GetDialogPosition(const gfx::Size& dialog_size) {
   const int dialog_starting_x = std::max(middle_x - dialog_size.width() / 2, 0);
   return gfx::Point(
       std::min(dialog_starting_x, browser_view_->width() - dialog_size.width()),
-      GetDialogYCoordinate(contents_container_view_coordinates_in_browser,
+      GetDialogYCoordinate(contents_container_view_coordinates_in_browser.y(),
                            dialog_size.height()));
 }
 
@@ -92,15 +92,17 @@ gfx::Size TabModalDialogHost::GetMaximumDialogSize() {
   // crbug.com/364463378, crbug.com/369739216, crbug.com/363205507.
   // TODO(crbug.com/334413759, crbug.com/346974105): use desktop widgets
   // universally.
-  gfx::Rect content_area = contents_container_view_->ConvertRectToWidget(
-      contents_container_view_->GetLocalBounds());
+  views::View* contents_container = browser_view_->contents_container();
+  gfx::Rect contents_container_area = contents_container->ConvertRectToWidget(
+      contents_container->GetLocalBounds());
   // Use the browser view's entire contents container width as the maximum
   // dialog size instead of the content_area's width to prevent the dialogs from
   // clipping when the content_area becomes too small for the dialog. This will
   // cause the dialog to extend beyond its corresponding content_area but remain
   // the bounds of the browser view contents container.
-  return gfx::Size(browser_view_->contents_container()->width(),
-                   content_area.bottom() - GetToolbarOverlappingYCoordinate());
+  return gfx::Size(
+      browser_view_->contents_container()->width(),
+      contents_container_area.bottom() - GetToolbarOverlappingYCoordinate());
 }
 
 void TabModalDialogHost::OnViewAddedToWidget(views::View* observed_view) {
@@ -132,9 +134,8 @@ int TabModalDialogHost::GetToolbarOverlappingYCoordinate() {
   return toolbar_coordinates_in_browser.bottom() - kConstrainedWindowOverlap;
 }
 
-int TabModalDialogHost::GetDialogYCoordinate(
-    const gfx::Rect& contents_container_view_coordinates_in_browser,
-    int dialog_height) {
+int TabModalDialogHost::GetDialogYCoordinate(int contents_container_view_y,
+                                             int dialog_height) {
   if (IsBottomTabInSplit()) {
     // For the bottom tab of a stacked split, have the dialog overlap half of
     // the resize handle.
@@ -143,11 +144,12 @@ int TabModalDialogHost::GetDialogYCoordinate(
          MultiContentsResizeArea::kHandleResizeAxisSize) /
         2;
     // If the contents view is too small, move the dialog up so that it doesn't
-    // extend past the bttom of the contents.
-    int max_y_coordinate =
-        contents_container_view_coordinates_in_browser.bottom() - dialog_height;
-    return std::min(contents_container_view_coordinates_in_browser.y() -
-                        resize_area_overlap,
+    // extend past the bottom of the browser window.
+    views::View* contents_container = browser_view_->contents_container();
+    gfx::Rect contents_container_area = contents_container->ConvertRectToWidget(
+        contents_container->GetLocalBounds());
+    int max_y_coordinate = contents_container_area.bottom() - dialog_height;
+    return std::min(contents_container_view_y - resize_area_overlap,
                     max_y_coordinate);
   }
   return GetToolbarOverlappingYCoordinate();

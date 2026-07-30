@@ -25,8 +25,7 @@ class WebContents;
 // bar icon (the "quiet" prompt).
 class PermissionPromptDesktop : public permissions::PermissionPrompt {
  public:
-  PermissionPromptDesktop(Browser* browser,
-                          content::WebContents* web_contents,
+  PermissionPromptDesktop(content::WebContents* web_contents,
                           Delegate* delegate);
 
   PermissionPromptDesktop(const PermissionPromptDesktop&) = delete;

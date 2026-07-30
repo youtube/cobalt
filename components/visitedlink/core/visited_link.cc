@@ -28,4 +28,8 @@ bool VisitedLink::IsValid() const {
          !frame_origin.opaque();
 }
 
+VisitedLink CreatePseudoPartitionedLink(const GURL& url) {
+  return VisitedLink(url, net::SchemefulSite(url), url::Origin::Create(url));
+}
+
 }  // namespace visitedlink

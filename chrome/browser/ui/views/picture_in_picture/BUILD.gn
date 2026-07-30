@@ -9,6 +9,7 @@ assert(!is_android)
 source_set("picture_in_picture") {
   public = [
     "document_pip_contents_view.h",
+    "document_pip_dialog_manager_delegate.h",
     "document_pip_frame_view.h",
     "document_pip_host.h",
     "document_pip_widget_delegate.h",
@@ -18,6 +19,7 @@ source_set("picture_in_picture") {
 
   sources = [
     "document_pip_contents_view.cc",
+    "document_pip_dialog_manager_delegate.cc",
     "document_pip_frame_view.cc",
     "document_pip_host.cc",
     "document_pip_widget_delegate.cc",
@@ -43,6 +45,7 @@ source_set("picture_in_picture") {
     "//chrome/browser/ui/content_settings",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/page_info",
+    "//components/javascript_dialogs",
     "//components/omnibox/browser:location_bar",
     "//components/page_load_metrics/browser",
     "//components/security_state/content",
@@ -53,6 +56,7 @@ source_set("picture_in_picture") {
     "//ui/base",
     "//ui/base/metadata",
     "//ui/display",
+    "//ui/strings",
     "//ui/views/controls/webview",
   ]
 
@@ -68,6 +72,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "document_pip_contents_view_unittest.cc",
+    "document_pip_dialog_manager_delegate_unittest.cc",
     "document_pip_frame_view_unittest.cc",
     "document_pip_host_unittest.cc",
     "document_pip_widget_delegate_unittest.cc",
@@ -83,6 +88,7 @@ source_set("unit_tests") {
     "//chrome/browser/ui/views/page_info",
     "//chrome/test:test_support",
     "//components/input",
+    "//components/javascript_dialogs",
     "//content/public/browser",
     "//content/test:test_support",
     "//testing/gtest",

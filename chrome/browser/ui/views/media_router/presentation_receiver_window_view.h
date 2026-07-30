@@ -74,8 +74,9 @@ class PresentationReceiverWindowView final
       final;
 
   // CommandUpdaterDelegate overrides.
-  void ExecuteCommandWithDisposition(int id,
-                                     WindowOpenDisposition disposition) final;
+  void HandleCommandWithDisposition(int id,
+                                    WindowOpenDisposition disposition,
+                                    base::TimeTicks time_stamp) final;
 
   // ChromeLocationBarModelDelegate overrides.
   content::WebContents* GetActiveWebContents() const final;

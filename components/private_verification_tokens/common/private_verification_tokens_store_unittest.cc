@@ -196,12 +196,210 @@ TEST_F(PrivateVerificationTokensStoreTest,
   EXPECT_EQ(keys.at("c.eee"), store->public_keys().at("c.eee"));
 
   store.reset();
+  base::ThreadPoolInstance::Get()->FlushForTesting();
   // re-read database and check
   sql::Database database(sql::test::kTestTag);
   EXPECT_TRUE(database.Open(database_path));
   // Verify that all stored tokens remain in the database.
   VerifyTableRowCount(database, kTokenTableName, 5u);
   VerifyTableRowCount(database, kKeyTableName, 3u);
+}
+
+TEST_F(PrivateVerificationTokensStoreTest, DeleteAllTokens_Success) {
+  const base::FilePath database_path = DbPath(TempDir());
+  std::map<std::string, PrivateVerificationTokensPublicKey> keys;
+  std::map<std::string, std::vector<PrivateVerificationTokensToken>> tokens;
+  CreateTestData(keys, tokens);
+  StoreInDatabase(database_path, keys, tokens);
+
+  CreateStore(database_path);
+  ASSERT_EQ(store()->tokens().size(), 3u);
+
+  store()->DeleteAllTokens();
+  // Cache should be cleared immediately.
+  EXPECT_EQ(store()->tokens().size(), 0u);
+
+  // Wait for the async db call to finish.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // Verify memory cache is still empty.
+  EXPECT_EQ(store()->tokens().size(), 0u);
+
+  store_.reset();
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // Re-read database and check that it's empty in DB as well.
+  sql::Database database(sql::test::kTestTag);
+  EXPECT_TRUE(database.Open(database_path));
+  VerifyTableRowCount(database, kTokenTableName, 0u);
+  // Keys should still be there.
+  VerifyTableRowCount(database, kKeyTableName, 3u);
+}
+
+TEST_F(PrivateVerificationTokensStoreTest, DeleteTokens_TimeOnly) {
+  const base::FilePath database_path = DbPath(TempDir());
+  std::map<std::string, PrivateVerificationTokensPublicKey> keys;
+
+  const auto expiration = base::Time::UnixEpoch() + base::Seconds(27);
+  base::Time t1 = base::Time::UnixEpoch() + base::Seconds(10);
+  base::Time t2 = base::Time::UnixEpoch() + base::Seconds(20);
+
+  keys = {
+      {"a.com",
+       PrivateVerificationTokensPublicKey("a.com", {1, 2, 3}, /*key_id=*/3,
+                                          expiration, /*version=*/1)},
+      {"b.tri",
+       PrivateVerificationTokensPublicKey("b.tri", {4, 5, 6}, /*key_id=*/4,
+                                          expiration, /*version=*/2)},
+  };
+
+  std::map<std::string, std::vector<PrivateVerificationTokensToken>> tokens = {
+      {"a.com",
+       {PrivateVerificationTokensToken("a.com", {11, 22, 33}, /*key_id=*/3,
+                                       expiration, /*version=*/3,
+                                       /*creation_time=*/t1)}},
+      {"b.tri",
+       {PrivateVerificationTokensToken("b.tri", {11, 22, 55}, /*key_id=*/3,
+                                       expiration, /*version=*/3,
+                                       /*creation_time=*/t2)}},
+  };
+
+  StoreInDatabase(database_path, keys, tokens);
+
+  CreateStore(database_path);
+  ASSERT_EQ(store()->tokens().size(), 2u);
+
+  // Delete tokens created on/after t2.
+  base::test::TestFuture<void> future;
+  store()->DeleteTokens(t2, std::nullopt, future.GetCallback());
+  EXPECT_TRUE(future.Wait());
+
+  // "b.tri" token was created at t2, so it should be gone.
+  EXPECT_EQ(store()->tokens().size(), 1u);
+  EXPECT_TRUE(store()->tokens().contains("a.com"));
+  EXPECT_FALSE(store()->tokens().contains("b.tri"));
+
+  // Reset store to close DB connection before reading DB.
+  store_.reset();
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // Re-read DB.
+  {
+    sql::Database database(sql::test::kTestTag);
+    ASSERT_TRUE(database.Open(database_path));
+    VerifyTableRowCount(database, kTokenTableName, 1u);
+  }
+}
+
+TEST_F(PrivateVerificationTokensStoreTest, DeleteTokens_OriginOnly) {
+  const base::FilePath database_path = DbPath(TempDir());
+  std::map<std::string, PrivateVerificationTokensPublicKey> keys;
+
+  const auto expiration = base::Time::UnixEpoch() + base::Seconds(27);
+  base::Time t1 = base::Time::UnixEpoch() + base::Seconds(10);
+  base::Time t2 = base::Time::UnixEpoch() + base::Seconds(20);
+
+  keys = {
+      {"a.com",
+       PrivateVerificationTokensPublicKey("a.com", {1, 2, 3}, /*key_id=*/3,
+                                          expiration, /*version=*/1)},
+      {"b.tri",
+       PrivateVerificationTokensPublicKey("b.tri", {4, 5, 6}, /*key_id=*/4,
+                                          expiration, /*version=*/2)},
+  };
+
+  std::map<std::string, std::vector<PrivateVerificationTokensToken>> tokens = {
+      {"a.com",
+       {PrivateVerificationTokensToken("a.com", {11, 22, 33}, /*key_id=*/3,
+                                       expiration, /*version=*/3,
+                                       /*creation_time=*/t1)}},
+      {"b.tri",
+       {PrivateVerificationTokensToken("b.tri", {11, 22, 55}, /*key_id=*/3,
+                                       expiration, /*version=*/3,
+                                       /*creation_time=*/t2)}},
+  };
+
+  StoreInDatabase(database_path, keys, tokens);
+
+  CreateStore(database_path);
+  ASSERT_EQ(store()->tokens().size(), 2u);
+
+  // Delete by site.
+  base::test::TestFuture<void> future;
+  store()->DeleteTokens(std::nullopt, "b.tri", future.GetCallback());
+  EXPECT_TRUE(future.Wait());
+
+  // "b.tri" token should be gone.
+  EXPECT_EQ(store()->tokens().size(), 1u);
+  EXPECT_TRUE(store()->tokens().contains("a.com"));
+  EXPECT_FALSE(store()->tokens().contains("b.tri"));
+
+  // Reset store to close DB connection before reading DB.
+  store_.reset();
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // Re-read DB.
+  {
+    sql::Database database(sql::test::kTestTag);
+    ASSERT_TRUE(database.Open(database_path));
+    VerifyTableRowCount(database, kTokenTableName, 1u);
+  }
+}
+
+TEST_F(PrivateVerificationTokensStoreTest, DeleteTokens_TimeAndOrigin) {
+  const base::FilePath database_path = DbPath(TempDir());
+  std::map<std::string, PrivateVerificationTokensPublicKey> keys;
+
+  const auto expiration = base::Time::UnixEpoch() + base::Seconds(27);
+  base::Time t1 = base::Time::UnixEpoch() + base::Seconds(10);
+  base::Time t2 = base::Time::UnixEpoch() + base::Seconds(20);
+
+  keys = {
+      {"a.com",
+       PrivateVerificationTokensPublicKey("a.com", {1, 2, 3}, /*key_id=*/3,
+                                          expiration, /*version=*/1)},
+      {"b.tri",
+       PrivateVerificationTokensPublicKey("b.tri", {4, 5, 6}, /*key_id=*/4,
+                                          expiration, /*version=*/2)},
+  };
+
+  std::map<std::string, std::vector<PrivateVerificationTokensToken>> tokens = {
+      {"a.com",
+       {PrivateVerificationTokensToken("a.com", {11, 22, 33}, /*key_id=*/3,
+                                       expiration, /*version=*/3,
+                                       /*creation_time=*/t1)}},
+      {"b.tri",
+       {PrivateVerificationTokensToken("b.tri", {11, 22, 55}, /*key_id=*/3,
+                                       expiration, /*version=*/3,
+                                       /*creation_time=*/t2)}},
+  };
+
+  StoreInDatabase(database_path, keys, tokens);
+
+  CreateStore(database_path);
+  ASSERT_EQ(store()->tokens().size(), 2u);
+
+  // Delete by time and site.
+  // Delete tokens created on/after t1 for "a.com".
+  base::test::TestFuture<void> future;
+  store()->DeleteTokens(t1, "a.com", future.GetCallback());
+  EXPECT_TRUE(future.Wait());
+
+  // "a.com" token was created at t1, so it should be gone.
+  EXPECT_EQ(store()->tokens().size(), 1u);
+  EXPECT_FALSE(store()->tokens().contains("a.com"));
+  EXPECT_TRUE(store()->tokens().contains("b.tri"));
+
+  // Reset store to close DB connection before reading DB.
+  store_.reset();
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // Re-read DB.
+  {
+    sql::Database database(sql::test::kTestTag);
+    ASSERT_TRUE(database.Open(database_path));
+    VerifyTableRowCount(database, kTokenTableName, 1u);
+  }
 }
 
 }  // namespace

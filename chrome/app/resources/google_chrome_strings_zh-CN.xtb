@@ -60,6 +60,17 @@
 <translation id="1587223624401073077">Google Chrome 正在使用您的摄像头。</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> 存在危险，因此 Chrome 已将其拦截。</translation>
 <translation id="1597911401261118146">若要检查您的密码是否未曾遭遇数据泄露和其他安全问题，请<ph name="BEGIN_LINK" />登录 Chrome<ph name="END_LINK" />。</translation>
+<translation id="1619639070275605589">此操作将会：
+          <ph name="LINE_BREAKS" />
+            • 重置启动页、新标签页、搜索引擎和固定标签页
+            <ph name="LINE_BREAK" />
+            • 停用扩展程序
+            <ph name="LINE_BREAK" />
+            • 删除 Cookie 和其他临时网站数据
+            <ph name="LINE_BREAK" />
+            • 重置 Chrome 快捷方式
+            <ph name="LINE_BREAKS" />
+            书签、历史记录和已保存的密码不会受到影响。</translation>
 <translation id="1619887657840448962">为了提高 Chrome 的安全性，我们停用了以下扩展程序（该扩展程序未列在<ph name="IDS_EXTENSION_WEB_STORE_TITLE" />中，并且可能是在您不知情的情况下添加的）。</translation>
 <translation id="1628000112320670027">获取有关 Chrome 的帮助</translation>
 <translation id="1640672724030957280">正在下载...</translation>
@@ -240,6 +251,7 @@
 <translation id="345171907106878721">将您自己添加到Chrome</translation>
 <translation id="3453763134178591239">Chrome 操作系统条款</translation>
 <translation id="3503306920980160878">Chrome 需要获得位置权限，才能将您的位置信息共享给此网站</translation>
+<translation id="3512495006767217696">内置于 Chrome 中，可帮助您创建、保存和自动填充安全系数高的密码。添加快捷方式，访问更轻松</translation>
 <translation id="3539955434060988644">在 Chrome 无痕式窗口中打开链接(&amp;G)</translation>
 <translation id="3576528680708590453">您的系统管理员已将 Google Chrome 配置为使用备用浏览器访问 <ph name="TARGET_URL_HOSTNAME" />。</translation>
 <translation id="3582972582564653026">在所有设备上同步并设置个性化的 Chrome</translation>
@@ -332,6 +344,7 @@
 <translation id="4493028449971051158">启动错误：请以管理员身份运行安装程序。</translation>
 <translation id="4501471624619070934">由于在此国家/地区的访问权限遭到限制，安装失败。</translation>
 <translation id="4571503333518166079">转到 Chrome 通知设置</translation>
+<translation id="4580939929828762295">使用 Google 密码管理工具确保安全</translation>
 <translation id="4592634244097223647">向 Google 询问此图片</translation>
 <translation id="459622048091363950">一旦 Chrome 获得了使用权限，网站便能请求您向其授予使用权限。</translation>
 <translation id="4598116752460667024">从列表中搜索任何进程。</translation>
@@ -516,6 +529,7 @@
 <translation id="6438015621983209660">借助 Chrome 在手机上使用增强型安全浏览功能</translation>
 <translation id="6442774133615368941">在 iOS 版 Chrome 应用中，借助摄像头轻松购买、翻译和识别所见内容</translation>
 <translation id="6448835208126432197">可以使用键盘快捷键在 Chrome 中的 Gemini 中选择屏幕上的部分内容。</translation>
+<translation id="6473659734176498825">这张简图展示了 Chrome 中 Google 密码管理工具的入口点</translation>
 <translation id="6473905796280459355">前往“关于 Chrome”页面</translation>
 <translation id="6481963882741794338">关联 Chrome 和其他 Google 服务，以便获得个性化体验和实现其他用途</translation>
 <translation id="648319183876919572">“增强型安全浏览”功能有助于保护您免受危险的网站及下载内容的侵害</translation>
@@ -772,6 +786,15 @@
 <translation id="8922998289262614701">从 Chrome 中移除此应用的数据</translation>
 <translation id="8925636929359899517">我们会使用这些信息来改进此服务。请参阅<ph name="BEGIN_LINK1" />《隐私权政策》<ph name="END_LINK1" />和<ph name="BEGIN_LINK2" />《服务条款》<ph name="END_LINK2" />。</translation>
 <translation id="8936233353620149764">在 Chrome 中开启/关闭 Gemini</translation>
+<translation id="8944232836376404813">此操作将会：
+          <ph name="LINE_BREAKS" />
+            • 重置启动页、新标签页、搜索引擎和固定标签页
+            <ph name="LINE_BREAK" />
+            • 停用扩展程序
+            <ph name="LINE_BREAK" />
+            • 删除 Cookie 和其他临时网站数据
+            <ph name="LINE_BREAKS" />
+            书签、历史记录和已保存的密码不会受到影响。</translation>
 <translation id="8948460679427074738">此扩展程序尚未发布隐私权规范，例如如何收集和使用数据。Chrome 建议您移除它。</translation>
 <translation id="8958307504142971576">您现在可以在 Chrome 中使用更多功能了</translation>
 <translation id="8991530961471831170">打开 Chrome 中的 Gemini</translation>

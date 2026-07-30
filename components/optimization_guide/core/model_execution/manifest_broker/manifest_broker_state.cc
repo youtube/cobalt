@@ -19,9 +19,11 @@
 #include "base/trace_event/trace_event.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest_solution_factory.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest_validation.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
+#include "components/prefs/pref_service.h"
 
 namespace optimization_guide {
 
@@ -287,6 +289,11 @@ void ManifestBrokerState::GetStateInfo(
   base::Extend(result->properties, manifest_monitor_.GetBrokerProperties());
   result->use_cases = model_broker_impl_.GetBrokerUseCaseInfo();
 
+  result->model_crash_count = local_state_->GetInteger(
+      model_execution::prefs::localstate::kOnDeviceModelCrashCount);
+  result->max_model_crash_count =
+      optimization_guide::features::GetOnDeviceModelCrashCountBeforeDisable();
+
   std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
       models_with_paths;
   if (asset_manager_) {
@@ -320,6 +327,11 @@ void ManifestBrokerState::SetUseCaseRequested(const std::string& use_case,
 
 void ManifestBrokerState::UninstallModels() {
   asset_manager_->UninstallModels();
+}
+
+void ManifestBrokerState::ResetModelCrashCount() {
+  local_state_->SetInteger(
+      model_execution::prefs::localstate::kOnDeviceModelCrashCount, 0);
 }
 
 }  // namespace optimization_guide

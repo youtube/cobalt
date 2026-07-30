@@ -146,4 +146,67 @@ optimization_guide::proto::
   NOTREACHED();
 }
 
+actor::mojom::ActionResultCode LoginErrorToActorResult(
+    ActorLoginError login_error) {
+  switch (login_error) {
+    case ActorLoginError::kServiceBusy:
+      return actor::mojom::ActionResultCode::kLoginTooManyRequests;
+    case ActorLoginError::kInvalidTabInterface:
+      return actor::mojom::ActionResultCode::kTabWentAway;
+    case ActorLoginError::kFillingNotAllowed:
+      return actor::mojom::ActionResultCode::kLoginFillingNotAllowed;
+    case ActorLoginError::kFeatureDisabled:
+      return actor::mojom::ActionResultCode::kLoginFeatureDisabled;
+  }
+}
+
+actor::mojom::ActionResultCode LoginResultToActorResult(
+    LoginStatusResult login_result) {
+  // TODO(crbug.com/427817201): Re-assess whether all success statuses should
+  // map to kOk or if differentiation is needed.
+  switch (login_result) {
+    case LoginStatusResult::kSuccessUsernameAndPasswordFilled:
+    case LoginStatusResult::kSuccessUsernameFilled:
+    case LoginStatusResult::kSuccessPasswordFilled:
+    case LoginStatusResult::kSuccessFederated:
+      return actor::mojom::ActionResultCode::kOk;
+    case LoginStatusResult::kErrorNoSigninForm:
+      return actor::mojom::ActionResultCode::kLoginNotLoginPage;
+    case LoginStatusResult::kErrorInvalidCredential:
+      return actor::mojom::ActionResultCode::kLoginNoCredentialsAvailable;
+    case LoginStatusResult::kErrorNoFillableFields:
+      return actor::mojom::ActionResultCode::kLoginNoFillableFields;
+    case LoginStatusResult::kErrorDeviceReauthRequired:
+      return actor::mojom::ActionResultCode::kLoginDeviceReauthRequired;
+    case LoginStatusResult::kErrorDeviceReauthFailed:
+      return actor::mojom::ActionResultCode::kLoginDeviceReauthFailed;
+    case LoginStatusResult::kErrorFederatedContinuation:
+      return actor::mojom::ActionResultCode::kLoginFederatedContinuation;
+    case LoginStatusResult::kErrorFederatedAccountNotLoggedIn:
+      return actor::mojom::ActionResultCode::kLoginFederatedAccountNotLoggedIn;
+    case LoginStatusResult::kErrorFederatedAccountIsSignUp:
+      return actor::mojom::ActionResultCode::kLoginFederatedAccountIsSignUp;
+    case LoginStatusResult::kErrorFederatedAccountNotAvailable:
+      return actor::mojom::ActionResultCode::kLoginFederatedAccountNotAvailable;
+    case LoginStatusResult::kErrorFederatedIdpReturnedError:
+      return actor::mojom::ActionResultCode::kLoginFederatedIdpReturnedError;
+    case LoginStatusResult::kErrorFederatedIdpNetworkError:
+      return actor::mojom::ActionResultCode::kLoginFederatedIdpNetworkError;
+    case LoginStatusResult::kErrorFederatedTokenRequestAborted:
+      return actor::mojom::ActionResultCode::kLoginFederatedTokenRequestAborted;
+    case LoginStatusResult::kErrorFederatedFrameNotActive:
+      return actor::mojom::ActionResultCode::kLoginFederatedFrameNotActive;
+    case LoginStatusResult::kErrorFederatedExpectedAccountNotPresent:
+      return actor::mojom::ActionResultCode::
+          kLoginFederatedExpectedAccountNotPresent;
+    case LoginStatusResult::kErrorFederatedTimeout:
+      return actor::mojom::ActionResultCode::kLoginFederatedTimeout;
+    case LoginStatusResult::kRequiresButtonClick:
+      // TODO(crbug.com/479505793): Consider adding a more specific error code.
+      return actor::mojom::ActionResultCode::kArgumentsInvalid;
+    case LoginStatusResult::kErrorPageChangedDuringFilling:
+      return actor::mojom::ActionResultCode::kLoginPasswordFillingPageChanged;
+  }
+}
+
 }  // namespace actor_login

@@ -4,6 +4,7 @@
 
 #include "base/functional/bind.h"
 #include "base/i18n/base_i18n_switches.h"
+#include "base/i18n/rtl.h"
 #include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
@@ -18,6 +19,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_menu_model.h"
+#include "chrome/browser/ui/tabs/split_tab_util.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -369,9 +371,40 @@ class SplitTabButtonInteractiveTest
         IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED);
   }
 
-  static std::u16string GetSplitTabsButtonEnabledName() {
-    return l10n_util::GetStringUTF16(
-        IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED);
+  static std::u16string GetSplitTabsButtonEnabledName(Browser* browser) {
+    TabStripModel* const tab_strip_model = browser->tab_strip_model();
+    tabs::TabInterface* const active_tab = tab_strip_model->GetActiveTab();
+    if (!active_tab || !active_tab->IsSplit()) {
+      return l10n_util::GetStringUTF16(
+          IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED);
+    }
+    const split_tabs::SplitTabActiveLocation location =
+        split_tabs::GetLastActiveTabLocation(tab_strip_model,
+                                             active_tab->GetSplit().value());
+    const bool is_rtl = base::i18n::IsRTL();
+    switch (location) {
+      case split_tabs::SplitTabActiveLocation::kStart:
+        return l10n_util::GetStringUTF16(
+            is_rtl ? IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_RIGHT_ACTIVE
+                   : IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_LEFT_ACTIVE);
+      case split_tabs::SplitTabActiveLocation::kEnd:
+        return l10n_util::GetStringUTF16(
+            is_rtl
+                ? IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_LEFT_ACTIVE
+                : IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_RIGHT_ACTIVE);
+      case split_tabs::SplitTabActiveLocation::kTop:
+        return l10n_util::GetStringUTF16(
+            IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_TOP_ACTIVE);
+      case split_tabs::SplitTabActiveLocation::kBottom:
+        return l10n_util::GetStringUTF16(
+            IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_BOTTOM_ACTIVE);
+    }
+  }
+
+  static int GetSplitTabsButtonEnabledStringId() {
+    return base::i18n::IsRTL()
+               ? IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_LEFT_ACTIVE
+               : IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_RIGHT_ACTIVE;
   }
 
   static ax::mojom::Role GetSplitTabsAXRole(const ui::TrackedElement* el,
@@ -379,8 +412,18 @@ class SplitTabButtonInteractiveTest
     if (auto* const view_el = el->AsA<views::TrackedElementViews>()) {
       return view_el->view()->GetViewAccessibility().GetCachedRole();
     }
-    for (const std::u16string& name :
-         {GetSplitTabsButtonName(), GetSplitTabsButtonEnabledName()}) {
+    std::vector<std::u16string> names = {
+        l10n_util::GetStringUTF16(IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED),
+        l10n_util::GetStringUTF16(
+            IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_LEFT_ACTIVE),
+        l10n_util::GetStringUTF16(
+            IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_RIGHT_ACTIVE),
+        l10n_util::GetStringUTF16(
+            IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_TOP_ACTIVE),
+        l10n_util::GetStringUTF16(
+            IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED_BOTTOM_ACTIVE),
+    };
+    for (const std::u16string& name : names) {
       if (ui::AXNode* node =
               ToolbarAccessibilityTest::GetAXNode(el, role, name)) {
         return node->data().role;
@@ -410,7 +453,7 @@ class SplitTabButtonInteractiveTest
                       is_split ? ax::mojom::Role::kPopUpButton
                                : ax::mojom::Role::kButton;
                   const std::u16string name =
-                      is_split ? GetSplitTabsButtonEnabledName()
+                      is_split ? GetSplitTabsButtonEnabledName(test->browser())
                                : GetSplitTabsButtonName();
 
                   if (auto* const view_el =
@@ -831,7 +874,7 @@ IN_PROC_BROWSER_TEST_P(SplitTabButtonInteractiveTest, A11y) {
       WaitForAXNode(),
       CheckSplitTabButtonStrings(IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED),
       CheckSplitTabButtonRole(ax::mojom::Role::kButton), ClickSplitTabButton(),
-      CheckSplitTabButtonStrings(IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED),
+      CheckSplitTabButtonStrings(GetSplitTabsButtonEnabledStringId()),
       CheckSplitTabButtonRole(ax::mojom::Role::kPopUpButton));
 }
 
@@ -866,10 +909,10 @@ IN_PROC_BROWSER_TEST_P(SplitTabButtonInteractiveTest, AccessibilityNode) {
       CheckSplitTabButtonStrings(IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED));
 
   // Also test pop-up state
-  RunTestSequence(ClickSplitTabButton(), WaitForTabCount(2), WaitForAXNode(),
-                  CheckSplitTabButtonRole(ax::mojom::Role::kPopUpButton),
-                  CheckSplitTabButtonStrings(
-                      IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_ENABLED));
+  RunTestSequence(
+      ClickSplitTabButton(), WaitForTabCount(2), WaitForAXNode(),
+      CheckSplitTabButtonRole(ax::mojom::Role::kPopUpButton),
+      CheckSplitTabButtonStrings(GetSplitTabsButtonEnabledStringId()));
 }
 
 INSTANTIATE_TEST_SUITE_P(All, SplitTabButtonInteractiveTest, testing::Bool());

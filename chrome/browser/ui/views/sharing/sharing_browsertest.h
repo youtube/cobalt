@@ -60,8 +60,7 @@ class SharingBrowserTest : public SyncTest {
 
   void SetUpOnMainThread() override;
 
-  void Init(syncer::DeviceInfo::SharingFeature first_device_feature,
-            syncer::DeviceInfo::SharingFeature second_device_feature);
+  void Init(syncer::DeviceInfo::SharingFeature device_feature);
 
   virtual std::string GetTestPageURL() const = 0;
 

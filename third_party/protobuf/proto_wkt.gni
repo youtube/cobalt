@@ -40,8 +40,8 @@ template("proto_wkt") {
   }
 
   _current_dir = rebase_path(".", "//")
-  _proto_out_dir_lite = "$_current_dir/lite/src"
-  _proto_out_dir_full = "$_current_dir/full/src"
+  _proto_out_dir_lite = "$_current_dir/lite/$target_name/src"
+  _proto_out_dir_full = "$_current_dir/full/$target_name/src"
 
   # The Lite version of this WKT.
   proto_library(target_name) {

@@ -145,9 +145,12 @@
   }
 
   // If the tab's APC is cached avoid updating the snapshot.
-  BOOL cached = webState && _validAPCwebStatesIDs.contains(base::NumberToString(
-                                webState->GetUniqueIdentifier().identifier()));
-  if (webState && !webState->IsRealized() && !cached) {
+  if (webState && _validAPCwebStatesIDs.contains(base::NumberToString(
+                      webState->GetUniqueIdentifier().identifier()))) {
+    return;
+  }
+
+  if (webState && !webState->IsRealized()) {
     // If the web state is not realized, force it to realize in order to have
     // the latest content and updated snapshot.
     __weak TabPickerMediator* weakSelf = self;

@@ -94,4 +94,7 @@ public interface PrintingController {
      * process. (using {@link #setPendingPrint(Printable, PrintManagerDelegate)} for example)
      */
     void startPendingPrint();
+
+    /** Sets the callback to be run when the print dialog is completed or closed. */
+    void setPendingPrintCallback(Runnable callback);
 }

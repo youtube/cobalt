@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/run_until.h"
 #include "base/test/task_environment.h"
@@ -277,6 +278,33 @@ TEST_F(SecurityKeyAuthHandlerMojoTest, HandleSecurityKeyErrorResponse) {
   // Attempt to connect again after the error.
   mojo::Remote<mojom::SecurityKeyForwarder> remote2;
   EstablishIpcConnection(remote2, kConnectionId2);
+}
+
+TEST_F(SecurityKeyAuthHandlerMojoTest,
+       OnSecurityKeyRequest_SafeWhenCallbackNull) {
+  ASSERT_EQ(auth_handler_->GetActiveConnectionCountForTest(), 0u);
+
+  // 1. Establish the IPC connection.
+  mojo::Remote<mojom::SecurityKeyForwarder> remote;
+  EstablishIpcConnection(remote, kConnectionId1);
+
+  // 2. Clear the callback.
+  auth_handler_->SetSendMessageCallback(base::NullCallback());
+
+  // 3. Send a request.
+  remote->OnSecurityKeyRequest("0123456789",
+                               response_future_.GetRepeatingCallback());
+
+  // 4. Verify that the request was dropped (request_future_ is NOT triggered).
+  // Since we cannot easily wait for "nothing to happen", we wait for the IPC
+  // disconnection which is triggered by the handler closing the connection!
+  ASSERT_TRUE(disconnect_future_.Wait());
+  disconnect_future_.Clear();
+
+  // 5. Verify the connection was cleaned up.
+  ASSERT_FALSE(remote.is_connected());
+  ASSERT_FALSE(auth_handler_->IsValidConnectionId(kConnectionId1));
+  ASSERT_EQ(auth_handler_->GetActiveConnectionCountForTest(), 0u);
 }
 
 }  // namespace remoting

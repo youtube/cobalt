@@ -51,8 +51,9 @@ class FocusgroupVisualOrderTraversalContext {
 
   Element* Next(const Element* current, bool skip_subtree) {
     VisitReadingFlowContainerIfNeeded(current);
-    if (reading_flow_next_elements_.Contains(current)) {
-      return reading_flow_next_elements_.at(current);
+    const auto it = reading_flow_next_elements_.find(current);
+    if (it != reading_flow_next_elements_.end()) {
+      return it->value;
     }
 
     return FocusgroupControllerUtils::NextElement(current, skip_subtree);
@@ -61,9 +62,10 @@ class FocusgroupVisualOrderTraversalContext {
   Element* Previous(const Element* current, bool skip_subtree) {
     VisitReadingFlowContainerIfNeeded(current);
 
+    const auto it = reading_flow_previous_elements_.find(current);
     Element* previous =
-        reading_flow_previous_elements_.Contains(current)
-            ? reading_flow_previous_elements_.at(current)
+        it != reading_flow_previous_elements_.end()
+            ? it->value.Get()
             : FocusgroupControllerUtils::PreviousElement(current, skip_subtree);
 
     // It is possible that |previous| itself is inside a reading-flow container
@@ -72,8 +74,9 @@ class FocusgroupVisualOrderTraversalContext {
     VisitReadingFlowContainerIfNeeded(previous);
 
     // Now that we've built the necessary mappings, check again.
-    if (reading_flow_previous_elements_.Contains(current)) {
-      return reading_flow_previous_elements_.at(current);
+    const auto recheck_it = reading_flow_previous_elements_.find(current);
+    if (recheck_it != reading_flow_previous_elements_.end()) {
+      return recheck_it->value;
     }
     return previous;
   }
@@ -97,9 +100,10 @@ class FocusgroupVisualOrderTraversalContext {
     reading_flow_elements_.insert(&reading_flow_element);
     // The reading flow container itself may be reordered, save the next element
     // so we can stitch the ordering together at the end.
+    const auto it = reading_flow_next_elements_.find(&reading_flow_element);
     Element* after_reading_flow =
-        reading_flow_next_elements_.Contains(&reading_flow_element)
-            ? reading_flow_next_elements_.at(&reading_flow_element)
+        it != reading_flow_next_elements_.end()
+            ? it->value.Get()
             : FocusgroupControllerUtils::NextElement(&reading_flow_element,
                                                      /*skip_subtree=*/true);
     const auto& reading_flow_children =

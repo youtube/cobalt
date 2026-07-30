@@ -233,6 +233,12 @@ class CONTENT_EXPORT ServiceWorkerRaceNetworkRequestURLLoaderClient
   void OnCloneCompleted();
   void OnCloneCompletedForFetchHandler();
 
+  // Marks the data transfer for the fetch handler as completed if this is a
+  // main resource redirect (which has no response body to transfer).
+  // If `run_completion_callback` is true, it also notifies the resource loader
+  // to trigger its self-destruction check.
+  void MaybeCompleteRedirectResponse(bool run_completion_callback);
+
   void ForwardResponseToClient(
       network::mojom::URLResponseHeadPtr head,
       mojo::ScopedDataPipeConsumerHandle body,

@@ -226,7 +226,8 @@ class StaleHostResolverTest : public TestWithTaskEnvironment {
 
     base::TimeDelta ttl(base::Seconds(kCacheEntryTTLSec));
     HostCache::Key key(kHostname, DnsQueryType::UNSPECIFIED, 0,
-                       HostResolverSource::ANY, NetworkAnonymizationKey());
+                       HostResolverSource::ANY, NetworkAnonymizationKey(),
+                       handles::kInvalidNetworkHandle);
     HostCache::Entry entry(
         error,
         error == OK ? MakeEndpoints(kCacheAddress) : std::vector<IPEndPoint>(),
@@ -248,7 +249,8 @@ class StaleHostResolverTest : public TestWithTaskEnvironment {
     DCHECK(resolver_->GetHostCache());
 
     HostCache::Key key(kHostname, DnsQueryType::UNSPECIFIED, 0,
-                       HostResolverSource::ANY, NetworkAnonymizationKey());
+                       HostResolverSource::ANY, NetworkAnonymizationKey(),
+                       handles::kInvalidNetworkHandle);
     auto now = base::TimeTicks::Now();
     HostCache::EntryStaleness stale;
     EXPECT_TRUE(resolver_->GetHostCache()->LookupStale(key, now, &stale));

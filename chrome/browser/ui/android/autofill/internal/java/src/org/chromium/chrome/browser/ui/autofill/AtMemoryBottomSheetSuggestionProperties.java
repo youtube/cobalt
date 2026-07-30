@@ -9,13 +9,14 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.ReadableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
+import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
 /** Properties for an individual suggestion displayed in the AtMemoryBottomSheetView. */
 @NullMarked
 public class AtMemoryBottomSheetSuggestionProperties {
     public static final ReadableIntPropertyKey ICON = new ReadableIntPropertyKey();
-    public static final ReadableObjectPropertyKey<@Nullable String> TITLE =
-            new ReadableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<@Nullable String> TITLE =
+            new WritableObjectPropertyKey<>();
     public static final ReadableObjectPropertyKey<@Nullable String> DETAILS =
             new ReadableObjectPropertyKey<>();
     public static final ReadableObjectPropertyKey<Runnable> ON_SUGGESTION_CLICKED =
@@ -23,7 +24,7 @@ public class AtMemoryBottomSheetSuggestionProperties {
     public static final ReadableObjectPropertyKey<Runnable> ON_FLYOUT_CLICKED =
             new ReadableObjectPropertyKey<>();
 
-    public static final PropertyKey[] ALL_PROPERTIES = {
+    public static final PropertyKey[] ALL_KEYS = {
         ICON, TITLE, DETAILS, ON_SUGGESTION_CLICKED, ON_FLYOUT_CLICKED,
     };
 

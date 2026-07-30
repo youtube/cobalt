@@ -597,9 +597,11 @@ if (is_android) {
       ":ax_base_java",
       "//base:base_java_test_support",
       "//base:base_junit_test_support",
+      "//third_party/android_deps:guava_android_java",
       "//third_party/androidx:androidx_test_runner_java",
       "//third_party/google-truth:google_truth_java",
       "//third_party/junit",
+      "//third_party/mockito:mockito_java",
     ]
   }
 

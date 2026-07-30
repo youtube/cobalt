@@ -9,15 +9,15 @@ import type {FinishOrContinueAppElement} from './app.js';
 export function getHtml(this: FinishOrContinueAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-<cr-lottie id="left-animation" class="animation"
+<cr-lottie id="leftAnimation" class="animation"
     .animationUrl="${this.getAnimationUrl_('left')}"
     ?autoplay="${!this.disableAnimations_}">
 </cr-lottie>
-<cr-lottie id="right-animation" class="animation"
+<cr-lottie id="rightAnimation" class="animation"
     .animationUrl="${this.getAnimationUrl_('right')}"
     ?autoplay="${!this.disableAnimations_}">
 </cr-lottie>
-<cr-lottie id="bottom-animation" class="animation"
+<cr-lottie id="bottomAnimation" class="animation"
     .animationUrl="${this.getAnimationUrl_('bottom')}"
     ?autoplay="${!this.disableAnimations_}">
 </cr-lottie>

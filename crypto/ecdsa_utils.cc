@@ -60,4 +60,61 @@ std::optional<std::vector<uint8_t>> ConvertEcdsaDerSignatureToRaw(
   return raw_signature;
 }
 
+std::optional<std::vector<uint8_t>> ConvertEcdsaRawSignatureToDer(
+    const keypair::PublicKey& public_key,
+    base::span<const uint8_t> raw_signature) {
+  EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(public_key.key());
+  if (!ec_key) {
+    return std::nullopt;
+  }
+
+  return ConvertEcdsaRawSignatureToDer(EC_KEY_get0_group(ec_key),
+                                       raw_signature);
+}
+
+std::optional<std::vector<uint8_t>> ConvertEcdsaRawSignatureToDer(
+    const EC_GROUP* group,
+    base::span<const uint8_t> raw_signature) {
+  if (!group) {
+    return std::nullopt;
+  }
+
+  size_t order_size_bits = EC_GROUP_order_bits(group);
+  size_t order_size_bytes = (order_size_bits + 7) / 8;
+
+  if (raw_signature.size() != 2 * order_size_bytes) {
+    return std::nullopt;
+  }
+
+  auto [r, s] = raw_signature.split_at(order_size_bytes);
+  return ConvertEcdsaRawComponentsToDer(r, s);
+}
+
+std::optional<std::vector<uint8_t>> ConvertEcdsaRawComponentsToDer(
+    base::span<const uint8_t> r,
+    base::span<const uint8_t> s) {
+  OpenSSLErrStackTracer err_tracer(FROM_HERE);
+
+  bssl::UniquePtr<ECDSA_SIG> ecdsa_sig(ECDSA_SIG_new());
+  if (!ecdsa_sig) {
+    return std::nullopt;
+  }
+
+  if (!BN_bin2bn(r.data(), r.size(), ecdsa_sig->r) ||
+      !BN_bin2bn(s.data(), s.size(), ecdsa_sig->s)) {
+    return std::nullopt;
+  }
+
+  bssl::ScopedCBB cbb;
+  if (!CBB_init(cbb.get(), 0) ||
+      !ECDSA_SIG_marshal(cbb.get(), ecdsa_sig.get())) {
+    return std::nullopt;
+  }
+  // SAFETY: `CBB_data` returns a pointer to a buffer of `CBB_len` bytes
+  // allocated and owned by `cbb`. This buffer is guaranteed to be valid and
+  // populated with the serialized signature.
+  return UNSAFE_BUFFERS(std::vector<uint8_t>(
+      CBB_data(cbb.get()), CBB_data(cbb.get()) + CBB_len(cbb.get())));
+}
+
 }  // namespace crypto

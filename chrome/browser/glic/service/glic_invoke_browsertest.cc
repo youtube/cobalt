@@ -35,6 +35,27 @@
 
 namespace glic {
 
+namespace {
+
+mojom::AdditionalContextPtr CreateMockAdditionalContext(
+    const std::string& mime_type = "image/png",
+    const std::vector<uint8_t>& data = {0x89, 0x50, 0x4E, 0x47}) {
+  auto context_mojom = mojom::AdditionalContext::New();
+  context_mojom->source = mojom::AdditionalContextSource::kShareContextMenu;
+  context_mojom->name = "https://example.com/image.png";
+
+  auto context_data = mojom::ContextData::New();
+  context_data->mime_type = mime_type;
+  context_data->data = mojo_base::BigBuffer(data);
+
+  context_mojom->parts.push_back(
+      mojom::AdditionalContextPart::NewData(std::move(context_data)));
+
+  return context_mojom;
+}
+
+}  // namespace
+
 class GlicInvokeBrowserTest : public GlicBrowserTestMixin<PlatformBrowserTest> {
  public:
   GlicInvokeBrowserTest() {
@@ -610,18 +631,7 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
   ASSERT_TRUE(content::NavigateToURL(tab->GetContents(), GURL("about:blank")));
 
   // Create mock AdditionalContext containing PNG image data.
-  auto context_mojom = mojom::AdditionalContext::New();
-  context_mojom->source = mojom::AdditionalContextSource::kShareContextMenu;
-  context_mojom->name = "https://example.com/image.png";
-
-  auto context_data = mojom::ContextData::New();
-  context_data->mime_type = "image/png";
-  // The first 4 bytes of a valid PNG file header, so it isn't rejected.
-  context_data->data =
-      mojo_base::BigBuffer(std::vector<uint8_t>{0x89, 0x50, 0x4E, 0x47});
-
-  context_mojom->parts.push_back(
-      mojom::AdditionalContextPart::NewData(std::move(context_data)));
+  auto context_mojom = CreateMockAdditionalContext();
 
   base::test::TestFuture<GlicInvokeError> error_future;
   GlicInvokeOptions options(glic::Target(*tab),
@@ -641,6 +651,32 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
   EXPECT_FALSE(GetInstanceForTab(tab));
 }
 
+IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithContextNoSourceFrame) {
+  tabs::TabInterface* tab = CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_TRUE(content::NavigateToURL(tab->GetContents(), GURL("about:blank")));
+
+  // Create mock AdditionalContext containing PNG image data.
+  auto context_mojom = CreateMockAdditionalContext();
+
+  base::test::TestFuture<GlicInvokeError> error_future;
+  GlicInvokeOptions options(glic::Target(*tab),
+                            mojom::InvocationSource::kOsButton);
+  options.on_error = error_future.GetCallback();
+
+  // Provide an invalid GlobalRenderFrameHostId to simulate the frame being
+  // destroyed before the invoke task starts.
+  options.additional_context = AdditionalTabContext(
+      std::move(context_mojom), content::GlobalRenderFrameHostId(-1, -1),
+      PolicyCheck::kClipboard);
+
+  coordinator().Invoke(std::move(options));
+
+  // The policy check should fail because it cannot find the source frame.
+  EXPECT_EQ(error_future.Get(),
+            GlicInvokeError::kAdditionalContextNoSourceFrame);
+  EXPECT_FALSE(GetInstanceForTab(tab));
+}
+
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidContextData) {
   tabs::TabInterface* tab = CreateAndActivateTab(GURL("about:blank"));
   ASSERT_TRUE(content::NavigateToURL(tab->GetContents(), GURL("about:blank")));
@@ -648,17 +684,8 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidContextData) {
   // Create mock AdditionalContext with an invalid mime_type.
   // ExtractThumbnailData() in glic_invoke_task.cc strictly checks for
   // "image/png", so "image/jpeg" will cause thumbnail_data to be empty.
-  auto context_mojom = mojom::AdditionalContext::New();
-  context_mojom->source = mojom::AdditionalContextSource::kShareContextMenu;
-  context_mojom->name = "https://example.com/image.png";
-
-  auto context_data = mojom::ContextData::New();
-  context_data->mime_type = "image/jpeg";
-  context_data->data =
-      mojo_base::BigBuffer(std::vector<uint8_t>{0xFF, 0xD8, 0xFF, 0xE0});
-
-  context_mojom->parts.push_back(
-      mojom::AdditionalContextPart::NewData(std::move(context_data)));
+  auto context_mojom = CreateMockAdditionalContext(
+      "image/jpeg", std::vector<uint8_t>{0xFF, 0xD8, 0xFF, 0xE0});
 
   base::test::TestFuture<GlicInvokeError> error_future;
   GlicInvokeOptions options(glic::Target(*tab),

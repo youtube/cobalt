@@ -29,6 +29,7 @@
 #include "components/performance_manager/resource_attribution/cpu_measurement_data.h"
 #include "components/performance_manager/scenarios/loading_scenario_data.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "url/gurl.h"
 
@@ -122,14 +123,16 @@ class PageNodeImpl
   // function can be called from any thread.
   const perfetto::NamedTrack& tracing_track() const { return tracing_track_; }
 
+  // Initializes the page type. The current type must be kUnknown.
   void SetType(PageType type);
+
   void SetIsFocused(bool is_focused);
   void SetIsVisible(bool is_visible);
   void SetIsAudible(bool is_audible);
   void SetHasPictureInPicture(bool has_picture_in_picture);
   void SetLoadingState(LoadingState loading_state);
   void SetUkmSourceId(ukm::SourceId ukm_source_id);
-  void OnFaviconUpdated();
+  void OnFaviconUpdated(blink::mojom::FaviconUpdateReason reason);
   void OnTitleUpdated();
   void OnAboutToBeDiscarded(base::WeakPtr<PageNode> new_page_node);
   // Set main frame information of a restored page before the first navigation

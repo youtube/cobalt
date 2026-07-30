@@ -203,6 +203,9 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kFedCmNonStringToken), kDefault},
           {wf::EnableGamepadMultitouch,
            raw_ref(features::kEnableGamepadMultitouch)},
+          {wf::EnableGamepadRawInputChangeEvent,
+           raw_ref(features::kGamepadRawInputChangeEvent),
+           kSetOnlyIfOverridden},
           {wf::EnableSharedStorageAPI,
            raw_ref(features::kPrivacySandboxAdsAPIsOverride),
            kSetOnlyIfOverridden},
@@ -275,6 +278,8 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
           {wf::EnableWebOTPAssertionFeaturePolicy,
            raw_ref(features::kWebOTPAssertionFeaturePolicy),
            kSetOnlyIfOverridden},
+          {wf::EnableWebGPUCompatibilityMode,
+           raw_ref(features::kWebGPUCompatibilityMode)},
           {wf::EnableWebUSB, raw_ref(features::kWebUsb)},
           {wf::EnableWebXR, raw_ref(features::kWebXr)},
 #if BUILDFLAG(ENABLE_VR)
@@ -613,8 +618,7 @@ void ResolveInvalidConfigurations() {
   // UserMediaElement cannot be enabled without the support of the
   // browser process.
   if (!base::FeatureList::IsEnabled(blink::features::kUserMediaElement)) {
-    LOG_IF(WARNING,
-           WebRuntimeFeatures::IsUserMediaElementEnabledByRuntimeFlag())
+    LOG_IF(WARNING, WebRuntimeFeatures::IsUserMediaElementEnabled())
         << "UserMediaElement cannot be enabled in this configuration. Use --"
         << switches::kEnableFeatures << "="
         << blink::features::kUserMediaElement.name << " instead.";

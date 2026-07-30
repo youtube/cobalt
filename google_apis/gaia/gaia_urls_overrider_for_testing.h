@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/flat_map.h"
 #include "base/functional/callback_helpers.h"
 
 class GaiaUrls;
@@ -20,6 +21,8 @@ class GaiaUrlsOverriderForTesting {
  public:
   GaiaUrlsOverriderForTesting(const std::string& url_key,
                               const std::string& url_value);
+  explicit GaiaUrlsOverriderForTesting(
+      const base::flat_map<std::string, std::string>& overridden_urls);
   GaiaUrlsOverriderForTesting(const GaiaUrlsOverriderForTesting&) = delete;
   GaiaUrlsOverriderForTesting& operator=(const GaiaUrlsOverriderForTesting&) =
       delete;

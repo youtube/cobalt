@@ -7,12 +7,12 @@
 
 #include "chrome/browser/ui/views/media_preview/media_coordinator.h"
 
-class Browser;
+class Profile;
 
 class PermissionPromptPreviewsCoordinator {
  public:
   PermissionPromptPreviewsCoordinator(
-      Browser* browser,
+      Profile* profile,
       views::View* parent_view,
       size_t index,
       std::vector<std::string> requested_audio_capture_device_ids,

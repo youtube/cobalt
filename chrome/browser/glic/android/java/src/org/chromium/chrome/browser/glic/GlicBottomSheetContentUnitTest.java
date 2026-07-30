@@ -64,10 +64,6 @@ public class GlicBottomSheetContentUnitTest {
         peekContainer.setId(12345);
         container.addView(peekContainer);
 
-        TextViewWithCompoundDrawables placeholder = new TextViewWithCompoundDrawables(mContext);
-        placeholder.setId(12346);
-        container.addView(placeholder);
-
         mContentView = container;
 
         ActorKeyedServiceFactoryJni.setInstanceForTesting(mActorKeyedServiceFactoryJni);
@@ -80,7 +76,6 @@ public class GlicBottomSheetContentUnitTest {
                         0xFFFFFFFF,
                         /* peekViewHeight= */ 100,
                         /* peekViewContainerId= */ 12345,
-                        /* emptyPlaceholderContainerId= */ 12346,
                         /* onBackPressed= */ () -> {},
                         mProfile);
     }
@@ -166,10 +161,10 @@ public class GlicBottomSheetContentUnitTest {
     }
 
     @Test
-    public void testConstructor_ConfiguresPlaceholderCorrectly() {
-        TextViewWithCompoundDrawables placeholder = mContent.getPlaceholderViewForTesting();
-        assertNotNull(placeholder);
-        assertEquals(View.VISIBLE, placeholder.getVisibility());
+    public void testProvider_ConfiguresPlaceholderCorrectly() {
+        GlicBottomSheetComponentProvider provider = new GlicBottomSheetComponentProvider(mProfile);
+        TextViewWithCompoundDrawables placeholder = new TextViewWithCompoundDrawables(mContext);
+        assertTrue(provider.setupPlaceholderView(placeholder));
         assertEquals(
                 mContext.getString(R.string.glic_inactive_view_card_text),
                 placeholder.getText().toString());

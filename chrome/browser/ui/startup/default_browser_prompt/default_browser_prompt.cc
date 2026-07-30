@@ -78,47 +78,6 @@ void RegisterDefaultBrowserPromptPrefs(PrefRegistrySimple* registry) {
                                std::string());
 }
 
-// Migrates the last declined time from the old int pref (profile) to the new
-// Time pref (local). Does not clear the old pref as it is still needed to
-// preserve the original behavior for the duration of the experiment.
-// TODO(326079444): After experiment is over, change this function to also clear
-// the old pref.
-void MigrateDefaultBrowserLastDeclinedPref(PrefService* profile_prefs) {
-  PrefService* local_state = g_browser_process->local_state();
-  if (!local_state) {
-    CHECK_IS_TEST();
-    return;
-  }
-
-  const PrefService::Preference* old_last_declined_time_pref =
-      profile_prefs->FindPreference(prefs::kDefaultBrowserInfobarLastDeclined);
-  const PrefService::Preference* last_declined_time_pref =
-      local_state->FindPreference(prefs::kDefaultBrowserInfobarLastDeclinedTime);
-
-  if (old_last_declined_time_pref->IsDefaultValue()) {
-    return;
-  }
-
-  base::Time old_last_declined_time = base::Time::FromInternalValue(
-      profile_prefs->GetInt64(prefs::kDefaultBrowserInfobarLastDeclined));
-  base::Time last_declined_time =
-      local_state->GetTime(prefs::kDefaultBrowserInfobarLastDeclinedTime);
-
-  // Migrate if the local pref has never been set before, or if the local pref's
-  // value was migrated from a different profile and the current profile's pref
-  // has a value that is more recent. It is not possible to overwrite a user-set
-  // value for the local pref as both the new pref and the old pref are kept in
-  // sync from the moment the new pref is introduced.
-  if (last_declined_time_pref->IsDefaultValue() ||
-      old_last_declined_time > last_declined_time) {
-    local_state->SetTime(prefs::kDefaultBrowserInfobarLastDeclinedTime,
-                         old_last_declined_time);
-    if (local_state->GetInteger(prefs::kDefaultBrowserInfobarDeclinedCount) == 0) {
-      local_state->SetInteger(prefs::kDefaultBrowserInfobarDeclinedCount, 1);
-    }
-  }
-}
-
 void ShowDefaultBrowserPrompt(Profile* profile,
                               base::OnceCallback<void(bool)> done_callback) {
   // Do not check if Chrome is the default browser if there is a policy in

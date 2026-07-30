@@ -9,7 +9,9 @@
 #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_base_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
-class Browser;
+namespace content {
+class WebContents;
+}
 
 // View that prompts the user to grant or deny a permission request from one
 // origin when the user has not previously made a decision.
@@ -23,7 +25,7 @@ class EmbeddedPermissionPromptAskView
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kAllowThisTimeId);
 
   EmbeddedPermissionPromptAskView(
-      Browser* browser,
+      content::WebContents* web_contents,
       base::WeakPtr<EmbeddedPermissionPromptViewDelegate> delegate);
   EmbeddedPermissionPromptAskView(const EmbeddedPermissionPromptAskView&) =
       delete;

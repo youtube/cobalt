@@ -11,7 +11,6 @@ import org.chromium.base.CancelableRunnable;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.Token;
-import org.chromium.base.UserDataHost;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
@@ -30,8 +29,12 @@ import java.util.function.Predicate;
 
 /** Attributes related to {@link TabState} */
 @NullMarked
-public class TabStateAttributes extends TabWebContentsUserData {
-    private static final Class<TabStateAttributes> USER_DATA_KEY = TabStateAttributes.class;
+public class TabStateAttributes {
+
+    /** Marker interface for keys used in {@link TabStateAttributesRegistry}. */
+    public interface StoreKey {}
+
+    private @Nullable WebContents mWebContents;
     @VisibleForTesting static final long DEFAULT_LOW_PRIORITY_SAVE_DELAY_MS = 30 * 1000L;
 
     /**
@@ -81,26 +84,7 @@ public class TabStateAttributes extends TabWebContentsUserData {
         void onTabStateDirtinessChanged(Tab tab, @DirtinessState int dirtiness);
     }
 
-    /**
-     * Creates the {@link TabStateAttributes} for the given {@link Tab}.
-     * @param tab The Tab reference whose state this is associated with.
-     * @param creationState The creation state of the tab (if it exists).
-     */
-    public static void createForTab(Tab tab, @Nullable @TabCreationState Integer creationState) {
-        UserDataHost host = tab.getUserDataHost();
-        host.setUserData(USER_DATA_KEY, new TabStateAttributes(tab, creationState));
-    }
-
-    /**
-     * @return {@link TabStateAttributes} for a {@link Tab}
-     */
-    public static @Nullable TabStateAttributes from(Tab tab) {
-        UserDataHost host = tab.getUserDataHost();
-        return host.getUserData(USER_DATA_KEY);
-    }
-
-    private TabStateAttributes(Tab tab, @Nullable @TabCreationState Integer creationState) {
-        super(tab);
+    TabStateAttributes(Tab tab, @Nullable @TabCreationState Integer creationState) {
         mTab = tab;
         if (creationState == null || creationState == TabCreationState.FROZEN_FOR_LAZY_LOAD) {
             updateIsDirty(DirtinessState.DIRTY);
@@ -231,8 +215,12 @@ public class TabStateAttributes extends TabWebContentsUserData {
                 });
     }
 
-    @Override
-    public void initWebContents(WebContents webContents) {
+    /**
+     * Start tracking the web contents.
+     *
+     * @param webContents The web contents to track.
+     */
+    public void beginTracking(WebContents webContents) {
         mWebContentsObserver =
                 new WebContentsObserver(webContents) {
                     @Override
@@ -247,8 +235,14 @@ public class TabStateAttributes extends TabWebContentsUserData {
                 };
     }
 
-    @Override
-    public void cleanupWebContents(@Nullable WebContents webContents) {
+    /**
+     * Clean up web contents observers. This method is required to handle WebContents swapping (e.g.
+     * when the tab is reparented or navigation replaces the WebContents) so that we stop observing
+     * the old WebContents.
+     *
+     * @param webContents The web contents to stop tracking.
+     */
+    void cleanupWebContents(WebContents webContents) {
         if (mWebContentsObserver != null) {
             mWebContentsObserver.observe(null);
             mWebContentsObserver = null;
@@ -267,8 +261,11 @@ public class TabStateAttributes extends TabWebContentsUserData {
         updateIsDirty(DirtinessState.CLEAN);
     }
 
-    @Override
-    protected void destroyInternal() {
+    public void destroy() {
+        if (mWebContents != null) {
+            cleanupWebContents(mWebContents);
+            mWebContents = null;
+        }
         // Cancel the pending low-priority save task so it stops retaining this object (and the
         // tab/activity it transitively holds) via the static TaskRunnerImpl task queue.
         if (mPendingLowPrioritySaveTask != null) {

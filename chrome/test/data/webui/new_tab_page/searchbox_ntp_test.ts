@@ -15,31 +15,13 @@ import {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/br
 import type {AutocompleteMatch} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {DriveDisclaimerStatus, RenderType, SideType} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {assertStyle, MockInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
+import {assertStyle, createClipboardEvent, createUrlMatch, MockInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from 'chrome://webui-test/cr_components/searchbox/test_searchbox_browser_proxy.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 enum Attributes {
   SELECTED = 'selected',
-}
-
-function createClipboardEvent(name: string): ClipboardEvent {
-  return new ClipboardEvent(
-      name, {cancelable: true, clipboardData: new DataTransfer()});
-}
-
-function createUrlMatch(modifiers: Partial<AutocompleteMatch> = {}):
-    AutocompleteMatch {
-  return createAutocompleteMatch({
-    swapContentsAndDescription: true,
-    contents: 'helloworld.com',
-    contentsClass: [{offset: 0, style: 1}],
-    destinationUrl: 'https://helloworld.com/',
-    fillIntoEdit: 'https://helloworld.com',
-    type: 'url-what-you-typed',
-    ...modifiers,
-  });
 }
 
 function createCalculatorMatch(modifiers: Partial<AutocompleteMatch>):
@@ -2934,6 +2916,33 @@ suite('SearchboxTest', () => {
     const event = await whenOpenComposebox;
     assertEquals(0, event.detail.files.length);
     assertEquals(1, event.detail.error.errorType);
+    assertEquals(1, testProxy.handler.getCallCount('onDriveUploadClicked'));
+  });
+
+  test('onOpenDriveUpload_ handles empty selection without opening composebox', async () => {
+    testProxy.handler.setResultFor('getDriveDisclaimerStatus', Promise.resolve({
+      status: DriveDisclaimerStatus.kAccepted,
+    }));
+    testProxy.handler.setResultFor('onDriveUploadClicked', Promise.resolve({
+      response: {
+        files: [],
+        error: null,
+      },
+    }));
+
+    let openComposeboxCalled = false;
+    realbox.addEventListener('open-composebox', () => {
+      openComposeboxCalled = true;
+    });
+
+    // Call the protected method.
+    await (realbox as unknown as {
+      onOpenDriveUpload_: () => Promise<void>,
+    }).onOpenDriveUpload_();
+
+    await microtasksFinished();
+
+    assertFalse(openComposeboxCalled);
     assertEquals(1, testProxy.handler.getCallCount('onDriveUploadClicked'));
   });
 });

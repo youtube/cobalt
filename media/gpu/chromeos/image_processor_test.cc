@@ -16,6 +16,7 @@
 #include "base/bits.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/no_destructor.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/test/launcher/unit_test_launcher.h"
@@ -110,8 +111,12 @@ const char* help_msg =
     ;
 
 bool g_save_images = false;
-base::FilePath g_source_directory =
-    base::FilePath(base::FilePath::kCurrentDirectory);
+
+base::FilePath& GetSourceDir() {
+  static base::NoDestructor<base::FilePath> source_directory(
+      base::FilePath::kCurrentDirectory);
+  return *source_directory;
+}
 
 // BackendType defines an enum for specifying a particular backend.
 enum class BackendType {
@@ -177,7 +182,7 @@ std::optional<ImageProcessor::CreateBackendCB> GetCreateBackendCB(
 std::optional<BackendType> g_backend_type;
 
 base::FilePath BuildSourceFilePath(const base::FilePath& filename) {
-  return media::g_source_directory.Append(filename);
+  return GetSourceDir().Append(filename);
 }
 
 media::test::VideoTestEnvironment* g_env;
@@ -836,7 +841,7 @@ int main(int argc, char** argv) {
     if (it->first == "save_images") {
       media::g_save_images = true;
     } else if (it->first == "source_directory") {
-      media::g_source_directory = base::FilePath(it->second);
+      media::GetSourceDir() = base::FilePath(it->second);
 #if defined(ARCH_CPU_ARM_FAMILY)
     } else if (it->first == "force_gl") {
       if (int ret =

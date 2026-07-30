@@ -214,8 +214,7 @@ class OmniboxSearchAggregatorTest : public InProcessBrowserTest {
   }
 
   AutocompleteController* controller() {
-    return browser()
-        ->window()
+    return BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->autocomplete_controller();

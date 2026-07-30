@@ -126,6 +126,9 @@ void ActiveTaskContextProviderImpl::ClearAllLocalTabUnderlines() {
 }
 
 ActiveTaskContextProviderImpl::~ActiveTaskContextProviderImpl() {
+  for (auto& observer : observers_) {
+    observer.OnActiveTaskContextProviderDestroyed();
+  }
   if (auto* tab_list_interface = TabListInterface::From(browser_window_)) {
     tab_list_interface->RemoveTabListInterfaceObserver(this);
   }

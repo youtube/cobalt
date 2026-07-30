@@ -163,7 +163,6 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   void SetAllowThrottling(bool allowed);
 
   // If other clients are interactive, reduce frame cadence if `throttled`.
-  void SetThrottledDueToInteraction(bool throttled);
 
   // SurfaceClient implementation.
   void OnSurfaceCommitted(Surface* surface) override;
@@ -290,11 +289,6 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   void RegisterSurfaceAnimationManagerNotification(
       base::OnceCallback<void()> callback);
 
-  bool is_handling_interaction() const { return is_handling_interaction_; }
-  base::TimeTicks last_interaction_time() const {
-    return last_interaction_time_;
-  }
-
  private:
   friend class AckOnSurfaceActivationWhenInteractiveTest;
   friend class CompositorFrameSinkSupportTestBase;
@@ -340,8 +334,6 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   bool ShouldSendBeginFrame(BeginFrameId frame_id,
                             base::TimeTicks timestamp,
                             base::TimeDelta vsync_interval);
-  // Set if this FrameSink is currently being interacted with.
-  void SetIsHandlingInteraction(bool is_handling_interaction);
 
   // Checks if any of the pending surfaces should activate now because their
   // deadline has passed. This is called every BeginFrame.
@@ -578,11 +570,7 @@ class VIZ_SERVICE_EXPORT CompositorFrameSinkSupport
   // SurfaceAnimationManager.
   base::OnceCallback<void()> surface_animation_manager_callback_;
 
-  // If this frame sink is currently being interacted with this will be true.
-  bool is_handling_interaction_ = false;
 
-  // The time when the last interactive frame was submitted.
-  base::TimeTicks last_interaction_time_;
 
   base::WeakPtrFactory<CompositorFrameSinkSupport> weak_factory_{this};
 };

@@ -53,9 +53,9 @@ TEST_F(PatternAccountRestrictionTest, FilterEmailsWithBadPattern) {
   EXPECT_EQ(restriction.IsAccountRestricted(email3), true);
 }
 
-// Tests that the pattern created by PatternFromString(chunk) correctlty matches
+// Tests that the pattern created by PatternFromString(chunk) correctly matches
 // the given email. The wildcard character '*' matches zero or more arbitrary
-// characters.The escape character is '\', so to match actual '*' or '\'
+// characters. The escape character is '\', so to match actual '*' or '\'
 // characters, put a '\' in front of them.
 TEST_F(PatternAccountRestrictionTest, PatternMatchChunck) {
   auto pattern = PatternFromString("*gmail.com");

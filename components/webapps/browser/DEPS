@@ -11,6 +11,7 @@ include_rules = [
   "+components/prefs",
   "+components/security_state/core",
   "+components/segmentation_platform",
+  "+components/services/app_service/public/cpp",
   "+components/site_engagement",
   "+components/user_prefs",
   "+components/variations",

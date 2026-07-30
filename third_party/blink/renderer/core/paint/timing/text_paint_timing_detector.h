@@ -144,7 +144,6 @@ class CORE_EXPORT TextPaintTimingDetector final
 
   // LayoutObjects for which text has been aggregated.
   HeapHashMap<WeakMember<const LayoutObject>, TextPaintStatus> recorded_set_;
-  HeapHashSet<WeakMember<const LayoutObject>> rewalkable_set_;
 
   // Text records queued for paint time.
   HeapDeque<Member<TextRecord>> texts_queued_for_paint_time_;

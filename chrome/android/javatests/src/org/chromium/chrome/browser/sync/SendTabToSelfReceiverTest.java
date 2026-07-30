@@ -32,6 +32,10 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.proto.SendTabToSelfPersistedTabData.SendTabToSelfPersistedTabDataProto;
+import org.chromium.chrome.browser.tab.state.PersistedTabDataConfiguration;
+import org.chromium.chrome.browser.tab.state.PersistedTabDataStorage;
+import org.chromium.chrome.browser.tab.state.Serializer;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -41,6 +45,7 @@ import org.chromium.components.sync.protocol.EntitySpecifics;
 import org.chromium.components.sync.protocol.SendTabToSelfSpecifics;
 import org.chromium.ui.test.util.RenderTestRule.Component;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 /** Test suite for the Send Tab To Self sync data type. */
@@ -68,6 +73,7 @@ public class SendTabToSelfReceiverTest {
 
     @Before
     public void setUp() {
+        PersistedTabDataConfiguration.setUseTestConfig(true);
         mSyncTestRule.setUpAccountAndSignInForTesting();
 
         mLocalCacheGuid = mSyncTestRule.getFakeServerHelper().getLocalCacheGuid();
@@ -250,5 +256,43 @@ public class SendTabToSelfReceiverTest {
         // Re-open the Tab Switcher to verify the label is gone
         TabUiTestHelper.enterTabSwitcher(mSyncTestRule.getActivity());
         onView(withText("From Example Phone")).check(doesNotExist());
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"Sync"})
+    public void testSendTabToSelfTabCardLabelLoadsFromPersistentStorage() throws Exception {
+        TabUiTestHelper.verifyTabModelTabCount(mSyncTestRule.getActivity(), 1, 0);
+        Tab tab =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                mSyncTestRule
+                                        .getActivity()
+                                        .getTabModelSelector()
+                                        .getModel(false)
+                                        .getTabAt(0));
+
+        // Explicitly save a label data for `tab` in MockPersistedTabDataStorage.
+        PersistedTabDataStorage storage =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> PersistedTabDataConfiguration.TEST_CONFIG.getStorage());
+        String deviceName = "Example Phone";
+        SendTabToSelfPersistedTabDataProto proto =
+                SendTabToSelfPersistedTabDataProto.newBuilder()
+                        .setSenderDeviceName(deviceName)
+                        .setAdditionTimestampMs(System.currentTimeMillis())
+                        .build();
+        ByteBuffer byteBuffer = proto.toByteString().asReadOnlyByteBuffer();
+        Serializer<ByteBuffer> serializer = () -> byteBuffer;
+        storage.save(
+                tab.getId(),
+                PersistedTabDataConfiguration.SEND_TAB_TO_SELF_TAB_CARD_LABEL_DATA.getId(),
+                serializer);
+
+        // Open the Tab Switcher.
+        TabUiTestHelper.enterTabSwitcher(mSyncTestRule.getActivity());
+
+        // 4. Verify the card label is displayed.
+        onView(withText("From Example Phone")).check(matches(isDisplayed()));
     }
 }

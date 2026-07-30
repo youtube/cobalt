@@ -29,7 +29,7 @@ enum class PageActionIconType {
   kAutofillAddress = 14,
   kSaveCard = 15,
   // DEPRECATED: kSendTabToSelf = 16,
-  kSharingHub = 17,
+  // DEPRECATED: kSharingHub = 17,
   // DEPRECATED: kSideSearch = 18,
   // DEPRECATED: kSmsRemoteFetcher = 19,
   kTranslate = 20,

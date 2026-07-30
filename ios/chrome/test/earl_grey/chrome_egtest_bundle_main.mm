@@ -21,6 +21,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/types/fixed_array.h"
 #import "ios/chrome/test/earl_grey/chrome_egtest_plugin_client.h"
+#import "ios/testing/test_expectations.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/base/resource/resource_bundle.h"
 
@@ -167,6 +168,17 @@ class TestMain {
 - (void)testBundleWillStart:(NSBundle*)testBundle {
   DCHECK(!_testMain);
   _testMain = std::make_unique<TestMain>();
+
+  // Explicitly load and set test expectations.
+  NSString* path = [testBundle pathForResource:@"test_expectations"
+                                        ofType:@"txt"];
+  if (path) {
+    TestExpectations* expectations =
+        [TestExpectations expectationsWithFilePath:path];
+    [TestExpectations setCurrentExpectations:expectations];
+  } else {
+    NSLog(@"Warning: test_expectations.txt not found in bundle %@", testBundle);
+  }
 
   // Ensure that //ios/web and the bulk of //ios/chrome/browser are not compiled
   // into the test module. This is hard to assert at compile time, due to

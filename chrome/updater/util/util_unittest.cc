@@ -319,4 +319,40 @@ TEST(Util, EnumerateUpdateClientTempDirectories) {
   EXPECT_TRUE(base::DeletePathRecursively(dir));
 }
 
+TEST(Util, IsValidAppId) {
+  for (const auto& valid_app_id :
+       {"COM.GOOGLE.CHROME", "{8A69F345-C564-463C-AFF1-A69D9E530F96}"}) {
+    EXPECT_TRUE(IsValidAppId(valid_app_id));
+    EXPECT_TRUE(IsValidAppId(base::UTF8ToWide(valid_app_id)));
+  }
+
+  for (const std::string& invalid_app_id : std::vector<std::string>{
+           "",
+           std::string(257, 'a'),
+           "a/b",
+           "a\\b",
+           "..",
+           ".",
+           "../a",
+           "a/../b",
+           "a\\..\\b",
+           "/",
+           "\\",
+           "/a",
+           "\\a",
+           "a\tb",
+           "a\nb",
+           "a\rb",
+           "a\x01"
+           "b",
+           "a\x7f"
+           "b",
+           "a\xc3\xa9"
+           "b",
+       }) {
+    EXPECT_FALSE(IsValidAppId(invalid_app_id));
+    EXPECT_FALSE(IsValidAppId(base::UTF8ToWide(invalid_app_id)));
+  }
+}
+
 }  // namespace updater

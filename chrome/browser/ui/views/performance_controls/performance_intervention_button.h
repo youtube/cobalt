@@ -12,7 +12,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/widget/widget_observer.h"
 
-class BrowserView;
+class BrowserWindowInterface;
 class PerformanceInterventionButtonController;
 
 namespace views {
@@ -27,7 +27,7 @@ class PerformanceInterventionButton
   METADATA_HEADER(PerformanceInterventionButton, ToolbarButton)
 
  public:
-  explicit PerformanceInterventionButton(BrowserView* browser_view);
+  explicit PerformanceInterventionButton(BrowserWindowInterface* browser);
   ~PerformanceInterventionButton() override;
 
   PerformanceInterventionButton(const PerformanceInterventionButton&) = delete;
@@ -60,7 +60,7 @@ class PerformanceInterventionButton
   void UpdateIconColor();
 
   std::unique_ptr<PerformanceInterventionButtonController> controller_;
-  const raw_ptr<BrowserView> browser_view_;
+  const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<views::BubbleDialogModelHost> bubble_dialog_model_host_ = nullptr;
 
   // Boolean that keeps track if the intervention button icon should be shown

@@ -152,8 +152,7 @@ class IsolatedWebAppApplyUpdateCommandTest : public WebAppTest {
     auto command = std::make_unique<IsolatedWebAppApplyUpdateCommand>(
         url_info_, *profile(),
         /*optional_keep_alive=*/nullptr,
-        /*optional_profile_keep_alive=*/nullptr, future.GetCallback(),
-        std::make_unique<IsolatedWebAppInstallCommandHelper>(url_info_));
+        /*optional_profile_keep_alive=*/nullptr, future.GetCallback());
 
     std::move(on_before_start).Run(*command);
 

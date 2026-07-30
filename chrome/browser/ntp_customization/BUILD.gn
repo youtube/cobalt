@@ -9,10 +9,14 @@ assert(is_android)
 
 source_set("ntp_customization") {
   public = [
+    "ntp_android_custom_background_service.h",
+    "ntp_android_custom_background_service_factory.h",
     "ntp_synced_theme_bridge.h",
     "ntp_theme_collection_bridge.h",
   ]
   sources = [
+    "ntp_android_custom_background_service.cc",
+    "ntp_android_custom_background_service_factory.cc",
     "ntp_synced_theme_bridge.cc",
     "ntp_theme_collection_bridge.cc",
   ]
@@ -24,6 +28,7 @@ source_set("ntp_customization") {
   ]
   deps = [
     ":jni_headers",
+    "//chrome/common:constants",
     "//url",
   ]
 }
@@ -404,5 +409,17 @@ robolectric_library("junit") {
     "//ui/edge_to_edge:java",
     "//url:gurl_junit_test_support",
     "//url:url_java",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "ntp_android_custom_background_service_unittest.cc" ]
+  deps = [
+    ":ntp_customization",
+    "//base",
+    "//chrome/common:constants",
+    "//components/prefs:test_support",
+    "//testing/gtest",
   ]
 }

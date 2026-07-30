@@ -36,7 +36,6 @@ source_set("browser_tests") {
   sources = [
     "os_settings_auto_screen_lock_browsertest.cc",
     "os_settings_lock_screen_authentication_browsertest.cc",
-    "os_settings_notification_settings_browsertest.cc",
     "os_settings_password_setup_browsertest.cc",
     "os_settings_pin_setup_browsertest.cc",
     "os_settings_recovery_browsertest.cc",

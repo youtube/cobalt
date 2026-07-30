@@ -84,6 +84,10 @@
         {
           "builder": "android-dawn-arm64-p10-rel",
           "group": "tryserver.chromium.dawn"
+        },
+        {
+          "builder": "android-dawn-arm64-rel",
+          "group": "tryserver.chromium.dawn"
         }
       ],
       "targets_spec_directory": "infra/config/generated/builders/ci/Dawn Android arm64 Release (Pixel 10)/targets"

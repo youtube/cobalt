@@ -42,7 +42,7 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "components/accessibility_annotator/core/mock_accessibility_query_service.h"
+#include "components/accessibility_annotator/core/mock_at_memory_query_service.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/crowdsourcing/mock_autofill_crowdsourcing_manager.h"
@@ -1319,6 +1319,7 @@ class BrowserAutofillManagerTest
 };
 
 TEST_F(BrowserAutofillManagerTest, AtMemoryTriggersEmptySuggestions) {
+  base::test::ScopedFeatureList features(features::kAutofillAtMemory);
   FormData form = CreateTestAddressFormData();
   FormsSeen({form});
 
@@ -1332,6 +1333,7 @@ TEST_F(BrowserAutofillManagerTest, AtMemoryTriggersEmptySuggestions) {
 // Tests that when `PersonalContextEnablementState` is `kDisabledNotEligible`
 // for a given profile, the AtMemory popup doesn't trigger.
 TEST_F(BrowserAutofillManagerTest, AtMemoryTriggerDroppedWhenNotEligible) {
+  base::test::ScopedFeatureList features(features::kAutofillAtMemory);
   FormData form = CreateTestAddressFormData();
   FormsSeen({form});
 
@@ -1343,6 +1345,33 @@ TEST_F(BrowserAutofillManagerTest, AtMemoryTriggerDroppedWhenNotEligible) {
 
   // No suggestions should be returned, not even empty ones.
   EXPECT_FALSE(external_delegate()->on_suggestions_returned_seen());
+}
+
+TEST_F(BrowserAutofillManagerTest, ComposeDelayedNudgeDoesNotHideAtMemory) {
+  base::test::ScopedFeatureList features(features::kAutofillAtMemory);
+  const FormData form = CreateTestAddressFormData();
+  FormsSeen({form});
+
+  // Trigger suggestions with AtMemory.
+  OnAskForValuesToFill(form, form.fields()[0],
+                       AutofillSuggestionTriggerSource::kAtMemory);
+
+  // Verify that suggestions were shown (empty suggestions for AtMemory).
+  EXPECT_TRUE(autofill_client().IsShowingAutofillPopup());
+  EXPECT_EQ(external_delegate()->trigger_source(),
+            AutofillSuggestionTriggerSource::kAtMemory);
+
+  // Trigger suggestions with ComposeDelayedProactiveNudge.
+  // This should be ignored because AtMemory suggestions are already showing.
+  OnAskForValuesToFill(
+      form, form.fields()[0],
+      AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge);
+
+  // Verify that the AtMemory suggestions are still showing (popup is not hidden
+  // or replaced by the nudge).
+  EXPECT_TRUE(autofill_client().IsShowingAutofillPopup());
+  EXPECT_EQ(external_delegate()->trigger_source(),
+            AutofillSuggestionTriggerSource::kAtMemory);
 }
 
 TEST_F(BrowserAutofillManagerTest, IgnoreInactivityQueryIfPopupVisible) {
@@ -4292,6 +4321,26 @@ TEST_F(BrowserAutofillManagerTest, DontSaveCvcInAutocompleteHistory) {
   EXPECT_FALSE(form_seen_by_ahm.fields()[1].should_autocomplete());
   EXPECT_TRUE(form_seen_by_ahm.fields()[2].should_autocomplete());
 }
+
+// Test that inputs detected to be standalone CVC inputs are forced to
+// !should_autocomplete for SingleFieldFillRouter::OnWillSubmitForm.
+TEST_F(BrowserAutofillManagerTest, DontSaveStandaloneCvcInAutocompleteHistory) {
+  FormData form_seen_by_ahm;
+  EXPECT_CALL(single_field_fill_router(),
+              OnWillSubmitForm(_, _, /*is_autocomplete_enabled=*/true))
+      .WillOnce(SaveArg<0>(&form_seen_by_ahm));
+
+  FormData form = test::GetFormData(
+      {.fields = {{.role = CREDIT_CARD_STANDALONE_VERIFICATION_CODE,
+                   .value = u"123"}}});
+  autofill_manager().AddSeenForm(form,
+                                 {CREDIT_CARD_STANDALONE_VERIFICATION_CODE});
+  FormSubmitted(form);
+
+  ASSERT_EQ(1u, form_seen_by_ahm.fields().size());
+  EXPECT_FALSE(form_seen_by_ahm.fields()[0].should_autocomplete());
+}
+
 // Test that autofilled loyalty card fields are forced to !should_autocomplete.
 TEST_F(BrowserAutofillManagerTest,
        DontSaveAutofilledLoyaltyCardsInAutocompleteHistory) {
@@ -5209,27 +5258,26 @@ TEST_F(BrowserAutofillManagerTest,
       form.fields()[0].global_id(), {});
 }
 
-// Tests that even if the context is secure and the `FormStructure` is missing,
-// the underlying `FormData` is still evaluated for being safe enough for
-// filling SPIIs.
-TEST_F(BrowserAutofillManagerTest, DidShowSuggestions_FormNonSecureAction) {
-  // Ensure that the client context is secure.
+// Tests that if the context is insecure, the suggestions are filtered out
+// to not contain SPII.
+TEST_F(BrowserAutofillManagerTest, DidShowSuggestions_FormNonSecureContext) {
+  // Ensure that the client context is insecure.
   autofill_client().set_last_committed_primary_main_frame_url(
-      GURL("https://example.com"));
-  ASSERT_TRUE(autofill_client().IsContextSecure());
+      GURL("http://example.com"));
+  ASSERT_FALSE(autofill_client().IsContextSecure());
 
-  auto mock_query_service = std::make_unique<testing::NiceMock<
-      accessibility_annotator::MockAccessibilityQueryService>>();
-  accessibility_annotator::MockAccessibilityQueryService*
-      mock_query_service_ptr = mock_query_service.get();
-  autofill_client().set_accessibility_query_service(
-      std::move(mock_query_service));
+  auto mock_query_service = std::make_unique<
+      testing::NiceMock<accessibility_annotator::MockAtMemoryQueryService>>();
+  accessibility_annotator::MockAtMemoryQueryService* mock_query_service_ptr =
+      mock_query_service.get();
+  autofill_client().set_at_memory_query_service(std::move(mock_query_service));
 
-  // Create a form that submits to an insecure HTTP action.
+  // Create a form on an insecure page. The action can be secure, but the
+  // context is what matters.
   FormData insecure_form;
   insecure_form.set_name(u"InsecureForm");
-  insecure_form.set_url(GURL("https://example.com/form.html"));
-  insecure_form.set_action(GURL("http://attacker.com/search"));
+  insecure_form.set_url(GURL("http://example.com/form.html"));
+  insecure_form.set_action(GURL("https://example.com/search"));
   test_api(insecure_form)
       .Append(CreateTestFormField("Search", "search", "",
                                   FormControlType::kInputText));
@@ -5257,15 +5305,14 @@ TEST_F(BrowserAutofillManagerTest, DidShowSuggestions_FormNonSecureAction) {
 
   // Prepare search results containing a SPII entry.
   std::vector<accessibility_annotator::MemorySearchResult> entries;
-  entries.emplace_back(accessibility_annotator::EntryType::kPassportNumber,
+  entries.emplace_back(accessibility_annotator::MemoryDataType::kPassportNumber,
                        u"Passport", u"123456789");
   accessibility_annotator::MemorySearchResults results(
       accessibility_annotator::MemorySearchStatus::kFinalResponseSuccess,
       std::move(entries));
 
-  // Send search results. Since the context should be insecure (due to insecure
-  // fallback action), the SPII entry must be filtered out, leaving no
-  // suggestions.
+  // Send search results. Since the context is insecure, the SPII entry must be
+  // filtered out, leaving no suggestions.
   search_callback.Run(std::move(results));
   ASSERT_EQ(updated_suggestions.size(), 1u);
   EXPECT_EQ(updated_suggestions[0].main_text.value,
@@ -5706,6 +5753,7 @@ class BrowserAutofillManagerTest_AutofillAi
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
+            /*pcontext_manager=*/nullptr,
             /*strike_database=*/nullptr,
             /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client().SetUpPrefsAndIdentityForAutofillAi();
@@ -5783,6 +5831,7 @@ class BrowserAutofillManagerTest_MockAutofillAi
             autofill_client().GetSyncService(),
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
+            /*pcontext_manager=*/nullptr,
             /*strike_database=*/nullptr,
             /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client().GetEntityDataManager()->AddOrUpdateEntityInstance(

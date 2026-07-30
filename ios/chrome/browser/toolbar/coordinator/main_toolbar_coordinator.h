@@ -7,7 +7,7 @@
 
 #import "base/ios/block_types.h"
 #import "ios/chrome/browser/composebox/public/composebox_animation_base.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_state_provider.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_focus/omnibox_state_provider.h"
 #import "ios/chrome/browser/popup_menu/public/popup_menu_ui_updating.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/fakebox_focuser.h"

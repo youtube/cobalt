@@ -238,6 +238,11 @@ BASE_FEATURE(kAutofillEnablePayNowPayLaterTabs,
 BASE_FEATURE(kAutofillEnablePrefetchingRiskDataForRetrieval,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, users that have previously turned off payments autofill will be
+// prompted to turn it back on in instances where they can benefit from it.
+BASE_FEATURE(kAutofillEnableResurrectingPaymentsUsers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, the 'Save and Fill' suggestion will be offered in the credit
 // card dropdown menu for users who don't have any cards saved in Autofill.
 BASE_FEATURE(kAutofillEnableSaveAndFill, base::FEATURE_DISABLED_BY_DEFAULT);

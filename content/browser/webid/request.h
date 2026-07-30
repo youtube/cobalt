@@ -13,7 +13,9 @@
 #include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "content/browser/webid/accounts_fetcher.h"
@@ -48,8 +50,6 @@ class RenderFrameHost;
 
 namespace webid {
 
-class DisconnectRequest;
-class UserInfoRequest;
 class RequestService;
 
 using blink::mojom::IdentityProviderGetParametersPtr;
@@ -73,7 +73,7 @@ class CONTENT_EXPORT Request
  public:
   Request(
       RenderFrameHost* rfh,
-      RequestService* request_service,
+      RequestService& request_service,
       FederatedIdentityApiPermissionContextDelegate* api_permission_delegate,
       FederatedIdentityAutoReauthnPermissionContextDelegate*
           auto_reauthn_permission_delegate,
@@ -318,6 +318,7 @@ class CONTENT_EXPORT Request
   friend class RequestTest;
   friend class IdentityCredentialSourceImpl;  // for OnAccountSelected
   friend class TestIdentityCredentialSourceImpl;
+  friend class RequestService;
 
   struct FetchData {
     FetchData();
@@ -412,12 +413,6 @@ class CONTENT_EXPORT Request
   void MarkUserAsSignedIn(const GURL& idp_config_url,
                           const std::string& account_id);
 
-  void CompleteUserInfoRequest(
-      UserInfoRequest* request,
-      RequestUserInfoCallback callback,
-      blink::mojom::RequestUserInfoStatus status,
-      std::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info);
-
   // Validates the input from the renderer and signals to terminate the request
   // if needed.
   bool ShouldTerminateRequest(
@@ -487,9 +482,6 @@ class CONTENT_EXPORT Request
                   const GURL& idp_config_url,
                   GURL login_url);
 
-  void CompleteDisconnectRequest(DisconnectCallback callback,
-                                 blink::mojom::DisconnectStatus status);
-
   void RecordErrorMetrics(
       blink::mojom::IdentityProviderRequestOptionsPtr idp,
       IdpNetworkRequestManager::FedCmTokenResponseType token_response_type,
@@ -517,9 +509,6 @@ class CONTENT_EXPORT Request
 
   std::unique_ptr<IdpNetworkRequestManager> network_manager_;
   std::unique_ptr<IdentityRequestDialogController> request_dialog_controller_;
-
-  // Replacements for testing.
-  std::unique_ptr<IdpNetworkRequestManager> mock_network_manager_;
   std::unique_ptr<IdentityRequestDialogController> mock_dialog_controller_;
 
   // Helper that records FedCM UMA and UKM metrics. Initialized in the
@@ -559,7 +548,8 @@ class CONTENT_EXPORT Request
       nullptr;
   raw_ptr<IdentityRegistry> identity_registry_ = nullptr;
   raw_ptr<RenderFrameHost> render_frame_host_;
-  raw_ptr<RequestService> request_service_;
+  // RequestService owns `this`, so it is expected to outlive it.
+  const raw_ref<RequestService> request_service_;
 
   // The account that was selected by the user. This is only applicable to the
   // mediation flow.
@@ -595,14 +585,6 @@ class CONTENT_EXPORT Request
   std::unique_ptr<AccountsFetcher> fedcm_accounts_fetcher_;
 
   std::unique_ptr<FederatedSdJwtHandler> federated_sdjwt_handler_;
-
-  std::unique_ptr<IdpRegistrationHandler> fedcm_idp_registration_handler_;
-
-  // Set of pending user info requests.
-  base::flat_set<std::unique_ptr<UserInfoRequest>> user_info_requests_;
-
-  // Pending disconnect request.
-  std::unique_ptr<DisconnectRequest> disconnect_request_;
 
   // TODO(crbug.com/40238075): Refactor these member variables introduced
   // through the multi IDP prototype implementation to make them less confusing.

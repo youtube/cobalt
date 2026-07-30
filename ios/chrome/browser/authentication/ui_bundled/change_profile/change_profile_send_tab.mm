@@ -19,10 +19,12 @@ namespace {
 
 // Implementation of the continuation that opens the URL and show the UI to send
 // tab to self.
-void ChangeProfileSendTabToOtherDevice(GURL url,
-                                       NSString* title,
-                                       SceneState* scene_state,
-                                       base::OnceClosure closure) {
+void ChangeProfileSendTabToOtherDevice(
+    GURL url,
+    NSString* title,
+    send_tab_to_self::ShareEntryPoint entry_point,
+    SceneState* scene_state,
+    base::OnceClosure closure) {
   Browser* browser =
       scene_state.browserProviderInterface.currentBrowserProvider.browser;
   CHECK(browser);
@@ -33,7 +35,9 @@ void ChangeProfileSendTabToOtherDevice(GURL url,
   id<BrowserCoordinatorCommands> browserCoordinatorHandler =
       HandlerForProtocol(dispatcher, BrowserCoordinatorCommands);
 
-  [browserCoordinatorHandler showSendTabToSelfUI:url title:title];
+  [browserCoordinatorHandler showSendTabToSelfUI:url
+                                           title:title
+                                      entryPoint:entry_point];
 
   std::move(closure).Run();
 }
@@ -42,6 +46,8 @@ void ChangeProfileSendTabToOtherDevice(GURL url,
 
 ChangeProfileContinuation CreateChangeProfileSendTabToOtherDevice(
     GURL url,
-    NSString* title) {
-  return base::BindOnce(&ChangeProfileSendTabToOtherDevice, url, title);
+    NSString* title,
+    send_tab_to_self::ShareEntryPoint entry_point) {
+  return base::BindOnce(&ChangeProfileSendTabToOtherDevice, url, title,
+                        entry_point);
 }

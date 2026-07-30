@@ -59,7 +59,6 @@
 #include "components/services/storage/storage_service_impl.h"
 #include "content/browser/aggregation_service/aggregation_service_test_utils.h"
 #include "content/browser/attribution_reporting/test/mock_attribution_manager.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/gpu/gpu_disk_cache_factory.h"
@@ -70,6 +69,7 @@
 #include "content/browser/private_aggregation/private_aggregation_test_utils.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
@@ -359,7 +359,7 @@ class RemoveLocalStorageTester {
         // it's the same path, and calling `GetStoragePartition()` too early
         // will cause a race against DOMStorageContextWrapper/LocalStorageImpl
         // creation.
-        storage::GetLocalStorageDatabasePath(browser_context_->GetPath()),
+        browser_context_->GetPath(),
         /*memory_dump_id=*/std::nullopt,
         base::BindLambdaForTesting([&](storage::DbStatus status) {
           ASSERT_TRUE(status.ok());

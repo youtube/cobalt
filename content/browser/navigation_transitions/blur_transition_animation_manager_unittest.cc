@@ -473,4 +473,53 @@ TEST_F(BlurTransitionAnimationManagerTest, StopWatchingWindowWhenTabIsHidden) {
   EXPECT_FALSE(manager_->IsObservingWindow());
 }
 
+TEST_F(BlurTransitionAnimationManagerTest, InputSuppressionDuringTransition) {
+  auto simulator = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  simulator->Start();
+
+  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId())
+      .WillOnce(Return(fake_surface_id_));
+
+  EXPECT_FALSE(web_contents()->ShouldIgnoreInputEventsForTesting());
+
+  simulator->ReadyToCommit();
+  EXPECT_FALSE(web_contents()->ShouldIgnoreInputEventsForTesting());
+
+  SimulateRFHActivation(simulator.get());
+  EXPECT_TRUE(web_contents()->ShouldIgnoreInputEventsForTesting());
+
+  manager_->DidFirstVisuallyNonEmptyPaint();
+  EXPECT_TRUE(web_contents()->ShouldIgnoreInputEventsForTesting());
+
+  manager_->OnAnimate(base::TimeTicks::Now());
+  manager_->OnAnimate(
+      base::TimeTicks::Now() +
+      base::Milliseconds(
+          features::kAndroidNavigationAnimationFadeOutDuration.Get()));
+
+  EXPECT_FALSE(web_contents()->ShouldIgnoreInputEventsForTesting());
+}
+
+TEST_F(BlurTransitionAnimationManagerTest,
+       InputSuppressionClearedOnCompositorDetach) {
+  auto simulator = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  simulator->Start();
+
+  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId())
+      .WillOnce(Return(fake_surface_id_));
+
+  simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
+  EXPECT_TRUE(web_contents()->ShouldIgnoreInputEventsForTesting());
+
+  manager_->OnDetachCompositor();
+  EXPECT_FALSE(web_contents()->ShouldIgnoreInputEventsForTesting());
+}
+
 }  // namespace content

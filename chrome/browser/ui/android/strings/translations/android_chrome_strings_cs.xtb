@@ -117,6 +117,7 @@ Další nastavení využití dat ke zlepšení prostředí v prohlížeči Chro
 <translation id="1435593198351412143">Soubory PDF automaticky otevřít</translation>
 <translation id="1437543266176261764">Spuštěno v aplikaci <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Sledované produkty můžete třídit v záložkách</translation>
+<translation id="1452651021404174820">Vyberte zařízení</translation>
 <translation id="1455845192930279203">Chcete soubor „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) z domény <ph name="DOWNLOAD_DOMAIN" /> i přesto stáhnout?</translation>
 <translation id="1460751212339734034">Ušetřete čas, pište méně</translation>
 <translation id="146522654774760805">Hesla a automatické vyplňování</translation>
@@ -124,6 +125,7 @@ Další nastavení využití dat ke zlepšení prostředí v prohlížeči Chro
 <translation id="1477626028522505441">Stažení souboru <ph name="FILE_NAME" /> se nezdařilo z důvodu problémů se serverem.</translation>
 <translation id="147982357559798527">Změněno</translation>
 <translation id="1480287803138246127">Je možné, že se zde nezobrazuje část vaší historie. Pokud chcete vidět celou svou historii Chromu, otevřete ji.</translation>
+<translation id="1483493594462132177">Odeslat</translation>
 <translation id="1495677929897281669">Zpět na kartu</translation>
 <translation id="1496514951988037011">uživatelské jméno</translation>
 <translation id="1501480321619201731">Smazat skupinu</translation>
@@ -1273,6 +1275,7 @@ Některé weby mohou například na tento požadavek reagovat tak, že vám zobr
 <translation id="634208815998129842">Správce úloh</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> další}few{<ph name="SHIPPING_ADDRESS_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> další}many{<ph name="SHIPPING_ADDRESS_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> další}other{<ph name="SHIPPING_ADDRESS_PREVIEW" /> a <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> dalších}}</translation>
 <translation id="6345878117466430440">Označit jako přečtené</translation>
+<translation id="6350745006329795504">Spravovat zařízení</translation>
 <translation id="6356893102071098867">Zkontrolujte, zda jste vybrali správný účet</translation>
 <translation id="6364438453358674297">Odstranit návrh z historie?</translation>
 <translation id="6380100320871303656">Častěji předběžně načítá stránky, které byste podle Chromu mohli navštívit. Toto nastavení může vést ke zvýšenému využití dat.</translation>

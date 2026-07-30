@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_full_popup_webui_content.h"
@@ -42,14 +43,11 @@ OmniboxPopupViewFullWebUI::OmniboxPopupViewFullWebUI(
 OmniboxPopupViewFullWebUI::~OmniboxPopupViewFullWebUI() = default;
 
 void OmniboxPopupViewFullWebUI::UpdatePopupAppearance() {
-  // Intentional no-op. Content updates are handled via PushTextToWebUI called
-  // directly from specific events (focus, tab switch).
+  // Intentional no-op. Content updates are handled via `SyncNativeStateToWebUI`
+  // called directly from specific events (focus, tab switch).
 }
 
-void OmniboxPopupViewFullWebUI::PushTextToWebUI(bool is_double_click) {
-  if (is_switching_tab_) {
-    return;
-  }
+void OmniboxPopupViewFullWebUI::SyncNativeStateToWebUI(bool is_double_click) {
   controller()->edit_model()->ResetDisplayTexts();
   if (auto* popup_handler = GetPopupHandler()) {
     bool user_input_in_progress =
@@ -58,10 +56,12 @@ void OmniboxPopupViewFullWebUI::PushTextToWebUI(bool is_double_click) {
         user_input_in_progress
             ? controller()->edit_model()->user_text()
             : controller()->edit_model()->GetPermanentDisplayText();
-    gfx::Range selection;
-    if (auto* omnibox_view_views =
-            static_cast<OmniboxViewViews*>(omnibox_view_)) {
-      selection = omnibox_view_views->GetSelectedRange();
+    gfx::Range selection = gfx::Range(0, text.length());
+    if (is_double_click) {
+      if (auto* omnibox_view_views =
+              static_cast<OmniboxViewViews*>(omnibox_view_)) {
+        selection = omnibox_view_views->GetSelectedRange();
+      }
     }
     const std::u16string full_url =
         controller()->client()->GetFormattedFullURL();
@@ -86,7 +86,6 @@ void OmniboxPopupViewFullWebUI::PushTextToWebUI(bool is_double_click) {
 
 void OmniboxPopupViewFullWebUI::SaveStateToTab(content::WebContents* tab) {
   DCHECK(tab);
-  is_switching_tab_ = true;
 
   auto* edit_model = controller()->edit_model();
   const OmniboxEditModel::State default_state =
@@ -149,8 +148,7 @@ void OmniboxPopupViewFullWebUI::OnTabChanged(content::WebContents* contents) {
 
   // TODO(b/504668582): Fix flicker that occurs when switching between two tabs
   //   that have an Omnibox with text.
-  UpdatePopupStateAndContent(target_popup_state);
-  is_switching_tab_ = false;
+  controller()->popup_state_manager()->SetPopupState(target_popup_state);
 
   // Request focus before pushing content state so our `SetInputState` IPC
   // overrides any OS-default focus selection (such as macOS Select-All).
@@ -178,15 +176,24 @@ void OmniboxPopupViewFullWebUI::OnTabChanged(content::WebContents* contents) {
 }
 
 void OmniboxPopupViewFullWebUI::OnFocus() {
-  UpdatePopupStateAndContent(OmniboxPopupState::kFull);
-}
+  bool changed = controller()->popup_state_manager()->popup_state() !=
+                 OmniboxPopupState::kFull;
 
-void OmniboxPopupViewFullWebUI::UpdatePopupStateAndContent(
-    OmniboxPopupState state) {
-  if (state == OmniboxPopupState::kFull) {
-    PushTextToWebUI(false);
+  if (changed) {
+    // Invalidate the cache when transitioning to a visible state to force a
+    // fresh `SetInputState` IPC. This prevents the WebUI from rendering stale
+    // text if the state changed while it was hidden and detached (e.g., tab
+    // switching).
+    last_sent_text_.reset();
   }
-  controller()->popup_state_manager()->SetPopupState(state);
+
+  // Update the state first. This triggers `presenter()->Show()` to re-attach
+  // the WebContents before we push the subsequent DOM updates.
+  controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kFull);
+
+  if (changed) {
+    SyncNativeStateToWebUI(/*is_double_click=*/false);
+  }
 }
 
 OmniboxPopupHandler* OmniboxPopupViewFullWebUI::GetPopupHandler() {

@@ -774,42 +774,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Apps.AppList.ItemSuggestCache.ResponseSize" units="bytes"
-    expires_after="2027-03-01">
-  <owner>chenjih@google.com</owner>
-  <owner>chromeos-launcher-search@google.com</owner>
-  <summary>
-    Records the size of a response from the ItemSuggest API. Reported once per
-    successful response. Will not be reported if the response exceeds the
-    maximum size, instead check Apps.AppList.ItemSuggestCache.Status. Warning:
-    this histogram was expired from 2024-09-01 to 2025-03-11; data may be
-    missing.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.ItemSuggestCache.Status"
-    enum="ItemSuggestCacheStatus" expires_after="2027-03-01">
-  <owner>chenjih@google.com</owner>
-  <owner>chromeos-launcher-search@google.com</owner>
-  <summary>
-    Records the outcome of a call to ItemSuggest. Reported once per call to
-    UpdateCache that passes the minimum time between udpates check.
-  </summary>
-</histogram>
-
-<histogram name="Apps.AppList.ItemSuggestCache.UpdateCacheLatency" units="ms"
-    expires_after="2027-03-01">
-  <owner>chenjih@google.com</owner>
-  <owner>chromeos-launcher-search@google.com</owner>
-  <summary>
-    Records the latency from the start of a call to UpdateCache to the time when
-    results are finalised. Reported once each time results are successfully
-    obtained, which corresponds to a kOk status being recorded in
-    Apps.AppList.ItemSuggestCache.Status. Warning: this histogram was expired
-    from 2024-11-03 to 2025-01-29; data may be missing.
-  </summary>
-</histogram>
-
 <histogram name="Apps.AppList.Keyword.NumberOfKeywordsInQuery" units="count"
     expires_after="2024-12-08">
   <owner>chenjih@chromium.org</owner>

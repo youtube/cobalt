@@ -8,8 +8,6 @@
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_configurator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_constants.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
-
 namespace {
 // The inner insets of the View content.
 const CGFloat kMargin = 16;
@@ -27,9 +25,8 @@ const CGFloat kMargin = 16;
   return self;
 }
 
-- (void)configureCell:(LegacyTableViewCell*)tableCell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:tableCell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)tableCell {
+  [super configureCell:tableCell];
   TableViewSigninPromoCell* cell =
       base::apple::ObjCCastStrict<TableViewSigninPromoCell>(tableCell);
   cell.signinPromoView.delegate = self.delegate;
@@ -37,9 +34,6 @@ const CGFloat kMargin = 16;
   [cell setSelectionStyle:UITableViewCellSelectionStyleNone];
   [self.configurator configureSigninPromoView:cell.signinPromoView
                                     withStyle:SigninPromoViewStyleStandard];
-  if (styler.cellTitleColor) {
-    cell.signinPromoView.textLabel.textColor = styler.cellTitleColor;
-  }
 }
 
 @end

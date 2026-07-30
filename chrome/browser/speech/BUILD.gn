@@ -98,6 +98,7 @@ source_set("impl") {
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles:profile_manager",
     "//chrome/services/speech/buildflags",
+    "//components/language/core/browser",
     "//components/user_prefs",
     "//content/public/browser",
     "//media/mojo/mojom:speech_recognition",

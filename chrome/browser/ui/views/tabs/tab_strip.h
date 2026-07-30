@@ -276,7 +276,6 @@ class TabStrip : public views::View,
   bool IsActiveTab(const TabSlotView* tab) const override;
   bool IsTabSelected(const TabSlotView* tab) const override;
   bool IsFocusInTabStrip() const override;
-  bool ShouldCompactLeadingEdge() const override;
 
   void MaybeStartDrag(TabSlotView* source,
                       const ui::LocatedEvent& event,

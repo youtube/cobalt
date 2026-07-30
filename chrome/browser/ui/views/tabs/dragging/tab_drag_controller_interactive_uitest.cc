@@ -2225,7 +2225,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // Mark the second browser as occluded. NativeWindow occlusion calculation has
   // been disabled in test constructor, so we don't need an actual occluding
   // window.
-  browser2->window()
+  browser2->GetWindow()
       ->GetNativeWindow()
       ->GetHost()
       ->SetNativeWindowOcclusionState(aura::Window::OcclusionState::OCCLUDED,

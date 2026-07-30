@@ -95,6 +95,9 @@ class WebState;
 // Disconnects the mediator.
 - (void)disconnect;
 
+// Ends the current cobrowse session.
+- (void)endSession;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_COBROWSE_COORDINATOR_ASSISTANT_AIM_MEDIATOR_H_

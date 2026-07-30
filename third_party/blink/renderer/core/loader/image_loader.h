@@ -77,6 +77,8 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
     kUpdateForcedReload
   };
 
+  enum class ResetTimeline { kAll, kSharedOnly };
+
   // force_blocking ensures that the image will block the load event.
   void UpdateFromElement(UpdateFromElementBehavior = kUpdateNormal,
                          bool force_blocking = false);
@@ -188,7 +190,8 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
 
   LayoutImageResource* GetLayoutImageResource() const;
   void UpdateLayoutObject();
-  void ResetAnimation();
+
+  void ResetAnimation(ResetTimeline = ResetTimeline::kAll);
 
   // Note: SetImage.*() are not a simple setter.
   // Check the implementation to see what they do.

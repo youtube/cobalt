@@ -1,0 +1,81 @@
+# Edge cases: opaque-origin StorageArea bindings for local and session storage.
+# Opaque origins take a distinct code path through
+# blink::StorageKey::CreateFirstParty(Origin()) and
+# ChildProcessSecurityPolicyImpl::CanAccessDataForOrigin. Renderer A has
+# https://example.com committed and Renderer B has https://other.com committed,
+# so the opaque-origin Put will exercise the security-rejection path.
+
+# actions[0]: Local storage with opaque origin (likely rejected by security policy).
+actions {
+  new_local_storage_area {
+    id: 0
+    origin_id: ORIGIN_OPAQUE
+    renderer_id: RENDERER_A
+  }
+}
+# actions[1]: Local storage ORIGIN_A as a sibling for cross-origin coverage.
+actions {
+  new_local_storage_area {
+    id: 1
+    origin_id: ORIGIN_A
+    renderer_id: RENDERER_A
+  }
+}
+# actions[2]: Session storage with opaque origin.
+actions {
+  new_session_storage_area {
+    id: 2
+    origin_id: ORIGIN_OPAQUE
+    renderer_id: RENDERER_A
+  }
+}
+# actions[3]: Drain UI thread.
+actions { run_thread { id: UI } }
+# actions[4]: Put key 111 = value 112 on id 0 (opaque local).
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 111 } }
+      m_value { values { value: 112 } }
+    }
+  }
+}
+# actions[5]: Put key 105 = value 111 on id 1 (ORIGIN_A local).
+actions {
+  storage_area_remote_action {
+    id: 1
+    m_put {
+      m_key { values { value: 105 } }
+      m_value { values { value: 111 } }
+    }
+  }
+}
+# actions[6]: Put key 113 = value 114 on id 2 (opaque session).
+actions {
+  storage_area_remote_action {
+    id: 2
+    m_put {
+      m_key { values { value: 113 } }
+      m_value { values { value: 114 } }
+    }
+  }
+}
+# actions[7]: GetAll on id 1 (read after non-opaque write).
+actions { storage_area_remote_action { id: 1  m_get_all {} } }
+# actions[8]: GetAll on id 0 (read against opaque local).
+actions { storage_area_remote_action { id: 0  m_get_all {} } }
+# actions[9]: GetAll on id 2 (read against opaque session).
+actions { storage_area_remote_action { id: 2  m_get_all {} } }
+
+# Sequence 0: Opaque-origin local Put then read.
+sequences { action_indexes: [0, 4, 8] }
+# Sequence 1: Opaque local + ORIGIN_A local, Put on both, drain UI, GetAll on ORIGIN_A.
+sequences { action_indexes: [0, 1, 4, 5, 3, 7] }
+# Sequence 2: Opaque-origin session Put then read.
+sequences { action_indexes: [2, 6, 9] }
+# Sequence 3: Opaque local + opaque session interleaved. Each opaque origin
+# is independent, so neither read should observe the other's value.
+sequences { action_indexes: [0, 2, 4, 6, 3, 8, 9] }
+
+sequence_indexes: [0, 1, 2, 3]

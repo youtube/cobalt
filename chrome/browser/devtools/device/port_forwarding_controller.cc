@@ -31,6 +31,7 @@
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_handle.h"
 #include "net/base/network_isolation_key.h"
 #include "net/dns/public/host_resolver_results.h"
 #include "net/dns/public/resolve_error_info.h"
@@ -268,7 +269,11 @@ class SocketTunnel {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     host_socket_ = std::make_unique<net::TCPClientSocket>(
-        resolved_addresses, nullptr, nullptr, nullptr, net::NetLogSource());
+        resolved_addresses, nullptr, nullptr, nullptr, net::NetLogSource(),
+        // There are currently no use cases for targeting a network when
+        // forwarding via devtools. This will need to be reconsidered if a need
+        // arises.
+        net::handles::kInvalidNetworkHandle);
     int result = host_socket_->Connect(
         base::BindOnce(&SocketTunnel::OnConnected, base::Unretained(this)));
     if (result != net::ERR_IO_PENDING)

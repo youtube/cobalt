@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
+import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
@@ -386,6 +387,14 @@ public class CompositorViewHolder extends FrameLayout
                 @Override
                 public void onTouchUp() {
                     mInTouch = false;
+                    updateInMotion();
+                }
+
+                @Override
+                public void onHidden(Tab tab, @TabHidingType int reason) {
+                    mContentViewScrolling = false;
+                    mInTouch = false;
+                    mInGesture = false;
                     updateInMotion();
                 }
             };
@@ -1970,6 +1979,10 @@ public class CompositorViewHolder extends FrameLayout
         if (mTabVisible != tab) {
             // Reset the geometrychange event flag so it can fire on the current active tab.
             mHasKeyboardGeometryChangeFired = false;
+            mContentViewScrolling = false;
+            mInTouch = false;
+            mInGesture = false;
+            updateInMotion();
             if (mTabVisible != null) mTabVisible.removeObserver(mTabObserver);
             if (tab != null) {
                 tab.addObserver(mTabObserver);

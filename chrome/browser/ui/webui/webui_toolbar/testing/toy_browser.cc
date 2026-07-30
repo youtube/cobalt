@@ -57,6 +57,10 @@ class ToyBrowserControlsAdapter : public BrowserControlsAdapter {
     toy_browser_->received_urls_.push_back(url);
   }
 
+  void NavigateText(const std::string& text) override {
+    toy_browser_->received_navigate_texts_.push_back(text);
+  }
+
   webui_toolbar::TabSplitStatus ComputeSplitTabStatus() override {
     webui_toolbar::TabSplitStatus status;
 

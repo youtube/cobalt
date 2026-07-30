@@ -47,7 +47,6 @@ import org.chromium.blink.mojom.EventType;
 import org.chromium.blink_public.web.WebInputEventModifier;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
 import org.chromium.content_public.browser.ContentFeatureList;
-import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.content_public.browser.ImeEventObserver;
 import org.chromium.content_public.browser.InputMethodManagerWrapper;
 import org.chromium.content_public.browser.WebContents;
@@ -75,8 +74,6 @@ public class ImeAdapterImplTest {
     @Mock private CorrectionInfo mCorrectionInfo;
     @Mock private AutocorrectManager mAutocorrectManager;
     @Mock private InputMethodManagerWrapper mInputMethodManagerWrapper;
-    @Mock private ChromiumBaseInputConnection.Factory mInputConnectionFactory;
-    @Mock private ChromiumBaseInputConnection mInputConnection;
 
     @Before
     public void setUp() {
@@ -135,9 +132,6 @@ public class ImeAdapterImplTest {
                 /* showIfNeeded= */ false,
                 /* alwaysHide= */ false,
                 /* text= */ "",
-                /* htmlLabel= */ null,
-                /* htmlFieldName= */ null,
-                /* htmlPlaceholder= */ null,
                 /* selectionStart= */ 0,
                 /* selectionEnd= */ 0,
                 /* compositionStart= */ 0,
@@ -577,9 +571,6 @@ public class ImeAdapterImplTest {
                 /* showIfNeeded= */ true,
                 /* alwaysHide= */ false,
                 /* text= */ "",
-                /* htmlLabel= */ null,
-                /* htmlFieldName= */ null,
-                /* htmlPlaceholder= */ null,
                 /* selectionStart= */ 0,
                 /* selectionEnd= */ 0,
                 /* compositionStart= */ 0,
@@ -644,53 +635,5 @@ public class ImeAdapterImplTest {
 
         verify(mInputMethodManagerWrapper, never()).isActive(any());
         verify(mInputMethodManagerWrapper, never()).hideSoftInputFromWindow(any(), anyInt(), any());
-    }
-
-    @Test
-    public void testOnCreateInputConnectionPassesMetadata() {
-        ImeAdapterImpl adapter = new ImeAdapterImpl(mWebContentsImpl);
-        adapter.setInputConnectionFactory(mInputConnectionFactory);
-
-        when(mInputConnectionFactory.initializeAndGet(
-                        any(), any(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(),
-                        any(), any(), any()))
-                .thenReturn(mInputConnection);
-
-        adapter.updateState(
-                TextInputType.TEXT,
-                /* textInputFlags= */ 0,
-                /* textInputMode= */ 0,
-                /* textInputAction= */ 0,
-                /* showIfNeeded= */ false,
-                /* alwaysHide= */ false,
-                /* text= */ "",
-                /* htmlLabel= */ "label_test",
-                /* htmlFieldName= */ "name_test",
-                /* htmlPlaceholder= */ "placeholder_test",
-                /* selectionStart= */ 0,
-                /* selectionEnd= */ 0,
-                /* compositionStart= */ 0,
-                /* compositionEnd= */ 0,
-                /* replyToRequest= */ false,
-                /* lastVkVisibilityRequest= */ 0,
-                /* vkPolicy= */ 0,
-                /* imeTextSpans= */ null);
-
-        EditorInfo outAttrs = new EditorInfo();
-        adapter.onCreateInputConnection(outAttrs);
-
-        verify(mInputConnectionFactory)
-                .initializeAndGet(
-                        any(),
-                        eq(adapter),
-                        eq(TextInputType.TEXT),
-                        eq(0),
-                        eq(0),
-                        eq(0),
-                        eq(0),
-                        eq(0),
-                        eq(""),
-                        eq(HtmlMetadata.create("label_test", "name_test", "placeholder_test")),
-                        eq(outAttrs));
     }
 }

@@ -8,6 +8,8 @@
 #include "base/test/task_environment.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/features.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
+#include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -16,18 +18,26 @@ namespace {
 
 class ContextualCueingServiceV2Test : public testing::Test {
  public:
-  ContextualCueingServiceV2Test() = default;
+  ContextualCueingServiceV2Test() {
+    prefs::RegisterProfilePrefs(pref_service_.registry());
+  }
   ~ContextualCueingServiceV2Test() override = default;
 
   void SetUp() override {
-    service_ = std::make_unique<ContextualCueingService>();
+    service_ = std::make_unique<ContextualCueingService>(&pref_service_);
   }
 
   ContextualCueingService* service() { return service_.get(); }
 
+  // Creates a fresh service backed by the same prefs, simulating a restart.
+  std::unique_ptr<ContextualCueingService> CreateService() {
+    return std::make_unique<ContextualCueingService>(&pref_service_);
+  }
+
  protected:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  TestingPrefServiceSimple pref_service_;
   std::unique_ptr<ContextualCueingService> service_;
 };
 
@@ -40,7 +50,7 @@ TEST_F(ContextualCueingServiceV2Test, NotEnoughTimeSinceLastCue) {
   GURL url("https://example.com");
 
   // Seeds state.
-  service()->OnCueShown(url);
+  service()->OnCueShown(url, CueTargetType::kGlic);
 
   // Simulate enough page loads elapsing.
   for (int i = 0; i < kMinPageCountBetweenNudges.Get() + 1; ++i) {
@@ -58,7 +68,7 @@ TEST_F(ContextualCueingServiceV2Test, TooManyCuesForOriginOverTime) {
 
   for (int i = 0; i < kCueCapCountPerOrigin.Get(); ++i) {
     EXPECT_EQ(service()->CanShowCue(url), ContextualCueingDecision::kSuccess);
-    service()->OnCueShown(url);
+    service()->OnCueShown(url, CueTargetType::kGlic);
     for (int j = 0; j < kMinPageCountBetweenNudges.Get() + 1; ++j) {
       service()->ReportPageLoad();
     }
@@ -79,7 +89,7 @@ TEST_F(ContextualCueingServiceV2Test, TooManyCuesForUserOverTime) {
   for (int i = 0; i < kCueCapCount.Get(); ++i) {
     GURL url = urls[i % urls.size()];
     EXPECT_EQ(service()->CanShowCue(url), ContextualCueingDecision::kSuccess);
-    service()->OnCueShown(url);
+    service()->OnCueShown(url, CueTargetType::kGlic);
     for (int j = 0; j < kMinPageCountBetweenNudges.Get() + 1; ++j) {
       service()->ReportPageLoad();
     }
@@ -97,7 +107,7 @@ TEST_F(ContextualCueingServiceV2Test, NotEnoughTimeSinceLastDismissal) {
   GURL url("https://example.com");
 
   EXPECT_EQ(service()->CanShowCue(url), ContextualCueingDecision::kSuccess);
-  service()->OnCueShown(url);
+  service()->OnCueShown(url, CueTargetType::kGlic);
 
   // Simulate a dismissal.
   service()->OnCueDismissed(CueTargetType::kGlic);
@@ -116,7 +126,7 @@ TEST_F(ContextualCueingServiceV2Test, NotEnoughTimeSinceLastClick) {
   GURL url("https://example.com");
 
   EXPECT_EQ(service()->CanShowCue(url), ContextualCueingDecision::kSuccess);
-  service()->OnCueShown(url);
+  service()->OnCueShown(url, CueTargetType::kGlic);
 
   // Simulate a click.
   service()->OnCueClicked(CueTargetType::kGlic);
@@ -134,6 +144,67 @@ TEST_F(ContextualCueingServiceV2Test, NotEnoughTimeSinceLastClick) {
   task_environment_.FastForwardBy(kClickBackoffTime.Get() + base::Minutes(1));
 
   EXPECT_EQ(service()->CanShowCue(url), ContextualCueingDecision::kSuccess);
+}
+
+// ---------------------------------------------------------------------------
+// Pref persistence round-trip tests
+// ---------------------------------------------------------------------------
+
+// Verifies that impressions, clicks, and dismissals written by the first
+// service instance are correctly restored in a second instance (simulating
+// a browser restart).
+TEST_F(ContextualCueingServiceV2Test, StatsRoundTripAcrossRestart) {
+  GURL url("https://example.com");
+  {
+    auto svc = CreateService();
+    svc->OnCueShown(url, CueTargetType::kGlic);
+    svc->OnCueShown(url, CueTargetType::kGlic);
+    svc->OnCueClicked(CueTargetType::kGlic);
+    svc->OnCueDismissed(CueTargetType::kGlic);
+    // Service destroyed here; prefs should have been written.
+  }
+
+  // Simulate a restart: construct a new service from the same prefs.
+  auto service2 = CreateService();
+  const TargetStats& stats = service2->GetStatsForTarget(CueTargetType::kGlic);
+  EXPECT_EQ(stats.impressions, 2);
+  EXPECT_EQ(stats.clicks, 1);
+  EXPECT_EQ(stats.dismissals, 1);
+}
+
+// Verifies that GetTotalImpressions sums across targets correctly after
+// a round-trip (only kGlic is registered, so the total should match).
+TEST_F(ContextualCueingServiceV2Test, TotalImpressionsAfterRestart) {
+  GURL url("https://example.com");
+  {
+    auto svc = CreateService();
+    svc->OnCueShown(url, CueTargetType::kGlic);
+    svc->OnCueShown(url, CueTargetType::kGlic);
+    svc->OnCueShown(url, CueTargetType::kGlic);
+  }
+
+  auto service2 = CreateService();
+  EXPECT_EQ(service2->GetTotalImpressions(), 3);
+}
+
+// Verifies that a service with zero interactions does not write or restore
+// spurious stats entries (zero-activity path).
+TEST_F(ContextualCueingServiceV2Test, NoActivityNoPrefsWritten) {
+  {
+    auto svc = CreateService();
+    // No interactions; nothing should be written to prefs.
+    const TargetStats& stats = svc->GetStatsForTarget(CueTargetType::kGlic);
+    EXPECT_EQ(stats.impressions, 0);
+    EXPECT_EQ(stats.clicks, 0);
+    EXPECT_EQ(stats.dismissals, 0);
+  }
+
+  // A second instance should also see all-zero stats.
+  auto service2 = CreateService();
+  const TargetStats& stats2 = service2->GetStatsForTarget(CueTargetType::kGlic);
+  EXPECT_EQ(stats2.impressions, 0);
+  EXPECT_EQ(stats2.clicks, 0);
+  EXPECT_EQ(stats2.dismissals, 0);
 }
 
 class ContextualCueingServiceDisableBackoffTest
@@ -157,7 +228,7 @@ TEST_F(ContextualCueingServiceDisableBackoffTest, BackoffDisabled) {
   GURL url("https://example.com");
 
   // Simulate a cue being shown.
-  service()->OnCueShown(url);
+  service()->OnCueShown(url, CueTargetType::kGlic);
 
   // Should not be blocked by backoff.
   EXPECT_EQ(service()->CanShowCue(url), ContextualCueingDecision::kSuccess);

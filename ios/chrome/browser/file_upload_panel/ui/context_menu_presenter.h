@@ -8,7 +8,6 @@
 #import <UIKit/UIKit.h>
 
 // Presents a context menu at a specified location.
-API_AVAILABLE(ios(17.4))
 @interface ContextMenuPresenter : NSObject
 
 @property(nonatomic, weak) id<UIContextMenuInteractionDelegate>

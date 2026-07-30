@@ -54,6 +54,14 @@ import "ui/gfx/mojom/dxgi_info.mojom";
 [EnableIf=enable_vrp_flags]
 import "components/vrp_flags/vrp_flags.mojom";
 
+// Used by InduceMemoryInvalidAccess to specify the invalid access type.
+enum MemoryInvalidAccessType {
+  kHeapOverflow,
+  kHeapUnderflow,
+  kUseAfterFree,
+  kMemberDereferenceAfterFree,
+};
+
 interface GpuService {
   // Tells the GPU service to connect `channel_handle` for communication with a
   // client. The GPU service responds with `success` to indicate whether the
@@ -221,6 +229,11 @@ interface GpuService {
   Hang();
 
   ThrowJavaException();
+
+  // Induces invalid memory access of the specified `action` (e.g.
+  // heap-overflow, heap-underflow, use-after-free) in the GPU process.
+  // This is used for verifying ASan/HWASan crash reporting.
+  InduceMemoryInvalidAccess(MemoryInvalidAccessType action);
 
   // Returns a connection to the VrpFlags if the GPU process was
   // launched with --vrp-flags, otherwise returns a null remote.

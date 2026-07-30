@@ -8,22 +8,48 @@
  * will be displayed.
  */
 
+
 import type {I18nMixinInterface} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import type {WebUiListenerMixinInterface} from 'chrome://resources/ash/common/cr_elements/web_ui_listener_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/ash/common/cr_elements/web_ui_listener_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import type {AuthFactorConfigInterface, PinFactorEditorInterface, RecoveryFactorEditorInterface} from 'chrome://resources/mojo/chromeos/ash/services/auth_factor_config/public/mojom/auth_factor_config.mojom-webui.js';
 import {AuthFactorConfig, PinFactorEditor, RecoveryFactorEditor} from 'chrome://resources/mojo/chromeos/ash/services/auth_factor_config/public/mojom/auth_factor_config.mojom-webui.js';
 import type {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {dedupingMixin} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import type {Constructor} from './common/types.js';
+import type {Constructor, PrefsState} from './common/types.js';
+import type {FingerprintBrowserProxy} from './os_people_page/fingerprint_browser_proxy.js';
+import {FingerprintBrowserProxyImpl} from './os_people_page/fingerprint_browser_proxy.js';
+import type {QuickUnlockBrowserProxy} from './os_people_page/quick_unlock_browser_proxy.js';
+import {QuickUnlockBrowserProxyImpl} from './os_people_page/quick_unlock_browser_proxy.js';
 
 export enum LockScreenUnlockType {
-  VALUE_PENDING = 'value_pending',
+  NO_AUTH = 'no_auth',
+  LOCK_SCREEN_NONE = 'lock_screen_none',
   PASSWORD = 'password',
-  PIN_PASSWORD = 'pin+password',
+  PIN_ONLY = 'pin_only',
+  PASSWORD_PIN = 'password+pin',
+  PASSWORD_FINGERPRINT = 'password+fingerprint',
+  PIN_FINGERPRINT = 'pin+fingerprint',
+  PASSWORD_PIN_FINGERPRINT = 'password+pin+fingerprint',
 }
+
+// Use a Record to enforce that every LockScreenUnlockType has a corresponding
+// i18n string ID.
+const LOCK_SCREEN_UNLOCK_TYPE_LABELS: Record<LockScreenUnlockType, string> = {
+  [LockScreenUnlockType.LOCK_SCREEN_NONE]: 'lockScreenNone',
+  [LockScreenUnlockType.NO_AUTH]: 'lockScreenNoAuthFactor',
+  [LockScreenUnlockType.PASSWORD]: 'lockScreenPasswordOnly',
+  [LockScreenUnlockType.PIN_ONLY]: 'lockScreenPinOnly',
+  [LockScreenUnlockType.PASSWORD_PIN]: 'lockScreenPinOrPassword',
+  [LockScreenUnlockType.PASSWORD_FINGERPRINT]:
+      'lockScreenPasswordOrFingerprint',
+  [LockScreenUnlockType.PIN_FINGERPRINT]: 'lockScreenPinOrFingerprint',
+  [LockScreenUnlockType.PASSWORD_PIN_FINGERPRINT]:
+      'lockScreenPasswordOrPinOrFingerprint',
+};
 
 /**
  * Determining if the device supports PIN sign-in takes time, as it may require
@@ -52,6 +78,11 @@ export interface LockStateMixinInterface extends I18nMixinInterface,
   setLockScreenEnabled(
       authToken: string, enabled: boolean,
       onComplete: (result: boolean) => void): void;
+
+  initializeLockState(): void;
+
+  determineUnlockType(
+      hasPassword: boolean, hasPin: boolean, hasFingerprint: boolean): void;
 }
 
 export const LockStateMixin = dedupingMixin(
@@ -66,7 +97,7 @@ export const LockStateMixin = dedupingMixin(
             selectedUnlockType: {
               type: String,
               notify: true,
-              value: LockScreenUnlockType.VALUE_PENDING,
+              value: LockScreenUnlockType.NO_AUTH,
             },
 
             /**
@@ -101,7 +132,29 @@ export const LockStateMixin = dedupingMixin(
              * overridden by tests.
              */
             pinFactorEditor: {type: Object, value: PinFactorEditor.getRemote()},
+
+            /**
+             * Preferences state.
+             * This is expected to be provided by the element consuming the
+             * mixin.
+             * @see {OsSettingsPrivacyPageElement} for example.
+             */
+            prefs: {
+              type: Object,
+            },
+
+            /**
+             * The translated string for the current unlock type.
+             */
+            unlockStatusLabel_: {
+              type: String,
+              notify: true,
+            },
           };
+        }
+
+        static get observers() {
+          return ['onSelectedUnlockTypeChanged_(selectedUnlockType)'];
         }
 
         selectedUnlockType: LockScreenUnlockType;
@@ -110,6 +163,18 @@ export const LockStateMixin = dedupingMixin(
         authFactorConfig: AuthFactorConfigInterface;
         recoveryFactorEditor: RecoveryFactorEditorInterface;
         pinFactorEditor: PinFactorEditorInterface;
+        prefs: PrefsState;
+        private unlockStatusLabel_: string;
+        private quickUnlockBrowserProxy_: QuickUnlockBrowserProxy;
+        private fingerprintBrowserProxy_: FingerprintBrowserProxy;
+
+        constructor() {
+          super();
+          this.quickUnlockBrowserProxy_ =
+              QuickUnlockBrowserProxyImpl.getInstance();
+          this.fingerprintBrowserProxy_ =
+              FingerprintBrowserProxyImpl.getInstance();
+        }
 
         override connectedCallback(): void {
           super.connectedCallback();
@@ -145,6 +210,72 @@ export const LockStateMixin = dedupingMixin(
                   onComplete(success);
                 }
               });
+        }
+
+        initializeLockState(): Promise<void> {
+          this.addWebUiListener(
+              'settings.enable_screen_lock.changed', (isEnabled: boolean) => {
+                // When the screen lock setting changes, if it's disabled,
+                // we immediately set the unlock type to NONE. Otherwise,
+                // the subsequent Promise.all will correctly determine the
+                // unlock type based on configured factors.
+                if (!isEnabled) {
+                  this.selectedUnlockType =
+                      LockScreenUnlockType.LOCK_SCREEN_NONE;
+                }
+              });
+
+          return Promise
+              .all([
+                this.fingerprintBrowserProxy_.getNumFingerprints(),
+                this.quickUnlockBrowserProxy_.requestActiveAuthFactors(),
+              ])
+              .then(([numFingerprints, factors]) => {
+                this.determineUnlockType(
+                    factors.password, factors.pin, numFingerprints > 0);
+              });
+        }
+
+        determineUnlockType(
+            hasPassword: boolean, hasPin: boolean,
+            hasFingerprint: boolean): void {
+          // Guard 1: Settings disabled
+          if (this.prefs && !this.prefs['settings'].enable_screen_lock.value) {
+            this.selectedUnlockType = LockScreenUnlockType.LOCK_SCREEN_NONE;
+            return;
+          }
+
+          // Guard 2: No credentials
+          if (!hasPassword && !hasPin) {
+            this.selectedUnlockType = LockScreenUnlockType.NO_AUTH;
+            return;
+          }
+
+          // Logic 3: Handle Password combinations
+          if (hasPassword) {
+            if (hasPin) {
+              this.selectedUnlockType = hasFingerprint ?
+                  LockScreenUnlockType.PASSWORD_PIN_FINGERPRINT :
+                  LockScreenUnlockType.PASSWORD_PIN;
+            } else {
+              this.selectedUnlockType = hasFingerprint ?
+                  LockScreenUnlockType.PASSWORD_FINGERPRINT :
+                  LockScreenUnlockType.PASSWORD;
+            }
+            return;
+          }
+
+          // Logic 4: Handle Pin combinations (We know !hasPassword here)
+          this.selectedUnlockType = hasFingerprint ?
+              LockScreenUnlockType.PIN_FINGERPRINT :
+              LockScreenUnlockType.PIN_ONLY;
+        }
+
+        private onSelectedUnlockTypeChanged_(): void {
+          const labelId =
+              LOCK_SCREEN_UNLOCK_TYPE_LABELS[this.selectedUnlockType];
+          assert(labelId !== undefined, 'Unknown LockScreenUnlockType');
+          this.unlockStatusLabel_ = this.i18n(labelId);
         }
 
         private handlePinLoginAvailableChanged_(isAvailable: boolean): void {

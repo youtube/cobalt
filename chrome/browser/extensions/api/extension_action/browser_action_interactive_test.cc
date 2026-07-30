@@ -1216,7 +1216,7 @@ IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
   // surface, there is a download notification in the right-bottom corner of the
   // screen.
 #if !BUILDFLAG(IS_CHROMEOS)
-  EXPECT_TRUE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_TRUE(IsDownloadSurfaceVisible(BrowserWindow::FromBrowser(browser())));
 #endif
 }
 
@@ -1252,7 +1252,7 @@ IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
   // surface, there is a download notification in the right-bottom corner of the
   // screen.
 #if !BUILDFLAG(IS_CHROMEOS)
-  EXPECT_TRUE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_TRUE(IsDownloadSurfaceVisible(BrowserWindow::FromBrowser(browser())));
 #endif
 }
 

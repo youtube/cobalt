@@ -14,6 +14,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/web_signin_interceptor.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -373,7 +374,8 @@ class DiceWebSigninInterceptionBubblePixelTest
     SkColor primary_highlight_color =
         GetParam().primary_profile_color.toSkColor();
     DefaultAvatarColors avatar_colors = GetDefaultAvatarColors(
-        *browser()->window()->GetColorProvider(), primary_highlight_color);
+        *BrowserWindow::FromBrowser(browser())->GetColorProvider(),
+        primary_highlight_color);
     ProfileThemeColors colors = {
         .profile_highlight_color = primary_highlight_color,
         .default_avatar_fill_color = avatar_colors.fill_color,

@@ -26,7 +26,7 @@
 </style>
 
 <div id="container" overscrollcontainer>
-  <div id="menu"></div>
+  <div id="menu" overscrollarea></div>
   <div id="content"></div>
 </div>
 <button id=button command="toggle-overscroll" commandfor="menu"></button>
@@ -68,8 +68,8 @@ promise_test(async () => {
   // The container still has not scrolled.
   assert_equals(container.offsetLeft, 0, "container still not scrolled");
 
-  // Change commandfor, which should remove the overscroll area.
-  button.setAttribute("command", "show-popover");
+  // Remove overscrollarea attribute, which should remove the overscroll area.
+  menu.removeAttribute("overscrollarea");
   assert_not_equals(getComputedStyle(menu).position, "absolute", "menu should no longer be an overscroll area");
 }, "Toggle overscroll brings the menu in and out");
 </script>

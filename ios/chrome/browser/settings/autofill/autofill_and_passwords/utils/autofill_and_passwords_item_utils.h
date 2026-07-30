@@ -8,6 +8,8 @@
 #import <Foundation/Foundation.h>
 
 @class TableViewDetailIconItem;
+@class TableViewHeaderFooterItem;
+@class TableViewSwitchItem;
 
 // Returns the detail text for the passwords item.
 NSString* PasswordsItemDetailText(BOOL enabled);
@@ -41,5 +43,34 @@ TableViewDetailIconItem* TravelInfoItem(BOOL enabled);
 
 // Returns the autofill settings item.
 TableViewDetailIconItem* AutofillSettingsItem();
+
+// Returns the switch item for Enhanced Autofill. `target` is the target for the
+// switch action, `action` is the selector.
+TableViewSwitchItem* EnhancedAutofillSwitchItem(NSInteger itemType,
+                                                BOOL enabled,
+                                                id target,
+                                                SEL action);
+
+// Returns the footer item for the Enhanced Autofill switch section.
+TableViewHeaderFooterItem* EnhancedAutofillSwitchFooter(NSInteger itemType);
+
+// Returns the header item for the "When on" section.
+TableViewHeaderFooterItem* EnhancedAutofillWhenOnSectionHeader(
+    NSInteger itemType);
+
+// Returns the detail icon item for "Can fill difficult fields".
+TableViewDetailIconItem* EnhancedAutofillCanFillDifficultFieldsItem(
+    NSInteger itemType);
+
+// Returns the header item for the "Things to consider" section.
+TableViewHeaderFooterItem* EnhancedAutofillThingsToConsiderSectionHeader(
+    NSInteger itemType);
+
+// Returns the detail icon item for "Data usage".
+TableViewDetailIconItem* EnhancedAutofillDataUsageItem(NSInteger itemType);
+
+// Returns the detail icon item for "Enterprise managed logging disabled".
+TableViewDetailIconItem* EnhancedAutofillEnterpriseManagedLoggingDisabledItem(
+    NSInteger itemType);
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UTILS_AUTOFILL_AND_PASSWORDS_ITEM_UTILS_H_

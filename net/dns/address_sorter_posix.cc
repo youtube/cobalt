@@ -43,6 +43,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/datagram_client_socket.h"
@@ -300,11 +301,13 @@ class AddressSorterPosix::SortContext {
  public:
   SortContext(size_t in_num_endpoints,
               const NetworkAnonymizationKey& anonymization_key,
+              handles::NetworkHandle target_network,
               AddressSorter::CallbackType callback,
               const AddressSorterPosix* sorter,
               base::TimeTicks start_time)
       : num_endpoints_(in_num_endpoints),
         anonymization_key_(anonymization_key),
+        target_network_(target_network),
         callback_(std::move(callback)),
         sorter_(sorter),
         start_time_(start_time) {}
@@ -316,7 +319,8 @@ class AddressSorterPosix::SortContext {
   void ConnectWithInfo(DestinationInfo info) {
     // TODO(crbug.com/515502437): Pass in a net log.
     info.socket = sorter_->socket_factory_->CreateDatagramClientSocket(
-        DatagramSocket::DEFAULT_BIND, /*net_log=*/nullptr, NetLogSource());
+        DatagramSocket::DEFAULT_BIND, target_network_, /*net_log=*/nullptr,
+        NetLogSource());
     IPEndPoint dest = info.endpoint;
     // Even though no packets are sent, cannot use port 0 in Connect.
     if (dest.port() == 0) {
@@ -381,7 +385,7 @@ class AddressSorterPosix::SortContext {
 
     if (sorter_->caching_enabled_) {
       IPAddress masked_address = MaskIPAddress(info.endpoint.address());
-      CacheKey cache_key = std::pair(masked_address, anonymization_key_);
+      CacheKey cache_key{masked_address, anonymization_key_, target_network_};
       sorter_->connect_cache_.Put(
           cache_key,
           ConnectResult{rv, info.source_address.value_or(IPAddress())});
@@ -448,6 +452,7 @@ class AddressSorterPosix::SortContext {
   size_t connect_calls_made_ = 0;
   std::vector<DestinationInfo> sort_list_;
   NetworkAnonymizationKey anonymization_key_;
+  handles::NetworkHandle target_network_ = handles::kInvalidNetworkHandle;
   AddressSorter::CallbackType callback_;
 
   raw_ptr<const AddressSorterPosix> sorter_;
@@ -485,14 +490,15 @@ AddressSorterPosix::~AddressSorterPosix() {
 
 void AddressSorterPosix::Sort(const std::vector<IPEndPoint>& endpoints,
                               const NetworkAnonymizationKey& anonymization_key,
+                              handles::NetworkHandle target_network,
                               CallbackType callback) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Calling base::TimeTicks::Now() before std::make_unique<>() permits us to
   // include the memory allocation overhead in the time measurement.
   auto [it, inserted] = sort_contexts_.insert(std::make_unique<SortContext>(
-      endpoints.size(), anonymization_key, std::move(callback), this,
-      base::TimeTicks::Now()));
+      endpoints.size(), anonymization_key, target_network, std::move(callback),
+      this, base::TimeTicks::Now()));
   CHECK(inserted);
   auto* sort_context = it->get();
   for (const IPEndPoint& endpoint : endpoints) {
@@ -505,7 +511,7 @@ void AddressSorterPosix::Sort(const std::vector<IPEndPoint>& endpoints,
 
     if (caching_enabled_) {
       IPAddress masked_address = MaskIPAddress(endpoint.address());
-      CacheKey cache_key = std::pair(masked_address, anonymization_key);
+      CacheKey cache_key{masked_address, anonymization_key, target_network};
       auto cache_it = connect_cache_.Get(cache_key);
       if (cache_it != connect_cache_.end()) {
         sort_context->UseCacheResultWithInfo(std::move(info), cache_it->second);

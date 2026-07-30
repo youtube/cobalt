@@ -139,4 +139,8 @@ void WaylandWpColorManagementSurface::OnColorManagerDestroyed() {
   NOTREACHED();
 }
 
+void WaylandWpColorManagementSurface::OnColorManagerReady() {
+  FetchPreferredImageDescription();
+}
+
 }  // namespace ui

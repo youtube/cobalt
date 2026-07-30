@@ -6,8 +6,11 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -51,6 +54,62 @@ void CreatePlusSevenMathServiceAndRemote(
       remote.InitWithNewPipeAndPassReceiver());
   remote_out = std::make_unique<mojo::rust::ScopedMessagePipeHandleWrapper>(
       remote.PassPipe());
+}
+
+class AssociatedSenderImpl : public AssociatedSender {
+ public:
+  AssociatedSenderImpl() = default;
+  ~AssociatedSenderImpl() override = default;
+
+  void SendRemote(mojo::PendingAssociatedRemote<MathService> remote) override {
+    mojo::AssociatedRemote<MathService> math_remote(std::move(remote));
+    math_remote->Add(
+        1, 2, base::BindOnce([](uint32_t result) { EXPECT_EQ(result, 3u); }));
+    active_remotes_.push_back(std::move(math_remote));
+  }
+
+  void SendReceiver(
+      mojo::PendingAssociatedReceiver<MathService> receiver) override {
+    active_services_.push_back(
+        std::make_unique<PlusSevenMathService>(std::move(receiver)));
+  }
+
+  void RequestRemote(RequestRemoteCallback callback) override {
+    mojo::PendingAssociatedRemote<MathService> remote;
+    mojo::PendingAssociatedReceiver<MathService> receiver =
+        remote.InitWithNewEndpointAndPassReceiver();
+    active_services_.push_back(
+        std::make_unique<PlusSevenMathService>(std::move(receiver)));
+    std::move(callback).Run(std::move(remote));
+  }
+
+  void RequestReceiver(RequestReceiverCallback callback) override {
+    mojo::PendingAssociatedRemote<MathService> remote;
+    mojo::PendingAssociatedReceiver<MathService> receiver =
+        remote.InitWithNewEndpointAndPassReceiver();
+
+    // Call the callback first to associate the endpoint
+    std::move(callback).Run(std::move(receiver));
+
+    mojo::AssociatedRemote<MathService> math_remote(std::move(remote));
+    math_remote->Add(20, 30, base::BindOnce([](uint32_t result) {
+                       EXPECT_EQ(result, 50u);
+                     }));
+
+    active_remotes_.push_back(std::move(math_remote));
+  }
+
+ private:
+  std::vector<mojo::AssociatedRemote<MathService>> active_remotes_;
+  std::vector<mojo::PendingAssociatedRemote<MathService>> pending_remotes_;
+  std::vector<std::unique_ptr<PlusSevenMathService>> active_services_;
+};
+
+void CreateCppAssociatedSender(
+    std::unique_ptr<mojo::rust::ScopedMessagePipeHandleWrapper> wrapper) {
+  mojo::PendingReceiver<AssociatedSender> receiver(wrapper->take_handle());
+  mojo::MakeSelfOwnedReceiver(std::make_unique<AssociatedSenderImpl>(),
+                              std::move(receiver));
 }
 
 }  // namespace bindings_unittests::mojom

@@ -16,10 +16,9 @@
 #include "ui/display/types/display_constants.h"
 
 PermissionPromptBubble::PermissionPromptBubble(
-    Browser* browser,
     content::WebContents* web_contents,
     Delegate* delegate)
-    : PermissionPromptDesktop(browser, web_contents, delegate) {
+    : PermissionPromptDesktop(web_contents, delegate) {
   LocationBar* lb = GetLocationBar();
   if (lb && lb->IsDrawn() &&
       delegate->Requests()[0]->IsConfirmationChipSupported()) {
@@ -38,15 +37,15 @@ PermissionPromptBubble::~PermissionPromptBubble() {
 }
 
 void PermissionPromptBubble::ShowBubble() {
-    auto blocker =
-        web_contents()->ForSecurityDropFullscreen(display::kInvalidDisplayId);
-    if (!blocker) {
-      return;
-    }
-    fullscreen_blocker_ = std::move(*blocker);
+  auto blocker =
+      web_contents()->ForSecurityDropFullscreen(display::kInvalidDisplayId);
+  if (!blocker) {
+    return;
+  }
+  fullscreen_blocker_ = std::move(*blocker);
 
   raw_ptr<PermissionPromptBubbleBaseView> prompt_bubble =
-      CreatePermissionPromptBubbleView(browser(), delegate()->GetWeakPtr(),
+      CreatePermissionPromptBubbleView(web_contents(), delegate()->GetWeakPtr(),
                                        PermissionPromptStyle::kBubbleOnly);
   prompt_bubble_tracker_.SetView(prompt_bubble);
   prompt_bubble->Show();

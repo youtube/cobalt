@@ -64,12 +64,23 @@ const char kAutoplayPolicy[] = "autoplay-policy";
 // directly.
 //
 // TODO(crbug.com/286443864): Guard Cast Sender flags with !IS_ANDROID.
-//
+
+// If enabled, completely disables use of AV1 hardware encoding for Cast
+// Streaming sessions.
+const char kCastStreamingForceDisableHardwareAv1[] =
+    "cast-streaming-force-disable-hardware-av1";
+
 // If enabled, completely disables use of H264 hardware encoding for Cast
 // Streaming sessions. Takes precedence over
 // kCastStreamingForceEnableHardwareH264.
 const char kCastStreamingForceDisableHardwareH264[] =
     "cast-streaming-force-disable-hardware-h264";
+
+// If enabled, completely disables use of HEVC hardware encoding for Cast
+// Streaming sessions. Takes precedence over
+// kCastStreamingForceEnableHardwareHevc.
+const char kCastStreamingForceDisableHardwareHevc[] =
+    "cast-streaming-force-disable-hardware-hevc";
 
 // If enabled, completely disables use of VP8 hardware encoding for Cast
 // Streaming sessions. Takes precedence over
@@ -83,12 +94,26 @@ const char kCastStreamingForceDisableHardwareVp8[] =
 const char kCastStreamingForceDisableHardwareVp9[] =
     "cast-streaming-force-disable-hardware-vp9";
 
+// If enabled, allows use of AV1 hardware encoding for Cast Streaming sessions,
+// even on platforms where it is disabled due to performance and reliability
+// issues. kCastStreamingForceDisableHardwareAv1 must be disabled for this flag
+// to take effect.
+const char kCastStreamingForceEnableHardwareAv1[] =
+    "cast-streaming-force-enable-hardware-av1";
+
 // If enabled, allows use of H264 hardware encoding for Cast Streaming sessions,
 // even on platforms where it is disabled due to performance and reliability
 // issues. kCastStreamingForceDisableHardwareH264 must be disabled for this flag
 // to take effect.
 const char kCastStreamingForceEnableHardwareH264[] =
     "cast-streaming-force-enable-hardware-h264";
+
+// If enabled, allows use of HEVC hardware encoding for Cast Streaming sessions,
+// even on platforms where it is disabled due to performance and reliability
+// issues. kCastStreamingForceDisableHardwareHevc must be disabled for this flag
+// to take effect.
+const char kCastStreamingForceEnableHardwareHevc[] =
+    "cast-streaming-force-enable-hardware-hevc";
 
 // If enabled, allows use of VP8 hardware encoding for Cast Streaming sessions,
 // even on platforms where it is disabled due to performance and reliability
@@ -365,9 +390,15 @@ BASE_FEATURE(kVideoPipForceTrustedForMediaPlaybackForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-// Enables tracking the occlusion of encrypted video elements.
+// Enables tracking the occlusion of HW secure encrypted video elements.
+// The HW secure check is OS agnostic, but this switch is currently only
+// enabled by default on Windows, and not used for other platforms.
 BASE_FEATURE(kEncryptedMediaOcclusionTracking,
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 // Enables extended video bitstream validation for H.264 and H.265.
 BASE_FEATURE(kExtendedVideoBitstreamValidation,
@@ -388,6 +419,12 @@ BASE_FEATURE(kPlatformHEVCDecoderSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPlatformHEVCEncoderSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
+
+#if BUILDFLAG(IS_APPLE)
+// Enables VideoToolbox Quality Metrics (MSE / PSNR) generation.
+BASE_FEATURE(kVTVideoEncodeAcceleratorCalculatePSNR,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 // Enables HEVC MediaRecorder muxer support.
@@ -607,7 +644,7 @@ BASE_FEATURE(kRevokeMediaSourceObjectURLOnAttach,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_SYMPHONIA)
-// Android is expected to launch in M150.
+// Android / Fuchsia are expected to launch in M150.
 BASE_FEATURE(kSymphoniaAudioDecoding,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -616,7 +653,17 @@ BASE_FEATURE(kSymphoniaAudioDecoding,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-BASE_FEATURE(kSymphoniaMp3Decoding, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Android / Fuchsia are expected to launch in M150.
+BASE_FEATURE(kSymphoniaMp3Decoding,
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 BASE_FEATURE(kSymphoniaPcmDecoding, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSymphoniaVorbisDecoding, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -991,7 +1038,7 @@ const base::FeatureParam<bool>
 
 // Enables hardware secure AV1 decoding if supported by the hardware
 // and the OS Content Decryption Module (CDM).
-BASE_FEATURE(kHardwareSecureDecryptionAv1, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kHardwareSecureDecryptionAv1, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables hardware secure VP9 decoding if supported by the hardware
 // and the OS Content Decryption Module (CDM).

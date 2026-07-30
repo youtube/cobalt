@@ -311,8 +311,6 @@ TEST_F(AddressDataManagerTest, GetProfiles_Order) {
 }
 
 TEST_F(AddressDataManagerTest, GetProfilesToSuggest_NameEmailOrder) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillEnableSupportForNameAndEmail};
   base::Time now = base::Time::Now();
   AutofillProfile profile1 = test::GetFullProfile();
   profile1.usage_history().set_use_date(now - base::Hours(2));
@@ -1289,9 +1287,6 @@ TEST_F(AddressDataManagerTest, AutofillSyncToggleNotAvailableWithSigninPromos) {
 // Tests that any `kAccountNameEmail` is created on construction of
 // `AddressDataManager`.
 TEST_F(AddressDataManagerTest, CreateAccountNameEmailProfileAfterInitalLoad) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillEnableSupportForNameAndEmail};
-
   const CoreAccountInfo core_info =
       identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
@@ -1305,40 +1300,10 @@ TEST_F(AddressDataManagerTest, CreateAccountNameEmailProfileAfterInitalLoad) {
                   &AutofillProfile::record_type,
                   AutofillProfile::RecordType::kAccountNameEmail)));
 }
-// Tests that `kAccountNameEmail` is deleted if the feature got disabled.
-TEST_F(AddressDataManagerTest, RemoveAccountNameEmailProfileIfFeatureDisabled) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillEnableSupportForNameAndEmail};
-
-  const CoreAccountInfo core_info =
-      identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
-          signin::ConsentLevel::kSignin);
-  identity_test_env_.SimulateSuccessfulFetchOfAccountInfo(
-      core_info.account_id, core_info.email, core_info.gaia, "", "Full Name",
-      "Full", "en-US", "");
-  RecreateAddressDataManager();
-
-  // Verify that the profile got created.
-  ASSERT_THAT(address_data_manager().GetProfiles(),
-              ElementsAre(testing::Property(
-                  &AutofillProfile::record_type,
-                  AutofillProfile::RecordType::kAccountNameEmail)));
-
-  feature_list.Reset();
-  feature_list.InitAndDisableFeature(
-      features::kAutofillEnableSupportForNameAndEmail);
-  RecreateAddressDataManager();
-  EXPECT_THAT(address_data_manager().GetProfilesByRecordType(
-                  AutofillProfile::RecordType::kAccountNameEmail),
-              testing::IsEmpty());
-}
 
 // Tests the race condition where the user signs out while the profiles are
 // still loading from the database.
 TEST_F(AddressDataManagerTest, RemoveNameEmailProfileOnSignOutWhileLoading) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillEnableSupportForNameAndEmail};
-
   // Add `kAccountNameEmail` profile.
   sync_service_.SetSignedIn(signin::ConsentLevel::kSignin);
   AutofillProfile profile = test::AccountNameEmailProfile();

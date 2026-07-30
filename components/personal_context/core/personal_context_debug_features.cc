@@ -5,8 +5,15 @@
 #include "components/personal_context/core/personal_context_debug_features.h"
 
 #include "base/feature_list.h"
+#include "components/personal_context/core/personal_context_features.h"
 
 namespace personal_context::features::debug {
+
+// When set, overrides the context memory service url.
+BASE_FEATURE_PARAM(std::string,
+                   kContextMemoryServiceBaseUrlParam,
+                   &kPersonalContext,
+                   "");
 
 // When enabled, overrides the calculated enablement state of the
 // Personal Context service. This allows developers to bypass complex

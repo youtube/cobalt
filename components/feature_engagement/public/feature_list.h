@@ -454,8 +454,11 @@ DEFINE_VARIATION_PARAM(kIPHPasswordManagerShortcutFeature,
                        "IPH_PasswordManagerShortcut");
 DEFINE_VARIATION_PARAM(kIPHPasswordSharingFeature,
                        "IPH_PasswordSharingFeature");
+DEFINE_VARIATION_PARAM(kIPHPdfGlicSummarizeFeature,
+                       "IPH_PdfGlicSummarizeFeature");
 DEFINE_VARIATION_PARAM(kIPHPdfInkSignaturesFeature, "IPH_PdfInkSignatures");
 DEFINE_VARIATION_PARAM(kIPHPdfSearchifyFeature, "IPH_PdfSearchifyFeature");
+DEFINE_VARIATION_PARAM(kIPHPdfTextAnnotationsFeature, "IPH_PdfTextAnnotations");
 DEFINE_VARIATION_PARAM(kIPHPerformanceInterventionDialogFeature,
                        "IPH_PerformanceInterventionDialogFeature");
 DEFINE_VARIATION_PARAM(kIPHPowerBookmarksSidePanelFeature,
@@ -514,8 +517,6 @@ DEFINE_VARIATION_PARAM(kIPHPwaQuietNotificationFeature,
 DEFINE_VARIATION_PARAM(kIPHTabAudioMutingFeature, "IPH_TabAudioMuting");
 DEFINE_VARIATION_PARAM(kIPHTabSearchComboButtonFeature,
                        "IPH_TabSearchComboButton");
-DEFINE_VARIATION_PARAM(kIPHTabSearchToolbarButtonFeature,
-                       "IPH_TabSearchToolbarButton");
 DEFINE_VARIATION_PARAM(kIPHDesktopPwaInstallFeature, "IPH_DesktopPwaInstall");
 DEFINE_VARIATION_PARAM(kIPHProfileSwitchFeature, "IPH_ProfileSwitch");
 DEFINE_VARIATION_PARAM(kIPHDesktopSharedHighlightingFeature,
@@ -858,8 +859,10 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHPasswordsManagementBubbleAfterSaveFeature),
         VARIATION_ENTRY(kIPHPasswordsManagementBubbleDuringSigninFeature),
         VARIATION_ENTRY(kIPHPasswordsWebAppProfileSwitchFeature),
+        VARIATION_ENTRY(kIPHPdfGlicSummarizeFeature),
         VARIATION_ENTRY(kIPHPdfInkSignaturesFeature),
         VARIATION_ENTRY(kIPHPdfSearchifyFeature),
+        VARIATION_ENTRY(kIPHPdfTextAnnotationsFeature),
         VARIATION_ENTRY(kIPHPerformanceInterventionDialogFeature),
         VARIATION_ENTRY(kIPHPowerBookmarksSidePanelFeature),
         VARIATION_ENTRY(kIPHPriceInsightsPageActionIconLabelFeature),
@@ -890,7 +893,6 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHTabGroupsSharedTabChangedFeature),
         VARIATION_ENTRY(kIPHTabGroupsSharedTabFeedbackFeature),
         VARIATION_ENTRY(kIPHTabSearchComboButtonFeature),
-        VARIATION_ENTRY(kIPHTabSearchToolbarButtonFeature),
         VARIATION_ENTRY(kIPHWebUiHelpBubbleTestFeature),
 // keep-sorted end
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||

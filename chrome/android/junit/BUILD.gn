@@ -425,6 +425,7 @@ if (is_android) {
   # down.
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser") {
     sources = [
+      "//chrome/android/java/src/org/chromium/chrome/browser/bottombar/BottomBarAppMenuUpdateBadgeControllerUnitTest.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/bottombar/BottomBarContainerCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/BrowserExitReasonTrackerUnitTest.java",
       "src/org/chromium/chrome/browser/ChromeActionModeHandlerUnitTest.java",
@@ -1249,7 +1250,6 @@ if (is_android) {
       "//chrome/browser/glic/android:java",
       "//chrome/browser/glic/android:jni_headers_java",
       "//chrome/browser/tab_group_suggestion:toolbar_java",
-      "//chrome/browser/ui/android/extensions:buildflags_java",
       "//chrome/browser/ui/android/extensions:java",
       "//chrome/browser/ui/android/lens:java",
       "//chrome/browser/ui/android/overlay_panel:java",
@@ -1257,6 +1257,7 @@ if (is_android) {
       "//chrome/browser/ui/android/toolbar:optional_button_java",
       "//components/browser_ui/accessibility/android:page_zoom_utils_java",
       "//components/supervised_user/android:content_filters_observer_bridge_java",
+      "//extensions/buildflags:buildflags_java",
     ]
   }
 
@@ -1373,7 +1374,9 @@ if (is_android) {
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripMediatorTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/pinned_tabs_strip/PinnedTabStripViewBinderTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/TabVerticalViewBinderUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabGroupSpineDecorationUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabListCoordinatorUnitTest.java",
+      "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabListItemTouchHelperCallbackUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabUtilsUnitTest.java",
       "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabsSideUiCoordinatorUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardViewBinderUnitTest.java",
@@ -1496,7 +1499,9 @@ if (is_android) {
     sources = [
       "src/org/chromium/chrome/browser/settings/SettingsActivityUnitTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsEnumsTest.java",
+      "src/org/chromium/chrome/browser/settings/SettingsHostFragmentTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsNavigationImplTest.java",
+      "src/org/chromium/chrome/browser/settings/SettingsPageFragmentDelegateImplTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsPageUnitTest.java",
     ]
 

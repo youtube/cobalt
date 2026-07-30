@@ -167,6 +167,12 @@ NET_EXPORT void FlushCacheThreadForTesting();
 NET_EXPORT void FlushCacheThreadAsynchronouslyForTesting(
     base::OnceClosure cllback);
 
+// Runs `callback` when all backend I/O for the given `path` has completed
+// post-destruction. If there is no backend active for `path`, the callback
+// is run immediately (asynchronously).
+NET_EXPORT void WaitForBackendCleanupForTesting(const base::FilePath& path,
+                                                base::OnceClosure callback);
+
 // The root interface for a disk cache instance.
 class NET_EXPORT Backend {
  public:

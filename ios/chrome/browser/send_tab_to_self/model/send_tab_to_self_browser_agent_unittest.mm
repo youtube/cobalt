@@ -315,7 +315,10 @@ class SendTabToSelfBrowserAgentAutoOpenTest
 
 TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
        ShouldAutoOpenNewEntriesInBackgroundIfActive) {
-  AppendNewWebState(GURL(kBlankURL));
+  web::WebState* web_state = AppendNewWebState(GURL(kBlankURL));
+  InfoBarManagerImpl* infobar_manager =
+      InfoBarManagerImpl::FromWebState(web_state);
+  EXPECT_EQ(0UL, infobar_manager->infobars().size());
 
   OCMExpect([mock_scene_commands_
       openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
@@ -323,11 +326,12 @@ TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
       }]]);
 
   const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
-      GURL(kExampleURL), "title", kDeviceID,
-      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+      GURL(kExampleURL), "title", kDeviceID, send_tab_to_self::PageContext(),
+      send_tab_to_self::NavigationHistory());
 
   [mock_scene_commands_ verify];
   EXPECT_TRUE(model_->GetEntryByGUID(entry->GetGUID())->IsOpened());
+  EXPECT_EQ(1UL, infobar_manager->infobars().size());
 }
 
 TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
@@ -338,8 +342,8 @@ TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
   [[mock_scene_commands_ reject] openURLInNewTab:[OCMArg any]];
 
   const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
-      GURL(kExampleURL), "title", kDeviceID,
-      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+      GURL(kExampleURL), "title", kDeviceID, send_tab_to_self::PageContext(),
+      send_tab_to_self::NavigationHistory());
 
   [mock_scene_commands_ verify];
   EXPECT_FALSE(model_->GetEntryByGUID(entry->GetGUID())->IsOpened());
@@ -362,12 +366,13 @@ TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
       openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
         return command.inBackground == YES;
       }]]);
-
-  AppendNewWebState(GURL(kBlankURL));
+  web::WebState* web_state = AppendNewWebState(GURL(kBlankURL));
 
   [mock_scene_commands_ verify];
   EXPECT_TRUE(model_->GetEntryByGUID(entry1->GetGUID())->IsOpened());
   EXPECT_TRUE(model_->GetEntryByGUID(entry2->GetGUID())->IsOpened());
+  EXPECT_EQ(1UL,
+            InfoBarManagerImpl::FromWebState(web_state)->infobars().size());
 }
 
 }  // anonymous namespace

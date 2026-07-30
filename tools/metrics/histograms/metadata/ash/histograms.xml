@@ -1191,7 +1191,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Boca.NumberOfActiveStudentsWhenSessionEnded"
-    units="students" expires_after="2026-09-27">
+    units="students" expires_after="2026-12-16">
   <owner>caott@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -1200,7 +1200,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Boca.NumberOfStudentsJoinedViaCodeDuringSession"
-    units="students" expires_after="2026-09-27">
+    units="students" expires_after="2026-12-16">
   <owner>caott@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -1209,7 +1209,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Boca.OnTask.MaxNumberOfTabsDuringSession" units="tabs"
-    expires_after="2026-09-27">
+    expires_after="2026-12-16">
   <owner>caott@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -1228,7 +1228,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Boca.OnTask.{State}SessionDurationPercentage"
-    units="% of session" expires_after="2026-09-27">
+    units="% of session" expires_after="2026-12-16">
   <owner>zhumatthew@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -4673,7 +4673,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Login.Lock.AuthMethod.Used.ClamShellMode"
-    enum="AuthMethod" expires_after="2026-08-09">
+    enum="AuthMethod" expires_after="2026-12-16">
   <owner>emaamari@google.com</owner>
   <owner>cros-lurs@google.com</owner>
   <summary>
@@ -5698,7 +5698,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.NotifierFramework.Nudge.ShownCount"
-    enum="NudgeCatalogName" expires_after="2026-10-11">
+    enum="NudgeCatalogName" expires_after="2026-12-16">
   <owner>kradtke@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
@@ -7179,7 +7179,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Report.IsOobeCompleted" enum="BooleanSuccess"
-    expires_after="2026-09-13">
+    expires_after="2026-12-16">
   <owner>troywang@google.com</owner>
   <owner>chromeos-data-team@google.com</owner>
   <summary>
@@ -7369,7 +7369,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.ScannerFeature.Timer.{Type}" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>jhtin@google.com</owner>
   <owner>essential-inputs-team@google.com</owner>
   <summary>
@@ -7407,7 +7407,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.ScannerFeature.UserState" enum="ScannerFeatureUserState"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>jhtin@google.com</owner>
   <owner>essential-inputs-team@google.com</owner>
   <summary>
@@ -7969,7 +7969,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.ShortcutCustomization.AddAccelerator.{ActionName}"
-    units="Shortcuts" expires_after="2026-09-14">
+    units="Shortcuts" expires_after="2026-12-16">
   <owner>jimmyxgong@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -10036,7 +10036,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DisplayManager.MultiDisplayMode" enum="MultiDisplayModes"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>zhangwenyu@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>

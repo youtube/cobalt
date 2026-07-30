@@ -130,7 +130,7 @@ public class WebApkIntegrationTest {
         targetContext.startActivity(intent);
 
         if (OpenInAppUtils.isOpenInAppAvailable()) {
-            onView(withId(R.id.open_in_app_chip)).perform(click());
+            onView(withId(R.id.omnibox_chip_full)).perform(click());
         }
 
         // Check we end up in the WebAPK.

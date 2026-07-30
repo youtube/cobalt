@@ -265,10 +265,10 @@ VerticalTabStripStateController::RegisterOnModeChanged(
 }
 
 void VerticalTabStripStateController::NotifyCollapseChanged() {
+  on_collapse_changed_callback_list_.Notify(GetCollapseState());
   UpdateCollapseActionItem();
   UpdateSessionService();
   UpdatePrefService();
-  on_collapse_changed_callback_list_.Notify(GetCollapseState());
 }
 
 void VerticalTabStripStateController::NotifyExpandOnHoverEnabledChanged() {

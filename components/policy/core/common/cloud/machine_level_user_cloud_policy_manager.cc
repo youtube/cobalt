@@ -123,6 +123,15 @@ void MachineLevelUserCloudPolicyManager::Init(SchemaRegistry* registry) {
   }
 }
 
+bool MachineLevelUserCloudPolicyManager::IsFirstPolicyLoadComplete(
+    PolicyDomain domain) const {
+  if (!core()->store()->is_initialized()) {
+    return false;
+  }
+  return CloudPolicyManager::IsFirstPolicyLoadComplete(domain) ||
+         !core()->client() || !core()->client()->is_registered();
+}
+
 void MachineLevelUserCloudPolicyManager::Shutdown() {
   if (external_data_manager_)
     external_data_manager_->Disconnect();

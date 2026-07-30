@@ -110,6 +110,89 @@ public class AccessibilityState {
         void onAccessibilityStateChanged(State oldAccessibilityState, State newAccessibilityState);
     }
 
+    /** Builder for {@link State} used in tests. */
+    public static class StateBuilderForTests {
+        private boolean mIsComplexUserInteractionServiceEnabled;
+        private boolean mIsTouchExplorationEnabled;
+        private boolean mIsPerformGesturesEnabled;
+        private boolean mIsAnyAccessibilityServiceEnabled;
+        private boolean mIsAccessibilityToolPresent;
+        private boolean mIsTextShowPasswordEnabled;
+        private boolean mIsOnlyAutofillRunning;
+        private boolean mIsOnlyPasswordManagersEnabled;
+        private boolean mIsKnownScreenReaderEnabled;
+
+        public StateBuilderForTests(AccessibilityState.State state) {
+            mIsComplexUserInteractionServiceEnabled = state.isComplexUserInteractionServiceEnabled;
+            mIsTouchExplorationEnabled = state.isTouchExplorationEnabled;
+            mIsPerformGesturesEnabled = state.isPerformGesturesEnabled;
+            mIsAnyAccessibilityServiceEnabled = state.isAnyAccessibilityServiceEnabled;
+            mIsAccessibilityToolPresent = state.isAccessibilityToolPresent;
+            mIsTextShowPasswordEnabled = state.isTextShowPasswordEnabled;
+            mIsOnlyAutofillRunning = state.isOnlyAutofillRunning;
+            mIsOnlyPasswordManagersEnabled = state.isOnlyPasswordManagersEnabled;
+            mIsKnownScreenReaderEnabled = state.isKnownScreenReaderEnabled;
+        }
+
+        public StateBuilderForTests setIsComplexUserInteractionServiceEnabled(boolean isEnabled) {
+            mIsComplexUserInteractionServiceEnabled = isEnabled;
+            return this;
+        }
+
+        public StateBuilderForTests setIsTouchExplorationEnabled(boolean isEnabled) {
+            mIsTouchExplorationEnabled = isEnabled;
+            return this;
+        }
+
+        public StateBuilderForTests setIsPerformGesturesEnabled(boolean isEnabled) {
+            mIsPerformGesturesEnabled = isEnabled;
+            return this;
+        }
+
+        public StateBuilderForTests setIsAnyAccessibilityServiceEnabled(boolean isEnabled) {
+            mIsAnyAccessibilityServiceEnabled = isEnabled;
+            return this;
+        }
+
+        public StateBuilderForTests setIsAccessibilityToolPresent(boolean isPresent) {
+            mIsAccessibilityToolPresent = isPresent;
+            return this;
+        }
+
+        public StateBuilderForTests setIsTextShowPasswordEnabled(boolean isEnabled) {
+            mIsTextShowPasswordEnabled = isEnabled;
+            return this;
+        }
+
+        public StateBuilderForTests setIsOnlyAutofillRunning(boolean isOnlyAutofillRunning) {
+            mIsOnlyAutofillRunning = isOnlyAutofillRunning;
+            return this;
+        }
+
+        public StateBuilderForTests setIsOnlyPasswordManagersEnabled(boolean isEnabled) {
+            mIsOnlyPasswordManagersEnabled = isEnabled;
+            return this;
+        }
+
+        public StateBuilderForTests setIsKnownScreenReaderEnabled(boolean isEnabled) {
+            mIsKnownScreenReaderEnabled = isEnabled;
+            return this;
+        }
+
+        public AccessibilityState.State build() {
+            return new AccessibilityState.State(
+                    mIsComplexUserInteractionServiceEnabled,
+                    mIsTouchExplorationEnabled,
+                    mIsPerformGesturesEnabled,
+                    mIsAnyAccessibilityServiceEnabled,
+                    mIsAccessibilityToolPresent,
+                    mIsTextShowPasswordEnabled,
+                    mIsOnlyAutofillRunning,
+                    mIsOnlyPasswordManagersEnabled,
+                    mIsKnownScreenReaderEnabled);
+        }
+    }
+
     /** A representation of the current accessibility state. */
     public static class State {
         // True when we determine that an assistive technology that performs complex user
@@ -276,8 +359,6 @@ public class AccessibilityState {
     private static boolean sHasRegisteredObservers;
     private static boolean sIsInTestingMode;
     private static @Nullable Boolean sPreInitCachedValuePerformGesturesEnabled;
-    private static @Nullable List<AccessibilityServiceInfo> sServiceInfoListForTesting;
-    private static @Nullable String sEnabledServiceStringForTesting;
 
     // A flag indicating whether the "extra state" values `sDisplayInversionEnabled`,
     // `sHighContrastEnabled`, `sTextCursorBlinkInterval`, and `sAnimatorDurationScale` have been
@@ -607,23 +688,11 @@ public class AccessibilityState {
     }
 
     protected static List<AccessibilityServiceInfo> getRunningServiceInfoList() {
-        if (sIsInTestingMode
-                && sServiceInfoListForTesting != null
-                && !sServiceInfoListForTesting.isEmpty()) {
-            return sServiceInfoListForTesting;
-        }
-
         return fetchAccessibilityManager()
                 .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
     }
 
     protected static String getEnabledServiceString(Context context) {
-        if (sIsInTestingMode
-                && sEnabledServiceStringForTesting != null
-                && !sEnabledServiceStringForTesting.isEmpty()) {
-            return sEnabledServiceStringForTesting;
-        }
-
         return Settings.Secure.getString(
                 context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
     }
@@ -1240,211 +1309,85 @@ public class AccessibilityState {
     public static void setIsComplexUserInteractionServiceEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        enabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState)
+                        .setIsComplexUserInteractionServiceEnabled(enabled)
+                        .build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsTouchExplorationEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        enabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState).setIsTouchExplorationEnabled(enabled).build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsPerformGesturesEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        enabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState).setIsPerformGesturesEnabled(enabled).build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsAnyAccessibilityServiceEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        enabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState)
+                        .setIsAnyAccessibilityServiceEnabled(enabled)
+                        .build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsAccessibilityToolPresentForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        enabled,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState).setIsAccessibilityToolPresent(enabled).build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsTextShowPasswordEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        enabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState).setIsTextShowPasswordEnabled(enabled).build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsOnlyAutofillRunningForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        enabled,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState).setIsOnlyAutofillRunning(enabled).build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsOnlyPasswordManagersEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        enabled,
-                        oldState.isKnownScreenReaderEnabled);
-
+                new StateBuilderForTests(oldState)
+                        .setIsOnlyPasswordManagersEnabled(enabled)
+                        .build();
         updateAndNotifyStateChange(newState);
     }
 
     public static void setIsKnownScreenReaderEnabledForTesting(boolean enabled) {
         if (!sInitialized) initializeForTesting();
         State oldState = assumeNonNull(sState);
-
         State newState =
-                new State(
-                        oldState.isComplexUserInteractionServiceEnabled,
-                        oldState.isTouchExplorationEnabled,
-                        oldState.isPerformGesturesEnabled,
-                        oldState.isAnyAccessibilityServiceEnabled,
-                        oldState.isAccessibilityToolPresent,
-                        oldState.isTextShowPasswordEnabled,
-                        oldState.isOnlyAutofillRunning,
-                        oldState.isOnlyPasswordManagersEnabled,
-                        enabled);
-
+                new StateBuilderForTests(oldState).setIsKnownScreenReaderEnabled(enabled).build();
         updateAndNotifyStateChange(newState);
     }
 
-    public enum StateIdentifierForTesting {
-        EVENT_TYPE_MASK,
-        FEEDBACK_TYPE_MASK,
-        FLAGS_MASK,
-        CAPABILITIES_MASK,
-        EVENT_TYPE_MASK_HEURISTIC,
-        FEEDBACK_TYPE_MASK_HEURISTIC,
-        FLAGS_MASK_HEURISTIC,
-        CAPABILITIES_MASK_HEURISTIC,
-    };
-
-    public static void setStateMaskForTesting(StateIdentifierForTesting state, int value) {
+    public static void setEventMaskForTesting(int eventMask) {
         if (!sInitialized) initializeForTesting();
 
-        switch (state) {
-            case EVENT_TYPE_MASK -> sEventTypeMask = value;
-            case FEEDBACK_TYPE_MASK -> sFeedbackTypeMask = value;
-            case FLAGS_MASK -> sFlagsMask = value;
-            case CAPABILITIES_MASK -> sCapabilitiesMask = value;
-            case EVENT_TYPE_MASK_HEURISTIC -> sEventTypeMaskHeuristic = value;
-            case FEEDBACK_TYPE_MASK_HEURISTIC -> sFeedbackTypeMaskHeuristic = value;
-            case FLAGS_MASK_HEURISTIC -> sFlagsMaskHeuristic = value;
-            case CAPABILITIES_MASK_HEURISTIC -> sCapabilitiesMaskHeuristic = value;
-        }
-    }
-
-    public static void setEnabledServiceInfoListForTesting(
-            List<AccessibilityServiceInfo> serviceInfoList) {
-        if (!sInitialized) initializeForTesting();
-
-        sServiceInfoListForTesting = serviceInfoList;
-    }
-
-    public static void setEnabledServiceStringForTesting(String enabledServiceString) {
-        if (!sInitialized) initializeForTesting();
-
-        sEnabledServiceStringForTesting = enabledServiceString;
+        sEventTypeMask = eventMask;
     }
 
     public static void setServiceIdsForTesting(String newServiceId, boolean isAccessibilityTool) {

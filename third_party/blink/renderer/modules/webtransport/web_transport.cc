@@ -1520,6 +1520,15 @@ void WebTransport::Init(const String& url_for_diagnostics,
         V8WebTransportCongestionControl(options.congestionControl());
   }
 
+  if (RuntimeEnabledFeatures::
+          WebTransportAnticipatedConcurrentIncomingStreamsEnabled(
+              execution_context)) {
+    anticipated_concurrent_incoming_unidirectional_streams_ =
+        options.anticipatedConcurrentIncomingUnidirectionalStreams();
+    anticipated_concurrent_incoming_bidirectional_streams_ =
+        options.anticipatedConcurrentIncomingBidirectionalStreams();
+  }
+
   if (auto* scheduler = execution_context->GetScheduler()) {
     // Two features are registered here:
     // - `kWebTransport`: a non-sticky feature that will disable aggressive
@@ -1558,9 +1567,8 @@ void WebTransport::Init(const String& url_for_diagnostics,
         url_, std::move(fingerprints),
         options.hasProtocols() ? options.protocols() : Vector<String>(),
         BlinkCongestionControlToMojo(congestion_control_),
-        // TODO(crbug.com/487117768): Wire to IDL options in follow-up CL.
-        /*anticipated_concurrent_incoming_unidirectional_streams=*/std::nullopt,
-        /*anticipated_concurrent_incoming_bidirectional_streams=*/std::nullopt,
+        anticipated_concurrent_incoming_unidirectional_streams_,
+        anticipated_concurrent_incoming_bidirectional_streams_,
         handshake_client_receiver_.BindNewPipeAndPassRemote(
             execution_context->GetTaskRunner(TaskType::kNetworking)));
 
@@ -1905,6 +1913,30 @@ V8WebTransportCongestionControl WebTransport::congestionControl() const {
   // should be plumbed back from the network service via
   // OnConnectionEstablished.
   return congestion_control_;
+}
+
+std::optional<uint16_t>
+WebTransport::anticipatedConcurrentIncomingUnidirectionalStreams() const {
+  return anticipated_concurrent_incoming_unidirectional_streams_;
+}
+
+void WebTransport::setAnticipatedConcurrentIncomingUnidirectionalStreams(
+    std::optional<uint16_t> value) {
+  anticipated_concurrent_incoming_unidirectional_streams_ = value;
+  // Per spec, the setter only updates the internal slot. The value is used
+  // during session establishment (via Connect()), not sent post-handshake.
+}
+
+std::optional<uint16_t>
+WebTransport::anticipatedConcurrentIncomingBidirectionalStreams() const {
+  return anticipated_concurrent_incoming_bidirectional_streams_;
+}
+
+void WebTransport::setAnticipatedConcurrentIncomingBidirectionalStreams(
+    std::optional<uint16_t> value) {
+  anticipated_concurrent_incoming_bidirectional_streams_ = value;
+  // Per spec, the setter only updates the internal slot. The value is used
+  // during session establishment (via Connect()), not sent post-handshake.
 }
 
 WebTransportSendGroup* WebTransport::createSendGroup(

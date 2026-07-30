@@ -108,6 +108,7 @@ void PersistedStateDB::PerformMaintenance(
 
 void PersistedStateDB::Destroy(JNIEnv* env) {
   proto_db_->Destroy();
+  delete this;
 }
 
 static void JNI_LevelDBPersistedDataStorage_Init(

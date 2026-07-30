@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/strings/string_view_util.h"
 #include "base/test/task_environment.h"
@@ -169,6 +170,14 @@ class SecurityKeyAuthHandlerPosixTest : public testing::Test {
       read_buffer->DidConsume(bytes_read);
     }
     ASSERT_EQ(bytes_read, request_len);
+  }
+
+  void WaitForSocketClose(net::UnixDomainClientSocket* socket) {
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(1);
+    net::TestCompletionCallback read_callback;
+    int rv = socket->Read(buffer.get(), 1, read_callback.callback());
+    rv = read_callback.GetResult(rv);
+    ASSERT_TRUE(rv == 0 || rv == net::ERR_CONNECTION_CLOSED);
   }
 
  protected:
@@ -405,6 +414,30 @@ TEST_F(SecurityKeyAuthHandlerPosixTest, HandleClientErrorMessage) {
 
   // SSH Error should be received.
   WaitForErrorData(&client_socket);
+}
+
+TEST_F(SecurityKeyAuthHandlerPosixTest,
+       OnSecurityKeyRequest_SafeWhenCallbackNull) {
+  CreateSocketAndWait();
+
+  // 1. Establish the connection by connecting a client socket.
+  net::UnixDomainClientSocket client_socket(socket_path_.value(), false);
+  net::TestCompletionCallback connect_callback;
+  int rv = client_socket.Connect(connect_callback.callback());
+  ASSERT_EQ(connect_callback.GetResult(rv), net::OK);
+
+  // 2. Clear the callback.
+  auth_handler_->SetSendMessageCallback(base::NullCallback());
+
+  // 3. Write request data (which will trigger OnIncomingData).
+  WriteRequestData(&client_socket);
+
+  // 4. Verify that the connection was closed immediately (EOF).
+  WaitForSocketClose(&client_socket);
+
+  // 5. Verify the connection was cleaned up.
+  ASSERT_FALSE(auth_handler_->IsValidConnectionId(1));
+  ASSERT_EQ(auth_handler_->GetActiveConnectionCountForTest(), 0u);
 }
 
 }  // namespace remoting

@@ -22,8 +22,9 @@ TabDragServiceFeature::TabDragServiceFeature(
 TabDragServiceFeature::~TabDragServiceFeature() = default;
 
 void TabDragServiceFeature::AcceptDragService(
-    mojo::PendingReceiver<tabs_api::mojom::TabDragService> client) {
+    mojo::PendingReceiver<tabs_api::mojom::TabDragService> client,
+    gfx::NativeView context_view) {
   if (tab_drag_service_) {
-    tab_drag_service_->Accept(std::move(client));
+    tab_drag_service_->Accept(std::move(client), context_view);
   }
 }

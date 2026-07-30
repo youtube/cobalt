@@ -588,6 +588,7 @@ void Frame::ApplyFrameOwnerProperties(
   owner->SetAllowFullscreen(properties->allow_fullscreen);
   owner->SetAllowPaymentRequest(properties->allow_payment_request);
   owner->SetIsDisplayNone(properties->is_display_none);
+  owner->SetResponsiveSizing(properties->responsive_sizing);
   owner->SetColorScheme(properties->color_scheme);
   owner->SetPreferredColorScheme(properties->preferred_color_scheme);
 }

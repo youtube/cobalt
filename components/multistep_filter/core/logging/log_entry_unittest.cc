@@ -79,9 +79,9 @@ TEST(LogEntryTest, ToValueConversion) {
   ASSERT_TRUE(event_type);
   EXPECT_EQ(*event_type, "UrlEligibilityCheck");
 
-  auto* source_etld = dict.FindString("source_etld_plus_1");
-  ASSERT_TRUE(source_etld);
-  EXPECT_EQ(*source_etld, "example.com");
+  auto* host = dict.FindString("host");
+  ASSERT_TRUE(host);
+  EXPECT_EQ(*host, "example.com");
 
   auto* details = dict.FindDict("details");
   ASSERT_TRUE(details);

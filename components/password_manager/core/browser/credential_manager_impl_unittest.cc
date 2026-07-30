@@ -117,6 +117,10 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               (),
               (override));
   MOCK_METHOD(bool, IsActorTaskActive, (), (override));
+  MOCK_METHOD(bool,
+              IsReauthBeforeFillingRequired,
+              (device_reauth::DeviceAuthenticator*),
+              (override));
 
   explicit MockPasswordManagerClient(PasswordStoreInterface* profile_store,
                                      PasswordStoreInterface* account_store)
@@ -2031,9 +2035,7 @@ INSTANTIATE_TEST_SUITE_P(All,
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 TEST_P(CredentialManagerImplTest, ReauthAfterAccountSelection) {
-  ON_CALL(*client_->GetPasswordFeatureManager(),
-          IsBiometricAuthenticationBeforeFillingEnabled)
-      .WillByDefault(Return(true));
+  ON_CALL(*client_, IsReauthBeforeFillingRequired).WillByDefault(Return(true));
 
   store_->AddLogin(password_manager::FromPasswordForm(form_));
 
@@ -2044,6 +2046,7 @@ TEST_P(CredentialManagerImplTest, ReauthAfterAccountSelection) {
   device_reauth::MockDeviceAuthenticator* raw_authenticator =
       mock_authenticator.get();
   EXPECT_CALL(*client_, GetDeviceAuthenticator)
+      .WillOnce(Return(std::unique_ptr<device_reauth::DeviceAuthenticator>()))
       .WillOnce(Return(std::move(mock_authenticator)));
 
   EXPECT_CALL(*raw_authenticator, AuthenticateWithMessage)
@@ -2065,6 +2068,65 @@ TEST_P(CredentialManagerImplTest, ReauthAfterAccountSelection) {
   EXPECT_TRUE(called);
   EXPECT_EQ(CredentialManagerError::SUCCESS, error);
   EXPECT_EQ(form_.username_value, credential->id);
+}
+
+TEST_P(CredentialManagerImplTest, ReauthBeforeSilentCredentialRetrieval) {
+  ON_CALL(*client_, IsReauthBeforeFillingRequired).WillByDefault(Return(true));
+
+  store_->AddLogin(password_manager::FromPasswordForm(form_));
+
+  // If reauth is required, silent credential retrieval should fail/return
+  // empty.
+  EXPECT_CALL(*client_, PromptUserToChooseCredentialsPtr).Times(0);
+  EXPECT_CALL(*client_, GetDeviceAuthenticator);
+  EXPECT_CALL(*client_, IsReauthBeforeFillingRequired);
+
+  bool called = false;
+  CredentialManagerError error;
+  std::optional<CredentialInfo> credential;
+  CallGet(CredentialMediationRequirement::kSilent, /*include_passwords=*/true,
+          /*federations=*/{},
+          base::BindOnce(&GetCredentialCallback, &called, &error, &credential));
+
+  RunAllPendingTasks();
+
+  EXPECT_TRUE(called);
+  EXPECT_EQ(CredentialManagerError::SUCCESS, error);
+  EXPECT_EQ(CredentialType::CREDENTIAL_TYPE_EMPTY, credential->type);
+}
+
+TEST_P(CredentialManagerImplTest, DestructionCancelsOngoingReauth) {
+  ON_CALL(*client_, IsReauthBeforeFillingRequired).WillByDefault(Return(true));
+
+  store_->AddLogin(password_manager::FromPasswordForm(form_));
+
+  auto mock_authenticator =
+      std::make_unique<device_reauth::MockDeviceAuthenticator>();
+  device_reauth::MockDeviceAuthenticator* raw_authenticator =
+      mock_authenticator.get();
+
+  EXPECT_CALL(*client_, GetDeviceAuthenticator)
+      // For CredentialManagerPendingRequestTask::ProcessForms re-auth
+      // availability check.
+      .WillOnce(Return(std::unique_ptr<device_reauth::DeviceAuthenticator>()))
+      // For CredentialManagerImpl::SendPasswordForm, which is under testing.
+      .WillOnce(Return(std::move(mock_authenticator)));
+
+  EXPECT_CALL(*raw_authenticator, AuthenticateWithMessage);
+  EXPECT_CALL(*raw_authenticator, Cancel);
+
+  bool called = false;
+  CredentialManagerError error;
+  std::optional<CredentialInfo> credential;
+  CallGet(CredentialMediationRequirement::kOptional, /*include_passwords=*/true,
+          /*federations=*/{},
+          base::BindOnce(&GetCredentialCallback, &called, &error, &credential));
+
+  RunAllPendingTasks();
+
+  cm_service_impl_.reset();
+
+  EXPECT_FALSE(called);
 }
 
 }  // namespace password_manager

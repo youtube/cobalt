@@ -172,6 +172,8 @@ class AutofillProfileEditTableViewHelperTest
     return attributedText;
   }
 
+  std::unique_ptr<autofill::AutofillProfile> profile_;
+  std::unique_ptr<autofill::TestPersonalDataManager> personal_data_manager_;
   AutofillProfileEditTableViewHelper*
       autofill_profile_edit_table_view_controller_;
   AutofillProfileEditMediator* autofill_profile_edit_mediator_;
@@ -184,8 +186,6 @@ class AutofillProfileEditTableViewHelperTest
   NSString* country_;
   NSString* phone_home_whole_number_;
   NSString* email_;
-  std::unique_ptr<autofill::AutofillProfile> profile_;
-  std::unique_ptr<autofill::TestPersonalDataManager> personal_data_manager_;
 };
 
 INSTANTIATE_TEST_SUITE_P(

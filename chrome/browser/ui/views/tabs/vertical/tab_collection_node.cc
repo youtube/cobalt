@@ -7,10 +7,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
-#include "base/logging.h"
-#include "base/no_destructor.h"
 #include "base/notreached.h"
-#include "base/strings/stringprintf.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_pinned_tab_container_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_split_tab_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_group_view.h"

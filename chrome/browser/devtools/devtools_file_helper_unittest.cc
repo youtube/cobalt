@@ -6,24 +6,28 @@
 
 #include <vector>
 
+#include "base/base_paths.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/files/scoped_temp_file.h"
 #include "base/functional/callback_helpers.h"
+#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/task/current_thread.h"
 #include "base/test/android/content_uri_test_utils.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/test_file_util.h"
 #include "base/test/test_future.h"
 #include "base/uuid.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/download_prefs.h"
+#include "chrome/browser/file_system_access/file_system_access_permission_context_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/pref_service.h"
@@ -386,7 +390,7 @@ TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemWithParentReferences) {
 
 TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemWithNonExistentPath) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath().AppendASCII("NonExistent");
   base::MockCallback<DevToolsFileHelper::ConnectCallback> connect_cb;
   EXPECT_CALL(connect_cb, Run(false));
@@ -405,14 +409,39 @@ TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemWithNonExistentPath) {
 
 TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemButNotAddingMissing) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath();
   base::MockCallback<DevToolsFileHelper::ConnectCallback> connect_cb;
-  EXPECT_CALL(connect_cb, Run(false));
+  base::RunLoop run_loop;
+  EXPECT_CALL(connect_cb, Run(false)).WillOnce([&]() { run_loop.Quit(); });
 
   file_helper()->ConnectAutomaticFileSystem(
       path.AsUTF8Unsafe(), base::Uuid::GenerateRandomV4(),
       /* add_if_missing */ false, base::DoNothing(), connect_cb.Get());
+
+  run_loop.Run();
+
+  EXPECT_THAT(profile()->GetPrefs()->GetDict(prefs::kDevToolsFileSystemPaths),
+              IsEmpty());
+}
+
+TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemWithSensitivePath) {
+  base::FilePath sensitive_path = profile()->GetPath();
+
+  base::MockCallback<DevToolsFileHelper::ConnectCallback> connect_cb;
+  EXPECT_CALL(connect_cb, Run(false));
+  EXPECT_CALL(delegate(), FileSystemAdded("<illegal path>", IsNull()));
+
+  // The ConnectAutomaticFileSystem will call ConfirmSensitiveEntryAccess,
+  // which runs asynchronously to check the blocklist.
+  base::RunLoop run_loop;
+  ON_CALL(delegate(), FileSystemAdded).WillByDefault([&] { run_loop.Quit(); });
+
+  file_helper()->ConnectAutomaticFileSystem(
+      sensitive_path.AsUTF8Unsafe(), base::Uuid::GenerateRandomV4(),
+      /* add_if_missing */ true, base::DoNothing(), connect_cb.Get());
+
+  run_loop.Run();
 
   EXPECT_THAT(profile()->GetPrefs()->GetDict(prefs::kDevToolsFileSystemPaths),
               IsEmpty());
@@ -420,7 +449,7 @@ TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemButNotAddingMissing) {
 
 TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemInfoBarDenied) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath();
 
   ConnectAutomaticFileSystem(path, base::Uuid::GenerateRandomV4(),
@@ -433,7 +462,7 @@ TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemInfoBarDenied) {
 
 TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemAlreadyKnown) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath();
   base::Uuid uuid = base::Uuid::GenerateRandomV4();
 
@@ -451,7 +480,7 @@ TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemAlreadyKnown) {
 TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemNewlyAdded) {
   EXPECT_THAT(file_helper()->GetFileSystems(), IsEmpty());
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath();
   base::Uuid uuid = base::Uuid::GenerateRandomV4();
 
@@ -466,7 +495,7 @@ TEST_F(DevToolsFileHelperTest, ConnectAutomaticFileSystemNewlyAdded) {
 
 TEST_F(DevToolsFileHelperTest, ConnectAndDisconnectKnownAutomaticFileSystem) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath();
   base::Uuid uuid = base::Uuid::GenerateRandomV4();
 
@@ -496,14 +525,14 @@ TEST_F(DevToolsFileHelperTest, ConnectAndDisconnectKnownAutomaticFileSystem) {
 
 TEST_F(DevToolsFileHelperTest, DisconnectAutomaticFileSystemNotConnected) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
 
   file_helper()->DisconnectAutomaticFileSystem(td.GetPath().AsUTF8Unsafe());
 }
 
 TEST_F(DevToolsFileHelperTest, RemoveAutomaticFileSystemNotConnected) {
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath path = td.GetPath();
   base::Uuid uuid = base::Uuid::GenerateRandomV4();
   {
@@ -522,7 +551,7 @@ TEST_F(DevToolsFileHelperTest, IsFileInFileSystem) {
   EXPECT_THAT(file_helper()->GetFileSystems(), IsEmpty());
 
   base::ScopedTempDir td;
-  ASSERT_TRUE(td.CreateUniqueTempDir());
+  ASSERT_TRUE(td.CreateUniqueTempDirUnderPath(base::GetTempDirForTesting()));
   base::FilePath fs_path = td.GetPath();
   base::Uuid uuid = base::Uuid::GenerateRandomV4();
 

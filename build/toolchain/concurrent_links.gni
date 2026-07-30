@@ -65,6 +65,32 @@ if (concurrent_links == -1) {
     } else {
       _args = [ "--mem_per_link_gb=4" ]
     }
+  } else if (use_mold) {
+    # Measurements made in June 2026 with libchromefortest.so.
+    # Measured by adding -Wl,--no-fork,--thread-count=24 and using /bin/time -v.
+    if (current_cpu == "x86" || current_cpu == "arm") {
+      if (symbol_level == 0) {
+        _args = [ "--mem_per_link_gb=5" ]
+      } else if (use_debug_fission) {
+        # Used only 7.5gb with symbol_level=2, yet 9gb with symbol_level=1.
+        _args = [ "--mem_per_link_gb=9" ]
+      } else if (symbol_level == 1) {
+        _args = [ "--mem_per_link_gb=18" ]
+      } else {  # symbol_level == 2
+        _args = [ "--mem_per_link_gb=40" ]
+      }
+    } else {
+      if (symbol_level == 0) {
+        _args = [ "--mem_per_link_gb=6" ]
+      } else if (use_debug_fission) {
+        # Used only 9.5gb with symbol_level=2, yet 11gb with symbol_level=1.
+        _args = [ "--mem_per_link_gb=11" ]
+      } else if (symbol_level == 1) {
+        _args = [ "--mem_per_link_gb=20" ]
+      } else {  # symbol_level == 2
+        _args = [ "--mem_per_link_gb=54" ]
+      }
+    }
   } else if (is_android && !is_component_build && symbol_level == 2) {
     # Full debug symbols require large memory for link.
     _args = [ "--mem_per_link_gb=25" ]

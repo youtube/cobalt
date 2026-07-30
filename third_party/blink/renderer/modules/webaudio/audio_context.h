@@ -289,6 +289,9 @@ class MODULES_EXPORT AudioContext final
   FRIEND_TEST_ALL_PREFIXES(AudioContextTest,
                            OnRenderErrorFromPlatformDestination);
   FRIEND_TEST_ALL_PREFIXES(AudioContextTest, AsyncStateUseCountersLogMessage);
+  FRIEND_TEST_ALL_PREFIXES(
+      AudioContextTest,
+      AsyncStateUseCountersCloseOrErrorDuringPendingSuspend);
 
   class StatsUpdateRestrictor;
 
@@ -341,8 +344,7 @@ class MODULES_EXPORT AudioContext final
   void ScheduleInitialTransitionToRunning();
   void PerformInitialTransitionToRunning();
 
-  // Schedule an async task to transition the context state to "suspended".
-  void ScheduleTransitionToSuspended();
+  // Performs the async transition of the context state to "suspended".
   void PerformTransitionToSuspended();
 
   // Starts rendering via AudioDestinationNode. This sets the self-referencing
@@ -358,7 +360,7 @@ class MODULES_EXPORT AudioContext final
   // up handlers because we expect to be resuming where we left off.
   void SuspendRendering() VALID_CONTEXT_REQUIRED(main_thread_sequence_checker_);
 
-  void DidClose();
+  void DidClose() VALID_CONTEXT_REQUIRED(main_thread_sequence_checker_);
 
   // Called by the audio thread to handle Promises for resume() and suspend(),
   // posting a main thread task to perform the actual resolving, if needed.
@@ -572,7 +574,12 @@ class MODULES_EXPORT AudioContext final
   // Whether the initial task to transition to the "running" state is pending.
   // Set at construction when the task is scheduled, cleared when it executes.
   // Also cleared by close(), which makes the already-scheduled task a no-op.
-  bool pending_initial_transition_to_running_ = false;
+  bool pending_initial_transition_to_running_
+      GUARDED_BY_CONTEXT(main_thread_sequence_checker_) = false;
+  // Whether the state transition to "suspended" is pending. Set when suspend()
+  // is called, cleared when it executes. Also cleared by close() or resume().
+  bool pending_transition_to_suspend_
+      GUARDED_BY_CONTEXT(main_thread_sequence_checker_) = false;
 
   // Stores promise resolvers for suspend(). Note that resolvers for resume()
   // are stored in BaseAudioContext::pending_promises_resolvers_.

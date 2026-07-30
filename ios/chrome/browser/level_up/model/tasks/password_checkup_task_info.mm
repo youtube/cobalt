@@ -33,7 +33,7 @@ class PasswordCheckupTaskInfo : public TaskInfo {
   std::string GetTriggerUserAction() const override {
     return "MobilePasswordCheckupSettingsClose";
   }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

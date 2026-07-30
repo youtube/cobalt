@@ -9,7 +9,6 @@
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/pinned_tab_collection_consumer.h"
 
-@class LegacyGridTransitionLayout;
 @class TabGridTransitionLayout;
 @class PinnedTabsViewController;
 @protocol TabCollectionDragDropHandler;
@@ -105,10 +104,6 @@ class WebStateID;
 
 // Updates the view when the drop animation did end.
 - (void)dropAnimationDidEnd;
-
-// Returns the legacy layout of the pinned tabs to be used in an animated
-// transition.
-- (LegacyGridTransitionLayout*)legacyTransitionLayout;
 
 // Returns the layout of the pinned tabs to be used in an animated transition.
 - (TabGridTransitionLayout*)transitionLayout;

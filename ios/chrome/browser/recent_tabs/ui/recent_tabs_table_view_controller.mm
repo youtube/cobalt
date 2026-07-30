@@ -71,7 +71,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_url_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_favicon_data_source.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
@@ -744,7 +743,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
     // Even if Apple documentation hints toward reconfiguring the row instead
     // of just updating the cell, it creates a visible jank. Use the item
     // configuration method instead. See crbug.com/479692041 for more info.
-    [item configureCell:cell withStyler:self.styler];
+    [item configureCell:cell];
   }
 }
 

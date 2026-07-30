@@ -15,8 +15,8 @@ namespace media {
 
 extern media::test::VideoTestEnvironment* g_env;
 // Default output folder used to store performance metrics.
-extern base::FilePath g_output_directory;
-extern base::FilePath g_source_directory;
+base::FilePath& GetOutputDir();
+base::FilePath& GetSourceDir();
 
 void WriteJsonResult(std::vector<std::pair<std::string, double>> data);
 

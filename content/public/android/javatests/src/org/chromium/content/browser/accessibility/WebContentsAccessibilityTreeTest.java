@@ -32,6 +32,7 @@ import org.chromium.base.test.util.TestAnimations;
 import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.test.ContentJUnit4ClassRunner;
+import org.chromium.ui.accessibility.AccessibilityFeatures;
 import org.chromium.ui.test.util.DeviceRestriction;
 
 /** Tests for WebContentsAccessibilityImpl integration with accessibility services. */
@@ -54,6 +55,7 @@ public class WebContentsAccessibilityTreeTest {
             "content/test/data/accessibility/aria/apg-patterns/";
     private static final String BASE_CSS_FILE_PATH = "content/test/data/accessibility/css/";
     private static final String BASE_HTML_FILE_PATH = "content/test/data/accessibility/html/";
+    private static final String BASE_MATHML_FILE_PATH = "content/test/data/accessibility/mathml/";
     private static final String DEFAULT_FILE_SUFFIX = "-expected-android-external.txt";
     private static final String ASSIST_DATA_FILE_SUFFIX = "-expected-android-assist-data.txt";
 
@@ -195,6 +197,11 @@ public class WebContentsAccessibilityTreeTest {
 
     private void performHtmlTest(String inputFile, String expectationFile) {
         performTest(inputFile, expectationFile, BASE_HTML_FILE_PATH);
+    }
+
+    private void performMathmlTest(String input) {
+        String expectationFile = removeHtmlSuffix(input);
+        performTest(input, expectationFile, BASE_MATHML_FILE_PATH);
     }
 
     private String generateViewStructureTree() {
@@ -2452,6 +2459,14 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_math() {
         performHtmlTest("math.html");
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(AccessibilityFeatures.ACCESSIBILITY_ANDROID_MATH)
+    @MinAndroidSdkLevel(Build.VERSION_CODES.CINNAMON_BUN)
+    public void test_mathIntent() {
+        performMathmlTest("intent.html");
     }
 
     @Test

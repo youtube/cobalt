@@ -53,6 +53,4 @@ blink_modules_sources("shared_storage") {
   ]
 
   public_deps = [ "//url" ]
-
-  configs += [ "//third_party/blink/renderer:narrowing" ]
 }

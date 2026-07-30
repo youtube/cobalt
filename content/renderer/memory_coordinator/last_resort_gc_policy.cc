@@ -14,7 +14,6 @@
 #include "base/memory_coordinator/memory_consumer.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
-#include "content/child/memory_coordinator/child_memory_coordinator.h"
 
 namespace content {
 
@@ -36,35 +35,35 @@ LastResortGCPolicy* LastResortGCPolicy::Get() {
   return g_instance;
 }
 
-LastResortGCPolicy::LastResortGCPolicy(ChildMemoryCoordinator& coordinator)
-    : MemoryCoordinatorPolicy(coordinator.policy_manager()),
-      coordinator_(coordinator),
-      state_(*this,
-             coordinator.policy_manager(),
-             base::BindRepeating([](uint32_t consumer_id,
-                                    std::optional<base::MemoryConsumerTraits>
-                                        traits,
-                                    ProcessType process_type,
-                                    ChildProcessId child_process_id) {
-               return traits.has_value() &&
-                      traits->release_gc_references ==
-                          base::MemoryConsumerTraits::ReleaseGCReferences::kYes;
-             })) {
+LastResortGCPolicy::LastResortGCPolicy(MemoryCoordinatorPolicyManager& manager)
+    : PredicateMemoryCoordinatorPolicy(
+          manager,
+          base::BindRepeating([](uint32_t consumer_id,
+                                 std::optional<base::MemoryConsumerTraits>
+                                     traits,
+                                 ProcessType process_type,
+                                 ChildProcessId child_process_id) {
+            return traits.has_value() &&
+                   traits->release_gc_references ==
+                       base::MemoryConsumerTraits::ReleaseGCReferences::kYes;
+          })) {
   CHECK(!g_instance);
   g_instance = this;
-  coordinator_->policy_manager().AddPolicy(this);
+  manager.AddPolicy(this);
+  manager.AddObserver(this);
 }
 
 LastResortGCPolicy::~LastResortGCPolicy() {
   CHECK_EQ(g_instance, this);
   g_instance = nullptr;
-  coordinator_->policy_manager().RemovePolicy(this);
+  manager().RemoveObserver(this);
+  manager().RemovePolicy(this);
 }
 
 void LastResortGCPolicy::OnV8HeapLastResortGC() {
   // The V8 heap is full and can't free enough memory. To help the impending GC,
   // notify consumers that retain references to the v8 heap.
-  state_.SetLimit(0, /*release_memory=*/true);
+  SetLimit(0, /*release_memory=*/true);
 
   // Immediately restore the limit if there is no delay.
   if (kRestoreLimitSeconds.Get() == 0) {
@@ -78,8 +77,8 @@ void LastResortGCPolicy::OnV8HeapLastResortGC() {
 }
 
 void LastResortGCPolicy::OnRestoreLimitTimerFired() {
-  state_.SetLimit(base::MemoryConsumer::kDefaultMemoryLimit,
-                  /*release_memory=*/false);
+  SetLimit(base::MemoryConsumer::kDefaultMemoryLimit,
+           /*release_memory=*/false);
 }
 
 }  // namespace content

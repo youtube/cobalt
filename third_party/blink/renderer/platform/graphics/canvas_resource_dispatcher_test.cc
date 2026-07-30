@@ -85,8 +85,7 @@ class CanvasResourceDispatcherTest
     dispatcher_ = std::make_unique<CanvasResourceDispatcher>(
         &client_,
         /*task_runner=*/scheduler::GetSingleThreadTaskRunnerForTesting(),
-        scheduler::GetSingleThreadTaskRunnerForTesting(), kClientId, kSinkId,
-        /*placeholder_canvas_id=*/0,
+        kClientId, kSinkId,
         /*canvas_size=*/gfx::Size(kWidth, kHeight));
     resource_provider_ =
         CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(

@@ -171,6 +171,15 @@
   [self updateForWebState:webState];
 }
 
+- (void)webState:(web::WebState*)webState
+    didFinishNavigation:(web::NavigationContext*)navigation {
+  [self updateForWebState:webState];
+}
+
+- (void)webState:(web::WebState*)webState didLoadPageWithSuccess:(BOOL)success {
+  [self updateForWebState:webState];
+}
+
 #pragma mark - WebStateListObserving
 
 - (void)didChangeWebStateList:(WebStateList*)webStateList

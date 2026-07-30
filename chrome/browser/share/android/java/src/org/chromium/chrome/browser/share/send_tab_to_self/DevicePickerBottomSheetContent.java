@@ -44,6 +44,7 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
     private final String mUrl;
     private final String mTitle;
     private final Supplier<@Nullable Tab> mTabProvider;
+    private final @ShareEntryPoint int mEntryPoint;
 
     private boolean mIsActionStarted;
 
@@ -54,7 +55,8 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
             BottomSheetController controller,
             List<TargetDeviceInfo> targetDevices,
             Profile profile,
-            Supplier<@Nullable Tab> tabProvider) {
+            Supplier<@Nullable Tab> tabProvider,
+            @ShareEntryPoint int entryPoint) {
         mContext = context;
         mController = controller;
         mProfile = profile;
@@ -62,6 +64,7 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
         mUrl = url;
         mTitle = title;
         mTabProvider = tabProvider;
+        mEntryPoint = entryPoint;
 
         createToolbarView();
         createContentView();
@@ -182,6 +185,7 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
                 targetDeviceInfo.deviceName,
                 mUrl,
                 mTitle,
-                null);
+                null,
+                mEntryPoint);
     }
 }

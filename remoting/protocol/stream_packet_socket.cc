@@ -145,8 +145,14 @@ bool StreamPacketSocket::InitClientTcp(
   }
 
   auto socket = std::make_unique<net::TCPClientSocket>(
-      net::AddressList(remote_endpoint), nullptr, nullptr, nullptr,
-      net::NetLogSource());
+      net::AddressList(remote_endpoint),
+      /* socket_performance_watcher= */ nullptr,
+      /* network_quality_estimator= */ nullptr,
+      /* net_log= */ nullptr, net::NetLogSource(),
+      // Currently, there is no use case for targeting a network when using
+      // StreamPacketSocket. This makes it safe to always target the default
+      // network. Consider supporting a target network if a need arises.
+      net::handles::kInvalidNetworkHandle);
 
   int result = socket->Bind(local_endpoint);
   if (result != net::OK) {

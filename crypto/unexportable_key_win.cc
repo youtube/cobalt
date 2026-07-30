@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/base64.h"
@@ -31,11 +32,12 @@
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
 #include "base/win/delayload_helpers.h"
+#include "crypto/ecdsa_utils.h"
 #include "crypto/hash.h"
 #include "crypto/keypair.h"
 #include "crypto/random.h"
 #include "crypto/sign.h"
-#include "crypto/tpm.rs.h"
+#include "crypto/tpm_parser.h"
 #include "crypto/unexportable_key.h"
 #include "crypto/unexportable_key_metrics.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
@@ -165,7 +167,8 @@ void LogTPMOperationError(
   //    2- Errors during `kWrappedKeyCreation` TPM operation.
   if (!open_storage_provider_error) {
     CHECK_EQ(!selected_algorithm.has_value(),
-             operation == TPMOperation::kWrappedKeyCreation);
+             (operation == TPMOperation::kWrappedKeyCreation ||
+              operation == TPMOperation::kWrappedAttestationKeyCreation));
   }
 
   std::string algorithm_string =
@@ -481,16 +484,20 @@ base::expected<std::vector<uint8_t>, SECURITY_STATUS> SignRSA(
 }
 
 ScopedNCryptKey LoadWrappedKey(base::span<const uint8_t> wrapped,
-                               ProviderType provider_type) {
+                               ProviderType provider_type,
+                               KeyUsage usage) {
   SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
   ScopedNCryptProvider provider;
   SECURITY_STATUS status =
       NCryptOpenStorageProvider(ScopedNCryptProvider::Receiver(provider).get(),
                                 GetWindowsIdentifierForProvider(provider_type),
                                 /*flags=*/0);
+  TPMOperation operation = usage == KeyUsage::kAttestation
+                               ? TPMOperation::kWrappedAttestationKeyCreation
+                               : TPMOperation::kWrappedKeyCreation;
   if (FAILED(status)) {
-    LogTPMOperationError(TPMOperation::kWrappedKeyCreation, status,
-                         std::nullopt, /*open_storage_provider_error=*/true);
+    LogTPMOperationError(operation, status, std::nullopt,
+                         /*open_storage_provider_error=*/true);
     return ScopedNCryptKey();
   }
 
@@ -514,11 +521,25 @@ ScopedNCryptKey LoadWrappedKey(base::span<const uint8_t> wrapped,
         /*dwFlags=*/NCRYPT_SILENT_FLAG);
   }
   if (FAILED(import_status)) {
-    LogTPMOperationError(TPMOperation::kWrappedKeyCreation, import_status,
-                         std::nullopt);
+    LogTPMOperationError(operation, import_status, std::nullopt);
     return ScopedNCryptKey();
   }
   return key;
+}
+
+tpm::SignatureErrorOr<void> VerifyAndLogTpmSignature(
+    base::span<const uint8_t> spki,
+    base::span<const uint8_t> statement,
+    base::span<const uint8_t> signature_blob) {
+  ASSIGN_OR_RETURN(tpm::SignatureAlgorithms algs,
+                   tpm::GetSignatureAlgorithms(signature_blob));
+  base::UmaHistogramSparse(
+      "Crypto.TPMOperation.Win.TpmCertifyVerify.SignatureAlgorithm",
+      algs.sig_alg);
+  base::UmaHistogramSparse(
+      "Crypto.TPMOperation.Win.TpmCertifyVerify.HashAlgorithm", algs.hash_alg);
+
+  return tpm::VerifySignature(spki, statement, signature_blob);
 }
 
 // ECDSASigningKey wraps a P-256 ECDSA key stored in the given provider.
@@ -671,8 +692,8 @@ class AttestationKeyWin : public WinKeyImpl<UnexportableAttestationKey> {
         log_extract_property_error);
 
     // 3. Construct Command
-    rust::Vec<uint8_t> cmd = crypto::tpm::build_certify_command(
-        object_handle, sign_handle, base::SpanToRustSlice(challenge));
+    std::vector<uint8_t> cmd =
+        tpm::BuildCertifyCommand(object_handle, sign_handle, challenge);
 
     // 4. Submit Command
     // A 4096-byte buffer handles the maximum theoretical TPM response
@@ -699,49 +720,33 @@ class AttestationKeyWin : public WinKeyImpl<UnexportableAttestationKey> {
       return std::nullopt;
     }
 
-    // 5. Parse and Verify via Rust
-    crypto::tpm::CertifyResponse parsed = crypto::tpm::parse_certify_response(
-        base::SpanToRustSlice(base::span(resp).first(resp_len)),
-        base::SpanToRustSlice(challenge));
+    // 5. Parse in Rust by going through the C++ shim.
+    const tpm::CertifyResponseErrorOr<tpm::CertifyResponse> parsed_or_error =
+        tpm::ParseCertifyResponse(base::span(resp).first(resp_len), challenge);
 
+    auto parse_error = parsed_or_error.error_or(
+        tpm::CertifyResponseError(tpm::kNoCertifyResponseErrorForMetrics));
+    base::UmaHistogramEnumeration(
+        "Crypto.TPMOperation.Win.TpmCertifyParse.Result", parse_error.type);
     base::UmaHistogramSparse(
         "Crypto.TPMOperation.Win.TpmCertifyResponse.TpmResponseCode",
-        parsed.tpm_response_code);
+        parse_error.tpm_error_code.value_or(0));
 
+    ASSIGN_OR_RETURN(tpm::CertifyResponse parsed, std::move(parsed_or_error),
+                     [](const auto&) { return std::nullopt; });
+
+    // 6. Verify in C++. C++ supports a wider range of signature algorithms than
+    // Rust.
     base::UmaHistogramEnumeration(
-        "Crypto.TPMOperation.Win.TpmCertifyParse.Result", parsed.result);
-
-    if (parsed.result != crypto::tpm::ParseResult::Ok) {
-      return std::nullopt;
-    }
-
-    crypto::tpm::VerificationResult verified = crypto::tpm::verify_signature(
-        base::SpanToRustSlice(parsed.statement),
-        base::SpanToRustSlice(parsed.signature),
-        base::SpanToRustSlice(GetSubjectPublicKeyInfo()));
-
-    // We log local signature verification failures for telemetry, but do not
-    // early-return (e.g. return std::nullopt). The browser simply forwards
-    // the payload; strict cryptographic enforcement happens on the server.
-    base::UmaHistogramEnumeration(
-        "Crypto.TPMOperation.Win.TpmCertifyVerify.Result", verified);
-
-    crypto::tpm::SignatureAlgorithmsResponse algs =
-        crypto::tpm::extract_signature_algorithms(
-            base::SpanToRustSlice(parsed.signature));
-    if (algs.has_algorithms) {
-      base::UmaHistogramSparse(
-          "Crypto.TPMOperation.Win.TpmCertifyVerify.SignatureAlgorithm",
-          algs.sig_alg);
-      base::UmaHistogramSparse(
-          "Crypto.TPMOperation.Win.TpmCertifyVerify.HashAlgorithm",
-          algs.hash_alg);
-    }
+        "Crypto.TPMOperation.Win.TpmCertifyVerify.Result",
+        VerifyAndLogTpmSignature(GetSubjectPublicKeyInfo(), parsed.statement,
+                                 parsed.signature)
+            .error_or(tpm::kNoSignatureErrorForMetrics));
 
     return AttestationStatement{
         .format = AttestationStatement::kTpm,
-        .statement = base::ToVector(parsed.statement),
-        .signature = base::ToVector(parsed.signature),
+        .statement = std::move(parsed.statement),
+        .signature = std::move(parsed.signature),
     };
   }
 };
@@ -781,6 +786,15 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
     base::ScopedBlockingCall scoped_blocking_call(
         FROM_HERE, base::BlockingType::WILL_BLOCK);
 
+    TPMOperation creation_operation =
+        usage == KeyUsage::kAttestation
+            ? TPMOperation::kNewAttestationKeyCreation
+            : TPMOperation::kNewKeyCreation;
+    TPMOperation export_operation =
+        usage == KeyUsage::kAttestation
+            ? TPMOperation::kWrappedAttestationKeyExport
+            : TPMOperation::kWrappedKeyExport;
+
     ScopedNCryptProvider provider;
     {
       SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
@@ -788,8 +802,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
           ScopedNCryptProvider::Receiver(provider).get(),
           GetWindowsIdentifierForProvider(provider_type_), /*flags=*/0);
       if (FAILED(status)) {
-        LogTPMOperationError(TPMOperation::kNewKeyCreation, status,
-                             std::nullopt,
+        LogTPMOperationError(creation_operation, status, std::nullopt,
                              /*open_storage_provider_error=*/true);
         return std::nullopt;
       }
@@ -824,8 +837,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
             /*dwLegacyKeySpec=*/0, /*dwFlags=*/0);
       }
       if (FAILED(creation_status)) {
-        LogTPMOperationError(TPMOperation::kNewKeyCreation, creation_status,
-                             algo);
+        LogTPMOperationError(creation_operation, creation_status, algo);
         return std::nullopt;
       }
 
@@ -840,8 +852,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
     if (provider_type_ == ProviderType::kTPM) {
       ASSIGN_OR_RETURN(key_id, ExportKey(key.get(), BCRYPT_OPAQUE_KEY_BLOB),
                        [&](SECURITY_STATUS status) {
-                         LogTPMOperationError(TPMOperation::kWrappedKeyExport,
-                                              status, algo);
+                         LogTPMOperationError(export_operation, status, algo);
                          return std::nullopt;
                        });
     }
@@ -868,7 +879,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
     base::ScopedBlockingCall scoped_blocking_call(
         FROM_HERE, base::BlockingType::WILL_BLOCK);
 
-    ScopedNCryptKey key = LoadWrappedKey(wrapped, provider_type_);
+    ScopedNCryptKey key = LoadWrappedKey(wrapped, provider_type_, usage);
     if (!key.is_valid()) {
       return std::nullopt;
     }
@@ -1208,9 +1219,11 @@ class VirtualUnexportableKeyProviderWin
 }  // namespace
 
 ScopedNCryptKey DuplicatePlatformKeyHandle(const UnexportableKey& key) {
-  return LoadWrappedKey(key.GetWrappedKey(), key.IsHardwareBacked()
-                                                 ? ProviderType::kTPM
-                                                 : ProviderType::kSoftware);
+  return LoadWrappedKey(
+      key.GetWrappedKey(),
+      key.IsHardwareBacked() ? ProviderType::kTPM : ProviderType::kSoftware,
+      IsIdentityKey(key.GetNCryptKeyHandle()) ? KeyUsage::kAttestation
+                                              : KeyUsage::kSigning);
 }
 
 std::unique_ptr<UnexportableKeyProvider> GetUnexportableKeyProviderWin() {

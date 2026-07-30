@@ -13,8 +13,26 @@ Composite.wav
 
 To create the FLAC-encoded version:
 
-avconv -i Composite.wav Composite.flac
+ffmpeg -i Composite.wav -c:a flac -compression_level 12 \
+    -exact_rice_parameters 1 -lpc_type cholesky -lpc_passes 20 \
+    -map_metadata -1 -fflags +bitexact Composite.flac
 
-If you change Composite.flac (or Composite.wav), be sure to update
-web_tests/webaudio/resources/hrtf with the updated files!
+IMPORTANT:
+If you change Composite.flac (or Composite.wav), also update:
+web_tests/webaudio/resources/hrtf
 
+Notes on ffmpeg command:
+ * -compression_level 12: Enables the highest compression level
+ * -exact_rice_parameters 1 : Forces encoder to calculate Rice parameters
+   exactly rather than estimating them, which improves compression at the cost
+   of a tiny bit of encoding time.
+ * -lpc_type cholesky -lpc_passes 20: Uses the most thorough Linear Predictive
+   Coding (LPC) algorithm (Cholesky factorization) and optimizes it over 20
+   passes.
+   * Note: Tested up to 30 passes, but 20 proved to be the sweet spot for this
+     specific file; 30 passes actually increased the file size slightly due to
+     coefficient overhead).
+ * -map_metadata -1 -fflags +bitexact: Strips unnecessary container metadata
+   and encoder version tags, saving extra bytes.
+ * Also tested -multi_dim_quant, but it was extremely slow (taking hours for a
+   1.3s clip) and not practical for the negligible gains it might offer.

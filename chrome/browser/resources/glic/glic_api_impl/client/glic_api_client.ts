@@ -3,18 +3,20 @@
 // found in the LICENSE file.
 
 import {CaptureRegionErrorReason, HostCapability} from '../../glic_api/glic_api.js';
-import type {AdditionalContext, AnnotatedPageData, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, CreateTabOptions, ExperimentalTriggeringUpdate, FocusedTabData, FormFactor, GeminiEnterpriseSettings, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, ImageBytesResult, ImageInfo, InvokeOptions, MicrophoneStatus, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, UnpinTabsOptions, UpdateSkillRequest, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import type {AdditionalContext, AnnotatedPageData, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, CreateTabOptions, ExperimentalTriggeringUpdate, FocusedTabData, FormFactor, GeminiEnterpriseSettings, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, ImageBytesResult, ImageInfo, InvokeOptions, MicrophoneStatus, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, SelectAutofillSuggestionsDialogRequest, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, UnpinTabsOptions, UpdateSkillRequest, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl, Subject} from '../../observable.js';
-import {OneShotTimer} from '../../timer.js';
 import {GlicBrowserHostActor} from '../actor/actor_client.js';
+import {glicBrowserHostAnnotationMixin} from '../annotation/annotation_client.js';
 import type {ResponseExtras} from '../transport/messaging.js';
 import {createBidirectionalPostMessageTransport} from '../transport/post_message_transport.js';
-import type {InterfaceDef, PendingRemote, PostMessageHandler, PostMessageReceiver, PostMessageRemote, PostMessageRouter} from '../transport/post_message_transport.js';
+import type {PendingRemote, PostMessageHandler, PostMessageReceiver, PostMessageRemote, PostMessageRouter} from '../transport/post_message_transport.js';
 
 import {replaceProperties} from './../conversions.js';
 import {ERROR_CODEC, ErrorWithReasonImpl, newTransferableException, SubscriberObservationType, WebClientDef, WebClientHostDef, WebClientPinCandidatesObserverDef, WebClientRegionCaptureDef, WebClientTabDataObserverDef, WebClientTabFaviconObserverDef} from './../request_types.js';
 import type {AdditionalContextPrivate, AnnotatedPageDataPrivate, FocusedTabDataPrivate, GlicException, ImageBytesResultPrivate, ImageInfoPrivate, InvokeOptionsPrivate, PdfDocumentDataPrivate, PinCandidatePrivate, ResumeActorTaskResultPrivate, RgbaImage, TabContextResultPrivate, TabDataPrivate, WebClient, WebClientHost, WebClientPinCandidatesObserver, WebClientRegionCapture, WebClientTabDataObserver, WebClientTabFaviconObserver} from './../request_types.js';
 import {rgbaImageToBlob} from './image_utils.js';
+import type {ObservableSetByTabIdDelegate} from './observable_set_by_tab_id.js';
+import {ObservableSetByTabId} from './observable_set_by_tab_id.js';
 
 // Web client side of the Glic API.
 // Communicates with the Chrome-WebUI-side in glic_api_host.ts
@@ -385,8 +387,8 @@ class WebClientRegionCaptureHandler implements
   }
 }
 
-export class GlicBrowserHostImpl extends GlicBrowserHostActor implements
-    GlicBrowserHost {
+export class GlicBrowserHostImpl extends glicBrowserHostAnnotationMixin
+(GlicBrowserHostActor) implements GlicBrowserHost {
   readonly router: PostMessageRouter;
   readonly clientRemote: PostMessageRemote<WebClientHost>;
   private webClientMessageHandler: WebClientMessageHandler;
@@ -497,6 +499,8 @@ export class GlicBrowserHostImpl extends GlicBrowserHostActor implements
           response.initialState, this.router, response.actorRemote,
           response.actorReceiver);
     }
+    this.initializeAnnotation(
+        response.initialState, this.router, this.clientRemote);
     const state = response.initialState;
     this.geminiEnterpriseSettings.assignAndSignal(
         state.geminiEnterpriseSettings ?? undefined);
@@ -964,9 +968,6 @@ export class GlicBrowserHostImpl extends GlicBrowserHostActor implements
     return this.metrics;
   }
 
-  scrollTo?(params: ScrollToParams): Promise<void> {
-    return this.clientRemote.requestWithResponse('scrollTo', {params});
-  }
 
   setSyntheticExperimentState(trialName: string, groupName: string): void {
     this.clientRemote.requestNoResponse(
@@ -1110,9 +1111,6 @@ export class GlicBrowserHostImpl extends GlicBrowserHostActor implements
     return this.currentZeroStateObserver;
   }
 
-  dropScrollToHighlight?(): void {
-    this.clientRemote.requestNoResponse('dropScrollToHighlight', undefined);
-  }
 
   maybeRefreshUserStatus?(): void {
     this.cachedUserProfile = undefined;
@@ -1354,109 +1352,7 @@ class WebClientPinCandidatesObserverHandler implements
   }
 }
 
-export interface ObservableSetByTabIdDelegate<
-    ObservedType, ObserverInterface extends InterfaceDef = InterfaceDef> {
-  readonly interfaceDef: ObserverInterface;
-  readonly unsubscribeDelay: number;
 
-  subscribe(
-      clientRemote: PostMessageRemote<WebClientHost>, tabId: string,
-      remote: PendingRemote<ObserverInterface>): void;
-  createHandler(observable: ObservableValueImpl<ObservedType>):
-      PostMessageHandler<ObserverInterface>;
-}
-
-// Manages a set of observables which each observe a tab.
-// When a tab is closed, the corresponding observable is completed, and
-// removed from the set. Otherwise, observables are kept in the set,
-// so they can be re-subscribed to later.
-export class ObservableSetByTabId<
-    ObservedType, ObserverInterface extends InterfaceDef = InterfaceDef> {
-  private observablesByTabId = new Map<
-      string,
-      ObservableSetByTabIdObservable<ObservedType, ObserverInterface>>();
-
-  constructor(
-      private delegate:
-          ObservableSetByTabIdDelegate<ObservedType, ObserverInterface>,
-      private clientRemote: PostMessageRemote<WebClientHost>,
-      private router: PostMessageRouter) {}
-
-  getObservableByTabId(tabId: string):
-      ObservableSetByTabIdObservable<ObservedType, ObserverInterface> {
-    let obs = this.observablesByTabId.get(tabId);
-    if (obs !== undefined) {
-      return obs;
-    }
-    obs = new ObservableSetByTabIdObservable<ObservedType, ObserverInterface>(
-        tabId, this.clientRemote, this.router, this.delegate, () => {
-          this.observablesByTabId.delete(tabId);
-        });
-    this.observablesByTabId.set(tabId, obs);
-    return obs;
-  }
-}
-
-// An observable representing a lazy, reference-counted, and debounced
-// stream of updates for a specific tab from the host.
-//
-// It connects when the first subscriber joins, disconnects with a delay when
-// the last subscriber leaves, and cleans itself up on completion.
-export class ObservableSetByTabIdObservable<
-    ObservedType, ObserverInterface extends InterfaceDef = InterfaceDef> extends
-    ObservableValueImpl<ObservedType> {
-  private unsubscribeTimer: OneShotTimer;
-  private receiver?: PostMessageReceiver;
-  private isCompleting = false;
-
-  constructor(
-      public tabId: string,
-      private clientRemote: PostMessageRemote<WebClientHost>,
-      private router: PostMessageRouter,
-      private delegate:
-          ObservableSetByTabIdDelegate<ObservedType, ObserverInterface>,
-      private onComplete: () => void) {
-    super(/*isSet=*/ false);
-    this.unsubscribeTimer = new OneShotTimer(delegate.unsubscribeDelay);
-  }
-
-  override activeSubscriptionChanged(hasActiveSubscription: boolean): void {
-    super.activeSubscriptionChanged(hasActiveSubscription);
-    if (!hasActiveSubscription) {
-      this.unsubscribeTimer.start(() => {
-        if (this.hasActiveSubscription()) {
-          return;
-        }
-        this.complete();
-      });
-      return;
-    }
-    this.unsubscribeTimer.reset();
-    if (!this.receiver) {
-      const {receiver, remote} =
-          this.router.newPipeWithReceiver<ObserverInterface>(
-              this.delegate.createHandler(this), this.delegate.interfaceDef);
-      this.receiver = receiver;
-      this.receiver.addCloseHandler(() => {
-        this.complete();
-      });
-      this.delegate.subscribe(this.clientRemote, this.tabId, remote);
-    }
-  }
-
-  override complete() {
-    // As this is an observable, it can be completed only once. Early exit if
-    // already complete.
-    if (this.isCompleting || this.isStopped()) {
-      return;
-    }
-    this.isCompleting = true;
-    this.receiver?.close();
-    this.receiver = undefined;
-    this.onComplete();
-    super.complete();
-  }
-}
 
 class GetTabByIdObservableSetImpl implements
     ObservableSetByTabIdDelegate<TabData, WebClientTabDataObserver> {

@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12 x 16 цаляў</translation>
 <translation id="1181037720776840403">Выдаліць</translation>
 <translation id="1185331130467528132">Сайт "<ph name="URL" />" запытвае дазвол на доступ да іншых прылад у лакальнай сетцы</translation>
-<translation id="1185343831726846924">Я разумею, што падключыць віртуальную картку не ўдалося</translation>
 <translation id="1186201132766001848">Праверыць паролі</translation>
 <translation id="1187430513518041110">Аўтамабілі і іншыя транспартныя сродкі</translation>
 <translation id="1188817995162638216">Скасаваць захаванне файла?</translation>
@@ -1263,7 +1262,6 @@
 <translation id="297173220375858963">Настольныя выдавецкія сістэмы</translation>
 <translation id="2972581237482394796">&amp;Узнавіць</translation>
 <translation id="2974468223369775963">Не ўдалося захаваць гэты нумар IBAN ва Уліковым запісе Google. Ён захаваны ў Chrome на гэтай прыладзе. Chrome зноў спытае вас пры наступным выкарыстанні гэтага нумара IBAN.</translation>
-<translation id="2976162850019490782">Калі гэта функцыя ўключана, Chrome будзе абагульваць усе ўкладкі ў гэтым акне, каб вы атрымлівалі больш рэлевантныя адказы. Вы можаце ўключыць гэту функцыю для ўсіх ланцужкоў, перайшоўшы ў Налады.</translation>
 <translation id="297667759942911166">Сумесна працаваць з групамі ўкладак</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />, радок выбраны. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Опера</translation>
@@ -1671,7 +1669,6 @@
 <translation id="361438452008624280">Элемент спіса "<ph name="LANGUAGE_ID" />": мова невядомая або не падтрымліваецца.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />. Каб выканаць праверку бяспекі ў наладах Chrome, націсніце Tab, затым Enter</translation>
 <translation id="3615309852743236517">Манікюр і педыкюр</translation>
-<translation id="3620034424637552643">Часта выкарыстоўваецца для пракладання маршрутаў, даставак і іншых мэт</translation>
 <translation id="3620239073311576716">Уніформа і рабочае адзенне</translation>
 <translation id="3620865353340165509">Не ўдалося захаваць IBAN у Google Кашальку. Нумар захаваны ў Chrome на гэтай прыладзе. Chrome зноў спытае вас пры наступным выкарыстанні гэтага нумара IBAN.</translation>
 <translation id="3621401353678567613">Каб атрымліваць абвесткі пра зніжэнне цаны на тавары, якія вы адсочваеце, уключыце апавяшчэнні ў наладах.</translation>
@@ -2220,7 +2217,6 @@
 <translation id="4434045419905280838">Усплыв. вокны і перанакіраванні</translation>
 <translation id="443673843213245140">Выкарыстанне проксі-сервера выключана, але яўная канфігурацыя проксі вызначана.</translation>
 <translation id="4438821706955556403">Звычайная цана</translation>
-<translation id="4439687924334332880">Абагульвайце адкрытыя ўкладкі ў гэтым акне, калі яны звязаны з гэтым ланцужком, каб атрымліваць больш персаналізаваныя адказы. Вы можаце ўключыць гэту функцыю для ўсіх ланцужкоў, перайшоўшы ў Налады.</translation>
 <translation id="4441832193888514600">Ігнаруецца, бо гэтыя правілы могуць задавацца толькі як палітыка для карыстальнікаў на ўзроўні воблака.</translation>
 <translation id="4444062564459679679">Ужо адпраўлена ў Chrome на прыладзе "<ph name="DEVICE_NAME" />"</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />. Каб выканаць пошук укладак, націсніце Увод.</translation>
@@ -2354,6 +2350,7 @@
 <translation id="4691093235373904540">Дахавыя работы</translation>
 <translation id="4692623383562244444">Пошукавыя сістэмы</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - Спытаць <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4697071790493980729">Нічога не знойдзена</translation>
 <translation id="4698308118265482293">Змяніце пашпартныя даныя</translation>
 <translation id="4698692901173737941">Спартыўныя адзінаборствы</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2700,7 +2697,6 @@
 <translation id="5238301240406177137">Захаваць ва ўліковым запісе</translation>
 <translation id="5239119062986868403">Звычайная цана</translation>
 <translation id="5239623327352565343">Выкарыстанне геаданых дазволена</translation>
-<translation id="5241048084654737238">Я разумею, што інфармацыю пра картку захаваць не ўдалося</translation>
 <translation id="5242610955375133957">Сухая плёнка</translation>
 <translation id="5243004157379865295">Абнавіць адрас</translation>
 <translation id="5244521145258281926">Кіраванне Уліковым запісам Google. Каб кіраваць параметрамі даных, прыватнасці і бяспекі ва Уліковым запісе Google, націсніце яе.</translation>
@@ -3021,6 +3017,7 @@
 <translation id="5718601519531438273">Уключае такую інфармацыю, як даныя пашпартоў і вадзіцельскіх пасведчанняў</translation>
 <translation id="5720705177508910913">Бягучы карыстальнік</translation>
 <translation id="5720895412771013401">Настольныя камп’ютары</translation>
+<translation id="5721147290164931316">Адсканіруйце QR-код, каб увайсці ва ўліковы запіс на тэлефоне</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} і яшчэ 1}one{{website_1}, {website_2} і яшчэ {more_count}}few{{website_1}, {website_2} і яшчэ {more_count}}many{{website_1}, {website_2} і яшчэ {more_count}}other{{website_1}, {website_2} і яшчэ {more_count}}}</translation>
 <translation id="572328651809341494">Нядаўнія ўкладкі</translation>
 <translation id="5723873695528696965">Кіраваць прыладамі MIDI і перапраграміраваць іх</translation>
@@ -3355,6 +3352,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> сут таму</translation>
 <translation id="6246382863801034910">Транспартны сродак</translation>
 <translation id="6246868321321344665">Ваша арганізацыя можа бачыць даныя пра работу ў браўзеры (у тым ліку паролі і гісторыю) як у працоўным, так і ў асабістым профілі</translation>
+<translation id="6248479108671123143">Карыстальнік (<ph name="MEMBER_FIRST_NAME" />) змяніў гэту ўкладку, <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">Налады пошуку</translation>
 <translation id="6250932670816326647">Тавары для ванны і цела</translation>
 <translation id="6251906504834538140">{0,plural, =1{Файл не можа быць перамешчаны па прычыне блакіроўкі}one{<ph name="FILE_COUNT" /> файл не можа быць перамешчаны па прычыне блакіроўкі}few{<ph name="FILE_COUNT" /> файлы не могуць быць перамешчаны па прычыне блакіроўкі}many{<ph name="FILE_COUNT" /> файлаў не могуць быць перамешчаны па прычыне блакіроўкі}other{<ph name="FILE_COUNT" /> файла не могуць быць перамешчаны па прычыне блакіроўкі}}</translation>
@@ -3711,6 +3709,7 @@
 <translation id="6798066466127540426">У спісе няма сапраўдных пошукавых сістэм.</translation>
 <translation id="6798460514924505775">Канверт Chou 3</translation>
 <translation id="6799145206637008376">Запоўніце код CVC для гэтай віртуальнай карткі</translation>
+<translation id="6800773453940486492">Карыстальнік (<ph name="MEMBER_FIRST_NAME" />) дадаў гэту ўкладку, <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">Сачыце за зніжэннем цэн, дзе б вы ні знаходзіліся</translation>
 <translation id="6805030849054648206">Канверт B6/C4</translation>
 <translation id="6807791860691150411">Адукацыя</translation>
@@ -4269,6 +4268,7 @@
 <translation id="7646681339175747202">Выкарыстаны вамі пароль трапіў у спіс узламаных даных. Рэкамендуем змяніць яго зараз жа ў Менеджары пароляў Google.</translation>
 <translation id="7647206758853451655">Якасць друку</translation>
 <translation id="7648133459447652947">Каб паказаць курсор, змяніце праграмы, перазагрузіце старонку ці вярніцеся на папярэднюю</translation>
+<translation id="764847582138410250">Адсканіруйце QR-код, каб увайсці ва ўліковы запіс на тэлефоне</translation>
 <translation id="7648527891719919697">Гэты сайт застанецца заблакіраваным, бо вы ўключылі Палепшаную абарону ў <ph name="BEGIN_ANDROID_SETTINGS_LINK" />наладах Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Даведацца больш пра гэта папярэджанне.<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7648900539798595789">Захавайце нумар вядомага падарожніка ў Google Кашальку</translation>
 <translation id="7648992873808071793">Захоўваць файлы на гэтай прыладзе</translation>
@@ -4713,6 +4713,7 @@
 <translation id="8351131234907093545">Стварыць нататку</translation>
 <translation id="8352849934814541340">Адміністратар гэтай прылады ўсталяваў праграмы для дадатковых функцый. Праграмы маюць доступ да некаторых вашых даных.</translation>
 <translation id="8355270400102541638">Лакальны ідэнтыфікатар збою:</translation>
+<translation id="8362914115861174987">Мова перакладу:</translation>
 <translation id="8363502534493474904">Выключыць рэжым палёту</translation>
 <translation id="8363929499301563123">файлы cookie вэб-сайта (даныя пра ўваход на вэб-сайтах, якія наведваліся нядаўна, будуць захоўвацца).</translation>
 <translation id="8364627913115013041">Не зададзена</translation>
@@ -4732,7 +4733,6 @@
 <translation id="8381674639488873545">Плацяжы могуць быць аднаразовыя або рэгулярныя, і інфармацыю пра іх можа быць цяжка заўважыць. <ph name="BEGIN_LINK" />Усе роўна паказаць<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Аўтаматычны поўнаэкранны рэжым</translation>
 <translation id="838307841291975086">Аўтамабілі з кузавам "універсал"</translation>
-<translation id="838953173259347825">Абагульвайце адкрытыя ўкладкі ў гэтым акне, калі яны звязаны з гэтым ланцужком, каб атрымліваць больш персаналізаваныя адказы. Вы можаце ўключыць гэту функцыю для ўсіх ланцужкоў, перайшоўшы ў</translation>
 <translation id="8389532092404711541">Звычайна <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Мадыфікаваныя і спартыўныя аўтамабілі</translation>
 <translation id="8390725133630534698">Палітыка, зададзеная адміністратарам, блакіруе абагульванне змесціва з сайта <ph name="ORIGIN_NAME" /> з віртуальнай машынай <ph name="VM_NAME" /></translation>
@@ -4898,6 +4898,7 @@
 <translation id="8671519637524426245">Значэнне <ph name="SECURE_DNS_SALT" /> не адпавядае патрабаванням да памеру.</translation>
 <translation id="867224526087042813">Подпіс</translation>
 <translation id="8672535691554698269">Камп’ютарныя сеткі</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Паказаць падрабязныя звесткі пра абагульванне ўкладак. Абагульваецца 1 укладка з {WEBSITE_LIST_STR}}one{Паказаць падрабязныя звесткі пра абагульванне ўкладак. Абагульваецца {NUM_TABS} укладка з {WEBSITE_LIST_STR}}few{Паказаць падрабязныя звесткі пра абагульванне ўкладак. Абагульваецца {NUM_TABS} укладкі з {WEBSITE_LIST_STR}}many{Паказаць падрабязныя звесткі пра абагульванне ўкладак. Абагульваецца {NUM_TABS} укладак з {WEBSITE_LIST_STR}}other{Паказаць падрабязныя звесткі пра абагульванне ўкладак. Абагульваецца {NUM_TABS} укладкі з {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Файлы запампоўваюцца ў воблака "<ph name="CLOUD_PROVIDER" />"</translation>
 <translation id="8676424191133491403">Без затрымкі</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, адказ, <ph name="ANSWER" /></translation>
@@ -5151,7 +5152,6 @@
 <translation id="9090243919347147717">Далучэнні</translation>
 <translation id="9090548458280093580">Пошук у гісторыі з дапамогай штучнага інтэлекту</translation>
 <translation id="9090993752571911635">Інтэрнэт-правайдары</translation>
-<translation id="9092305980625216393">Часта выкарыстоўваецца для прагнозу надвор’я, мясцовых навін і іншага</translation>
 <translation id="9093723786115107672">Адзенне для сну</translation>
 <translation id="9094424186948667194">Доступ да іншых праграм і сэрвісаў на гэтай прыладзе</translation>
 <translation id="9094544726794842788">Калі націснуць кнопку "Не падабаецца", будзе адкрыта форма для адпраўкі падрабязнага водгуку аб тым, чаму вам не спадабаліся гэтыя вынікі</translation>
@@ -5277,7 +5277,6 @@
 <translation id="964050462028070434">Кіраваць паролямі і ключамі доступу…</translation>
 <translation id="964681140808832181">Так, скасаваць</translation>
 <translation id="969892804517981540">Афіцыйная зборка</translation>
-<translation id="970182982363142444">Калі гэта функцыя ўключана, Chrome будзе абагульваць усе ўкладкі ў гэтым акне, каб вы атрымлівалі больш рэлевантныя адказы. Вы можаце ўключыць гэту функцыю для ўсіх чатаў, перайшоўшы ў</translation>
 <translation id="97054401902912338">Даведацца больш пра фільтры змесціва</translation>
 <translation id="973788791897303708">Гэта група ўкладак запоўнена</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{Няма}=1{1 элемент}one{# элемент}few{# элементы}many{# элементаў}other{# элемента}}</translation>

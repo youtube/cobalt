@@ -80,7 +80,7 @@ import java.util.Collections;
 import java.util.List;
 
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures(ChromeFeatureList.GLIC)
+@EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL})
 public class StripLayoutTrailingButtonsCoordinatorTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -103,6 +103,7 @@ public class StripLayoutTrailingButtonsCoordinatorTest {
     private final OneshotSupplierImpl<SideUiStateProvider> mSideUiStateProviderSupplier =
             new OneshotSupplierImpl<>();
     @Mock private SideUiStateProvider mSideUiStateProvider;
+    @Mock private TintedCompositorButton mModelSelectorButton;
     @Captor private ArgumentCaptor<List<Animator>> mAnimatorsListCaptor;
 
     private Activity mActivity;
@@ -163,6 +164,7 @@ public class StripLayoutTrailingButtonsCoordinatorTest {
                         mIsIncognito,
                         () -> null,
                         mSideUiStateProviderSupplier,
+                        mModelSelectorButton,
                         mObserver);
         ShadowLooper.idleMainLooper();
         mCoordinator.onProfileAvailable(mProfile);
@@ -694,7 +696,7 @@ public class StripLayoutTrailingButtonsCoordinatorTest {
         mCoordinator.setGlicActorButtonVisible(true, /* animate= */ false);
         mGlicActorButton.setWidth(BUTTON_WIDTH);
         mGlicActorButton.setOpacity(1.0f);
-        mCoordinator.updateGlicButtonPosition();
+        mCoordinator.updateButtonPositions();
     }
 
     @Test

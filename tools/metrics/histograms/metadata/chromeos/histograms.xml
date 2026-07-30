@@ -248,7 +248,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </variants>
 
 <histogram name="ChromeOS.AnomalousProcCount.AttemptedMemfdExec"
-    units="processes" expires_after="2026-10-11">
+    units="processes" expires_after="2026-12-16">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -1229,7 +1229,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.CWP.ParseCPUFrequencies"
-    enum="ChromeOSParseCPUFrequencyStatus" expires_after="2026-10-18">
+    enum="ChromeOSParseCPUFrequencyStatus" expires_after="2026-12-20">
   <owner>gmx@chromium.org</owner>
   <owner>cwp-team@google.com</owner>
   <summary>
@@ -1871,6 +1871,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
     <variant name="GeneralWithLocaleForTest"/>
     <variant name="Performance"/>
     <variant name="Peripherals"/>
+    <variant name="SlowAndLaggyDeepDive"/>
     <variant name="Stability"/>
   </token>
 </histogram>
@@ -2514,7 +2515,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.K12UserAgeClassification.LogSegment"
-    enum="K12UserAgeClassificationMatrix" expires_after="2026-10-11">
+    enum="K12UserAgeClassificationMatrix" expires_after="2026-12-16">
   <owner>zifanzhang@google.com</owner>
   <owner>cros-client-wa@google.com</owner>
   <summary>Tracks the K12 user age classification.</summary>
@@ -2735,7 +2736,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.LockScreenReauth.LockScreenReauthReason"
-    enum="LoginReauthReasons" expires_after="2026-07-26">
+    enum="LoginReauthReasons" expires_after="2027-07-26">
   <owner>andreydav@google.com</owner>
   <owner>cros-3pidp@google.com</owner>
   <summary>
@@ -4833,7 +4834,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.WXMountCount" units="count"
-    expires_after="2026-10-11">
+    expires_after="2026-12-16">
   <owner>jorgelo@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>

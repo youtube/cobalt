@@ -298,6 +298,26 @@ class GTestsAppTest(test_runner_test.TestCase):
     assert not any(key in gtests_app.env_vars
                    for key in ['GTEST_SHARD_INDEX', 'GTEST_TOTAL_SHARDS'])
 
+  @mock.patch('test_apps.get_bundle_id', return_value=_BUNDLE_ID)
+  @mock.patch('os.path.exists', return_value=True)
+  def test_fill_xctestrun_node_dyld_paths(self, _1, _2):
+    gtests_app = test_apps.GTestsApp(_TEST_APP_PATH,
+                                     constants.IOSPlatformType.IPHONEOS)
+    xctestrun_data = gtests_app.fill_xctestrun_node()
+    env = xctestrun_data[gtests_app.module_name +
+                         '_module']['TestingEnvironmentVariables']
+    self.assertEqual(
+        env['DYLD_LIBRARY_PATH'],
+        '/path/to:__PLATFORMS__/iPhoneSimulator.platform/'
+        'Developer/Library')
+    self.assertEqual(
+        env['DYLD_FRAMEWORK_PATH'],
+        '/path/to:__PLATFORMS__/iPhoneSimulator.platform/'
+        'Developer/Library/Frameworks')
+
+
+
+
 
 class EgtestsAppTest(test_runner_test.TestCase):
   """Tests to test methods of EgTestsApp."""
@@ -430,6 +450,24 @@ class EgtestsAppTest(test_runner_test.TestCase):
     self.assertEqual(
         asan_dylib,
         egtest_node['TestingEnvironmentVariables']['DYLD_INSERT_LIBRARIES'])
+
+  def test_xctestRunNode_dyld_paths(self):
+    self.mock(xcode_util, 'xctest_path', lambda _: 'xctest-path')
+    self.mock(test_apps.EgtestsApp, '_additional_inserted_libs', lambda _: [])
+    egtest_node = test_apps.EgtestsApp(
+        _TEST_APP_PATH,
+        _ALL_EG_TEST_NAMES,
+        constants.IOSPlatformType.IPHONEOS,
+        host_app_path='host_app_path').fill_xctestrun_node()['test_app_module']
+    env = egtest_node['TestingEnvironmentVariables']
+    self.assertEqual(
+        env['DYLD_LIBRARY_PATH'], '/path/to:/path/to/test_app.app/Frameworks:'
+        '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library')
+    self.assertEqual(
+        env['DYLD_FRAMEWORK_PATH'], '/path/to:/path/to/test_app.app/Frameworks:'
+        '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks')
+
+
 
 
 if __name__ == '__main__':

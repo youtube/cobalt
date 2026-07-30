@@ -500,7 +500,6 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoOpen:
     case kPseudoOptional:
     case kPseudoOutOfRange:
-    case kPseudoOverscrollTarget:
     case kPseudoOverscrollOpen:
     case kPseudoParent:
     case kPseudoPart:
@@ -607,7 +606,6 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"-internal-menulist-popover-with-menulist-anchor",
      CSSSelector::kPseudoMenulistPopoverWithMenulistAnchor},
     {"-internal-multi-select-focus", CSSSelector::kPseudoMultiSelectFocus},
-    {"-internal-overscroll-target", CSSSelector::kPseudoOverscrollTarget},
     {"-internal-popover-in-top-layer", CSSSelector::kPseudoPopoverInTopLayer},
     {"-internal-relative-anchor", CSSSelector::kPseudoRelativeAnchor},
     {"-internal-select-has-slotted-button",
@@ -1126,7 +1124,6 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoOpen:
     case kPseudoOptional:
     case kPseudoOutOfRange:
-    case kPseudoOverscrollTarget:
     case kPseudoOverscrollOpen:
     case kPseudoParent:
     case kPseudoPastCue:
@@ -1906,7 +1903,6 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoModal:
     case kPseudoMuted:
     case kPseudoOptional:
-    case kPseudoOverscrollTarget:
     case kPseudoOverscrollOpen:
     case kPseudoPermissionGranted:
     case kPseudoPlaceholderShown:
@@ -2292,7 +2288,6 @@ bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
     case CSSSelector::kPseudoOpen:
     case CSSSelector::kPseudoOptional:
     case CSSSelector::kPseudoOutOfRange:
-    case CSSSelector::kPseudoOverscrollTarget:
     case CSSSelector::kPseudoPaused:
     case CSSSelector::kPseudoPermissionGranted:
     case CSSSelector::kPseudoPictureInPicture:

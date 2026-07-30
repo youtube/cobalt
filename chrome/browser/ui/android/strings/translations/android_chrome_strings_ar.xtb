@@ -117,6 +117,7 @@
 <translation id="1435593198351412143">‏فتح ملفات PDF تلقائيًا</translation>
 <translation id="1437543266176261764">سيتم التشغيل في <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">يمكنك تنظيم منتجاتك التي تتتبّع سعرها في "إشارات مرجعية".</translation>
+<translation id="1452651021404174820">اختيار جهاز</translation>
 <translation id="1455845192930279203">هل المطلوب تنزيل "<ph name="FILE_NAME" />" ‏(<ph name="FILE_SIZE" />) من <ph name="DOWNLOAD_DOMAIN" /> على أي حال؟</translation>
 <translation id="1460751212339734034">وقت أكثر، كتابة أقلّ</translation>
 <translation id="146522654774760805">كلمات المرور والملء التلقائي</translation>
@@ -124,6 +125,7 @@
 <translation id="1477626028522505441">تعذّر تنزيل الملف <ph name="FILE_NAME" /> بسبب مشاكل بالخادم.</translation>
 <translation id="147982357559798527">تم التغيير</translation>
 <translation id="1480287803138246127">‏قد لا تظهر هنا بعض بيانات السجلّ. للاطّلاع على جميع البيانات، افتح سجلّ Chrome الكامل.</translation>
+<translation id="1483493594462132177">إرسال</translation>
 <translation id="1495677929897281669">الرجوع إلى علامة التبويب</translation>
 <translation id="1496514951988037011">اسم المستخدم</translation>
 <translation id="1501480321619201731">حذف مجموعة</translation>
@@ -1274,6 +1276,7 @@
 <translation id="634208815998129842">إدارة المهام</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 وعنوان إضافي واحد (<ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />)}zero{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> عنوان إضافي}two{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 وعنوانان إضافيان (<ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />)}few{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> عناوين إضافية}many{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> عنوانًا إضافيًا}other{‏<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 و<ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> عنوان إضافي}}</translation>
 <translation id="6345878117466430440">وضع علامة "مقروءة"</translation>
+<translation id="6350745006329795504">إدارة الأجهزة</translation>
 <translation id="6356893102071098867">يُرجى التأكّد من اختيار الحساب الصحيح.</translation>
 <translation id="6364438453358674297">هل تريد إزالة اقتراح من السجل؟</translation>
 <translation id="6380100320871303656">‏يعمل هذا الإعداد على إجراء تحميل مُسبق وبشكل أكثر تكرارًا لصفحات الويب التي يظن Chrome أنّه من المرجّح أن تنتقل إليها. وقد يؤدي هذا الإعداد إلى زيادة استخدام البيانات.</translation>

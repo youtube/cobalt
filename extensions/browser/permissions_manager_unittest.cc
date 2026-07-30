@@ -791,4 +791,62 @@ TEST_F(PermissionsManagerUnittest,
   EXPECT_FALSE(manager_->HasActiveHostAccessRequest(tab_id, extension->id()));
 }
 
+TEST_F(PermissionsManagerUnittest, HostAccessRequestUpdateCooldown) {
+  auto extension =
+      AddExtensionWithHostPermission("Extension", "https://example.com/*");
+  ScriptingPermissionsModifier(browser_context(), extension)
+      .SetWithholdHostPermissions(true);
+
+  std::unique_ptr<content::WebContents> web_contents(
+      content::WebContentsTester::CreateTestWebContents(browser_context(),
+                                                        nullptr));
+  int tab_id = 1;
+
+  content::WebContentsTester::For(web_contents.get())
+      ->NavigateAndCommit(GURL("https://example.com"));
+
+  class TestObserver : public PermissionsManager::Observer {
+   public:
+    explicit TestObserver(PermissionsManager* manager) : manager_(manager) {
+      manager_->AddObserver(this);
+    }
+    ~TestObserver() override { manager_->RemoveObserver(this); }
+
+    void OnHostAccessRequestUpdated(const ExtensionId& extension_id,
+                                    int tab_id) override {
+      updated_count_++;
+    }
+
+    int updated_count() const { return updated_count_; }
+
+   private:
+    raw_ptr<PermissionsManager> manager_;
+    int updated_count_ = 0;
+  };
+
+  TestObserver observer(manager_);
+
+  // Add request. Should succeed.
+  EXPECT_EQ(
+      PermissionsManager::AddRequestResult::kSuccess,
+      manager_->AddHostAccessRequest(web_contents.get(), tab_id, *extension));
+  EXPECT_TRUE(manager_->HasActiveHostAccessRequest(tab_id, extension->id()));
+  EXPECT_EQ(observer.updated_count(), 0);
+
+  // Update request immediately. Should fail due to cooldown.
+  EXPECT_EQ(
+      PermissionsManager::AddRequestResult::kThrottled,
+      manager_->AddHostAccessRequest(web_contents.get(), tab_id, *extension));
+  EXPECT_EQ(observer.updated_count(), 0);
+
+  // Wait for cooldown to expire.
+  task_environment()->FastForwardBy(base::Seconds(2));
+
+  // Update request again. Should succeed.
+  EXPECT_EQ(
+      PermissionsManager::AddRequestResult::kSuccess,
+      manager_->AddHostAccessRequest(web_contents.get(), tab_id, *extension));
+  EXPECT_EQ(observer.updated_count(), 1);
+}
+
 }  // namespace extensions

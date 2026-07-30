@@ -13,7 +13,6 @@
 #include "chrome/browser/ui/views/tabs/vertical/top_container_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "ui/actions/actions.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"

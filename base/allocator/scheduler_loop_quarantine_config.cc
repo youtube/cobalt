@@ -1,3 +1,4 @@
+#include "base/check.h"
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -9,6 +10,8 @@
 #include <vector>
 
 #include "base/allocator/partition_alloc_features.h"
+#include "base/base_switches.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
@@ -97,16 +100,22 @@ GetSchedulerLoopQuarantineConfiguration(
   config.branch_name[kMaxBranchNameLen] = '\0';
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-  if (!FeatureList::IsEnabled(
-          features::kPartitionAllocSchedulerLoopQuarantine)) {
-    return config;  // Feature disabled.
-  }
+  std::string config_str;
 
-  // TODO(https://crbug.com/434693933): Also read from command-line switches
-  // to support an enterprise policy. It is loaded after PA configuration in
-  // child processes so we should pass it from the Browser process via switches.
-  std::string config_str =
-      features::kPartitionAllocSchedulerLoopQuarantineConfig.Get();
+  // This is called after switches initialization.
+  CHECK(base::CommandLine::InitializedForCurrentProcess());
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(
+          switches::kPartitionAllocSchedulerLoopQuarantine)) {
+    config_str = command_line->GetSwitchValueASCII(
+        switches::kPartitionAllocSchedulerLoopQuarantine);
+  } else {
+    if (!FeatureList::IsEnabled(
+            features::kPartitionAllocSchedulerLoopQuarantine)) {
+      return config;  // Feature disabled.
+    }
+    config_str = features::kPartitionAllocSchedulerLoopQuarantineConfig.Get();
+  }
 
   std::optional<DictValue> config_processes =
       JSONReader::ReadDict(config_str, kJSONParserOptions);

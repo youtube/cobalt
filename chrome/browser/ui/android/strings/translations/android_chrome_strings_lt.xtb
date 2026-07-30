@@ -117,6 +117,7 @@ Jei reikia daugiau nustatymų, pagal kuriuos duomenys naudojami „Chrome“ fun
 <translation id="1435593198351412143">Automatinis PDF failų atidarymas</translation>
 <translation id="1437543266176261764">Vykdoma programoje „<ph name="APP_NAME" />“</translation>
 <translation id="1448440926884431741">Tvarkykite stebimus produktus Žymėse</translation>
+<translation id="1452651021404174820">Įrenginio pasirinkimas</translation>
 <translation id="1455845192930279203">Ar vis tiek norite atsisiųsti „<ph name="FILE_NAME" />“ (<ph name="FILE_SIZE" />) iš „<ph name="DOWNLOAD_DOMAIN" />“?</translation>
 <translation id="1460751212339734034">Sutaupykite laiko, veskite mažiau teksto</translation>
 <translation id="146522654774760805">Slaptažodžiai ir automatinis pildymas</translation>
@@ -124,6 +125,7 @@ Jei reikia daugiau nustatymų, pagal kuriuos duomenys naudojami „Chrome“ fun
 <translation id="1477626028522505441">Nepavyko atsisiųsti „<ph name="FILE_NAME" />“ dėl serverio problemų.</translation>
 <translation id="147982357559798527">Pakeista</translation>
 <translation id="1480287803138246127">Dalis istorijos čia gali būti nerodoma. Jei norite peržiūrėti visą „Chrome“ istoriją, atidarykite visą „Chrome“ istoriją.</translation>
+<translation id="1483493594462132177">Siųsti</translation>
 <translation id="1495677929897281669">Atgal į skirtuką</translation>
 <translation id="1496514951988037011">naudotojo vardas</translation>
 <translation id="1501480321619201731">Ištrinti grupę</translation>
@@ -1273,6 +1275,7 @@ Pavyzdžiui, kai kurios svetainės gali atsakyti į šią užklausą rodydamos j
 <translation id="634208815998129842">Užduočių tvarkytuvė</translation>
 <translation id="6343495912647200061">{SHIPPING_ADDRESS,plural, =1{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ir dar <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}one{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ir dar <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}few{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ir dar <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}many{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ir dar <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}other{<ph name="SHIPPING_ADDRESS_PREVIEW" />\u2026 ir dar <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" />}}</translation>
 <translation id="6345878117466430440">Žymėti kaip skaitytą</translation>
+<translation id="6350745006329795504">Įrenginių tvarkymas</translation>
 <translation id="6356893102071098867">Patikrinkite, ar pasirinkote tinkamą paskyrą</translation>
 <translation id="6364438453358674297">Pašalinti pasiūlymą iš istorijos?</translation>
 <translation id="6380100320871303656">Dažniau iš anksto įkeliami puslapiai, kuriuose, „Chrome“ manymu, galėtumėte apsilankyti. Dėl šio nustatymo gali būti naudojama daugiau duomenų.</translation>

@@ -3,11 +3,15 @@
 # found in the LICENSE file.
 
 source_set("types") {
-  sources = [ "tips_types.h" ]
+  sources = [
+    "tips_types.cc",
+    "tips_types.h",
+  ]
 }
 
 static_library("core") {
   sources = [
+    "tips_feature.h",
     "tips_prefs.cc",
     "tips_prefs.h",
     "tips_service.cc",
@@ -16,7 +20,10 @@ static_library("core") {
     "tips_utils.h",
   ]
 
-  public_deps = [ ":types" ]
+  public_deps = [
+    ":types",
+    "//components/segmentation_platform/public",
+  ]
 
   deps = [
     "//base",
@@ -25,19 +32,27 @@ static_library("core") {
     "//components/keyed_service/core",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/segmentation_platform/internal",
     "//ui/base",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "tips_utils_unittest.cc" ]
+  sources = [
+    "tips_service_unittest.cc",
+    "tips_utils_unittest.cc",
+  ]
   deps = [
     ":core",
     "//base",
     "//base/test:test_support",
     "//chrome/app:generated_resources",
     "//chrome/browser/notifications/scheduler/public",
+    "//components/prefs:test_support",
+    "//components/segmentation_platform/public",
+    "//components/segmentation_platform/public:test_support",
+    "//testing/gmock",
     "//testing/gtest",
     "//ui/base",
   ]

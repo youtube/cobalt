@@ -21,7 +21,7 @@ import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
 import {uploadFileAndVerify} from './test_searchbox_utils.js';
-import {assertStyle, deleteLastFile, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer} from './test_utils.js';
+import {assertStyle, deleteLastFile, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer} from './contextual_tasks_test_utils.js';
 
 suite('ContextualTasksComposeboxFilesTest', () => {
   let contextualTasksApp: ContextualTasksAppElement;

@@ -10,11 +10,11 @@ import android.os.SystemClock;
 
 import org.chromium.base.Callback;
 import org.chromium.base.lifetime.Destroyable;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.glic.GlicKeyedService;
 import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
@@ -32,6 +32,7 @@ import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.Highl
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightShape;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.FeatureConstants;
+import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Mediator for the bottom bar */
@@ -57,43 +58,43 @@ public class BottomBarMediator
         void onBackgroundColorChanged();
     }
 
-    private static final String GLIC_VISIBILITY_DECISION_TIME_HISTOGRAM =
-            "Android.BottomBar.GlicVisibilityDecisionTime";
-    private static final String GLIC_TIME_TO_APPEAR_HISTOGRAM =
-            "Android.BottomBar.GlicTimeToAppearSinceBottomBarShown";
-
+    // Dependencies
+    private final Context mContext;
     private final PropertyModel mModel;
     private final BottomBarButtonManager mButtonManager;
     private final ThemeColorProvider mThemeColorProvider;
-    private final NullableObservableSupplier<Tab> mTabSupplier;
-    private final TabObserver mTabObserver;
     private final VisibilityDelegate mVisibilityDelegate;
+    private final BottomBarPromoDialogCoordinator mPromoDialogCoordinator;
+    private final NullableObservableSupplier<Tab> mTabSupplier;
     private final NonNullObservableSupplier<Boolean> mHomepageEnabledSupplier;
     private final NonNullObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
+    private final NullableObservableSupplier<Profile> mProfileSupplier;
+    private final NullableObservableSupplier<PropertyModel> mGlicActionSupplier;
+    private final NullableObservableSupplier<PropertyModel> mNewTabActionSupplier;
+    private final boolean mShouldIncludeHomeButton;
+
+    // Observers and Callbacks
+    private final TabObserver mTabObserver;
     private final Callback<@Nullable Tab> mTabSupplierObserver = this::onTabChanged;
     private final Callback<Boolean> mHomepageEnabledObserver = this::onHomepageEnabledChanged;
     private final Callback<Boolean> mOmniboxFocusObserver = this::onOmniboxFocusChanged;
-    private final boolean mShouldIncludeHomeButton;
-    private final NullableObservableSupplier<Profile> mProfileSupplier;
     private final Callback<@Nullable Profile> mProfileObserver = this::updateGlicVisibility;
-    private final BottomBarPromoDialogCoordinator mPromoDialogCoordinator;
-    private final NullableObservableSupplier<PropertyModel> mGlicActionSupplier;
-    private final NullableObservableSupplier<PropertyModel> mNewTabActionSupplier;
-
-    private @Nullable GlicKeyedService mGlicKeyedService;
     private final GlicKeyedService.AllowedChangedObserver mAllowedChangedObserver =
             this::onGlicAllowedChanged;
 
+    // Mutable State (Nullable)
+    private @Nullable GlicKeyedService mGlicKeyedService;
     private @Nullable Profile mOriginalProfile;
-
     private @Nullable Tab mCurrentTab;
     private @Nullable Boolean mIsVisible;
+    private @Nullable IphIntent mNewTabIphIntent;
+
+    // Mutable State (Primitive / Non-null)
     private boolean mGlicWasVisible;
     private boolean mGlicTimeToAppearRecorded;
     private long mBottomBarShownTimeMs = -1;
     private long mGlicAppearedTimeMs = -1;
-    private @Nullable IphIntent mNewTabIphIntent;
-    private final Context mContext;
+    private boolean mStartupPromoFlowFinished;
 
     /**
      * @param context The context to use for the bottom bar.
@@ -196,19 +197,44 @@ public class BottomBarMediator
         if (didBecomeVisible) {
             mBottomBarShownTimeMs = SystemClock.uptimeMillis();
             if (mGlicAppearedTimeMs != -1 && !mGlicTimeToAppearRecorded) {
-                RecordHistogram.recordLongTimesHistogram(GLIC_TIME_TO_APPEAR_HISTOGRAM, 0);
+                BottomBarMetrics.recordGlicTimeToAppear(0);
                 mGlicTimeToAppearRecorded = true;
             }
             maybeShowIphs();
         }
     }
 
+    /**
+     * Notifies the mediator that the startup promo flow has finished.
+     *
+     * <p>This marks the startup promo flow as finished, unlocking the ability to show BottomBar
+     * IPHs. If no startup promo was shown, it attempts to show the IPHs immediately. If a promo was
+     * shown, it defers showing IPHs until a subsequent visibility change to avoid
+     * double-promotions.
+     *
+     * @param promoShown True if any startup promo was shown during the startup flow.
+     */
+    public void onStartupPromoFlowFinished(boolean promoShown) {
+        mStartupPromoFlowFinished = true;
+        if (!promoShown) {
+            maybeShowIphs();
+        }
+    }
+
     private void maybeShowIphs() {
+        if (!mStartupPromoFlowFinished) return;
         boolean isBottomBarVisible = Boolean.TRUE.equals(mIsVisible);
         boolean isGlicVisible =
                 Boolean.TRUE.equals(mModel.get(BottomBarProperties.IS_GLIC_BUTTON_VISIBLE));
         if (isBottomBarVisible && isGlicVisible) {
-            if (!mPromoDialogCoordinator.maybeShowPromoDialog()) {
+            Profile profile = mProfileSupplier.get();
+            Tracker tracker = profile == null ? null : TrackerFactory.getTrackerForProfile(profile);
+            boolean hasSeenPromo =
+                    tracker != null
+                            && tracker.hasEverTriggered(
+                                    FeatureConstants.ANDROID_BOTTOM_BAR_PROMO_DIALOG, false);
+
+            if (!mPromoDialogCoordinator.isShowing() && hasSeenPromo) {
                 triggerNewTabIph();
             }
         } else if (isBottomBarVisible) {
@@ -229,21 +255,18 @@ public class BottomBarMediator
             return;
         }
 
-
         // Calculate and set visibility.
         long startTime = SystemClock.uptimeMillis();
         boolean shouldBeVisible = GlicEnabling.isEnabledForProfile(originalProfile);
         long decisionDuration = SystemClock.uptimeMillis() - startTime;
 
-        RecordHistogram.recordTimesHistogram(
-                GLIC_VISIBILITY_DECISION_TIME_HISTOGRAM, decisionDuration);
+        BottomBarMetrics.recordGlicVisibilityDecisionTime(decisionDuration);
 
         if (shouldBeVisible && !mGlicWasVisible) {
             mGlicAppearedTimeMs = SystemClock.uptimeMillis();
             if (mBottomBarShownTimeMs != -1 && !mGlicTimeToAppearRecorded) {
                 long timeSinceShown = mGlicAppearedTimeMs - mBottomBarShownTimeMs;
-                RecordHistogram.recordLongTimesHistogram(
-                        GLIC_TIME_TO_APPEAR_HISTOGRAM, timeSinceShown);
+                BottomBarMetrics.recordGlicTimeToAppear(timeSinceShown);
                 mGlicTimeToAppearRecorded = true;
             }
         }
@@ -333,7 +356,18 @@ public class BottomBarMediator
                         .setStringResId(R.string.iph_android_bottom_bar_glic)
                         .setAccessibilityResId(R.string.iph_android_bottom_bar_glic)
                         .setHighlightParams(glicHighlightParams)
-                        .setOnDismissCallback(this::triggerNewTabIph)
+                        .setOnShowCallback(
+                                () ->
+                                        BottomBarMetrics.recordIphEvent(
+                                                BottomBarMetrics.IphEvent.SHOWN,
+                                                /* isNewTabIph= */ false))
+                        .setOnDismissCallback(
+                                () -> {
+                                    BottomBarMetrics.recordIphEvent(
+                                            BottomBarMetrics.IphEvent.DISMISSED,
+                                            /* isNewTabIph= */ false);
+                                    triggerNewTabIph();
+                                })
                         .build();
 
         glicModel.set(ActionProperties.IPH_INTENT, glicIph);
@@ -364,7 +398,19 @@ public class BottomBarMediator
             newTabHighlightParams.setCornerRadius(circleRadius);
         }
         newTabIphBuilder.setHighlightParams(newTabHighlightParams);
-        IphIntent newTabIph = newTabIphBuilder.build();
+        IphIntent newTabIph =
+                newTabIphBuilder
+                        .setOnShowCallback(
+                                () ->
+                                        BottomBarMetrics.recordIphEvent(
+                                                BottomBarMetrics.IphEvent.SHOWN,
+                                                /* isNewTabIph= */ true))
+                        .setOnDismissCallback(
+                                () ->
+                                        BottomBarMetrics.recordIphEvent(
+                                                BottomBarMetrics.IphEvent.DISMISSED,
+                                                /* isNewTabIph= */ true))
+                        .build();
         newTabModel.set(ActionProperties.IPH_INTENT, newTabIph);
         mNewTabIphIntent = newTabIph;
     }

@@ -139,7 +139,8 @@ TEST_F(SharedImageRepresentationTest, GLTexturePassthroughClearing) {
 }
 
 TEST_F(SharedImageRepresentationTest, SkiaClearing) {
-  auto representation = manager_.ProduceSkia(mailbox_, tracker_.get(), nullptr);
+  auto representation = manager_.ProduceSkia(mailbox_, tracker_.get(), nullptr,
+                                             /*required_usages=*/{});
   EXPECT_FALSE(representation->IsCleared());
 
   // We should not be able to begin read access.

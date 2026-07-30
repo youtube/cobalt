@@ -4,11 +4,10 @@
 
 import 'chrome://customize-chrome-side-panel.top-chrome/strings.m.js';
 
-import {CustomizeColorSchemeModeBrowserProxy} from 'chrome://resources/cr_components/customize_color_scheme_mode/browser_proxy.js';
 import type {ColorSchemeModeOption} from 'chrome://resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.js';
 import {colorSchemeModeOptions, CustomizeColorSchemeModeElement} from 'chrome://resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.js';
+import {browserProxyFactory, CustomizeColorSchemeModeHandlerRemote} from 'chrome://resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.mojom-webui.js';
 import type {ColorSchemeMode, CustomizeColorSchemeModeClientRemote} from 'chrome://resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.mojom-webui.js';
-import {CustomizeColorSchemeModeClientCallbackRouter, CustomizeColorSchemeModeHandlerRemote} from 'chrome://resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.mojom-webui.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -21,10 +20,9 @@ suite('CrComponentsCustomizeColorSchemeModeTest', () => {
   setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     handler = TestMock.fromClass(CustomizeColorSchemeModeHandlerRemote);
-    CustomizeColorSchemeModeBrowserProxy.setInstance(
-        handler, new CustomizeColorSchemeModeClientCallbackRouter());
-    callbackRouter = CustomizeColorSchemeModeBrowserProxy.getInstance()
-                         .callbackRouter.$.bindNewPipeAndPassRemote();
+    const {instance, remote} = browserProxyFactory.createForTest(handler);
+    browserProxyFactory.setInstance(instance);
+    callbackRouter = remote;
   });
 
   async function initializeElement(colorSchemeMode: ColorSchemeMode):

@@ -6,12 +6,14 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzedDataProvider fuzzed_data(data, size);
   std::string uri_template = fuzzed_data.ConsumeRandomLengthString(256);
   // Construct a map containing variable names and corresponding values.
-  std::unordered_map<std::string, std::string> parameters;
+  absl::flat_hash_map<std::string, std::string> parameters;
   uint8_t num_vars(fuzzed_data.ConsumeIntegral<uint8_t>());
   for (uint8_t i = 0; i < num_vars; i++) {
     parameters.emplace(fuzzed_data.ConsumeRandomLengthString(10),

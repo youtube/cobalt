@@ -29,11 +29,14 @@
 #include <optional>
 
 #include "base/time/time.h"
+#include "services/network/public/mojom/timing_allow_origin.mojom-blink.h"
 #include "third_party/blink/public/mojom/confidence_level.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 
 namespace blink {
@@ -62,6 +65,15 @@ struct DocumentLoadTimingValues final
   uint16_t redirect_count = 0;
   bool has_cross_origin_redirect = false;
   bool can_request_from_previous_document = false;
+
+  // https://fetch.spec.whatwg.org/#request-navigation-timing-allow-check-list
+  // Holds the parsed `Timing-Allow-Origin` value of each redirect response in a
+  // navigation's redirect chain (one entry per redirect response; null for a
+  // response with no `Timing-Allow-Origin` header). Used, once the destination
+  // origin is known, to decide whether redirect timing is exposed for a
+  // cross-origin redirect chain.
+  Vector<network::mojom::blink::TimingAllowOriginPtr>
+      navigation_timing_allow_check_list;
 
   std::optional<RandomizedConfidenceValue> randomized_confidence;
 
@@ -96,6 +108,11 @@ class CORE_EXPORT DocumentLoadTiming final {
                                        const base::TimeDelta& start_time);
 
   void AddRedirect(const KURL& redirecting_url, const KURL& redirected_url);
+
+  // https://fetch.spec.whatwg.org/#append-to-a-requests-navigation-timing-allow-check-list
+  void AppendToNavigationTimingAllowCheckList(
+      network::mojom::blink::TimingAllowOriginPtr tao);
+
   void SetRedirectStart(base::TimeTicks);
   void SetRedirectEnd(base::TimeTicks);
   void SetRedirectCount(uint16_t value) {
@@ -187,6 +204,10 @@ class CORE_EXPORT DocumentLoadTiming final {
   }
   bool HasCrossOriginRedirect() const {
     return document_load_timing_values_->has_cross_origin_redirect;
+  }
+  const Vector<network::mojom::blink::TimingAllowOriginPtr>&
+  NavigationTimingAllowCheckList() const {
+    return document_load_timing_values_->navigation_timing_allow_check_list;
   }
   bool CanRequestFromPreviousDocument() const {
     return document_load_timing_values_->can_request_from_previous_document;

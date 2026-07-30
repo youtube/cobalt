@@ -4,13 +4,18 @@
 
 #include "components/page_content_annotations/core/page_content_cache.h"
 
+#include <stdint.h>
+
+#include <memory>
 #include <optional>
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/browser/test_utils.h"
@@ -27,6 +32,21 @@ optimization_guide::proto::PageContext TestContent(const std::string& title) {
       ->mutable_main_frame_data()
       ->set_title(title);
   return page_context;
+}
+
+// This is used to synchronize with asynchronous tasks running on the database
+// sequence. By flushing the ThreadPool first, we ensure that all background
+// database tasks have completed and posted their reply callbacks to the main
+// thread. Then, by running the main message loop until a newly posted task
+// executes, we run all the reply callbacks (which log histograms) in order.
+// This avoids the mock time from auto-advancing infinitely, with regularly
+// scheduled tasks preventing idleness.
+void FlushThreadPoolAndPumpMainThread() {
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+  base::RunLoop run_loop;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
 }
 
 }  // namespace
@@ -250,6 +270,134 @@ TEST_F(PageContentCacheTest, RunCleanUpTasksWithActiveTabs) {
   EXPECT_FALSE(GetContentForTab(2));
   EXPECT_TRUE(GetContentForTab(1));
   EXPECT_TRUE(GetContentForTab(3));
+}
+
+TEST_F(PageContentCacheTest, RecordPerformanceAndLatencyMetrics) {
+  base::HistogramTester histogram_tester;
+
+  // 1. Force cache initialization.
+  GetOrCreateCache();
+  // Initialization has two asynchronous background thread hops:
+  // Hop 1: OSCryptAsync initialization.
+  // Hop 2: PageContentStore database initialization.
+  FlushThreadPoolAndPumpMainThread();
+  FlushThreadPoolAndPumpMainThread();
+
+  // Verify initialization histograms.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.InitTime", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.DbInitTime", 1);
+
+  // 2. Caching page content.
+  const int64_t kTabId = 1;
+  const GURL kUrl("https://example.com/");
+  const auto kPageContext = TestContent("test title");
+
+  GetOrCreateCache()->CachePageContent(kTabId, kUrl, base::Time::Now(),
+                                       base::Time::Now(), kPageContext);
+  FlushThreadPoolAndPumpMainThread();
+
+  // Verify caching histograms.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.CachePageContentLatency", 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentCache.AddPageContentResult", true, 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.AddPageContentLatency", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.EncryptionLatency", 1);
+
+  // 3. Query cached tab (hit).
+  std::optional<optimization_guide::proto::PageContext> page_context =
+      GetContentForTab(kTabId);
+  ASSERT_TRUE(page_context.has_value());
+
+  // Verify cache hit histograms.
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentCache.GetPageContentForTabCacheHit", true,
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.GetPageContentForTabLatency", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.GetPageContentForTabLatency", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.DecryptionLatency", 1);
+
+  // 4. Query non-cached tab (miss).
+  const int64_t kMissingTabId = 999;
+  std::optional<optimization_guide::proto::PageContext> missing_page_context =
+      GetContentForTab(kMissingTabId);
+  ASSERT_FALSE(missing_page_context.has_value());
+
+  // Verify cache miss updates histograms.
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentCache.GetPageContentForTabCacheHit", true,
+      1);
+  histogram_tester.ExpectBucketCount(
+      "OptimizationGuide.PageContentCache.GetPageContentForTabCacheHit", false,
+      1);
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.GetPageContentForTabLatency", 2);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.GetPageContentForTabLatency", 2);
+  // No additional decryption latency entry, since SQL select was empty/failed.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.DecryptionLatency", 1);
+
+  // 5. Test RemovePageContentForTab (Single delete)
+  GetOrCreateCache()->RemovePageContentForTab(kTabId);
+  FlushThreadPoolAndPumpMainThread();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.RemovePageContentForTabLatency", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.DeletePageContentForTabLatency", 2);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentCache.RemovePageContentForTabResult", true,
+      1);
+
+  // 6. Test RunCleanUpTasksWithActiveTabs (Batch delete)
+  // Cache a new page first.
+  const int64_t kTabId2 = 2;
+  GetOrCreateCache()->CachePageContent(kTabId2, kUrl, base::Time::Now(),
+                                       base::Time::Now(), kPageContext);
+  FlushThreadPoolAndPumpMainThread();
+
+  // Run cleanup with empty active tabs, making tab 2 stale.
+  GetOrCreateCache()->RunCleanUpTasksWithActiveTabs({});
+  // Fast forward to trigger the delayed cleanup task and startup DeleteOldData.
+  constexpr base::TimeDelta kStartupDeleteDelay = base::Seconds(25);
+  task_environment_.FastForwardBy(kStartupDeleteDelay);
+  FlushThreadPoolAndPumpMainThread();
+  EXPECT_FALSE(GetContentForTab(kTabId2));
+
+  // Verify GetAllTabIds metrics (invoked inside RunCleanUpTasksWithActiveTabs).
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.GetAllTabIdsLatency", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.GetAllTabIdsLatency", 1);
+
+  // Verify DeletePageContentForTabs (batch delete) metrics.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.DeletePageContentForTabsLatency", 1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.DeletePageContentForTabsLatency", 1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentCache.DeletePageContentForTabsResult", true,
+      1);
+
+  // Verify DeletePageContentOlderThan (age-based purge) metrics.
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentCache.DeletePageContentOlderThanLatency",
+      1);
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentStore.DeletePageContentOlderThanLatency",
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PageContentCache.DeletePageContentOlderThanResult",
+      true, 1);
 }
 
 }  // namespace page_content_annotations

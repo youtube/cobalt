@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "build/branding_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/ui/views/autofill/payments/dialog_view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
@@ -112,7 +114,10 @@ std::unique_ptr<views::ImageView> CreateIconView(
     case TitleWithIconAfterLabelView::Icon::GOOGLE_WALLET:
       model = ui::ImageModel::FromImageSkia(
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-              IDR_AUTOFILL_GOOGLE_WALLET_ICON));
+              base::FeatureList::IsEnabled(
+                  features::kAutofillEnableGradientGoogleLogos)
+                  ? IDR_AUTOFILL_GOOGLE_WALLET_ICON_WITH_GRADIENT
+                  : IDR_AUTOFILL_GOOGLE_WALLET_ICON));
       break;
     case TitleWithIconAfterLabelView::Icon::AFFIRM:
       model = ui::ImageModel::FromImageSkia(

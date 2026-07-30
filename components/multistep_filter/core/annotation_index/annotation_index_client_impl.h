@@ -78,7 +78,7 @@ class AnnotationIndexClientImpl : public AnnotationIndexClient {
       std::string request_body,
       base::OnceCallback<void(std::optional<std::string>, int)> callback,
       int64_t navigation_id,
-      std::string_view domain);
+      std::string host);
 
   // Invoked when `SimpleURLLoader` finishes. Cleans up the specific loader
   // from `active_url_loaders_` and forwards the raw response to the parser.
@@ -86,7 +86,7 @@ class AnnotationIndexClientImpl : public AnnotationIndexClient {
       SimpleURLLoaderList::iterator loader_it,
       base::OnceCallback<void(std::optional<std::string>, int)> callback,
       int64_t navigation_id,
-      std::string_view domain,
+      std::string host,
       std::optional<std::string> response_body);
 
   // Returns the base URL for the `SiteAutomationIndexServer` server APIs.
@@ -101,7 +101,7 @@ class AnnotationIndexClientImpl : public AnnotationIndexClient {
       GoogleServiceAuthError error,
       signin::AccessTokenInfo access_token_info,
       int64_t navigation_id,
-      std::string_view domain);
+      std::string host);
 
   // Starts the URL loader to perform the network request.
   void StartLoader(
@@ -109,7 +109,7 @@ class AnnotationIndexClientImpl : public AnnotationIndexClient {
       std::string request_body,
       base::OnceCallback<void(std::optional<std::string>, int)> callback,
       int64_t navigation_id,
-      std::string_view domain);
+      std::string host);
 
   // The factory used to instantiate network requests.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

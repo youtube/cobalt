@@ -58,6 +58,16 @@ class DefaultSearchExtensionControlledController {
   void OnParamsLoaded(
       std::unique_ptr<ExtensionSettingsOverriddenDialog::Params> params);
 
+  // Tracks the active controller instance currently showing (or preparing to
+  // show) the confirmation dialog. Used to enforce that only one dialog is
+  // active at any time across all browser windows, suppressing duplicate prompt
+  // prompts if multiple search navigations occur concurrently.
+  static base::WeakPtr<DefaultSearchExtensionControlledController>
+  GetDialogCurrentlyShowing();
+
+  static void SetDialogCurrentlyShowing(
+      base::WeakPtr<DefaultSearchExtensionControlledController> controller);
+
   ConfirmationCallback confirmation_callback_;
 
   // Keeps the controller attached to the Browser's UnownedUserData.

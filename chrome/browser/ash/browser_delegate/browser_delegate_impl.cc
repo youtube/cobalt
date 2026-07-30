@@ -94,7 +94,7 @@ content::WebContents* BrowserDelegateImpl::GetInspectedWebContents() const {
 }
 
 ui::BaseWindow* BrowserDelegateImpl::GetWindow() const {
-  return browser_->window();
+  return browser_->GetWindow();
 }
 
 aura::Window* BrowserDelegateImpl::GetNativeWindow() const {
@@ -230,7 +230,7 @@ bool BrowserDelegateImpl::CreateWebAppFromActiveWebContents() {
 }
 
 void BrowserDelegateImpl::ResetLocationBar() {
-  browser_->window()->GetLocationBar()->Revert();
+  BrowserWindow::FromBrowser(&*browser_)->GetLocationBar()->Revert();
 }
 
 void BrowserDelegateImpl::EnterLockedFullscreen(bool focus_toolbar) {
@@ -238,7 +238,7 @@ void BrowserDelegateImpl::EnterLockedFullscreen(bool focus_toolbar) {
   ash::PinWindow(GetNativeWindow(), /*trusted=*/true);
   browser_->command_controller()->LockedFullscreenStateChanged();
   if (focus_toolbar) {
-    browser_->window()->FocusToolbar();
+    BrowserWindow::FromBrowser(&*browser_)->FocusToolbar();
   }
 }
 

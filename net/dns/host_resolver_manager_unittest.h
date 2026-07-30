@@ -96,11 +96,19 @@ class HostResolverManagerTest : public TestWithTaskEnvironment {
   }
 
   int StartIPv6ReachabilityCheck(
+      handles::NetworkHandle target_network,
       const NetLogWithSource& net_log,
       raw_ptr<ClientSocketFactory> client_socket_factory,
       CompletionOnceCallback callback);
 
   bool GetLastIpv6ProbeResult();
+  void SetLastIPv6ProbeResult(bool result);
+  void InitializeJobKeyAndIPAddress(
+      const NetworkAnonymizationKey& network_anonymization_key,
+      const HostResolver::ResolveHostParameters& parameters,
+      const NetLogWithSource& net_log,
+      HostResolverManager::JobKey& out_job_key,
+      IPAddress& out_ip_address);
 
   void PopulateCache(const HostCache::Key& key, IPEndPoint endpoint);
   void PopulateCache(const HostCache::Key& key,

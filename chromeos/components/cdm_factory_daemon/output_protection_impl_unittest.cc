@@ -10,6 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/test/mock_callback.h"
 #include "chromeos/components/cdm_factory_daemon/mojom/output_protection.mojom.h"
 #include "content/public/test/browser_task_environment.h"
@@ -17,6 +18,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/display/manager/test/fake_display_snapshot.h"
+#include "ui/gfx/geometry/size.h"
 
 using chromeos::cdm::mojom::OutputProtection;
 using testing::_;
@@ -25,7 +27,12 @@ using testing::ReturnRef;
 
 constexpr uint64_t kFakeClientId = 1;
 constexpr std::array<int64_t, 4> kDisplayIds = {123, 234, 345, 456};
-const display::DisplayMode kDisplayMode({1366, 768}, false, 60.0f);
+
+const display::DisplayMode& GetDisplayMode() {
+  static const base::NoDestructor<display::DisplayMode> val(
+      gfx::Size(1366, 768), false, 60.0f);
+  return *val;
+}
 
 namespace chromeos {
 
@@ -83,7 +90,7 @@ class OutputProtectionImplTest : public testing::Test {
       displays_[i] = display::FakeDisplaySnapshot::Builder()
                          .SetId(kDisplayIds[i])
                          .SetType(conn_types[i])
-                         .SetCurrentMode(kDisplayMode.Clone())
+                         .SetCurrentMode(GetDisplayMode().Clone())
                          .Build();
     }
 

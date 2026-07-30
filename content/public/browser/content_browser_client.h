@@ -623,7 +623,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Computes the IPAddressSpace of the given URL with embedder knowledge.
   // This is used to assign values to special schemes recognized only by the
   // embedders of content/. Returns kUnknown if no such scheme was found.
-  // See https://wicg.github.io/private-network-access/ for details on what
+  // See https://wicg.github.io/local-network-access/ for details on what
   // the IPAddressSpace represents.
   virtual network::mojom::IPAddressSpace DetermineAddressSpaceFromURL(
       const GURL& url);
@@ -2835,11 +2835,11 @@ class CONTENT_EXPORT ContentBrowserClient {
     kDefault,
   };
 
-  // Returns whether and how we should override the default private network
+  // Returns whether and how we should override the default local network
   // request policy.
   //
   // See the Private Network Access spec for more details:
-  // https://wicg.github.io/private-network-access.
+  // https://wicg.github.io/local-network-access.
   //
   // |browser_context| must not be nullptr. Caller retains ownership.
   // |origin| is the origin of a navigation ready to commit.
@@ -3087,6 +3087,26 @@ class CONTENT_EXPORT ContentBrowserClient {
       const std::optional<blink::LocalFrameToken>& source_frame_token,
       const url::Origin& source_origin,
       const std::optional<url::Origin>& target_origin);
+
+  // Returns true if the frame identified by `frame_tree_node_id`, committing
+  // at `url`, should be treated as a secure-context inheritance root. Such a
+  // frame acts as an independent security boundary that does not inherit an
+  // insecure state from its embedder. Instead, the frame evaluates its
+  // secure context status based solely on its own origin's trustworthiness,
+  // ignoring the parent's status.
+  //
+  // This is used to isolate trusted environments embedded within potentially
+  // insecure contexts. For example, MIME-handler extension OOPIFs need this
+  // because they can be embedded under arbitrary (possibly HTTP) pages yet
+  // must maintain their secure-context status to support features like
+  // Service Workers.
+  //
+  // `parent_frame` is the evaluated frame's committed parent/embedder, or
+  // nullptr for a main frame. The evaluated frame may be mid-navigation with
+  // no committed RenderFrameHost yet, so it is identified by FrameTreeNode id.
+  virtual bool IsSecureContextRoot(RenderFrameHost* parent_frame,
+                                   FrameTreeNodeId frame_tree_node_id,
+                                   const GURL& url);
 
   // Browser-side authoritative permission check, allowing embedders to grant
   // a file picker exemption to a known-trusted cross-origin subframe.

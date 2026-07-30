@@ -8,9 +8,18 @@
 #import <UIKit/UIKit.h>
 
 @class LevelUpTask;
+@class LevelUpTaskRowView;
+
+// Delegate protocol to receive row tap notifications.
+@protocol LevelUpTaskRowViewDelegate <NSObject>
+- (void)taskRowView:(LevelUpTaskRowView*)rowView didTapTask:(LevelUpTask*)task;
+@end
 
 // A tap-interactive custom control representing a single task row.
 @interface LevelUpTaskRowView : UIControl
+
+// The delegate for this row view.
+@property(nonatomic, weak) id<LevelUpTaskRowViewDelegate> delegate;
 
 // Configures the row view with the given task model and separator state.
 - (void)configureWithTask:(LevelUpTask*)task showSeparator:(BOOL)showSeparator;

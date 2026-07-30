@@ -13,6 +13,7 @@
 
 #include "base/containers/lru_cache.h"
 #include "base/containers/span.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -46,6 +47,9 @@ struct Suggestion;
 class AutofillAiManager : public AutofillManager::Observer,
                           public PersonalContextAccessManager::Observer {
  public:
+  using UpdateSuggestionsCallback =
+      base::RepeatingCallback<void(std::vector<Suggestion>)>;
+
   AutofillAiManager(AutofillClient* client,
                     strike_database::StrikeDatabaseBase* strike_database);
   AutofillAiManager(const AutofillAiManager&) = delete;
@@ -80,7 +84,8 @@ class AutofillAiManager : public AutofillManager::Observer,
       const FormStructure& form,
       const AutofillField& field,
       base::span<const Suggestion> shown_suggestions,
-      ukm::SourceId ukm_source_id);
+      ukm::SourceId ukm_source_id,
+      UpdateSuggestionsCallback update_suggestions_callback);
   virtual void OnFormSeen(const FormStructure& form);
   virtual void OnFormInteracted(const FormStructure& form,
                                 ukm::SourceId ukm_source_id);
@@ -98,7 +103,9 @@ class AutofillAiManager : public AutofillManager::Observer,
   void OnAfterLoadedServerPredictions(AutofillManager& manager) override;
 
   // PersonalContextAccessManager::Observer:
-  void OnPrefetchAmbientAutofillContextComplete(bool success) override;
+  void OnPrefetchContextComplete(
+      const PersonalContextAccessManager& manager,
+      base::span<const EntityInstance> entities) override;
 
   // Updates `logger_`'s information about data stored for AutofillAi for
   // `form`.
@@ -225,6 +232,10 @@ class AutofillAiManager : public AutofillManager::Observer,
 
   LogManager* GetCurrentLogManager();
 
+  void GenerateAndUpdateSuggestions(FormGlobalId form_id,
+                                    FieldGlobalId field_id,
+                                    UpdateSuggestionsCallback callback);
+
   // A raw reference to the client, which owns `this` and therefore outlives
   // it.
   const raw_ref<AutofillClient> client_;
@@ -258,6 +269,9 @@ class AutofillAiManager : public AutofillManager::Observer,
   // last logged, ensuring it is logged at most once per page.
   ukm::SourceId last_logged_ukm_source_id_for_interaction_ =
       ukm::kInvalidSourceId;
+
+  // Callback to update the shown suggestions.
+  base::RepeatingClosure generate_suggestions_and_update_popup_callback_;
 
   ScopedAutofillManagersObservation autofill_managers_observation_{this};
 

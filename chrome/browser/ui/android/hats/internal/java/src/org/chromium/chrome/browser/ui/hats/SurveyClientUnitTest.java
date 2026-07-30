@@ -201,7 +201,6 @@ public class SurveyClientUnitTest {
                         false,
                         new String[0],
                         new String[0],
-                        null,
                         RequestedBrowserType.REGULAR,
                         ProfileAgeRequirement.ANY_AGE);
         SurveyClientImpl client =
@@ -425,7 +424,6 @@ public class SurveyClientUnitTest {
                         false,
                         new String[] {"bitField"},
                         new String[] {"stringField"},
-                        null,
                         RequestedBrowserType.REGULAR,
                         ProfileAgeRequirement.ANY_AGE);
         SurveyClientImpl client =
@@ -494,7 +492,6 @@ public class SurveyClientUnitTest {
                 false,
                 new String[0],
                 new String[0],
-                null,
                 requestedBrowserType,
                 ProfileAgeRequirement.ANY_AGE);
     }

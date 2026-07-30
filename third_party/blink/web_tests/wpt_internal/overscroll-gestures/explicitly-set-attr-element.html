@@ -1,64 +1,149 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <link rel="author" href="mailto:masonf@chromium.org">
+<style>
+  div[overscrollcontainer] {
+    width: 200px;
+    height: 200px;
+  }
+  div[overscrollarea] {
+    width: 200px;
+    height: 200px;
+  }
+  #target {
+    right: 200px; /* Positioned to the left */
+  }
+  #target2 {
+    left: 200px; /* Positioned to the right */
+  }
+  .one {
+    top: 200px; /* Positioned below */
+  }
+  .two {
+    bottom: 200px; /* Positioned above */
+  }
+</style>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
 
 <div overscrollcontainer>
-  <div id="target">Target</div>
-  <div id="target2">Target 2</div>
-  <div id="dup" class="one">Dup 1</div>
-  <div id="dup" class="two">Dup 2</div>
+  <div id="target" overscrollarea>Target</div>
+  <div id="target2" overscrollarea>Target 2</div>
+  <div id="dup" class="one" overscrollarea>Dup 1</div>
+  <div id="dup" class="two" overscrollarea>Dup 2</div>
+  <div>
+    <div id="nested" overscrollarea>Nested</div>
+  </div>
 </div>
 <button id="invoker" command="toggle-overscroll"></button>
 
 <script>
-function isOverscrollArea(element) {
-  return getComputedStyle(element).position === "absolute";
+function verifyTarget(button, expectedTarget) {
+  const target = document.getElementById('target');
+  const target2 = document.getElementById('target2');
+  const dup1 = document.querySelector('.one');
+  const dup2 = document.querySelector('.two');
+  const elements = [target, target2, dup1, dup2].filter(el => !!el);
+
+  // Force layout initially
+  document.body.offsetTop;
+
+  // All should be inert initially (since they all have overscrollarea and are closed)
+  for (const el of elements) {
+    assert_equals(getComputedStyle(el).interactivity, "inert", `${el.id || el.className} should be inert initially`);
+  }
+
+  // Click the button to toggle
+  button.click();
+
+  // Force layout after click to ensure scroll and snap updates are processed
+  document.body.offsetTop;
+
+  // The expected target should now be open (non-inert), others should stay inert
+  for (const el of elements) {
+    const expectedOpen = (el === expectedTarget);
+    if (expectedOpen) {
+      assert_not_equals(getComputedStyle(el).interactivity, "inert", `${el.id || el.className} should be open (not inert)`);
+    } else {
+      assert_equals(getComputedStyle(el).interactivity, "inert", `${el.id || el.className} should stay closed (inert)`);
+    }
+  }
+
+  // Click again to close it back
+  button.click();
+
+  // Force layout again
+  document.body.offsetTop;
+
+  // Verify all are closed again
+  for (const el of elements) {
+    assert_equals(getComputedStyle(el).interactivity, "inert", `${el.id || el.className} should be closed again`);
+  }
 }
+
+function verifyNoTarget(button) {
+  const target = document.getElementById('target');
+  const target2 = document.getElementById('target2');
+  const dup1 = document.querySelector('.one');
+  const dup2 = document.querySelector('.two');
+  const elements = [target, target2, dup1, dup2].filter(el => !!el);
+
+  // Force layout initially
+  document.body.offsetTop;
+
+  button.click();
+
+  // Force layout after click
+  document.body.offsetTop;
+
+  for (const el of elements) {
+    assert_equals(getComputedStyle(el).interactivity, "inert", `${el.id || el.className} should stay closed`);
+  }
+}
+
 test((t) => {
   t.add_cleanup(() => invoker.removeAttribute('commandfor'));
-  assert_false(isOverscrollArea(target), "Initial state");
+  verifyNoTarget(invoker); // Initial state
+
   invoker.commandForElement = target;
-  assert_true(isOverscrollArea(target), "After setting commandForElement");
+  verifyTarget(invoker, target); // After setting commandForElement
   assert_equals(invoker.getAttribute('commandfor'), "", "Setting property should set attribute to empty string");
 
   invoker.commandForElement = null;
-  assert_false(isOverscrollArea(target), "After clearing commandForElement");
+  verifyNoTarget(invoker); // After clearing commandForElement
   assert_false(invoker.hasAttribute('commandfor'), "Setting property to null should remove attribute");
 }, "overscroll-target should work when set via commandForElement JS property");
 
 test((t) => {
   t.add_cleanup(() => invoker.removeAttribute('commandfor'));
-  assert_false(isOverscrollArea(target), "Initial state");
+  verifyNoTarget(invoker); // Initial state
   invoker.setAttribute('commandfor', 'target');
-  assert_true(isOverscrollArea(target), "After setting commandfor attribute");
+  verifyTarget(invoker, target); // After setting commandfor attribute
   invoker.removeAttribute('commandfor');
-  assert_false(isOverscrollArea(target), "After removing commandfor attribute");
+  verifyNoTarget(invoker); // After removing commandfor attribute
 }, "overscroll-target should work when set via commandfor attribute");
 
 test((t) => {
   t.add_cleanup(() => invoker.removeAttribute('commandfor'));
   invoker.setAttribute('commandfor', 'target');
-  assert_true(isOverscrollArea(target), "Set via attribute");
+  verifyTarget(invoker, target); // Set via attribute
 
   invoker.commandForElement = null;
-  assert_false(isOverscrollArea(target), "Clearing property should also remove attribute");
+  verifyNoTarget(invoker); // Clearing property should also remove attribute
   assert_false(invoker.hasAttribute('commandfor'), "Attribute should be removed");
 }, "Setting via setAttribute and then property to null (no fallback)");
 
 test((t) => {
   t.add_cleanup(() => invoker.removeAttribute('commandfor'));
   invoker.commandForElement = target;
-  assert_true(isOverscrollArea(target), "Set via property");
+  verifyTarget(invoker, target); // Set via property
 
   invoker.setAttribute('commandfor', 'target2');
   assert_equals(invoker.commandForElement, target2, "Setting attribute should reflect new element");
-  assert_true(isOverscrollArea(target2), "Attribute now takes effect");
-  assert_false(isOverscrollArea(target), "Old property target no longer target");
+  verifyTarget(invoker, target2); // Attribute now takes effect, old target no longer target
 
   invoker.removeAttribute('commandfor');
-  assert_false(isOverscrollArea(target2), "Attribute cleared");
+  verifyNoTarget(invoker); // Attribute cleared
 }, "Attribute change clears explicitly set element");
 
 test((t) => {
@@ -69,11 +154,22 @@ test((t) => {
   t.add_cleanup(() => container.append(dup1, dup2));
 
   invoker.setAttribute('commandfor', 'dup');
-  assert_true(isOverscrollArea(dup1), "First element in DOM order wins");
-  assert_false(isOverscrollArea(dup2), "Second element loses");
+  verifyTarget(invoker, dup1); // First element in DOM order wins, second loses
 
   container.insertBefore(dup2, dup1);
-  assert_true(isOverscrollArea(dup2), "New first element wins after DOM move");
-  assert_false(isOverscrollArea(dup1), "Old first element loses after DOM move");
+  verifyTarget(invoker, dup2); // New first element wins after DOM move, old loses
 }, "Multiple elements matching idref, first one in DOM order wins");
+
+test((t) => {
+  const nested = document.getElementById('nested');
+  assert_not_equals(getComputedStyle(nested).interactivity, "inert", "nested element should not be inert initially");
+
+  t.add_cleanup(() => invoker.removeAttribute('commandfor'));
+  invoker.setAttribute('commandfor', 'nested');
+
+  invoker.click();
+  document.body.offsetTop;
+
+  assert_not_equals(getComputedStyle(nested).interactivity, "inert", "nested element should stay non-inert after toggle");
+}, "Nested element with overscrollarea attribute is ignored and does not become inert");
 </script>

@@ -56,6 +56,10 @@ component("printing_base") {
     ]
   }
 
+  if (is_chromeos) {
+    sources += [ "cups_printer_status_reason_ash.h" ]
+  }
+
   if (use_cups) {
     public_configs = [ ":cups" ]
     sources += [

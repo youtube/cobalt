@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/functional/callback_forward.h"
 #include "build/build_config.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -94,6 +95,11 @@ struct ChromeSyncUrlArgs {
 // Returns the URL to be used to signin and turn on Sync when DICE is enabled.
 // See `ChromeSyncUrlArgs` docs for details on the arguments.
 GURL GetChromeSyncURLForDice(ChromeSyncUrlArgs args);
+
+// Checks asynchronously whether bluetooth is supported and enabled on the
+// device.
+void IsHybridTransportSupportedForQrCodeSignin(
+    base::OnceCallback<void(bool)> callback);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // Returns the URL to be used to reauth.

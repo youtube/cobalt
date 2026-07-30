@@ -433,7 +433,7 @@ public class CollaborationControllerDelegateImpl implements CollaborationControl
     private @Nullable Intent createFullscreenSigninIntent() {
         mThreadChecker.assertOnValidThread();
         FullscreenSigninAndHistorySyncConfig fullscreenConfig =
-                new FullscreenSigninAndHistorySyncConfig.Builder(
+                FullscreenSigninAndHistorySyncConfig.builder(
                                 mActivity.getString(R.string.collaboration_signin_title),
                                 mActivity.getString(R.string.collaboration_signin_description),
                                 mActivity.getString(R.string.collaboration_signin_sync_dismiss),

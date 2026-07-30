@@ -17,7 +17,9 @@
 #include "filesystem.h"
 #include "sentencepiece_model.pb.h"
 #include "testharness.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "util.h"
 
 namespace sentencepiece {
@@ -41,8 +43,8 @@ void CheckNormalizer(absl::string_view filename, bool expected_has_normalizer,
                      bool expected_has_denormalizer) {
   SentencePieceProcessor sp;
   ASSERT_TRUE(sp.Load(filename.data()).ok());
-  const auto &normalizer_spec = sp.model_proto().normalizer_spec();
-  const auto &denormalizer_spec = sp.model_proto().denormalizer_spec();
+  const auto& normalizer_spec = sp.model_proto().normalizer_spec();
+  const auto& denormalizer_spec = sp.model_proto().denormalizer_spec();
   EXPECT_EQ(!normalizer_spec.precompiled_charsmap().empty(),
             expected_has_normalizer);
   EXPECT_EQ(!denormalizer_spec.precompiled_charsmap().empty(),
@@ -102,13 +104,13 @@ TEST(SentencePieceTrainerTest, TrainFromArgsTest) {
 TEST(SentencePieceTrainerTest, TrainFromIterator) {
   class VectorIterator : public SentenceIterator {
    public:
-    explicit VectorIterator(std::vector<std::string> &&vec)
+    explicit VectorIterator(std::vector<std::string>&& vec)
         : vec_(std::move(vec)) {}
 
     bool done() const override { return idx_ == vec_.size(); }
     void Next() override { ++idx_; }
-    const std::string &value() const override { return vec_[idx_]; }
-    util::Status status() const override { return util::OkStatus(); }
+    const std::string& value() const override { return vec_[idx_]; }
+    absl::Status status() const override { return absl::OkStatus(); }
 
    private:
     std::vector<std::string> vec_;
@@ -391,15 +393,27 @@ TEST(SentencePieceTrainerTest, NormalizationTest) {
     EXPECT_EQ(normalized, "▁ガイダンス");
     ConvertToUnicodeAlignment(kInput, normalized, &offsets);
     EXPECT_EQ(offsets, std::vector<size_t>({0, 0, 2, 3, 5, 6, 7}));
+
+    // Regression: truncated UTF-8 lead bytes (e.g. a single 0xF0 announces a
+    // 4-byte sequence but supplies only 1) must not cause out-of-bounds writes
+    // inside the utf8_to_unicode_offsets lambda.
+    for (const char lead : {static_cast<char>(0xC2), static_cast<char>(0xE0),
+                            static_cast<char>(0xF0)}) {
+      const std::string truncated(1, lead);
+      std::vector<size_t> trunc_offsets = {0};
+      ConvertToUnicodeAlignment(truncated, truncated, &trunc_offsets);
+      EXPECT_EQ(trunc_offsets, std::vector<size_t>({0, 0}));
+    }
   }
 
-  auto set_normalization_only = [](SentencePieceNormalizer *normalizer) {
-    SentencePieceTrainer::SetProtoField("add_dummy_prefix", "false",
-                                        normalizer->mutable_normalizer_spec());
-    SentencePieceTrainer::SetProtoField("escape_whitespaces", "false",
-                                        normalizer->mutable_normalizer_spec());
-    SentencePieceTrainer::SetProtoField("remove_extra_whitespaces", "false",
-                                        normalizer->mutable_normalizer_spec());
+  auto set_normalization_only = [](SentencePieceNormalizer* normalizer) {
+    EXPECT_OK(SentencePieceTrainer::SetProtoField(
+        "add_dummy_prefix", "false", normalizer->mutable_normalizer_spec()));
+    EXPECT_OK(SentencePieceTrainer::SetProtoField(
+        "escape_whitespaces", "false", normalizer->mutable_normalizer_spec()));
+    EXPECT_OK(SentencePieceTrainer::SetProtoField(
+        "remove_extra_whitespaces", "false",
+        normalizer->mutable_normalizer_spec()));
   };
 
   {

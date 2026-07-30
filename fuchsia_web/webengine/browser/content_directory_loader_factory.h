@@ -9,6 +9,7 @@
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fidl/cpp/interface_handle.h>
 
+#include "base/memory/self_deleting.h"
 #include "base/task/sequenced_task_runner.h"
 #include "fuchsia_web/webengine/web_engine_export.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -33,13 +34,15 @@ class ContentDirectoryLoaderFactory
   // method).
   static mojo::PendingRemote<network::mojom::URLLoaderFactory> Create();
 
+  ContentDirectoryLoaderFactory(
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver,
+      base::SelfDeletingPassKey key);
+
   ContentDirectoryLoaderFactory(const ContentDirectoryLoaderFactory&) = delete;
   ContentDirectoryLoaderFactory& operator=(
       const ContentDirectoryLoaderFactory&) = delete;
 
  private:
-  explicit ContentDirectoryLoaderFactory(
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory> factory_receiver);
   ~ContentDirectoryLoaderFactory() override;
 
   // network::mojom::URLLoaderFactory:

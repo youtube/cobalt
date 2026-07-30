@@ -231,3 +231,38 @@ TEST_F(PasskeyCreationBottomSheetMediatorTest, CreatePasskeyReauthFailure) {
   // Verify client did NOT fetch keys.
   EXPECT_FALSE(fake_client_->DidFetchKeys());
 }
+
+// Tests that createPasskey defers to the renderer and dismisses passkey
+// creation when reauth cannot be attempted.
+TEST_F(PasskeyCreationBottomSheetMediatorTest, CreatePasskeyReauthNotPossible) {
+  webauthn::PasskeyTabHelper* helper =
+      webauthn::PasskeyTabHelper::FromWebState(web_state_);
+
+  webauthn::RegistrationRequestParams params =
+      webauthn::BuildRegistrationRequestParams(
+          {}, device::UserVerificationRequirement::kRequired);
+
+  // Re-create the mock for this test to avoid the default YES stub from setUp.
+  mock_reauth_module_ = OCMProtocolMock(@protocol(ReauthenticationProtocol));
+  OCMStub([mock_reauth_module_ canAttemptReauth]).andReturn(NO);
+
+  mediator_ = [[PasskeyCreationBottomSheetMediator alloc]
+      initWithWebStateList:&web_state_list_
+               requestInfo:webauthn::IOSPasskeyClient::RequestInfo(
+                               "", params.RequestId())
+          accountForSaving:@"test@example.com"
+              reauthModule:mock_reauth_module_
+                  delegate:mock_delegate_];
+
+  helper->HandleCreateRequestedEvent(std::move(params));
+
+  // Expect dismissal on fallback to renderer.
+  [[mock_delegate_ expect] dismissPasskeyCreation];
+
+  [mediator_ createPasskey];
+
+  // Verify dismissal.
+  [(OCMockObject*)mock_delegate_ verify];
+  // Verify client did NOT fetch keys.
+  EXPECT_FALSE(fake_client_->DidFetchKeys());
+}

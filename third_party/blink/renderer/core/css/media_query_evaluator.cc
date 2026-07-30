@@ -1845,6 +1845,15 @@ KleeneValue MediaQueryEvaluator::EvalStyleFeature(
                       *reference, *right_resolved, bounds.right.op, false));
     }
 
+    if (result_flags) {
+      CSSToLengthConversionData::Flags conversion_flags =
+          state.TakeLengthConversionFlags();
+      if (conversion_flags != 0) {
+        result_flags->unit_flags |=
+            ConversionFlagsToUnitFlags(conversion_flags);
+      }
+    }
+
     return result;
   }
 

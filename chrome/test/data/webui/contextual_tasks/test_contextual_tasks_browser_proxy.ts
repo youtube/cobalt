@@ -13,7 +13,7 @@ import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 import {TestSearchboxPageHandler} from './test_searchbox_page_handler.js';
-import {HANDSHAKE_RESPONSE_BYTES} from './test_utils.js';
+import {HANDSHAKE_RESPONSE_BYTES} from './contextual_tasks_test_utils.js';
 
 class MockPage extends TestBrowserProxy implements PageInterface {
   private postMessageHandler_: PostMessageHandler|null = null;
@@ -234,6 +234,7 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
       'registerWindow',
       'onWindowClosed',
       'closeWindow',
+      'maybeTriggerPinningPromo',
     ]);
 
     this.url_ = url;
@@ -451,6 +452,10 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
 
   closeWindow(windowId: ContextualWindowId) {
     this.methodCalled('closeWindow', windowId);
+  }
+
+  maybeTriggerPinningPromo() {
+    this.methodCalled('maybeTriggerPinningPromo');
   }
 }
 

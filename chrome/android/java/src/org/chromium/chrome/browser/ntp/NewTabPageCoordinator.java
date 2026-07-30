@@ -57,6 +57,7 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp.NewTabPage.OnSearchBoxScrollListener;
 import org.chromium.chrome.browser.ntp.search.NtpSearchBox;
 import org.chromium.chrome.browser.ntp.search.NtpSearchBoxFactory;
+import org.chromium.chrome.browser.ntp.search.SearchBoxCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
@@ -491,7 +492,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         }
     }
 
-    private void setSearchBoxTextAppearance() {
+    @VisibleForTesting
+    void setSearchBoxTextAppearance() {
         if (mNtpSearchBox == null) return;
 
         boolean shouldApplyWhiteBackground =
@@ -512,7 +514,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
                 mCanShowComposeplateButton && ComposeplateUtils.isEnabledByPolicy(profile);
     }
 
-    private void initializeComposeplate() {
+    @VisibleForTesting
+    void initializeComposeplate() {
         if (mIsComposeplateViewInitialized) return;
 
         mIsComposeplateViewInitialized = true;
@@ -797,7 +800,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     }
 
     /** Updates the margins for the most visited tiles layout based on what is shown above it. */
-    private void updateTilesLayoutMargins() {
+    @VisibleForTesting
+    void updateTilesLayoutMargins() {
         if (mMostVisitedTilesCoordinator == null) return;
 
         mMostVisitedTilesCoordinator.updateTilesLayoutMargins(shouldShowLogo(), mIsLff);
@@ -934,7 +938,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         }
     }
 
-    private void setSearchProviderTopMargin() {
+    @VisibleForTesting
+    void setSearchProviderTopMargin() {
         boolean showFakeSearchBoxWithoutLogo = !mSearchProviderHasLogo;
         mCurrentNtpFakeSearchBoxTransitionStartOffset =
                 getNtpSearchBoxTransitionStartOffset(showFakeSearchBoxWithoutLogo);
@@ -949,7 +954,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         }
     }
 
-    private void setLogoViewBottomMargin() {
+    @VisibleForTesting
+    void setLogoViewBottomMargin() {
         if (mLogoCoordinator == null) return;
 
         int logoViewBottomMarginPx =
@@ -1539,5 +1545,30 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     public static void setCountForTesting(int count) {
         sCount = count;
+    }
+
+    void setSearchBoxCoordinatorForTesting(SearchBoxCoordinator searchBoxCoordinator) {
+        mNtpSearchBox = searchBoxCoordinator;
+    }
+
+    void setLogoCoordinatorForTesting(LogoCoordinator logoCoordinator) {
+        mLogoCoordinator = logoCoordinator;
+    }
+
+    void setMostVisitedTilesCoordinatorForTesting(
+            MostVisitedTilesCoordinator mostVisitedTilesCoordinator) {
+        mMostVisitedTilesCoordinator = mostVisitedTilesCoordinator;
+    }
+
+    void setComposeplateCoordinatorForTesting(ComposeplateCoordinator composeplateCoordinator) {
+        mComposeplateCoordinator = composeplateCoordinator;
+    }
+
+    void setIsComposeplateEnabledForTesting(Boolean enabled) {
+        mCanShowComposeplateButton = enabled;
+    }
+
+    @Nullable ComposeplateCoordinator getComposeplateCoordinatorForTesting() {
+        return mComposeplateCoordinator;
     }
 }

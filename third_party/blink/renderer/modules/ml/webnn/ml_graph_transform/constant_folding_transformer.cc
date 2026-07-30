@@ -81,7 +81,7 @@ void ConstantFoldingTransformer::ApplyPermutation(
     return;
   }
   Vector<uint32_t> squashed_permutation(permutation.size());
-  for (size_t i = 0; i < permutation.size(); ++i) {
+  for (wtf_size_t i = 0; i < permutation.size(); ++i) {
     // The new permutation maps index 'i' to
     // previous_permutation[permutation[i]]
     squashed_permutation[i] = previous_permutation[permutation[i]];

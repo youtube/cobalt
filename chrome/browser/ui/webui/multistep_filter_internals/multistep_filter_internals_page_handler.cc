@@ -87,7 +87,7 @@ mojom::LogEntryPtr ConvertToMojo(const multistep_filter::LogEntry& entry) {
   mojom::LogEntryPtr mojo_entry = mojom::LogEntry::New();
   mojo_entry->timestamp = entry.timestamp;
   mojo_entry->event_type = LogEventTypeToString(entry.event_type);
-  mojo_entry->source_etld_plus_1 = entry.source_etld_plus_1;
+  mojo_entry->host = entry.host;
   mojo_entry->navigation_id = entry.navigation_id;
   mojo_entry->details = ConvertDetailsToString(entry.details);
   return mojo_entry;

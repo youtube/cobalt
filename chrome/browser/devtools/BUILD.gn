@@ -468,6 +468,10 @@ static_library("devtools") {
       "//extensions/browser",
     ]
   }
+
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui:browser_tab_strip_tracker" ]
+  }
 }
 
 static_library("test_support") {

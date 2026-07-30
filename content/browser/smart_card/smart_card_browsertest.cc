@@ -2148,27 +2148,64 @@ IN_PROC_BROWSER_TEST_F(SmartCardTest, TransactionBlocksOtherConnection) {
       const c2 = (await context.connect("Fake reader", "shared",
           {preferredProtocols: ["t1"]})).connection;
 
+      const anotherConnectionHoldsTransaction =
+          'Another connection holds an active transaction on this reader.';
+      const connectionAlreadyHoldsTransaction =
+          'A connection already holds an active transaction on this reader.';
+
+      const check = async (operation, name, msg, callStr) => {
+        try {
+          await operation();
+          return `${callStr} should have failed`;
+        } catch (e) {
+          if (e.name !== name || !e.message.endsWith(msg)) {
+            return `${callStr} failed with error: ${e.name}, ${e.message}`;
+          }
+        }
+      };
+
       await c1.startTransaction(async () => {
-        // Connection 1 should be able to transmit
         const apdu1 = new Uint8Array([0x00, 0x01, 0x02]);
         await c1.transmit(apdu1);
 
-        try {
-          const apdu2 = new Uint8Array([0x00, 0x01, 0x02]);
-          await c2.transmit(apdu2);
-          return "c2.transmit() should have failed";
-        } catch (e) {
-          if (e.name !== 'InvalidStateError') {
-            return `c2.transmit() failed with error: ${e.name}`;
+        const blockedOperations = [
+          {
+            call: () => c2.transmit(apdu1),
+            name: 'c2.transmit()',
+            msg: anotherConnectionHoldsTransaction
+          },
+          {
+            call: () => c2.startTransaction(async () => {}),
+            name: 'c2.startTransaction()',
+            msg: connectionAlreadyHoldsTransaction
+          },
+          {
+            call: () => c2.control(42, new Uint8Array([0x03, 0x02, 0x01])),
+            name: 'c2.control()',
+            msg: anotherConnectionHoldsTransaction
+          },
+          {
+            call: () => c2.status(),
+            name: 'c2.status()',
+            msg: anotherConnectionHoldsTransaction
+          },
+          {
+            call: () => c2.getAttribute(42),
+            name: 'c2.getAttribute()',
+            msg: anotherConnectionHoldsTransaction
+          },
+          {
+            call: () => c2.setAttribute(42, new Uint8Array([0x03, 0x02, 0x01])),
+            name: 'c2.setAttribute()',
+            msg: anotherConnectionHoldsTransaction
           }
-        }
+        ];
 
-        try {
-          await c2.startTransaction(async () => {});
-          return "c2.startTransaction() should have failed";
-        } catch (e) {
-          if (e.name !== 'InvalidStateError') {
-            return `c2.startTransaction() failed with error: ${e.name}`;
+        for (const op of blockedOperations) {
+          const err = await check(
+              op.call, 'InvalidStateError', op.msg, op.name);
+          if (err) {
+            return err;
           }
         }
 

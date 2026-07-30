@@ -16,7 +16,6 @@
 #include "chrome/browser/ui/passwords/account_avatar_fetcher.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/password_manager_constants.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
@@ -117,10 +116,6 @@ AccountChooserDialogAndroid::AccountChooserDialogAndroid(
 }
 
 AccountChooserDialogAndroid::~AccountChooserDialogAndroid() {
-  if (authenticator_) {
-    authenticator_->Cancel();
-  }
-
   // |dialog_jobject_| can be null in tests or if the dialog could not
   // be shown.
   if (dialog_jobject_) {
@@ -190,11 +185,7 @@ void AccountChooserDialogAndroid::OnVisibilityChanged(
     return;
   }
 
-  // If an authentication is in progress, the user already selected a
-  // credential so the dialog action should not be marked as cancel.
-  if (!authenticator_) {
-    OnDialogCancel();
-  }
+  OnDialogCancel();
   delete this;
 }
 
@@ -216,32 +207,8 @@ bool AccountChooserDialogAndroid::HandleCredentialChosen(
     return true;
   }
 
-  std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
-      client_->GetDeviceAuthenticator();
-  if (client_->IsReauthBeforeFillingRequired(authenticator.get())) {
-    authenticator_ = std::move(authenticator);
-    authenticator_->AuthenticateWithMessage(
-        u"", base::BindOnce(&AccountChooserDialogAndroid::OnReauthCompleted,
-                            base::Unretained(this), index));
-    // The credential handling will only happen after the authentication
-    // finishes.
-    return false;
-  }
-
   passwords_data_.ChooseCredential(credentials_forms[index].get());
   return true;
-}
-
-void AccountChooserDialogAndroid::OnReauthCompleted(size_t index,
-                                                    bool auth_succeeded) {
-  authenticator_.reset();
-  if (auth_succeeded) {
-    const auto& credentials_forms = local_credentials_forms();
-    passwords_data_.ChooseCredential(credentials_forms[index].get());
-  } else {
-    passwords_data_.ChooseCredential(nullptr);
-  }
-  delete this;
 }
 
 DEFINE_JNI(AccountChooserDialog)

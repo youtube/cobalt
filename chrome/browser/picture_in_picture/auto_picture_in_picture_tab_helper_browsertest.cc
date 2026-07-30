@@ -3829,8 +3829,9 @@ IN_PROC_BROWSER_TEST_P(AutoPictureInPictureTabHelperHatsDocumentPipBrowserTest,
   EXPECT_CALL(*hats_service,
               LaunchSurveyForWebContents(GetParam().trigger, web_contents, _, _,
                                          _, _, _, _))
-      .WillOnce(
-          testing::InvokeWithoutArgs([&]() { survey_launched.SetValue(); }));
+      .WillOnce(testing::DoAll(
+          testing::InvokeWithoutArgs([&]() { survey_launched.SetValue(); }),
+          testing::Return(HatsService::LaunchError::kNone)));
 
   SwitchToExistingTab(web_contents);
   EXPECT_TRUE(survey_launched.Wait());
@@ -3888,8 +3889,9 @@ IN_PROC_BROWSER_TEST_P(AutoPictureInPictureTabHelperHatsVideoPipBrowserTest,
   EXPECT_CALL(*hats_service,
               LaunchSurveyForWebContents(GetParam().trigger, web_contents, _, _,
                                          _, _, _, _))
-      .WillOnce(
-          testing::InvokeWithoutArgs([&]() { survey_launched.SetValue(); }));
+      .WillOnce(testing::DoAll(
+          testing::InvokeWithoutArgs([&]() { survey_launched.SetValue(); }),
+          testing::Return(HatsService::LaunchError::kNone)));
 
   SwitchToExistingTab(web_contents);
   EXPECT_TRUE(survey_launched.Wait());

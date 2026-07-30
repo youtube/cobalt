@@ -173,7 +173,6 @@
 #include "components/os_crypt/async/browser/dpapi_key_provider.h"
 #elif BUILDFLAG(IS_MAC)
 #include "chrome/browser/chrome_browser_main_mac.h"
-#include "chrome/browser/media/webrtc/system_media_capture_permissions_stats_mac.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -502,10 +501,6 @@ void BrowserProcessImpl::Init() {
 
   DCHECK(!webrtc_event_log_manager_);
   webrtc_event_log_manager_ = WebRtcEventLogManager::CreateSingletonInstance();
-
-#if BUILDFLAG(IS_MAC)
-  system_media_permissions::LogSystemMediaPermissionsStartupStats();
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   webauthn::WebAuthnClientAndroid::SetClient(

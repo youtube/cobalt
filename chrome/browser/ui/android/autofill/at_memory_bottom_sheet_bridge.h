@@ -37,9 +37,13 @@ class AtMemoryBottomSheetBridge {
   void RequestShowContent(std::unique_ptr<AtMemoryBottomSheetDelegate> delegate,
                           base::span<const Suggestion> suggestions);
 
+  // Requests to hide the bottom sheet.
+  void Hide();
+
   // -- JNI calls bridged to AtMemoryBottomSheetDelegate --
   void OnDismissed(JNIEnv* env);
   void OnQuerySubmitted(JNIEnv* env, const std::u16string& query);
+  void OnSuggestionSelected(JNIEnv* env, int position);
 
  private:
   void ResetDelegate();

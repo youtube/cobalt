@@ -524,7 +524,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.AimEligibility.CountryCodeEmpty" enum="Boolean"
-    expires_after="2026-10-04">
+    expires_after="2026-12-16">
   <owner>mahmadi@chromium.org</owner>
   <owner>mercerd@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -2863,6 +2863,16 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.MobileFusebox.NumDriveFilesAttached" units="count"
+    expires_after="2027-03-30">
+  <owner>erahmaoui@google.com</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    The number of Drive files attached to the query when the user selects a
+    Drive file.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.MobileFusebox.TabPickerTabsAttached" units="count"
     expires_after="2026-11-11">
   <owner>ameurhosni@google.com</owner>
@@ -3961,7 +3971,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.TakePrefetchResponseFromMemoryCache.ResourceResponseReceived"
-    enum="Boolean" expires_after="2026-10-11">
+    enum="Boolean" expires_after="2026-12-16">
   <owner>gjc@google.com</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -3973,7 +3983,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPreload.ForwardingResult.NotServedToPrerender"
-    enum="SearchPreloadForwardingResult" expires_after="2026-08-22">
+    enum="SearchPreloadForwardingResult" expires_after="2026-12-20">
   <owner>lingqi@chromium.org</owner>
   <owner>ryansturm@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>

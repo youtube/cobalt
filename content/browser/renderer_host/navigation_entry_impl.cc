@@ -22,12 +22,12 @@
 #include "build/build_config.h"
 #include "components/url_formatter/url_formatter.h"
 #include "components/viz/host/host_frame_sink_manager.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/compositor/surface_utils.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_entry_restore_context_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/common/content_constants_internal.h"
 #include "content/common/features.h"
 #include "content/public/browser/reload_type.h"
@@ -1103,7 +1103,8 @@ NavigationEntryImpl::ConstructCommitNavigationParams(
           false,
 #endif
           /*permissions_policy_override=*/std::nullopt,
-          /*internal_scroll_to_text_fragment=*/std::nullopt);
+          /*internal_scroll_to_text_fragment=*/std::nullopt,
+          /*is_secure_context_root=*/false);
 #if BUILDFLAG(IS_ANDROID)
   // `data_url_as_string` is saved in NavigationEntry but should only be used by
   // main frames, because loadData* navigations can only happen on the main

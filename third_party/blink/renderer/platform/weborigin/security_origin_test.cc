@@ -38,6 +38,7 @@
 
 #include "base/test/scoped_command_line.h"
 #include "base/unguessable_token.h"
+#include "net/base/schemeful_site.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/is_potentially_trustworthy_unittest.h"
 #include "services/network/public/cpp/network_switches.h"
@@ -1150,6 +1151,77 @@ TEST_F(SecurityOriginTest, NewOpaqueOriginLazyInitsNonce) {
   EXPECT_FALSE(GetNonceForOrigin(*opaque_origin)->raw_token().is_empty());
   EXPECT_FALSE(
       GetNonceForOrigin(*derived_opaque_origin)->raw_token().is_empty());
+}
+
+TEST_F(SecurityOriginTest, GetSchemefulSiteMatchesUncachedComputation) {
+  const char* cases[] = {
+      "https://example.com/",
+      "https://sub.www.example.com:8443/path",
+      "http://localhost:8000/",
+      "http://127.0.0.1/",
+      // An eTLD itself has no registrable domain; the host passes through.
+      "https://co.uk/",
+      "file:///tmp/index.html",
+      "filesystem:https://example.com/temporary/index.html",
+      "ws://example.com/",
+      "blob:https://example.com/0115d853-9722-4f10-b0a9-712c5a17d519",
+  };
+  for (const char* url : cases) {
+    SCOPED_TRACE(url);
+    scoped_refptr<SecurityOrigin> origin =
+        SecurityOrigin::CreateFromString(url);
+    ASSERT_TRUE(origin);
+    // Run this twice since the first call to GetSchemefulSite will
+    // generate the cached entry and the second call will use it.
+    EXPECT_EQ(net::SchemefulSite(origin->ToUrlOrigin()),
+              origin->GetSchemefulSite());
+    EXPECT_EQ(net::SchemefulSite(origin->ToUrlOrigin()),
+              origin->GetSchemefulSite());
+    // The cached value must be address-stable across calls.
+    EXPECT_EQ(&origin->GetSchemefulSite(), &origin->GetSchemefulSite());
+  }
+}
+
+TEST_F(SecurityOriginTest, GetSchemefulSiteOpaque) {
+  scoped_refptr<SecurityOrigin> opaque = SecurityOrigin::CreateUniqueOpaque();
+  EXPECT_TRUE(opaque->GetSchemefulSite().opaque());
+  EXPECT_EQ(net::SchemefulSite(opaque->ToUrlOrigin()),
+            opaque->GetSchemefulSite());
+  // Distinct opaque origins have distinct (nonce-keyed) sites.
+  EXPECT_NE(SecurityOrigin::CreateUniqueOpaque()->GetSchemefulSite(),
+            opaque->GetSchemefulSite());
+
+  // An opaque origin derived from a precursor still maps to an opaque site,
+  // and matches the unmemoized computation.
+  scoped_refptr<SecurityOrigin> precursor =
+      SecurityOrigin::CreateFromString("https://example.com");
+  scoped_refptr<SecurityOrigin> derived =
+      SecurityOrigin::CreateWithReferenceOrigin(KURL("data:text/html,x"),
+                                                precursor.get());
+  ASSERT_TRUE(derived->IsOpaque());
+  EXPECT_TRUE(derived->GetSchemefulSite().opaque());
+  EXPECT_EQ(net::SchemefulSite(derived->ToUrlOrigin()),
+            derived->GetSchemefulSite());
+}
+
+TEST_F(SecurityOriginTest, GetSchemefulSiteUnaffectedByDomainSetter) {
+  scoped_refptr<SecurityOrigin> origin =
+      SecurityOrigin::CreateFromString("https://sub.example.com");
+  const net::SchemefulSite site_before = origin->GetSchemefulSite();
+  // document.domain mutation must not change the site (it only sets the
+  // mutable domain_ member, which does not feed the site computation).
+  origin->SetDomainFromDOM("example.com");
+  EXPECT_EQ(site_before, origin->GetSchemefulSite());
+  EXPECT_EQ(net::SchemefulSite(origin->ToUrlOrigin()),
+            origin->GetSchemefulSite());
+}
+
+TEST_F(SecurityOriginTest, GetSchemefulSiteOnCopies) {
+  scoped_refptr<SecurityOrigin> origin =
+      SecurityOrigin::CreateFromString("https://www.example.com");
+  const net::SchemefulSite site = origin->GetSchemefulSite();
+  // Copies do not share the memo; they recompute the same value.
+  EXPECT_EQ(site, origin->IsolatedCopy()->GetSchemefulSite());
 }
 
 }  // namespace blink

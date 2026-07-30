@@ -10,6 +10,7 @@
 #include "base/containers/adapters.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/not_fatal_until.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/renderer/core/dom/text_diff_range.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -266,7 +267,7 @@ class ReusingTextShaper final {
           return item->EndOffset() <= offset;
         });
     const wtf_size_t start_item_index =
-        std::distance(reusable_items_->begin(), start_item_iter);
+        CheckedDistance(reusable_items_->begin(), start_item_iter);
     for (const Member<InlineItem>& item_ptr :
          base::span{*reusable_items_}.subspan(start_item_index)) {
       const InlineItem& item = *item_ptr;
@@ -1946,7 +1947,7 @@ template <typename CharType>
 String CreateTextContentForStickyImagesQuirk(
     base::span<const CharType> text,
     base::span<const Member<InlineItem>> items) {
-  StringBuffer<CharType> buffer(text.size());
+  StringBuffer<CharType> buffer(base::checked_cast<wtf_size_t>(text.size()));
   base::span<CharType> span = buffer.Span();
   span.copy_from(text);
   for (const Member<InlineItem>& item_ptr : items) {

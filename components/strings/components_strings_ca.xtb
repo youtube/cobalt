@@ -117,7 +117,6 @@ En cas contrari, la configuració de privadesa el bloquejarà. Això permetrà q
 <translation id="1178821169867863726">12 x 16 polzades</translation>
 <translation id="1181037720776840403">Suprimeix</translation>
 <translation id="1185331130467528132"><ph name="URL" /> vol accedir a altres dispositius de la teva xarxa local</translation>
-<translation id="1185343831726846924">Confirma que la targeta virtual no es pot activar</translation>
 <translation id="1186201132766001848">Comprova les contrasenyes</translation>
 <translation id="1187430513518041110">Automòbils i vehicles</translation>
 <translation id="1188817995162638216">Vols cancel·lar el desament del fitxer?</translation>
@@ -1262,7 +1261,6 @@ En cas contrari, la configuració de privadesa el bloquejarà. Això permetrà q
 <translation id="297173220375858963">Autoedició</translation>
 <translation id="2972581237482394796">&amp;Refés</translation>
 <translation id="2974468223369775963">Aquest IBAN no s'ha pogut desar al teu Compte de Google. S'ha desat a Chrome en aquest dispositiu. Chrome t'ho tornarà a preguntar la propera vegada que utilitzis aquest IBAN.</translation>
-<translation id="2976162850019490782">Quan l'opció estigui activada, Chrome compartirà totes les pestanyes d'aquesta finestra per ajudar-te a obtenir respostes més rellevants. Pots activar aquesta opció per a tots els fils de discussió a Configuració.</translation>
 <translation id="297667759942911166">Col·labora en grups de pestanyes</translation>
 <translation id="2977665033722899841">S'ha seleccionat <ph name="ROW_NAME" />. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Òpera</translation>
@@ -1671,7 +1669,6 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="361438452008624280">Entrada "<ph name="LANGUAGE_ID" />" de la llista: l'idioma és desconegut o no s'admet.</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />: prem Tab i després Retorn per executar la comprovació de seguretat a la configuració de Chrome</translation>
 <translation id="3615309852743236517">Manicures i pedicures</translation>
-<translation id="3620034424637552643">S'utilitza sovint per a indicacions, entregues i més</translation>
 <translation id="3620239073311576716">Uniformes i roba de treball</translation>
 <translation id="3620865353340165509">Aquest IBAN no s'ha pogut desar a Google Wallet, però està desat a Chrome en aquest dispositiu. Chrome t'ho tornarà a preguntar la propera vegada que utilitzis aquest IBAN.</translation>
 <translation id="3621401353678567613">Per rebre alertes de baixada de preu dels productes que segueixes, activa les notificacions a la configuració.</translation>
@@ -2220,7 +2217,6 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="4434045419905280838">Finestres emergents i redireccions</translation>
 <translation id="443673843213245140">L'ús d'un servidor intermediari no està activat, però s'ha especificat una configuració explícita d'un servidor intermediari.</translation>
 <translation id="4438821706955556403">Preu habitual</translation>
-<translation id="4439687924334332880">Obtén respostes més personalitzades compartint automàticament les pestanyes obertes d'aquesta finestra si estan relacionades amb aquest fil de discussió. Pots activar aquesta opció per a tots els fils de discussió a Configuració.</translation>
 <translation id="4441832193888514600">S'ha ignorat perquè la política només es pot establir com a política d'usuari basada en el núvol.</translation>
 <translation id="4444062564459679679">Ja s'ha enviat a Chrome al teu <ph name="DEVICE_NAME" /></translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />. Prem Retorn per cercar pestanyes.</translation>
@@ -2354,6 +2350,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="4691093235373904540">Teulats</translation>
 <translation id="4692623383562244444">Motors de cerca</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - Pregunta a <ph name="KEYWORD_SHORT_NAME" /></translation>
+<translation id="4697071790493980729">No s'ha trobat cap resultat</translation>
 <translation id="4698308118265482293">Actualitza el passaport</translation>
 <translation id="4698692901173737941">Esports de combat</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2701,7 +2698,6 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="5238301240406177137">Desa al compte</translation>
 <translation id="5239119062986868403">Preu habitual</translation>
 <translation id="5239623327352565343">Està permès utilitzar la ubicació</translation>
-<translation id="5241048084654737238">Confirma que la informació de la targeta no es pot desar</translation>
 <translation id="5242610955375133957">Pel·lícula en sec</translation>
 <translation id="5243004157379865295">Actualitza l'adreça</translation>
 <translation id="5244521145258281926">Botó Gestiona el Compte de Google: activa'l per gestionar la teva informació, la privadesa i la seguretat al teu Compte de Google</translation>
@@ -3031,6 +3027,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="5728246486828755318">Pot demanar permís per utilitzar funcions avançades de la impressora</translation>
 <translation id="5729442113829771034">Ensenyament preescolar</translation>
 <translation id="5730040223043577876">Chrome et recomana que restableixis la contrasenya si l'has fet servir en altres llocs web.</translation>
+<translation id="5735174108294025227">Les adreces electròniques verificades es mostraran aquí</translation>
 <translation id="573555826359077410">Botó Crea un formulari: activa'l per crear ràpidament un formulari nou a Formularis de Google</translation>
 <translation id="5738385766833540397">Gestiona com reps les alertes de baixada de preu dels productes que segueixes</translation>
 <translation id="5739619009927381786">Desbloqueja la pantalla al pas següent, normalment amb l'empremta digital. També pots <ph name="BEGIN_LINK" />fer la verificació d'una altra manera<ph name="END_LINK" />.</translation>
@@ -3356,6 +3353,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="6246316216123107851">Fa <ph name="NUM_DAYS" /> dies</translation>
 <translation id="6246382863801034910">Vehicle</translation>
 <translation id="6246868321321344665">La teva organització pot veure les dades de navegació, com ara les contrasenyes i l'historial, tant al perfil de treball com al personal</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> ha canviat aquesta pestanya, <ph name="TAB_TITLE" /></translation>
 <translation id="6248988683584659830">Cerca a la configuració</translation>
 <translation id="6250932670816326647">Productes corporals i per al bany</translation>
 <translation id="6251906504834538140">{0,plural, =1{S'ha bloquejat el fitxer perquè no es pugui moure}other{S'han bloquejat <ph name="FILE_COUNT" /> fitxers perquè no es puguin moure}}</translation>
@@ -3712,6 +3710,7 @@ Per amagar les opcions de Paga més tard, ves a la <ph name="BEGIN_LINK" />confi
 <translation id="6798066466127540426">La llista no conté cap proveïdor de cerca vàlid.</translation>
 <translation id="6798460514924505775">Sobre Chou 3</translation>
 <translation id="6799145206637008376">Emplena el CVC per a aquesta targeta virtual</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> ha afegit aquesta pestanya, <ph name="TAB_TITLE" /></translation>
 <translation id="6801920212017470190">Estigues al corrent de totes les baixades de preu siguis on siguis</translation>
 <translation id="6805030849054648206">Sobre B6/C4</translation>
 <translation id="6807791860691150411">Estudis</translation>
@@ -4715,6 +4714,7 @@ Detalls addicionals:
 <translation id="8351131234907093545">Crea una nota</translation>
 <translation id="8352849934814541340">L'administrador del dispositiu ha instal·lat aplicacions per obtenir funcions addicionals. Les aplicacions tenen accés a algunes de les teves dades.</translation>
 <translation id="8355270400102541638">Context del bloqueig local:</translation>
+<translation id="8362914115861174987">Tradueix a</translation>
 <translation id="8363502534493474904">Desactiva el mode d'avió.</translation>
 <translation id="8363929499301563123">Galetes de llocs web (l'estat de sessió iniciada als llocs web que s'han visitat recentment es conservarà)</translation>
 <translation id="8364627913115013041">No s'ha definit.</translation>
@@ -4734,7 +4734,6 @@ Detalls addicionals:
 <translation id="8381674639488873545">Aquests càrrecs poden ser únics o recurrents i és possible que no s'indiquin d'una manera evident. <ph name="BEGIN_LINK" />Mostra igualment<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">Pantalla completa automàtica</translation>
 <translation id="838307841291975086">Vehicles familiars</translation>
-<translation id="838953173259347825">Obtén respostes més personalitzades compartint automàticament les pestanyes obertes d'aquesta finestra si estan relacionades amb aquest fil de discussió. Pots activar aquesta opció per a tots els fils de discussió a</translation>
 <translation id="8389532092404711541">Preu habitual: <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">Vehicles personalitzats i d'alt rendiment</translation>
 <translation id="8390725133630534698">La política de l'administrador no permet compartir contingut de <ph name="ORIGIN_NAME" /> a <ph name="VM_NAME" /></translation>
@@ -4900,6 +4899,7 @@ Detalls addicionals:
 <translation id="8671519637524426245">El valor <ph name="SECURE_DNS_SALT" /> no compleix els requisits de mida.</translation>
 <translation id="867224526087042813">Signatura</translation>
 <translation id="8672535691554698269">Xarxes informàtiques</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Mostra els detalls de la compartició de pestanyes. S'està compartint 1 pestanya de {WEBSITE_LIST_STR}}other{Mostra els detalls de la compartició de pestanyes. S'estan compartint {NUM_TABS} pestanyes de {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Els fitxers s'estan penjant a <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Sense retard</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, resposta, <ph name="ANSWER" /></translation>
@@ -5153,7 +5153,6 @@ Detalls addicionals:
 <translation id="9090243919347147717">Fitxers adjunts</translation>
 <translation id="9090548458280093580">Cerca al teu historial, amb tecnologia d'IA</translation>
 <translation id="9090993752571911635">Proveïdors d'Internet</translation>
-<translation id="9092305980625216393">S'utilitza sovint per al temps, notícies locals i més</translation>
 <translation id="9093723786115107672">Pijames i roba de dormir</translation>
 <translation id="9094424186948667194">Accedeix a altres aplicacions i serveis d'aquest dispositiu</translation>
 <translation id="9094544726794842788">El botó No m'agrada obre un formulari per enviar comentaris detallats sobre per què no t'agraden aquests resultats</translation>
@@ -5278,7 +5277,6 @@ Detalls addicionals:
 <translation id="964050462028070434">Gestiona les contrasenyes i les claus d'accés…</translation>
 <translation id="964681140808832181">Sí, vull cancel·lar-lo</translation>
 <translation id="969892804517981540">Compilació oficial</translation>
-<translation id="970182982363142444">Quan l'opció estigui activada, Chrome compartirà totes les pestanyes d'aquesta finestra per ajudar-te a obtenir respostes més rellevants. Pots activar aquesta opció per a tots els xats a</translation>
 <translation id="97054401902912338">Més informació sobre els filtres de contingut</translation>
 <translation id="973788791897303708">Aquest grup de pestanyes és ple</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{Cap}=1{1 element}other{# elements}}</translation>

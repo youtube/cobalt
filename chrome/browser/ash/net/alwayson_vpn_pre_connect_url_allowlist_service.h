@@ -55,8 +55,6 @@ class AlwaysOnVpnPreConnectUrlAllowlistService
       base::WeakPtr<arc::AlwaysOnVpnManager> always_on_vpn_manager);
 
  private:
-  void Init();
-
   // NetworkStateHandlerObserver:
   void DefaultNetworkChanged(const ash::NetworkState* network) override;
   void OnShuttingDown() override;
@@ -82,9 +80,6 @@ class AlwaysOnVpnPreConnectUrlAllowlistService
   base::ScopedObservation<ash::NetworkStateHandler,
                           ash::NetworkStateHandlerObserver>
       network_state_handler_observer_{this};
-
-  base::WeakPtrFactory<AlwaysOnVpnPreConnectUrlAllowlistService> weak_factory_{
-      this};
 };
 
 }  // namespace ash

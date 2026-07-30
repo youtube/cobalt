@@ -10,6 +10,7 @@
 #import <string>
 #import <vector>
 
+#import "base/feature_list.h"
 #import "ios/web/public/js_messaging/java_script_feature.h"
 
 namespace content {
@@ -21,6 +22,8 @@ class JsCommunicationHost;
 }
 
 namespace web {
+
+BASE_DECLARE_FEATURE(kContentEnableInjectedFeatureScripts);
 
 class ScriptMessage;
 

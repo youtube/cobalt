@@ -120,7 +120,7 @@ class COMPONENT_EXPORT(UI_BASE_IME_LINUX) InputMethodAuraLinux
 
   // Ignore commit/preedit-changed/preedit-end signals if this time is still in
   // the future.
-  base::TimeTicks suppress_non_key_input_until_ = base::TimeTicks::UnixEpoch();
+  base::TimeTicks suppress_non_key_input_until_;
 
   // Used for making callbacks.
   base::WeakPtrFactory<InputMethodAuraLinux> weak_ptr_factory_{this};

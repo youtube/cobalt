@@ -4,7 +4,6 @@
 
 #include "base/test/metrics/user_action_tester.h"
 #include "build/build_config.h"
-#include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -22,8 +21,6 @@
 #include "ui/base/test/ui_controls.h"
 #include "ui/events/event_constants.h"
 #include "ui/gfx/scoped_animation_duration_scale_mode.h"
-#include "ui/views/controls/menu/menu_item_view.h"
-#include "ui/views/interaction/interactive_views_test.h"
 
 namespace {
 

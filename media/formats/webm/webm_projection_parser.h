@@ -5,8 +5,11 @@
 #ifndef MEDIA_FORMATS_WEBM_WEBM_PROJECTION_PARSER_H_
 #define MEDIA_FORMATS_WEBM_WEBM_PROJECTION_PARSER_H_
 
-#include "base/memory/raw_ptr.h"
+#include <optional>
+#include <vector>
+
 #include "media/base/media_log.h"
+#include "media/base/video_spatial_format.h"
 #include "media/base/video_transformation.h"
 #include "media/formats/webm/webm_parser.h"
 
@@ -24,8 +27,10 @@ class MEDIA_EXPORT WebMProjectionParser : public WebMParserClient {
 
   void Reset();
   bool Validate() const;
+  bool OnListEnd(int id) override;
 
   VideoTransformation GetVideoTransformation() const;
+  VideoProjectionType GetProjectionType() const;
 
  private:
   friend class WebMProjectionParserTest;
@@ -33,13 +38,20 @@ class MEDIA_EXPORT WebMProjectionParser : public WebMParserClient {
   // WebMParserClient implementation.
   bool OnUInt(int id, int64_t val) override;
   bool OnFloat(int id, double val) override;
+  bool OnBinary(int id, const uint8_t* data, int size) override;
 
   // private data
   const std::unique_ptr<MediaLog> media_log_;
-  int64_t projection_type_;
-  double pose_yaw_;    // value must be [-180, 180]
-  double pose_pitch_;  // value must be [-90, 90]
-  double pose_roll_;   // value must be [-180, 180]
+  std::optional<int64_t> projection_type_;
+  std::vector<uint8_t> projection_private_;
+  std::optional<double> pose_yaw_;    // value must be [-180, 180]
+  std::optional<double> pose_pitch_;  // value must be [-90, 90]
+  std::optional<double> pose_roll_;   // value must be [-180, 180]
+
+  // Derived fields, used to store calculated projection type and
+  // transformation.
+  VideoProjectionType video_projection_type_;
+  VideoTransformation video_transformation_;
 };
 
 }  // namespace media

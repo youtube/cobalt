@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.!
 
+#include "bpe_model_trainer.h"
+
 #include <string>
 #include <vector>
 
-#include "bpe_model_trainer.h"
 #include "filesystem.h"
 #include "sentencepiece_processor.h"
 #include "sentencepiece_trainer.h"
@@ -34,8 +35,7 @@ namespace {
 std::string RunTrainer(
     const std::vector<std::string> &input, int size,
     const std::vector<std::string> &user_defined_symbols = {}) {
-  const std::string input_file =
-      util::JoinPath(::testing::TempDir(), "input");
+  const std::string input_file = util::JoinPath(::testing::TempDir(), "input");
   const std::string model_prefix =
       util::JoinPath(::testing::TempDir(), "model");
   {
@@ -92,23 +92,21 @@ TEST(BPETrainerTest, BasicTest) {
 static constexpr char kTestInputData[] = "wagahaiwa_nekodearu.txt";
 
 TEST(BPETrainerTest, EndToEndTest) {
-  const std::string input =
-      util::JoinPath(::testing::SrcDir(), kTestInputData);
+  const std::string input = util::JoinPath(::testing::SrcDir(), kTestInputData);
 
   ASSERT_TRUE(
       SentencePieceTrainer::Train(
-          absl::StrCat(
-              "--model_prefix=",
-              util::JoinPath(::testing::TempDir(), "tmp_model"),
-              " --input=", input,
-              " --vocab_size=8000 --normalization_rule_name=identity"
-              " --model_type=bpe --control_symbols=<ctrl> "
-              "--max_sentence_length=2048"))
+          absl::StrCat("--model_prefix=",
+                       util::JoinPath(::testing::TempDir(), "tmp_model"),
+                       " --input=", input,
+                       " --vocab_size=8000 --normalization_rule_name=identity"
+                       " --model_type=bpe --control_symbols=<ctrl> "
+                       "--max_sentence_length=2048"))
           .ok());
 
   SentencePieceProcessor sp;
-  ASSERT_TRUE(sp.Load(std::string(util::JoinPath(
-                          ::testing::TempDir(), "tmp_model.model")))
+  ASSERT_TRUE(sp.Load(std::string(util::JoinPath(::testing::TempDir(),
+                                                 "tmp_model.model")))
                   .ok());
   EXPECT_EQ(8000, sp.GetPieceSize());
 

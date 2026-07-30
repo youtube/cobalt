@@ -10,6 +10,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/safe_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
@@ -323,7 +324,7 @@ class PermissionContextBase : public content_settings::Observer {
   const network::mojom::PermissionsPolicyFeature permissions_policy_feature_;
   std::unordered_map<
       std::string,
-      std::pair<base::WeakPtr<PermissionRequest>, BrowserPermissionCallback>>
+      std::pair<base::SafeRef<PermissionRequest>, BrowserPermissionCallback>>
       pending_requests_;
 
   mutable std::optional<bool> last_has_device_permission_result_ = std::nullopt;

@@ -48,7 +48,7 @@ To fix the errors above you can either:
 ## Unstable features
 
 Chromium builds require an explicit opt-in to use unstable Rust features
-(see the policy in `//tools/rust/unstable_rust_feature_usage.md`).
+(see the policy in `//docs/rust/unstable_rust_feature_usage.md`).
 Unexpected usage of unstable Rust features can cause build errors below:
 
 ```
@@ -63,7 +63,7 @@ To opt into allowing certain unstable features, you need to:
 
 * Opt into allowing an unstable feature in the `BUILD.gn` of a Rust crate
   (justifying edits to the policy in
-  `//tools/rust/unstable_rust_feature_usage.md` as needed)
+  `//docs/rust/unstable_rust_feature_usage.md` as needed)
   * In manually-authored `BUILD.gn` files (e.g. in first-party code) you can
       set the following properties of `rust_static_library`:
     * `rustflags = [ "-Zallow-features=feature_name" ]`

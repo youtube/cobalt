@@ -127,6 +127,7 @@ static bool HasImpliedEndTag(const HTMLStackItem* item) {
 }
 
 static bool ShouldUseLengthLimit(const ContainerNode& node) {
+  DCHECK(RuntimeEnabledFeatures::SplitLargeTextNodesEnabled());
   if (auto* html_element = DynamicTo<HTMLElement>(&node)) {
     return !html_element->HasTagName(html_names::kScriptTag) &&
            !html_element->HasTagName(html_names::kStyleTag);
@@ -139,11 +140,13 @@ static unsigned NextTextBreakPositionForContainer(
     unsigned current_position,
     unsigned string_length,
     std::optional<unsigned>& length_limit) {
-  if (string_length < Text::kDefaultLengthLimit)
+  DCHECK(RuntimeEnabledFeatures::SplitLargeTextNodesEnabled());
+  if (string_length < HTMLConstructionSite::kObsoleteTextNodeLengthLimit) {
     return string_length;
+  }
   if (!length_limit) {
     length_limit = ShouldUseLengthLimit(node)
-                       ? Text::kDefaultLengthLimit
+                       ? HTMLConstructionSite::kObsoleteTextNodeLengthLimit
                        : std::numeric_limits<unsigned>::max();
   }
   return std::min(current_position + *length_limit, string_length);
@@ -251,9 +254,11 @@ static inline void ExecuteInsertTask(HTMLConstructionSiteTask& task) {
 
 static inline unsigned TextFitsInContainer(const ContainerNode& node,
                                            unsigned length) {
+  DCHECK(RuntimeEnabledFeatures::SplitLargeTextNodesEnabled());
   // Common case is all text fits in the default text limit. Only lookup length
   // limit when necessary as it is costly.
-  return length < Text::kDefaultLengthLimit || !ShouldUseLengthLimit(node);
+  return length < HTMLConstructionSite::kObsoleteTextNodeLengthLimit ||
+         !ShouldUseLengthLimit(node);
 }
 
 static inline void ExecuteInsertTextTask(HTMLConstructionSiteTask& task) {
@@ -265,7 +270,8 @@ static inline void ExecuteInsertTextTask(HTMLConstructionSiteTask& task) {
   Node* previous_child = task.next_child ? task.next_child->previousSibling()
                                          : task.parent->lastChild();
   if (auto* previous_text = DynamicTo<Text>(previous_child)) {
-    if (TextFitsInContainer(*task.parent,
+    if (!RuntimeEnabledFeatures::SplitLargeTextNodesEnabled() ||
+        TextFitsInContainer(*task.parent,
                             previous_text->length() + new_text->length())) {
       previous_text->ParserAppendData(new_text->data());
       return;
@@ -364,8 +370,22 @@ void HTMLConstructionSite::FlushPendingText() {
   if (pending_text_.IsEmpty())
     return;
 
-  // Splitting text nodes into smaller chunks contradicts HTML5 spec, but is
-  // necessary for performance, see:
+  const StringBuilder& string = pending_text_.string_builder;
+
+  if (!RuntimeEnabledFeatures::SplitLargeTextNodesEnabled()) {
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::kInsertText);
+    task.parent = pending_text_.parent;
+    task.next_child = pending_text_.next_child;
+    task.child = Text::Create(
+        task.parent->GetDocument(),
+        TryCanonicalizeString(string, pending_text_.whitespace_mode));
+    QueueTask(task, false);
+    pending_text_.Discard();
+    return;
+  }
+
+  // Legacy behavior: split text nodes into smaller chunks. This contradicts the
+  // HTML5 spec, but was done for performance, see:
   // https://bugs.webkit.org/show_bug.cgi?id=55898
 
   // Lazily determine the line limit as it's non-trivial, and in the typical
@@ -374,7 +394,6 @@ void HTMLConstructionSite::FlushPendingText() {
   std::optional<unsigned> length_limit;
 
   unsigned current_position = 0;
-  const StringBuilder& string = pending_text_.string_builder;
   while (current_position < string.length()) {
     unsigned proposed_break_index = NextTextBreakPositionForContainer(
         *pending_text_.parent, current_position, string.length(), length_limit);

@@ -108,6 +108,7 @@ source_set("browser") {
     "//components/permissions",
     "//components/security_state/core",
     "//components/segmentation_platform/public",
+    "//components/services/app_service/public/cpp:app_types",
     "//components/site_engagement/content",
     "//components/variations",
     "//components/webapps/common",

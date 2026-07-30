@@ -899,14 +899,6 @@ void OnTokenRequestParsed(
       std::move(token_result));
 }
 
-void OnLogoutCompleted(IdpNetworkRequestManager::LogoutCallback callback,
-                       std::optional<std::string> response_body,
-                       int response_code,
-                       const std::string& mime_type,
-                       bool cors_error) {
-  std::move(callback).Run();
-}
-
 void OnDisconnectResponseParsed(
     IdpNetworkRequestManager::DisconnectCallback callback,
     FetchStatus fetch_status,
@@ -1270,21 +1262,6 @@ void IdpNetworkRequestManager::SendFailedTokenRequestMetrics(
   // DownloadCallback.
   DownloadUrl(std::move(resource_request), url_encoded_post_data,
               DownloadCallback(), maxResponseSizeInKiB * 1024);
-}
-
-void IdpNetworkRequestManager::SendLogout(const GURL& logout_url,
-                                          LogoutCallback callback) {
-  // TODO(kenrb): Add browser test verifying that the response to this can
-  // clear cookies. https://crbug.com/1155312.
-
-  auto resource_request = CreateCredentialedResourceRequest(
-      logout_url, CredentialedResourceRequestType::kNoOrigin);
-  resource_request->headers.SetHeader(net::HttpRequestHeaders::kAccept, "*/*");
-
-  DownloadUrl(std::move(resource_request),
-              /*url_encoded_post_data=*/std::nullopt,
-              base::BindOnce(&OnLogoutCompleted, std::move(callback)),
-              maxResponseSizeInKiB * 1024);
 }
 
 void IdpNetworkRequestManager::SendDisconnectRequest(

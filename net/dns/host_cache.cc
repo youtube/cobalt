@@ -34,6 +34,7 @@
 #include "net/base/address_family.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_handle.h"
 #include "net/base/trace_constants.h"
 #include "net/base/url_util.h"
 #include "net/dns/host_resolver.h"
@@ -74,6 +75,7 @@ const char kTextRecordsKey[] = "text_records";
 const char kHostnameResultsKey[] = "hostname_results";
 const char kHostPortsKey[] = "host_ports";
 const char kCanonicalNamesKey[] = "canonical_names";
+const char kTargetNetworkKey[] = "target_network";
 
 base::Value IpEndpointToValue(const IPEndPoint& endpoint) {
   base::DictValue dictionary;
@@ -220,12 +222,14 @@ HostCache::Key::Key(std::variant<url::SchemeHostPort, std::string> host,
                     DnsQueryType dns_query_type,
                     HostResolverFlags host_resolver_flags,
                     HostResolverSource host_resolver_source,
-                    const NetworkAnonymizationKey& network_anonymization_key)
+                    const NetworkAnonymizationKey& network_anonymization_key,
+                    handles::NetworkHandle target_network)
     : host(std::move(host)),
       dns_query_type(dns_query_type),
       host_resolver_flags(host_resolver_flags),
       host_resolver_source(host_resolver_source),
-      network_anonymization_key(network_anonymization_key) {
+      network_anonymization_key(network_anonymization_key),
+      target_network(target_network) {
   DCHECK(IsValidHostname(GetHostname(this->host)));
   if (std::holds_alternative<url::SchemeHostPort>(this->host)) {
     DCHECK(std::get<url::SchemeHostPort>(this->host).IsValid());
@@ -977,6 +981,10 @@ void HostCache::GetList(base::ListValue& entry_list,
               &network_anonymization_key_value)) {
         continue;
       }
+      // Don't save entries associated with a specific network.
+      if (key.target_network != handles::kInvalidNetworkHandle) {
+        continue;
+      }
     } else {
       // ToValue() fails for transient NAKs, since they should never be
       // serialized to disk in a restorable format, so use ToDebugString() when
@@ -1004,6 +1012,11 @@ void HostCache::GetList(base::ListValue& entry_list,
     entry_dict.Set(kNetworkAnonymizationKey,
                    std::move(network_anonymization_key_value));
     entry_dict.Set(kSecureKey, key.secure);
+
+    if (serialization_type == SerializationType::kDebug) {
+      entry_dict.Set(kTargetNetworkKey,
+                     base::NumberToString(key.target_network));
+    }
 
     entry_list.Append(std::move(entry_dict));
   }
@@ -1201,7 +1214,7 @@ bool HostCache::RestoreFromListValue(const base::ListValue& old_cache) {
 
     Key key(std::move(host), dns_query_type.value(), flags,
             static_cast<HostResolverSource>(host_resolver_source),
-            network_anonymization_key);
+            network_anonymization_key, handles::kInvalidNetworkHandle);
     key.secure = secure;
 
     // If the key is already in the cache, assume it's more recent and don't

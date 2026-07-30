@@ -108,8 +108,9 @@ AudioChannelLabel ChannelToAudioChannelLabel(Channels input_channel) {
 }
 
 std::unique_ptr<ScopedAudioChannelLayout> ChannelLayoutToAudioChannelLayout(
-    ChannelLayout input_layout,
-    int input_channels) {
+    ChannelLayoutConfig input_config) {
+  const ChannelLayout input_layout = input_config.channel_layout();
+  const int input_channels = input_config.channels();
   CHECK_GT(input_layout, CHANNEL_LAYOUT_UNSUPPORTED);
   CHECK_GT(input_channels, 0);
 

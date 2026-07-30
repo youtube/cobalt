@@ -182,6 +182,8 @@ void DirectRenderer::DecideRenderPassAllocationsForFrame(
         // If the render pass is drawn directly, it will not be drawn from as
         // a render pass so it's not added to the map.
         render_pass_bypass_quads_[pass->id] = quad.value();
+        TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("viz.quads"),
+                            "Bypass RPDQ", "render_pass_id", pass->id.value());
         continue;
       }
     }
@@ -298,6 +300,8 @@ void DirectRenderer::DrawFrame(
   bool has_primary_plane = false;
 #endif
   if (overlay_processor_) {
+    TRACE_EVENT_BEGIN("viz,benchmark",
+                      "DirectRenderer::DrawFrame ProcessForOverlays");
     // Display transform and viewport size are needed for overlay validator on
     // Android SurfaceControl. These need to be called before
     // ProcessForOverlays.
@@ -344,6 +348,9 @@ void DirectRenderer::DrawFrame(
         current_frame()->overlay_list,
         [](const auto& candidate) { return candidate.is_root_render_pass; });
 #endif
+    TRACE_EVENT_END("viz,benchmark", "num candidates",
+                    current_frame()->overlay_list.size(), "root_damage_rect",
+                    current_frame()->root_damage_rect.ToString());
   }
 
   // Only reshape when we know we are going to draw. Otherwise, the reshape
@@ -731,8 +738,9 @@ void DirectRenderer::AddInkDamageToRenderPass(
 }
 
 void DirectRenderer::DrawRenderPass(const AggregatedRenderPass* render_pass) {
-  TRACE_EVENT1("viz", "DirectRenderer::DrawRenderPass", "NumberOfQuads",
-               render_pass->quad_list.size());
+  TRACE_EVENT("viz", "DirectRenderer::DrawRenderPass", "id",
+              render_pass->id.value(), "NumberOfQuads",
+              render_pass->quad_list.size());
 
   if (CanSkipRenderPass(render_pass)) {
     skipped_render_pass_ids_.insert(render_pass->id);

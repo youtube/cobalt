@@ -37,6 +37,10 @@ struct VisitedLink {
   url::Origin frame_origin;
 };
 
+// Creates a VisitedLink for pseudo-partitioning by using the URL for
+// each field in the VisitedLink.
+VisitedLink CreatePseudoPartitionedLink(const GURL& url);
+
 }  // namespace visitedlink
 
 #endif  // COMPONENTS_VISITEDLINK_CORE_VISITED_LINK_H_

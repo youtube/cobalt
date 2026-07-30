@@ -72,6 +72,7 @@
 <translation id="1820835682567584003">Chromium versucht, <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">Wenn du Chromium das nächste Mal auf deinem Gerät (<ph name="DEVICE_TYPE" />) öffnest, wirst du aufgefordert, den Google Passwortmanager zu verwenden.</translation>
 <translation id="1838374766361614909">Suche löschen</translation>
+<translation id="1846849503013521481">Um deine Arbeit in Chromium zu schützen, kann deine Organisation bestimmte Informationen ansehen oder verwalten</translation>
 <translation id="18552579716432081">Wenn du Browserdaten nur von diesem Gerät, aber nicht aus deinem Google-Konto löschen möchtest, <ph name="BEGIN_LINK" />melde dich in Chromium ab<ph name="END_LINK" />.</translation>
 <translation id="1857749206890802997">Lade Chromium auf dein Smartphone herunter, um Tabgruppen unterwegs zu öffnen oder zu erstellen.</translation>
 <translation id="185970820835152459">Du kannst deine angemeldeten Google-Konten verwalten. Deine Google-Konten werden für den Chromium-Browser, den Play Store, Gmail und mehr verwendet. Wenn du ein Konto für jemand anderen hinzufügen möchtest, z. B. ein Familienmitglied, ordne bitte stattdessen deinem Gerät (<ph name="DEVICE_TYPE" />) eine neue Person zu. <ph name="LINK_BEGIN" />Weitere Informationen<ph name="LINK_END" /></translation>
@@ -434,6 +435,7 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="5953657885167112863">Chromium personalisieren</translation>
 <translation id="5960071705175224773">Deine Einstellungen wurden von einer unbekannten App geändert</translation>
 <translation id="5968400720580217226">KI‑Modus</translation>
+<translation id="5977420883993828287">Angepinnt! Du kannst kontextbezogene Aufgaben wieder über die Symbolleiste verwenden.</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Deine Organisation hat festgelegt, dass Chromium automatisch geschlossen wird, wenn der Browser eine Minute lang nicht verwendet wird.}other{Deine Organisation hat festgelegt, dass Chromium automatisch geschlossen wird, wenn der Browser # Minuten lang nicht verwendet wird.}}</translation>
 <translation id="5987687638152509985">Aktualisiere Chromium, um die Synchronisierung zu starten</translation>
 <translation id="6003112304606738118">Wird heruntergeladen… Noch <ph name="HOURS" /> Stunde(n)</translation>
@@ -538,6 +540,17 @@ Einige Funktionen stehen möglicherweise nicht zur Verfügung. Gib bitte ein and
 <translation id="6896758677409633944">Kopieren</translation>
 <translation id="6901631050894301805">Chromium als Standardbrowser festlegen und an die Taskleiste anheften</translation>
 <translation id="6909503629704372277">&amp;Chromium-Profile verwalten</translation>
+<translation id="6919942714452658456">Durch diese Aktion werden:
+          <ph name="LINE_BREAKS" />
+            • Deine „Beim Start“-Seite, die „Neuer Tab“-Seite, die Suchmaschine und angepinnte Tabs zurückgesetzt
+            <ph name="LINE_BREAK" />
+            • Erweiterungen deaktiviert
+            <ph name="LINE_BREAK" />
+            • Cookies und andere vorübergehende Websitedaten gelöscht
+            <ph name="LINE_BREAK" />
+            • Chromium-Verknüpfungen zurückgesetzt
+            <ph name="LINE_BREAKS" />
+            Lesezeichen, Verlauf und gespeicherte Passwörter sind davon nicht betroffen.</translation>
 <translation id="6934579572334859869">Bildersuche nach Infos zu diesem Bild fragen</translation>
 <translation id="6948031725951063910">Du hast das Chromium-Limit von <ph name="BOOKMARK_LIMIT" /> Lesezeichen erreicht. Einige deiner Lesezeichen wurden daher noch nicht in deinem Google-Konto gespeichert.
 
@@ -607,6 +620,7 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="7686590090926151193">Chromium ist nicht als dein Standardbrowser festgelegt</translation>
 <translation id="7689606757190482937">Chromium wird auf allen deinen Geräten synchronisiert und personalisiert</translation>
 <translation id="7699779824407626136">Chromium-Update</translation>
+<translation id="7700735928747402058">Deine Arbeit ist in Chromium geschützt</translation>
 <translation id="7716950018788545737">Aufgabe(n) beendet.</translation>
 <translation id="77283119132245232">Bietet Ablaufverfolgungsdienste für <ph name="BROWSER_NAME" />. Wenn dieser Dienst deaktiviert ist, enthalten die vom Browser erstellten Leistungstraces keine systemweiten Ereignisse wie Kontextwechsel und Thread-Ereignisse.</translation>
 <translation id="7745317241717453663">Dadurch werden deine Browserdaten von diesem Gerät gelöscht. Wenn du deine Daten später abrufen möchtest, melde dich als <ph name="USER_EMAIL" /> in Chromium an.</translation>
@@ -638,6 +652,7 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="8031714377769448844">Du kannst Chromium an die Taskleiste anpinnen, um jederzeit schnell darauf zugreifen zu können</translation>
 <translation id="80471789339884597">Vielen Dank für die Installation. Du musst alle Browser neu starten, bevor du <ph name="BUNDLE_NAME" /> verwenden kannst.</translation>
 <translation id="8054112667659782652">Button für die Bildersuche immer anzeigen</translation>
+<translation id="8069447462453318634">„An Symbolleiste anpinnen“ auswählen</translation>
 <translation id="8077498902115777962">Chromium-Ausführung im Hintergrund für Apps deaktivieren</translation>
 <translation id="80790299200510644">Bildersuche</translation>
 <translation id="8086881907087796310">Die Installation ist fehlgeschlagen, da dein Computer die Mindestanforderungen an die Hardware nicht erfüllt.</translation>
@@ -719,6 +734,15 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="8907580949721785412">Chromium möchte Passwörter anzeigen. Gib dein Windows-Passwort ein, um dies zuzulassen.</translation>
 <translation id="8932992523185907506">Chromium ist nicht mehr dein Standardbrowser. Chromium als Standardbrowser verwenden?</translation>
 <translation id="8941642502866065432">Chromium kann nicht aktualisiert werden</translation>
+<translation id="8944232836376404813">Durch diese Aktion werden:
+          <ph name="LINE_BREAKS" />
+            • Deine „Beim Start“-Seite, die Seite „Neuer Tab“, die Suchmaschine und angepinnte Tabs zurückgesetzt
+            <ph name="LINE_BREAK" />
+            • Erweiterungen deaktiviert
+            <ph name="LINE_BREAK" />
+            • Cookies und andere vorübergehende Websitedaten gelöscht
+            <ph name="LINE_BREAKS" />
+            Diese Aktion wirkt sich nicht auf Lesezeichen, den Verlauf und gespeicherte Passwörter aus.</translation>
 <translation id="897581876605952338">Chromium Enterprise-Logo</translation>
 <translation id="8981150672034878610">Chromium kann nicht gestartet werden, da beim Öffnen deines Profils ein Fehler aufgetreten ist. Versuche, Chromium neu zu starten.</translation>
 <translation id="8988036198400390003">Chromium-Profile verwalten</translation>

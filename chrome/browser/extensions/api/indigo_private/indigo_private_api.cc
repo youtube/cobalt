@@ -6,6 +6,7 @@
 
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/notreached.h"
 #include "chrome/browser/indigo/indigo_image_replacement.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
 #include "chrome/common/extensions/api/indigo_private.h"
@@ -28,6 +29,23 @@ indigo::IndigoImageReplacement* GetImageReplacement(
   }
 
   return manager->GetImageReplacementForFrame(*rfh);
+}
+
+api::indigo_private::ObjectFit ConvertObjectFitToApi(
+    blink::mojom::ObjectFit object_fit) {
+  switch (object_fit) {
+    case blink::mojom::ObjectFit::kFill:
+      return api::indigo_private::ObjectFit::kFill;
+    case blink::mojom::ObjectFit::kContain:
+      return api::indigo_private::ObjectFit::kContain;
+    case blink::mojom::ObjectFit::kCover:
+      return api::indigo_private::ObjectFit::kCover;
+    case blink::mojom::ObjectFit::kScaleDown:
+      return api::indigo_private::ObjectFit::kScaleDown;
+    case blink::mojom::ObjectFit::kNone:
+      return api::indigo_private::ObjectFit::kObjectFitNone;
+  }
+  NOTREACHED();
 }
 }  // namespace
 
@@ -70,6 +88,11 @@ ExtensionFunction::ResponseAction IndigoPrivateGetOriginalImageFunction::Run() {
   api::indigo_private::ImageData::Value value;
   value.as_binary = std::move(image_bytes);
   result.value = std::move(value);
+
+  auto object_fit = ConvertObjectFitToApi(replacement->object_fit());
+  CHECK_NE(object_fit, api::indigo_private::ObjectFit::kNone);
+  result.object_fit = object_fit;
+
   return RespondNow(ArgumentList(
       api::indigo_private::GetOriginalImage::Results::Create(result)));
 }

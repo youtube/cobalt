@@ -128,9 +128,6 @@ void TabModelJniBridge::Destroy(JNIEnv* env) {
 void TabModelJniBridge::AssociateWithBrowserWindow(
     JNIEnv* env,
     long native_android_browser_window) {
-  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
-    return;
-  }
   BrowserWindowInterface* android_browser_window =
       reinterpret_cast<BrowserWindowInterface*>(native_android_browser_window);
   CHECK(android_browser_window != nullptr);
@@ -142,9 +139,6 @@ void TabModelJniBridge::AssociateWithBrowserWindow(
 }
 
 void TabModelJniBridge::DissociateWithBrowserWindow(JNIEnv* env) {
-  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
-    return;
-  }
   CHECK(scoped_unowned_user_data_ != nullptr);
   scoped_unowned_user_data_.reset();
   SetSessionId(SessionID::InvalidValue());
@@ -174,9 +168,6 @@ void TabModelJniBridge::MoveTabToWindowForTesting(
     TabAndroid* tab,
     long android_browser_window_ptr,
     int new_index) {
-  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
-    return;
-  }
   SessionID destination_window_id =
       reinterpret_cast<AndroidBrowserWindow*>(android_browser_window_ptr)
           ->GetSessionID();
@@ -188,9 +179,6 @@ bool TabModelJniBridge::MoveTabGroupToWindowForTesting(
     const base::Token& group_id,
     long android_browser_window_ptr,
     int new_index) {
-  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
-    return false;
-  }
   SessionID destination_window_id =
       reinterpret_cast<AndroidBrowserWindow*>(android_browser_window_ptr)
           ->GetSessionID();
@@ -884,9 +872,6 @@ bool TabModelJniBridge::MoveTabGroupToWindow(tab_groups::TabGroupId group_id,
 
 ScopedJavaLocalRef<jobject> TabModelJniBridge::GetActivityForWindow(
     SessionID window_id) {
-  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
-    return ScopedJavaLocalRef<jobject>();
-  }
   AndroidBrowserWindow* window = GetAndroidBrowserWindow(window_id);
   if (!window) {
     return ScopedJavaLocalRef<jobject>();

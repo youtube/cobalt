@@ -42,11 +42,13 @@ bool IsCallbackFunctionRunnableInternal(
       relevant_execution_context->IsContextDestroyed()) {
     return false;
   }
-  if (relevant_execution_context->IsContextPaused()) {
-    if (ignore_pause == IgnorePause::kDontIgnore)
-      return false;
+  // When execution context is frozen, callbacks should never run.
+  // When paused, callbacks should not run except when explicitly set to ignore.
+  if (relevant_execution_context->IsContextFrozen() ||
+      (relevant_execution_context->IsContextPaused() &&
+       ignore_pause == IgnorePause::kDontIgnore)) {
+    return false;
   }
-
   // TODO(yukishiino): Callback function type value must make the incumbent
   // environment alive, i.e. the reference to v8::Context must be strong.
   v8::HandleScope handle_scope(incumbent_script_state->GetIsolate());
@@ -66,9 +68,10 @@ bool IsCallbackFunctionRunnableInternal(
       incumbent_execution_context->IsContextDestroyed()) {
     return false;
   }
-  if (incumbent_execution_context->IsContextPaused()) {
-    if (ignore_pause == IgnorePause::kDontIgnore)
-      return false;
+  if (incumbent_execution_context->IsContextFrozen() ||
+      (incumbent_execution_context->IsContextPaused() &&
+       ignore_pause == IgnorePause::kDontIgnore)) {
+    return false;
   }
   return !incumbent_script_state->World().IsMainWorld() ||
          incumbent_execution_context->CanExecuteScripts(kAboutToExecuteScript);

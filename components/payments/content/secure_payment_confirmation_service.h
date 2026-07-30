@@ -93,7 +93,7 @@ class SecurePaymentConfirmationService
   void ContinueStorePaymentCredentialAfterRpIdCheck(
       mojo::ReportBadMessageCallback bad_message_callback,
       std::vector<uint8_t> credential_id,
-      const std::string& rp_id,
+      std::string rp_id,
       std::vector<uint8_t> user_id,
       StorePaymentCredentialCallback callback,
       blink::mojom::AuthenticatorStatus rp_id_validation_result);

@@ -41,6 +41,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/test/test_history_database.h"
 #include "components/permissions/permission_manager.h"
+#include "components/permissions/permission_uma_util.h"
 #include "components/push_messaging/push_messaging_features.h"
 #include "components/push_messaging/push_messaging_utils.h"
 #include "components/variations/scoped_variations_ids_provider.h"

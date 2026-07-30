@@ -10,6 +10,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/notifier_catalogs.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/check_deref.h"

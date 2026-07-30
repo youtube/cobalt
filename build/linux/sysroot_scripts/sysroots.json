@@ -41,6 +41,12 @@
         "Tarball": "debian_bullseye_ppc64el_sysroot.tar.xz",
         "URL": "https://commondatastorage.googleapis.com/chrome-linux-sysroot"
     },
+    "bullseye_s390x": {
+        "Sha256Sum": "46d561a32665a7ef4db334d66ba10b0db7750eea3fed1fee4896c2f5c4f87167",
+        "SysrootDir": "debian_bullseye_s390x-sysroot",
+        "Tarball": "debian_bullseye_s390x_sysroot.tar.xz",
+        "URL": "https://commondatastorage.googleapis.com/chrome-linux-sysroot"
+    },
     "trixie_riscv64": {
         "Sha256Sum": "2df6a2698a25258871b45a50d8b5079947b1ad1c63920c944690dfc2a71aab51",
         "SysrootDir": "debian_trixie_riscv64-sysroot",

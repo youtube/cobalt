@@ -165,7 +165,8 @@ void ContentFaviconDriver::OnFaviconDeleted(
 
 void ContentFaviconDriver::DidUpdateFaviconURL(
     content::RenderFrameHost* rfh,
-    const std::vector<blink::mojom::FaviconURLPtr>& candidates) {
+    const std::vector<blink::mojom::FaviconURLPtr>& candidates,
+    blink::mojom::FaviconUpdateReason reason) {
   // Ignore the update if there is no last committed navigation entry. This can
   // occur when loading an initially blank page.
   content::NavigationEntry* entry =

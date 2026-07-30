@@ -98,6 +98,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
@@ -184,6 +185,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private SnackbarManager mSnackbarManager;
     @Mock private GlicKeyedService mGlicKeyedService;
     @Mock private TabBookmarker mTabBookmarker;
+    @Mock private TabObscuringHandler mTabObscuringHandler;
     @Mock private ActivityResultTracker mActivityResultTracker;
     @Mock private ActorKeyedService mActorKeyedService;
     @Mock private PrefService mPrefService;
@@ -302,7 +304,8 @@ public class StripLayoutHelperManagerTest {
                         mSnackbarManager,
                         mActivityResultTracker,
                         (preventClose, invocationSource) -> {},
-                        mSideUiStateProviderSupplier);
+                        mSideUiStateProviderSupplier,
+                        mTabObscuringHandler);
         ShadowLooper.idleMainLooper();
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);
@@ -1507,5 +1510,26 @@ public class StripLayoutHelperManagerTest {
         // Advance clock and run delayed tasks to allow TabLoadTracker's 100ms delay to expire.
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         assertFalse("Tab should stop loading after different-document stop.", stripTab.isLoading());
+    }
+
+    @Test
+    public void testUpdateObscured() {
+        List<VirtualView> views = new ArrayList<>();
+        mStripLayoutHelperManager.getVirtualViews(views);
+        assertFalse("Should have virtual views initially", views.isEmpty());
+
+        mStripLayoutHelperManager.updateObscured(
+                /* obscureTabContent= */ false, /* obscureToolbar= */ true);
+
+        views.clear();
+        mStripLayoutHelperManager.getVirtualViews(views);
+        assertTrue("Should have no virtual views when obscured", views.isEmpty());
+
+        mStripLayoutHelperManager.updateObscured(
+                /* obscureTabContent= */ false, /* obscureToolbar= */ false);
+
+        views.clear();
+        mStripLayoutHelperManager.getVirtualViews(views);
+        assertFalse("Should have virtual views again after unobscured", views.isEmpty());
     }
 }

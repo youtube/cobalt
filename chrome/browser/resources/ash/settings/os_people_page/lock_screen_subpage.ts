@@ -16,10 +16,10 @@
 
 import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/ash/common/cr_elements/cr_radio_button/cr_radio_button.js';
-import 'chrome://resources/ash/common/cr_elements/cr_radio_group/cr_radio_group.js';
 import 'chrome://resources/ash/common/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/ash/common/cr_elements/policy/cr_policy_indicator.js';
 import '../controls/settings_toggle_button.js';
+import '../controls/settings_radio_group.js';
 import './setup_pin_dialog.js';
 import './pin_autosubmit_dialog.js';
 import './local_data_recovery_dialog.js';
@@ -100,31 +100,6 @@ export class SettingsLockScreenElement extends SettingsLockScreenElementBase {
       },
 
       /**
-       * Whether notifications on the lock screen are enable by the feature
-       * flag.
-       */
-      lockScreenNotificationsEnabled_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('lockScreenNotificationsEnabled');
-        },
-        readOnly: true,
-      },
-
-      /**
-       * Whether the "hide sensitive notification" option on the lock screen can
-       * be enable by the feature flag.
-       */
-      lockScreenHideSensitiveNotificationSupported_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean(
-              'lockScreenHideSensitiveNotificationsSupported');
-        },
-        readOnly: true,
-      },
-
-      /**
        * State of the recovery toggle. Is |null| iff recovery is not a
        * available.
        */
@@ -194,6 +169,7 @@ export class SettingsLockScreenElement extends SettingsLockScreenElementBase {
     return [
       'updateRecoveryState_(authToken)',
       'updatePasswordState_(authToken)',
+      'updateCurrentUnlockMethodLabel_(authToken)',
     ];
   }
 
@@ -362,11 +338,42 @@ export class SettingsLockScreenElement extends SettingsLockScreenElementBase {
         break;
       case AuthFactor.kGaiaPassword:
       case AuthFactor.kLocalPassword:
-        this.updatePasswordState_(this.authToken);
+      case AuthFactor.kCryptohomePin:
+        this.updateCurrentUnlockMethodLabel_(this.authToken);
         break;
       default:
         break;
     }
+  }
+
+
+
+  private async updateCurrentUnlockMethodLabel_(authToken: string|undefined):
+      Promise<void> {
+    if (authToken === undefined) {
+      return;
+    }
+
+    const [
+      {configured: hasGaiaPassword},
+      {configured: hasLocalPassword},
+      {configured: hasCryptohomePin},
+      {configured: hasCryptohomePinV2},
+      numFingerprints,
+    ] = await Promise.all([
+      this.authFactorConfig.isConfigured(authToken, AuthFactor.kGaiaPassword),
+      this.authFactorConfig.isConfigured(authToken, AuthFactor.kLocalPassword),
+      this.authFactorConfig.isConfigured(authToken, AuthFactor.kCryptohomePin),
+      this.authFactorConfig.isConfigured(
+          authToken, AuthFactor.kCryptohomePinV2),
+      this.fingerprintBrowserProxy_.getNumFingerprints(),
+    ]);
+
+    const hasPassword = hasGaiaPassword || hasLocalPassword;
+    const hasPin = hasCryptohomePin || hasCryptohomePinV2;
+    const hasFingerprint = numFingerprints > 0;
+
+    this.determineUnlockType(hasPassword, hasPin, hasFingerprint);
   }
 
   /**

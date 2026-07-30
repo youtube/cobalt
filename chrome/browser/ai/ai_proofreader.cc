@@ -87,6 +87,12 @@ AIProofreader::ToProtoOptions(
   return proto_options;
 }
 
+// static
+uint32_t AIProofreader::GetInputContextLimit(
+    const blink::mojom::AIProofreaderCreateOptionsPtr& options) {
+  return blink::mojom::kTinyModelMaxInputTokenSize;
+}
+
 void AIProofreader::Proofread(
     const std::string& input,
     mojo::PendingRemote<blink::mojom::ModelStreamingResponder>
@@ -165,12 +171,12 @@ void AIProofreader::DidGetExecutionInputSizeForProofread(
     return;
   }
 
-  uint32_t quota = blink::mojom::kWritingAssistanceMaxInputTokenSize;
-  if (result.value() > quota) {
+  uint32_t context_window_size = AIProofreader::GetInputContextLimit(options_);
+  if (result.value() > context_window_size) {
     on_device_ai::SendStreamingStatus(
         responder,
         blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge,
-        blink::mojom::QuotaErrorInfo::New(result.value(), quota));
+        blink::mojom::QuotaErrorInfo::New(result.value(), context_window_size));
     return;
   }
 

@@ -225,7 +225,6 @@ public final class AwBrowserProcess {
                             /* startGpuProcess= */ false,
                             /* startMinimalBrowser= */ false,
                             /* singleProcess= */ !isMultiProcess(),
-                            /* scheduleFlushStartupTasks= */ false,
                             callback);
         }
     }

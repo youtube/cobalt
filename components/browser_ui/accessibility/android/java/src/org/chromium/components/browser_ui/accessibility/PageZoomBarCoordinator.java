@@ -8,14 +8,18 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.annotation.SuppressLint;
 import android.view.View;
-import android.view.ViewGroup.MarginLayoutParams;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 
+import org.chromium.base.Callback;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
+import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.content_public.browser.LoadCommittedDetails;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
@@ -40,14 +44,23 @@ public class PageZoomBarCoordinator {
     private final Runnable mDismissalCallback;
 
     private @Nullable View mView;
+    private final MonotonicObservableSupplier<BottomSheetController> mBottomSheetControllerSupplier;
+    private @Nullable BottomSheetController mBottomSheetController;
+    private @Nullable BottomSheetObserver mBottomSheetObserver;
+    private final Callback<BottomSheetController> mBottomSheetControllerCallback =
+            this::onBottomSheetControllerAvailable;
 
     /**
      * @param delegate Used to interact with the coordinator.
      * @param manager The manager used to interact with the zoom functionality.
      * @param useSlider Whether the page zoom UI should use the material slider.
+     * @param bottomSheetControllerSupplier Supplier for the BottomSheetController.
      */
     public PageZoomBarCoordinator(
-            PageZoomBarCoordinatorDelegate delegate, PageZoomManager manager, boolean useSlider) {
+            PageZoomBarCoordinatorDelegate delegate,
+            PageZoomManager manager,
+            boolean useSlider,
+            MonotonicObservableSupplier<BottomSheetController> bottomSheetControllerSupplier) {
         mDelegate = delegate;
         mManager = manager;
         mModel =
@@ -56,6 +69,37 @@ public class PageZoomBarCoordinator {
                         .build();
         mMediator = new PageZoomBarMediator(mModel, mManager, this::onViewInteraction);
         mDismissalCallback = () -> hide();
+
+        mBottomSheetControllerSupplier = bottomSheetControllerSupplier;
+        mBottomSheetControllerSupplier.addSyncObserverAndCallIfNonNull(
+                mBottomSheetControllerCallback);
+    }
+
+    private void onBottomSheetControllerAvailable(BottomSheetController controller) {
+        if (mBottomSheetController != null && mBottomSheetObserver != null) {
+            mBottomSheetController.removeObserver(mBottomSheetObserver);
+        }
+        mBottomSheetController = controller;
+        if (mBottomSheetController != null) {
+            if (mBottomSheetObserver == null) {
+                mBottomSheetObserver =
+                        new EmptyBottomSheetObserver() {
+                            @Override
+                            public void onSheetOpened(int reason) {
+                                hide();
+                            }
+
+                            @Override
+                            public void onSheetOffsetChanged(float heightFraction, float offsetPx) {
+                                updateTranslation();
+                            }
+                        };
+            }
+            mBottomSheetController.addObserver(mBottomSheetObserver);
+            if (mBottomSheetController.isSheetOpen()) {
+                hide();
+            }
+        }
     }
 
     /**
@@ -65,6 +109,11 @@ public class PageZoomBarCoordinator {
      */
     @SuppressLint("ClickableViewAccessibility")
     public void show(@Nullable WebContents webContents) {
+        // If a bottom sheet is currently expanded above peek, do not show the zoom bar.
+        if (mBottomSheetController != null && mBottomSheetController.isSheetOpen()) {
+            return;
+        }
+
         PageZoomUma.logAppMenuSliderOpenedHistogram();
 
         // If inflating for the first time or showing from hidden, start animation
@@ -90,8 +139,8 @@ public class PageZoomBarCoordinator {
         // Consume generic motion events so they do not fall through to the web contents behind.
         mView.setOnGenericMotionListener((v, event) -> true);
 
-        // Adjust bottom margin for any bottom controls
-        setBottomMargin(mBottomControlsOffset);
+        // Adjust translation for any bottom controls or bottom sheet
+        updateTranslation();
 
         mMediator.pushProperties();
         mWebContentsObserver =
@@ -154,13 +203,24 @@ public class PageZoomBarCoordinator {
      */
     public void onBottomControlsHeightChanged(int bottomControlsOffset) {
         mBottomControlsOffset = bottomControlsOffset;
+        updateTranslation();
+    }
 
-        // Set margin in case view is currently visible
-        setBottomMargin(mBottomControlsOffset);
+    private void updateTranslation() {
+        int sheetOffset =
+                mBottomSheetController != null ? mBottomSheetController.getCurrentOffset() : 0;
+        // The required offset to clear both the bottom controls and the bottom sheet is
+        // the maximum of the bottom controls height and the bottom sheet's current offset.
+        int totalOffset = Math.max(mBottomControlsOffset, sheetOffset);
+        setTranslation(totalOffset);
     }
 
     /** Clean-up views and children during destruction. */
     public void destroy() {
+        mBottomSheetControllerSupplier.removeObserver(mBottomSheetControllerCallback);
+        if (mBottomSheetController != null && mBottomSheetObserver != null) {
+            mBottomSheetController.removeObserver(mBottomSheetObserver);
+        }
         if (mWebContentsObserver != null) {
             mWebContentsObserver.observe(null);
         }
@@ -196,17 +256,9 @@ public class PageZoomBarCoordinator {
         return a;
     }
 
-    private void setBottomMargin(int bottomOffset) {
+    private void setTranslation(int bottomOffset) {
         if (mView != null) {
-            MarginLayoutParams layout = (MarginLayoutParams) mView.getLayoutParams();
-            layout.setMargins(
-                    layout.leftMargin,
-                    layout.topMargin,
-                    layout.rightMargin,
-                    mView.getContext()
-                                    .getResources()
-                                    .getDimensionPixelSize(R.dimen.page_zoom_view_margins)
-                            + bottomOffset);
+            mView.setTranslationY(-bottomOffset);
         }
     }
 

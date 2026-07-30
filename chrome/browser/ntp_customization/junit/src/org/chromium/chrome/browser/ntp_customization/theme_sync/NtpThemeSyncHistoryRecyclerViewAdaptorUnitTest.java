@@ -10,11 +10,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -176,7 +177,6 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testSetSelectedPosition() {
         // Initial selected position is 0.
         assertEquals(0, mAdapter.getSelectedPositionForTesting());

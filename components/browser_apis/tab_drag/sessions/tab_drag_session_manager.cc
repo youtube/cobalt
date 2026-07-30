@@ -8,8 +8,11 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
+#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
+#include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 
 namespace tabs_api {
@@ -39,7 +42,7 @@ TabDragSessionManager::StartDrag(
   }
 
   TabDragSessionParams params;
-  params.source_window = source_window;
+  params.source_window_id = source_window->GetWindowId();
   params.source_tab_ids = source_tab_ids;
   params.start_point = start_point;
   params.end_callback = base::BindOnce(&TabDragSessionManager::OnSessionEnded,
@@ -77,6 +80,10 @@ void TabDragSessionManager::DestroyActiveSession() {
 
 DropTargetRegistry& TabDragSessionManager::GetDropTargetRegistry() {
   return injector_->GetDropTargetRegistry();
+}
+
+TabDragWindowRegistry* TabDragSessionManager::GetWindowRegistry() {
+  return injector_->GetWindowRegistry();
 }
 
 }  // namespace tabs_api

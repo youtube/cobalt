@@ -32,7 +32,19 @@ the **`generalist`** sub-agent.
 >
 >    - **Unused Strings:** Are there any strings that are now unused in the
 >      code? If so, ensure that the strings have been removed along with their
->      corresponding png sha1 files if such files exist.
+>      corresponding png sha1 files if such files exist. For example, when
+>      removing the string `example_string`, which is declared in the file:
+>      `components/feature_strings.grdp` with the name `IDS_EXAMPLE_STRING`,
+>      there may be a corresponding file:
+>      `components/feature_strings_grdp/IDS_EXAMPLE_STRING.png.sha1`, which
+>      should be deleted.
+>
+>    - **Correct `BUILD.gn` dependencies:** For files that were modified such
+>      that imports were added or removed, find the corresponding `BUILD.gn`
+>      file for the modified file, and verify that no changes to the `deps` of
+>      that target need to be made. Check whether or not any `deps` can now be
+>      deleted. To verify the need for additional deps (or dependency chains
+>      that are forbidden), run the `gn check` command.
 >
 > 3. Formulate concise and constructive feedback for each identified issue.
 >    Categorize findings by severity ([Critical], [Major], [Minor]). Provide a

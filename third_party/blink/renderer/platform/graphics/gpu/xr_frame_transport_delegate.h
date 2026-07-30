@@ -30,7 +30,6 @@ class PLATFORM_EXPORT XRFrameTransportDelegate
   virtual ~XRFrameTransportDelegate() = default;
 
   virtual void WaitOnFence(gfx::GpuFence* fence) = 0;
-  virtual gpu::SyncToken GenerateSyncToken() = 0;
   virtual void VerifySyncToken(gpu::SyncToken& sync_token) = 0;
   virtual std::pair<gfx::GpuMemoryBufferHandle, gpu::SyncToken> CopyImage(
       SharedImageHolder* image,

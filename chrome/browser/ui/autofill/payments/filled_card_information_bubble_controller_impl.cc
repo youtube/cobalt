@@ -421,8 +421,7 @@ void FilledCardInformationBubbleControllerImpl::DoShowBubble() {
   BrowserWindowInterface* browser =
       GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
           web_contents());
-  SetBubbleView(*browser->GetBrowserForMigrationOnly()
-                     ->window()
+  SetBubbleView(*BrowserWindow::FromBrowser(browser)
                      ->GetAutofillBubbleHandler()
                      ->ShowFilledCardInformationBubble(web_contents(), this,
                                                        is_user_gesture_));

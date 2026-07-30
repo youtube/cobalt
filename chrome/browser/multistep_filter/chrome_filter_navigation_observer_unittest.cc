@@ -225,12 +225,10 @@ TEST_F(ChromeFilterNavigationObserverTest, DelegateOnSuggestionGenerated) {
   const GURL suggestion_url("https://suggestion.com");
   UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
       .navigation_url = suggestion_url,
-      .source_domain = base::UTF8ToUTF16(GetEtldPlusOne(suggestion_url)),
       .source_host = base::UTF8ToUTF16(suggestion_url.GetHost()),
       .extraction_timestamp = base::Time::Now(),
       .attribute_ui_labels = {},
       .triggering_navigation_id = kTestNavigationId,
-      .triggering_domain = GetEtldPlusOne(suggestion_url),
       .triggering_host = suggestion_url.GetHost(),
       .task_type = "task1"});
   EXPECT_CALL(*mock_controller,

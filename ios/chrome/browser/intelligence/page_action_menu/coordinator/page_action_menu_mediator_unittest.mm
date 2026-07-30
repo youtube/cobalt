@@ -14,6 +14,7 @@
 #import "components/search_engines/search_engines_test_environment.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/sync_preferences/pref_service_mock_factory.h"
 #import "components/sync_preferences/pref_service_syncable.h"
 #import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
@@ -34,6 +35,8 @@
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/web/model/blocked_popup_tab_helper.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -77,6 +80,8 @@ class PageActionMenuMediatorTest : public PlatformTest {
                     -> std::unique_ptr<AuthenticationServiceDelegate> {
                   return std::make_unique<FakeAuthenticationServiceDelegate>();
                 })));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.AddTestingFactory(
         ios::TemplateURLServiceFactory::GetInstance(),
         ios::TemplateURLServiceFactory::GetDefaultFactory());

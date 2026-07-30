@@ -14,7 +14,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request_enums.h"
-#include "components/permissions/permission_uma_util.h"
+#include "components/permissions/permission_uma_constants.h"
 #include "components/permissions/permissions_client.h"
 #include "components/permissions/resolvers/permission_prompt_options.h"
 

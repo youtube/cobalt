@@ -149,9 +149,10 @@ struct IndividualSettings {
   std::string blocked_install_message;
 
   // Allows admins to control whether the extension icon should be pinned to
-  // the toolbar next to the omnibar. If it is pinned, the icon is visible at
-  // all times.
-  ManagedToolbarPinMode toolbar_pin = ManagedToolbarPinMode::kDefaultUnpinned;
+  // the toolbar next to the omnibar. By default, this is kNotSet which means
+  // that the pinning behavior will be determined by the
+  // kExtensionsPinnedByDefault feature flag.
+  ManagedToolbarPinMode toolbar_pin = ManagedToolbarPinMode::kNotSet;
 
   // Boolean to indicate whether the extension can navigate to file URLs.
   bool file_url_navigation_allowed{false};

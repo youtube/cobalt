@@ -14,6 +14,7 @@
 #include "media/base/stream_parser.h"
 #include "media/base/test_data_util.h"
 #include "media/base/test_helpers.h"
+#include "media/base/video_spatial_format.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using testing::SaveArg;
@@ -243,5 +244,14 @@ TEST_F(WebMStreamParserTest, ParseVideoWithSphericalMetadata) {
 
   const auto& video_track = media_tracks_->tracks()[0];
   EXPECT_EQ(video_track->type(), MediaTrack::Type::kVideo);
+
+  const VideoDecoderConfig& video_config =
+      media_tracks_->getVideoConfig(video_track->stream_id());
+
+  EXPECT_EQ(video_config.spatial_format().stereo_mode,
+            VideoStereoMode::kSideBySideLeftFirst);
+  EXPECT_EQ(video_config.spatial_format().projection_type,
+            VideoProjectionType::kEquirect360);
 }
+
 }  // namespace media

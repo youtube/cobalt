@@ -20,6 +20,7 @@
 #include "net/base/completion_repeating_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
+#include "net/base/network_handle.h"
 #include "net/base/test_completion_callback.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
@@ -107,7 +108,12 @@ class FakeSSLClientSocketTest : public testing::Test {
 
   std::unique_ptr<net::StreamSocket> MakeClientSocket() {
     return mock_client_socket_factory_.CreateTransportClientSocket(
-        net::AddressList(), nullptr, nullptr, nullptr, net::NetLogSource());
+        net::AddressList(),
+        // This is used only for testing in scenarios that do not involve
+        // multiple networks. With that in mind, it's safe to always use the
+        // default network.
+        net::handles::kInvalidNetworkHandle, nullptr, nullptr, nullptr,
+        net::NetLogSource());
   }
 
   void SetData(const net::MockConnect& mock_connect,

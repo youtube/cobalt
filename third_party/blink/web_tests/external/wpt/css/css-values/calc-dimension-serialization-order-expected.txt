@@ -1,0 +1,45 @@
+This is a testharness.js-based test.
+[FAIL] all dimensions reverse-sorted serialize back in canonical order
+  assert_equals: expected "calc(3% + 1cap + 1ch + 1cqb + 1cqh + 1cqi + 1cqmax + 1cqmin + 1cqw + 1dvb + 1dvh + 1dvi + 1dvmax + 1dvmin + 1dvw + 1em + 1ex + 1ic + 1lh + 1lvb + 1lvh + 1lvi + 1lvmax + 1lvmin + 1lvw + 1px + 1rcap + 1rch + 1rem + 1rex + 1ric + 1rlh + 1svb + 1svh + 1svi + 1svmax + 1svmin + 1svw + 1vb + 1vh + 1vi + 1vmax + 1vmin + 1vw)" but got "calc(3% + 1cap + 1ch + 1cqb + 1cqh + 1cqi + 1cqmax + 1cqmin + 1cqw + 1em + 1ex + 1ic + 1lh + 1px + 1rcap + 1rch + 1rem + 1rex + 1ric + 1rlh + 1vh + 1vmax + 1vmin + 1vw + 1vi + 1vb + 1svw + 1svmin + 1svmax + 1svi + 1svh + 1svb + 1lvw + 1lvmin + 1lvmax + 1lvi + 1lvh + 1lvb + 1dvw + 1dvmin + 1dvmax + 1dvi + 1dvh + 1dvb)"
+[FAIL] dvh sorts after dvb
+  assert_equals: expected "calc(1dvb + 1dvh)" but got "calc(1dvh + 1dvb)"
+[FAIL] dvi sorts after dvh
+  assert_equals: expected "calc(1dvh + 1dvi)" but got "calc(1dvi + 1dvh)"
+[FAIL] dvmax sorts after dvi
+  assert_equals: expected "calc(1dvi + 1dvmax)" but got "calc(1dvmax + 1dvi)"
+[FAIL] dvmin sorts after dvmax
+  assert_equals: expected "calc(1dvmax + 1dvmin)" but got "calc(1dvmin + 1dvmax)"
+[FAIL] dvw sorts after dvmin
+  assert_equals: expected "calc(1dvmin + 1dvw)" but got "calc(1dvw + 1dvmin)"
+[FAIL] em sorts after dvw
+  assert_equals: expected "calc(1dvw + 1em)" but got "calc(1em + 1dvw)"
+[FAIL] lvh sorts after lvb
+  assert_equals: expected "calc(1lvb + 1lvh)" but got "calc(1lvh + 1lvb)"
+[FAIL] lvi sorts after lvh
+  assert_equals: expected "calc(1lvh + 1lvi)" but got "calc(1lvi + 1lvh)"
+[FAIL] lvmax sorts after lvi
+  assert_equals: expected "calc(1lvi + 1lvmax)" but got "calc(1lvmax + 1lvi)"
+[FAIL] lvmin sorts after lvmax
+  assert_equals: expected "calc(1lvmax + 1lvmin)" but got "calc(1lvmin + 1lvmax)"
+[FAIL] lvw sorts after lvmin
+  assert_equals: expected "calc(1lvmin + 1lvw)" but got "calc(1lvw + 1lvmin)"
+[FAIL] px sorts after lvw
+  assert_equals: expected "calc(1lvw + 1px)" but got "calc(1px + 1lvw)"
+[FAIL] svh sorts after svb
+  assert_equals: expected "calc(1svb + 1svh)" but got "calc(1svh + 1svb)"
+[FAIL] svi sorts after svh
+  assert_equals: expected "calc(1svh + 1svi)" but got "calc(1svi + 1svh)"
+[FAIL] svmax sorts after svi
+  assert_equals: expected "calc(1svi + 1svmax)" but got "calc(1svmax + 1svi)"
+[FAIL] svmin sorts after svmax
+  assert_equals: expected "calc(1svmax + 1svmin)" but got "calc(1svmin + 1svmax)"
+[FAIL] svw sorts after svmin
+  assert_equals: expected "calc(1svmin + 1svw)" but got "calc(1svw + 1svmin)"
+[FAIL] vb sorts after svw
+  assert_equals: expected "calc(1svw + 1vb)" but got "calc(1vb + 1svw)"
+[FAIL] vh sorts after vb
+  assert_equals: expected "calc(1vb + 1vh)" but got "calc(1vh + 1vb)"
+[FAIL] vmax sorts after vi
+  assert_equals: expected "calc(1vi + 1vmax)" but got "calc(1vmax + 1vi)"
+Harness: the test ran to completion.
+

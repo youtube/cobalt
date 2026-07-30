@@ -50,7 +50,7 @@ class WrappingTestTracker : public Tracker {
       const base::Feature& feature) override;
   bool IsInitialized() const override;
   void AddOnInitializedCallback(OnInitializedCallback callback) override;
-  const Configuration* GetConfigurationForTesting() const override;
+  const Configuration* GetConfiguration() const override;
   void SetClockForTesting(const base::Clock& clock,
                           base::Time initial_time) override;
   bool IsInFeatureTestMode() const override;

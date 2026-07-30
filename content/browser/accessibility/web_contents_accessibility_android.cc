@@ -1933,6 +1933,25 @@ void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoSelection(
       env, obj, info);
 }
 
+void WebContentsAccessibilityAndroid::
+    PopulateAccessibilityNodeInfoMathAttributes(
+        JNIEnv* env,
+        const JavaRef<jobject>& info,
+        const ScopedJavaLocalRef<jobject>& obj,
+        BrowserAccessibilityAndroid* node) {
+  CHECK(!obj.is_null());
+
+  const std::string& math_tag = node->GetMathTag();
+  if (math_tag.empty()) {
+    return;
+  }
+
+  Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoMathAttributes(
+      env, obj, info, base::android::ConvertUTF8ToJavaString(env, math_tag),
+      base::android::ConvertUTF8ToJavaString(env, node->GetMathIntent()),
+      base::android::ConvertUTF8ToJavaString(env, node->GetMathArg()));
+}
+
 ScopedJavaLocalRef<jintArray>
 WebContentsAccessibilityAndroid::GetExtendedSelection(JNIEnv* env,
                                                       int32_t unique_id) {
@@ -1999,6 +2018,9 @@ bool WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
   PopulateAccessibilityNodeInfoRangeInfo(env, info, obj, node);
   PopulateAccessibilityNodeInfoPaneTitle(env, info, obj, node);
   PopulateAccessibilityNodeInfoSelection(env, info, obj, node);
+  if (features::IsAccessibilityAndroidMathEnabled()) {
+    PopulateAccessibilityNodeInfoMathAttributes(env, info, obj, node);
+  }
   UpdateAccessibilityNodeInfoBoundsRect(env, obj, info, unique_id, node);
 
   return true;

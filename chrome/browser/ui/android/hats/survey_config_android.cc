@@ -50,19 +50,13 @@ void SurveyConfigHolder::InitJavaHolder(Profile* profile) {
             env, survey_config.product_specific_string_data_fields);
     bool juser_prompted = survey_config.user_prompted;
     double jprobability = survey_config.probability;
-    std::optional<base::TimeDelta> cooldown_period_override =
-        survey_config.GetCooldownPeriodOverride(profile);
-    int32_t jcooldown_period_override = cooldown_period_override.has_value()
-                                            ? cooldown_period_override->InDays()
-                                            : 0;
     int32_t requested_browser_type = survey_config.requested_browser_type;
     int32_t profile_age_requirement =
         static_cast<int32_t>(survey_config.profile_age_requirement);
 
     Java_SurveyConfig_addActiveSurveyConfigToHolder(
         env, jobj_, jtrigger, jtrigger_id, jprobability, juser_prompted,
-        jpsd_bits_data_fields, jpsd_string_data_fields,
-        jcooldown_period_override, requested_browser_type,
+        jpsd_bits_data_fields, jpsd_string_data_fields, requested_browser_type,
         profile_age_requirement);
   }
 }

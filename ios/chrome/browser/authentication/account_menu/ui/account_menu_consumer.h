@@ -22,7 +22,7 @@
 // Updates the primary account details.
 - (void)updatePrimaryAccount;
 
-// Called wthen the account switch starts.
+// Called when the account switch starts.
 - (void)switchingStarted;
 
 // Tells the consumer the switch is no longer in progress.

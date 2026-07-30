@@ -5,7 +5,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 
 #import "base/apple/foundation_util.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -30,8 +29,6 @@ TEST_F(TableViewTextHeaderFooterItemTest, HeaderFooterTextLabels) {
   TableViewTextHeaderFooterView* textHeaderFooter =
       base::apple::ObjCCastStrict<TableViewTextHeaderFooterView>(headerFooter);
   EXPECT_FALSE(textHeaderFooter.textLabel.text);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureHeaderFooterView:textHeaderFooter withStyler:styler];
+  [item configureHeaderFooterView:textHeaderFooter];
   EXPECT_NSEQ(text, textHeaderFooter.textLabel.text);
 }

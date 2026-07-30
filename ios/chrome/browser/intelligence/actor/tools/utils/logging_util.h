@@ -8,6 +8,7 @@
 #import <string>
 #import <vector>
 
+#import "components/actor/core/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
 #import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "url/gurl.h"
@@ -35,6 +36,18 @@ void LogToolExecutionResult(AggregatedJournal& journal,
                             std::string_view event_name,
                             const ToolExecutionResult& result,
                             std::string_view success_details_key = "details");
+
+// Starts an async event during tool execution.
+std::unique_ptr<AggregatedJournal::PendingAsyncEntry> StartAsyncJournalEntry(
+    AggregatedJournal& journal,
+    const GURL& url,
+    ActorTaskId task_id,
+    const std::string& tool_name,
+    const std::string& event_name);
+
+// Ends an async event with the given result.
+void EndAsyncJournalEntry(AggregatedJournal::PendingAsyncEntry* entry,
+                          const ToolExecutionResult& result);
 
 }  // namespace actor
 

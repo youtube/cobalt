@@ -140,6 +140,10 @@ bool MultiContentsDropTargetView::IsClosing() const {
   return animation_.IsClosing();
 }
 
+bool MultiContentsDropTargetView::IsVisibleAndNotClosing() const {
+  return GetVisible() && !IsClosing();
+}
+
 // static
 int MultiContentsDropTargetView::GetMaxSize(int web_contents_size,
                                             DropTargetState state,
@@ -259,7 +263,7 @@ void MultiContentsDropTargetView::UpdateVisibility(bool should_be_open) {
     if (should_be_open) {
       SetVisible(should_be_open);
       animation_.Show();
-    } else if (GetVisible() && !IsClosing()) {
+    } else if (IsVisibleAndNotClosing()) {
       animation_.Hide();
     }
   } else {

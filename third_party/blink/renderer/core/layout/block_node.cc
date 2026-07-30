@@ -1116,7 +1116,7 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
   return *result;
 }
 
-LayoutInputNode BlockNode::NextSibling() const {
+BlockNode BlockNode::NextBlockSibling() const {
   LayoutObject* next_sibling = box_->NextSibling();
 
   // We may have some LayoutInline(s) still within the tree (due to treating

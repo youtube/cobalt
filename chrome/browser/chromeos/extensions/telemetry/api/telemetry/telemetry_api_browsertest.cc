@@ -12,7 +12,6 @@
 #include "chrome/browser/chromeos/extensions/telemetry/api/common/base_telemetry_extension_browser_test.h"
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
 #include "chromeos/ash/components/dbus/debug_daemon/fake_debug_daemon_client.h"
-#include "chromeos/ash/components/telemetry_extension/telemetry/probe_service_ash.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/fake_cros_healthd.h"
 #include "chromeos/services/network_config/public/mojom/network_types.mojom.h"
 #include "chromeos/services/network_health/public/mojom/network_health_types.mojom.h"

@@ -5,6 +5,10 @@
 #ifndef CHROME_BROWSER_TIPS_CORE_TIPS_TYPES_H_
 #define CHROME_BROWSER_TIPS_CORE_TIPS_TYPES_H_
 
+#include <cstdint>
+#include <string>
+#include <vector>
+
 namespace tips {
 
 // The Chrome feature correlating to each tip notification.
@@ -24,6 +28,38 @@ enum class TipsNotificationsFeatureType {
   kCustomizeMVT = 7,
   kRecentTabs = 8,
   kMaxValue = kRecentTabs
+};
+
+// Types of database signals that can be queried from the segmentation database.
+enum class SignalType {
+  kUserAction,
+  kHistogramSum,
+  kHistogramEnum,
+};
+
+// Simplified representation of a database signal to query from the segmentation
+// database.
+struct SignalDefinition {
+  std::string name;
+  SignalType type;
+  int days;
+  std::vector<int32_t> enum_values;  // Only used for kHistogramEnum
+};
+
+// Ergonomic helpers to create SignalDefinition structs.
+SignalDefinition UserAction(const std::string& name, int days);
+SignalDefinition HistogramSum(const std::string& name, int days);
+SignalDefinition HistogramEnum(const std::string& name,
+                               int days,
+                               std::vector<int32_t> values);
+
+// Ranking priority of a Tips feature to resolve multiple eligible candidate
+// tips. Lower numerical values represent higher display priority.
+enum class TipFeatureRank {
+  kEnhancedSafeBrowsing = 0,
+  kQuickDelete = 1,
+  kGoogleLens = 2,
+  kBottomOmnibox = 3,
 };
 
 }  // namespace tips

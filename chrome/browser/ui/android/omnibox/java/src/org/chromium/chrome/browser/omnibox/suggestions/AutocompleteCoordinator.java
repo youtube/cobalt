@@ -254,6 +254,7 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
 
     public @Nullable OmniboxSuggestionsContainer getSuggestionsContainer() {
         if (mContainer == null) {
+            OmniboxMetrics.recordForcedSyncInflation(true);
             mViewProvider.setForceSyncInflate(true);
             mViewProvider.inflate();
         }
@@ -294,6 +295,9 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
         }
 
         private void onAsyncInflationComplete(ViewGroup container) {
+            if (!mForceSyncInflate) {
+                OmniboxMetrics.recordForcedSyncInflation(false);
+            }
             OmniboxSuggestionsContainer suggestionsContainer =
                     (OmniboxSuggestionsContainer) container;
             OmniboxSuggestionsDropdown dropdown =

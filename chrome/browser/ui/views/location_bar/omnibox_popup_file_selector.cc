@@ -100,6 +100,15 @@ std::unique_ptr<FileData> ReadFileAndProcess(const base::FilePath& local_path) {
   return file_data;
 }
 
+bool IsImageFile(const base::FilePath& path) {
+  return path.MatchesExtension(FILE_PATH_LITERAL(".png")) ||
+         path.MatchesExtension(FILE_PATH_LITERAL(".jpg")) ||
+         path.MatchesExtension(FILE_PATH_LITERAL(".jpeg")) ||
+         path.MatchesExtension(FILE_PATH_LITERAL(".webp")) ||
+         path.MatchesExtension(FILE_PATH_LITERAL(".gif")) ||
+         path.MatchesExtension(FILE_PATH_LITERAL(".bmp"));
+}
+
 }  // namespace
 
 void OmniboxPopupFileSelector::FileSelected(const ui::SelectedFileInfo& file,
@@ -135,6 +144,7 @@ void OmniboxPopupFileSelector::MultiFilesSelected(
     max_files = kDefaultMaxNumFiles;
   }
 
+  bool has_posted_tasks = false;
   for (const auto& file : files) {
     if (valid_files_count >= max_files) {
       // To trigger the limit error banner on the WebUI frontend without reading
@@ -142,15 +152,25 @@ void OmniboxPopupFileSelector::MultiFilesSelected(
       // pushes a direct validation error to SearchboxContextData.
       // The frontend immediately displays the global limit error toast and
       // deletes this dummy context silently, rendering no failed chip.
+      contextual_search::ContextUploadErrorType error_type =
+          contextual_search::ContextUploadErrorType::
+              kBrowserProcessingMaxFilesExceededError;
+      if (is_image_ || IsImageFile(file.path())) {
+        error_type = contextual_search::ContextUploadErrorType::
+            kBrowserProcessingMaxImagesExceededError;
+      } else if (file.path().MatchesExtension(FILE_PATH_LITERAL(".pdf"))) {
+        error_type = contextual_search::ContextUploadErrorType::
+            kBrowserProcessingMaxPdfsExceededError;
+      }
       UpdateSearchboxContextData(
           lens::MimeType::kUnknown, /*image_data_url=*/"",
           file.path().BaseName().AsUTF8Unsafe(),
           /*mime_string=*/"application/octet-stream",
-          base::unexpected(contextual_search::ContextUploadErrorType::
-                               kBrowserProcessingMaxFilesExceededError));
+          base::unexpected(error_type));
       break;
     }
     valid_files_count++;
+    has_posted_tasks = true;
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
         base::BindOnce(&ReadFileAndProcess, file.path()),
@@ -158,6 +178,10 @@ void OmniboxPopupFileSelector::MultiFilesSelected(
                        weak_factory_.GetWeakPtr()));
   }
   file_dialog_.reset();
+
+  if (!has_posted_tasks) {
+    edit_model_->OpenAiMode(/*via_keyboard=*/false, /*via_context_menu=*/true);
+  }
 }
 
 void OmniboxPopupFileSelector::FileSelectionCanceled() {

@@ -190,8 +190,9 @@ void AnimationTimeline::SetOutdatedAnimation(Animation* animation) {
 }
 
 void AnimationTimeline::ScheduleServiceOnNextFrame() {
-  if (document_->View())
-    document_->View()->ScheduleAnimation();
+  if (document_->View()) {
+    document_->View()->ScheduleAnimation(cc::BeginMainFrameReason::kAnimation);
+  }
 }
 
 Animation* AnimationTimeline::Play(AnimationEffect* child,

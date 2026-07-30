@@ -10,6 +10,7 @@
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
+#include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/mock_autofill_suggestion_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,7 +25,7 @@ class AtMemoryBottomSheetDelegateAndroidTest : public ::testing::Test {
 TEST_F(AtMemoryBottomSheetDelegateAndroidTest, OnDismissedHidesSuggestions) {
   testing::NiceMock<MockAutofillSuggestionDelegate> mock_suggestion_delegate;
   AtMemoryBottomSheetDelegateAndroid delegate(
-      &client_, mock_suggestion_delegate.GetWeakPtr());
+      &client_, mock_suggestion_delegate.GetWeakPtr(), /*suggestions=*/{});
   ON_CALL(mock_suggestion_delegate, GetMainFillingProduct)
       .WillByDefault(testing::Return(FillingProduct::kAtMemory));
   client_.ShowAutofillSuggestions(AutofillClient::PopupOpenArgs(),
@@ -39,11 +40,24 @@ TEST_F(AtMemoryBottomSheetDelegateAndroidTest, OnDismissedHidesSuggestions) {
 TEST_F(AtMemoryBottomSheetDelegateAndroidTest, OnQuerySubmittedCallsDelegate) {
   testing::NiceMock<MockAutofillSuggestionDelegate> mock_suggestion_delegate;
   AtMemoryBottomSheetDelegateAndroid delegate(
-      &client_, mock_suggestion_delegate.GetWeakPtr());
+      &client_, mock_suggestion_delegate.GetWeakPtr(), /*suggestions=*/{});
 
   EXPECT_CALL(mock_suggestion_delegate,
               OnSearchSubmitted(std::u16string(u"query")));
   delegate.OnQuerySubmitted(u"query");
+}
+
+TEST_F(AtMemoryBottomSheetDelegateAndroidTest,
+       OnSuggestionSelectedCallsDelegate) {
+  testing::NiceMock<MockAutofillSuggestionDelegate> mock_suggestion_delegate;
+  std::vector<Suggestion> suggestions = {
+      Suggestion(u"first", SuggestionType::kAddressEntry),
+      Suggestion(u"second", SuggestionType::kAddressEntry)};
+  AtMemoryBottomSheetDelegateAndroid delegate(
+      &client_, mock_suggestion_delegate.GetWeakPtr(), suggestions);
+
+  EXPECT_CALL(mock_suggestion_delegate, DidAcceptSuggestion);
+  delegate.OnSuggestionSelected(1);
 }
 
 }  // namespace autofill

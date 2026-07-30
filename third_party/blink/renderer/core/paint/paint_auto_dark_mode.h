@@ -42,7 +42,8 @@ class ImageClassifierHelper {
   CORE_EXPORT static DarkModeFilter::ImageType GetImageTypeForTesting(
       display::ScreenInfo& screen_info,
       const gfx::RectF& dest_rect,
-      const gfx::RectF& src_rect);
+      const gfx::RectF& src_rect,
+      float zoom = 1.0f);
 };
 
 }  // namespace blink

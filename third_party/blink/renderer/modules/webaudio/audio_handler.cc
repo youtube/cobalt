@@ -402,6 +402,31 @@ void AudioHandler::UnsilenceOutputs() {
   }
 }
 
+void AudioHandler::EnableOutputsInternal(
+    Vector<scoped_refptr<AudioHandler>>& worklist) {
+  is_disabled_ = false;
+  for (auto& output : outputs_) {
+    output->EnableAndEnqueue(worklist);
+  }
+}
+
+void AudioHandler::EnableOutputs() {
+  Vector<scoped_refptr<AudioHandler>> worklist;
+  EnableOutputsInternal(worklist);
+
+  while (!worklist.empty()) {
+    scoped_refptr<AudioHandler> handler = std::move(worklist.back());
+    worklist.pop_back();
+
+    handler->Context()->GetDeferredTaskHandler().RemoveTailProcessingHandler(
+        handler.get(), false);
+
+    if (handler->is_disabled_ && handler->connection_ref_count_ > 0) {
+      handler->EnableOutputsInternal(worklist);
+    }
+  }
+}
+
 void AudioHandler::EnableOutputsIfNecessary() {
   DCHECK(IsMainThread());
   deferred_task_handler_->AssertGraphOwner();
@@ -420,10 +445,7 @@ void AudioHandler::EnableOutputsIfNecessary() {
 #endif
 
   if (is_disabled_ && connection_ref_count_ > 0) {
-    is_disabled_ = false;
-    for (auto& output : outputs_) {
-      output->Enable();
-    }
+    EnableOutputs();
   }
 }
 
@@ -469,10 +491,35 @@ void AudioHandler::DisableOutputsIfNecessary() {
   }
 }
 
-void AudioHandler::DisableOutputs() {
+void AudioHandler::DisableOutputsInternal(
+    Vector<scoped_refptr<AudioHandler>>& worklist) {
   is_disabled_ = true;
   for (auto& output : outputs_) {
-    output->Disable();
+    output->DisableAndEnqueue(worklist);
+  }
+}
+
+void AudioHandler::DisableOutputs() {
+  Vector<scoped_refptr<AudioHandler>> worklist;
+  DisableOutputsInternal(worklist);
+
+  while (!worklist.empty()) {
+    scoped_refptr<AudioHandler> handler = std::move(worklist.back());
+    worklist.pop_back();
+
+    if (!handler->is_disabled_ && handler->connection_ref_count_ <= 1) {
+      // If a node requires tail processing, we defer the disabling of
+      // the outputs so that the tail for the node can be output.
+      // Otherwise, we can disable the outputs right away.
+      if (handler->RequiresTailProcessing()) {
+        if (handler->GetDeferredTaskHandler().AcceptsTailProcessing()) {
+          handler->GetDeferredTaskHandler().AddTailProcessingHandler(
+              std::move(handler));
+        }
+      } else {
+        handler->DisableOutputsInternal(worklist);
+      }
+    }
   }
 }
 

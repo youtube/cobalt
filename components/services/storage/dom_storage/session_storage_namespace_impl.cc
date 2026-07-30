@@ -255,6 +255,18 @@ void SessionStorageNamespaceImpl::CloneAllNamespacesWaitingForClone(
   child_namespaces_waiting_for_clone_call_.clear();
 }
 
+StorageAreaImpl* SessionStorageNamespaceImpl::GetStorageAreaForTesting(
+    const blink::StorageKey& storage_key) {
+  if (!IsPopulated()) {
+    return nullptr;
+  }
+  auto it = storage_key_areas_.find(storage_key);
+  if (it == storage_key_areas_.end()) {
+    return nullptr;
+  }
+  return it->second->data_map()->storage_area();
+}
+
 void SessionStorageNamespaceImpl::FlushAreasForTesting() {
   for (auto& area : storage_key_areas_)
     area.second->FlushForTesting();
@@ -262,31 +274,11 @@ void SessionStorageNamespaceImpl::FlushAreasForTesting() {
 
 void SessionStorageNamespaceImpl::FlushStorageKeyForTesting(
     const blink::StorageKey& storage_key) {
-  if (!IsPopulated())
-    return;
-  auto it = storage_key_areas_.find(storage_key);
-  if (it == storage_key_areas_.end())
-    return;
-  it->second->data_map()->storage_area()->ScheduleImmediateCommit();
-}
-
-void SessionStorageNamespaceImpl::PutValueForTesting(
-    const blink::StorageKey& storage_key,
-    const std::vector<uint8_t>& key,
-    const std::vector<uint8_t>& value,
-    base::OnceCallback<void(bool)> callback) {
-  if (!IsPopulated()) {
+  StorageAreaImpl* storage_area = GetStorageAreaForTesting(storage_key);
+  if (!storage_area) {
     return;
   }
-
-  auto it = storage_key_areas_.find(storage_key);
-  if (it == storage_key_areas_.end()) {
-    return;
-  }
-
-  it->second->data_map()->storage_area()->Put(
-      key, value, /*client_old_value=*/std::nullopt,
-      /*source=*/nullptr, std::move(callback));
+  storage_area->ScheduleImmediateCommit();
 }
 
 }  // namespace storage

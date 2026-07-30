@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Stack Overflow in DisableOutputs</title>
+    <script>
+      function runTest() {
+        const nodeCount = parseInt(document.getElementById("nodeCount").value);
+        const context = new AudioContext();
+        const nodes = [];
+
+        console.log(`Creating ${nodeCount} GainNodes...`);
+        for (let i = 0; i < nodeCount; i++) {
+          nodes.push(context.createGain());
+        }
+
+        console.log("Connecting nodes in a chain...");
+        for (let i = 0; i < nodeCount - 1; i++) {
+          nodes[i].connect(nodes[i + 1]);
+        }
+        nodes[nodeCount - 1].connect(context.destination);
+
+        console.log(
+            "Disconnecting the first node to trigger DisableOutputs...");
+        try {
+          // This should trigger DisableOutputs. If it is recursive, it will
+          // stack overflow. If fixed (iterative), it should succeed.
+          nodes[0].disconnect();
+          console.log("SUCCESS: Disconnected without stack overflow.");
+          document.getElementById("result").textContent =
+              "SUCCESS: Disconnected without stack overflow.";
+        } catch (e) {
+          console.error(e);
+          document.getElementById("result").textContent =
+              "FAILED: " + e.message;
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <p>
+      This test verifies that <code>AudioHandler::DisableOutputs</code> does not
+      cause a stack overflow when disabling a large graph of nodes.
+      We create a chain of GainNodes and then disconnect the first node,
+      which triggers the disabling of all downstream nodes.
+    </p>
+    <label for="nodeCount">Node Count: </label>
+    <select id="nodeCount">
+      <option value="1000">1,000</option>
+      <option value="5000">5,000</option>
+      <option value="10000">10,000</option>
+      <option value="50000" selected>50,000</option>
+      <option value="100000">100,000</option>
+      <option value="500000">500,000</option>
+    </select>
+    <br><br>
+    <button onclick="runTest()">Run Test</button>
+    <div id="result"></div>
+  </body>
+</html>

@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/views/autofill/payments/mandatory_reauth_confirmation_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/payments/mandatory_reauth_opt_in_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/payments/offer_notification_bubble_views.h"
+#include "chrome/browser/ui/views/autofill/payments/omnibox_autofill_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_bubble_views.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_manage_cards_bubble_views.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_offer_bubble_views.h"
@@ -339,6 +340,15 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveIbanConfirmationBubble(
       anchor, web_contents, std::move(callback),
       kAutofillSavePaymentsPageActionElementId,
       controller->GetConfirmationUiParams());
+}
+
+AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowOmniboxAutofillBubble(
+    content::WebContents* web_contents,
+    OmniboxAutofillBubbleController* controller) {
+  return ShowBubble<OmniboxAutofillBubbleView>(
+      toolbar_button_provider_, kActionAutofillPayment,
+      kAutofillPaymentIconElementId, /*is_user_gesture=*/true, web_contents,
+      controller);
 }
 
 AutofillBubbleBase*

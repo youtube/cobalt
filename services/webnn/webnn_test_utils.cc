@@ -104,81 +104,26 @@ void GraphInfoBuilder::BuildArgMinMax(mojom::ArgMinMax::Kind kind,
       mojom::Operation::NewArgMinMax(std::move(arg_min_max)));
 }
 
-void GraphInfoBuilder::BuildElu(OperandId input_operand_id,
-                                OperandId output_operand_id,
-                                float alpha) {
-  mojom::EluPtr elu = mojom::Elu::New();
-  elu->input_operand_id = input_operand_id;
-  elu->output_operand_id = output_operand_id;
-  elu->alpha = alpha;
-  graph_info_->operations.push_back(mojom::Operation::NewElu(std::move(elu)));
-}
-
-void GraphInfoBuilder::BuildLeakyRelu(OperandId input_operand_id,
-                                      OperandId output_operand_id,
-                                      float alpha) {
-  mojom::LeakyReluPtr leaky_relu = mojom::LeakyRelu::New();
-  leaky_relu->input_operand_id = input_operand_id;
-  leaky_relu->output_operand_id = output_operand_id;
-  leaky_relu->alpha = alpha;
-  graph_info_->operations.push_back(
-      mojom::Operation::NewLeakyRelu(std::move(leaky_relu)));
-}
-
-void GraphInfoBuilder::BuildLinear(OperandId input_operand_id,
-                                   OperandId output_operand_id,
-                                   float alpha,
-                                   float beta) {
-  mojom::LinearPtr linear = mojom::Linear::New();
-  linear->input_operand_id = input_operand_id;
-  linear->output_operand_id = output_operand_id;
-  linear->alpha = alpha;
-  linear->beta = beta;
-  graph_info_->operations.push_back(
-      mojom::Operation::NewLinear(std::move(linear)));
-}
-
-void GraphInfoBuilder::BuildPad(OperandId input_operand_id,
-                                OperandId output_operand_id,
-                                const std::vector<uint32_t>& beginning_padding,
-                                const std::vector<uint32_t>& ending_padding,
-                                mojom::PaddingMode::Tag mode,
-                                float value) {
-  mojom::PadPtr pad = mojom::Pad::New();
-  pad->input_operand_id = input_operand_id;
-  pad->output_operand_id = output_operand_id;
-  pad->beginning_padding = beginning_padding;
-  pad->ending_padding = ending_padding;
-  switch (mode) {
-    case mojom::PaddingMode::Tag::kConstant: {
-      auto constant_padding = mojom::ConstantPadding::New();
-      constant_padding->value = MLNumber::FromFloat64(value);
-      pad->mode = mojom::PaddingMode::NewConstant(std::move(constant_padding));
-      break;
-    }
-    case mojom::PaddingMode::Tag::kEdge:
-      pad->mode = mojom::PaddingMode::NewEdge(mojom::EdgePadding::New());
-      break;
-    case mojom::PaddingMode::Tag::kReflection:
-      pad->mode =
-          mojom::PaddingMode::NewReflection(mojom::ReflectionPadding::New());
-      break;
-  }
-
-  graph_info_->operations.push_back(mojom::Operation::NewPad(std::move(pad)));
-}
-
-void GraphInfoBuilder::BuildSplit(
+void GraphInfoBuilder::BuildBatchNormalization(
     OperandId input_operand_id,
-    const std::vector<OperandId>& output_operand_ids,
-    uint32_t axis) {
-  mojom::SplitPtr split = mojom::Split::New();
-  split->input_operand_id = input_operand_id;
-  split->output_operand_ids = output_operand_ids;
-  split->axis = axis;
+    OperandId mean_operand_id,
+    OperandId variance_operand_id,
+    OperandId output_operand_id,
+    const BuildBatchNormalizationAttributes& attributes) {
+  mojom::BatchNormalizationPtr batch_normalization =
+      mojom::BatchNormalization::New();
+  batch_normalization->input_operand_id = input_operand_id;
+  batch_normalization->mean_operand_id = mean_operand_id;
+  batch_normalization->variance_operand_id = variance_operand_id;
+  batch_normalization->output_operand_id = output_operand_id;
+
+  batch_normalization->scale_operand_id = attributes.scale_operand_id;
+  batch_normalization->bias_operand_id = attributes.bias_operand_id;
+  batch_normalization->axis = attributes.axis;
+  batch_normalization->epsilon = attributes.epsilon;
 
   graph_info_->operations.push_back(
-      mojom::Operation::NewSplit(std::move(split)));
+      mojom::Operation::NewBatchNormalization(std::move(batch_normalization)));
 }
 
 void GraphInfoBuilder::BuildClamp(OperandId input_operand_id,
@@ -201,6 +146,38 @@ void GraphInfoBuilder::BuildConcat(std::vector<OperandId> input_operand_ids,
   concat->axis = axis;
   graph_info_->operations.push_back(
       mojom::Operation::NewConcat(std::move(concat)));
+}
+
+void GraphInfoBuilder::BuildConv2d(mojom::Conv2d::Kind type,
+                                   OperandId input_operand_id,
+                                   OperandId filter_operand_id,
+                                   OperandId output_operand_id,
+                                   const BuildConv2dAttributes& attributes,
+                                   std::optional<OperandId> bias_operand_id) {
+  mojom::Conv2dPtr conv2d = mojom::Conv2d::New();
+  conv2d->input_operand_id = input_operand_id;
+  conv2d->filter_operand_id = filter_operand_id;
+  conv2d->output_operand_id = output_operand_id;
+
+  // Configure the attributes of conv2d.
+  conv2d->kind = type;
+  CHECK_EQ(attributes.padding.size(), 4u);
+  conv2d->padding = mojom::Padding2d::New(
+      /*beginning padding*/ mojom::Size2d::New(attributes.padding[0],
+                                               attributes.padding[2]),
+      /*ending padding*/ mojom::Size2d::New(attributes.padding[1],
+                                            attributes.padding[3]));
+  CHECK_EQ(attributes.strides.size(), 2u);
+  conv2d->strides =
+      mojom::Size2d::New(attributes.strides[0], attributes.strides[1]);
+  CHECK_EQ(attributes.dilations.size(), 2u);
+  conv2d->dilations =
+      mojom::Size2d::New(attributes.dilations[0], attributes.dilations[1]);
+  conv2d->groups = attributes.groups;
+  conv2d->bias_operand_id = bias_operand_id;
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewConv2d(std::move(conv2d)));
 }
 
 void GraphInfoBuilder::BuildCumulativeSum(OperandId input_operand_id,
@@ -249,23 +226,6 @@ void GraphInfoBuilder::BuildElementWiseBinary(
       mojom::Operation::NewElementWiseBinary(std::move(binary)));
 }
 
-void GraphInfoBuilder::BuildExpand(OperandId input_operand_id,
-                                   OperandId output_operand_id) {
-  graph_info_->operations.push_back(mojom::Operation::NewExpand(
-      mojom::Expand::New(input_operand_id, output_operand_id, "")));
-}
-
-void GraphInfoBuilder::BuildMatmul(OperandId a_operand_id,
-                                   OperandId b_operand_id,
-                                   OperandId output_operand_id) {
-  mojom::MatmulPtr matmul = mojom::Matmul::New();
-  matmul->a_operand_id = a_operand_id;
-  matmul->b_operand_id = b_operand_id;
-  matmul->output_operand_id = output_operand_id;
-  graph_info_->operations.push_back(
-      mojom::Operation::NewMatmul(std::move(matmul)));
-}
-
 void GraphInfoBuilder::BuildElementWiseUnary(mojom::ElementWiseUnary::Kind kind,
                                              OperandId input_operand,
                                              OperandId output_operand) {
@@ -275,6 +235,22 @@ void GraphInfoBuilder::BuildElementWiseUnary(mojom::ElementWiseUnary::Kind kind,
   unary->output_operand_id = output_operand;
   graph_info_->operations.push_back(
       mojom::Operation::NewElementWiseUnary(std::move(unary)));
+}
+
+void GraphInfoBuilder::BuildElu(OperandId input_operand_id,
+                                OperandId output_operand_id,
+                                float alpha) {
+  mojom::EluPtr elu = mojom::Elu::New();
+  elu->input_operand_id = input_operand_id;
+  elu->output_operand_id = output_operand_id;
+  elu->alpha = alpha;
+  graph_info_->operations.push_back(mojom::Operation::NewElu(std::move(elu)));
+}
+
+void GraphInfoBuilder::BuildExpand(OperandId input_operand_id,
+                                   OperandId output_operand_id) {
+  graph_info_->operations.push_back(mojom::Operation::NewExpand(
+      mojom::Expand::New(input_operand_id, output_operand_id, "")));
 }
 
 void GraphInfoBuilder::BuildGather(OperandId input_operand_id,
@@ -319,6 +295,69 @@ void GraphInfoBuilder::BuildGelu(OperandId input_operand_id,
   graph_info_->operations.push_back(mojom::Operation::NewGelu(std::move(gelu)));
 }
 
+void GraphInfoBuilder::BuildGemm(OperandId a_operand_id,
+                                 OperandId b_operand_id,
+                                 OperandId output_operand_id,
+                                 const BuildGemmAttributes& attributes) {
+  mojom::GemmPtr gemm = mojom::Gemm::New();
+  gemm->a_operand_id = a_operand_id;
+  gemm->b_operand_id = b_operand_id;
+  gemm->output_operand_id = output_operand_id;
+
+  gemm->c_operand_id = attributes.c_operand_id;
+  gemm->alpha = attributes.alpha;
+  gemm->beta = attributes.beta;
+  gemm->a_transpose = attributes.a_transpose;
+  gemm->b_transpose = attributes.b_transpose;
+
+  graph_info_->operations.push_back(mojom::Operation::NewGemm(std::move(gemm)));
+}
+
+void GraphInfoBuilder::BuildGru(OperandId input_operand_id,
+                                OperandId weight_operand_id,
+                                OperandId recurrent_weight_operand_id,
+                                std::vector<OperandId> output_operand_ids,
+                                uint32_t steps,
+                                uint32_t hidden_size,
+                                const BuildGruAttributes& attributes) {
+  mojom::GruPtr gru = mojom::Gru::New();
+  gru->input_operand_id = input_operand_id;
+  gru->weight_operand_id = weight_operand_id;
+  gru->recurrent_weight_operand_id = recurrent_weight_operand_id;
+  gru->output_operand_ids = std::move(output_operand_ids);
+  gru->steps = steps;
+  gru->hidden_size = hidden_size;
+
+  gru->bias_operand_id = attributes.bias_operand_id;
+  gru->recurrent_bias_operand_id = attributes.recurrent_bias_operand_id;
+  gru->initial_hidden_state_operand_id =
+      attributes.initial_hidden_state_operand_id;
+  gru->reset_after = attributes.reset_after;
+  gru->return_sequence = attributes.return_sequence;
+  gru->direction = attributes.direction;
+  gru->layout = attributes.layout;
+  gru->activations = attributes.activations;
+
+  graph_info_->operations.push_back(mojom::Operation::NewGru(std::move(gru)));
+}
+
+void GraphInfoBuilder::BuildGruCell(OperandId input_operand_id,
+                                    OperandId weight_operand_id,
+                                    OperandId recurrent_weight_operand_id,
+                                    OperandId hidden_state_operand_id,
+                                    OperandId output_operand_id,
+                                    uint32_t hidden_size,
+                                    const BuildGruCellAttributes& attributes) {
+  mojom::GruCellPtr gru_cell = mojom::GruCell::New(
+      input_operand_id, weight_operand_id, recurrent_weight_operand_id,
+      hidden_state_operand_id, hidden_size, output_operand_id,
+      attributes.bias_operand_id, attributes.recurrent_bias_operand_id,
+      attributes.reset_after, attributes.layout, attributes.activations, "");
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewGruCell(std::move(gru_cell)));
+}
+
 void GraphInfoBuilder::BuildHardSigmoid(OperandId input_operand_id,
                                         OperandId output_operand_id,
                                         std::optional<float> alpha,
@@ -343,6 +382,187 @@ void GraphInfoBuilder::BuildHardSwish(OperandId input_operand_id,
   hard_swish->output_operand_id = output_operand_id;
   graph_info_->operations.push_back(
       mojom::Operation::NewHardSwish(std::move(hard_swish)));
+}
+
+void GraphInfoBuilder::BuildInstanceNormalization(
+    OperandId input_operand_id,
+    OperandId output_operand_id,
+    const BuildInstanceNormalizationAttributes& attributes) {
+  mojom::InstanceNormalizationPtr instance_normalization =
+      mojom::InstanceNormalization::New();
+  instance_normalization->input_operand_id = input_operand_id;
+  instance_normalization->output_operand_id = output_operand_id;
+
+  instance_normalization->scale_operand_id = attributes.scale_operand_id;
+  instance_normalization->bias_operand_id = attributes.bias_operand_id;
+  instance_normalization->epsilon = attributes.epsilon;
+
+  graph_info_->operations.push_back(mojom::Operation::NewInstanceNormalization(
+      std::move(instance_normalization)));
+}
+
+void GraphInfoBuilder::BuildLayerNormalization(
+    OperandId input_operand_id,
+    OperandId output_operand_id,
+    const BuildLayerNormalizationAttributes& attributes) {
+  mojom::LayerNormalizationPtr layer_normalization =
+      mojom::LayerNormalization::New();
+  layer_normalization->input_operand_id = input_operand_id;
+  layer_normalization->output_operand_id = output_operand_id;
+
+  layer_normalization->scale_operand_id = attributes.scale_operand_id;
+  layer_normalization->bias_operand_id = attributes.bias_operand_id;
+  layer_normalization->axes = attributes.axes;
+  layer_normalization->epsilon = attributes.epsilon;
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewLayerNormalization(std::move(layer_normalization)));
+}
+
+void GraphInfoBuilder::BuildLeakyRelu(OperandId input_operand_id,
+                                      OperandId output_operand_id,
+                                      float alpha) {
+  mojom::LeakyReluPtr leaky_relu = mojom::LeakyRelu::New();
+  leaky_relu->input_operand_id = input_operand_id;
+  leaky_relu->output_operand_id = output_operand_id;
+  leaky_relu->alpha = alpha;
+  graph_info_->operations.push_back(
+      mojom::Operation::NewLeakyRelu(std::move(leaky_relu)));
+}
+
+void GraphInfoBuilder::BuildLinear(OperandId input_operand_id,
+                                   OperandId output_operand_id,
+                                   float alpha,
+                                   float beta) {
+  mojom::LinearPtr linear = mojom::Linear::New();
+  linear->input_operand_id = input_operand_id;
+  linear->output_operand_id = output_operand_id;
+  linear->alpha = alpha;
+  linear->beta = beta;
+  graph_info_->operations.push_back(
+      mojom::Operation::NewLinear(std::move(linear)));
+}
+
+void GraphInfoBuilder::BuildLstm(OperandId input_operand_id,
+                                 OperandId weight_operand_id,
+                                 OperandId recurrent_weight_operand_id,
+                                 std::vector<OperandId> output_operand_ids,
+                                 uint32_t steps,
+                                 uint32_t hidden_size,
+                                 const BuildLstmAttributes& attributes) {
+  mojom::LstmPtr lstm = mojom::Lstm::New();
+  lstm->input_operand_id = input_operand_id;
+  lstm->weight_operand_id = weight_operand_id;
+  lstm->recurrent_weight_operand_id = recurrent_weight_operand_id;
+  lstm->output_operand_ids = std::move(output_operand_ids);
+  lstm->steps = steps;
+  lstm->hidden_size = hidden_size;
+
+  lstm->bias_operand_id = attributes.bias_operand_id;
+  lstm->recurrent_bias_operand_id = attributes.recurrent_bias_operand_id;
+  lstm->peephole_weight_operand_id = attributes.peephole_weight_operand_id;
+  lstm->initial_hidden_state_operand_id =
+      attributes.initial_hidden_state_operand_id;
+  lstm->initial_cell_state_operand_id =
+      attributes.initial_cell_state_operand_id;
+  lstm->return_sequence = attributes.return_sequence;
+  lstm->direction = attributes.direction;
+  lstm->layout = attributes.layout;
+  lstm->activations = attributes.activations;
+
+  graph_info_->operations.push_back(mojom::Operation::NewLstm(std::move(lstm)));
+}
+
+void GraphInfoBuilder::BuildLstmCell(
+    OperandId input_operand_id,
+    OperandId weight_operand_id,
+    OperandId recurrent_weight_operand_id,
+    OperandId hidden_state_operand_id,
+    OperandId cell_state_operand_id,
+    std::vector<OperandId> output_operand_ids,
+    uint32_t hidden_size,
+    const BuildLstmCellAttributes& attributes) {
+  auto lstm_cell = mojom::LstmCell::New(
+      input_operand_id, weight_operand_id, recurrent_weight_operand_id,
+      hidden_state_operand_id, cell_state_operand_id,
+      std::move(output_operand_ids), hidden_size, attributes.bias_operand_id,
+      attributes.recurrent_bias_operand_id,
+      attributes.peephole_weight_operand_id, attributes.layout,
+      attributes.activations, "");
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewLstmCell(std::move(lstm_cell)));
+}
+
+void GraphInfoBuilder::BuildMatmul(OperandId a_operand_id,
+                                   OperandId b_operand_id,
+                                   OperandId output_operand_id) {
+  mojom::MatmulPtr matmul = mojom::Matmul::New();
+  matmul->a_operand_id = a_operand_id;
+  matmul->b_operand_id = b_operand_id;
+  matmul->output_operand_id = output_operand_id;
+  graph_info_->operations.push_back(
+      mojom::Operation::NewMatmul(std::move(matmul)));
+}
+
+void GraphInfoBuilder::BuildPad(OperandId input_operand_id,
+                                OperandId output_operand_id,
+                                const std::vector<uint32_t>& beginning_padding,
+                                const std::vector<uint32_t>& ending_padding,
+                                mojom::PaddingMode::Tag mode,
+                                float value) {
+  mojom::PadPtr pad = mojom::Pad::New();
+  pad->input_operand_id = input_operand_id;
+  pad->output_operand_id = output_operand_id;
+  pad->beginning_padding = beginning_padding;
+  pad->ending_padding = ending_padding;
+  switch (mode) {
+    case mojom::PaddingMode::Tag::kConstant: {
+      auto constant_padding = mojom::ConstantPadding::New();
+      constant_padding->value = MLNumber::FromFloat64(value);
+      pad->mode = mojom::PaddingMode::NewConstant(std::move(constant_padding));
+      break;
+    }
+    case mojom::PaddingMode::Tag::kEdge:
+      pad->mode = mojom::PaddingMode::NewEdge(mojom::EdgePadding::New());
+      break;
+    case mojom::PaddingMode::Tag::kReflection:
+      pad->mode =
+          mojom::PaddingMode::NewReflection(mojom::ReflectionPadding::New());
+      break;
+  }
+
+  graph_info_->operations.push_back(mojom::Operation::NewPad(std::move(pad)));
+}
+
+void GraphInfoBuilder::BuildPool2d(mojom::Pool2d::Kind kind,
+                                   OperandId input_operand_id,
+                                   OperandId output_operand_id,
+                                   const BuildPool2dAttributes& attributes) {
+  mojom::Pool2dPtr pool2d = mojom::Pool2d::New();
+  pool2d->kind = kind;
+  pool2d->input_operand_id = input_operand_id;
+  pool2d->output_operand_id = output_operand_id;
+
+  auto& window_dimensions = attributes.window_dimensions;
+  CHECK_EQ(window_dimensions.size(), 2u);
+  pool2d->window_dimensions =
+      mojom::Size2d::New(window_dimensions[0], window_dimensions[1]);
+  CHECK_EQ(attributes.padding.size(), 4u);
+  pool2d->padding = mojom::Padding2d::New(
+      /*beginning padding*/ mojom::Size2d::New(attributes.padding[0],
+                                               attributes.padding[2]),
+      /*ending padding*/ mojom::Size2d::New(attributes.padding[1],
+                                            attributes.padding[3]));
+  CHECK_EQ(attributes.strides.size(), 2u);
+  pool2d->strides =
+      mojom::Size2d::New(attributes.strides[0], attributes.strides[1]);
+  CHECK_EQ(attributes.dilations.size(), 2u);
+  pool2d->dilations =
+      mojom::Size2d::New(attributes.dilations[0], attributes.dilations[1]);
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewPool2d(std::move(pool2d)));
 }
 
 void GraphInfoBuilder::BuildPrelu(OperandId input_operand_id,
@@ -390,6 +610,23 @@ void GraphInfoBuilder::BuildRelu(OperandId input_operand_id,
   relu->input_operand_id = input_operand_id;
   relu->output_operand_id = output_operand_id;
   graph_info_->operations.push_back(mojom::Operation::NewRelu(std::move(relu)));
+}
+
+void GraphInfoBuilder::BuildResample2d(
+    OperandId input_operand_id,
+    OperandId output_operand_id,
+    const BuildResample2dAttributes& attributes) {
+  mojom::Resample2dPtr resample2d = mojom::Resample2d::New();
+  resample2d->input_operand_id = input_operand_id;
+  resample2d->output_operand_id = output_operand_id;
+  resample2d->mode = attributes.mode;
+  if (attributes.scales) {
+    resample2d->scales = attributes.scales;
+  }
+  resample2d->axes = attributes.axes;
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewResample2d(std::move(resample2d)));
 }
 
 void GraphInfoBuilder::BuildReshape(OperandId input_operand_id,
@@ -444,6 +681,23 @@ void GraphInfoBuilder::BuildSigmoid(OperandId input_operand_id,
       mojom::Operation::NewSigmoid(std::move(sigmoid)));
 }
 
+void GraphInfoBuilder::BuildSlice(OperandId input_operand_id,
+                                  OperandId output_operand_id,
+                                  base::span<const uint32_t> starts,
+                                  base::span<const uint32_t> sizes,
+                                  base::span<const uint32_t> strides) {
+  CHECK_EQ(starts.size(), sizes.size());
+  CHECK_EQ(starts.size(), strides.size());
+  mojom::SlicePtr slice = mojom::Slice::New();
+  slice->input_operand_id = input_operand_id;
+  slice->output_operand_id = output_operand_id;
+  for (size_t i = 0; i < starts.size(); ++i) {
+    slice->ranges.emplace_back(starts[i], sizes[i], strides[i]);
+  }
+  graph_info_->operations.push_back(
+      mojom::Operation::NewSlice(std::move(slice)));
+}
+
 void GraphInfoBuilder::BuildSoftmax(OperandId input_operand_id,
                                     OperandId output_operand_id,
                                     uint32_t axis) {
@@ -467,6 +721,19 @@ void GraphInfoBuilder::BuildSoftsign(OperandId input_operand_id,
   softsign->output_operand_id = output_operand_id;
   graph_info_->operations.push_back(
       mojom::Operation::NewSoftsign(std::move(softsign)));
+}
+
+void GraphInfoBuilder::BuildSplit(
+    OperandId input_operand_id,
+    const std::vector<OperandId>& output_operand_ids,
+    uint32_t axis) {
+  mojom::SplitPtr split = mojom::Split::New();
+  split->input_operand_id = input_operand_id;
+  split->output_operand_ids = output_operand_ids;
+  split->axis = axis;
+
+  graph_info_->operations.push_back(
+      mojom::Operation::NewSplit(std::move(split)));
 }
 
 void GraphInfoBuilder::BuildTanh(OperandId input_operand_id,
@@ -519,23 +786,6 @@ void GraphInfoBuilder::BuildWhere(OperandId condition_operand_id,
   where->output_operand_id = output_operand_id;
   graph_info_->operations.push_back(
       mojom::Operation::NewWhere(std::move(where)));
-}
-
-void GraphInfoBuilder::BuildSlice(OperandId input_operand_id,
-                                  OperandId output_operand_id,
-                                  base::span<const uint32_t> starts,
-                                  base::span<const uint32_t> sizes,
-                                  base::span<const uint32_t> strides) {
-  CHECK_EQ(starts.size(), sizes.size());
-  CHECK_EQ(starts.size(), strides.size());
-  mojom::SlicePtr slice = mojom::Slice::New();
-  slice->input_operand_id = input_operand_id;
-  slice->output_operand_id = output_operand_id;
-  for (size_t i = 0; i < starts.size(); ++i) {
-    slice->ranges.emplace_back(starts[i], sizes[i], strides[i]);
-  }
-  graph_info_->operations.push_back(
-      mojom::Operation::NewSlice(std::move(slice)));
 }
 
 mojom::GraphInfoPtr GraphInfoBuilder::CloneGraphInfo() const {

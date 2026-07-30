@@ -92,10 +92,8 @@ class SevenZipReaderImpl {
   Result Initialize(base::File archive_file);
   size_t num_entries() const { return db_.NumFiles; }
   base::span<uint8_t> mapped_span() {
-    if (!temp_file_mapped_)
-      return base::span<uint8_t>();
-    return base::span<uint8_t>(temp_file_mapped_->data(),
-                               temp_file_mapped_->length());
+    return temp_file_mapped_ ? temp_file_mapped_->mutable_bytes()
+                             : base::span<uint8_t>();
   }
   EntryInfo GetEntryInfo(size_t entry_index) const;
   bool IsDirectory(size_t entry_index) const;
@@ -323,8 +321,8 @@ Result SevenZipReaderImpl::ExtractFile(size_t entry_index,
 
     // Copy the range of extracted folder corresponding to `entry_index` into
     // `output`.
-    memcpy(output.data(), temp_file_mapped_->data() + file_offset_in_folder,
-           output.size());
+    output.copy_from_nonoverlapping(temp_file_mapped_->bytes().subspan(
+        file_offset_in_folder, output.size()));
   } else {
     // Extract directly into `output`.
     SRes sz_res =
@@ -523,9 +521,10 @@ Result SevenZipReaderImpl::ExtractIntoTempFile(size_t folder_index) {
     return Result::kMemoryMappingFailed;
   }
 
-  SRes sz_res = SzAr_DecodeFolder(&db_.db, folder_index, &look_stream_.vt,
-                                  db_.dataPos, temp_file_mapped_->data(),
-                                  folder_unpack_size, &alloc_temp_);
+  const base::span<uint8_t> temp_file_span = temp_file_mapped_->mutable_bytes();
+  SRes sz_res = SzAr_DecodeFolder(
+      &db_.db, folder_index, &look_stream_.vt, db_.dataPos,
+      temp_file_span.data(), temp_file_span.size(), &alloc_temp_);
 
   if (sz_res != SZ_OK) {
     temp_file_mapped_.reset();

@@ -26,6 +26,10 @@ bool FontFormatCheck::IsCbdtCblcColorFont() const {
   return font_format_check::is_cbdt_cblc(*format_info_);
 }
 
+bool FontFormatCheck::IsEbdtEblcMonochromeFont() const {
+  return font_format_check::is_ebdt_eblc(*format_info_);
+}
+
 bool FontFormatCheck::IsColrCpalColorFontV0() const {
   return font_format_check::is_colrv0(*format_info_);
 }

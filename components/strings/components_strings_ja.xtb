@@ -117,7 +117,6 @@
 <translation id="1178821169867863726">12x16 インチ</translation>
 <translation id="1181037720776840403">削除</translation>
 <translation id="1185331130467528132"><ph name="URL" /> はローカル ネットワーク上の他のデバイスへのアクセスを要求しています</translation>
-<translation id="1185343831726846924">仮想カードを有効にできないことの確認</translation>
 <translation id="1186201132766001848">パスワードを確認</translation>
 <translation id="1187430513518041110">自動車、乗り物</translation>
 <translation id="1188817995162638216">ファイルの保存をキャンセルしますか？</translation>
@@ -1262,7 +1261,6 @@
 <translation id="297173220375858963">DTP</translation>
 <translation id="2972581237482394796">やり直し(&amp;R)</translation>
 <translation id="2974468223369775963">この IBAN は Google アカウントに保存できず、代わりにこのデバイスの Chrome に保存されました。次回この IBAN を使用するときに再度確認が行われます。</translation>
-<translation id="2976162850019490782">オンにすると、より関連性の高い回答が得られるよう、このウィンドウのすべてのタブを共有します。[設定] ですべてのスレッドに対してこの機能をオンにできます。</translation>
 <translation id="297667759942911166">タブグループでの共同作業</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />が現在選択されています。<ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">オペラ</translation>
@@ -1671,7 +1669,6 @@
 <translation id="361438452008624280">リスト項目「<ph name="LANGUAGE_ID" />」: 不明またはサポートされていない言語です。</translation>
 <translation id="3614934205542186002"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" /> です。Tab、Enter キーの順に押すと、Chrome の設定で安全チェックを実行できます</translation>
 <translation id="3615309852743236517">マニキュア、ペディキュア</translation>
-<translation id="3620034424637552643">ルート案内や配達などによく使用されます</translation>
 <translation id="3620239073311576716">ユニフォーム、制服</translation>
 <translation id="3620865353340165509">この IBAN を Google ウォレットに保存できませんでした。代わりにこのデバイスの Chrome に保存されました。次回この IBAN を使用するときに再度確認が行われます。</translation>
 <translation id="3621401353678567613">追跡している商品の値下げアラートを受け取るには、設定で通知をオンにしてください。</translation>
@@ -2220,7 +2217,6 @@
 <translation id="4434045419905280838">ポップアップとリダイレクト</translation>
 <translation id="443673843213245140">プロキシの使用は無効ですが、プロキシの設定が明示的に指定されています。</translation>
 <translation id="4438821706955556403">一般的な価格</translation>
-<translation id="4439687924334332880">このスレッドに関連するタブがこのウィンドウで開いている場合、そのタブを自動的に共有することで、よりパーソナライズされた回答を得ることができます。[設定] ですべてのスレッドに対してこの機能をオンにできます。</translation>
 <translation id="4441832193888514600">ポリシーは、クラウド ユーザー ポリシーとしてのみ設定可能なため無視されました。</translation>
 <translation id="4444062564459679679"><ph name="DEVICE_NAME" /> の Chrome にすでに送信されています</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" /> です。Enter キーを押すと、タブを検索します</translation>
@@ -2354,6 +2350,7 @@
 <translation id="4691093235373904540">屋根材、ルーフ修理</translation>
 <translation id="4692623383562244444">検索エンジン</translation>
 <translation id="4695702626068620848"><ph name="KEYWORD" /> - <ph name="KEYWORD_SHORT_NAME" /> に質問</translation>
+<translation id="4697071790493980729">一致する検索結果は見つかりませんでした</translation>
 <translation id="4698308118265482293">パスポート情報を更新</translation>
 <translation id="4698692901173737941">格闘技</translation>
 <translation id="4701488924964507374"><ph name="SENTENCE1" /> <ph name="SENTENCE2" /></translation>
@@ -2701,7 +2698,6 @@
 <translation id="5238301240406177137">アカウントに保存</translation>
 <translation id="5239119062986868403">一般的な価格</translation>
 <translation id="5239623327352565343">位置情報が許可されています</translation>
-<translation id="5241048084654737238">カード情報を保存できないことの確認</translation>
 <translation id="5242610955375133957">ドライフィルム</translation>
 <translation id="5243004157379865295">住所を更新</translation>
 <translation id="5244521145258281926">[Google アカウントを管理] ボタンです。実行すると、Google アカウントで情報、プライバシー、セキュリティを管理できます</translation>
@@ -3357,6 +3353,7 @@
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> 日前</translation>
 <translation id="6246382863801034910">車両情報</translation>
 <translation id="6246868321321344665">仕事用プロファイルと個人用プロファイルの両方の閲覧データ（パスワードや履歴など）が組織によって確認される可能性があります</translation>
+<translation id="6248479108671123143"><ph name="MEMBER_FIRST_NAME" /> さんがこのタブ「<ph name="TAB_TITLE" />」を変更しました</translation>
 <translation id="6248988683584659830">設定項目を検索</translation>
 <translation id="6250932670816326647">バス、ボディ商品</translation>
 <translation id="6251906504834538140">{0,plural, =1{ファイルの移動がブロックされています}other{<ph name="FILE_COUNT" /> 個のファイルの移動がブロックされています}}</translation>
@@ -3713,6 +3710,7 @@
 <translation id="6798066466127540426">このリストには有効な検索プロバイダが含まれていません。</translation>
 <translation id="6798460514924505775">長形 3 号封筒</translation>
 <translation id="6799145206637008376">この仮想カードの CVC を入力してください</translation>
+<translation id="6800773453940486492"><ph name="MEMBER_FIRST_NAME" /> さんがこのタブ「<ph name="TAB_TITLE" />」を追加しました</translation>
 <translation id="6801920212017470190">外出先で値下げ情報をチェックできます</translation>
 <translation id="6805030849054648206">B6/C4 封筒</translation>
 <translation id="6807791860691150411">教育</translation>
@@ -4716,6 +4714,7 @@
 <translation id="8351131234907093545">メモを作成</translation>
 <translation id="8352849934814541340">このデバイスの管理者によって、機能を追加するアプリケーションがインストールされました。このアプリケーションでは、ユーザーデータの一部にアクセスする場合があります。</translation>
 <translation id="8355270400102541638">ローカル クラッシュ コンテキスト:</translation>
+<translation id="8362914115861174987">訳文の言語</translation>
 <translation id="8363502534493474904">機内モードをオフにする</translation>
 <translation id="8363929499301563123">ウェブサイト Cookie（最近アクセスしたウェブサイトのログイン状態が保持されます）</translation>
 <translation id="8364627913115013041">未設定</translation>
@@ -4735,7 +4734,6 @@
 <translation id="8381674639488873545">料金の請求は 1 回限りの場合も繰り返し行われる場合もあり、課金されたかどうかわからないこともあります。<ph name="BEGIN_LINK" />理解したうえで表示する<ph name="END_LINK" /></translation>
 <translation id="8382097126743287270">自動全画面表示</translation>
 <translation id="838307841291975086">ステーション ワゴン</translation>
-<translation id="838953173259347825">このスレッドに関連するタブがこのウィンドウで開いている場合、そのタブを自動的に共有することで、よりパーソナライズされた回答を得ることができます。すべてのスレッドに対してこの機能をオンにできます。</translation>
 <translation id="8389532092404711541">一般的な価格: <ph name="LOW_PRICE" /></translation>
 <translation id="8389940864052787379">カスタムカー、高性能車</translation>
 <translation id="8390725133630534698"><ph name="ORIGIN_NAME" /> から <ph name="VM_NAME" /> への貼り付けは管理者が設定したポリシーによってブロックされています</translation>
@@ -4902,6 +4900,7 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" /> の値がサイズ要件を満たしていません。</translation>
 <translation id="867224526087042813">署名</translation>
 <translation id="8672535691554698269">コンピュータ ネットワーク</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{タブ共有の詳細を表示します。{WEBSITE_LIST_STR} から 1 個のタブを共有しています}other{タブ共有の詳細を表示します。{WEBSITE_LIST_STR} から {NUM_TABS} 個のタブを共有しています}}</translation>
 <translation id="8675446170353411473">ファイルを <ph name="CLOUD_PROVIDER" /> にアップロードしています</translation>
 <translation id="8676424191133491403">今すぐ</translation>
 <translation id="8680536109547170164">「<ph name="QUERY" />」に対する答え: 「<ph name="ANSWER" />」</translation>
@@ -5155,7 +5154,6 @@
 <translation id="9090243919347147717">添付ファイル</translation>
 <translation id="9090548458280093580">AI を活用して履歴を検索する</translation>
 <translation id="9090993752571911635">インターネット サービス プロバイダ（ISP）</translation>
-<translation id="9092305980625216393">天気情報やローカル ニュースなどによく使用されます</translation>
 <translation id="9093723786115107672">ナイトウェア</translation>
 <translation id="9094424186948667194">このデバイス上の他のアプリやサービスにアクセスする</translation>
 <translation id="9094544726794842788">低く評価すると、これらの結果が気に入らなかった理由について詳細なフィードバックを送信するためのフォームが開きます</translation>
@@ -5280,7 +5278,6 @@
 <translation id="964050462028070434">パスワードとパスキーを管理...</translation>
 <translation id="964681140808832181">はい、キャンセルします</translation>
 <translation id="969892804517981540">公式ビルド</translation>
-<translation id="970182982363142444">オンにすると、より関連性の高い回答が得られるよう、このウィンドウのすべてのタブを共有します。すべてのチャットに対してこの機能をオンにできます。</translation>
 <translation id="97054401902912338">コンテンツ フィルタの詳細</translation>
 <translation id="973788791897303708">このタブグループのユーザーは上限に達しました</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{なし}=1{1 件のアイテム}other{# 件のアイテム}}</translation>

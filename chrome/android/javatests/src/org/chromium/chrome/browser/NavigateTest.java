@@ -131,7 +131,7 @@ public class NavigateTest {
     private String typeInOmniboxAndNavigate(final String url, final String expectedTitle)
             throws Exception {
         mOmnibox.requestFocus();
-        mOmnibox.typeText(url, false);
+        mOmnibox.setText(url);
         mOmnibox.checkSuggestionsShown();
 
         // Loads the url.
@@ -188,6 +188,7 @@ public class NavigateTest {
     @Test
     @MediumTest
     @Feature({"Navigation"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/526803990
     public void testNavigateLandscape() throws Exception {
         mActivityTestRule
                 .getActivity()
@@ -421,6 +422,7 @@ public class NavigateTest {
     @Test
     @MediumTest
     @Feature({"Navigation"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/526803990
     public void testNavigateRedirect() throws Exception {
         final String initialUrl =
                 mTestServer.getURL("/chrome/test/data/android/redirect/about.html");
@@ -444,6 +446,7 @@ public class NavigateTest {
     @Test
     @MediumTest
     @Feature({"Navigation"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/526803990
     public void testIntentFallbackRedirection() throws Exception {
         final String fallbackUrl =
                 mTestServer.getURL("/chrome/test/data/android/redirect/about.html");
@@ -511,6 +514,7 @@ public class NavigateTest {
     @Restriction(DeviceFormFactor.PHONE)
     @MediumTest
     @Feature({"Navigation"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/526803990
     public void testNavigateBack() throws Exception {
         final String[] urls = {
             mTestServer.getURL("/chrome/test/data/android/navigate/one.html"),

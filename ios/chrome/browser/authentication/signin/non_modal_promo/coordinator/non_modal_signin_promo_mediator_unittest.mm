@@ -10,6 +10,7 @@
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/test/mock_tracker.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/authentication/signin/non_modal_promo/coordinator/non_modal_signin_promo_types.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -21,6 +22,8 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -115,6 +118,8 @@ class NonModalSignInPromoMediatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
 
     builder.AddTestingFactory(
         feature_engagement::TrackerFactory::GetInstance(),

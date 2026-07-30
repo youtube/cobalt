@@ -1273,6 +1273,39 @@ TEST_F(AISummarizerManifestTest, SummarizeWithSpeedPreferenceAndContextFails) {
             blink::mojom::ModelStreamingResponseStatus::kErrorInvalidRequest);
 }
 
+TEST_F(AISummarizerManifestTest, InputLimitExceededErrorSpeedPreference) {
+  auto options = GetDefaultOptions();
+  options->preference = blink::mojom::PerformancePreference::kSpeed;
+  options->output_language = blink::mojom::AILanguageCode::New("en");
+
+  fake_manifest_broker_->client().RequestAssetsFor(
+      "summarizer_small_expert_model");
+
+  TestCreateSummarizerClient summarizer_client;
+  GetAIManagerRemote()->CreateSummarizer(
+      summarizer_client.BindNewPipeAndPassRemote(), std::move(options),
+      /*monitor=*/mojo::NullRemote());
+
+  auto result = summarizer_client.result().Take();
+  ASSERT_TRUE(result.has_value());
+
+  mojo::Remote<blink::mojom::AISummarizer> summarizer_remote(
+      std::move(result.value()));
+
+  fake_manifest_broker_->settings().set_size_in_tokens(
+      blink::mojom::kTinyModelMaxInputTokenSize + 1);
+
+  AITestUtils::TestStreamingResponder responder;
+  summarizer_remote->Summarize("input", "", responder.BindRemote());
+  EXPECT_FALSE(responder.WaitForCompletion());
+  EXPECT_EQ(responder.error_status(),
+            blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
+  ASSERT_EQ(responder.quota_error_info().requested,
+            blink::mojom::kTinyModelMaxInputTokenSize + 1);
+  ASSERT_EQ(responder.quota_error_info().quota,
+            blink::mojom::kTinyModelMaxInputTokenSize);
+}
+
 TEST_F(AISummarizerManifestTest, CanCreateAndCreateWithManifestGemma4) {
   version_info::Channel channel = chrome::GetChannel();
   if (channel != version_info::Channel::CANARY &&

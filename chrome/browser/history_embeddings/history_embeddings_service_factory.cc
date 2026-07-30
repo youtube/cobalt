@@ -27,6 +27,7 @@
 #include "components/history_embeddings/core/mock_answerer.h"
 #include "components/history_embeddings/core/mock_intent_classifier.h"
 #include "components/keyed_service/core/service_access_type.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -144,7 +145,7 @@ HistoryEmbeddingsServiceFactory::BuildServiceInstanceForBrowserContext(
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
 
   auto* passage_embeddings_service_controller =
-      passage_embeddings::ChromePassageEmbeddingsServiceController::Get();
+      passage_embeddings::GetChromePassageEmbeddingsServiceController();
 
   std::unique_ptr<history_embeddings::Answerer> answerer;
   if (history_embeddings::IsHistoryEmbeddingsAnswersFeatureEnabled()) {

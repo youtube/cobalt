@@ -63,6 +63,7 @@ source_set("glic") {
     "public/glic_passkeys.h",
     "public/glic_side_panel_coordinator.cc",
     "public/glic_side_panel_coordinator.h",
+    "public/service/glic_instance_coordinator.h",
     "service/glic_instance_helper.h",
     "service/metrics/metrics_types.cc",
     "service/metrics/metrics_types.h",
@@ -147,6 +148,7 @@ source_set("glic") {
       ":actor_types_for_migration",
       "//chrome/browser/android:tabs_public",
       "//chrome/browser/context_sharing/tab_bottom_sheet/android",
+      "//chrome/browser/glic/android:jni_headers",
     ]
   }
 
@@ -306,6 +308,8 @@ source_set("impl") {
     "glic_zero_state_suggestions_manager.cc",
     "host/auth_controller.cc",
     "host/auth_controller.h",
+    "host/context/favicon_impl/glic_tab_favicon_adapter.cc",
+    "host/context/favicon_impl/glic_tab_favicon_adapter.h",
     "host/context/glic_active_instance_sharing_manager.cc",
     "host/context/glic_active_instance_sharing_manager.h",
     "host/context/glic_active_pinned_focused_tab_manager.cc",
@@ -421,7 +425,6 @@ source_set("impl") {
     "//chrome/browser/tab_list",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui:layout_constants",
-    "//chrome/browser/ui:tab_search_feature",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/color:color_headers",
@@ -485,6 +488,8 @@ source_set("impl") {
       "gemini_spark_settings_policy_handler.cc",
       "glic_selection_observer.cc",
       "glic_settings_util_desktop.cc",
+      "host/context/favicon_impl/glic_tab_favicon_adapter_desktop.cc",
+      "host/context/favicon_impl/glic_tab_favicon_adapter_desktop.h",
       "host/context/glic_focused_browser_manager_impl.cc",
       "host/context/glic_focused_browser_manager_impl.h",
       "host/context/glic_focused_tab_manager.cc",
@@ -536,6 +541,8 @@ source_set("impl") {
   } else {  # is_android
     sources += [
       "glic_settings_util_android.cc",
+      "host/context/favicon_impl/glic_tab_favicon_adapter_android.cc",
+      "host/context/favicon_impl/glic_tab_favicon_adapter_android.h",
       "widget/glic_floating_ui_android.cc",
       "widget/glic_floating_ui_android.h",
       "widget/glic_inactive_side_panel_ui_android.cc",
@@ -554,6 +561,7 @@ source_set("impl") {
       "//chrome/browser/ui/side_panel",
       "//chrome/browser/ui/side_panel:side_panel_ui_provider",
       "//chrome/browser/ui/side_panel/android",
+      "//components/password_manager/core/browser/features:password_features",
       "//ui/android",
     ]
   }
@@ -809,7 +817,9 @@ source_set("browser_tests") {
       ":impl",
       "//base/test:test_support",
       "//chrome/browser:browser_process",
+      "//chrome/browser:chrome_browser_main",
       "//chrome/browser:global_features",
+      "//chrome/browser:main_extra_parts",
       "//chrome/browser/actor:test_support",
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:test_support",

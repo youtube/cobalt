@@ -5,8 +5,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_header_footer_item.h"
 
 #import "base/check.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
-
 @implementation TableViewHeaderFooterItem
 
 - (instancetype)initWithType:(NSInteger)type {
@@ -16,8 +14,7 @@
   return self;
 }
 
-- (void)configureHeaderFooterView:(UITableViewHeaderFooterView*)headerFooter
-                       withStyler:(ChromeTableViewStyler*)styler {
+- (void)configureHeaderFooterView:(UITableViewHeaderFooterView*)headerFooter {
   DCHECK([headerFooter class] == self.cellClass);
   headerFooter.accessibilityTraits = self.accessibilityTraits;
   headerFooter.accessibilityIdentifier = self.accessibilityIdentifier;

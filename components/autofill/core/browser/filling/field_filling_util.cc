@@ -260,7 +260,8 @@ std::u16string GetObfuscatedValue(const std::u16string& value,
   //  - \u2060 - WORD-JOINER (makes obfuscated string indivisible).
   static constexpr char16_t kDot[] = u"\u2022\u2060\u2006\u2060";
 
-  if (!base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses)) {
+  if (!base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses) &&
+      !base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill)) {
     // This is only an approximation of the number of the actual unicode
     // characters - if we want to match the length exactly, we would need to use
     // `base::CountUnicodeCharacters`.

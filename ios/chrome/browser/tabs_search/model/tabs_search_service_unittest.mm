@@ -11,6 +11,7 @@
 #import "base/memory/raw_ptr.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/sessions/core/tab_restore_service_impl.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
 #import "ios/chrome/browser/sessions/model/ios_chrome_tab_restore_browser_agent.h"
 #import "ios/chrome/browser/sessions/model/ios_chrome_tab_restore_service_factory.h"
@@ -21,6 +22,8 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/tabs_search/model/tabs_search_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
@@ -60,6 +63,9 @@ class TabsSearchServiceTest : public PlatformTest {
     test_profile_builder.AddTestingFactory(
         IOSChromeTabRestoreServiceFactory::GetInstance(),
         IOSChromeTabRestoreServiceFactory::GetDefaultFactory());
+    test_profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(&CreateTestSyncService));
     test_profile_builder.AddTestingFactory(
         ios::HistoryServiceFactory::GetInstance(),
         ios::HistoryServiceFactory::GetDefaultFactory());

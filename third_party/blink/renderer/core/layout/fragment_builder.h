@@ -183,6 +183,11 @@ class CORE_EXPORT FragmentBuilder {
                     const PhysicalFragment& new_child,
                     const LogicalOffset offset);
 
+  void SetChildOffset(wtf_size_t index, const LogicalOffset offset) {
+    DCHECK_LT(index, children_.size());
+    children_[index].offset = offset;
+  }
+
   const ChildrenVector& Children() const { return children_; }
 
   // True if |this| has |FragmentItemsBuilder|; i.e., if |this| is an inline

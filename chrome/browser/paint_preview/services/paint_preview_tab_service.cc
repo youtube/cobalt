@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/callback.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -59,6 +60,9 @@ int TabIdFromDirectoryKey(const DirectoryKey& key) {
   return out;
 }
 
+constexpr base::MemoryConsumerTraits kPaintPreviewTabServiceTraits(
+    base::MemoryConsumerTraits::ConsumerType::kPassive);
+
 }  // namespace
 
 PaintPreviewTabService::TabServiceTask::TabServiceTask(
@@ -91,7 +95,7 @@ PaintPreviewTabService::PaintPreviewTabService(
       cache_ready_(false),
       memory_consumer_registration_(
           /*consumer_name=*/"PaintPreviewTabService",
-          /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
+          kPaintPreviewTabServiceTraits,
           this,
           base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
           base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {

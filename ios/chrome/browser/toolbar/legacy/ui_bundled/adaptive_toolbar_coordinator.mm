@@ -261,10 +261,7 @@ using tab_groups::VersioningMessageController;
   LegacyToolbarButtonFactory* buttonFactory =
       [[LegacyToolbarButtonFactory alloc] initWithStyle:style];
   buttonFactory.actionHandler = actionHandler;
-  if (IsGeminiCopresenceEnabled()) {
-    buttonFactory.geminiHandler =
-        HandlerForProtocol(dispatcher, GeminiCommands);
-  }
+  buttonFactory.geminiHandler = HandlerForProtocol(dispatcher, GeminiCommands);
   buttonFactory.visibilityConfiguration =
       [[ToolbarButtonVisibilityConfiguration alloc] initWithType:type];
 

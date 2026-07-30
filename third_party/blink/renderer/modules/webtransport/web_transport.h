@@ -98,8 +98,20 @@ class MODULES_EXPORT WebTransport final
   const String& protocol();
   WebTransportSendGroup* createSendGroup(ExceptionState&);
   V8WebTransportCongestionControl congestionControl() const;
+  std::optional<uint16_t> anticipatedConcurrentIncomingUnidirectionalStreams()
+      const;
+  void setAnticipatedConcurrentIncomingUnidirectionalStreams(
+      std::optional<uint16_t> value);
+  std::optional<uint16_t> anticipatedConcurrentIncomingBidirectionalStreams()
+      const;
+  void setAnticipatedConcurrentIncomingBidirectionalStreams(
+      std::optional<uint16_t> value);
 
   void SetNextSendGroupIdForTesting(uint32_t id) { next_send_group_id_ = id; }
+
+  // Flushes the connector_ Mojo remote so a pending Connect() call is
+  // delivered to the bound receiver. Used by tests that inspect Connect args.
+  void FlushConnectorForTesting() { connector_.FlushForTesting(); }
 
   // WebTransportHandshakeClient implementation
   void OnBeforeConnect(const net::IPEndPoint& server_address) override;
@@ -258,6 +270,11 @@ class MODULES_EXPORT WebTransport final
 
   V8WebTransportCongestionControl congestion_control_{
       V8WebTransportCongestionControl::Enum::kDefault};
+
+  std::optional<uint16_t>
+      anticipated_concurrent_incoming_unidirectional_streams_;
+  std::optional<uint16_t>
+      anticipated_concurrent_incoming_bidirectional_streams_;
 
   // Map from stream_id to IncomingStream.
   // Intentionally keeps streams reachable by GC as long as they are open.

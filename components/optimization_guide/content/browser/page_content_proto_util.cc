@@ -318,6 +318,10 @@ optimization_guide::proto::ContentAttributeType ConvertAttributeType(
       return optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_CELL;
     case blink::mojom::AIPageContentAttributeType::kListItem:
       return optimization_guide::proto::CONTENT_ATTRIBUTE_LIST_ITEM;
+    case blink::mojom::AIPageContentAttributeType::kDialogModal:
+      return optimization_guide::proto::CONTENT_ATTRIBUTE_DIALOG_MODAL;
+    case blink::mojom::AIPageContentAttributeType::kDialogModeless:
+      return optimization_guide::proto::CONTENT_ATTRIBUTE_DIALOG_MODELESS;
   }
   NOTREACHED();
 }

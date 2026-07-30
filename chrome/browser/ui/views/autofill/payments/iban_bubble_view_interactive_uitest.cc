@@ -54,6 +54,7 @@
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/test/test_widget_observer.h"
+#include "ui/views/test/views_test_utils.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -425,6 +426,10 @@ class IbanBubbleViewFullFormBrowserTest
 
   void ClickOnView(views::View* view) {
     CHECK(view);
+    if (view->GetWidget()) {
+      // Force a layout to ensure the view's bounds are updated before clicking.
+      views::test::RunScheduledLayout(view->GetWidget());
+    }
     ui::MouseEvent pressed(ui::EventType::kMousePressed, gfx::Point(),
                            gfx::Point(), ui::EventTimeForNow(),
                            ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON);

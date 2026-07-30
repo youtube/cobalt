@@ -6,7 +6,6 @@
 #define IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_COORDINATOR_H_
 
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
-#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_configuring.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
 namespace web {
@@ -18,8 +17,7 @@ class WebState;
 @protocol NewTabPageControllerDelegate;
 @protocol PromosManagerUIHandler;
 
-// Coordinator handling the NTP.
-@interface NewTabPageCoordinator : ChromeCoordinator <NewTabPageConfiguring>
+@interface NewTabPageCoordinator : ChromeCoordinator
 
 // Initializes this coordinator with its `browser`, a nil base view
 // controller, and the given `componentFactory`.
@@ -78,8 +76,6 @@ class WebState;
 // Tell location bar has taken focus.
 - (void)locationBarDidBecomeFirstResponder;
 
-// Constrains the named layout guide for the feed IPH.
-- (void)constrainNamedGuideForFeedIPH;
 
 // Called when the feed has completed layout updates of type
 // `updateType`.

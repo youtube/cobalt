@@ -43,7 +43,6 @@ export class OmniboxAimAppElement extends CrLitElement {
 
   static override get properties() {
     return {
-      composeboxForkEnabled_: {type: Boolean},
       searchboxLayoutMode_: {type: String},
       hasAllowedInputs_: {type: Boolean},
       caretAnimationsEnabled_: {type: Boolean},
@@ -65,8 +64,6 @@ export class OmniboxAimAppElement extends CrLitElement {
     };
   }
 
-  protected accessor composeboxForkEnabled_: boolean =
-      loadTimeData.getBoolean('composeboxForkEnabled');
   protected accessor searchboxLayoutMode_: string =
       loadTimeData.getString('searchboxLayoutMode');
   protected accessor hasAllowedInputs_: boolean = false;

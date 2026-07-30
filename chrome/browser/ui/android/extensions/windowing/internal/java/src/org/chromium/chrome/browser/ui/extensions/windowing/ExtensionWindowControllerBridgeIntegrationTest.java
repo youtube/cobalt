@@ -711,8 +711,6 @@ public class ExtensionWindowControllerBridgeIntegrationTest {
         return ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
-                    assertNotNull(chromeAndroidTaskTracker);
-
                     return chromeAndroidTaskTracker.get(taskId);
                 });
     }

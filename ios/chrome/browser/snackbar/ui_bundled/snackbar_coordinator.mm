@@ -43,10 +43,8 @@
   self = [super initWithBaseViewController:baseViewController browser:browser];
   if (self) {
     _delegate = delegate;
-    if (IsGeminiCopresenceEnabled()) {
-      _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
-                                          GeminiCommands);
-    }
+    _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                                        GeminiCommands);
   }
   return self;
 }
@@ -169,22 +167,11 @@
     _snackbarView.message.completionHandler(NO);
   }
 
-  __weak id<GeminiCommands> weakGeminiHandler = _geminiHandler;
-  [_snackbarView
-      dismissAnimated:animated
-           completion:^() {
-             if ([weakGeminiHandler
-                     respondsToSelector:@selector
-                     (updateFloatyVisibilityIfEligibleAnimated:fromSource:)]) {
-               [weakGeminiHandler
-                   updateFloatyVisibilityIfEligibleAnimated:NO
-                                                 fromSource:
-                                                     gemini::
-                                                         FloatyUpdateSource::
-                                                             Snackbar];
-             }
-           }];
-  [_overlay_window deactivateOverlay:_snackbarView];
+  __weak __typeof(self) weakSelf = self;
+  [_snackbarView dismissAnimated:animated
+                      completion:^() {
+                        [weakSelf didCompleteDismissalForSnackbar:snackbarView];
+                      }];
   _snackbarView.delegate = nil;
   _snackbarView = nil;
 }
@@ -216,6 +203,19 @@
 }
 
 #pragma mark - Private
+
+// Called when a snackbar finishes its dismiss animation.
+- (void)didCompleteDismissalForSnackbar:(SnackbarView*)snackbarView {
+  [_overlay_window deactivateOverlay:snackbarView];
+  if ([_geminiHandler
+          respondsToSelector:@selector(updateFloatyVisibilityIfEligibleAnimated:
+                                       fromSource:)]) {
+    [_geminiHandler
+        updateFloatyVisibilityIfEligibleAnimated:NO
+                                      fromSource:gemini::FloatyUpdateSource::
+                                                     Snackbar];
+  }
+}
 
 // Dismisses any currently visible snackbar, then creates, configures and
 // presents a new `SnackbarView`, hiding the Gemini floaty by default.

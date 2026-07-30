@@ -353,7 +353,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeUIControllerBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeUIControllerBrowserTest,
-                       PageIsInteractableWhileToastIsShowing) {
+                       DISABLED_PageIsInteractableWhileToastIsShowing) {
   // Navigate to a simple page with an input field.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<input id='test_input'>")));

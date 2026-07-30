@@ -104,7 +104,7 @@ public final class FullscreenSigninPromoLauncher {
             SigninAndHistorySyncActivityLauncher signinAndHistorySyncActivityLauncher,
             @SigninAccessPoint int accessPoint) {
         FullscreenSigninAndHistorySyncConfig config =
-                new FullscreenSigninAndHistorySyncConfig.Builder(
+                FullscreenSigninAndHistorySyncConfig.builder(
                                 context.getString(R.string.signin_fre_title),
                                 context.getString(R.string.signin_fre_subtitle),
                                 context.getString(R.string.signin_fre_stay_signed_out_button),

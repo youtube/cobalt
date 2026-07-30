@@ -38,7 +38,6 @@ import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoor
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinatorSupplier;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinatorSupplier.SupplierFlow;
 import org.chromium.chrome.browser.ui.signin.FullscreenSigninAndHistorySyncConfig;
-import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncCoordinator;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetCoordinator;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
@@ -556,7 +555,7 @@ final class SigninBridge {
 
         static FullscreenSigninAndHistorySyncConfig signinConfig(
                 Context context, String targetEmail) {
-            return new FullscreenSigninAndHistorySyncConfig.Builder(
+            return FullscreenSigninAndHistorySyncConfig.builder(
                             context.getString(R.string.signin_deep_link_flow_signin_title),
                             context.getString(R.string.signin_deep_link_flow_signin_subtitle),
                             context.getString(R.string.signin_deep_link_flow_signin_dismiss_button),
@@ -564,13 +563,12 @@ final class SigninBridge {
                             context.getString(R.string.history_sync_subtitle))
                     .historyOptInMode(HistorySyncConfig.OptInMode.NONE)
                     .selectedAccountEmail(targetEmail)
-                    .signinFlow(SigninAndHistorySyncCoordinator.SigninFlow.DEFAULT_SIGNIN)
                     .build();
         }
 
         static FullscreenSigninAndHistorySyncConfig switchAccountConfig(
                 Context context, String signedInEmail, String targetEmail) {
-            return new FullscreenSigninAndHistorySyncConfig.Builder(
+            return FullscreenSigninAndHistorySyncConfig.builderForSwitchAccountFlow(
                             context.getString(R.string.signin_deep_link_flow_switch_account_title),
                             context.getString(
                                     R.string.signin_deep_link_flow_switch_account_subtitle,
@@ -579,10 +577,9 @@ final class SigninBridge {
                             context.getString(
                                     R.string.signin_deep_link_flow_switch_account_dismiss_button),
                             context.getString(R.string.history_sync_title),
-                            context.getString(R.string.history_sync_subtitle))
+                            context.getString(R.string.history_sync_subtitle),
+                            targetEmail)
                     .historyOptInMode(HistorySyncConfig.OptInMode.NONE)
-                    .selectedAccountEmail(targetEmail)
-                    .signinFlow(SigninAndHistorySyncCoordinator.SigninFlow.SWITCH_ACCOUNT)
                     .build();
         }
 

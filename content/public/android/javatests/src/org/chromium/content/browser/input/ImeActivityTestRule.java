@@ -29,7 +29,6 @@ import org.chromium.base.test.util.CriteriaNotSatisfiedException;
 import org.chromium.content.browser.ViewEventSinkImpl;
 import org.chromium.content.browser.selection.SelectionPopupControllerImpl;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
-import org.chromium.content_public.browser.HtmlMetadata;
 import org.chromium.content_public.browser.ImeAdapter;
 import org.chromium.content_public.browser.test.RenderFrameHostTestExt;
 import org.chromium.content_public.browser.test.util.DOMUtils;
@@ -714,7 +713,6 @@ class ImeActivityTestRule extends ContentShellActivityTestRule {
                 int selectionStart,
                 int selectionEnd,
                 String lastText,
-                HtmlMetadata htmlMetadata,
                 EditorInfo outAttrs) {
             mTextInputTypeList.add(inputType);
             mTextInputModeList.add(inputMode);
@@ -731,7 +729,6 @@ class ImeActivityTestRule extends ContentShellActivityTestRule {
                     selectionStart,
                     selectionEnd,
                     lastText,
-                    htmlMetadata,
                     outAttrs);
         }
 

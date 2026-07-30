@@ -25,7 +25,7 @@ class StatusBubbleViewsTest : public InProcessBrowserTest {
  public:
   StatusBubbleViews* GetBubble() {
     std::vector<StatusBubble*> status_bubbles =
-        browser()->window()->GetStatusBubbles();
+        BrowserWindow::FromBrowser(browser())->GetStatusBubbles();
     if (status_bubbles.size() > 0) {
       return static_cast<StatusBubbleViews*>(status_bubbles.front());
     }

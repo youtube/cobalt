@@ -9,7 +9,7 @@
 #include "third_party/tflite/buildflags.h"
 
 #if BUILDFLAG(USE_LITERT_TFLITE)
-#include "third_party/litert/src/tflite/core/model_builder_base.h"
+#include "third_party/litert/src/tflite/converter/core/model_builder_base.h"
 #else
 #include_next "tensorflow/compiler/mlir/lite/core/model_builder_base.h"
 #endif

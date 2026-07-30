@@ -2397,8 +2397,15 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
   TestThreatDetailsFactory details_factory_;
 };
 
+#if BUILDFLAG(IS_WIN)
+// Flaky on Windows CI bots (e.g. win11-arm64-rel-tests). See https://crbug.com/523387896.
+#define MAYBE_NoInteraction_WarningNotShown \
+  DISABLED_NoInteraction_WarningNotShown
+#else
+#define MAYBE_NoInteraction_WarningNotShown NoInteraction_WarningNotShown
+#endif
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
-                       NoInteraction_WarningNotShown) {
+                       MAYBE_NoInteraction_WarningNotShown) {
   base::HistogramTester histograms;
   NavigateAndAssertNoInterstitial();
 

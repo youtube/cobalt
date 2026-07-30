@@ -2517,6 +2517,9 @@ public class ChromeContextMenuPopulatorTest {
 
         int[][] expected = {
             {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
                 R.id.contextmenu_save_page,
                 R.id.contextmenu_share_page,
                 R.id.contextmenu_print_page,
@@ -2539,7 +2542,14 @@ public class ChromeContextMenuPopulatorTest {
         ContextMenuParams params = getPageParams();
 
         int[][] expected = {
-            {R.id.contextmenu_save_page, R.id.contextmenu_share_page, R.id.contextmenu_print_page},
+            {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
+                R.id.contextmenu_save_page,
+                R.id.contextmenu_share_page,
+                R.id.contextmenu_print_page
+            },
         };
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
@@ -2555,7 +2565,14 @@ public class ChromeContextMenuPopulatorTest {
         ContextMenuParams params = getPageParams();
 
         int[][] expected = {
-            {R.id.contextmenu_save_page, R.id.contextmenu_share_page, R.id.contextmenu_print_page},
+            {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
+                R.id.contextmenu_save_page,
+                R.id.contextmenu_share_page,
+                R.id.contextmenu_print_page
+            },
         };
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
@@ -2574,7 +2591,14 @@ public class ChromeContextMenuPopulatorTest {
         ContextMenuParams params = getPageParams();
 
         int[][] expected = {
-            {R.id.contextmenu_save_page, R.id.contextmenu_share_page, R.id.contextmenu_print_page},
+            {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
+                R.id.contextmenu_save_page,
+                R.id.contextmenu_share_page,
+                R.id.contextmenu_print_page
+            },
         };
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
@@ -2589,11 +2613,50 @@ public class ChromeContextMenuPopulatorTest {
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NETWORK_BOUND_TAB, params);
         checkMenuOptions(expected);
 
-        int[][] expectedThinWebView = {
-            {R.id.contextmenu_reload},
-        };
+        int[][] expectedThinWebView = {{R.id.contextmenu_reload, R.id.contextmenu_print_page}};
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.THIN_WEB_VIEW, params);
         checkMenuOptions(expectedThinWebView);
+    }
+
+    @Test
+    @SmallTest
+    @UiThreadTest
+    public void testPageNavigation() {
+        FirstRunStatus.setFirstRunFlowComplete(true);
+        ContextMenuParams params = getPageParams();
+
+        int[][] expected = {
+            {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
+                R.id.contextmenu_save_page,
+                R.id.contextmenu_share_page,
+                R.id.contextmenu_print_page
+            },
+        };
+
+        // All items are present and enabled.
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        checkMenuOptions(expected);
+
+        // Only back is disabled.
+        when(mItemDelegate.canCurrentTabGoBack()).thenReturn(false);
+        List<Integer> expectedDisabled = Arrays.asList(R.id.contextmenu_back);
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        checkMenuOptions(expectedDisabled, expected);
+
+        // Both back and forward are disabled.
+        when(mItemDelegate.canCurrentTabGoForward()).thenReturn(false);
+        expectedDisabled = Arrays.asList(R.id.contextmenu_back, R.id.contextmenu_forward);
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        checkMenuOptions(expectedDisabled, expected);
+
+        // Only forward is disabled.
+        when(mItemDelegate.canCurrentTabGoBack()).thenReturn(true);
+        expectedDisabled = Arrays.asList(R.id.contextmenu_forward);
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
+        checkMenuOptions(expectedDisabled, expected);
     }
 
     @Test
@@ -2604,7 +2667,14 @@ public class ChromeContextMenuPopulatorTest {
         ContextMenuParams params = getPageParams();
 
         int[][] expected = {
-            {R.id.contextmenu_save_page, R.id.contextmenu_share_page, R.id.contextmenu_print_page},
+            {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
+                R.id.contextmenu_save_page,
+                R.id.contextmenu_share_page,
+                R.id.contextmenu_print_page
+            },
             {R.id.contextmenu_view_page_source, R.id.contextmenu_inspect_element},
         };
 
@@ -2629,7 +2699,8 @@ public class ChromeContextMenuPopulatorTest {
         checkMenuOptions(expected);
 
         int[][] expectedThinWebView = {
-            {R.id.contextmenu_reload}, {R.id.contextmenu_inspect_element},
+            {R.id.contextmenu_reload, R.id.contextmenu_print_page},
+            {R.id.contextmenu_inspect_element}
         };
 
         initializePopulator(
@@ -2646,7 +2717,12 @@ public class ChromeContextMenuPopulatorTest {
         DownloadUtils.setIsDownloadRestrictedByPolicyForTesting(true);
 
         int[] expectedPage = {
-            R.id.contextmenu_save_page, R.id.contextmenu_share_page, R.id.contextmenu_print_page
+            R.id.contextmenu_back,
+            R.id.contextmenu_forward,
+            R.id.contextmenu_reload,
+            R.id.contextmenu_save_page,
+            R.id.contextmenu_share_page,
+            R.id.contextmenu_print_page
         };
         List<Integer> expectedDisabled = Arrays.asList(R.id.contextmenu_save_page);
 
@@ -2662,7 +2738,7 @@ public class ChromeContextMenuPopulatorTest {
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NETWORK_BOUND_TAB, params);
         checkMenuOptions(expectedDisabled, expectedPage);
 
-        int[] expectedPageThinWebView = {R.id.contextmenu_reload};
+        int[] expectedPageThinWebView = {R.id.contextmenu_reload, R.id.contextmenu_print_page};
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.THIN_WEB_VIEW, params);
         checkMenuOptions(expectedPageThinWebView);
     }
@@ -2675,7 +2751,13 @@ public class ChromeContextMenuPopulatorTest {
         ContextMenuParams params = getPageParams();
 
         int[][] expected = {
-            {R.id.contextmenu_save_page, R.id.contextmenu_share_page},
+            {
+                R.id.contextmenu_back,
+                R.id.contextmenu_forward,
+                R.id.contextmenu_reload,
+                R.id.contextmenu_save_page,
+                R.id.contextmenu_share_page
+            },
         };
 
         initializePopulator(
@@ -3542,6 +3624,63 @@ public class ChromeContextMenuPopulatorTest {
         assertNull(
                 "ThinWebView context menu must not contain 'Download Video Frame'",
                 findItemWithId(videoMenu, R.id.contextmenu_download_video_frame));
+    }
+
+    @Test
+    @SmallTest
+    @UiThreadTest
+    public void testThinWebViewLinkItems() {
+        setAllMandatoryFlowsComplete();
+
+        when(mItemDelegate.supportsOpenInNewTab()).thenReturn(true);
+        when(mItemDelegate.supportsOpenInNewTabInGroup()).thenReturn(true);
+        when(mItemDelegate.supportsOpenInNewIncognitoTab()).thenReturn(true);
+        when(mItemDelegate.supportsOpenInNewWindow()).thenReturn(true);
+        when(mItemDelegate.supportsOpenInIncognitoWindow()).thenReturn(true);
+        when(mItemDelegate.supportsSaveLinkAs()).thenReturn(true);
+
+        ContextMenuParams linkParams = getHttpLinkParams();
+
+        // 1. Test when shouldOpenIncognitoAsWindow().
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(false);
+        when(mItemDelegate.isIncognitoSupported()).thenReturn(true);
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.THIN_WEB_VIEW, linkParams);
+        List<ModelList> linkMenuPhone = mPopulator.buildContextMenu();
+
+        assertNotNull(
+                "ThinWebView context menu must contain 'Open in new tab'",
+                findItemWithId(linkMenuPhone, R.id.contextmenu_open_in_new_tab));
+        assertNotNull(
+                "ThinWebView context menu must contain 'Open in new tab in group'",
+                findItemWithId(linkMenuPhone, R.id.contextmenu_open_in_new_tab_in_group));
+        assertNotNull(
+                "ThinWebView context menu must contain 'Open in incognito tab'",
+                findItemWithId(linkMenuPhone, R.id.contextmenu_open_in_incognito_tab));
+        assertNull(
+                "ThinWebView context menu must not contain 'Open in incognito window'",
+                findItemWithId(linkMenuPhone, R.id.contextmenu_open_in_incognito_window));
+        assertNotNull(
+                "ThinWebView context menu must contain 'Save link as'",
+                findItemWithId(linkMenuPhone, R.id.contextmenu_save_link_as));
+
+        // 2. Test when shouldOpenIncognitoAsWindow() is true.
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.THIN_WEB_VIEW, linkParams);
+        List<ModelList> linkMenuTablet = mPopulator.buildContextMenu();
+
+        if (org.chromium.chrome.browser.multiwindow.MultiWindowUtils
+                .isLinkNavigationToIncognitoWindowSupported()) {
+            assertNotNull(
+                    "ThinWebView context menu must contain 'Open in incognito window'",
+                    findItemWithId(linkMenuTablet, R.id.contextmenu_open_in_incognito_window));
+        } else {
+            assertNull(
+                    "ThinWebView context menu must not contain 'Open in incognito window'",
+                    findItemWithId(linkMenuTablet, R.id.contextmenu_open_in_incognito_window));
+        }
+        assertNull(
+                "ThinWebView context menu must not contain 'Open in incognito tab'",
+                findItemWithId(linkMenuTablet, R.id.contextmenu_open_in_incognito_tab));
     }
 
     /**

@@ -4,6 +4,7 @@
 
 #include "components/cast_receiver/browser/streaming_runtime_application.h"
 
+#include "base/functional/bind.h"
 #include "base/strings/stringprintf.h"
 #include "components/cast/message_port/platform_message_port.h"
 #include "components/cast_receiver/browser/application_client.h"
@@ -14,6 +15,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "ui/events/devices/device_data_manager.h"
 
 namespace cast_receiver {
 namespace {
@@ -79,6 +81,18 @@ void StreamingRuntimeApplication::Launch(StatusCallback callback) {
       /* supports_video= */ true);
   receiver_session_client_->LaunchStreamingReceiverAsync();
 
+  if (ui::DeviceDataManager::HasInstance()) {
+    streaming_input_capabilities_observer_ =
+        std::make_unique<StreamingInputCapabilitiesObserver>(
+            ui::DeviceDataManager::GetInstance(),
+            base::BindRepeating([](cast_receiver::InputCapabilities caps) {
+              // TODO(b/518997655): Send to channel.
+            }));
+  } else {
+    LOG(INFO) << "DeviceDataManager instance is unavailable. "
+                 "StreamingInputCapabilitiesObserver will not be created.";
+  }
+
   // Application is initialized now - we can load the URL.
   NavigateToPage(GURL(base::StringPrintf(
       kStreamingPageUrlTemplate,
@@ -98,6 +112,7 @@ void StreamingRuntimeApplication::StopApplication(
   }
 
   receiver_session_client_.reset();
+  streaming_input_capabilities_observer_.reset();
   RuntimeApplicationBase::StopApplication(stop_reason, net_error_code);
 }
 

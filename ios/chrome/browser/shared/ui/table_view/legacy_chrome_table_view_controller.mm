@@ -10,7 +10,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/chrome_empty_table_view_background.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_empty_view.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_illustrated_empty_view.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_loading_view.h"
@@ -31,12 +30,10 @@ const CGFloat kTableViewSeparatorInsetWithIcon = 60;
 @implementation LegacyChromeTableViewController
 @synthesize emptyView = _emptyView;
 @synthesize loadingView = _loadingView;
-@synthesize styler = _styler;
 @synthesize tableViewModel = _tableViewModel;
 
 - (instancetype)initWithStyle:(UITableViewStyle)style {
   if ((self = [super initWithStyle:style])) {
-    _styler = [[ChromeTableViewStyler alloc] init];
   }
   return self;
 }
@@ -50,7 +47,8 @@ const CGFloat kTableViewSeparatorInsetWithIcon = 60;
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  [self.tableView setBackgroundColor:self.styler.tableViewBackgroundColor];
+  [self.tableView
+      setBackgroundColor:[UIColor colorNamed:kGroupedPrimaryBackgroundColor]];
   [self.tableView
       setSeparatorInset:UIEdgeInsetsMake(0, kTableViewSeparatorInsetWithIcon, 0,
                                          0)];
@@ -81,11 +79,6 @@ const CGFloat kTableViewSeparatorInsetWithIcon = 60;
 }
 
 #pragma mark - Accessors
-
-- (void)setStyler:(ChromeTableViewStyler*)styler {
-  DCHECK(![self isViewLoaded]);
-  _styler = styler;
-}
 
 - (void)setEmptyView:(TableViewEmptyView*)emptyView {
   if (_emptyView == emptyView) {
@@ -268,7 +261,7 @@ const CGFloat kTableViewSeparatorInsetWithIcon = 60;
     tableViewCell = base::apple::ObjCCastStrict<LegacyTableViewCell>(cell);
   }
 
-  [item configureCell:tableViewCell withStyler:self.styler];
+  [item configureCell:tableViewCell];
 
   // Enabling `exclusiveTouch` for all cells to prevent simultanoeus cell
   // selection. Not blocking simultaneous cell selection can lead to starting
@@ -308,7 +301,7 @@ const CGFloat kTableViewSeparatorInsetWithIcon = 60;
       forHeaderFooterViewReuseIdentifier:reuseIdentifier];
   UITableViewHeaderFooterView* view = [self.tableView
       dequeueReusableHeaderFooterViewWithIdentifier:reuseIdentifier];
-  [item configureHeaderFooterView:view withStyler:self.styler];
+  [item configureHeaderFooterView:view];
   return view;
 }
 
@@ -325,7 +318,7 @@ const CGFloat kTableViewSeparatorInsetWithIcon = 60;
       forHeaderFooterViewReuseIdentifier:reuseIdentifier];
   UITableViewHeaderFooterView* view = [self.tableView
       dequeueReusableHeaderFooterViewWithIdentifier:reuseIdentifier];
-  [item configureHeaderFooterView:view withStyler:self.styler];
+  [item configureHeaderFooterView:view];
   return view;
 }
 

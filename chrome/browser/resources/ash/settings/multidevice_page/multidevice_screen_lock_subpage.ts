@@ -154,7 +154,7 @@ export class SettingsMultideviceScreenLockSubpageElement extends
 
     if (pinFactor !== null) {
       this.hasPin = true;
-      this.selectedUnlockType = LockScreenUnlockType.PIN_PASSWORD;
+      this.selectedUnlockType = LockScreenUnlockType.PASSWORD_PIN;
       return;
     }
 
@@ -172,7 +172,7 @@ export class SettingsMultideviceScreenLockSubpageElement extends
     // user wishes to set a pin, they will have to click the set pin button.
     // See https://crbug.com/40119476 for details.
     if (factorChanged && !this.hasPin &&
-        this.selectedUnlockType === LockScreenUnlockType.PIN_PASSWORD) {
+        this.selectedUnlockType === LockScreenUnlockType.PASSWORD_PIN) {
       return;
     }
     this.hasPin = false;
@@ -188,7 +188,7 @@ export class SettingsMultideviceScreenLockSubpageElement extends
       bubbles: true,
       composed: true,
       detail: {
-        isPinNumberSelected: (selected === LockScreenUnlockType.PIN_PASSWORD),
+        isPinNumberSelected: (selected === LockScreenUnlockType.PASSWORD_PIN),
       },
     });
     this.dispatchEvent(pinNumberEvent);
@@ -241,7 +241,7 @@ export class SettingsMultideviceScreenLockSubpageElement extends
    *     Polymer know about the dependency.
    */
   private showConfigurePinButton_(selectedUnlockType: string): boolean {
-    return selectedUnlockType === LockScreenUnlockType.PIN_PASSWORD;
+    return selectedUnlockType === LockScreenUnlockType.PASSWORD_PIN;
   }
 
   private onSetupPinDialogClose_(): void {

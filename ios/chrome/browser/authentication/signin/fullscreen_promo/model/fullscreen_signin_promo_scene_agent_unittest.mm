@@ -27,6 +27,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -41,6 +42,8 @@ class FullscreenSigninPromoSceneAgentTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
 
     SceneState* scene_state = [[SceneState alloc] initWithAppState:nil];
     scene_state_ = OCMPartialMock(scene_state);
@@ -98,20 +101,19 @@ class FullscreenSigninPromoSceneAgentTest : public PlatformTest {
   }
 
  protected:
-  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  FullscreenSigninPromoSceneAgent* agent_;
   web::WebTaskEnvironment task_environment_;
-  syncer::TestSyncService sync_service_;
-  StubBrowserProviderInterface* stub_browser_interface_provider_;
-  raw_ptr<signin::IdentityManager, DanglingUntriaged> identity_manager_;
-  raw_ptr<ChromeAccountManagerService, DanglingUntriaged>
-      account_manager_service_;
-  raw_ptr<AuthenticationService, DanglingUntriaged> authentication_service_;
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
+  std::unique_ptr<MockPromosManager> promos_manager_;
+  syncer::TestSyncService sync_service_;
+  raw_ptr<signin::IdentityManager> identity_manager_;
+  raw_ptr<ChromeAccountManagerService> account_manager_service_;
+  raw_ptr<AuthenticationService> authentication_service_;
+  StubBrowserProviderInterface* stub_browser_interface_provider_;
   ProfileState* profile_state_;
   SceneState* scene_state_;
-  std::unique_ptr<MockPromosManager> promos_manager_;
+  FullscreenSigninPromoSceneAgent* agent_;
 };
 
 // Tests that the sign-in fullscreen promo registers with the promo manager when

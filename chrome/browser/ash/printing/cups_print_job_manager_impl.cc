@@ -49,7 +49,7 @@ namespace ash {
 namespace {
 
 using ::chromeos::CupsWrapper;
-using StatusReason = crosapi::mojom::StatusReason::Reason;
+using StatusReason = ::printing::CupsPrinterStatusReason;
 
 // The rate at which we will poll CUPS for print job updates.
 constexpr base::TimeDelta kPollRate = base::Milliseconds(1000);

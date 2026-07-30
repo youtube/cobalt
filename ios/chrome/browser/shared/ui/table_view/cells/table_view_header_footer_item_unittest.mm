@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_header_footer_item.h"
 
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -25,9 +24,7 @@ TEST_F(TableViewHeaderFooterItemTest,
       [headerFooterView isMemberOfClass:[UITableViewHeaderFooterView class]]);
   EXPECT_EQ(UIAccessibilityTraitNone, [headerFooterView accessibilityTraits]);
   EXPECT_FALSE([headerFooterView accessibilityIdentifier]);
-
-  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
-  [item configureHeaderFooterView:headerFooterView withStyler:styler];
+  [item configureHeaderFooterView:headerFooterView];
   EXPECT_EQ(UIAccessibilityTraitButton, [headerFooterView accessibilityTraits]);
   EXPECT_NSEQ(@"test_identifier", [headerFooterView accessibilityIdentifier]);
 }

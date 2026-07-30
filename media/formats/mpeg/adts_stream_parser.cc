@@ -10,64 +10,52 @@
 #include "media/base/media_log.h"
 #include "media/formats/mp4/aac.h"
 #include "media/formats/mpeg/adts_constants.h"
+#include "media/formats/mpeg/lib.rs.h"
 
 namespace media {
 
 // static
 std::optional<ADTSStreamParser::Header> ADTSStreamParser::ParseHeader(
     base::span<const uint8_t> data) {
-  if (data.size() < kADTSHeaderMinSize) {
+  auto rust_data = rust::Slice<const uint8_t>(data);
+  auto ffi_res = media::formats::mpeg::parse_adts_header(rust_data);
+  if (ffi_res.frame_size == 0) {
     return std::nullopt;
   }
-
-  BitReader reader(data);
-  uint16_t sync;
-  uint8_t version;
-  uint8_t layer;
-  uint8_t protection_absent;
-  uint8_t profile;
-  size_t sample_rate_index;
-  size_t channel_layout_index;
-  size_t frame_length;
-  size_t num_data_blocks;
-  uint16_t unused;
-
-  if (!reader.ReadBits(12, &sync) ||
-      !reader.ReadBits(1, &version) ||
-      !reader.ReadBits(2, &layer) ||
-      !reader.ReadBits(1, &protection_absent) ||
-      !reader.ReadBits(2, &profile) ||
-      !reader.ReadBits(4, &sample_rate_index) ||
-      !reader.ReadBits(1, &unused) ||
-      !reader.ReadBits(3, &channel_layout_index) ||
-      !reader.ReadBits(4, &unused) ||
-      !reader.ReadBits(13, &frame_length) ||
-      !reader.ReadBits(11, &unused) ||
-      !reader.ReadBits(2, &num_data_blocks) ||
-      (!protection_absent && !reader.ReadBits(16, &unused))) {
-    return std::nullopt;
-  }
-
-  const size_t bytes_read = reader.bits_read() / 8;
-  if (sync != 0xfff || layer != 0 || frame_length < bytes_read ||
-      sample_rate_index >= kADTSFrequencyTable.size() ||
-      channel_layout_index >= kADTSChannelLayoutTable.size()) {
-    return std::nullopt;
-  }
-
   Header header;
-  header.frame_size = frame_length;
-  header.sample_rate = kADTSFrequencyTable[sample_rate_index];
-  header.channel_layout = kADTSChannelLayoutTable[channel_layout_index];
-  header.sample_count = (num_data_blocks + 1) * kSamplesPerAACFrame;
-
-  DCHECK_NE(sample_rate_index, 15u);
-  const uint16_t esds =
-      (((((profile + 1) << 4) + sample_rate_index) << 4) + channel_layout_index)
-      << 3;
-  header.extra_data.push_back(esds >> 8);
-  header.extra_data.push_back(esds & 0xFF);
-
+  header.frame_size = ffi_res.frame_size;
+  header.sample_rate = ffi_res.sample_rate;
+  ChannelLayout layout;
+  switch (ffi_res.channels) {
+    case 1:
+      layout = CHANNEL_LAYOUT_MONO;
+      break;
+    case 2:
+      layout = CHANNEL_LAYOUT_STEREO;
+      break;
+    case 3:
+      layout = CHANNEL_LAYOUT_SURROUND;
+      break;
+    case 4:
+      layout = CHANNEL_LAYOUT_4_0;
+      break;
+    case 5:
+      layout = CHANNEL_LAYOUT_5_0_BACK;
+      break;
+    case 6:
+      layout = CHANNEL_LAYOUT_5_1_BACK;
+      break;
+    case 8:
+      layout = CHANNEL_LAYOUT_7_1;
+      break;
+    default:
+      layout = CHANNEL_LAYOUT_NONE;
+      break;
+  }
+  header.channel_layout = layout;
+  header.sample_count = ffi_res.sample_count;
+  header.extra_data.push_back(ffi_res.esds >> 8);
+  header.extra_data.push_back(ffi_res.esds & 0xFF);
   return header;
 }
 

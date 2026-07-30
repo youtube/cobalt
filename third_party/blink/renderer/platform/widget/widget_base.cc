@@ -1335,10 +1335,6 @@ void WidgetBase::UpdateTextInputStateInternal(bool show_virtual_keyboard,
 #endif
     params->flags |= next_previous_flags_;
     params->value = new_info.value;
-    params->html_label = new_info.label;
-    params->html_name = new_info.name;
-    params->html_id = new_info.id;
-    params->html_placeholder = new_info.placeholder;
     params->selection =
         gfx::Range(new_info.selection_start, new_info.selection_end);
     if (new_info.composition_start != -1) {

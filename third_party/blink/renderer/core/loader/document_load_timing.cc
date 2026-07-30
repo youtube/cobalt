@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/loader/document_load_timing.h"
 
 #include "base/memory/scoped_refptr.h"
+#include "services/network/public/mojom/timing_allow_origin.mojom-blink.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
@@ -193,6 +194,15 @@ void DocumentLoadTiming::AddRedirect(const KURL& redirecting_url,
       SecurityOrigin::Create(redirected_url);
   document_load_timing_values_->has_cross_origin_redirect |=
       !redirected_security_origin->CanRequest(redirecting_url);
+}
+
+// https://fetch.spec.whatwg.org/#append-to-a-requests-navigation-timing-allow-check-list
+void DocumentLoadTiming::AppendToNavigationTimingAllowCheckList(
+    network::mojom::blink::TimingAllowOriginPtr tao) {
+  // `tao` is this redirect response's parsed `Timing-Allow-Origin` value, or
+  // null when the response had no such header (treated as an empty list).
+  document_load_timing_values_->navigation_timing_allow_check_list.push_back(
+      std::move(tao));
 }
 
 void DocumentLoadTiming::SetRedirectStart(base::TimeTicks redirect_start) {

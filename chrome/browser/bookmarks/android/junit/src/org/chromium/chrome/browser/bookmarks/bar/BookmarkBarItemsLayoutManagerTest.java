@@ -9,9 +9,10 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+
+import static org.chromium.ui.test.util.MockitoHelper.clearInvocations;
 
 import android.view.View;
 import android.view.View.MeasureSpec;
@@ -133,8 +134,6 @@ public class BookmarkBarItemsLayoutManagerTest {
 
     @Test
     @SmallTest
-    // Mockito's clearInvocations(T...) triggers unchecked generic array creation for varargs.
-    @SuppressWarnings("unchecked")
     public void testItemsOverflowChangeCallback() {
         // Bind observer and verify initial event propagation.
         verify(mItemsOverflowSupplierObserver, never()).onResult(any());

@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ui/extensions/extensions_toolbar_view_model.h"
 
+#include <optional>
+
+#include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
@@ -144,6 +147,7 @@ class ExtensionsToolbarViewModelBrowserTest
   std::unique_ptr<ExtensionsToolbarViewModel> toolbar_model_;
 
   testing::NiceMock<MockExtensionsToolbarObserver> mock_observer_;
+  std::optional<base::AutoReset<base::TimeDelta>> cooldown_reset_;
 };
 
 scoped_refptr<const extensions::Extension>
@@ -184,8 +188,9 @@ void ExtensionsToolbarViewModelBrowserTest::SetUpOnMainThread() {
   host_resolver()->AddRule("*", "127.0.0.1");
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-      base::TimeDelta());
+  cooldown_reset_.emplace(
+      extensions::HostAccessRequestsHelper::SetCooldownForTesting(
+          base::TimeDelta()));
 
   toolbar_delegate_ = std::make_unique<TestExtensionsToolbarDelegate>(
       browser_window_interface());

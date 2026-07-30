@@ -23,8 +23,8 @@ namespace storage {
 class FakeDomStorageDatabase : public DomStorageDatabase {
  public:
   // `open_status` is returned by Open(). Passed at construction time because
-  // DomStorageDatabaseFactory::Create() is immediately followed by an Open()
-  // call before the test can configure the instance.
+  // DomStorageDatabaseFactory::Open() immediately invokes Open() on the
+  // instance before the test can configure it.
   explicit FakeDomStorageDatabase(DbStatus open_status);
   ~FakeDomStorageDatabase() override;
 

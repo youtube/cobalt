@@ -4,15 +4,23 @@
 
 import("//mojo/public/tools/bindings/mojom.gni")
 
-# The features file is separate because it is the only common WebNN header
-# that has no dependencies on other WebNN Mojom files. This separation
-# allows WebNN-dependent components to use features without importing the
-# rest of WebNN (ex. //gpu/config).
+# The features file is separate to allow WebNN-dependent components to use
+# features without importing the rest of WebNN (ex. //gpu/config).
 mojom_component("features") {
   output_prefix = "webnn_mojom_features"
   macro_prefix = "WEBNN_MOJOM_FEATURES"
 
   sources = [ "features.mojom" ]
+}
+
+# The device file is separate so the EpDeviceInfo C++ struct can depend on the
+# Device enum without creating a dependency cycle through the typemapped :mojom
+# target.
+mojom_component("device") {
+  output_prefix = "webnn_mojom_device"
+  macro_prefix = "WEBNN_MOJOM_DEVICE"
+
+  sources = [ "webnn_device.mojom" ]
 }
 
 mojom_component("webnn_service_introspection") {
@@ -35,7 +43,6 @@ mojom_component("mojom") {
     "webnn_context.mojom",
     "webnn_context_properties.mojom",
     "webnn_context_provider.mojom",
-    "webnn_device.mojom",
     "webnn_error.mojom",
     "webnn_graph.mojom",
     "webnn_graph_builder.mojom",
@@ -44,6 +51,7 @@ mojom_component("mojom") {
 
   if (is_win) {
     sources += [
+      "ep_device_info.mojom",
       "ep_package_info.mojom",
       "webnn_compiler_service.mojom",
       "webnn_model_loader.mojom",
@@ -59,7 +67,10 @@ mojom_component("mojom") {
     "//third_party/blink/public/mojom/tokens",
   ]
 
-  public_deps = [ ":features" ]
+  public_deps = [
+    ":device",
+    ":features",
+  ]
 
   shared_webnn_typemaps = [
     {
@@ -129,11 +140,18 @@ mojom_component("mojom") {
       if (is_win) {
         types += [
           {
+            mojom = "webnn.mojom.EpDeviceInfo"
+            cpp = "::webnn::EpDeviceInfo"
+          },
+          {
             mojom = "webnn.mojom.PackageVersion"
             cpp = "::PACKAGE_VERSION"
           },
         ]
-        traits_headers += [ "package_version_mojom_traits.h" ]
+        traits_headers += [
+          "ep_device_info_mojom_traits.h",
+          "package_version_mojom_traits.h",
+        ]
       }
 
       traits_public_deps = [ ":webnn_mojom_traits" ]

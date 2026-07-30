@@ -85,7 +85,8 @@ class CORE_EXPORT BlockNode : public LayoutInputNode {
   // To be called when we're done repeating a node, when at the last fragment.
   void FinishRepeatableRoot() const;
 
-  LayoutInputNode NextSibling() const;
+  BlockNode NextBlockSibling() const;
+  LayoutInputNode NextSibling() const { return NextBlockSibling(); }
 
   // Computes the value of min-content and max-content for this node's border
   // box.

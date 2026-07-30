@@ -31,6 +31,8 @@ namespace favicon {
 class FaviconService;
 }
 
+class PrefService;
+
 namespace multistep_filter {
 
 namespace internal {
@@ -122,6 +124,9 @@ class FilterUiController : public tabs::ContentsObservingTabFeature,
   // Shows the cue for the given suggestion.
   void ShowCue(const UrlFilterSuggestion& suggestion);
 
+  // Helper check to verify if the contextual cue feature is enabled.
+  bool ShouldShowCue() const;
+
   // Clears the cue UI.
   void ClearCue();
 
@@ -153,6 +158,9 @@ class FilterUiController : public tabs::ContentsObservingTabFeature,
 
   // Service for fetching favicons.
   raw_ptr<favicon::FaviconService> favicon_service_ = nullptr;
+
+  // Service for user preferences.
+  raw_ptr<PrefService> pref_service_ = nullptr;
 
   // Tracker for favicon fetch requests.
   base::CancelableTaskTracker favicon_task_tracker_;

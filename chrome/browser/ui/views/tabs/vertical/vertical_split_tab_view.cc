@@ -4,10 +4,8 @@
 
 #include "chrome/browser/ui/views/tabs/vertical/vertical_split_tab_view.h"
 
-#include <numeric>
 #include <vector>
 
-#include "base/time/time.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/tab_style.h"

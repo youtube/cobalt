@@ -969,7 +969,7 @@ class DownloadContentTest : public ContentBrowserTest {
  public:
   DownloadContentTest() {
     feature_list_.InitWithFeatures(
-        {blink::features::kSvgAnchorElementDownloadAttribute},
+        {},
         {
             download::features::kAllowDownloadResumptionWithoutStrongValidators,
         });

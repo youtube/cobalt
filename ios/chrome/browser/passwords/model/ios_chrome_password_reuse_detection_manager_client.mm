@@ -146,6 +146,10 @@ void IOSChromePasswordReuseDetectionManagerClient::
 void IOSChromePasswordReuseDetectionManagerClient::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
+  // Instantiate the PasswordReuseManager to start populating the password hash
+  // cache from the database now. This ensures that password hashes
+  // are already in memory before the user makes any inputs.
+  GetPasswordReuseManager();
   password_reuse_detection_manager_.DidNavigateMainFrame(GetLastCommittedURL());
 }
 

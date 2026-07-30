@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "base/compiler_specific.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_text_path.h"
@@ -177,12 +176,16 @@ void SvgTextLayoutAlgorithm::SetFlags(
     // later character that corresponds to a typographic character.
     CodePointIterator iterator = item_string.begin();
     const CodePointIterator end = item_string.end();
-    for (UNSAFE_TODO(++iterator); iterator != end; UNSAFE_TODO(++iterator)) {
+    if (iterator != end) {
+      ++iterator;  // Skip the first code point.
+    }
+    while (iterator != end) {
       SvgPerCharacterInfo middle_info;
       middle_info.middle = true;
       middle_info.item_index = info.item_index;
       result_.push_back(middle_info);
       css_positions_.push_back(css_positions_.back());
+      ++iterator;
     }
   }
   addressable_count_ = result_.size();

@@ -1,0 +1,18 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("dictation_private") {
+  sources = [
+    "dictation_private_api.cc",
+    "dictation_private_api.h",
+  ]
+
+  public_deps = [ "//extensions/browser" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/dictation",
+    "//chrome/common/extensions/api",
+  ]
+}

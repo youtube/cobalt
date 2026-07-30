@@ -87,12 +87,6 @@ class UrlBarViewBinder {
                 // 2. selecting all content (if selectAllOnFocus is set to true)
                 // in both cases overriding the selection supplied by software.
                 //
-                // This is technically sufficient right now:
-                // - When we restore persisted tab editing state - we bring the focus - and
-                //   selection - from software, so the OS does not override our preferences.
-                // - When the user focuses the UrlBar and the content is persisted (LFFs with
-                //   precision devices attached) we presently want to select all content.
-                //
                 // Be careful when extending selection to override OS settings - Android 12 is
                 // particularly sensitive here.
                 int textLength = view.getText().length();

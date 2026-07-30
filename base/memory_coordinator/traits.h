@@ -64,7 +64,14 @@ struct BASE_EXPORT MemoryConsumerTraits {
   // These traits must be set explicitly for active consumers. There are no
   // default values. (Passive consumers use defaults and do not require these).
 
-  // The approximate scale of how much memory the consumer can manage.
+  // The approximate scale of how much memory we expect to reclaim when
+  // OnReleaseMemory() is called under memory pressure.
+  //
+  // If the MemoryConsumer holds strong V8 memory references, the actual call
+  // to OnReleaseMemory() might only drop the references, deferring the
+  // physical memory reclamation until the next GC cycle. This estimation
+  // should still include the V8 memory that is expected to be reclaimed
+  // once GC runs.
   enum class EstimatedMemoryUsage : uint8_t {
     // Under 10 MBs.
     kSmall,
@@ -78,10 +85,10 @@ struct BASE_EXPORT MemoryConsumerTraits {
     kMaxValue = kNA,
   };
 
-  // Indicates if the memory this consumer manages is cheap to free. Traversing
-  // a data structure is usually more expensive than freeing a single chunk of
-  // memory and can cause memory to be paged in. Note that the page size is
-  // typically between 4k and 16k.
+  // Indicates the CPU and paging cost of executing the OnReleaseMemory()
+  // callback. This should be evaluated based on the work done in the callback
+  // itself (e.g. traversing a data structure to drop references), independent
+  // of whether physical memory reclamation is deferred to garbage collection.
   enum class ReleaseMemoryCost : uint8_t {
     // Most of the savings are from allocations larger than the page size that
     // are freed without being accessed.
@@ -107,10 +114,16 @@ struct BASE_EXPORT MemoryConsumerTraits {
     kMaxValue = kNA,
   };
 
-  // Indicates if freeing memory is an asynchronous operation or a synchronous
-  // operation. Knowing that a consumer will execute synchronously is useful to
-  // know because the memory coordinator policy can then immediately assess the
-  // new state of the machine after the notification.
+  // Indicates if executing the OnReleaseMemory() callback is synchronous
+  // or asynchronous. This is independent of whether physical memory
+  // reclamation is deferred (e.g., to a garbage collection cycle).
+  // Knowing that a callback executes synchronously is useful because the
+  // memory coordinator can then immediately take subsequent actions (such as
+  // triggering a garbage collection or assessing the new state of the
+  // machine) once the callback returns.
+  //
+  // Note: If `AsyncMemoryConsumerRegistration` is used to register the
+  // consumer, the execution should be considered asynchronous.
   enum class ExecutionType : uint8_t {
     kSynchronous,
     kAsynchronous,

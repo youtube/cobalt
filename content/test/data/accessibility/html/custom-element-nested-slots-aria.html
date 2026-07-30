@@ -1,0 +1,24 @@
+<!--
+@BLINK-ALLOW:htmlTag=*
+@BLINK-ALLOW:className=*
+-->
+<my-list role="listbox">
+  <my-list>
+    <div role="option" id="opt1">Option 1</div>
+    <div role="option" id="opt2">Option 2</div>
+  </my-list>
+</my-list>
+<script>
+  class MyList extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({mode: 'open'}).innerHTML = `
+        <div>
+          <slot></slot>
+        </div>
+      `;
+    }
+  }
+  customElements.define('my-list', MyList);
+</script>
+

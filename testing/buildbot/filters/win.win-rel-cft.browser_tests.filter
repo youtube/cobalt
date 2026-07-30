@@ -114,6 +114,7 @@ BrowserRootViewBrowserTest.*
 # Gardener: disable failing tests.
 # TODO (crbug.com/417895560): fix test and re-enable
 -ChromeForTestingInfoBarTest.*
+-DefaultBrowserStepEligibilityCheckerTest.*
 -EnableDisableSingleClientTest.*
 -LocalSyncTest.*
 -MigrationSingleClientTest.*

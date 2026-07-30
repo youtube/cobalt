@@ -49,6 +49,59 @@ TEST_F(SqliteBackendStorageDelegateTest, GetBaseName) {
             base::FilePath());
 }
 
+TEST_F(SqliteBackendStorageDelegateTest, MakePendingBackendDirectoryNotFound) {
+  base::FilePath non_existent_dir =
+      temp_path().Append(FILE_PATH_LITERAL("non_existent_subdir"));
+  base::FilePath base_name = base::FilePath::FromASCII("base_name");
+
+  auto result =
+      delegate().MakePendingBackend(Client::kTest, non_existent_dir, base_name,
+                                    /*single_connection=*/false,
+                                    /*journal_mode_wal=*/false);
+  EXPECT_THAT(result, base::test::ErrorIs(TransactionError::kConnectionError));
+}
+
+TEST_F(SqliteBackendStorageDelegateTest, MakePendingBackendNotAFile) {
+  base::FilePath base_name = base::FilePath::FromASCII("base_name");
+  base::FilePath db_path =
+      temp_path().Append(base_name).AddExtension(sqlite_vfs::kDbFileExtension);
+
+  // Create a directory where the DB file should be.
+  ASSERT_TRUE(base::CreateDirectory(db_path));
+
+  auto result =
+      delegate().MakePendingBackend(Client::kTest, temp_path(), base_name,
+                                    /*single_connection=*/false,
+                                    /*journal_mode_wal=*/false);
+  EXPECT_THAT(result, base::test::ErrorIs(TransactionError::kPermanent));
+}
+
+TEST_F(SqliteBackendStorageDelegateTest, MakeBackendDirectoryNotFound) {
+  base::FilePath non_existent_dir =
+      temp_path().Append(FILE_PATH_LITERAL("non_existent_subdir"));
+  base::FilePath base_name = base::FilePath::FromASCII("base_name");
+
+  auto result =
+      delegate().MakeBackend(Client::kTest, non_existent_dir, base_name,
+                             /*single_connection=*/false,
+                             /*journal_mode_wal=*/false);
+  EXPECT_THAT(result, base::test::ErrorIs(TransactionError::kConnectionError));
+}
+
+TEST_F(SqliteBackendStorageDelegateTest, MakeBackendNotAFile) {
+  base::FilePath base_name = base::FilePath::FromASCII("base_name");
+  base::FilePath db_path =
+      temp_path().Append(base_name).AddExtension(sqlite_vfs::kDbFileExtension);
+
+  // Create a directory where the DB file should be.
+  ASSERT_TRUE(base::CreateDirectory(db_path));
+
+  auto result = delegate().MakeBackend(Client::kTest, temp_path(), base_name,
+                                       /*single_connection=*/false,
+                                       /*journal_mode_wal=*/false);
+  EXPECT_THAT(result, base::test::ErrorIs(TransactionError::kPermanent));
+}
+
 class SqliteBackendStorageDelegateParamTest
     : public SqliteBackendStorageDelegateTest,
       public testing::WithParamInterface<std::tuple<bool, bool>> {
@@ -59,13 +112,13 @@ class SqliteBackendStorageDelegateParamTest
 
 TEST_P(SqliteBackendStorageDelegateParamTest, CreateAndDelete) {
   base::FilePath base_name = base::FilePath::FromASCII("base_name");
-  auto pending_backend =
-      delegate().MakePendingBackend(Client::kTest, temp_path(), base_name,
-                                    is_single_connection(), journal_mode_wal());
-  ASSERT_NE(pending_backend, std::nullopt);
+  ASSERT_OK_AND_ASSIGN(auto pending_backend,
+                       delegate().MakePendingBackend(
+                           Client::kTest, temp_path(), base_name,
+                           is_single_connection(), journal_mode_wal()));
   ASSERT_OK_AND_ASSIGN(
       auto backend,
-      SqliteBackendImpl::Bind(*std::move(pending_backend), Client::kTest));
+      SqliteBackendImpl::Bind(std::move(pending_backend), Client::kTest));
   ASSERT_NE(backend, nullptr);
 
   // The backend should have created some files.

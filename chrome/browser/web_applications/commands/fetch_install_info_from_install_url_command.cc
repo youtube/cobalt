@@ -50,7 +50,8 @@ FetchInstallInfoFromInstallUrlCommand::FetchInstallInfoFromInstallUrlCommand(
           /*args_for_shutdown=*/
           std::make_tuple(FetchInstallInfoResult::kShutdown, nullptr)),
       manifest_id_(manifest_id),
-      install_url_(install_url) {
+      install_url_(install_url),
+      parent_manifest_id_(parent_manifest_id) {
   CHECK(manifest_id_.is_valid());
   CHECK(install_url_.is_valid());
 

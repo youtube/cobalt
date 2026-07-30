@@ -39,9 +39,8 @@ constexpr CGFloat kEnterpriseIconPointSize = 20;
 
 #pragma mark - TableViewItem
 
-- (void)configureCell:(LegacyTableViewCell*)cell
-           withStyler:(ChromeTableViewStyler*)styler {
-  [super configureCell:cell withStyler:styler];
+- (void)configureCell:(LegacyTableViewCell*)cell {
+  [super configureCell:cell];
 
   TableViewCellContentConfiguration* configuration =
       [[TableViewCellContentConfiguration alloc] init];

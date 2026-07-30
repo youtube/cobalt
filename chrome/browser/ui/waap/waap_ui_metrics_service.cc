@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/waap/waap_ui_metrics_service.h"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 
@@ -426,4 +427,21 @@ void WaapUIMetricsService::OnReloadButtonChangeVisibleModeToNextPaint(
   auto name = BuildReloadButtonHistogramName(
       "ChangeVisibleModeToNextPaintIn", ReloadButtonModeToString(new_mode));
   EmitReloadButtonHistogramWithTraceEvent(name.c_str(), start_ticks, end_ticks);
+}
+
+void WaapUIMetricsService::RecordReloadButtonInteractionToReload(
+    base::TimeTicks interaction_ticks,
+    base::TimeTicks execution_ticks,
+    WaapUIMetricsRecorder::ReloadButtonInputType input_type) {
+  const base::TimeDelta duration =
+      std::max(base::TimeDelta(), execution_ticks - interaction_ticks);
+  const std::string name = BuildReloadButtonHistogramName(
+      "InteractionToReload", ReloadButtonInputTypeToString(input_type));
+  base::UmaHistogramCustomTimes(name, duration, base::Milliseconds(1),
+                                base::Seconds(10), 100);
+
+  const std::string aggregated_name =
+      BuildReloadButtonHistogramName("InteractionToReload");
+  base::UmaHistogramCustomTimes(aggregated_name, duration,
+                                base::Milliseconds(1), base::Seconds(10), 100);
 }

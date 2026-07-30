@@ -2,7 +2,31 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/rust/rust_static_library.gni")
 import("//media/media_options.gni")
+
+rust_static_library("safe_mpeg_audio_parsers") {
+  crate_root = "mpeg/lib.rs"
+  sources = [
+    "mpeg/bit_reader.rs",
+    "mpeg/lib.rs",
+    "mpeg/parse_adts.rs",
+    "mpeg/parse_mp3.rs",
+  ]
+  cxx_bindings = [ "mpeg/lib.rs" ]
+  allow_unsafe = true
+}
+
+rust_static_library("rust_unittests") {
+  testonly = true
+  is_gtest_unittests = true
+  crate_root = "mpeg/bit_reader_unittest.rs"
+  sources = [ "mpeg/bit_reader_unittest.rs" ]
+  deps = [
+    ":safe_mpeg_audio_parsers",
+    "//testing/rust_gtest_interop",
+  ]
+}
 
 source_set("formats") {
   # Do not expand the visibility here without double-checking with OWNERS, this
@@ -86,6 +110,7 @@ source_set("formats") {
   ]
 
   deps = [
+    ":safe_mpeg_audio_parsers",
     "//build:chromecast_buildflags",
     "//media:media_buildflags",
     "//media/base",
@@ -313,6 +338,7 @@ source_set("unit_tests") {
   ]
 
   deps = [
+    ":rust_unittests",
     "//base/test:test_support",
     "//media:test_support",
     "//testing/gmock",
@@ -323,6 +349,7 @@ source_set("unit_tests") {
     sources += [
       "mp4/aac_unittest.cc",
       "mp4/avc_unittest.cc",
+      "mp4/box_definitions_unittest.cc",
       "mp4/box_reader_unittest.cc",
       "mp4/dolby_vision_unittest.cc",
       "mp4/es_descriptor_unittest.cc",

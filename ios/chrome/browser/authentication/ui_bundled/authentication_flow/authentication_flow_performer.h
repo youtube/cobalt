@@ -9,6 +9,7 @@
 
 #import "components/policy/core/browser/signin/profile_separation_policies.h"
 #import "ios/chrome/browser/authentication/ui_bundled/authentication_flow/authentication_flow_performer_base.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/signin/model/constants.h"
 
 @protocol AuthenticationFlowDelegate;
@@ -105,6 +106,13 @@ class SyncService;
                                        browser:(Browser*)browser
                     managedProfileCreationMode:
                         (signin::ManagedAccountSigninMode)mode;
+
+// Checks whether the user wants to switch to `identity` in a new profile with
+// `confirmChangeProfile` and transmits the answer to
+// `didConfirmChangeProfileCanProceed`.
+- (void)confirmChangeProfile:
+            (SigninChangeProfileConfirmationBlock)confirmChangeProfile
+                 forIdentity:(id<SystemIdentity>)identity;
 
 @end
 

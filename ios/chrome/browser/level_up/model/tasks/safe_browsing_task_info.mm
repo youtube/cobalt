@@ -29,7 +29,7 @@ class SafeBrowsingTaskInfo : public TaskInfo {
   std::string GetTriggerUserAction() const override {
     return "MobilePrivacySafeBrowsingSettingsClose";
   }
-  base::RepeatingClosure GetNavigationAction() const override {
+  TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();
   }
 };

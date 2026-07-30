@@ -19,6 +19,7 @@
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/global_request_id.h"
+#include "content/public/browser/initiator_navigation_state.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/common/referrer.h"
 #include "ipc/constants.mojom-forward.h"
@@ -95,6 +96,13 @@ struct CONTENT_EXPORT OpenURLParams {
   // The base url of the initiator of the navigation. This will be non-null only
   // if the navigation is about:blank or about:srcdoc.
   std::optional<GURL> initiator_base_url;
+
+  // A record of the state of the navigation initiator.
+  scoped_refptr<InitiatorNavigationState> initiator_navigation_state;
+
+  // Whether the web security policies of the initiator should be inherited when
+  // navigating to a local scheme.
+  bool should_ignore_initiator_policies_for_inheritance = false;
 
   // SiteInstance of the frame that initiated the navigation or null if we
   // don't know it.

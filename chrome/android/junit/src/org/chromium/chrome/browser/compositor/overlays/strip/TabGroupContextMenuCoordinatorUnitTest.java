@@ -71,6 +71,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabList;
@@ -242,14 +243,19 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         mSavedTabGroup.collaborationId = COLLABORATION_ID;
         mOnItemClickedCallback =
                 TabGroupContextMenuCoordinator.getMenuItemClickedCallback(
-                        activity, () -> mTabModel, mMultiInstanceManager, mDataSharingTabManager);
+                        activity,
+                        () -> mTabModel,
+                        mMultiInstanceManager,
+                        mDataSharingTabManager,
+                        TabClosingSource.TABLET_TAB_STRIP);
         mTabGroupContextMenuCoordinator =
                 TabGroupContextMenuCoordinator.createContextMenuCoordinator(
                         mTabModel,
                         mMultiInstanceManager,
                         mWindowAndroid,
                         mDataSharingTabManager,
-                        mReorderFunction);
+                        mReorderFunction,
+                        TabClosingSource.TABLET_TAB_STRIP);
 
         // Set group ids manually to bypass showMenu() call.
         mTabGroupContextMenuCoordinator.setGroupDataForTesting(TAB_GROUP_ID);

@@ -98,6 +98,12 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
   void ShowContentSettingsBubble(
       ::toolbar_ui_api::mojom::ContentSettingImageType type,
       ShowContentSettingsBubbleCallback callback) override;
+  void OnPageActionClick(::toolbar_ui_api::mojom::PageActionId action_id,
+                         ::toolbar_ui_api::mojom::PageActionTrigger trigger,
+                         OnPageActionClickCallback callback) override;
+  void OnPageActionChipShowingChanged(
+      ::toolbar_ui_api::mojom::PageActionId action_id,
+      OnPageActionChipShowingChangedCallback callback) override;
   void InvokePinnedToolbarAction(
       toolbar_ui_api::mojom::PinnedToolbarAction action_id) override;
   void OnLhsChipMousePressed(

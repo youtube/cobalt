@@ -25,8 +25,6 @@ blink_modules_sources("storage") {
     "storage_namespace.cc",
     "storage_namespace.h",
   ]
-
-  configs += [ "//third_party/blink/renderer:narrowing" ]
 }
 
 source_set("unit_tests") {

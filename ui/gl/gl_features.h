@@ -87,10 +87,6 @@ GL_EXPORT bool IsAnySoftwareGLAllowed(const base::CommandLine* command_line);
 GL_EXPORT bool IsSoftwareGLFallbackDueToCrashesAllowed(
     const base::CommandLine* command_line);
 
-// Check if ANGLE's D3D9 backend is a valid fallback if D3D11 does not
-// initialize or is disabled.
-GL_EXPORT bool IsANGLED3D9FallbackAllowed();
-
 #if BUILDFLAG(IS_ANDROID)
 GL_EXPORT BASE_DECLARE_FEATURE(kAndroidLimitRgb565DisplayToApi32);
 

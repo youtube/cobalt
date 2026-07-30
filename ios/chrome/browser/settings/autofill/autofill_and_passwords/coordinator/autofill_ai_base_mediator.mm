@@ -42,6 +42,11 @@
 
 - (instancetype)initWithEntityDataManager:
     (autofill::EntityDataManager*)entityDataManager {
+  return [self initWithEntityDataManager:entityDataManager prefService:nullptr];
+}
+
+- (instancetype)initWithEntityDataManager:(autofill::EntityDataManager*)entityDataManager
+                              prefService:(PrefService*)prefService {
   self = [super init];
   if (self) {
     CHECK(entityDataManager);
@@ -49,6 +54,7 @@
     _entityDataManagerObserver =
         std::make_unique<autofill::IOSAutofillEntityDataManagerObserverBridge>(
             _entityDataManager, self);
+    _prefService = prefService;
   }
   return self;
 }
@@ -139,8 +145,9 @@
     return;
   }
 
-  base::span<const autofill::EntityInstance> instances =
-      _entityDataManager->GetEntityInstances();
+  std::vector<autofill::EntityInstance> instances =
+      autofill::GetEntityInstancesForSettings(
+          _entityDataManager->GetEntityInstances());
 
   autofill::DenseSet<autofill::EntityTypeName> supportedTypes =
       [self supportedEntityTypes];

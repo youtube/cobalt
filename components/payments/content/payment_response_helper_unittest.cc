@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_executor.h"
+#include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
@@ -20,6 +21,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/payments/content/payment_request_spec.h"
 #include "components/payments/content/test_payment_app.h"
+#include "components/payments/core/features.h"
 #include "components/payments/core/test_payment_request_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/payments/payment_request.mojom.h"
@@ -48,6 +50,10 @@ class PaymentResponseHelperTest : public testing::Test,
   // PaymentRequestState::Delegate:
   void OnPaymentResponseError(mojom::PaymentEventResponseType error,
                               const std::string& error_message) override {}
+
+  bool WasPaymentHandlerWindowInteractedWith() const override {
+    return was_payment_handler_window_interacted_with_;
+  }
 
   // Convenience method to create a PaymentRequestSpec with specified |details|
   // and |method_data|.
@@ -97,6 +103,12 @@ class PaymentResponseHelperTest : public testing::Test,
   base::WeakPtr<PaymentResponseHelperTest> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
+
+  void ResetTestApp(std::unique_ptr<PaymentApp> test_app) {
+    test_app_ = std::move(test_app);
+  }
+
+  bool was_payment_handler_window_interacted_with_ = false;
 
  private:
   std::unique_ptr<PaymentRequestSpec> spec_;
@@ -231,6 +243,58 @@ TEST_F(PaymentResponseHelperTest,
 
   // Check that the phone was formatted.
   EXPECT_EQ("+15151231234", response()->payer->phone.value());
+}
+
+class PaymentResponseHelperMandatoryUiTest : public PaymentResponseHelperTest {
+ protected:
+  PaymentResponseHelperMandatoryUiTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kPaymentRequestMandatoryPaymentAppUi);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(PaymentResponseHelperMandatoryUiTest,
+       StashAndResumePaymentDetailsDependsOnUserInteraction) {
+  was_payment_handler_window_interacted_with_ = false;
+
+  RecreateSpecWithOptions(mojom::PaymentOptions::New());
+
+  PaymentResponseHelper helper("en-US", spec(), test_app(),
+                               test_payment_request_delegate(), test_address(),
+                               test_address(), GetWeakPtr());
+
+  // Since window was not interacted with and mandatory UI feature is enabled,
+  // the payment response generation should be stashed/deferred (response is
+  // null).
+  EXPECT_TRUE(response().is_null());
+
+  helper.OnUserInteractionCaptured();
+
+  // The stashed response should now be generated and populated.
+  EXPECT_FALSE(response().is_null());
+  EXPECT_EQ("method-name", response()->method_name);
+}
+
+TEST_F(PaymentResponseHelperMandatoryUiTest,
+       NonServiceWorkerAppDoesNotStashResponse) {
+  was_payment_handler_window_interacted_with_ = false;
+
+  ResetTestApp(std::make_unique<TestPaymentApp>("method-name",
+                                                PaymentApp::Type::INTERNAL));
+
+  RecreateSpecWithOptions(mojom::PaymentOptions::New());
+
+  PaymentResponseHelper helper("en-US", spec(), test_app(),
+                               test_payment_request_delegate(), test_address(),
+                               test_address(), GetWeakPtr());
+
+  // Since it's a non-service worker app, the payment response generation should
+  // NOT be stashed/deferred (response is not null).
+  EXPECT_FALSE(response().is_null());
+  EXPECT_EQ("method-name", response()->method_name);
 }
 
 }  // namespace payments

@@ -728,6 +728,8 @@ def strip_sections(install_root: str, arch: str):
             if sections_to_remove:
                 objcopy_arch = "amd64" if arch == "i386" else arch
                 objcopy_bin = TRIPLES[objcopy_arch] + "-objcopy"
+                if not shutil.which(objcopy_bin):
+                    objcopy_bin = "objcopy"
                 objcopy_cmd = ([objcopy_bin] + [
                     f"--remove-section={section}"
                     for section in sections_to_remove

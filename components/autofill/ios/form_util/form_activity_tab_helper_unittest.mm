@@ -1052,9 +1052,6 @@ TEST_F(FormSubmittedHookTest, TestFormSubmittedHook) {
   WebFrame* main_frame = WaitForMainFrame();
   ASSERT_TRUE(main_frame);
 
-  AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillIsolatedContentWorld(main_frame, true);
-
   web::test::ExecuteJavaScriptForFeature(
       web_state(),
       @"var form = document.forms[0];"
@@ -1096,22 +1093,14 @@ TEST_F(FormSubmittedHookTest, TestFormSubmittedHook) {
 // Validate that programmatic form submissions are detected and sent to
 // observers of the tab helper.
 TEST_F(FormSubmittedHookTest, TestFormSubmittedHookAcrossIframes) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      autofill::features::kAutofillAcrossIframesIos);
+
   LoadHtml(kTestHTMLFormWithIframes);
 
   WebFrame* main_frame = WaitForMainFrame();
   ASSERT_TRUE(main_frame);
-
-  // Set feature flags in both worlds.
-  AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillIsolatedContentWorld(main_frame, true);
-  AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillAcrossIframes(main_frame, true);
-  AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillIsolatedContentWorld(
-          WaitForMainFrame(web::ContentWorld::kPageContentWorld), true);
-  AutofillFormFeaturesJavaScriptFeature::GetInstance()
-      ->SetAutofillAcrossIframes(
-          WaitForMainFrame(web::ContentWorld::kPageContentWorld), true);
 
   // Trigger form extraction so child frame tokens are set in the isolated
   // world. Page scripts will be able to access the tokens through the fallback

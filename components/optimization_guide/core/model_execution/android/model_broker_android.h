@@ -59,6 +59,7 @@ class ModelBrokerAndroid final : public OnDeviceCapability,
   void SetUseCaseRequested(const std::string& use_case,
                            bool requested) override;
   void UninstallModels() override;
+  void ResetModelCrashCount() override;
 
   mojo::Remote<on_device_model::mojom::OnDeviceModel>& GetOrCreateModelRemote(
       proto::ModelExecutionFeature feature);

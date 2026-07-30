@@ -99,9 +99,6 @@ void WebContentsObserverProxy::PrimaryMainFrameRenderProcessGone(
 void WebContentsObserverProxy::DidStartLoading() {
   TRACE_EVENT("browser", "WebContentsObserverProxy::DidStartLoading");
   JNIEnv* env = AttachCurrentThread();
-  if (auto* entry = web_contents()->GetController().GetPendingEntry()) {
-    base_url_of_last_started_data_url_ = entry->GetBaseURLForDataURL();
-  }
   Java_WebContentsObserverProxy_didStartLoading(
       env, GetJavaObjectChecked(env),
       url::GURLAndroid::FromNativeGURL(env, web_contents()->GetVisibleURL()));
@@ -111,8 +108,6 @@ void WebContentsObserverProxy::DidStopLoading() {
   JNIEnv* env = AttachCurrentThread();
   GURL url = web_contents()->GetLastCommittedURL();
   bool assume_valid = SetToBaseURLForDataURLIfNeeded(&url);
-  // DidStopLoading is the last event we should get.
-  base_url_of_last_started_data_url_ = GURL();
   Java_WebContentsObserverProxy_didStopLoading(
       env, GetJavaObjectChecked(env),
       url::GURLAndroid::FromNativeGURL(env, url), assume_valid);
@@ -317,12 +312,6 @@ bool WebContentsObserverProxy::SetToBaseURLForDataURLIfNeeded(GURL* url) {
   // ones? This may break apps.
   if (entry && !entry->GetBaseURLForDataURL().is_empty()) {
     *url = entry->GetBaseURLForDataURL();
-    return false;
-  } else if (!base_url_of_last_started_data_url_.is_empty()) {
-    // NavigationController can lose the pending entry and recreate it without
-    // a base URL if there has been a loadUrl("javascript:...") after
-    // loadDataWithBaseUrl.
-    *url = base_url_of_last_started_data_url_;
     return false;
   }
   return true;

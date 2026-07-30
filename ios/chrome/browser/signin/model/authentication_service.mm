@@ -782,7 +782,7 @@ void AuthenticationService::HandleForgottenIdentityCallback(
     FirePrimaryAccountRestricted();
   } else if (should_prompt &&
              IsFirstSessionAfterDeviceRestore() != signin::Tribool::kTrue) {
-    // If the device is restored, the restore shorty UI will be shown.
+    // If the device is restored, the restore shortly UI will be shown.
     // Therefore, the reauth UI should be skipped.
     SetReauthPromptForSignInAndSync();
   }

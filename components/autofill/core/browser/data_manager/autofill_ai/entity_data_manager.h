@@ -21,6 +21,7 @@
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_instance_cleaner.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/network/autofill_ai/personal_context_access_manager.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
 #include "components/history/core/browser/history_service.h"
@@ -47,8 +48,12 @@ namespace autofill {
 
 class AutofillAiSaveStrikeDatabaseByHost;
 
-// Loads, adds, updates, and removes EntityInstances. Deletes data from
-// AutofillAI strike databases on history deletion.
+// Loads, adds, updates, and removes EntityInstances. Masked EntityInstances of
+// all record types are managed by this class, regardless of origin (e.g., local
+// entities, Wallet entities received via Sync, pContext entities received
+// though the PersonalContextAccessManager). Unmasked EntityInstances are never
+// stored in the EntityDataManager.
+// Deletes data from AutofillAI strike databases on history deletion.
 //
 // These operations are asynchronous; this is similar to
 // AutocompleteHistoryManager and unlike AddressDataManager.
@@ -59,7 +64,8 @@ class AutofillAiSaveStrikeDatabaseByHost;
 // from an incognito session is persisted unintentionally.
 class EntityDataManager : public KeyedService,
                           public AutofillWebDataServiceObserverOnUISequence,
-                          public history::HistoryServiceObserver {
+                          public history::HistoryServiceObserver,
+                          public PersonalContextAccessManager::Observer {
  public:
   // Autofill AI enabled pref migration status.
   //
@@ -86,8 +92,8 @@ class EntityDataManager : public KeyedService,
   class Observer : public base::CheckedObserver {
    public:
     // Fired by any operation that changes GetEntityInstances().
-    // This includes database operations as well as updates from Accessibility
-    // Annotator.
+    // This includes database operations as well as updates from personal
+    // context.
     virtual void OnEntityInstancesChanged() {}
   };
 
@@ -97,6 +103,7 @@ class EntityDataManager : public KeyedService,
       syncer::SyncService* sync_service,
       scoped_refptr<AutofillWebDataService> profile_database,
       history::HistoryService* history_service,
+      PersonalContextAccessManager* pcontext_manager,
       strike_database::StrikeDatabaseBase* strike_database,
       GeoIpCountryCode variation_country_code);
   EntityDataManager(const EntityDataManager&) = delete;
@@ -155,6 +162,12 @@ class EntityDataManager : public KeyedService,
   void OnHistoryDeletions(history::HistoryService*,
                           const history::DeletionInfo& deletion_info) override;
 
+  // PersonalContextAccessManager::Observer:
+  void OnPrefetchContextComplete(
+      const PersonalContextAccessManager& manager,
+      base::span<const EntityInstance> entities) override;
+  void OnMaskedEntityTypeEvicted(const PersonalContextAccessManager& manager,
+                                 EntityType type) override;
 
   // Records the date an entity was used and also increments the number of times
   // it was used.
@@ -199,6 +212,11 @@ class EntityDataManager : public KeyedService,
   // level) because the device's re-auth state can change.
   void EnforceEntityReauthRequirements();
 
+  // Removes any cached `kPersonalContext` entities from `entities_` that
+  // represent the same entity as any non-pContext entity in the cache, based
+  // on their merge constraints.
+  void DedupePersonalContextEntities();
+
   // Becomes true after the response of the initial LoadEntitiesFromDatabase()
   // and remains true from then on.
   bool database_loaded_ = false;
@@ -214,7 +232,7 @@ class EntityDataManager : public KeyedService,
   // The ongoing LoadEntitiesFromDatabase() query.
   WebDataServiceBase::Handle pending_query_{};
 
-  // Contains the entities from the database and Accessibility Annotator.
+  // Contains the entities from the database and personal context.
   // All entries are identifiable by their EntityInstance::guid().
   base::flat_set<EntityInstance, EntityInstance::CompareByGuid> entities_;
 
@@ -224,6 +242,10 @@ class EntityDataManager : public KeyedService,
 
   base::ScopedObservation<history::HistoryService, HistoryServiceObserver>
       history_service_observation_{this};
+
+  base::ScopedObservation<PersonalContextAccessManager,
+                          PersonalContextAccessManager::Observer>
+      pcontext_observation_{this};
 
   std::unique_ptr<AutofillAiSaveStrikeDatabaseByHost> save_strike_db_by_host_;
 

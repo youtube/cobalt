@@ -78,7 +78,6 @@ component("idle") {
 
   if (is_android) {
     deps += [ "//ui/base:ui_base_jni_headers" ]
-    sources -= [ "idle.cc" ]
     sources += [ "idle_android.cc" ]
   }
 

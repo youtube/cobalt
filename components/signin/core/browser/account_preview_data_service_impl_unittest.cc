@@ -200,41 +200,6 @@ TEST_F(AccountPreviewDataServiceTest, NoFetchOnStartupIfTimerNotExpired) {
   EXPECT_FALSE(service_->HasActiveFetcherForTesting(account_info.gaia));
 }
 
-TEST_F(AccountPreviewDataServiceTest, ClearsInvalidDataOnCookieUpdate) {
-  // 1. Setup: Make two accounts available.
-  AccountInfo account1 =
-      identity_test_env_.MakeAccountAvailable("account1@gmail.com");
-  AccountInfo account2 =
-      identity_test_env_.MakeAccountAvailable("account2@gmail.com");
-
-  // Mock successful fetches for both accounts.
-  MockSuccessfulFetch(&test_url_loader_factory_);
-
-  // Trigger fetches and wait for completion.
-  {
-    base::RunLoop run_loop;
-    service_->SetFetchCompleteCallbackForTesting(run_loop.QuitClosure());
-    service_->OnRefreshTokenUpdatedForAccount(account1);
-    run_loop.Run();
-  }
-  {
-    base::RunLoop run_loop;
-    service_->SetFetchCompleteCallbackForTesting(run_loop.QuitClosure());
-    service_->OnRefreshTokenUpdatedForAccount(account2);
-    run_loop.Run();
-  }
-
-  // Verify both are present in cache.
-  ASSERT_TRUE(service_->GetAccountPreviewData(account1.gaia).has_value());
-  ASSERT_TRUE(service_->GetAccountPreviewData(account2.gaia).has_value());
-
-  // 2. Trigger: Set cookies to only contain account1 (removing account2).
-  identity_test_env_.SetCookieAccounts({{account1.email, account1.gaia}});
-
-  // 3. Assert: account2's data should be removed, account1's should remain.
-  EXPECT_TRUE(service_->GetAccountPreviewData(account1.gaia).has_value());
-  EXPECT_FALSE(service_->GetAccountPreviewData(account2.gaia).has_value());
-}
 
 #if !BUILDFLAG(IS_CHROMEOS)
 TEST_F(AccountPreviewDataServiceTest,

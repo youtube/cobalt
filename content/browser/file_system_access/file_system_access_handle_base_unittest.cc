@@ -4,16 +4,20 @@
 
 #include "content/browser/file_system_access/file_system_access_handle_base.h"
 
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/file_system_access/features.h"
+#include "content/browser/file_system_access/mock_file_system_access_permission_context.h"
 #include "content/browser/file_system_access/mock_file_system_access_permission_grant.h"
 #include "content/public/test/browser_task_environment.h"
 #include "storage/browser/blob/blob_storage_context.h"
@@ -45,6 +49,7 @@ using FileSystemAccessPermissionMode =
 using FileSystemAccessStatus = blink::mojom::FileSystemAccessStatus;
 using UserActivationState =
     FileSystemAccessPermissionGrant::UserActivationState;
+using HandleType = FileSystemAccessPermissionContext::HandleType;
 
 // Verifies that the `FileSystemAccessStatus` and `PermissionStatus` returned by
 // `DoRequestPermission()` match the expected values.
@@ -93,6 +98,9 @@ MATCHER_P2(PermissionStatusIs,
 
 class TestFileSystemAccessHandle : public FileSystemAccessHandleBase {
  public:
+  using FileSystemAccessHandleBase::GetRenamePermission;
+  using FileSystemAccessHandleBase::RenamePermission;
+
   TestFileSystemAccessHandle(FileSystemAccessManagerImpl* manager,
                              const BindingContext& context,
                              const storage::FileSystemURL& url,
@@ -1563,5 +1571,238 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<TestContextParam>& info) {
       return info.param.test_name;
     });
+
+class FileSystemAccessHandleGetRenamePermissionTest
+    : public FileSystemAccessHandleTestBase {
+ public:
+  void SetUp() override {
+    FileSystemAccessHandleTestBase::SetUp();
+    manager_->SetPermissionContextForTesting(&permission_context_);
+
+    dummy_read_grant_ = base::MakeRefCounted<
+        testing::NiceMock<MockFileSystemAccessPermissionGrant>>();
+    ON_CALL(permission_context_, GetReadPermissionGrant(_, _, _, _))
+        .WillByDefault(testing::Return(dummy_read_grant_));
+
+    dummy_write_grant_ = base::MakeRefCounted<
+        testing::NiceMock<MockFileSystemAccessPermissionGrant>>();
+    ON_CALL(*dummy_write_grant_, GetStatus())
+        .WillByDefault(testing::Return(PermissionStatus::ASK));
+    ON_CALL(permission_context_, GetWritePermissionGrant(_, _, _, _))
+        .WillByDefault(testing::Return(dummy_write_grant_));
+  }
+
+  void TearDown() override {
+    manager_->SetPermissionContextForTesting(nullptr);
+    FileSystemAccessHandleTestBase::TearDown();
+  }
+
+ protected:
+  bool is_worker() const override { return false; }
+
+  void SetUpMockGrants(
+      const storage::FileSystemURL& dest_url,
+      PermissionStatus target_status,
+      std::optional<PermissionStatus> parent_status = std::nullopt) {
+    auto target_write_grant = base::MakeRefCounted<
+        testing::NiceMock<MockFileSystemAccessPermissionGrant>>();
+    ON_CALL(*target_write_grant, GetStatus())
+        .WillByDefault(testing::Return(target_status));
+    EXPECT_CALL(permission_context_,
+                GetWritePermissionGrant(
+                    kTestStorageKey.origin(),
+                    testing::Field(&content::PathInfo::path, dest_url.path()),
+                    HandleType::kFile,
+                    FileSystemAccessPermissionContext::UserAction::kNone))
+        .WillOnce(testing::Return(target_write_grant));
+
+    if (parent_status.has_value()) {
+      auto parent_write_grant = base::MakeRefCounted<
+          testing::NiceMock<MockFileSystemAccessPermissionGrant>>();
+      ON_CALL(*parent_write_grant, GetStatus())
+          .WillByDefault(testing::Return(*parent_status));
+      EXPECT_CALL(permission_context_,
+                  GetWritePermissionGrant(
+                      kTestStorageKey.origin(),
+                      testing::Field(&content::PathInfo::path,
+                                     dest_url.path().DirName()),
+                      HandleType::kDirectory,
+                      FileSystemAccessPermissionContext::UserAction::kNone))
+          .WillOnce(testing::Return(parent_write_grant));
+    } else {
+      EXPECT_CALL(permission_context_,
+                  GetWritePermissionGrant(_, _, HandleType::kDirectory, _))
+          .Times(0);
+    }
+  }
+
+  testing::NiceMock<MockFileSystemAccessPermissionContext> permission_context_;
+  scoped_refptr<MockFileSystemAccessPermissionGrant> dummy_read_grant_;
+  scoped_refptr<MockFileSystemAccessPermissionGrant> dummy_write_grant_;
+};
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest, OPFSDestination) {
+  auto handle = CreateTestHandle();
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeTemporary,
+      base::FilePath::FromUTF8Unsafe("dest"));
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/false,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::kAllowOverwrite);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest,
+       TargetFileHasWriteAccess) {
+  auto handle = CreateTestHandle();
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      base::FilePath::FromUTF8Unsafe("/test/dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::GRANTED);
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/false,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::kAllowOverwrite);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest, FlagOff_WithGesture) {
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(
+      features::kFileSystemAccessRenameRequiresParentWritePermission);
+
+  auto handle = CreateTestHandle();
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      base::FilePath::FromUTF8Unsafe("/test/dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::ASK);
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/true,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::
+                kAllowRenameWithoutOverwrite);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest, FlagOff_NoGesture) {
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(
+      features::kFileSystemAccessRenameRequiresParentWritePermission);
+
+  auto handle = CreateTestHandle();
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      base::FilePath::FromUTF8Unsafe("/test/dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::ASK);
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/false,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::kDeny);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest,
+       FlagOn_ParentHasWriteAccess) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kFileSystemAccessRenameRequiresParentWritePermission,
+      {{features::kOnlyInHomedir.name, "false"}});
+
+  auto handle = CreateTestHandle();
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      base::FilePath::FromUTF8Unsafe("/test/dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::ASK, PermissionStatus::GRANTED);
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/false,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::kAllowOverwrite);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest,
+       FlagOn_ParentNoWriteAccess) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kFileSystemAccessRenameRequiresParentWritePermission,
+      {{features::kOnlyInHomedir.name, "false"}});
+
+  auto handle = CreateTestHandle();
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      base::FilePath::FromUTF8Unsafe("/test/dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::ASK, PermissionStatus::ASK);
+
+  EXPECT_EQ(
+      handle.GetRenamePermission(
+          "dest",
+          /*has_transient_user_activation=*/true,  // gesture shouldn't bypass
+          dest_url),
+      TestFileSystemAccessHandle::RenamePermission::kDeny);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest, OnlyInHomedir_InHomeDir) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kFileSystemAccessRenameRequiresParentWritePermission,
+      {{features::kOnlyInHomedir.name, "true"}});
+
+  base::FilePath home_dir = dir_.GetPath().AppendASCII("home");
+  ASSERT_TRUE(base::CreateDirectory(home_dir));
+  home_dir = base::MakeAbsoluteFilePath(home_dir);
+  ASSERT_FALSE(home_dir.empty());
+  base::ScopedPathOverride home_override(base::DIR_HOME, home_dir);
+
+  auto handle = CreateTestHandle();
+  // Destination is inside the home directory: /home/test/dest
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      home_dir.AppendASCII("test").AppendASCII("dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::ASK, PermissionStatus::ASK);
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/true,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::kDeny);
+}
+
+TEST_F(FileSystemAccessHandleGetRenamePermissionTest,
+       OnlyInHomedir_OutsideHomeDir) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kFileSystemAccessRenameRequiresParentWritePermission,
+      {{features::kOnlyInHomedir.name, "true"}});
+
+  base::FilePath home_dir = dir_.GetPath().AppendASCII("home");
+  ASSERT_TRUE(base::CreateDirectory(home_dir));
+  home_dir = base::MakeAbsoluteFilePath(home_dir);
+  ASSERT_FALSE(home_dir.empty());
+  base::ScopedPathOverride home_override(base::DIR_HOME, home_dir);
+
+  auto handle = CreateTestHandle();
+  // Destination is outside the home directory: /other/dest
+  base::FilePath other_dir = dir_.GetPath().AppendASCII("other");
+  ASSERT_TRUE(base::CreateDirectory(other_dir));
+  other_dir = base::MakeAbsoluteFilePath(other_dir);
+  ASSERT_FALSE(other_dir.empty());
+  storage::FileSystemURL dest_url = FileSystemURL::CreateForTest(
+      kTestStorageKey, storage::kFileSystemTypeLocal,
+      other_dir.AppendASCII("dest"));
+
+  SetUpMockGrants(dest_url, PermissionStatus::ASK, std::nullopt);
+
+  EXPECT_EQ(handle.GetRenamePermission("dest",
+                                       /*has_transient_user_activation=*/true,
+                                       dest_url),
+            TestFileSystemAccessHandle::RenamePermission::
+                kAllowRenameWithoutOverwrite);
+}
 
 }  // namespace content

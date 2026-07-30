@@ -1215,8 +1215,8 @@ void HTMLCapabilityElementBase::DisableClickingTemporarily(
   base::TimeTicks timeout_time = base::TimeTicks::Now() + duration;
 
   // If there is already an entry that expires later, keep the existing one.
-  if (clicking_disabled_reasons_.Contains(reason) &&
-      clicking_disabled_reasons_.at(reason) > timeout_time) {
+  if (auto it = clicking_disabled_reasons_.find(reason);
+      it != clicking_disabled_reasons_.end() && it->value > timeout_time) {
     return;
   }
 

@@ -135,7 +135,7 @@ ui::EventDispatchDetails InputMethodAuraLinux::DispatchKeyEvent(
   // Forward key event to IME.
   bool filtered = false;
   {
-    suppress_non_key_input_until_ = base::TimeTicks::UnixEpoch();
+    suppress_non_key_input_until_ = base::TimeTicks();
     composition_changed_ = false;
     last_commit_result_.reset();
     result_text_ = std::nullopt;

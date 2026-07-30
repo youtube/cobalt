@@ -12,11 +12,15 @@ import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.View.OnLayoutChangeListener;
 
+import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
+import org.chromium.base.Log;
+import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.toolbar.ControlContainer;
 import org.chromium.chrome.browser.toolbar.R;
@@ -35,10 +39,24 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
 @NullMarked
 public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHeaderObserver {
     static @Nullable Integer sHeightTransitionThresholdForTesting;
+    private static final String TAG = "TabStripTransition";
+
+    /** Callsite for requesting tab strip size update. */
+    public enum Callsite {
+        INITIALIZATION,
+        LAYOUT_CHANGE,
+        APP_HEADER_STATE_CHANGE
+    }
 
     // Delay to kickoff the transition to avoid frame drops while application is too busy when the
     // configuration changed.
     private static final int TRANSITION_DELAY_MS = 200;
+
+    /** Observer for tab strip transition completion. */
+    public interface TabStripTransitionObserver {
+        /** Called when tab strip transition finishes. */
+        void onTabStripTransitionFinished(boolean success);
+    }
 
     /**
      * Interface that exposes methods to handle tab strip height transitions that can impact strip
@@ -59,6 +77,13 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
                 int topPadding,
                 boolean applyScrimOverlay,
                 Runnable transitionStartedCallback) {}
+
+        /**
+         * Set the callback invoked when the transition animation is finished.
+         *
+         * @param callback Callback object.
+         */
+        default void setTransitionFinishedCallback(Callback<Boolean> callback) {}
     }
 
     /** Delegate to enforce tab strip updates when strip transition is requested. */
@@ -123,6 +148,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     private boolean mDesktopWindowingModeChanged;
     private boolean mForceUpdateHeight;
     private boolean mForceFadeInStrip;
+    private boolean mIsHeightTransitionPending;
 
     private @Nullable OnLayoutChangeListener mOnLayoutChangedListener;
     private @Nullable Runnable mLayoutTransitionTask;
@@ -132,6 +158,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     private final FadeTransitionHandler mFadeTransitionHandler;
 
     private final OneshotSupplier<TabStripTransitionDelegate> mTabStripTransitionDelegateSupplier;
+    private final ObserverList<TabStripTransitionObserver> mTransitionObservers =
+            new ObserverList<>();
 
     /**
      * Create the coordinator to manage transitions to show / hide the tab strip.
@@ -171,6 +199,12 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
                         suppressTabStripAtStart);
         mFadeTransitionHandler =
                 new FadeTransitionHandler(tabStripTransitionDelegateSupplier, mCallbackController);
+        tabStripTransitionHandler.setTransitionFinishedCallback(
+                success -> {
+                    for (TabStripTransitionObserver observer : mTransitionObservers) {
+                        observer.onTabStripTransitionFinished(success);
+                    }
+                });
 
         mTabStripReservedTopPadding =
                 controlContainerView()
@@ -180,7 +214,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         mOnLayoutChangedListener =
                 (view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
                     int windowWidth = Math.abs(right - left);
-                    onLayoutWidthChanged(windowWidth);
+                    onLayoutWidthChanged(windowWidth, Callsite.LAYOUT_CHANGE);
                 };
         controlContainerView().addOnLayoutChangeListener(mOnLayoutChangedListener);
 
@@ -195,9 +229,9 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
 
         // Initialize the tab strip size based on whether we have app header.
         if (appHeaderState != null) {
-            onAppHeaderStateChanged(appHeaderState);
+            onAppHeaderStateChanged(appHeaderState, Callsite.INITIALIZATION);
         } else {
-            onLayoutWidthChanged(controlContainerView().getWidth());
+            onLayoutWidthChanged(controlContainerView().getWidth(), Callsite.INITIALIZATION);
         }
     }
 
@@ -215,6 +249,10 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
 
     @Override
     public void onAppHeaderStateChanged(AppHeaderState newState) {
+        onAppHeaderStateChanged(newState, Callsite.APP_HEADER_STATE_CHANGE);
+    }
+
+    private void onAppHeaderStateChanged(AppHeaderState newState, Callsite callsite) {
         assert mDesktopWindowStateManager != null;
         assert newState != null;
 
@@ -228,7 +266,10 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         // Force trigger the strip height transition when:
         // 1. The app is switching desktop windowing mode, to update the strip top padding.
         // 2. The app header height changes.
-        mForceUpdateHeight = mDesktopWindowingModeChanged || headerHeightChanged;
+        // 3. The height transition is pending, which happens when app header state change
+        //    happens before the first control container layout pass.
+        mForceUpdateHeight =
+                mDesktopWindowingModeChanged || headerHeightChanged || mIsHeightTransitionPending;
 
         // Force fade in an invisible tab strip when the app is exiting desktop windowing mode, and
         // the height transition is blocked.
@@ -239,9 +280,10 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
 
         mAppHeaderState = newState;
         if (mAppHeaderState.isInDesktopWindow()) {
-            onTabStripSizeChanged(mAppHeaderState.getUnoccludedRectWidth(), calculateTopPadding());
+            onTabStripSizeChanged(
+                    mAppHeaderState.getUnoccludedRectWidth(), calculateTopPadding(), callsite);
         } else {
-            onTabStripSizeChanged(controlContainerView().getWidth(), 0);
+            onTabStripSizeChanged(controlContainerView().getWidth(), 0, callsite);
         }
     }
 
@@ -266,6 +308,17 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     /** Set whether the tab strip should be suppressed for other UIs. */
     public void suppressTabStrip(boolean suppress) {
         mHeightTransitionHandler.suppressTabStrip(suppress);
+        mFadeTransitionHandler.suppressTabStrip(suppress);
+    }
+
+    /** Add observer for tab strip transition finished events. */
+    public void addObserver(TabStripTransitionObserver observer) {
+        mTransitionObservers.addObserver(observer);
+    }
+
+    /** Remove observer for tab strip transition finished events. */
+    public void removeObserver(TabStripTransitionObserver observer) {
+        mTransitionObservers.removeObserver(observer);
     }
 
     /** Request the token to defer the tab strip height transition to a later time. */
@@ -308,7 +361,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         return mControlContainer.getView();
     }
 
-    private void onLayoutWidthChanged(int newWidth) {
+    private void onLayoutWidthChanged(int newWidth, Callsite callsite) {
         // If mAppHeaderState exists, check the widestUnoccludedRect too. This is needed as
         // updates in mAppHeaderState can happen prior / during a layout pass, while the
         // transition needs to wait until UI is in a stable state.
@@ -316,7 +369,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
             newWidth = Math.min(newWidth, mAppHeaderState.getUnoccludedRectWidth());
         }
 
-        onTabStripSizeChanged(newWidth, calculateTopPadding());
+        onTabStripSizeChanged(newWidth, calculateTopPadding(), callsite);
     }
 
     /**
@@ -326,11 +379,34 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
      *
      * @param width The current width of tab strip.
      * @param topPadding The top padding to be added to the tab strip.
+     * @param callsite The callsite requesting the transition.
      */
-    private void onTabStripSizeChanged(int width, int topPadding) {
+    private void onTabStripSizeChanged(int width, int topPadding, Callsite callsite) {
+        Log.i(
+                TAG,
+                "onTabStripSizeChanged: callsite=%s, width=%d, topPadding=%d,"
+                        + " controlContainerHeight=%d, forceUpdateHeight=%b, forceFadeIn=%b,"
+                        + " appHeaderState=%s",
+                callsite.name(),
+                width,
+                topPadding,
+                controlContainerView().getHeight(),
+                mForceUpdateHeight,
+                mForceFadeInStrip,
+                mAppHeaderState);
+
         // Avoid transitioning when strip width / control container height is invalid. This can
         // happen when the control container is created hidden after theme changes.
-        if (width <= 0 || controlContainerView().getHeight() == 0) return;
+        if (width <= 0) return;
+        if (controlContainerView().getHeight() == 0) {
+            // If appheader height changes but transition did not kick off due to control container
+            // not being measured yet, then we need to force trigger the transition in the next
+            // invocation of this method. (crbug.com/517186165)
+            if (ChromeFeatureList.sTabStripHeightTransitionGlitchFix.isEnabled()) {
+                mIsHeightTransitionPending = mForceUpdateHeight;
+            }
+            return;
+        }
 
         if (width == mTabStripWidth && topPadding == mTopPadding) return;
         mTabStripWidth = width;

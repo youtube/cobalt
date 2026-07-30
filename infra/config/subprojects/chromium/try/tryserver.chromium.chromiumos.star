@@ -8,7 +8,6 @@ load("@chromium-luci//builder_config.star", "builder_config")
 load("@chromium-luci//builders.star", "os")
 load("@chromium-luci//consoles.star", "consoles")
 load("@chromium-luci//gn_args.star", "gn_args")
-load("@chromium-luci//html.star", "linkify_builder")
 load("@chromium-luci//try.star", "try_")
 load("//lib/siso.star", "siso")
 load("//lib/try_constants.star", "try_constants")
@@ -80,27 +79,7 @@ try_.builder(
 try_.builder(
     name = "chromeos-amd64-generic-rel",
     branch_selector = branches.selector.CROS_LTS_BRANCHES,
-    description_html = "This is a compile only builder for Ash chrome.",
-    mirrors = ["ci/chromeos-amd64-generic-rel"],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/chromeos-amd64-generic-rel",
-            "dcheck_always_on",
-        ],
-    ),
-    contact_team_email = "chromeos-chrome-build@google.com",
-    main_list_view = "try",
-)
-
-try_.orchestrator_builder(
-    name = "chromeos-amd64-generic-rel-gtest",
-    branch_selector = branches.selector.CROS_LTS_BRANCHES,
-    description_html = "This is an Ash chrome builder which only runs gtest." +
-                       " This builder is the default CQ builder for" +
-                       " non-ChromeOS engineers only. See the builder" +
-                       " description for " +
-                       linkify_builder("try", "chromeos-amd64-generic-rel-gtest-and-tast", "chromium") +
-                       " for more information",
+    description_html = "This is an Ash chrome builder which runs gtests.",
     mirrors = [
         "ci/chromeos-amd64-generic-rel",
         "ci/chromeos-amd64-generic-rel-gtest",
@@ -111,76 +90,6 @@ try_.orchestrator_builder(
             "dcheck_always_on",
         ],
     ),
-    builderless = True,
-    compilator = "chromeos-amd64-generic-rel-gtest-compilator",
-    contact_team_email = "chromeos-chrome-build@google.com",
-    main_list_view = "try",
-)
-
-try_.orchestrator_builder(
-    name = "chromeos-amd64-generic-rel-gtest-and-tast",
-    branch_selector = branches.selector.CROS_LTS_BRANCHES,
-    description_html = "This is an Ash chrome builder which runs gtest" +
-                       " and Tast tests. This builder is the default CQ" +
-                       " builder for ChromeOS engineers only." +
-                       " For a CL, infra would check the CL’s owner to see" +
-                       " if the owner is a ChromeOS org engineer or not." +
-                       " If the owner is a ChromeOS org engineer, the" +
-                       " default CQ would include this builder which runs" +
-                       " both Tast tests and gtests. Otherwise, the default" +
-                       " CQ would include `chromeos-amd64-generic-rel-gtest`" +
-                       " which only runs gtests. If you encounter unexpected" +
-                       " Tast tests failures, please contact ChromeOS" +
-                       " gardeners for help.",
-    mirrors = [
-        "ci/chromeos-amd64-generic-rel",
-        "ci/chromeos-amd64-generic-rel-gtest",
-        "ci/chromeos-amd64-generic-rel-tast",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/chromeos-amd64-generic-rel",
-            "dcheck_always_on",
-        ],
-    ),
-    builderless = True,
-    compilator = "chromeos-amd64-generic-rel-gtest-and-tast-compilator",
-    contact_team_email = "chromeos-chrome-build@google.com",
-    main_list_view = "try",
-)
-
-CHROMEOS_SHARED_CACHE = "shared_chromeos_amd64_generic_rel_cache_{}".format(settings.project.replace("-", "_"))
-
-try_.compilator_builder(
-    name = "chromeos-amd64-generic-rel-gtest-compilator",
-    branch_selector = branches.selector.CROS_LTS_BRANCHES,
-    description_html = ".",
-    builderless = True,
-    cores = "16",
-    caches = [
-        swarming.cache(
-            name = CHROMEOS_SHARED_CACHE,
-            path = "builder",
-            wait_for_warm_cache = 4 * time.minute,
-        ),
-    ],
-    contact_team_email = "chromeos-chrome-build@google.com",
-    main_list_view = "try",
-)
-
-try_.compilator_builder(
-    name = "chromeos-amd64-generic-rel-gtest-and-tast-compilator",
-    branch_selector = branches.selector.CROS_LTS_BRANCHES,
-    description_html = ".",
-    builderless = True,
-    cores = "16",
-    caches = [
-        swarming.cache(
-            name = CHROMEOS_SHARED_CACHE,
-            path = "builder",
-            wait_for_warm_cache = 4 * time.minute,
-        ),
-    ],
     contact_team_email = "chromeos-chrome-build@google.com",
     main_list_view = "try",
 )

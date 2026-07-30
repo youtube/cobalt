@@ -81,6 +81,7 @@ test("services_unittests") {
     "StructTraitsTest.FrameIntervalInputsFuzz",
     "StructTraitsTest.ThreadFuzz",
     "StructTraitsTest.FrameSinkBundleIdFuzz",
+    "ConnectionAllowlistFuzz.FuzzConnectionAllowlistParser",
   ]
 
   data_deps = [ "//testing/buildbot/filters:services_unittests_filters" ]

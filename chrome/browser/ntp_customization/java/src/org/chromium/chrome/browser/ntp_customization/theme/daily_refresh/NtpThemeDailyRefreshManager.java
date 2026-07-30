@@ -98,7 +98,7 @@ public class NtpThemeDailyRefreshManager {
             return;
         }
 
-        NtpCustomizationUtils.readNtpBackgroundImage(callback, executor);
+        NtpCustomizationUtils.readNtpBackgroundImage(callback, executor, /* filePath= */ null);
     }
 
     /**

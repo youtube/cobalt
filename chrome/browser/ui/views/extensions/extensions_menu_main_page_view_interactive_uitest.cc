@@ -280,8 +280,9 @@ void ExtensionsMenuMainPageViewInteractiveUITest::ShowUi(
 // updated.
 IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveUITest,
                        SiteAccessToggle_RunAction) {
-  extensions::HostAccessRequestsHelper::SetCooldownForTesting(
-      base::TimeDelta());
+  auto cooldown_reset =
+      extensions::HostAccessRequestsHelper::SetCooldownForTesting(
+          base::TimeDelta());
 
   ASSERT_TRUE(embedded_test_server()->Start());
 

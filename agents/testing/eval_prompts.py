@@ -352,8 +352,14 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
          node_bin) = gemini_cli_installation.fetch_cipd_gemini_cli(
              args.verbose)
 
+    gemini_cli_cmd = []
+    if node_bin:
+        gemini_cli_cmd.append(str(node_bin))
+    if gemini_cli_bin:
+        gemini_cli_cmd.append(str(gemini_cli_bin))
+
     if args.sandbox and not _fetch_sandbox_image(
-            gemini_cli_cmd=[str(gemini_cli_bin)]):
+            gemini_cli_cmd=gemini_cli_cmd):
         return 1
 
     worker_options = workers.WorkerOptions(clean=not args.no_clean,

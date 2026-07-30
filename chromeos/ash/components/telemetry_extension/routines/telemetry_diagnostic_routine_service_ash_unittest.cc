@@ -69,8 +69,8 @@ class TelemetryDiagnosticsRoutineServiceAshTest : public testing::Test {
   void SetUp() override { cros_healthd::FakeCrosHealthd::Initialize(); }
   void TearDown() override { cros_healthd::FakeCrosHealthd::Shutdown(); }
 
-  crosapi::TelemetryDiagnosticRoutinesServiceProxy* routines_service() const {
-    return remote_routines_service_.get();
+  crosapi::TelemetryDiagnosticRoutinesService* routines_service() const {
+    return routines_service_.get();
   }
 
   mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineObserver>
@@ -80,7 +80,6 @@ class TelemetryDiagnosticsRoutineServiceAshTest : public testing::Test {
 
  protected:
   void FlushForTesting() {
-    remote_routines_service_.FlushForTesting();
     cros_healthd::FakeCrosHealthd::Get()->FlushRoutineServiceForTesting();
   }
 
@@ -89,13 +88,10 @@ class TelemetryDiagnosticsRoutineServiceAshTest : public testing::Test {
  private:
   base::test::TaskEnvironment task_environment_;
 
-  // Remote which is usually used by code in Lacros to call into Ash.
-  mojo::Remote<crosapi::TelemetryDiagnosticRoutinesService>
-      remote_routines_service_;
   // Ash-side implementation of the interface.
   std::unique_ptr<crosapi::TelemetryDiagnosticRoutinesService>
-      routines_service_{TelemetryDiagnosticsRoutineServiceAsh::Factory::Create(
-          remote_routines_service_.BindNewPipeAndPassReceiver())};
+      routines_service_{
+          TelemetryDiagnosticsRoutineServiceAsh::Factory::Create()};
   mojo_service_manager::FakeMojoServiceManager fake_service_manager_;
 };
 

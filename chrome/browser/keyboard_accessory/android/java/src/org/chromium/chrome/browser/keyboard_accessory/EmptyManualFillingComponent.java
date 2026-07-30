@@ -93,9 +93,6 @@ public class EmptyManualFillingComponent implements ManualFillingComponent {
     public void showAccessorySheetTab(@AccessoryTabType int tabType) {}
 
     @Override
-    public void setAtMemoryCallback(Runnable callback) {}
-
-    @Override
     public void onResume() {}
 
     @Override

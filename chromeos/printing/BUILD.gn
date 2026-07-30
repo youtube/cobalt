@@ -17,9 +17,9 @@ component("printing") {
 
   deps = [
     "//base:i18n",
-    "//chromeos/crosapi/mojom",
     "//components/device_event_log",
     "//components/printing/common",
+    "//printing:printing_base",
     "//printing/mojom",
     "//services/network/public/cpp",
   ]

@@ -43,7 +43,6 @@
 #include "components/download/public/common/url_download_handler_factory.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
-#include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/data_url_loader_factory.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/download/embedder_download_data.pb.h"

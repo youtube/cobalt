@@ -241,4 +241,35 @@ TEST_F(CachedTextInputInfoTest, VisibilityVisibleToHidden) {
       << "Texts within visibility:hidden are excluded";
 }
 
+TEST_F(CachedTextInputInfoTest, SVGElementContentEditable) {
+  SetBodyContent(
+      "<svg>"
+      "<g id='target' contenteditable='true'>"
+      "<text>abc</text>"
+      "</g>"
+      "</svg>");
+
+  Element* target = GetElementById("target");
+  ASSERT_TRUE(target);
+
+  // Force caching by setting selection and querying offsets.
+  GetFrame().Selection().SetSelection(
+      SelectionInDomTree::Builder()
+          .Collapse(Position(target->firstElementChild()->firstChild(), 0))
+          .Build(),
+      SetSelectionOptions());
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
+  GetInputMethodController().GetSelectionOffsets();
+
+  // Remove the element to destroy its LayoutObject (LayoutSVGContainer).
+  target->remove();
+
+  // Trigger a layout update. During that, objects that inherit directly
+  // from `LayoutObject` such as `LayoutSVGContainer` should also be
+  // notified by `LayoutObjectWillBeDestroyed`.
+  Element* other = GetDocument().CreateElementForBinding(AtomicString("div"));
+  GetDocument().body()->appendChild(other);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kSelection);
+}
+
 }  // namespace blink

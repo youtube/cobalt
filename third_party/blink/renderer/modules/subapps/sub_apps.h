@@ -17,20 +17,20 @@
 namespace blink {
 
 class ExceptionState;
-class Navigator;
+class LocalDOMWindow;
 class ScriptState;
-class SubAppsAddParams;
+class SubAppsAddResponse;
 class SubAppsListResult;
-class V8SubAppsResultCode;
+class SubAppsRemoveResponse;
 
-class SubApps : public ScriptWrappable, public Supplement<Navigator> {
+class SubApps : public ScriptWrappable, public Supplement<LocalDOMWindow> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static const char kSupplementName[];
-  static SubApps* subApps(Navigator&);
+  static SubApps* subApps(LocalDOMWindow&);
 
-  explicit SubApps(Navigator&);
+  explicit SubApps(LocalDOMWindow&);
   SubApps(const SubApps&) = delete;
   SubApps& operator=(const SubApps&) = delete;
 
@@ -38,17 +38,14 @@ class SubApps : public ScriptWrappable, public Supplement<Navigator> {
   void Trace(Visitor*) const override;
 
   // SubApps API.
-  ScriptPromise<IDLRecord<IDLString, V8SubAppsResultCode>> add(
+  ScriptPromise<SubAppsAddResponse> add(ScriptState*,
+                                        const Vector<String>& install_paths,
+                                        ExceptionState&);
+  ScriptPromise<IDLRecord<IDLUSVString, SubAppsListResult>> list(
       ScriptState*,
-      const HeapVector<std::pair<String, Member<SubAppsAddParams>>>&
-          sub_apps_to_add,
       ExceptionState&);
-  ScriptPromise<IDLRecord<IDLString, SubAppsListResult>> list(ScriptState*,
-                                                              ExceptionState&);
-  ScriptPromise<IDLRecord<IDLString, V8SubAppsResultCode>> remove(
-      ScriptState*,
-      const Vector<String>& manifest_id_paths,
-      ExceptionState&);
+  ScriptPromise<SubAppsRemoveResponse>
+  remove(ScriptState*, const Vector<String>& manifest_ids, ExceptionState&);
 
  private:
   HeapMojoRemote<mojom::blink::SubAppsService>& GetService();

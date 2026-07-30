@@ -858,7 +858,9 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
           stream_name, 'logcat', output_manager.Datatype.TEXT,
           self._test_instance.GetLogcatPackageNames()) as logcat_file:
         symbolizer = stack_symbolizer.PassThroughSymbolizerPool(
-            device.product_cpu_abi)
+            device.product_cpu_abi,
+            os.path.dirname(self._test_instance.apk)
+            if self._test_instance.apk else None)
         with symbolizer:
           with logcat_monitor.LogcatMonitor(
               device.adb,
@@ -1049,7 +1051,8 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
                 device,
                 resolve_all_tombstones=True,
                 include_stack_symbols=False,
-                wipe_tombstones=True)
+                wipe_tombstones=True,
+                tombstone_symbolizer=self._test_instance.symbolizer)
             stream_name = 'tombstones_%s_%s' % (
                 time.strftime('%Y%m%dT%H%M%S', time.localtime()),
                 device.serial)

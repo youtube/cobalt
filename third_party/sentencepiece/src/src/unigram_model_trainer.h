@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "sentencepiece_model.pb.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "trainer_interface.h"
 #include "unigram_model.h"
@@ -36,18 +37,18 @@ class TrainerModel : public Model {
   using SentencePieces = std::vector<std::pair<std::string, float>>;
 
   TrainerModel() {}
-  TrainerModel(const ModelProto &model_proto) = delete;
-  TrainerModel(const TrainerSpec &trainer_spec,
-               const NormalizerSpec &normalizaiton_spec);
+  TrainerModel(const ModelProto& model_proto) = delete;
+  TrainerModel(const TrainerSpec& trainer_spec,
+               const NormalizerSpec& normalizaiton_spec);
   ~TrainerModel() override;
 
   // Returns the sentencepieces.
   // The meta symbols, e.g., </s> are NOT included.
-  const SentencePieces &GetSentencePieces() const;
+  const SentencePieces& GetSentencePieces() const;
 
   // Sets sentencepieces. The sentencepieces are moved.
   // The meta symbols, e.g., </s> are NOT included.
-  void SetSentencePieces(SentencePieces &&sentencepieces);
+  absl::Status SetSentencePieces(SentencePieces&& sentencepieces);
 
   EncodeResult Encode(absl::string_view normalized) const override {
     return {};
@@ -62,15 +63,15 @@ class TrainerModel : public Model {
 
 class Trainer : public TrainerInterface {
  public:
-  Trainer(const TrainerSpec &trainer_spec,
-          const NormalizerSpec &normalizer_spec,
-          const NormalizerSpec &denormalizer_spec)
+  Trainer(const TrainerSpec& trainer_spec,
+          const NormalizerSpec& normalizer_spec,
+          const NormalizerSpec& denormalizer_spec)
       : TrainerInterface::TrainerInterface(trainer_spec, normalizer_spec,
                                            denormalizer_spec) {}
 
   TrainerModel::SentencePieces MakeSeedSentencePieces();
 
-  util::Status Train() override;
+  absl::Status Train() override;
 
  private:
   FRIEND_TEST(TrainerTest, IsValidSentencePieceTest);
@@ -87,23 +88,23 @@ class Trainer : public TrainerInterface {
   // |objective| is a negative likelihood of the current model.
   // |num_token| is the number of total tokens to tokenize
   // training corpus.
-  std::vector<float> RunEStep(const TrainerModel &model, float *objective,
-                              int64_t *num_tokens) const;
+  std::vector<float> RunEStep(const TrainerModel& model, float* objective,
+                              int64_t* num_tokens) const;
 
   // Executes the M step of EM with the expected frequency and
   // returns new pieces.
   TrainerModel::SentencePieces RunMStep(
-      const TrainerModel &model, const std::vector<float> &expected) const;
+      const TrainerModel& model, const std::vector<float>& expected) const;
 
   // Heuristically prunes the current pieces.
   // This is called after each EM sub-iteration.
   TrainerModel::SentencePieces PruneSentencePieces(
-      const TrainerModel &model) const;
+      const TrainerModel& model) const;
 
   // Makes the final sentence pieces by incorporating the required characters
   // and control/user defined symbols.
   TrainerModel::SentencePieces FinalizeSentencePieces(
-      const TrainerModel &model) const;
+      const TrainerModel& model) const;
 
   // When the size of SentencePieces becomes less than desired_vocab_size_,
   // break the main training loop. desired_vocab_size_ = 1.1 * vocab_size_

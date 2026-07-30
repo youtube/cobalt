@@ -20,6 +20,9 @@ static_library("auto_sleep") {
     "//chromeos/ash/components/settings",
     "//chromeos/dbus/power",
     "//components/prefs",
+    "//components/session_manager/core",
+    "//ui/base",
+    "//ui/events",
   ]
   deps = [
     "//ash",
@@ -28,6 +31,8 @@ static_library("auto_sleep") {
     "//components/policy:generated",
     "//components/policy:policy_code_generate",
     "//components/policy/core/browser",
+    "//components/session_manager/core",
+    "//components/user_manager",
   ]
 }
 
@@ -69,6 +74,7 @@ source_set("unit_tests") {
     "//chromeos/ash/components/policy/weekly_time",
     "//chromeos/ash/components/settings",
     "//chromeos/dbus/power",
+    "//components/session_manager/core:test_support",
     "//content/test:test_support",
     "//testing/gtest",
   ]
@@ -82,6 +88,7 @@ source_set("browser_tests") {
     ":auto_sleep",
     ":test_support",
     "//chrome/browser:browser_process",
+    "//chrome/browser:browser_process_platform_part",
     "//chrome/browser/ash/app_mode",
     "//chrome/browser/ash/app_mode/test:test_support",
     "//chrome/browser/ash/login/app_mode/test:test_support",

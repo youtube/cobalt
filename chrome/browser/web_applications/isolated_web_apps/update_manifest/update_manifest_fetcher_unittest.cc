@@ -8,17 +8,21 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/test/run_until.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
+#include "net/base/ip_address.h"
+#include "net/base/ip_endpoint.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "services/network/test/test_network_context.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -47,6 +51,30 @@ constexpr std::string_view kInvalidJsonUrl =
     "https://example.com/invalid_json.json";
 
 constexpr std::string_view k404Url = "https://example.com/404.json";
+
+class FakeNetworkContext : public network::TestNetworkContext {
+ public:
+  void ResolveHost(
+      network::mojom::HostResolverHostPtr host,
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      network::mojom::ResolveHostParametersPtr optional_parameters,
+      mojo::PendingRemote<network::mojom::ResolveHostClient> response_client)
+      override {
+    mojo::Remote<network::mojom::ResolveHostClient> client(
+        std::move(response_client));
+    client->OnComplete(net::OK, net::ResolveErrorInfo(net::OK),
+                       resolved_addresses_,
+                       /*alternative_endpoints=*/{});
+  }
+
+  void set_resolved_addresses(net::AddressList addresses) {
+    resolved_addresses_ = std::move(addresses);
+  }
+
+ private:
+  net::AddressList resolved_addresses_{
+      net::IPEndPoint(net::IPAddress(8, 8, 8, 8), 80)};
+};
 
 class UpdateManifestFetcherTest : public ::testing::Test {
  public:
@@ -92,12 +120,13 @@ class UpdateManifestFetcherTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   network::TestURLLoaderFactory test_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
+  FakeNetworkContext fake_network_context_;
 };
 
 TEST_F(UpdateManifestFetcherTest, FetchesValidManifest) {
-  auto fetcher = UpdateManifestFetcher(GURL(kValidManifestUrl),
-                                       PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
-                                       shared_url_loader_factory_);
+  auto fetcher = UpdateManifestFetcher(
+      GURL(kValidManifestUrl), PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+      shared_url_loader_factory_, &fake_network_context_);
 
   base::test::TestFuture<
       base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
@@ -120,9 +149,9 @@ TEST_F(UpdateManifestFetcherTest, FetchesValidManifest) {
 }
 
 TEST_F(UpdateManifestFetcherTest, SucceedsWhenManifestHasNoVersions) {
-  auto fetcher = UpdateManifestFetcher(GURL(kManifestWithoutVersionsUrl),
-                                       PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
-                                       shared_url_loader_factory_);
+  auto fetcher = UpdateManifestFetcher(
+      GURL(kManifestWithoutVersionsUrl), PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+      shared_url_loader_factory_, &fake_network_context_);
 
   base::test::TestFuture<
       base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
@@ -134,9 +163,9 @@ TEST_F(UpdateManifestFetcherTest, SucceedsWhenManifestHasNoVersions) {
 }
 
 TEST_F(UpdateManifestFetcherTest, FailsWhenManifestIsInvalid) {
-  auto fetcher = UpdateManifestFetcher(GURL(kInvalidManifestUrl),
-                                       PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
-                                       shared_url_loader_factory_);
+  auto fetcher = UpdateManifestFetcher(
+      GURL(kInvalidManifestUrl), PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+      shared_url_loader_factory_, &fake_network_context_);
 
   base::test::TestFuture<
       base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
@@ -149,9 +178,9 @@ TEST_F(UpdateManifestFetcherTest, FailsWhenManifestIsInvalid) {
 }
 
 TEST_F(UpdateManifestFetcherTest, FailsWhenJsonIsInvalid) {
-  auto fetcher = UpdateManifestFetcher(GURL(kInvalidJsonUrl),
-                                       PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
-                                       shared_url_loader_factory_);
+  auto fetcher = UpdateManifestFetcher(
+      GURL(kInvalidJsonUrl), PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+      shared_url_loader_factory_, &fake_network_context_);
 
   base::test::TestFuture<
       base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
@@ -166,7 +195,7 @@ TEST_F(UpdateManifestFetcherTest, FailsWhenJsonIsInvalid) {
 TEST_F(UpdateManifestFetcherTest, FailedDownload) {
   auto fetcher =
       UpdateManifestFetcher(GURL(k404Url), PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
-                            shared_url_loader_factory_);
+                            shared_url_loader_factory_, &fake_network_context_);
 
   base::test::TestFuture<
       base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
@@ -176,6 +205,121 @@ TEST_F(UpdateManifestFetcherTest, FailedDownload) {
 
   EXPECT_THAT(update_manifest,
               ErrorIs(UpdateManifestFetcher::Error::kDownloadFailed));
+}
+
+TEST_F(UpdateManifestFetcherTest, SetsCorrectClientSecurityState) {
+  GURL unknown_url("https://other-example.com/manifest.json");
+  auto fetcher =
+      UpdateManifestFetcher(unknown_url, PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+                            shared_url_loader_factory_, &fake_network_context_);
+
+  base::test::TestFuture<
+      base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
+      future;
+  fetcher.FetchUpdateManifest(future.GetCallback());
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return test_factory_.NumPending() > 0; }));
+
+  ASSERT_EQ(test_factory_.NumPending(), 1);
+  const network::ResourceRequest& request =
+      test_factory_.GetPendingRequest(0)->request;
+
+  ASSERT_TRUE(request.trusted_params);
+  ASSERT_TRUE(request.trusted_params->client_security_state);
+  EXPECT_EQ(request.trusted_params->client_security_state->ip_address_space,
+            network::mojom::IPAddressSpace::kPublic);
+  EXPECT_TRUE(
+      request.trusted_params->client_security_state->is_web_secure_context);
+  EXPECT_EQ(request.trusted_params->client_security_state
+                ->local_network_access_request_policy,
+            network::mojom::LocalNetworkAccessRequestPolicy::kBlock);
+}
+
+TEST_F(UpdateManifestFetcherTest, SetsCorrectClientSecurityStateForIpLiteral) {
+  GURL ip_url("http://127.0.0.1/manifest.json");
+  // No response added for this URL.
+
+  auto fetcher =
+      UpdateManifestFetcher(ip_url, PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+                            shared_url_loader_factory_, &fake_network_context_);
+
+  base::test::TestFuture<
+      base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
+      future;
+  fetcher.FetchUpdateManifest(future.GetCallback());
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return test_factory_.NumPending() > 0; }));
+
+  ASSERT_EQ(test_factory_.NumPending(), 1);
+  const network::ResourceRequest& request =
+      test_factory_.GetPendingRequest(0)->request;
+
+  ASSERT_TRUE(request.trusted_params);
+  ASSERT_TRUE(request.trusted_params->client_security_state);
+  EXPECT_EQ(request.trusted_params->client_security_state->ip_address_space,
+            network::mojom::IPAddressSpace::kLoopback);
+}
+
+TEST_F(UpdateManifestFetcherTest,
+       SetsCorrectClientSecurityStateForMultipleAddresses) {
+  GURL mixed_url("https://mixed.com/manifest.json");
+  // One public, one private. Public should win.
+  fake_network_context_.set_resolved_addresses(net::AddressList({
+      net::IPEndPoint(net::IPAddress(192, 168, 0, 1), 80),
+      net::IPEndPoint(net::IPAddress(8, 8, 8, 8), 80),
+  }));
+
+  auto fetcher =
+      UpdateManifestFetcher(mixed_url, PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+                            shared_url_loader_factory_, &fake_network_context_);
+
+  base::test::TestFuture<
+      base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
+      future;
+  fetcher.FetchUpdateManifest(future.GetCallback());
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return test_factory_.NumPending() > 0; }));
+
+  ASSERT_EQ(test_factory_.NumPending(), 1);
+  const network::ResourceRequest& request =
+      test_factory_.GetPendingRequest(0)->request;
+
+  ASSERT_TRUE(request.trusted_params);
+  ASSERT_TRUE(request.trusted_params->client_security_state);
+  // kPublic should be chosen over kLocal (private).
+  EXPECT_EQ(request.trusted_params->client_security_state->ip_address_space,
+            network::mojom::IPAddressSpace::kPublic);
+}
+
+TEST_F(UpdateManifestFetcherTest,
+       SetsCorrectClientSecurityStateForLocalAndLoopback) {
+  GURL mixed_url("https://mixed.com/manifest.json");
+  // One local, one loopback. Local should win (it's more public).
+  fake_network_context_.set_resolved_addresses(net::AddressList({
+      net::IPEndPoint(net::IPAddress(127, 0, 0, 1), 80),
+      net::IPEndPoint(net::IPAddress(192, 168, 0, 1), 80),
+  }));
+
+  auto fetcher =
+      UpdateManifestFetcher(mixed_url, PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS,
+                            shared_url_loader_factory_, &fake_network_context_);
+
+  base::test::TestFuture<
+      base::expected<UpdateManifest, UpdateManifestFetcher::Error>>
+      future;
+  fetcher.FetchUpdateManifest(future.GetCallback());
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return test_factory_.NumPending() > 0; }));
+
+  ASSERT_EQ(test_factory_.NumPending(), 1);
+  const network::ResourceRequest& request =
+      test_factory_.GetPendingRequest(0)->request;
+
+  ASSERT_TRUE(request.trusted_params);
+  ASSERT_TRUE(request.trusted_params->client_security_state);
+  // kLocal should be chosen over kLoopback.
+  EXPECT_EQ(request.trusted_params->client_security_state->ip_address_space,
+            network::mojom::IPAddressSpace::kLocal);
 }
 
 }  // namespace

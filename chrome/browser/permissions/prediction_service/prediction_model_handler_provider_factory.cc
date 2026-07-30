@@ -17,6 +17,7 @@
 #include "chrome/browser/permissions/prediction_service/prediction_model_handler_provider.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/passage_embeddings/core/passage_embedder_model_observer.h"
+#include "components/passage_embeddings/core/passage_embeddings_service_controller.h"
 #include "components/permissions/features.h"
 
 // static
@@ -83,7 +84,7 @@ PredictionModelHandlerProviderFactory::BuildServiceInstanceForBrowserContext(
                  "passage embedder not setup.";
     } else if (auto* passage_embeddings_service_controller =
                    passage_embeddings::
-                       ChromePassageEmbeddingsServiceController::Get()) {
+                       GetChromePassageEmbeddingsServiceController()) {
       passage_embedder = passage_embeddings_service_controller->GetEmbedder();
       embedder_metadata_provider = passage_embeddings_service_controller;
       VLOG(1)

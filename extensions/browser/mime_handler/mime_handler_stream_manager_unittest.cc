@@ -21,6 +21,7 @@
 #include "extensions/browser/mime_handler/mock_mime_handler_stream_delegate.h"
 #include "extensions/browser/mime_handler/stream_container.h"
 #include "extensions/browser/mime_handler/stream_info.h"
+#include "extensions/common/extension.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/data_pipe_drainer.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -254,6 +255,90 @@ TEST_F(MimeHandlerStreamManagerTest, IsExtensionHost) {
 
   // Unrelated hosts shouldn't be considered extension hosts.
   EXPECT_FALSE(manager->IsExtensionHost(other_host));
+}
+
+// `MimeHandlerStreamManager::IsExtensionHostForUrl()` additionally requires
+// the destination URL to belong to the registered handler extension, so a
+// same-FTN navigation to a different extension -- which `IsExtensionHost()`
+// alone accepts because it keys only on `FrameTreeNodeId` -- is rejected.
+TEST_F(MimeHandlerStreamManagerTest, IsExtensionHostForUrl) {
+  auto* embedder_host = CreateChildRenderFrameHost(main_rfh(), "embedder host");
+  embedder_host = NavigateAndCommit(embedder_host, GURL(kOriginalUrl1));
+
+  auto* extension_host =
+      CreateChildRenderFrameHost(embedder_host, "extension host");
+
+  MimeHandlerStreamManager* manager = mime_handler_stream_manager();
+  manager->AddStreamContainer(
+      embedder_host->GetFrameTreeNodeId(), "internal_id",
+      extensions::mime_handler::GenerateSampleStreamContainer(1),
+      std::make_unique<NiceMock<MockMimeHandlerStreamDelegate>>());
+  manager->ClaimStreamInfoForTesting(embedder_host);
+  manager->SetExtensionFrameTreeNodeIdForTesting(
+      embedder_host, extension_host->GetFrameTreeNodeId());
+
+  base::WeakPtr<extensions::StreamContainer> stream =
+      manager->GetStreamContainer(embedder_host);
+  ASSERT_TRUE(stream);
+  const ExtensionId& handler_id = stream->extension_id();
+
+  // The structural check alone accepts the extension host.
+  ASSERT_TRUE(manager->IsExtensionHost(extension_host));
+
+  // A URL owned by the registered handler extension is accepted.
+  EXPECT_TRUE(manager->IsExtensionHostForUrl(
+      extension_host, Extension::GetBaseURLFromExtensionId(handler_id)));
+
+  // A same-FTN navigation to a different extension is rejected.
+  EXPECT_FALSE(manager->IsExtensionHostForUrl(
+      extension_host,
+      Extension::GetBaseURLFromExtensionId(handler_id + "other")));
+
+  // A non-extension destination is rejected.
+  EXPECT_FALSE(manager->IsExtensionHostForUrl(
+      extension_host, GURL("https://example.test/index.html")));
+}
+
+// Only the extension host directly under the embedder is a secure-context
+// root; a same-origin child nested inside it is not.
+TEST_F(MimeHandlerStreamManagerTest, SameOriginChildOfExtensionHostIsNotRoot) {
+  auto* embedder_host = CreateChildRenderFrameHost(main_rfh(), "embedder host");
+  embedder_host = NavigateAndCommit(embedder_host, GURL(kOriginalUrl1));
+
+  auto* extension_host =
+      CreateChildRenderFrameHost(embedder_host, "extension host");
+  // A same-origin child frame nested inside the extension host (grandchild of
+  // the embedder), e.g. an about:blank or another same-extension URL frame.
+  auto* same_origin_child =
+      CreateChildRenderFrameHost(extension_host, "same-origin child");
+
+  MimeHandlerStreamManager* manager = mime_handler_stream_manager();
+  manager->AddStreamContainer(
+      embedder_host->GetFrameTreeNodeId(), "internal_id",
+      extensions::mime_handler::GenerateSampleStreamContainer(1),
+      std::make_unique<NiceMock<MockMimeHandlerStreamDelegate>>());
+  manager->ClaimStreamInfoForTesting(embedder_host);
+  manager->SetExtensionFrameTreeNodeIdForTesting(
+      embedder_host, extension_host->GetFrameTreeNodeId());
+
+  base::WeakPtr<extensions::StreamContainer> stream =
+      manager->GetStreamContainer(embedder_host);
+  ASSERT_TRUE(stream);
+  const GURL extension_url =
+      Extension::GetBaseURLFromExtensionId(stream->extension_id());
+
+  // Precondition: confirm the child is genuinely nested, so the false results
+  // below come from the embedder keying, not a null parent.
+  ASSERT_EQ(extension_host, same_origin_child->GetParent());
+
+  // The parent (the extension host under the embedder) is a root.
+  EXPECT_TRUE(manager->IsExtensionHostForUrl(extension_host, extension_url));
+
+  // The same-origin child is not -- its parent (the extension host) is not an
+  // embedder key.
+  EXPECT_FALSE(manager->IsExtensionHost(same_origin_child));
+  EXPECT_FALSE(
+      manager->IsExtensionHostForUrl(same_origin_child, extension_url));
 }
 
 // `MimeHandlerStreamManager::IsContentHost()` should correctly identify the

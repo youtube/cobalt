@@ -276,7 +276,9 @@ public class WebappsIconUtils {
         RoundedIconGenerator generator =
                 new RoundedIconGenerator(innerSize, innerSize, cornerRadius, color, fontSize);
         Bitmap icon = generator.generateIconForUrl(url);
-        if (icon == null) return null; // Bookmark URL does not have a domain.
+        if (icon == null) {
+            icon = generator.generateIconForText("");
+        }
         canvas.drawBitmap(icon, padding, padding, null);
 
         return bitmap;

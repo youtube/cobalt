@@ -242,6 +242,7 @@ void FakeContentAnalysisDelegate::Response(
 
   switch (request->analysis_connector()) {
     case AnalysisConnector::BULK_DATA_ENTRY:
+    case AnalysisConnector::DATA_COPIED:
       if (is_image_request) {
         ImageRequestCallback(CalculateRequestHandlerResult(
             GetDataForTesting().settings, result_, response));

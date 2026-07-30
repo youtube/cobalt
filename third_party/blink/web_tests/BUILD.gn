@@ -21,6 +21,7 @@ group("web_tests") {
     "bindings/",
     "clipboard/",
     "compositing/",
+    "container-timing/",
     "content_extraction/",
     "crypto/",
     "css-parser/",

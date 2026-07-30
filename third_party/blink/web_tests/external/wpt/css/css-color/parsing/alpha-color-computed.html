@@ -10,6 +10,11 @@
 <div id="target"></div>
 <script>
 
+// The expected results in the test cases below may be inconsistent between
+// cases. See these issues for clarifying alpha() resolution and serialization:
+// - https://github.com/w3c/csswg-drafts/issues/13992
+// - https://github.com/w3c/csswg-drafts/issues/13994
+
 const target = document.getElementById('target');
 
 // Basic: replace alpha on a named color.
@@ -26,7 +31,8 @@ test_computed_value("color", "alpha(from red)", "rgb(255, 0, 0)");
 test_computed_value("color", "alpha(from rgba(255, 0, 0, 0.3))", "rgba(255, 0, 0, 0.3)");
 
 // None alpha.
-test_computed_value("color", "alpha(from red / none)", "rgba(255, 0, 0, 0)");
+test_computed_value("color", "alpha(from red / none)", "color(srgb 1 0 0 / none)");
+test_computed_value("color", "color-mix(in srgb, rgb(255 0 0 / 0.5), alpha(from red / none))", "color(srgb 1 0 0 / 0.5)")
 
 // Alpha clamped to [0, 1].
 test_computed_value("color", "alpha(from red / 2)", "rgb(255, 0, 0)");

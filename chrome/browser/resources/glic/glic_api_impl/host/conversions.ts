@@ -21,15 +21,13 @@ import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 import type {PageMetadata as PageMetadataMojo} from '../../ai_page_content_metadata.mojom-webui.js';
 import type {AdditionalContext as AdditionalContextMojo, AdditionalContextPart as AdditionalContextPartMojo, AnnotatedPageData as AnnotatedPageDataMojo, CaptureRegionResult as CaptureRegionResultMojo, ContextData as ContextDataMojo, ConversationInfo as ConversationInfoMojo, CounterAbuseVerdict as CounterAbuseVerdictMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, HostCapability as HostCapabilityMojo, ImageBytesResult as ImageBytesResultMojo, ImageInfo as ImageInfoMojo, InvocationPayload as InvocationPayloadMojo, InvokeOptions as InvokeOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PdfDocumentData as PdfDocumentDataMojo, PinTabsOptions as PinTabsOptionsMojo, Screenshot as ScreenshotMojo, ScreenshotCollectionOptions as ScreenshotCollectionOptionsMojo, SubscriberObservationType as SubscriberObservationTypeMojo, TabContext as TabContextMojo, TabData as TabDataMojo, UnpinTabsOptions as UnpinTabsOptionsMojo, WebPageData as WebPageDataMojo, ZeroStateSuggestionsV2 as ZeroStateSuggestionsV2Mojo, ZssConfig as ZssConfigMojo} from '../../glic.mojom-webui.js';
 import {MicrophoneStatus as MicrophoneStatusMojo, PinTrigger as PinTriggerMojo, ScreenshotCompressionQuality as ScreenshotCompressionQualityMojo, ScreenshotImageFormat as ScreenshotImageFormatMojo, UnpinTrigger as UnpinTriggerMojo, WebClientMode as WebClientModeMojo} from '../../glic.mojom-webui.js';
-import type {CaptureRegionResult, ConversationInfo, CounterAbuseVerdict, GetPinCandidatesOptions, HostCapability, InvocationPayload, PageMetadata, PanelOpeningData, PanelState, PinTabsOptions, PinTrigger, Screenshot, ScreenshotCollectionOptions, TabContextOptions, TaskOptions, UnpinTabsOptions, UnpinTrigger, WebPageData, ZeroStateSuggestionsV2, ZssConfig} from '../../glic_api/glic_api.js';
-import {DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, FeatureMode, MicrophoneStatus, Platform, WebClientMode} from '../../glic_api/glic_api.js';
-import type {NavigationConfirmationRequestPrivate, NavigationConfirmationResponsePrivate, SelectAutofillSuggestionsDialogRequestPrivate, SelectAutofillSuggestionsDialogResponsePrivate, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, UserConfirmationDialogRequestPrivate, UserConfirmationDialogResponsePrivate} from '../actor/actor_types.js';
+import type {CaptureRegionResult, ConversationInfo, CounterAbuseVerdict, GetPinCandidatesOptions, HostCapability, InvocationPayload, PageMetadata, PanelOpeningData, PanelState, PinTabsOptions, PinTrigger, Screenshot, ScreenshotCollectionOptions, TabContextOptions, UnpinTabsOptions, UnpinTrigger, WebPageData, ZeroStateSuggestionsV2, ZssConfig} from '../../glic_api/glic_api.js';
+import {DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, MicrophoneStatus, Platform, WebClientMode} from '../../glic_api/glic_api.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
 import type {ResponseExtras} from '../transport/messaging.js';
 
-import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from './../../actor_webui.mojom-webui.js';
 import {replaceProperties} from './../conversions.js';
-import type {AdditionalContextPartPrivate, AdditionalContextPrivate, AnnotatedPageDataPrivate, FocusedTabDataPrivate, ImageBytesResultPrivate, ImageInfoPrivate, InvokeOptionsPrivate, PdfDocumentDataPrivate, ResumeActorTaskResultPrivate, RgbaImage, TabContextResultPrivate, TabDataPrivate} from './../request_types.js';
+import type {AdditionalContextPartPrivate, AdditionalContextPrivate, AnnotatedPageDataPrivate, FocusedTabDataPrivate, ImageBytesResultPrivate, ImageInfoPrivate, InvokeOptionsPrivate, PdfDocumentDataPrivate, RgbaImage, TabContextResultPrivate, TabDataPrivate} from './../request_types.js';
 import {ImageAlphaType, ImageColorType} from './../request_types.js';
 import type {SubscriberObservationType} from './../request_types.js';
 
@@ -415,15 +413,6 @@ export function tabContextToClient(
   };
 }
 
-export function resumeActorTaskResultToClient(
-    tabContext: TabContextMojo, actionResult: number,
-    extras: ResponseExtras): ResumeActorTaskResultPrivate {
-  return {
-    ...tabContextToClient(tabContext, extras),
-    actionResult,
-  };
-}
-
 export function tabContextOptionsFromClient(options: TabContextOptions):
     TabContextOptionsMojo {
   return {
@@ -493,161 +482,6 @@ export function byteArrayFromClient(buffer: ArrayBuffer): number[] {
 export function hostCapabilitiesToClient(capabilities: HostCapabilityMojo[]):
     HostCapability[] {
   return capabilities.map(capability => enumToClient(capability));
-}
-
-export function selectCredentialDialogResponseToMojo(
-    response: SelectCredentialDialogResponsePrivate):
-    SelectCredentialDialogResponseMojo {
-  return response.errorReason ?
-      {
-        taskId: response.taskId,
-        errorReason: response.errorReason as number as
-            SelectCredentialDialogErrorReasonMojo,
-        permissionDuration: null,
-        selectedCredentialId: null,
-      } :
-      {
-        ...response,
-        errorReason: null,
-        permissionDuration: optionalFromClient(response.permissionDuration) as
-                UserGrantedPermissionDurationMojo |
-            null,
-        selectedCredentialId: response.selectedCredentialId ?? null,
-      };
-}
-
-export function selectCredentialDialogRequestToClient(
-    request: SelectCredentialDialogRequestMojo):
-    SelectCredentialDialogRequestPrivate {
-  const icons = new Map<string, RgbaImage>();
-  if (request.icons) {
-    for (const [siteOrApp, value] of Object.entries(request.icons)) {
-      const rgbaImage = bitmapN32ToRGBAImage(value);
-      if (rgbaImage) {
-        icons.set(siteOrApp, rgbaImage);
-      }
-    }
-  }
-  return {
-    ...request,
-    credentials: request.credentials.map(
-        credential => ({
-          ...credential,
-          requestOrigin: originToClient(credential.requestOrigin),
-          type: enumToClient(credential.type),
-          accountPicture: credential.accountPicture ?
-              bitmapN32ToRGBAImage(credential.accountPicture) :
-              undefined,
-        })),
-    icons,
-  };
-}
-
-export function userConfirmationDialogRequestToClient(
-    request: UserConfirmationDialogRequestMojo):
-    UserConfirmationDialogRequestPrivate {
-  return {
-    navigationOrigin: request.payload.navigationOrigin ?
-        originToClient(request.payload.navigationOrigin) :
-        undefined,
-    forBlocklistedOrigin: request.payload.forBlocklistedOrigin,
-  };
-}
-
-export function userConfirmationDialogResponseToMojo(
-    response: UserConfirmationDialogResponsePrivate):
-    UserConfirmationDialogResponseMojo {
-  if (response.errorReason) {
-    return {
-      result: {
-        errorReason: response.errorReason as number as
-            ConfirmationRequestErrorReasonMojo,
-      },
-    };
-  }
-  return {
-    result: {permissionGranted: response.permissionGranted},
-  };
-}
-
-export function navigationConfirmationRequestToClient(
-    request: NavigationConfirmationRequestMojo):
-    NavigationConfirmationRequestPrivate {
-  return {
-    taskId: request.taskId,
-    navigationOrigin: originToClient(request.navigationOrigin),
-  };
-}
-
-export function navigationConfirmationResponseToMojo(
-    response: NavigationConfirmationResponsePrivate):
-    NavigationConfirmationResponseMojo {
-  if (response.errorReason) {
-    return {
-      result: {
-        errorReason: response.errorReason as number as
-            ConfirmationRequestErrorReasonMojo,
-      },
-    };
-  }
-  return {
-    result: {
-      permissionGranted: response.permissionGranted,
-    },
-  };
-}
-
-export function selectAutofillSuggestionsDialogRequestToClient(
-    request: SelectAutofillSuggestionsDialogRequestMojo):
-    SelectAutofillSuggestionsDialogRequestPrivate {
-  return {
-    ...request,
-    formFillingRequests: request.formFillingRequests.map(
-        r => ({
-          ...r,
-          requestedData: Number(r.requestedData),
-          formattedRequestOrigin: r.formattedRequestOrigin,
-          suggestions: r.suggestions.map(
-              s => ({
-                ...s,
-                icon: s.icon ? bitmapN32ToRGBAImage(s.icon) : undefined,
-              })),
-        })),
-  };
-}
-
-export function selectAutofillSuggestionsDialogResponseToMojo(
-    response: SelectAutofillSuggestionsDialogResponsePrivate):
-    SelectAutofillSuggestionsDialogResponseMojo {
-  if (response.errorReason) {
-    return {
-      taskId: response.taskId,
-      result: {
-        errorReason: response.errorReason as number as
-            SelectAutofillSuggestionsDialogErrorReasonMojo,
-      },
-    };
-  } else {
-    return {
-      taskId: response.taskId,
-      result: {
-        selectedSuggestions: response.selectedSuggestions,
-      },
-    };
-  }
-}
-
-export function taskOptionsToMojo(taskOptions?: TaskOptions): TaskOptionsMojo|
-    null {
-  if (taskOptions) {
-    return {
-      title: taskOptions.title ?? null,
-      duration: enumFromClient(taskOptions.duration),
-      featureMode:
-          enumFromClient(taskOptions.featureMode ?? FeatureMode.UNSPECIFIED),
-    };
-  }
-  return null;
 }
 
 export function webClientModeToMojo(mode: WebClientMode|undefined):

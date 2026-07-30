@@ -33,10 +33,6 @@ class AlternativeNameFieldParserTest : public FormFieldParserTestBase,
                                          AutofillScanner& scanner) override {
     return AlternativeNameFieldParser::Parse(context, scanner);
   }
-
- private:
-  base::test::ScopedFeatureList scoped_features{
-      features::kAutofillSupportPhoneticNameForJP};
 };
 
 TEST_F(AlternativeNameFieldParserTest, FamilyGivenPhoneticName) {

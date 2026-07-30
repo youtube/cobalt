@@ -79,6 +79,9 @@ class BrowserSavePasswordProgressLogger
   // Logs a save or update decision along with the specific store details.
   void LogPasswordSaveAndUpdate(StringID label, PasswordForm::Store store);
 
+  // Logs the number of results fetched from a specific store.
+  void LogNumberResultsForStore(PasswordForm::Store store, size_t count);
+
   // Log a password successful submission event.
   void LogSuccessfulSubmissionIndicatorEvent(
       autofill::mojom::SubmissionIndicatorEvent event);

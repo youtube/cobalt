@@ -8,7 +8,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
-#include "content/browser/child_process_security_policy_impl.h"
+#include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_features.h"
 #include "net/base/features.h"

@@ -19,12 +19,10 @@
 #include "chrome/browser/ash/file_suggest/file_suggest_util.h"
 #include "components/keyed_service/core/keyed_service.h"
 
-class ApplicationLocaleStorage;
 class Profile;
 
 namespace app_list {
 class RemovedResultsRanker;
-class ZeroStateDriveProvider;
 }  // namespace app_list
 
 namespace ash {
@@ -44,24 +42,12 @@ class FileSuggestKeyedService : public KeyedService {
     virtual void OnFileSuggestionUpdated(FileSuggestionType type) {}
   };
 
-  // `application_locale_storage` must be non-null and must outlive `this`.
   FileSuggestKeyedService(
-      const ApplicationLocaleStorage* application_locale_storage,
       Profile* profile,
       PersistentProto<app_list::RemovedResultsProto> proto);
   FileSuggestKeyedService(const FileSuggestKeyedService&) = delete;
   FileSuggestKeyedService& operator=(const FileSuggestKeyedService&) = delete;
   ~FileSuggestKeyedService() override;
-
-  // Requests to update the item suggest cache. Only used by the zero state
-  // drive provider. Overridden for tests.
-  // TODO(https://crbug.com/1356347): Now the app list relies on this service to
-  // fetch the drive suggestion data. Meanwhile, this service relies on the app
-  // list to trigger the item cache update. This cyclic dependency could be
-  // confusing. The service should update the data cache by its own without
-  // depending on the app list code.
-  virtual void MaybeUpdateItemSuggestCache(
-      base::PassKey<app_list::ZeroStateDriveProvider>);
 
   // Queries for the suggested files of the specified type and returns the
   // suggested file data, including file paths and suggestion reasons, through

@@ -134,7 +134,7 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
     @Override
     public void requestUpdateContainer(
             SideUiContainerProperties properties, boolean suppressAnimations) {
-        updateContainerWidths(properties, suppressAnimations);
+        updateContainerWidths(suppressAnimations);
     }
 
     @Override
@@ -184,28 +184,21 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
 
     @Override
     public boolean canShowSideUi(@SideUiId int sideUiId) {
-        SideUiContainer sideUiContainer = null;
-        for (var container : mSideUiContainers) {
-            if (container.getSideUiId() == sideUiId) {
-                sideUiContainer = container;
-                break;
-            }
-        }
-        if (sideUiContainer == null) return false;
-
         @Px int windowWidth = getWindowWidth();
         @Px int minWebContentsWidth = ViewUtils.dpToPx(mParentActivity, MIN_WEB_CONTENTS_WIDTH_DP);
         @Px int availableWidth = windowWidth - minWebContentsWidth;
 
-        SideUiSpecs currentSpecs = getCurrentSideUiSpecsInternal();
-        SideUiSpecs newSpecs =
-                determineSideUiSpecs(
-                        new SideUiContainerProperties(
-                                sideUiId, sideUiContainer.getAnchorSide(), availableWidth),
-                        currentSpecs,
-                        windowWidth,
-                        minWebContentsWidth);
-        return newSpecs.getWidth(sideUiContainer.getAnchorSide()) > 0;
+        for (var container : mSideUiContainers) {
+            if (container.getSideUiId() == sideUiId) {
+                return container.determineShowableWidth(availableWidth, windowWidth) > 0;
+            }
+            if (container.hasContentToShow()) {
+                @Px
+                int showableWidth = container.determineShowableWidth(availableWidth, windowWidth);
+                availableWidth = Math.max(availableWidth - showableWidth, 0);
+            }
+        }
+        return false;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -243,28 +236,9 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
                         : currentSideUiSpecs.getWidth(AnchorSide.RIGHT);
 
         // 3. Check if we need to close/re-open SideUi.
-        //
-        // Note that when currentSideUiWidth is 0, we shouldn't use 0 as the requestedSideUiWidth
-        // since doing so will cause the new SideUi width to be 0 and fail to re-open SideUi even if
-        // the window has become wide enough.
-        //
-        // Therefore, when currentSideUiWidth is 0, we _request_ the SideUi's maximum width
-        // (i.e., windowWidth - minWebContentsWidth) so that determineSideUiSpecs() can return a
-        // non-zero width if the window is wide enough.
         @Px int windowWidth = getWindowWidth();
         @Px int minWebContentsWidth = ViewUtils.dpToPx(mParentActivity, MIN_WEB_CONTENTS_WIDTH_DP);
-        @Px
-        int requestedSideUiWidth =
-                currentSideUiWidth != 0 ? currentSideUiWidth : windowWidth - minWebContentsWidth;
-        SideUiSpecs newSideUiSpecs =
-                determineSideUiSpecs(
-                        new SideUiContainerProperties(
-                                sideUiContainer.getSideUiId(),
-                                currentAnchorSide,
-                                requestedSideUiWidth),
-                        currentSideUiSpecs,
-                        windowWidth,
-                        minWebContentsWidth);
+        SideUiSpecs newSideUiSpecs = determineSideUiSpecs(windowWidth, minWebContentsWidth);
         boolean canShowSideUi = newSideUiSpecs.getWidth(currentAnchorSide) > 0;
 
         List<@SideUiId Integer> showableSideUiIds = new ArrayList<>();
@@ -323,14 +297,9 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
     /**
      * Update registered {@link SideUiContainer} widths.
      *
-     * @param properties {@link SideUiContainer}'s width properties if present.
      * @param suppressAnimations Whether the animation should be suppressed.
      */
-    private void updateContainerWidths(
-            @Nullable SideUiContainerProperties properties, boolean suppressAnimations) {
-        assert properties == null || properties.mWidth >= 0
-                : "Requested a negative width for SideUiContainer.";
-
+    private void updateContainerWidths(boolean suppressAnimations) {
         // 1. End any existing transitions still in progress. This needs to be done before checking
         // the current specs, since specs aren't fully updated until after all transitions have
         // finished.
@@ -345,9 +314,7 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
         @Px int windowWidth = getWindowWidth();
         @Px int minWebContentsWidth = ViewUtils.dpToPx(mParentActivity, MIN_WEB_CONTENTS_WIDTH_DP);
         SideUiSpecs currentSideUiSpecs = getCurrentSideUiSpecsInternal();
-        SideUiSpecs newSideUiSpecs =
-                determineSideUiSpecs(
-                        properties, currentSideUiSpecs, windowWidth, minWebContentsWidth);
+        SideUiSpecs newSideUiSpecs = determineSideUiSpecs(windowWidth, minWebContentsWidth);
 
         // 4. Collect containers whose width needs updating for resize event and transition effect.
         Map<@AnchorSide Integer, Integer> updatedSides = new ArrayMap<>(); // side -> width
@@ -399,19 +366,13 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
     }
 
     /**
-     * Determines {@link SideUiSpecs} based on optional request.
+     * Determines {@link SideUiSpecs}.
      *
-     * @param requestedProperties The properties of {@link SideUiContainer} requesting update.
-     * @param currentSideUiSpecs Current {@link SideUiSpecs}.
      * @param windowWidth The current window width (in px).
      * @param minWebContentsWidth The minimum width reserved for {@code WebContents} (in px).
      * @return The new {@link SideUiSpecs}.
      */
-    private SideUiSpecs determineSideUiSpecs(
-            @Nullable SideUiContainerProperties requestedProperties,
-            SideUiSpecs currentSideUiSpecs,
-            @Px int windowWidth,
-            @Px int minWebContentsWidth) {
+    private SideUiSpecs determineSideUiSpecs(@Px int windowWidth, @Px int minWebContentsWidth) {
         int availableWidth = windowWidth - minWebContentsWidth;
         Map<@AnchorSide Integer, Integer> sideUiWidths = new ArrayMap<>(); // anchorSide -> width
 
@@ -420,25 +381,10 @@ final class SideUiCoordinatorImpl implements SideUiCoordinator, ConfigurationCha
             sideUiWidths.put(side, 0);
         }
         for (var container : mSideUiContainers) {
-            int width = currentSideUiSpecs.getWidth(container.getAnchorSide());
-            int sideUiId = container.getSideUiId();
-
-            // When all the SideUiContainer widths are re-evaluated (i.e. requestedProperties ==
-            // null), note that we shouldn't use 0 as the requestWidth when current |width| is 0,
-            // since doing so will cause the new SideUi width to be 0 and fail to re-open SideUi
-            // even if the window has become wide enough.
-            //
-            // Therefore, when currentSideUiWidth is 0, we _request_ the SideUi's maximum available
-            // width (i.e., windowWidth - minWebContentsWidth) so that determineSideUiSpecs() can
-            // return a non-zero width if the window is wide enough.
-            int requestWidth = width;
-            if (requestedProperties == null) {
-                requestWidth = availableWidth;
-            } else if (requestedProperties.mSideUiId == sideUiId) {
-                requestWidth = requestedProperties.mWidth;
-            }
             int newSideUiWidth =
-                    container.determineContainerWidth(requestWidth, availableWidth, windowWidth);
+                    container.hasContentToShow()
+                            ? container.determineShowableWidth(availableWidth, windowWidth)
+                            : 0;
             sideUiWidths.put(container.getAnchorSide(), newSideUiWidth);
             availableWidth = Math.max(availableWidth - newSideUiWidth, 0);
         }

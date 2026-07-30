@@ -6,6 +6,9 @@
 
 namespace enterprise_data_protection {
 
+BASE_FEATURE(kEnableAndroidEnterpriseScreenshotProtection,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableDeepScanVerdictCacheSize,
              base::FEATURE_DISABLED_BY_DEFAULT);
 

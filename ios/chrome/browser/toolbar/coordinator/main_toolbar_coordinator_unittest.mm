@@ -4,21 +4,20 @@
 
 #import "ios/chrome/browser/toolbar/coordinator/main_toolbar_coordinator.h"
 
-#import "base/scoped_observation.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
-#import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observer.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_focus/omnibox_focus_browser_agent.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -55,19 +54,20 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-namespace {
-// Sample observer for use in tests.
-class TestOmniboxPositionObserver : public OmniboxPositionBrowserAgentObserver {
- public:
-  void OmniboxPositionBrowserAgentHasNewBottomLayout(
-      OmniboxPositionBrowserAgent* browser_agent,
-      bool is_current_layout_bottom_omnibox) override {
-    is_bottom_omnibox_ = is_current_layout_bottom_omnibox;
-  }
+@interface TestLayoutStateObserver : NSObject <LayoutStateObserver>
+@property(nonatomic, assign) ToolbarPosition toolbarPosition;
+@property(nonatomic, assign) BOOL positionChangedCalled;
+@end
 
-  bool is_bottom_omnibox_ = false;
-};
-}  // namespace
+@implementation TestLayoutStateObserver
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
+  _toolbarPosition = toolbarPosition;
+  _positionChangedCalled = YES;
+}
+@end
+
+namespace {}  // namespace
 
 // Unittests related to the MainToolbarCoordinator.
 class MainToolbarCoordinatorTest : public PlatformTest {
@@ -177,7 +177,7 @@ class MainToolbarCoordinatorTest : public PlatformTest {
         startDispatchingToTarget:mock_browser_coordinator_commands
                      forProtocol:@protocol(BrowserCoordinatorCommands)];
 
-    OmniboxPositionBrowserAgent::CreateForBrowser(browser_.get());
+    OmniboxFocusBrowserAgent::CreateForBrowser(browser_.get());
     AutocompleteBrowserAgent::CreateForBrowser(browser_.get());
     // FullscreenController depends on ToolbarsSizeBrowserAgent, so the agent
     // must be created first. Please maintain this order.
@@ -190,25 +190,24 @@ class MainToolbarCoordinatorTest : public PlatformTest {
   void TearDown() override { [coordinator_ stop]; }
 
   void VerifyOmniboxPositionObservation() {
-    TestOmniboxPositionObserver observer;
-    base::ScopedObservation<OmniboxPositionBrowserAgent,
-                            TestOmniboxPositionObserver>
-        obs{&observer};
-
-    OmniboxPositionBrowserAgent* browser_agent =
-        OmniboxPositionBrowserAgent::FromBrowser(browser_.get());
-    obs.Observe(browser_agent);
+    TestLayoutStateObserver* observer = [[TestLayoutStateObserver alloc] init];
+    LayoutState* layoutState = scene_state_.layoutState;
+    [layoutState addObserver:observer];
 
     coordinator_ =
         [[MainToolbarCoordinator alloc] initWithBrowser:browser_.get()];
     [coordinator_ start];
-    EXPECT_FALSE(observer.is_bottom_omnibox_);
+    EXPECT_FALSE(observer.positionChangedCalled);
+    EXPECT_EQ(layoutState.toolbarPosition, ToolbarPosition::kTop);
 
     // Change bottom omnibox pref.
     GetApplicationContext()->GetLocalState()->SetBoolean(
         omnibox::kIsOmniboxInBottomPosition, true);
 
-    EXPECT_TRUE(observer.is_bottom_omnibox_);
+    EXPECT_TRUE(observer.positionChangedCalled);
+    EXPECT_EQ(observer.toolbarPosition, ToolbarPosition::kBottom);
+
+    [layoutState removeObserver:observer];
   }
 
   web::WebTaskEnvironment task_environment_;
@@ -220,9 +219,9 @@ class MainToolbarCoordinatorTest : public PlatformTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-// Test that the OmniboxPositionBrowserAgent can be observed to tell when the
+// Test that the LayoutState can be observed to tell when the
 // bottom omnibox position changes.
-TEST_F(MainToolbarCoordinatorTest, TestOmniboxPositionBrowserAgentObservation) {
+TEST_F(MainToolbarCoordinatorTest, TestLayoutStateToolbarPositionObservation) {
   // Bottom omnibox is not supported on all devices (e.g. iPad).
   if (!IsBottomOmniboxAvailable()) {
     return;
@@ -230,10 +229,10 @@ TEST_F(MainToolbarCoordinatorTest, TestOmniboxPositionBrowserAgentObservation) {
   VerifyOmniboxPositionObservation();
 }
 
-// Test that the OmniboxPositionBrowserAgent can be observed to tell when the
+// Test that the LayoutState can be observed to tell when the
 // bottom omnibox position changes when ChromeNextIa is enabled.
 TEST_F(MainToolbarCoordinatorTest,
-       TestOmniboxPositionBrowserAgentObservation_ChromeNextIa) {
+       TestLayoutStateToolbarPositionObservation_ChromeNextIa) {
   // Bottom omnibox is not supported on all devices (e.g. iPad).
   if (!IsBottomOmniboxAvailable()) {
     return;

@@ -222,7 +222,7 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
 
             sdjwt::SdJwt token;
             sdjwt::Header h;
-            h.typ = "web-identity+sd-jwt";
+            h.typ = "evt+jwt";
             h.alg = "RS256";
             h.kid = "test_kid";
             sdjwt::Payload p;
@@ -428,7 +428,7 @@ TEST_F(EmailVerificationRequestTest, CaseInsensitiveEmailMatch) {
 
             sdjwt::SdJwt token;
             sdjwt::Header h;
-            h.typ = "web-identity+sd-jwt";
+            h.typ = "evt+jwt";
             h.alg = "RS256";
             sdjwt::Payload p;
             p.iss = url::Origin::Create(kIssuerUrl).Serialize();

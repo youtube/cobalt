@@ -95,6 +95,14 @@ bool SecurityKeyExtensionSession::OnExtensionMessage(
     return false;
   }
 
+  // 512KB maximum raw message size to prevent DoS/OOM on JSON parsing.
+  constexpr size_t kMaxRawMessageSize = 524288;
+  if (message.data().size() > kMaxRawMessageSize) {
+    LOG(ERROR) << "Gnubby-auth message data exceeds maximum allowed size ("
+               << message.data().size() << " > " << kMaxRawMessageSize << ").";
+    return true;
+  }
+
   std::optional<base::DictValue> value = base::JSONReader::ReadDict(
       message.data(), base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!value) {
@@ -158,15 +166,26 @@ void SecurityKeyExtensionSession::ProcessDataMessage(
 
   std::string response;
   const base::ListValue* bytes_list = message_data.FindList(kDataPayload);
-  if (bytes_list && ConvertListToString(*bytes_list, &response)) {
-    HOST_LOG << "Processing security key response: "
-             << GetCommandCode(response);
-    security_key_auth_handler_->SendClientResponse(connection_id, response);
-  } else {
-    LOG(WARNING) << "Could not extract response data from message.";
-    security_key_auth_handler_->SendErrorAndCloseConnection(connection_id);
-    return;
+  if (bytes_list) {
+    // 64KB maximum payload size to prevent DoS/OOM.
+    constexpr size_t kMaxPayloadSize = 65536;
+    if (bytes_list->size() > kMaxPayloadSize) {
+      LOG(ERROR) << "Gnubby data payload exceeds maximum size ("
+                 << bytes_list->size() << " > " << kMaxPayloadSize << ").";
+      security_key_auth_handler_->SendErrorAndCloseConnection(connection_id);
+      return;
+    }
+
+    if (ConvertListToString(*bytes_list, &response)) {
+      HOST_LOG << "Processing security key response: "
+               << GetCommandCode(response);
+      security_key_auth_handler_->SendClientResponse(connection_id, response);
+      return;
+    }
   }
+
+  LOG(WARNING) << "Could not extract response data from message.";
+  security_key_auth_handler_->SendErrorAndCloseConnection(connection_id);
 }
 
 void SecurityKeyExtensionSession::ProcessErrorMessage(

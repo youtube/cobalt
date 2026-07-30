@@ -5,7 +5,6 @@
 #import "ios/chrome/browser/settings/ui_bundled/autofill/cells/autofill_profile_item.h"
 
 #import "base/apple/foundation_util.h"
-#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -34,7 +33,7 @@ TEST_F(AutofillProfileItemTest, ItemProperties) {
   EXPECT_FALSE(imageCell.detailTextLabel.text);
   EXPECT_FALSE(imageCell.imageView.image);
 
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_NSEQ(text, imageCell.textLabel.text);
   EXPECT_NSEQ(detailText, imageCell.detailTextLabel.text);
   EXPECT_FALSE(imageCell.imageView.isHidden);
@@ -53,7 +52,7 @@ TEST_F(AutofillProfileItemTest, ItemImageViewHidden) {
   AutofillProfileCell* imageCell =
       base::apple::ObjCCastStrict<AutofillProfileCell>(cell);
   EXPECT_FALSE(item.image);
-  [item configureCell:cell withStyler:[[ChromeTableViewStyler alloc] init]];
+  [item configureCell:cell];
   EXPECT_FALSE(item.image);
   EXPECT_TRUE(imageCell.imageView.isHidden);
 }

@@ -189,24 +189,32 @@ void AudioNodeOutput::DisconnectAll() {
   DisconnectAllParams();
 }
 
-void AudioNodeOutput::Disable() {
+void AudioNodeOutput::DisableAndEnqueue(
+    Vector<scoped_refptr<AudioHandler>>& worklist) {
   GetDeferredTaskHandler().AssertGraphOwner();
 
   if (is_enabled_) {
     is_enabled_ = false;
     for (AudioNodeInput* input : inputs_) {
-      AudioNodeWiring::Disable(*this, *input);
+      if (scoped_refptr<AudioHandler> handler =
+              AudioNodeWiring::Disable(*this, *input)) {
+        worklist.push_back(std::move(handler));
+      }
     }
   }
 }
 
-void AudioNodeOutput::Enable() {
+void AudioNodeOutput::EnableAndEnqueue(
+    Vector<scoped_refptr<AudioHandler>>& worklist) {
   GetDeferredTaskHandler().AssertGraphOwner();
 
   if (!is_enabled_) {
     is_enabled_ = true;
     for (AudioNodeInput* input : inputs_) {
-      AudioNodeWiring::Enable(*this, *input);
+      if (scoped_refptr<AudioHandler> handler =
+              AudioNodeWiring::Enable(*this, *input)) {
+        worklist.push_back(std::move(handler));
+      }
     }
   }
 }

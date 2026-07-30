@@ -15,6 +15,7 @@
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/metrics_hashes.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/metrics/sample_vector.h"
 #include "base/metrics/sparse_histogram.h"
@@ -750,6 +751,62 @@ TEST_F(PersistentHistogramAllocatorTest, MovePersistentFile) {
     }
   }
   EXPECT_TRUE(found_histogram);
+}
+
+TEST_F(PersistentHistogramAllocatorTest, CorruptSparseHistogramMetadataId) {
+  using PersistentHistogramData =
+      PersistentHistogramAllocator::PersistentHistogramData;
+
+  const size_t kLocalMemorySize = 64 << 10;
+
+  PersistentHistogramAllocator local_allocator(
+      std::make_unique<LocalPersistentMemoryAllocator>(kLocalMemorySize, 0,
+                                                       "LocalAllocator"));
+
+  const std::string kName = "ManualCorruptSparse";
+  uint64_t name_hash = HashMetricName(kName);
+
+  // Allocate memory for PersistentHistogramData + name.
+  size_t alloc_size =
+      offsetof(PersistentHistogramData, name) + kName.size() + 1;
+  PersistentMemoryAllocator::Reference ref =
+      local_allocator.memory_allocator()->Allocate(
+          alloc_size, PersistentHistogramData::kPersistentTypeId);
+  ASSERT_TRUE(ref);
+
+  uint8_t* ptr = local_allocator.memory_allocator()->GetAsArray<uint8_t>(
+      ref, PersistentHistogramData::kPersistentTypeId, 1);
+  ASSERT_TRUE(ptr);
+
+  auto* histogram_data = reinterpret_cast<PersistentHistogramData*>(ptr);
+
+  // Initialize PersistentHistogramData fields.
+  histogram_data->histogram_type = SPARSE_HISTOGRAM;
+  histogram_data->flags = HistogramBase::kIsPersistent;
+  histogram_data->samples_metadata.id = name_hash;
+
+  // We will set it to name_hash (invalid for sparse) to test the fix.
+  histogram_data->logged_metadata.id = name_hash;
+
+  // SAFETY: We manually serialize a corrupt histogram structure into a raw
+  // memory block for testing. We allocated `alloc_size` bytes which is
+  // guaranteed to be large enough to hold the struct and the name. Copying the
+  // name into the buffer is safe because it is bounded by the allocated size.
+  UNSAFE_BUFFERS(memcpy(histogram_data->name, kName.c_str(), kName.size() + 1));
+
+  // Try to load it.
+  std::unique_ptr<HistogramBase> mutated_histogram =
+      local_allocator.GetHistogram(ref);
+
+  // With the fix, it should detect the corruption and return nullptr.
+  EXPECT_FALSE(mutated_histogram);
+
+  // Now let's test with valid ID to make sure it works when not corrupt.
+  histogram_data->logged_metadata.id = name_hash + 1;  // valid
+
+  std::unique_ptr<HistogramBase> valid_histogram =
+      local_allocator.GetHistogram(ref);
+  EXPECT_TRUE(valid_histogram);
 }
 
 }  // namespace base

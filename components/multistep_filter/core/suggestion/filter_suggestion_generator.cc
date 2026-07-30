@@ -12,15 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/barrier_callback.h"
 #include "base/command_line.h"
-#include "base/containers/extend.h"
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/json/json_reader.h"
-#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -31,50 +23,46 @@
 #include "components/multistep_filter/core/logging/multistep_filter_logger.h"
 #include "components/multistep_filter/core/multistep_filter_util.h"
 #include "components/multistep_filter/core/storage/filter_store.h"
-#include "components/multistep_filter/core/suggestion/filter_suggestion_message_util.h"
 #include "components/multistep_filter/core/switches.h"
+#include "url/url_constants.h"
 
 namespace multistep_filter {
 
 namespace {
 
-// TODO(b/514312241): Remove this fallback message when the JSON
-// configuration is being served properly.
-constexpr char16_t kTestingFallbackMessage[] = u"Continue where you left off?";
-
 void LogServerRequestSent(MultistepFilterLogRouter* log_router,
                           int64_t navigation_id,
-                          std::string_view domain,
+                          std::string_view host,
                           size_t annotation_count) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerRequestSent, domain)
+                       LogEventType::kServerRequestSent, host)
       << LogDetail{"annotation_count", static_cast<int>(annotation_count)};
 }
 
 void LogServerResponseReceived(MultistepFilterLogRouter* log_router,
                                int64_t navigation_id,
-                               std::string_view domain,
+                               std::string_view host,
                                size_t candidate_count) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kServerResponseReceived, domain)
+                       LogEventType::kServerResponseReceived, host)
       << LogDetail{"candidate_count", static_cast<int>(candidate_count)};
 }
 
 void LogSuggestionSuppressed(MultistepFilterLogRouter* log_router,
                              int64_t navigation_id,
-                             std::string_view domain,
+                             std::string_view host,
                              std::string_view reason) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kSuggestionSuppressed, domain)
+                       LogEventType::kSuggestionSuppressed, host)
       << LogDetail{"reason", std::string(reason)};
 }
 
 void LogSuggestionGenerated(MultistepFilterLogRouter* log_router,
                             int64_t navigation_id,
-                            std::string_view domain,
+                            std::string_view host,
                             const UrlFilterSuggestion& suggestion) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kSuggestionGenerated, domain)
+                       LogEventType::kSuggestionGenerated, host)
       << LogDetail{"valid", true}
       << LogDetail{"filters_count",
                    static_cast<int>(suggestion.attribute_ui_labels.size())}
@@ -84,9 +72,9 @@ void LogSuggestionGenerated(MultistepFilterLogRouter* log_router,
 
 void LogNoRelevantAnnotations(MultistepFilterLogRouter* log_router,
                               int64_t navigation_id,
-                              std::string_view domain) {
+                              std::string_view host) {
   MULTISTEP_FILTER_LOG(log_router, navigation_id,
-                       LogEventType::kNoRelevantAnnotations, domain);
+                       LogEventType::kNoRelevantAnnotations, host);
 }
 
 }  // namespace
@@ -98,42 +86,30 @@ FilterSuggestionGenerator::FilterSuggestionGenerator(
     MultistepFilterLogRouter* log_router)
     : annotation_index_client_(annotation_index_client),
       filter_store_(filter_store),
-      log_router_(log_router) {
-  LoadCueConfig();
-}
+      log_router_(log_router) {}
 
 FilterSuggestionGenerator::~FilterSuggestionGenerator() = default;
 
 void FilterSuggestionGenerator::GenerateSuggestion(
     const GURL& url,
-    const std::vector<std::string>& supported_task_types,
+    std::vector<std::string> supported_task_types,
     base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
-    int64_t navigation_id,
-    std::string_view domain) {
+    int64_t navigation_id) {
   auto split_callback = base::SplitOnceCallback(std::move(callback));
   base::ScopedClosureRunner failure_callback(
       base::BindOnce(std::move(split_callback.first), std::nullopt));
-
-  // Fetch annotations for multiple task types asynchronously from the
-  // FilterStore. The BarrierCallback waits until all these individual queries
-  // complete before aggregating and processing them in
-  // `OnAllAnnotationsFetched()`.
-  auto barrier_callback = base::BarrierCallback<std::vector<FilterAnnotation>>(
-      supported_task_types.size(),
-      base::BindOnce(
-          &FilterSuggestionGenerator::OnAllAnnotationsFetched,
-          weak_ptr_factory_.GetWeakPtr(), url, std::move(split_callback.second),
-          std::move(failure_callback), navigation_id, std::string(domain)));
 
   const base::Time min_creation_time =
       base::Time::Now() - kMultistepFilterSessionDuration.Get();
   // TODO(crbug.com/493485174): Filter supported task types to only include
   // filtering tasks.
-  for (const std::string& task_type : supported_task_types) {
-    filter_store_->GetAnnotationsForTaskSortedByCreationTimestamp(
-        task_type, barrier_callback, internal::kDefaultMaxResults,
-        min_creation_time);
-  }
+  filter_store_->GetAnnotationsForTasksSortedByCreationTimestamp(
+      std::move(supported_task_types),
+      base::BindOnce(
+          &FilterSuggestionGenerator::OnAllAnnotationsFetched,
+          weak_ptr_factory_.GetWeakPtr(), url, std::move(split_callback.second),
+          std::move(failure_callback), navigation_id),
+      kMultistepFilterSuggestionMaxCandidates.Get(), min_creation_time);
 }
 
 void FilterSuggestionGenerator::OnAllAnnotationsFetched(
@@ -142,24 +118,12 @@ void FilterSuggestionGenerator::OnAllAnnotationsFetched(
         success_callback,
     base::ScopedClosureRunner failure_callback,
     int64_t navigation_id,
-    std::string_view domain,
-    std::vector<std::vector<FilterAnnotation>> filter_annotations) {
-  std::vector<FilterAnnotation> all_annotations;
-  for (std::vector<FilterAnnotation>& annotations_for_task_type :
-       filter_annotations) {
-    base::Extend(all_annotations, std::move(annotations_for_task_type));
-  }
+    std::vector<FilterAnnotation> all_annotations) {
 
   if (all_annotations.empty()) {
-    LogNoRelevantAnnotations(log_router_, navigation_id, domain);
+    LogNoRelevantAnnotations(log_router_, navigation_id, url.GetHost());
     return;
   }
-
-  // Sort the aggregated list of annotations by `creation_timestamp` in
-  // descending order to prioritize the most recently created annotations when
-  // limiting the number of candidates.
-  std::ranges::sort(all_annotations, std::ranges::greater(),
-                    &FilterAnnotation::creation_timestamp);
 
   // Suppress suggestions if the latest annotation is for the same domain and
   // within the throttle duration.
@@ -167,20 +131,12 @@ void FilterSuggestionGenerator::OnAllAnnotationsFetched(
       all_annotations.front().source_host == url.GetHost() &&
       base::Time::Now() - all_annotations.front().creation_timestamp <
           kSameDomainSuggestionSuppressionDuration.Get()) {
-    LogSuggestionSuppressed(log_router_, navigation_id, domain,
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
                             "recent_extraction");
     return;
   }
 
-  // Limit the number of candidates to bound the size of the payload sent to the
-  // server.
-  const size_t max_candidates = kMultistepFilterSuggestionMaxCandidates.Get();
-  if (all_annotations.size() > max_candidates) {
-    all_annotations.erase(all_annotations.begin() + max_candidates,
-                          all_annotations.end());
-  }
-
-  LogServerRequestSent(log_router_, navigation_id, domain,
+  LogServerRequestSent(log_router_, navigation_id, url.GetHost(),
                        all_annotations.size());
 
   base::span<const FilterAnnotation> all_annotations_span = all_annotations;
@@ -190,7 +146,7 @@ void FilterSuggestionGenerator::OnAllAnnotationsFetched(
           &FilterSuggestionGenerator::OnFilterSuggestionCandidatesFetched,
           weak_ptr_factory_.GetWeakPtr(), url, std::move(success_callback),
           std::move(failure_callback), std::move(all_annotations),
-          navigation_id, std::string(domain)),
+          navigation_id),
       navigation_id);
 }
 
@@ -201,13 +157,12 @@ void FilterSuggestionGenerator::OnFilterSuggestionCandidatesFetched(
     base::ScopedClosureRunner failure_callback,
     std::vector<FilterAnnotation> annotations,
     int64_t navigation_id,
-    std::string_view domain,
     std::optional<std::vector<FilterSuggestionCandidate>> candidates) {
-  LogServerResponseReceived(log_router_, navigation_id, domain,
+  LogServerResponseReceived(log_router_, navigation_id, url.GetHost(),
                             candidates ? candidates->size() : 0);
 
   if (!candidates || candidates->empty()) {
-    LogSuggestionSuppressed(log_router_, navigation_id, domain,
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
                             !candidates ? "fetch_failed" : "no_candidates");
     return;
   }
@@ -216,15 +171,38 @@ void FilterSuggestionGenerator::OnFilterSuggestionCandidatesFetched(
   // candidate.
   FilterSuggestionCandidate& candidate = candidates->front();
 
+  // Validate that the candidate URL uses a secure cryptographic scheme and
+  // shares the same eTLD+1 as the triggering URL. A strict same-origin check is
+  // avoided here because many websites use distinct subdomains for different
+  // pages.
+  const bool is_cryptographic =
+      candidate.navigation_url.SchemeIsCryptographic();
+  const bool is_http_allowed_for_testing =
+      candidate.navigation_url.SchemeIs(url::kHttpScheme) &&
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kMultistepFilterAllowHttpForTesting);
+
+  if (!is_cryptographic && !is_http_allowed_for_testing) {
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
+                            "insecure_scheme");
+    return;
+  }
+
+  if (GetEtldPlusOne(candidate.navigation_url) != GetEtldPlusOne(url)) {
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
+                            "cross_domain");
+    return;
+  }
+
   if (IsUrlSubsumedBy(candidate.navigation_url, url)) {
-    LogSuggestionSuppressed(log_router_, navigation_id, domain, "subsumed");
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(), "subsumed");
     return;
   }
 
   auto matching_annotation_it = std::ranges::find(
       annotations, candidate.filter_annotation_id, &FilterAnnotation::id);
   if (matching_annotation_it == annotations.end()) {
-    LogSuggestionSuppressed(log_router_, navigation_id, domain,
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
                             "annotation_not_found");
     return;
   }
@@ -244,24 +222,16 @@ void FilterSuggestionGenerator::OnFilterSuggestionCandidatesFetched(
   }
 
   if (attribute_ui_labels.size() <= 1) {
-    LogSuggestionSuppressed(log_router_, navigation_id, domain,
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
                             "too_few_attributes");
     return;
   }
 
-  std::optional<std::u16string> message;
-  if (cue_config_.empty()) {
-    // TODO(b/514312241): Remove this fallback message when the JSON
-    // configuration is being served properly.
-    message = kTestingFallbackMessage;
-  } else {
-    message = GenerateMessageWithConfig(matching_annotation_it->task_type,
-                                        attribute_ui_labels, cue_config_);
-    if (!message || base::TrimWhitespace(*message, base::TRIM_ALL).empty()) {
-      LogSuggestionSuppressed(log_router_, navigation_id, domain,
-                              "message_generation_failed");
-      return;
-    }
+  if (base::TrimWhitespace(candidate.detailed_text, base::TRIM_ALL).empty() ||
+      base::TrimWhitespace(candidate.short_text, base::TRIM_ALL).empty()) {
+    LogSuggestionSuppressed(log_router_, navigation_id, url.GetHost(),
+                            "missing_suggestion_message");
+    return;
   }
 
   // Suggestion generation succeeded, reset `failure_callback` as to not notify
@@ -270,54 +240,17 @@ void FilterSuggestionGenerator::OnFilterSuggestionCandidatesFetched(
 
   UrlFilterSuggestion suggestion(UrlFilterSuggestion::Params{
       .navigation_url = std::move(candidate.navigation_url),
-      .source_domain = base::UTF8ToUTF16(matching_annotation_it->source_domain),
       .source_host = base::UTF8ToUTF16(matching_annotation_it->source_host),
       .extraction_timestamp = matching_annotation_it->creation_timestamp,
       .attribute_ui_labels = std::move(attribute_ui_labels),
       .triggering_navigation_id = navigation_id,
-      .triggering_domain = std::string(domain),
       .triggering_host = url.GetHost(),
       .task_type = std::move(matching_annotation_it->task_type),
-      .suggestion_message = std::move(*message)});
-  LogSuggestionGenerated(log_router_, navigation_id, domain, suggestion);
+      .suggestion_message = std::move(candidate.detailed_text),
+      .short_suggestion_message = std::move(candidate.short_text)});
+  LogSuggestionGenerated(log_router_, navigation_id, url.GetHost(), suggestion);
   std::move(success_callback).Run(std::move(suggestion));
 }
 
-void FilterSuggestionGenerator::LoadCueConfig() {
-  base::FilePath path =
-      base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
-          switches::kMultistepFilterCueConfigPath);
-  if (!path.empty()) {
-    base::ThreadPool::PostTaskAndReplyWithResult(
-        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-        base::BindOnce(
-            [](const base::FilePath& file_path) {
-              std::string json;
-              if (!base::ReadFileToString(file_path, &json)) {
-                VLOG(1) << "Failed to read config file: " << file_path.value();
-              }
-              return json;
-            },
-            path),
-        base::BindOnce(
-            [](base::WeakPtr<FilterSuggestionGenerator> generator,
-               std::string json) {
-              if (generator) {
-                std::optional<base::DictValue> root =
-                    base::JSONReader::ReadDict(json, 0);
-                if (root) {
-                  generator->cue_config_ = std::move(*root);
-                }
-              }
-            },
-            weak_ptr_factory_.GetWeakPtr()));
-  } else {
-    std::optional<base::DictValue> root =
-        base::JSONReader::ReadDict(kCueTemplatesMap.Get(), 0);
-    if (root) {
-      cue_config_ = std::move(*root);
-    }
-  }
-}
 
 }  // namespace multistep_filter

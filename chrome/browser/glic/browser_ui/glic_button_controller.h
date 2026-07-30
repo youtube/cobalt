@@ -30,7 +30,6 @@ class GlicButtonController {
                        GlicKeyedService* service);
   ~GlicButtonController();
 
-  bool ShouldAutoSummarize() const;
   mojom::InvocationSource GetInvocationSource(bool is_showing_nudge,
                                               bool is_toolbar) const;
 

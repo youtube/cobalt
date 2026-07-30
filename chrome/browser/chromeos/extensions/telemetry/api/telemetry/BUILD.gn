@@ -42,7 +42,6 @@ source_set("browser_tests") {
     "//base",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:test_support",
     "//chromeos/ash/components/dbus/debug_daemon",
-    "//chromeos/ash/components/telemetry_extension/telemetry",
     "//chromeos/ash/services/cros_healthd/public/cpp:test_support",
     "//chromeos/ash/services/cros_healthd/public/mojom",
     "//chromeos/services/network_config/public/mojom:network_types",

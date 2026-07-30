@@ -16,8 +16,10 @@
 /lit-html/async-directive.js
 /lit-html/directive.js
 /lit-html/directive-helpers.js
+/lit-html/directives/repeat.js
 /lit-html/lit-html.js
 /lit-html/is-server.js
+/lit/directives/repeat.js
 /lit/index.js
 /@lit/reactive-element/css-tag.js
 /@lit/reactive-element/reactive-element.js

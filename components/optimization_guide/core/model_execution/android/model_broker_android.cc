@@ -12,6 +12,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "build/branding_buildflags.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
@@ -612,6 +613,11 @@ void ModelBrokerAndroid::GetStateInfo(
   // result->assets = component_state_manager_.GetBrokerAssets();
   result->use_cases = impl_.GetBrokerUseCaseInfo();
   // result->models = base_model_controller_.GetBrokerModels();
+
+  // Model crash count parameters are omitted because Android's impl
+  // doesn't track or use the crash counts (the crash count card won't
+  // be displayed in the UI).
+
   std::move(callback).Run(std::move(result));
 }
 
@@ -622,6 +628,10 @@ void ModelBrokerAndroid::SetUseCaseRequested(const std::string& use_case,
 
 void ModelBrokerAndroid::UninstallModels() {
   // Not supported for android, since we don't own the models.
+}
+
+void ModelBrokerAndroid::ResetModelCrashCount() {
+  // Omitted because Android's impl doesn't track or use crash counts.
 }
 
 mojo::Remote<on_device_model::mojom::OnDeviceModel>&

@@ -83,7 +83,7 @@ void DisplayDamageTracker::DisplayResized() {
   expecting_root_surface_damage_because_of_resize_ = true;
   // Technically we don't have any damage yet, but we need to draw after resize,
   // so we report display damaged here.
-  NotifyDisplayDamaged(root_surface_id_);
+  NotifyDisplayDamaged(root_surface_id_, BeginFrameId());
 }
 
 void DisplayDamageTracker::ProcessSurfaceDamage(
@@ -132,7 +132,7 @@ void DisplayDamageTracker::ProcessSurfaceDamage(
   }
 
   if (display_damaged) {
-    NotifyDisplayDamaged(surface_id);
+    NotifyDisplayDamaged(surface_id, ack.frame_id);
   } else if (valid_ack) {
     NotifyPendingSurfacesChanged();
   }
@@ -292,9 +292,10 @@ void DisplayDamageTracker::RunDrawCallbacks() {
   }
 }
 
-void DisplayDamageTracker::NotifyDisplayDamaged(SurfaceId surface_id) {
+void DisplayDamageTracker::NotifyDisplayDamaged(SurfaceId surface_id,
+                                                BeginFrameId frame_id) {
   if (delegate_) {
-    delegate_->OnDisplayDamaged(surface_id);
+    delegate_->OnDisplayDamaged(surface_id, frame_id);
   }
 }
 

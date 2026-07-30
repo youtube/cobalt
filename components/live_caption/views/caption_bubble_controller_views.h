@@ -133,14 +133,16 @@ class CaptionBubbleControllerViews
   raw_ptr<CaptionBubble, DanglingUntriaged> caption_bubble_;
   raw_ptr<views::Widget, DanglingUntriaged> caption_widget_;
 
-  // A pointer to the currently active CaptionBubbleModel.
-  raw_ptr<CaptionBubbleModel, DanglingUntriaged> active_model_ = nullptr;
-
   // A map of media player ids and their corresponding CaptionBubbleModel. New
   // entries are added to this map when a previously unseen media player id is
   // received.
   std::unordered_map<CaptionBubbleContext*, std::unique_ptr<CaptionBubbleModel>>
       caption_bubble_models_;
+
+  // A pointer to the currently active CaptionBubbleModel, owned by
+  // `caption_bubble_models_`. Declared after the map so it is destroyed first
+  // and never dangles during teardown.
+  raw_ptr<CaptionBubbleModel> active_model_ = nullptr;
 
   // A collection of closed session identifiers that should not display
   // captions. Identifiers are removed from this collection when a user

@@ -10,6 +10,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
@@ -277,6 +278,13 @@ void WebUIAvatarToolbarButton::UpdateState() {
       state_manager_->GetAccessibilityLabels(state_provider->GetText());
   state->accessibility_name = name;
   state->accessibility_description = description;
+#if BUILDFLAG(IS_CHROMEOS)
+  Profile* profile = delegate_->GetBrowser()->GetProfile();
+  state->enabled = profile->IsOffTheRecord() && !profile->IsGuestSession() &&
+                   !profile->GetOTRProfileID().IsCaptivePortal();
+#else
+  state->enabled = true;
+#endif
 
   if (delegate_) {
     delegate_->OnAvatarControlStateChanged(std::move(state));

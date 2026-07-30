@@ -209,7 +209,11 @@ template("chrome_common_apk_or_module_tmpl") {
           trichrome_jinja_variables + [ "trichrome_version=$_version_code" ]
     } else {
       input = "//chrome/android/java/AndroidManifest.xml"
-      variables += [ "library_name=chrome" ]
+      if (_is_test) {
+        variables += [ "library_name=chromefortest" ]
+      } else {
+        variables += [ "library_name=chrome" ]
+      }
     }
     if (_is_trichrome) {
       _force_32_bit = _include_32_bit_webview && _include_64_bit_webview &&

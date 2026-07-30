@@ -1,7 +1,9 @@
 include_rules = [
   "+base",
+  "+chrome/browser/ui/browser_window/public",
+  "+chrome/browser/ui/views",
+  "+chrome/common/extensions/api",
+  "+extensions/browser",
   "+testing/gmock",
   "+testing/gtest",
-  "+chrome/browser/ui/views",
-  "+chrome/browser/ui/browser_window/public",
 ]

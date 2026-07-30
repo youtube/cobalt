@@ -17,6 +17,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ui/accessibility/accessibility_features.h"
+#include "ui/accessibility/ax_features.mojom.h"
 
 class ReadAnythingMochaBrowserTest : public WebUIMochaBrowserTest {
  protected:
@@ -26,7 +27,7 @@ class ReadAnythingMochaBrowserTest : public WebUIMochaBrowserTest {
     scoped_feature_list_.InitWithFeatures(
         {features::kReadAnythingImagesViaAlgorithm},
         {features::kReadAnythingReadAloudPhraseHighlighting,
-         features::kReadAnythingDocsIntegration});
+         ax::mojom::features::kReadAnythingDocsIntegration});
   }
 
   void RunSidePanelTest(const std::string& file, const std::string& trigger) {

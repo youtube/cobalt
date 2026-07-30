@@ -1065,6 +1065,82 @@ TEST_P(WaylandWindowTest, ServerInitiatedRestoreFromMinimizedState) {
   EXPECT_EQ(PlatformWindowState::kMinimized, window_->GetPlatformWindowState());
 }
 
+// Regression test for crbug.com/396148609. A minimized window is not visible,
+// so its window geometry and bounds must be left at their restored values.
+// Otherwise the geometry origin flips to (0,0) and the bounds shrink to the
+// no-shadow size while minimized; on un-minimize the retained (shadowed) buffer
+// is briefly shown mismatched against the collapsed anchor, and the window (and
+// its web contents) visibly jump before snapping back (Wayland-only).
+TEST_P(WaylandWindowTest, MinimizedWindowDoesNotReconfigureGeometry) {
+  const auto kInsets = gfx::Insets::TLBR(10, 16, 32, 16);
+  // The restored (normal) state reserves the decoration shadow insets; every
+  // other state (incl. minimized) reports no insets, matching the browser host.
+  auto set_inset_expectations = [&]() {
+    EXPECT_CALL(delegate_, CalculateInsetsInDIP(_))
+        .WillRepeatedly(Return(gfx::Insets()));
+    EXPECT_CALL(delegate_, CalculateInsetsInDIP(PlatformWindowState::kNormal))
+        .WillRepeatedly(Return(kInsets));
+    EXPECT_CALL(delegate_, OnWindowStateChanged(_, _))
+        .Times(testing::AnyNumber());
+  };
+
+  // Drive the window into normal/activated state and latch its restored bounds
+  // (which include the decoration shadow) and the content size the compositor
+  // reports back via configure events.
+  set_inset_expectations();
+  wl::ScopedWlArray states = InitializeWlArrayWithActivatedState();
+  SendConfigureEvent(surface_id_, {0, 0}, states);
+  AdvanceFrameToCurrent(window_.get(), delegate_);
+  const gfx::Rect restored_bounds = window_->GetBoundsInDIP();
+  const gfx::Size content_size(
+      restored_bounds.width() - (kInsets.left() + kInsets.right()),
+      restored_bounds.height() - (kInsets.top() + kInsets.bottom()));
+  VerifyAndClearExpectations();
+
+  // Minimize. No window geometry must be pushed for the invisible window, and
+  // the bounds must not change.
+  set_inset_expectations();
+  PostToServerAndWait([id = surface_id_](wl::TestWaylandServerThread* server) {
+    wl::MockSurface* mock_surface = server->GetObject<wl::MockSurface>(id);
+    ASSERT_TRUE(mock_surface);
+    wl::MockXdgSurface* xdg_surface = mock_surface->xdg_surface();
+    EXPECT_CALL(*xdg_surface->xdg_toplevel(), SetMinimized());
+    EXPECT_CALL(*xdg_surface, SetWindowGeometry(_)).Times(0);
+  });
+  window_->Minimize();
+  EXPECT_EQ(window_->GetPlatformWindowState(), PlatformWindowState::kMinimized);
+
+  // The compositor does not report a minimized state; it only deactivates the
+  // toplevel and keeps configuring it at the content size. The window must stay
+  // minimized and must keep its restored bounds (no shrinking).
+  states = wl::ScopedWlArray({});
+  SendConfigureEvent(surface_id_, content_size, states);
+  AdvanceFrameToCurrent(window_.get(), delegate_);
+  EXPECT_EQ(window_->GetPlatformWindowState(), PlatformWindowState::kMinimized);
+  EXPECT_EQ(window_->GetBoundsInDIP(), restored_bounds);
+  VerifyAndClearExpectations();
+
+  // Un-minimize: the geometry returns to exactly its restored value, with no
+  // intermediate (0,0)-origin flip, and the bounds are unchanged.
+  set_inset_expectations();
+  PostToServerAndWait(
+      [id = surface_id_, insets = kInsets,
+       content = content_size](wl::TestWaylandServerThread* server) {
+        wl::MockSurface* mock_surface = server->GetObject<wl::MockSurface>(id);
+        ASSERT_TRUE(mock_surface);
+        wl::MockXdgSurface* xdg_surface = mock_surface->xdg_surface();
+        EXPECT_CALL(*xdg_surface, SetWindowGeometry(gfx::Rect(
+                                      insets.left(), insets.top(),
+                                      content.width(), content.height())));
+      });
+  states = InitializeWlArrayWithActivatedState();
+  SendConfigureEvent(surface_id_, content_size, states);
+  AdvanceFrameToCurrent(window_.get(), delegate_);
+  EXPECT_EQ(window_->GetPlatformWindowState(), PlatformWindowState::kNormal);
+  EXPECT_EQ(window_->GetBoundsInDIP(), restored_bounds);
+  VerifyAndClearExpectations();
+}
+
 TEST_P(WaylandWindowTest, SetFullscreenAndRestore) {
   constexpr gfx::Rect kNormalBounds{500, 300};
   constexpr gfx::Rect kFullscreenBounds{800, 600};
@@ -5500,6 +5576,55 @@ TEST_P(WaylandWindowTest, WaylandBubbleSetBoundsUaf) {
 
   // This should not crash if the fix is applied.
   wayland_bubble->SetBoundsInDIP(gfx::Rect(15, 15, 60, 60));
+}
+
+TEST_P(WaylandWindowTest, WaylandBubbleActivateBubbleUaf) {
+  MockWaylandPlatformWindowDelegate bubble_delegate(connection_.get());
+  gfx::Rect bubble_bounds(10, 10, 50, 50);
+  auto wayland_bubble =
+      CreateWaylandWindowWithParams(PlatformWindowType::kBubble, bubble_bounds,
+                                    &bubble_delegate, window_->GetWidget());
+  ASSERT_TRUE(wayland_bubble);
+
+  EXPECT_CALL(delegate_, OnActivationChanged(::testing::_))
+      .Times(::testing::AnyNumber());
+
+  EXPECT_CALL(delegate_, OnActivationChanged(false))
+      .WillOnce(::testing::InvokeWithoutArgs([&]() {
+        wayland_bubble.reset();
+        window_.reset();
+      }));
+
+  // This should not crash and should return safely.
+  window_->ActivateBubble(wayland_bubble->AsWaylandBubble());
+}
+
+TEST_P(WaylandWindowTest, WaylandBubbleRemoveBubbleUaf) {
+  auto active = MakeStateArray({XDG_TOPLEVEL_STATE_ACTIVATED});
+  SendConfigureEvent(surface_id_, {0, 0}, active);
+  AdvanceFrameToCurrent(window_.get(), delegate_);
+  VerifyAndClearExpectations();
+
+  MockWaylandPlatformWindowDelegate bubble_delegate(connection_.get());
+  gfx::Rect bubble_bounds(10, 10, 50, 50);
+  auto wayland_bubble =
+      CreateWaylandWindowWithParams(PlatformWindowType::kBubble, bubble_bounds,
+                                    &bubble_delegate, window_->GetWidget());
+  ASSERT_TRUE(wayland_bubble);
+
+  window_->ActivateBubble(wayland_bubble->AsWaylandBubble());
+
+  EXPECT_CALL(delegate_, OnActivationChanged(::testing::_))
+      .Times(::testing::AnyNumber());
+
+  EXPECT_CALL(delegate_, OnActivationChanged(true))
+      .WillOnce(::testing::InvokeWithoutArgs([&]() {
+        wayland_bubble.reset();
+        window_.reset();
+      }));
+
+  // This should not crash and should return safely.
+  window_->RemoveBubble(wayland_bubble->AsWaylandBubble());
 }
 
 INSTANTIATE_TEST_SUITE_P(XdgVersionStableTest,

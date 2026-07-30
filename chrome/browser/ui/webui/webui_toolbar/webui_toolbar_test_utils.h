@@ -168,6 +168,8 @@ class MockCommandUpdater : public CommandUpdater {
               (CommandObserver * observer),
               (override));
   MOCK_METHOD(bool, UpdateCommandEnabled, (int id, bool state), (override));
+  MOCK_METHOD(void, DisableAllCommands, (), (override));
+  MOCK_METHOD(std::vector<int>, GetAllIds, (), (const, override));
 };
 
 MATCHER_P(MatchesIconUpdate, expected, "") {

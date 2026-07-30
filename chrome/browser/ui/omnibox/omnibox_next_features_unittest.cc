@@ -14,6 +14,7 @@
 #include "chrome/browser/autocomplete/chrome_aim_eligibility_service.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
@@ -320,20 +321,16 @@ TEST_F(OmniboxNextAimEligibilityTest, ShouldShowAimContextMenuOption) {
   struct TestCase {
     bool is_aim_eligible;
     bool aim_enabled;
-    bool ai_mode_entry_point_enabled;
     bool webui_aim_popup_enabled;
     const char* context_button_variant;
     bool expected_should_show;
   };
   std::vector<TestCase> test_cases = {
-      // If either AIM feature is enabled, then menu option should be shown.
-      // Entry point is enabled:
-      {true, false, true, false, "below_results", true},
-      // Context button is enabled:
-      {true, false, false, true, "below_results", true},
-      // If the user is AIM ineligible, then the menu option should be hidden
-      // even if both features are enabled:
-      {false, true, true, true, "below_results", false},
+      // If either feature is enabled, the menu option should be shown.
+      {true, true, false, "below_results", true},
+      {true, false, true, "below_results", true},
+      // If the user is AIM ineligible, then the menu option should be hidden:
+      {false, true, true, "below_results", false},
   };
 
   for (size_t i = 0; i < test_cases.size(); ++i) {
@@ -348,12 +345,6 @@ TEST_F(OmniboxNextAimEligibilityTest, ShouldShowAimContextMenuOption) {
       features_with_params.push_back({omnibox::kAimEnabled, {}});
     } else {
       disabled_features.push_back(omnibox::kAimEnabled);
-    }
-
-    if (test_case.ai_mode_entry_point_enabled) {
-      features_with_params.push_back({omnibox::kAiModeOmniboxEntryPoint, {}});
-    } else {
-      disabled_features.push_back(omnibox::kAiModeOmniboxEntryPoint);
     }
 
     if (test_case.webui_aim_popup_enabled) {

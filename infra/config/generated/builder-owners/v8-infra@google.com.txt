@@ -1,5 +1,4 @@
 ci/ASAN Release V8 Sandbox Testing
-ci/ASan Debug (32-bit x86 with V8-ARM)
 ci/ASan Release (32-bit x86 with V8-ARM)
 ci/ASan Release Media (32-bit x86 with V8-ARM)
 ci/Libfuzzer Upload Linux V8-ARM64 ASan

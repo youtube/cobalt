@@ -10,6 +10,7 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/metrics/histogram_functions.h"
+#include "components/autofill/core/browser/data_manager/addresses/account_name_email_store.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/filling/form_filler.h"
@@ -55,12 +56,11 @@ AccountNameEmailStrikeManager::~AccountNameEmailStrikeManager() {
   // `AccountNameEmailStore::ApplyChange()` would lead to overrecording because
   // those two methods are also called as the result of a profile being removed
   // on a different device using the same account.
-  if (not_selected_count ==
-      features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get()) {
+  if (not_selected_count == AccountNameEmailStore::kNotSelectedThreshold) {
     base::UmaHistogramBoolean(
         "Autofill.ProfileDeleted.ImplicitAccountNameEmail", true);
   } else if (not_selected_count <
-             features::kAutofillNameAndEmailProfileNotSelectedThreshold.Get()) {
+             AccountNameEmailStore::kNotSelectedThreshold) {
     base::UmaHistogramBoolean(
         "Autofill.ProfileDeleted.ImplicitAccountNameEmail", false);
   }

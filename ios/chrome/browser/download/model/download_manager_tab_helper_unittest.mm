@@ -130,6 +130,12 @@ class DownloadManagerTabHelperTest : public PlatformTest {
     return !!tab_helper()->content_analysis_info_;
   }
 
+  void MaybeMoveDownloadToDownloadsDirectory(
+      base::WeakPtr<web::DownloadTask> task,
+      bool should_proceed) {
+    tab_helper()->MaybeMoveDownloadToDownloadsDirectory(task, should_proceed);
+  }
+
   // Creates a fake download task associated with `web_state_`.
   std::unique_ptr<web::FakeDownloadTask> CreateFakeDownloadTask(
       const GURL& original_url,
@@ -537,4 +543,72 @@ TEST_F(DownloadManagerTabHelperTest, DownloadCompleteNotifiesDelegate) {
   }));
 
   EXPECT_FALSE(tab_helper()->IsScannerProcessing());
+}
+
+// Tests that a scan completion callback bound to a previous download is ignored
+// once that download has been replaced by a new one.
+TEST_F(DownloadManagerTabHelperTest,
+       StaleScanCallbackIgnoredAfterDownloadReplaced) {
+  web_state_->WasShown();
+
+  // Set the first download as the current task.
+  std::unique_ptr<web::FakeDownloadTask> first_task =
+      CreateFakeDownloadTask(GURL(kUrl), kMimeType);
+  first_task->SetDone(true);
+  base::WeakPtr<web::DownloadTask> first_task_weak = first_task->GetWeakPtr();
+  tab_helper()->SetCurrentDownload(std::move(first_task));
+
+  // Replace the first download with a second one.
+  std::unique_ptr<web::FakeDownloadTask> second_task =
+      CreateFakeDownloadTask(GURL(kUrl), kMimeType);
+  web::FakeDownloadTask* second_task_ptr = second_task.get();
+  second_task_ptr->SetIdentifier(@"second_id");
+  second_task_ptr->SetGeneratedFileName(base::FilePath("second.txt"));
+  tab_helper()->SetCurrentDownload(std::move(second_task));
+  ASSERT_EQ(second_task_ptr, tab_helper()->GetActiveDownloadTask());
+  ASSERT_TRUE(tab_helper()->GetDownloadTaskFinalFilePath().empty());
+
+  // Simulate the scan completion callback for the first download arriving with
+  // `shouldProceed` set to true. The second download must not be affected.
+  MaybeMoveDownloadToDownloadsDirectory(first_task_weak, true);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return tab_helper()->GetDownloadTaskFinalFilePath().empty() &&
+           tab_helper()->GetActiveDownloadTask() == second_task_ptr;
+  }));
+  EXPECT_TRUE(tab_helper()->GetDownloadTaskFinalFilePath().empty());
+  EXPECT_EQ(second_task_ptr, tab_helper()->GetActiveDownloadTask());
+
+  // Simulate the scan completion callback for the first download arriving with
+  // `shouldProceed` set to false. The second download must not be cleaned up.
+  MaybeMoveDownloadToDownloadsDirectory(first_task_weak, false);
+  EXPECT_EQ(second_task_ptr, tab_helper()->GetActiveDownloadTask());
+}
+
+// Tests that a scan completion callback bound to a previous download is ignored
+// once the current download has been cleared.
+TEST_F(DownloadManagerTabHelperTest,
+       StaleScanCallbackIgnoredAfterDownloadCleared) {
+  web_state_->WasShown();
+
+  // Set a download as the current task.
+  std::unique_ptr<web::FakeDownloadTask> task =
+      CreateFakeDownloadTask(GURL(kUrl), kMimeType);
+  task->SetDone(true);
+  base::WeakPtr<web::DownloadTask> task_weak = task->GetWeakPtr();
+  tab_helper()->SetCurrentDownload(std::move(task));
+
+  // Clear the current download.
+  tab_helper()->CleanupCurrentDownload();
+  ASSERT_EQ(nullptr, tab_helper()->GetActiveDownloadTask());
+
+  // Simulate the scan completion callback arriving with `shouldProceed` set to
+  // true. It must be ignored and not cause crashes or unexpected state.
+  MaybeMoveDownloadToDownloadsDirectory(task_weak, true);
+  EXPECT_EQ(nullptr, tab_helper()->GetActiveDownloadTask());
+  EXPECT_TRUE(tab_helper()->GetDownloadTaskFinalFilePath().empty());
+
+  // Simulate the scan completion callback arriving with `shouldProceed` set to
+  // false. It must be ignored.
+  MaybeMoveDownloadToDownloadsDirectory(task_weak, false);
+  EXPECT_EQ(nullptr, tab_helper()->GetActiveDownloadTask());
 }

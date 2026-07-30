@@ -5,6 +5,7 @@
 #include "components/viz/service/frame_sinks/external_begin_frame_source_mojo_mac.h"
 
 #include <utility>
+#include <vector>
 
 #include "base/metrics/histogram_macros.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
@@ -25,11 +26,34 @@ ExternalBeginFrameSourceMojoMac::ExternalBeginFrameSourceMojoMac(
 
   receiver_.Bind(std::move(controller_receiver));
 
+  // Delay connecting to VSyncProviderMac for one minute to avoid causing
+  // desktop startup time regression.
+  in_desktop_startup_ = true;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&ExternalBeginFrameSourceMojoMac::DesktopStartupCompletion,
+                     weak_factory_.GetWeakPtr()),
+      base::Seconds(60));
+}
+
+void ExternalBeginFrameSourceMojoMac::DesktopStartupCompletion() {
+  in_desktop_startup_ = false;
+
+  // Connect to VSyncProviderMac.
   ui::NeedsBeginFrameCB callback = base::BindRepeating(
       &ExternalBeginFrameSourceMojoMac::NeedsBeginFrameWithId,
       weak_factory_.GetWeakPtr());
   ui::VSyncProviderMac::GetInstance()->SetCallbackForRemoteNeedsBeginFrame(
       std::move(callback));
+
+  // Trigger deferred VSync display updates on all existing frame sources,
+  // transitioning them to the browser-side DisplayLink.
+  std::vector<int64_t> display_ids =
+      ui::VSyncProviderMac::GetInstance()->GetSupportedDisplayLinkIds();
+  for (int64_t display_id : display_ids) {
+    update_vsync_displays_cb_.Run(display_id,
+                                  /*is_browser_vsync_supported*/ true);
+  }
 }
 
 ExternalBeginFrameSourceMojoMac::~ExternalBeginFrameSourceMojoMac() {
@@ -43,8 +67,8 @@ void ExternalBeginFrameSourceMojoMac::IssueExternalVSync(
       base::TimeTicks::Now() - params.ipc_begin_timestamp;
   if (base::ShouldRecordSubsampledMetric(0.001)) {
     UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-        "Viz.BeginFrameSource.IPC.Latency", ipc_duration,
-        base::Microseconds(10), base::Milliseconds(34), 50);
+        "Viz.BeginFrameSource.IPC.LatencyUs2", ipc_duration,
+        base::Microseconds(10), base::Minutes(1), 50);
   }
 
   ui::VSyncParamsMac ui_params(true, params.timestamp, params.interval, true,
@@ -69,7 +93,9 @@ void ExternalBeginFrameSourceMojoMac::SetSupportedDisplayLinkId(
   // When ExternalBeginFrameSourceMac is using DisplayLink in Browser, destroy
   // and recreate a DisplayLinkMac in every ExternalBeginFrameSourceMac if
   // needed.
-  update_vsync_displays_cb_.Run(display_id, is_browser_vsync_supported);
+  if (!in_desktop_startup_) {
+    update_vsync_displays_cb_.Run(display_id, is_browser_vsync_supported);
+  }
 }
 
 void ExternalBeginFrameSourceMojoMac::IssueExternalBeginFrame(

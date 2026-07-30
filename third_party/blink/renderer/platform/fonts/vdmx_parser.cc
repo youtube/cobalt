@@ -53,7 +53,6 @@ namespace blink {
 //   yMax: (output) the ascender value from the table
 //   yMin: (output) the descender value from the table (negative!)
 //   vdmx: the table bytes
-//   vdmxLength: length of @vdmx, in bytes
 //   targetPixelSize: the pixel size of the font (e.g. 16)
 //
 // Returns true iff a suitable match are found. Otherwise, *yMax and *yMin are
@@ -62,14 +61,8 @@ namespace blink {
 // See http://www.microsoft.com/opentype/otspec/vdmx.htm
 bool ParseVDMX(int* y_max,
                int* y_min,
-               const uint8_t* vdmx_ptr,
-               size_t vdmx_length,
+               base::span<const uint8_t> vdmx,
                unsigned target_pixel_size) {
-  auto vdmx =
-      // TODO(crbug.com/40284755): ParseVDMX should receive a span, not a
-      // pointer and length.
-      UNSAFE_TODO(base::span(vdmx_ptr, vdmx_length));
-
   // We ignore the version. Future tables should be backwards compatible with
   // this layout.
   uint16_t num_ratios;

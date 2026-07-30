@@ -116,9 +116,7 @@ class ExtensionPlatformKeysService : public KeyedService {
                      std::string extension_id,
                      GenerateKeyCallback callback);
 
-  // Gets the current profile using the BrowserContext object and returns
-  // whether the current profile is a sign in profile with
-  // ProfileHelper::IsSigninProfile.
+  // Returns whether the current BrowserContext is the signin context.
   bool IsUsingSigninProfile();
 
   // If signing was successful, |signature| will contain the signature. If it

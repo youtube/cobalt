@@ -59,9 +59,6 @@ KioskSystemSession::KioskSystemSession(
       network_metrics_service_(
           std::make_unique<NetworkConnectivityMetricsService>(local_state)),
       periodic_metrics_service_(std::make_unique<PeriodicMetricsService>()),
-      device_weekly_scheduled_suspend_controller_(
-          std::make_unique<DeviceWeeklyScheduledSuspendController>(
-              &local_state)),
       low_disk_metrics_service_(local_state),
       network_state_observer_(profile->GetPrefs()) {
   switch (kiosk_app_id_.type) {

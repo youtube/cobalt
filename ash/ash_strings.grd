@@ -288,6 +288,9 @@ Style notes:
       <message name="IDS_ASH_SHELF_CONTEXT_MENU_HIDE_DESK_NAME" desc="Title of the menu item in the context menu for hiding the desk button">
         Hide desk name
       </message>
+      <message name="IDS_ASH_SHELF_CONTEXT_MENU_TASK_MANAGER" desc="Title of the menu item in the context menu for opening the task manager">
+        Task manager
+      </message>
       <message name="IDS_ASH_SHELF_ACCESSIBLE_NAME" desc="The accessible name of the shelf.">
         Shelf
       </message>

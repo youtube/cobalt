@@ -6,12 +6,12 @@
 #define IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_COORDINATOR_TRAVEL_INFO_MEDIATOR_H_
 
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/autofill_ai_base_mediator.h"
-#import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/travel_info_table_view_controller.h"
+#import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/travel_info_mutator.h"
 
 @protocol TravelInfoConsumer;
 
 // Mediator for the Travel Info settings page.
-@interface TravelInfoMediator : AutofillAIBaseMediator
+@interface TravelInfoMediator : AutofillAIBaseMediator <TravelInfoMutator>
 
 // Consumer for this mediator.
 @property(nonatomic, weak) id<TravelInfoConsumer> consumer;

@@ -4,8 +4,6 @@
 
 #include "components/services/storage/public/cpp/constants.h"
 
-#include "components/services/storage/dom_storage/features.h"
-
 namespace storage {
 
 // The base path where StorageBuckets data is persisted on disk, relative to a
@@ -45,17 +43,5 @@ const base::FilePath::CharType kScriptCacheDirectory[] =
 // storage partition's root directory.
 const base::FilePath::CharType kSharedStoragePath[] =
     FILE_PATH_LITERAL("SharedStorage");
-
-base::FilePath GetLocalStorageDatabasePath(
-    const base::FilePath& storage_partition_dir) {
-  CHECK(!storage_partition_dir.empty());
-  CHECK(storage_partition_dir.IsAbsolute());
-
-  if (base::FeatureList::IsEnabled(kDomStorageSqlite)) {
-    return storage_partition_dir.AppendASCII("LocalStorage");
-  }
-  return storage_partition_dir.AppendASCII("Local Storage")
-      .AppendASCII("leveldb");
-}
 
 }  // namespace storage

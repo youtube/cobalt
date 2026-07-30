@@ -48,6 +48,7 @@
 <translation id="1129383337808748948">Freskatu <ph name="CONTENT_TITLE" /></translation>
 <translation id="1142002900084379065">Azkenaldiko argazkiak</translation>
 <translation id="114221662579355151"><ph name="APP1_NAME" /> eta <ph name="APP2_NAME" /> aplikazioek eta kamera erabiltzeko baimena duten beste aplikazio eta webgune guztiek kamera atzitu ahal izango dute. Agian web-orria freskatu beharko duzu, edo aplikazioa berrabiarazi.</translation>
+<translation id="1145593918056169051">Inprimagailua gelditu egin da</translation>
 <translation id="1147991416141538220">Erabiltzeko baimena eskatzeko, jarri gailuaren administratzailearekin harremanetan.</translation>
 <translation id="1148499908455722006">Ireki <ph name="USER_NAME" /> erabiltzailearen informazio-leihoa</translation>
 <translation id="1150989369772528668">Egutegia</translation>
@@ -151,6 +152,7 @@
 <translation id="1383876407941801731">Bilaketa</translation>
 <translation id="1388728792929436380">Eguneratzen bukatzean, <ph name="DEVICE_TYPE" /> gailua berrabiarazi egingo da.</translation>
 <translation id="1390113502208199250">Gailuaren jatorrizko datuak berrezarri beharko dituzu Chrome Education Upgrade-ren eginbideak erabiltzeko.</translation>
+<translation id="1390907927270446471"><ph name="PROFILE_USERNAME" /> erabiltzaileak ez du <ph name="PRINTER_NAME" /> inprimagailuaren bidez inprimatzeko baimenik. Jarri administratzailearekin harremanetan.</translation>
 <translation id="1391102559483454063">Aktibatuta</translation>
 <translation id="1394698770495054737">Erabateko lausotzea</translation>
 <translation id="1395878931462960119">{DAYS,plural, =1{Atzo}other{Duela # egun}}</translation>
@@ -169,6 +171,7 @@
 <translation id="1426410128494586442">Bai</translation>
 <translation id="142655739075382478">Blokeatuta dago <ph name="APP_NAME" /></translation>
 <translation id="142765311413773645"><ph name="APP_NAME" /> aplikazioaren lizentzia iraungi egin da</translation>
+<translation id="1430915738399379752">Inprimatu</translation>
 <translation id="1435537621343861112">Ezin da hasi diktaketa. Mikrofonoa desaktibatuta daukazu.</translation>
 <translation id="1445031758921122223">Deskargatu dira aurpegi-keinuen bidez kontrolatzeko eginbidearen fitxategiak</translation>
 <translation id="1447907279406111651">Orain ⋅ Amaiera: <ph name="END_TIME" /></translation>
@@ -229,6 +232,7 @@
 <translation id="1597880963776148053">Txangoko <ph name="TOTAL_STEPS" /> urratsetatik <ph name="STEP" />garrena. Aplikazio ainguratuak eta irekiak apalean daude, pantailaren behealdean. Apaleko elementuak fokuratzeko, sakatu Alt + Maius + L eta, gero, tabuladorea.</translation>
 <translation id="1602085790802918092">Makina birtuala abiarazten</translation>
 <translation id="1602874809115667351"><ph name="LAUNCHER_KEY_NAME" /> + behera egiteko gezi-tekla</translation>
+<translation id="1604432177629086300">Ezin izan da inprimatu. Begiratu inprimagailuari eta saiatu berriro.</translation>
 <translation id="1604857178818051494">Pausatu multimedia-edukia</translation>
 <translation id="1607312127821884567">Baztertu telefonoko aplikazioak ikusteko aukera konfiguratzeko prozesua</translation>
 <translation id="1610778689852195798">"Desegin"</translation>
@@ -372,6 +376,7 @@
 <translation id="2053312383184521053">Jarduerarik gabeko egoeraren datuak</translation>
 <translation id="2064048859448024834">Kameraren aurrebista aktibatuta dago</translation>
 <translation id="2067220651560163985">Erakutsi tenperatura Celsius graduetan</translation>
+<translation id="206960706005837784"><ph name="APP_NAME" /> aplikazioak <ph name="PRINTER_NAME" /> inprimagailuan inprimatzen amaitu du</translation>
 <translation id="2075520525463668108">Aldatu <ph name="CAPTURE_MEDIUM" /> eginbidearen egoera. <ph name="CAPTURE_MEDIUM" /> <ph name="CAPTURE_STATE" />.</translation>
 <translation id="2079545284768500474">Desegin</translation>
 <translation id="2086334242442703436">Ireki emoji-hautatzailea</translation>
@@ -441,6 +446,7 @@
 <translation id="2328561734797404498">Berrabiarazi gailua <ph name="APP_NAME" /> erabiltzeko.</translation>
 <translation id="2335091074961603075">Chromebook-ak edo Bluetooth bidezko gailuak Bluetooth-bertsio zahar bat darabil. Audio-kalitatea hobetzeko, erabili barneko mikrofonoa.</translation>
 <translation id="2336214675195760012">{NUM_DAYS,plural, =1{Gaur wifi-sare batera konektatzeko eta eguneratze bat deskargatzeko eskatzen du <ph name="MANAGER" /> domeinuak. Bestela, deskarga ezazu konexio neurtu batetik (baliteke zerbait ordaindu behar izatea).}other{Epemuga baino lehen wifi-sare batera konektatzeko eta eguneratze bat deskargatzeko eskatzen du <ph name="MANAGER" /> domeinuak. Bestela, deskarga ezazu konexio neurtu batetik (baliteke zerbait ordaindu behar izatea).}}</translation>
+<translation id="2336258397628212480"><ph name="APP_NAME" /> orri bat inprimatzen ari da <ph name="PRINTER_NAME" /> inprimagailuan</translation>
 <translation id="2336381494582898602">Berrezarri fabrikako ezarpenak Powerwash bidez</translation>
 <translation id="2339073806695260576">Sakatu apaleko arkatzaren botoia oharrak idazteko, pantaila-argazkiak ateratzeko edo laser-erakuslea nahiz lupa erabiltzeko.</translation>
 <translation id="2341729377289034582">Modu bertikalean blokeatuta</translation>
@@ -755,6 +761,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3206735939915734551">Aktibatu/Desaktibatu maiuskulen blokeoa</translation>
 <translation id="3207953481422525583">Erabiltzaile-ezarpenak</translation>
 <translation id="3208321278970793882">Aplikazioa</translation>
+<translation id="32101887417650595">Ezin da konektatu inprimagailura</translation>
 <translation id="3212221635583599601">Ekintza gehiago ikusteko, konektatu Internetera</translation>
 <translation id="3213571860604332401">Gorde esteka laster-marka gisa</translation>
 <translation id="3217205077783620295">Bolumena aktibatuta dago. Aldatzen baduzu, audioa isilaraziko da.</translation>
@@ -823,6 +830,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3431517721463707585">Lan-eremua 14</translation>
 <translation id="3433507769937235446">Blokeatu irtetean</translation>
 <translation id="3434107140712555581">% <ph name="BATTERY_PERCENTAGE" /></translation>
+<translation id="343578350365773421">Papera agortu da</translation>
 <translation id="3435967511775410570">Ezagutu da hatz-marka</translation>
 <translation id="3437677362970530951">Google Play Store-ko eta beste bideojoko-plataformetako jokoak</translation>
 <translation id="3439896670700055005">Kargatu orria berriro, baina cacheko edukia erabili gabe</translation>
@@ -1000,6 +1008,7 @@ Aurrera egiteko, erabiltzaile guztiek saioa amaitu behar dute.</translation>
 <translation id="3848526302597027234">Hauek erabiltzeko baimena eduki:</translation>
 <translation id="385051799172605136">Atzera</translation>
 <translation id="385300504083504382">Hasiera</translation>
+<translation id="3854976556788175030">Irteerako erretilua beteta dago</translation>
 <translation id="3857807444929313943">Jaso hatza eta sakatu berriro</translation>
 <translation id="3859364108019690">Ezin da igorri zuzenean aplikaziorik</translation>
 <translation id="3861638017150647085">"<ph name="USERNAME" />" erabiltzaile-izena ez dago erabilgarri</translation>
@@ -1052,6 +1061,7 @@ Aurrera egiteko, erabiltzaile guztiek saioa amaitu behar dute.</translation>
 <translation id="401993194061514265">Markatzailea ez dago erabilgarri. Ireki berriro Screencast.</translation>
 <translation id="4021716437419160885">Egin behera</translation>
 <translation id="4022497978915111141">Blokeatu gailua</translation>
+<translation id="4023048917751563912"><ph name="APP_NAME" /> <ph name="PAGE_NUMBER" /> orri inprimatzen ari da <ph name="PRINTER_NAME" /> inprimagailuan</translation>
 <translation id="4024840464866786680">PINa eta pasahitza ahaztu bazaizkizu edo duela gutxi Google-ko kontuko pasahitza aldatu baduzu, berreskuratu erabiltzaile hau.</translation>
 <translation id="4026843240379844265">Eraman leiho aktiboa pantaila batetik bestera</translation>
 <translation id="4028481283645788203">Pasahitza behar da gailua babestuago edukitzeko</translation>
@@ -1581,6 +1591,7 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="5491186829646618080">Firmware-eguneratze batzuk erabilgarri daude</translation>
 <translation id="5503884284981862082">Ireki/Itxi Google-ren Laguntzailea</translation>
 <translation id="550391772491508736">Berrekin igortzeari</translation>
+<translation id="5505307013568720083">Tinta agortu da</translation>
 <translation id="5506975627792768506">Aktibatu edo desaktibatu lupa</translation>
 <translation id="5507778598655387680"><ph name="VOLUME_LEVEL" />. "Sartu" sakatuz gero, audioa desaktibatuko da.</translation>
 <translation id="5512042095225963688">Ezabatu aurreko hitza</translation>
@@ -1692,12 +1703,14 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="5791926618942305301">Pantaila-kapturan, <ph name="TYPE" /> <ph name="SOURCE" />. Kaptura mota aldatzeko, sakatu tabuladorea. Kapturatzeko, sakatu Sartu. Kapturatu beharreko eremua hautatzeko, ezarri pantaila-argazki partzial gisa. Oraindik aktibo ez badago, sakatu zuriunea lurraldea hautatzeko.</translation>
 <translation id="579415080077680903">Modu isila</translation>
 <translation id="5802516411616338943">Ireki Ezarpen bizkorrak</translation>
+<translation id="5804241973901381774">Baimenak</translation>
 <translation id="5804651031882187592">Desaktibatu "Blokeatu SIMa" ezarpena</translation>
 <translation id="5805809050170488595">Sakatu hau <ph name="NETWORK_NAME" /> aktibatzeko</translation>
 <translation id="5818796501620225415">Denbora gehi dezakezu, edo kontzentratzeko saioa amaitu</translation>
 <translation id="5819918159912280082">Chromebook-a ustekabean berrabiarazi da. Ireki aurreko leihoak eta aplikazioak.</translation>
 <translation id="5823239091726045201">Sareko Google Zereginak</translation>
 <translation id="5825969630400862129">Konektatutako gailuen ezarpenak</translation>
+<translation id="5828633471261496623">Inprimatzen…</translation>
 <translation id="5830180081891717894">beste <ph name="WINDOWS" /></translation>
 <translation id="5830205393314753525">Ezin da ireki <ph name="APP_NAME" /></translation>
 <translation id="583281660410589416">Ezezaguna</translation>
@@ -1722,6 +1735,7 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="5892014525522223653">Ez zaude konektatuta.</translation>
 <translation id="5895138241574237353">Berrabiarazi</translation>
 <translation id="589817443623831496">Puntukako mugimendua</translation>
+<translation id="5901494423252125310">Inprimagailuaren estalkia irekita dago</translation>
 <translation id="5901630391730855834">Horia</translation>
 <translation id="5904614460720589786">Ezin izan da instalatu <ph name="APP_NAME" /> konfigurazio-arazo batengatik. Jarri administratzailearekin harremanetan. Errore-kodea: <ph name="ERROR_CODE" />.</translation>
 <translation id="5910726859585389579"><ph name="DEVICE_TYPE" /> ez dago konektatuta</translation>
@@ -1786,6 +1800,7 @@ Ez dago gailurik konektatuta.</translation>
         <ph name="BEGIN_PARAGRAPH2" />Eginbidea desaktibatuta ere, gailuak beharrezko informazioa bidaltzen jarraitu ahal izango du oinarrizko zerbitzuak jasotzeko, hala nola sistemaren eguneratzeak eta segurtasuna.<ph name="END_PARAGRAPH2" />
         <ph name="BEGIN_PARAGRAPH3" />Jabeak eginbidea kontrola dezake hemendik: Ezarpenak &gt; Aurreratuak &gt; Bidali Google-ri diagnostikoak eta erabilera-datuak automatikoki.<ph name="END_PARAGRAPH3" />
         <ph name="BEGIN_PARAGRAPH4" />Sareko eta aplikazioetako jarduera gehigarriak ezarpena aktibatuta badago haurrarentzat, baliteke datu horiek Google-ko kontuan gordetzea. Lortu ezarpen horiei buruzko informazio gehiago eta haiek doitzeko argibideak families.google.com helbidean.<ph name="END_PARAGRAPH4" /></translation>
+<translation id="6052261338768299955"><ph name="APP_NAME" /> aplikazioa <ph name="PRINTER_NAME" /> inprimagailuan inprimatzen saiatzen ari da</translation>
 <translation id="6054305421211936131">Hasi saioa txartel adimendunarekin</translation>
 <translation id="6059276912018042191">Azkenaldian erabilitako Chrome-ko fitxak</translation>
 <translation id="606147842285839995">ExpressKey 3</translation>
@@ -1889,6 +1904,7 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="6337159624125741244">Gaitu da Pantaila osoko lupa</translation>
 <translation id="6338485349199627913"><ph name="MANAGER" /> domeinuak kudeatutako saio kudeatua da <ph name="DISPLAY_NAME" /></translation>
 <translation id="6340148837564298498">PINa ahaztu bazaizu, saiatu erabiltzaile hau berreskuratzen.</translation>
+<translation id="634208815998129842">Zereginen kudeatzailea</translation>
 <translation id="6344138931392227467"><ph name="DEVICE_NAME" /> gailua konektatu da</translation>
 <translation id="6345418402353744910"><ph name="PROXY" /> proxyra konektatzeko, zure erabiltzaile-izena eta pasahitza behar dira, administratzaileak zure sarea konfiguratu ahal izateko</translation>
 <translation id="6348449481487610270"><ph name="MODIFIER_ONE" /><ph name="MODIFIER_TWO" /><ph name="KEY_ONE" />; ondoren, <ph name="MODIFIER_THREE" /><ph name="KEY_TWO" /> edo <ph name="KEY_THREE" /></translation>
@@ -2094,6 +2110,7 @@ Berriki instalatu da</translation>
 <translation id="6921427376813842559">Eguneratu gailua</translation>
 <translation id="6929081673585394903">Erakutsi kontrolatzeko aukerak</translation>
 <translation id="6931576957638141829">Gorde hemen…</translation>
+<translation id="6935286146439255109">Paper-erretilu bat falta da</translation>
 <translation id="6935857786205183008">Bertikala</translation>
 <translation id="6942518653766415536">Grabaketaren formatuaren menua</translation>
 <translation id="6945221475159498467">Hautatu</translation>
@@ -2116,6 +2133,7 @@ Berriki instalatu da</translation>
 <translation id="6988094684494323731">Linux-en edukiontzia abiarazten</translation>
 <translation id="7000027735917578303">Leihoen eta lan-eremuen ezarpenak</translation>
 <translation id="7001036685275644873">Linux aplikazioen eta fitxategien babeskopia egiten</translation>
+<translation id="7001066449188684145">Identitatea egiaztatu behar duzu <ph name="PRINTER_NAME" /> inprimagailuaren bidez inprimatzeko. Jarri administratzailearekin harremanetan.</translation>
 <translation id="7004910047186208204">Erabili datu-konexioa</translation>
 <translation id="7005239792648594238">Erabiltzen hasteko, ireki aplikazio bat</translation>
 <translation id="7014684956566476813">Konektatu da <ph name="DEVICE_NAME" /> izeneko gailu batera</translation>
@@ -2155,6 +2173,7 @@ Berriki instalatu da</translation>
 <translation id="7108254681523785542">Elementu bat itsasteko, hauta ezazu. Arbela ikusteko, sakatu <ph name="SHORTCUT_KEY_NAME" /> + v.</translation>
 <translation id="7108338896283013870">Ezkutatu</translation>
 <translation id="7108933416628942903">Blokeatu</translation>
+<translation id="7116554090938189816">Inprimagailuaren SSL ziurtagiria iraungi egin da. Berrabiarazi inprimagailua eta saiatu berriro.</translation>
 <translation id="7116969082764510092">Lan-eremua 11</translation>
 <translation id="7118268675952955085">pantaila-argazkia</translation>
 <translation id="7118597077555700347">Ireki <ph name="SEARCH_RESULT_TEXT" /></translation>
@@ -2206,6 +2225,7 @@ Berriki instalatu da</translation>
 <translation id="7312210124139670355">Administratzailea zure eSIM txartela berrezartzen ari da. Agian minutu batzuk beharko dira.</translation>
 <translation id="7312761820869643657">Itzuli gailuaren aurreko bertsiora</translation>
 <translation id="7313193732017069507">Zabaldu kamera</translation>
+<translation id="7325209047678309347">Papera trabatuta dago</translation>
 <translation id="7327989755579928735"><ph name="MANAGER" /> domeinuak ADB arazketa desgaitu du. <ph name="DEVICE_TYPE" /> berrabiarazi ondoren, ezingo dituzu instalatu iturburu ezezagunetako aplikazioak.</translation>
 <translation id="73289266812733869">Testua desautatu da</translation>
 <translation id="7330397557116570022">Diktaketa erabiltzeko, joan testu-eremu batera</translation>
@@ -2580,6 +2600,7 @@ Itzaltzeko, eduki sakatuta berriro gailuaren etengailua.</translation>
 <translation id="8339706171276328417"><ph name="ACTION_DESCRIPTION" /> · <ph name="TIME" /></translation>
 <translation id="834414266279889566">Emaitza txarra</translation>
 <translation id="8345019317483336363"><ph name="WINDOW_TITLE" /> leihoa dago hautatuta</translation>
+<translation id="8347227221149377169">Inprimatze-lanak</translation>
 <translation id="8349826889576450703">abiarazlea</translation>
 <translation id="8349964124165471584">Ireki esteka beste leiho batean</translation>
 <translation id="8351131234907093545">Sortu oharra</translation>
@@ -2618,6 +2639,7 @@ Itzaltzeko, eduki sakatuta berriro gailuaren etengailua.</translation>
 <translation id="8458259704995116343">Ezin izan da abiarazi VMa.</translation>
 <translation id="84613761564611563">Sarea konfiguratzeko erabiltzaile-interfazea behar da. Itxaron, mesedez…</translation>
 <translation id="8462305545768648477">Itxi Hautatu ozen irakurtzeko</translation>
+<translation id="8463001014623882202">Ezin izan da eman baimena</translation>
 <translation id="8466665972451889002">Erakutsi <ph name="GROUP_NAME" /> taldeko elementuak</translation>
 <translation id="8468806060683421065">epemuga: <ph name="DUE_DATE_AND_TIME" /></translation>
 <translation id="8473301994082929012"><ph name="ORGANIZATION_NAME" /> erakundeak <ph name="FEATURE_STATE" /> dauka <ph name="FEATURE_NAME" />.</translation>

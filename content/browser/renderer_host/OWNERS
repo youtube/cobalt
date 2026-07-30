@@ -56,4 +56,4 @@ per-file render_process_host_sandbox_policy_win_browsertest.cc=file://sandbox/wi
 per-file view_transition_browsertest.cc=vmpstr@chromium.org
 
 # Local Network Access
-per-file private_network_access*.*=file://content/browser/security/local_network_access/OWNERS
+per-file local_network_access*.*=file://content/browser/security/local_network_access/OWNERS

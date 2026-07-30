@@ -46,6 +46,7 @@
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/testing_application_context.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -73,6 +74,8 @@ class SigninAccountCapabilitiesSceneAgentTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              SyncServiceFactory::GetDefaultFactory());
     builder.AddTestingFactory(
         IdentityManagerFactory::GetInstance(),
         base::BindRepeating(IdentityTestEnvironmentBrowserStateAdaptor::
@@ -155,10 +158,10 @@ class SigninAccountCapabilitiesSceneAgentTest : public PlatformTest {
         account_manager_service,
         base::BindRepeating(^(const CoreAccountId& account_id,
                               const AccountCapabilities& capabilities) {
-          AccountInfo updated_account = account;
-          updated_account.capabilities = capabilities;
+          AccountInfo::Builder builder(account);
+          builder.UpdateAccountCapabilitiesWith(capabilities);
           signin::UpdateAccountInfoForAccount(identity_manager,
-                                              updated_account);
+                                              builder.Build());
         }),
         base::BindOnce([](base::RunLoop* run_loop,
                           const CoreAccountId&) { run_loop->Quit(); },
@@ -224,7 +227,6 @@ TEST_F(SigninAccountCapabilitiesSceneAgentTest, TestWantsToSignIn) {
   EXPECT_OCMOCK_VERIFY((id)scene_commands_mock);
   EXPECT_OCMOCK_VERIFY(coordinator_mock);
 }
-
 
 // Tests that the agent signs out the account if the `CanSignInToChrome`
 // capability is explicitly set to false.

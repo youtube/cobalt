@@ -164,7 +164,8 @@ class BrowsingHistoryHandlerTest : public ChromeRenderViewHostTestHarness {
                 /*visit_order=*/options.visit_order,
                 /*app_id=*/options.app_id,
                 /*include_actor_visits=*/true,
-                /*include_user_visits=*/true)))
+                /*include_user_visits=*/true,
+                /*restrict_to_synced_urls=*/false)))
         .Times(1)
         .WillOnce([&, mock_results](const std::u16string& search_text,
                                     const QueryOptions& options) {

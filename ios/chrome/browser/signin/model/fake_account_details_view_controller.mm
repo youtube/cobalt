@@ -35,7 +35,7 @@
 
   UIView* view = self.view;
   view.accessibilityIdentifier = kFakeAccountDetailsViewIdentifier;
-  // Obnovioux color, this is a test screen.
+  // Obnoxious color, this is a test screen.
   view.backgroundColor = [UIColor orangeColor];
 
   UIButton* doneButton = [[UIButton alloc] init];

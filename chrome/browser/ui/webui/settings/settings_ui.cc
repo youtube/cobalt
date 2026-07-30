@@ -106,6 +106,7 @@
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/browsing_data/core/features.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/feature_utils.h"
@@ -570,6 +571,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       "autofillEnableWalletBranding",
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillEnableWalletBranding));
+
+  html_source->AddBoolean(
+      "autofillEnableGradientGoogleLogos",
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableGradientGoogleLogos));
 
   html_source->AddBoolean(
       "enableAutofillAiWalletPrivatePasses",

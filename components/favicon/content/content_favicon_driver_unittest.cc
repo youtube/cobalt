@@ -40,7 +40,8 @@ void TestFetchFaviconForPage(
       ContentFaviconDriver::FromWebContents(web_contents);
   content::WebContentsTester::For(web_contents)->NavigateAndCommit(page_url);
   static_cast<content::WebContentsObserver*>(favicon_driver)
-      ->DidUpdateFaviconURL(web_contents->GetPrimaryMainFrame(), candidates);
+      ->DidUpdateFaviconURL(web_contents->GetPrimaryMainFrame(), candidates,
+                            blink::mojom::FaviconUpdateReason::kPageLoad);
   base::RunLoop().RunUntilIdle();
 }
 
@@ -166,8 +167,8 @@ TEST_F(ContentFaviconDriverTest, ShouldNotCauseImageDownload) {
       kIconURL, blink::mojom::FaviconIconType::kFavicon, kEmptyIconSizes,
       /*is_default_icon=*/false));
   static_cast<content::WebContentsObserver*>(favicon_driver)
-      ->DidUpdateFaviconURL(web_contents()->GetPrimaryMainFrame(),
-                            favicon_urls);
+      ->DidUpdateFaviconURL(web_contents()->GetPrimaryMainFrame(), favicon_urls,
+                            blink::mojom::FaviconUpdateReason::kPageLoad);
   base::RunLoop().RunUntilIdle();
 
   EXPECT_FALSE(web_contents_tester()->HasPendingDownloadImage(kIconURL));

@@ -26,6 +26,7 @@ import org.chromium.chrome.browser.ui.actions.glic.GlicActionButtonBinder;
 import org.chromium.chrome.browser.ui.actions.tabswitcher.TabSwitcherActionButtonBinder;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarButtonManager.ActionConfig;
 import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager.Host;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -43,6 +44,7 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
     private final PropertyModelChangeProcessor<PropertyModel, BottomBarView, PropertyKey> mMcp;
     private final BottomBarButtonManager mButtonManager;
     private final BottomBarPromoDialogCoordinator mPromoDialogCoordinator;
+    private final NullableObservableSupplier<Tab> mTabSupplier;
 
     /**
      * @param parent The parent view to inflate the bottom bar into.
@@ -80,8 +82,7 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
                 new BottomBarButtonManager(configs, actionRegistry, mModel, ActionId.NEW_TAB);
 
         mPromoDialogCoordinator =
-                new BottomBarPromoDialogCoordinator(
-                        context, modalDialogManagerSupplier, profileSupplier);
+                new BottomBarPromoDialogCoordinator(context, modalDialogManagerSupplier);
 
         mMediator =
                 new BottomBarMediator(
@@ -99,6 +100,7 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
                         actionRegistry);
         mPromoDialogCoordinator.setListener(mMediator);
 
+        mTabSupplier = tabSupplier;
         mMcp = PropertyModelChangeProcessor.create(mModel, mView, BottomBarViewBinder::bind);
     }
 
@@ -150,13 +152,18 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
         if (BottomBarConfigUtils.shouldIncludeAppMenuButton()) {
             BottomBarButtonContainer menuContainer = view.getContainerForAction(ActionId.APP_MENU);
             assert menuContainer != null : "App menu container not found";
-            menuContainer.inflateStub(ActionId.APP_MENU);
+            if (BottomBarConfigUtils.shouldShowAppMenuUpdateBadge()) {
+                menuContainer.setStubLayoutResource(R.layout.bottom_bar_app_menu_template);
+            }
+            menuContainer.inflateStub();
+            View targetView = menuContainer.getTargetView();
+            BottomBarUtils.setAppMenuAnchor(targetView);
             menuContainer.setVisibility(View.VISIBLE);
             configs.add(
                     new ActionConfig(
                             ActionId.APP_MENU,
                             menuContainer,
-                            ActionButtonBinder::bind,
+                            AppMenuActionButtonBinder::bind,
                             BottomBarProperties.IS_APP_MENU_BUTTON_VISIBLE));
         }
 
@@ -176,6 +183,26 @@ public class BottomBarCoordinator implements BottomBar, Destroyable {
 
     @Override
     public void setParent(@Host int host) {}
+
+    @Override
+    public boolean maybeShowPromoDialog(Profile profile) {
+        if (!BottomBarConfigUtils.isBottomBarEnabled(mView.getContext())) {
+            return false;
+        }
+        Tab tab = mTabSupplier.get();
+        if (tab == null || tab.isIncognito()) {
+            return false;
+        }
+        if (UrlUtilities.isNtpUrl(tab.getUrl()) && BottomBarConfigUtils.shouldDisableOnNtp()) {
+            return false;
+        }
+        return mPromoDialogCoordinator.maybeShowPromoDialog(profile);
+    }
+
+    @Override
+    public void onStartupPromoFlowFinished(boolean promoShown) {
+        mMediator.onStartupPromoFlowFinished(promoShown);
+    }
 
     @Override
     public void destroy() {

@@ -58,6 +58,17 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="1587223624401073077">Google Chrome kameranızı istifadə edir.</translation>
 <translation id="1587325591171447154"><ph name="FILE_NAME" /> təhlükəli olduğu üçün Chrome onu blok etdi.</translation>
 <translation id="1597911401261118146">Parollarınızın data pozuntuları və digər güvənlik məsələlərinə qarşı güvəndə olduğunu yoxlamaq üçün <ph name="BEGIN_LINK" />Chrome'a daxil olun<ph name="END_LINK" />.</translation>
+<translation id="1619639070275605589">Bu əməliyyatın nəticəsində:
+          <ph name="LINE_BREAKS" />
+            • Başlanğıc səhifəniz, yeni tab səhifəniz, axtarış sisteminiz və bərkidilmiş tablarınız sıfırlanacaq
+            <ph name="LINE_BREAK" />
+            • Artırmalar deaktiv ediləcək
+            <ph name="LINE_BREAK" />
+            • Kukilər və digər müvəqqəti sayt datası silinəcək
+            <ph name="LINE_BREAK" />
+            • Chrome qısayolları sıfırlanacaq
+            <ph name="LINE_BREAKS" />
+            Əlfəcinlər, tarixçə və yadda saxlanılmış parollara təsiri olmayacaq.</translation>
 <translation id="1619887657840448962">Chrome'u təhlükəsiz etmək üçün, <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> siyahısında olmayan və xəbəriniz olmadan əlavə edilən artırmanı deaktiv etdik.</translation>
 <translation id="1628000112320670027">Chrome ilə yardım alın</translation>
 <translation id="1640672724030957280">Endirilir...</translation>
@@ -134,6 +145,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2472092250898121027">Bu artırmada zərərli proqram var və təhlükəlidir. Onu Chrome-dan silin ki, daxil olduğunuz saytlardakı dataya, o cümlədən şəxsi məlumatlara baxa və onları dəyişə bilməsin.</translation>
 <translation id="2485422356828889247">Sistemdən silin</translation>
 <translation id="2513154137948333830">Yenidən yükləmə tələb edilir: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">İşiniz Chrome-da təhlükəsiz şəkildə qorunur</translation>
 <translation id="2534365042754120737">Datanı qorumaq üçün Chrome-un son vaxtlar daxil olmadığınız saytlardan icazələri silməsinə icazə verin. Bildirişlər dayanmır.</translation>
 <translation id="2556847002339236023">Chrome <ph name="TIMEOUT_DURATION" /> istifadə edilməsə, təşkilat onu bağlayır. Baxış datası silindi. Bura tarixçə, avto doldurma və endirmələr daxil ola bilər.</translation>
 <translation id="2563121210305478421">Chrome yenidən başladılsın?</translation>
@@ -238,6 +250,7 @@ Bu səhifə gözlənildiyi kimi işləmirsə, optimallaşdırmaya icazə verməy
 <translation id="345171907106878721">Özünüzü Chrome'a əlavə edin</translation>
 <translation id="3453763134178591239">ChromeOS şərtləri</translation>
 <translation id="3503306920980160878">Chrome məkanı bu saytla paylaşmaq üçün məkana giriş tələb edir</translation>
+<translation id="3512495006767217696">Güclü parollar yaratmağa, yadda saxlamağa və avtomatik doldurmağa kömək etmək üçün Chrome-a daxil edilib. Asan giriş üçün qısayol əlavə edin</translation>
 <translation id="3539955434060988644">Keçidi anonim Chrome pəncərəsində açın</translation>
 <translation id="3576528680708590453">Sistem administratoru Google Chrome'u <ph name="TARGET_URL_HOSTNAME" /> ünvanına daxil olmaq məqsədilə alternativ brauzer açmaq üçün konfiqurasiya edib.</translation>
 <translation id="3582972582564653026">Chrome'u cihazlarda sinxronizasiya edin və fərdiləşdirin</translation>
@@ -300,6 +313,7 @@ Bu səhifə gözlənildiyi kimi işləmirsə, optimallaşdırmaya icazə verməy
 <translation id="4149882025268051530">Quraşdırıcı arxivi dekompres edə bilmədi. Google Chrome'u yenidən endirməyiniz xahiş olunur.</translation>
 <translation id="415112847282352845">Ünvanları və s. datanı bütün cihazlarınızda əldə etmək üçün Chrome-a daxil olun Daxil olduqdan sonra bu ünvan Google Hesabında yadda saxlanılacaq.</translation>
 <translation id="4153934450158521343">Chrome tezliklə bağlanacaq və datanı siləcək</translation>
+<translation id="4159985264221160808">Chrome-dakı işinizi qorumaq məqsədilə təşkilatınız müəyyən məlumatlara baxa və ya onları idarə edə biləcək</translation>
 <translation id="4173512894976930765">Saytlar gözlənilən kimi işləyəcək. Chrome-a daxil olsanız, Google Hesabı istisna olmaqla bütün Chrome pəncərələrini bağladıqda əksər saytlardan çıxacaqsınız.</translation>
 <translation id="4175922240926474352">Sayt güvənli bağlantı istifadə etmədiyi və bu fayla müdaxilə edilmiş ola biləcəyi üçün Chrome endirməni blokladı</translation>
 <translation id="4191857738314598978">{0,plural, =1{Chrome'u gün ərzində yenidən başladın}other{Chrome'u # gün ərzində yenidən başladın}}</translation>
@@ -331,6 +345,7 @@ Bu səhifə gözlənildiyi kimi işləmirsə, optimallaşdırmaya icazə verməy
 <translation id="4493028449971051158">Başlatma xətası: quraşdırıcını administrator kimi işə salın.</translation>
 <translation id="4501471624619070934">Bu ölkədə giriş məhdudlaşdırıldığı üçün quraşdırma alınmadı.</translation>
 <translation id="4571503333518166079">Chrome bildiriş ayarlarına keçin</translation>
+<translation id="4580939929828762295">Google Parol Meneceri ilə güvəndə olun</translation>
 <translation id="4592634244097223647">Bu şəkil haqqında Google-dan soruşun</translation>
 <translation id="459622048091363950">Chrome'un giriş imkanı olduqda veb saytlar giriş üçün Sizdən icazə istəyəcək.</translation>
 <translation id="4598116752460667024">Siyahıdan istənilən prosesi axtarın.</translation>
@@ -517,6 +532,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6438015621983209660">Telefonda Chrome ilə qabaqcıl güvənli baxışı genişləndirin</translation>
 <translation id="6442774133615368941">Chrome iOS tətbiqində kamera ilə alış-veriş edin, tərcümə edin və gördüklərinizi müəyyənləşdirin</translation>
 <translation id="6448835208126432197">Chrome-da Gemini-da ekranın bir hissəsini seçmək üçün klaviatura qısayolundan istifadə edin.</translation>
+<translation id="6473659734176498825">Chrome-da Google Parol Menecerinə giriş nöqtəsini göstərən sadələşdirilmiş şəkil</translation>
 <translation id="6473905796280459355">Chrome haqqında səhifəsinə keçin</translation>
 <translation id="6481963882741794338">Fərdiləşdirmə və digər məqsədlər üçün Chrome və digər Google xidmətlərini əlaqələndirin</translation>
 <translation id="648319183876919572">Qabaqcıl Güvənli Baxış təhlükəli veb-sayt və endirmələrə qarşı daha yaxşı qoruyur</translation>
@@ -688,6 +704,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="8064965390968184078">1. Aşağıdakı <ph name="BUTTON_LABEL" /> düyməsinə klikləyin
 2. Windows ayarlarında <ph name="BUTTON_2" /> düyməsinə klikləyin
 3. Sürətli giriş üçün Chrome-u tapşırıq panelinə bərkitmək məqsədilə Windows bildirişində <ph name="BUTTON_3" /> düyməsinə klikləyin</translation>
+<translation id="8069447462453318634">"Alətlər panelinə bərkidin" seçimini edin</translation>
 <translation id="8074398340364918139">Xüsusi Chrome funksiyası və ya artırmasını axtarmaq üçün ünvan panelinə onun qısayolunu, sonra isə seçdiyiniz klaviatura düyməsini daxil edin</translation>
 <translation id="8077579734294125741">Digər Chrome profilləri</translation>
 <translation id="8086881907087796310">Kompüteriniz minimum avadanlıq tələblərinə cavab vermədiyi üçün quraşdırma alınmadı.</translation>
@@ -773,6 +790,15 @@ Bəzilərini silənə qədər yeni əlfəcinləri hesabınızda yadda saxlamaq o
 <translation id="8922998289262614701">Bu tətbiqin datası Chrome-dan silinsin?</translation>
 <translation id="8925636929359899517">Məlumatdan bu xidməti təkmilləşdirmək üçün istifadə edirik. <ph name="BEGIN_LINK1" />Məxfilik Siyasətinə<ph name="END_LINK1" /> və <ph name="BEGIN_LINK2" />Xidmət Şərtlərinə<ph name="END_LINK2" /> baxın.</translation>
 <translation id="8936233353620149764">Chrome-da Gemini-ı yandırın/söndürün</translation>
+<translation id="8944232836376404813">Bu əməliyyatın nəticəsində:
+          <ph name="LINE_BREAKS" />
+            • Başlanğıc səhifəniz, yeni tab səhifəniz, axtarış sisteminiz və bərkidilmiş tablarınız sıfırlanacaq
+            <ph name="LINE_BREAK" />
+            • Artırmalar deaktiv ediləcək
+            <ph name="LINE_BREAK" />
+            • Kukilər və digər müvəqqəti sayt datası silinəcək
+            <ph name="LINE_BREAKS" />
+            Əlfəcinlər, tarixçə və yadda saxlanılmış parollara təsiri olmayacaq.</translation>
 <translation id="8948460679427074738">Bu artırma datanın toplanma və istifadə qaydası kimi məxfilik təcrübələrini dərc etməyib. Chrome onu silməyinizi tövsiyə edir.</translation>
 <translation id="8958307504142971576">Artıq Chrome-da sizin üçün daha çox funksiya əlçatandır</translation>
 <translation id="8991530961471831170">Gemini-ı Chrome-da açın</translation>

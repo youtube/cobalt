@@ -130,10 +130,6 @@ bool IsSceneStartupEnabled() {
   // calls override this behavior by ensuring that the software keyboard is
   // always shown.
   [[UIKeyboardImpl sharedInstance] setAutomaticMinimizationEnabled:NO];
-  if (@available(iOS 15, *)) {
-  } else {
-    [[UIKeyboardImpl sharedInstance] setSoftwareKeyboardShownByTouch:YES];
-  }
 #endif  // TARGET_OS_SIMULATOR
 
   if (!IsSceneStartupEnabled()) {

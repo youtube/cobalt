@@ -17,6 +17,7 @@
 #include "ui/views/bubble/bubble_anchor.h"
 
 class BrowserWindowInterface;
+class Profile;
 
 namespace views {
 class DialogDelegate;
@@ -27,6 +28,9 @@ class DialogDelegate;
 class AvatarToolbarButtonInterface {
  public:
   virtual ~AvatarToolbarButtonInterface() = default;
+
+  // Returns whether the avatar button should be shown for the given profile.
+  static bool CanShowForProfile(Profile* profile);
 
   class Observer : public base::CheckedObserver {
    public:

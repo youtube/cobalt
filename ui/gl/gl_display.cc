@@ -180,10 +180,6 @@ EGLDisplay GetDisplayFromType(
       }
       return eglGetDisplay(display);
     }
-    case ANGLE_D3D9:
-      return GetPlatformANGLEDisplay(
-          display, EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE, enabled_angle_features,
-          disabled_angle_features, extra_display_attribs);
     case ANGLE_D3D11:
       return GetPlatformANGLEDisplay(
           display, EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE, enabled_angle_features,
@@ -292,8 +288,6 @@ EGLDisplay GetDisplayFromType(
 ANGLEImplementation GetANGLEImplementationFromDisplayType(
     DisplayType display_type) {
   switch (display_type) {
-    case ANGLE_D3D9:
-      return ANGLEImplementation::kD3D9;
     case ANGLE_D3D11:
     case ANGLE_D3D11_NULL:
     case ANGLE_D3D11on12:
@@ -329,8 +323,6 @@ const char* DisplayTypeString(DisplayType display_type) {
       return "Default";
     case SWIFT_SHADER:
       return "SwiftShader";
-    case ANGLE_D3D9:
-      return "D3D9";
     case ANGLE_D3D11:
       return "D3D11";
     case ANGLE_D3D11_WARP:
