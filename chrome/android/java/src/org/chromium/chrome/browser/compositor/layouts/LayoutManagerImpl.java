@@ -661,7 +661,7 @@ public class LayoutManagerImpl
                         mTabContentManagerSupplier.get(),
                         mBrowserControlsStateProvider,
                         mTopUiThemeColorProvider,
-                        !hasTabletUi());
+                        getLayoutNeedOffsetTagSupplier());
 
         setNextLayout(null, true);
 
@@ -714,9 +714,7 @@ public class LayoutManagerImpl
         selector.getCurrentTabModelSupplier().addSyncObserver(mCurrentTabModelObserver);
 
         mTabGroupModelFilterObserver = createTabModelObserver();
-        getTabModelSelector()
-                .getTabGroupModelFilterProvider()
-                .addTabGroupModelFilterObserver(mTabGroupModelFilterObserver);
+        getTabModelSelector().addTabGroupModelFilterObserver(mTabGroupModelFilterObserver);
     }
 
     @Override
@@ -732,9 +730,7 @@ public class LayoutManagerImpl
                     .removeObserver(mCurrentTabModelObserver);
         }
         if (mTabGroupModelFilterObserver != null) {
-            getTabModelSelector()
-                    .getTabGroupModelFilterProvider()
-                    .removeTabGroupModelFilterObserver(mTabGroupModelFilterObserver);
+            getTabModelSelector().removeTabGroupModelFilterObserver(mTabGroupModelFilterObserver);
         }
     }
 
@@ -1445,7 +1441,7 @@ public class LayoutManagerImpl
         mLayoutObservers.removeObserver(listener);
     }
 
-    public boolean hasTabletUi() {
-        return false;
+    public NonNullObservableSupplier<Boolean> getLayoutNeedOffsetTagSupplier() {
+        return ObservableSuppliers.alwaysTrue();
     }
 }

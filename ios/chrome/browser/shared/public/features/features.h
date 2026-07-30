@@ -783,15 +783,6 @@ BASE_DECLARE_FEATURE(kProvisionalNotificationAlert);
 // Returns whether `kIOSReactivationNotifications` is enabled.
 bool IsProvisionalNotificationAlertEnabled();
 
-// Feature flag to control whether the Default Browser banner promo is enabled.
-BASE_DECLARE_FEATURE(kDefaultBrowserBannerPromo);
-
-// Parameter for the number of impressions to show the promo for.
-extern const base::FeatureParam<int> kDefaultBrowserBannerPromoImpressionLimit;
-
-// Returns whether `kDefaultBrowserBannerPromo` is enabled.
-bool IsDefaultBrowserBannerPromoEnabled();
-
 // Feature to enable different text for the main header text on FRE sign-in
 // promo.
 BASE_DECLARE_FEATURE(kFRESignInHeaderTextUpdate);
@@ -980,12 +971,6 @@ BASE_DECLARE_FEATURE(kIOSTrustedVaultNotification);
 // Returns whether `kIOSTrustedVaultNotification` is enabled.
 bool IsIOSTrustedVaultNotificationEnabled();
 
-// Feature flag for diamond prototype
-BASE_DECLARE_FEATURE(kDiamondPrototype);
-
-// Whether the diamond prototype is enabled.
-bool IsDiamondPrototypeEnabled();
-
 // Feature flag for the Default Browser off-cycle promo.
 BASE_DECLARE_FEATURE(kIOSDefaultBrowserOffCyclePromo);
 
@@ -1142,5 +1127,11 @@ BASE_DECLARE_FEATURE(kComposeboxIpad);
 
 // Returns true if the ComposeboxIpad feature is enabled.
 bool IsComposeboxIpadEnabled();
+
+// Enables the ChromeNextIa feature.
+BASE_DECLARE_FEATURE(kChromeNextIa);
+
+// Returns true if the ChromeNextIa feature is enabled.
+bool IsChromeNextIaEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

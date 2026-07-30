@@ -25,7 +25,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {hasKeyModifiers} from '//resources/js/util.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContextStub, SelectedFileInfo, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, SelectedFileInfo, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
@@ -87,6 +87,8 @@ export class ComposeboxElement extends I18nMixinLit
 
   static override get properties() {
     return {
+      showLensButton: {type: Boolean},
+      lensButtonTriggersOverlay: {type: Boolean},
       input_: {type: String},
       isCollapsible: {
         reflect: true,
@@ -148,10 +150,6 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
-      lensButtonDisabled_: {
-        reflect: true,
-        type: Boolean,
-      },
       /**
        * Feature flag for New Tab Page Realbox Next.
        */
@@ -171,6 +169,10 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
       },
       tabSuggestions: {type: Array},
+      lensButtonDisabled: {
+        reflect: true,
+        type: Boolean,
+      },
       errorScrimVisible_: {type: Boolean},
       contextFilesSize_: {
         type: Number,
@@ -195,7 +197,9 @@ export class ComposeboxElement extends I18nMixinLit
     };
   }
 
+  accessor lensButtonTriggersOverlay: boolean = false;
   accessor maxSuggestions: number|null = null;
+  accessor showLensButton: boolean = true;
   accessor ntpRealboxNextEnabled: boolean = false;
   accessor searchboxNextEnabled: boolean = false;
   accessor searchboxLayoutMode: string = '';
@@ -205,6 +209,7 @@ export class ComposeboxElement extends I18nMixinLit
   accessor entrypointName: string = '';
   accessor disableVoiceSearchAnimation: boolean = false;
   accessor tabSuggestions: TabInfo[] = [];
+  accessor lensButtonDisabled: boolean = false;
   protected composeboxNoFlickerSuggestionsFix_: boolean =
       loadTimeData.getBoolean('composeboxNoFlickerSuggestionsFix');
   // If isCollapsible is set to true, the composebox will be a pill shape until
@@ -233,7 +238,6 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor showFileCarousel_: boolean = false;
   protected accessor inCreateImageMode_: boolean = false;
   protected accessor inDeepSearchMode_: boolean = false;
-  protected accessor lensButtonDisabled_: boolean = false;
   protected accessor errorScrimVisible_: boolean = false;
   protected accessor contextFilesSize_: number = 0;
   protected accessor transcript_: string = '';
@@ -264,6 +268,10 @@ export class ComposeboxElement extends I18nMixinLit
       loadTimeData.valueExists('clearAllInputsWhenSubmittingQuery') ?
       loadTimeData.getBoolean('clearAllInputsWhenSubmittingQuery') :
       false;
+  private autoSubmitVoiceSearch: boolean =
+      loadTimeData.valueExists('autoSubmitVoiceSearchQuery') ?
+      loadTimeData.getBoolean('autoSubmitVoiceSearchQuery') :
+      true;
   protected accessor inVoiceSearchMode_: boolean = false;
   private selectedMatch_: AutocompleteMatch|null = null;
   // Whether the composebox is actively waiting for an autocomplete response. If
@@ -316,11 +324,6 @@ export class ComposeboxElement extends I18nMixinLit
         this.$.context, 'carousel-resize',
         (e: CustomEvent<{height: number}>) => {
           this.fire('composebox-resize', {carouselHeight: e.detail.height});
-        });
-    this.eventTracker_.add(
-        this.$.context, 'add-file_context',
-        (e: CustomEvent<{file: ComposeboxFile}>) => {
-          this.$.context.onFileContextAdded(e.detail.file);
         });
     this.focusInput();
     // For "next" searchboxes (Realbox Next, Omnibox Next, etc.), the zps
@@ -488,6 +491,10 @@ export class ComposeboxElement extends I18nMixinLit
 
   getHasAutomaticActiveTabChipToken() {
     return this.$.context.hasAutomaticActiveTabChipToken();
+  }
+
+  getAutomaticActiveTabChipElement(): HTMLElement|null {
+    return this.$.context.getAutomaticActiveTabChipElement();
   }
 
   protected initializeState_(
@@ -740,14 +747,25 @@ export class ComposeboxElement extends I18nMixinLit
     this.animationState = GlowAnimationState.NONE;
   }
 
-  protected onVoiceSearchFinalResult_(e: CustomEvent<string>) {
+  protected async onVoiceSearchFinalResult_(e: CustomEvent<string>) {
     e.stopPropagation();
     this.voiceSearchEndCleanup_();
-    this.fire(
-        'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
-    this.searchboxHandler_.submitQuery(
-        e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
-        /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
+    if (this.autoSubmitVoiceSearch) {
+      this.fire(
+          'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
+      this.searchboxHandler_.submitQuery(
+          e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
+          /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
+    } else {
+      // If auto-submit is not enabled, update the input to the voice search
+      // query, query autocomplete, and recompute whether submission should be
+      // enabled.
+      this.input_ = e.detail;
+      this.queryAutocomplete(/* clearMatches= */ true);
+      this.submitEnabled_ = this.computeSubmitEnabled_();
+      await this.updateComplete;
+      this.focusInput();
+    }
   }
 
   protected openAimVoiceSearch_() {
@@ -790,7 +808,11 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected onLensClick_() {
-    this.pageHandler_.handleFileUpload(/*is_image=*/ true);
+    if (this.lensButtonTriggersOverlay) {
+      this.pageHandler_.handleLensButtonClick();
+    } else {
+      this.pageHandler_.handleFileUpload(/*is_image=*/ true);
+    }
   }
 
   protected onOpenFileDialog_(e: CustomEvent<{isImage: boolean}>) {
@@ -1022,7 +1044,7 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
-  addSearchContext(context: SearchContextStub|null) {
+  addSearchContext(context: SearchContext|null) {
     if (context) {
       if (context.input.length > 0) {
         this.input_ = context.input;

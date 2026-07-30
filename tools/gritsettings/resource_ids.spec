@@ -389,7 +389,7 @@
     "META": {"sizes": {"includes": [15]}},
     "includes": [3740],
   },
-  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/connectors_internals/resources.grd": {
+  "<(SHARED_INTERMEDIATE_DIR)/components/enterprise/connectors/resources/resources.grd": {
     "META": {"sizes": {"includes": [15]}},
     "includes": [3760],
   },
@@ -554,7 +554,7 @@
     "includes": [4450],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/omnibox/resources.grd": {
-    "META": {"sizes": {"includes": [30]}},
+    "META": {"sizes": {"includes": [40]}},
     "includes": [4460],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/omnibox_popup/resources.grd": {
@@ -1253,6 +1253,10 @@
     "<(SHARED_INTERMEDIATE_DIR)/components/webui/regional_capabilities_internals/resources/resources.grd": {
     "META": {"sizes": {"includes": [5]}},
     "includes": [7490],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/unexportable_keys_internals/resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [7495],
   },
   # END components/ section.
 

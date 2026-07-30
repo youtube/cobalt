@@ -10,7 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
-#include "chrome/browser/ui/views/extensions/extensions_menu_item_view.h"
+#include "chrome/browser/ui/views/extensions/extensions_menu_entry_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/metadata/view_factory.h"
@@ -31,7 +31,6 @@ class ToggleButton;
 
 class Browser;
 class ExtensionsMenuHandler;
-class ExtensionMenuItemView;
 class ExtensionActionViewModel;
 
 // The main view of the extensions menu.
@@ -46,17 +45,18 @@ class ExtensionsMenuMainPageView : public views::View {
   const ExtensionsMenuMainPageView& operator=(
       const ExtensionsMenuMainPageView&) = delete;
 
-  // Creates and adds a menu item for `model` at `index` for a newly-added
-  // extension.
-  void CreateAndInsertMenuItem(ExtensionActionViewModel* model,
-                               ExtensionsMenuViewModel::MenuItemState menu_item,
-                               int index);
+  // Creates and adds a menu entry for `action_model` with `entry_state` at
+  // `index` for a newly-added extension.
+  void CreateAndInsertMenuEntry(
+      ExtensionActionViewModel* action_model,
+      ExtensionsMenuViewModel::MenuEntryState entry_state,
+      int index);
 
   // Removes the menu item at `index`.
   void RemoveMenuItem(int index);
 
-  // Returns the menu items.
-  std::vector<ExtensionMenuItemView*> GetMenuItems() const;
+  // Returns the menu entry views.
+  std::vector<ExtensionsMenuEntryView*> GetMenuEntries() const;
 
   // Updates the site settings views with the given parameters.
   void UpdateSiteSettings(

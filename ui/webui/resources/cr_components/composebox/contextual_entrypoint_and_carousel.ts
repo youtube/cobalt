@@ -6,6 +6,7 @@ import './composebox_tool_chip.js';
 import './context_menu_entrypoint.js';
 import './composebox_lens_search.js';
 import './file_carousel.js';
+import './file_thumbnail.js';
 import './icons.html.js';
 import './recent_tab_chip.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
@@ -17,7 +18,7 @@ import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {FileAttachmentStub, SearchContextStub, TabAttachmentStub, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {FileAttachment, SearchContext, TabAttachment, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ToolMode} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
@@ -117,6 +118,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         type: Boolean,
       },
       contextMenuGlifAnimationState: {type: String, reflect: true},
+      // Determines if the entrypoint button should be hidden. This applies
+      // specifically to Omnibox Searchbox in compact mode, as opposed to the
+      // AIM composebox where the entrypoint is always visible.
+      hideEntrypointButton: {type: Boolean},
 
       // =========================================================================
       // Protected properties
@@ -188,16 +193,33 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   protected accessor inCreateImageMode_: boolean = false;
   protected accessor recentTabForChip_: TabInfo|null = null;
   protected accessor submitButtonShown: boolean = false;
+  protected accessor hideEntrypointButton: boolean = false;
 
   hasAutomaticActiveTabChipToken(): boolean {
     return this.automaticActiveTabChipToken_ !== null;
   }
+
+  getAutomaticActiveTabChipElement(): HTMLElement|null {
+    if (!this.automaticActiveTabChipToken_) {
+      return null;
+    }
+    const carousel =
+        this.shadowRoot?.querySelector<ComposeboxFileCarouselElement>(
+            '#carousel');
+    if (!carousel) {
+      return null;
+    }
+
+    return carousel.getThumbnailElementByUuid(
+        this.automaticActiveTabChipToken_);
+  }
+
   protected get inToolMode_(): boolean {
     return this.inDeepSearchMode_ || this.inCreateImageMode_;
   }
 
   private shouldShowContextualSearchChips_(): boolean {
-    return this.showDropdown && this.files_.size === 0 && !this.inToolMode_ &&
+    return this.files_.size === 0 && !this.inToolMode_ &&
         !(this.searchboxLayoutMode === 'Compact' &&
           this.entrypointName === 'Realbox');
   }
@@ -209,6 +231,29 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
   protected get shouldShowLensSearchChip_(): boolean {
     return this.shouldShowContextualSearchChips_() && this.showLensSearchChip;
+  }
+
+  protected get shouldShowContextualChipsForCompactMode_(): boolean {
+    return this.searchboxLayoutMode === 'Compact' &&
+        (this.shouldShowRecentTabChip_ || this.shouldShowLensSearchChip_);
+  }
+
+  protected get shouldShowToolChips_(): boolean {
+    return this.searchboxLayoutMode !== 'Compact' ||
+        this.shouldShowContextualChipsForCompactMode_;
+  }
+
+  protected get shouldShowDivider_(): boolean {
+    return this.showDropdown &&
+        (this.shouldShowContextualChipsForCompactMode_ ||
+         (this.showFileCarousel_ ||
+          this.searchboxLayoutMode === 'TallTopContext' ||
+          this.submitButtonShown));
+  }
+
+  protected get shouldHideEntrypointButton_(): boolean {
+    return this.shouldShowContextualChipsForCompactMode_ ||
+        this.hideEntrypointButton;
   }
 
   private maxFileCount_: number =
@@ -442,7 +487,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }));
   }
 
-  private addFileFromAttachment_(fileAttachment: FileAttachmentStub) {
+  private addFileFromAttachment_(fileAttachment: FileAttachment) {
     const pendingStatus = this.pendingFiles_.get(fileAttachment.uuid);
     const composeboxFile: ComposeboxFile = {
       uuid: fileAttachment.uuid,
@@ -458,10 +503,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     if (pendingStatus) {
       this.pendingFiles_.delete(fileAttachment.uuid);
     }
-    this.fire('add-file_context', {file: composeboxFile});
+    this.onFileContextAdded(composeboxFile);
   }
 
-  private addTabFromAttachment_(tabAttachment: TabAttachmentStub) {
+  private addTabFromAttachment_(tabAttachment: TabAttachment) {
     this.addTabContext_(new CustomEvent('addTabContext', {
       detail: {
         id: tabAttachment.tabId,
@@ -473,7 +518,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }));
   }
 
-  addSearchContext(context: SearchContextStub) {
+  addSearchContext(context: SearchContext) {
     for (const attachment of context.attachments) {
       if (attachment.fileAttachment) {
         this.addFileFromAttachment_(attachment.fileAttachment);

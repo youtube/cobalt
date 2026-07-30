@@ -134,8 +134,7 @@ ActorUiStateManager::~ActorUiStateManager() = default;
 // accept a callback.
 void ActorUiStateManager::OnActorTaskStateChange(
     TaskId task_id,
-    ActorTask::State new_task_state,
-    const std::string& title) {
+    ActorTask::State new_task_state) {
   TRACE_EVENT("actor", "UiStateManager::OnActorTaskStateChange", "new_state",
               new_task_state);
   // TODO(crbug.com/424495020): Look into converting this switch into a
@@ -160,10 +159,10 @@ void ActorUiStateManager::OnActorTaskStateChange(
     case ActorTask::State::kFailed:
     case ActorTask::State::kCancelled:
     case ActorTask::State::kFinished:
-      ui_tab_state = GetCompletedUiTabState();
-      // TODO(crbug.com/458391262) revisit or cleanup implementation here for
-      // m144.
-      NotifyActorTaskStopped(task_id, new_task_state, title);
+      if (base::FeatureList::IsEnabled(
+              features::kGlicActorUiGlobalTaskIndicator)) {
+        LOG(FATAL) << "Stopped states should be processed via StopTask event.";
+      }
       break;
   }
   for (const auto& tab : GetTabs(task_id)) {
@@ -236,7 +235,29 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
                                weak_factory_.GetWeakPtr(), e.task_id));
           },
           [this](const TaskStateChanged& e) {
-            this->OnActorTaskStateChange(e.task_id, e.state, e.title);
+            this->OnActorTaskStateChange(e.task_id, e.state);
+          },
+          [this](const StopTask& e) {
+            if (base::FeatureList::IsEnabled(
+                    features::kGlicActorUiGlobalTaskIndicator)) {
+              stopped_task_info_.emplace(
+                  e.task_id,
+                  StoppedTaskInfo{
+                      .final_state = e.final_state,
+                      .title = e.title,
+                      .last_acted_on_tab_handle = e.last_acted_on_tab_handle,
+                  });
+              NotifyActorTaskStopped(e.task_id);
+
+              // After expiry, remove the task and notify observers.
+              base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+                  FROM_HERE,
+                  base::BindOnce(&ActorUiStateManager::ActorTaskRemoved,
+                                 weak_factory_.GetWeakPtr(), e.task_id),
+                  base::Seconds(
+                      features::kGlicActorUiCompletedTaskExpiryDelaySeconds
+                          .Get()));
+            }
           },
           [](const StoppedActingOnTab& e) {
             auto* tab = e.tab_handle.Get();
@@ -283,10 +304,8 @@ void ActorUiStateManager::NotifyActorTaskStateChange(TaskId task_id) {
   actor_task_state_change_callback_list_.Notify(task_id);
 }
 
-void ActorUiStateManager::NotifyActorTaskStopped(TaskId task_id,
-                                                 ActorTask::State final_state,
-                                                 const std::string& title) {
-  actor_task_stopped_callback_list_.Notify(task_id, final_state, title);
+void ActorUiStateManager::NotifyActorTaskStopped(TaskId task_id) {
+  actor_task_stopped_callback_list_.Notify(task_id);
 }
 
 base::CallbackListSubscription
@@ -298,6 +317,51 @@ ActorUiStateManager::RegisterActorTaskStateChange(
 base::CallbackListSubscription ActorUiStateManager::RegisterActorTaskStopped(
     ActorTaskStoppedCallback callback) {
   return actor_task_stopped_callback_list_.Add(std::move(callback));
+}
+
+void ActorUiStateManager::ActorTaskRemoved(TaskId task_id) {
+  stopped_task_info_.erase(task_id);
+  actor_task_removed_callback_list_.Notify(task_id);
+}
+
+base::CallbackListSubscription ActorUiStateManager::RegisterActorTaskRemoved(
+    ActorTaskRemovedCallback callback) {
+  return actor_task_removed_callback_list_.Add(std::move(callback));
+}
+
+std::optional<std::string> ActorUiStateManager::GetActorTaskTitle(TaskId id) {
+  if (ActorTask* task = actor_service_->GetTask(id)) {
+    return task->title();
+  }
+  if (auto it = stopped_task_info_.find(id); it != stopped_task_info_.end()) {
+    return it->second.title;
+  }
+  return std::nullopt;
+}
+
+std::optional<raw_ptr<tabs::TabInterface>>
+ActorUiStateManager::GetLastActedOnTab(TaskId id) {
+  if (ActorTask* task = actor_service_->GetTask(id)) {
+    actor::ActorTask::TabHandleSet tabs = task->GetLastActedTabs();
+    // TODO(crbug.com/441064175): Will need to be updated for multi-tab
+    // actuation.
+    return tabs.empty() ? nullptr : tabs.begin()->Get();
+  }
+  if (auto it = stopped_task_info_.find(id); it != stopped_task_info_.end()) {
+    return it->second.last_acted_on_tab_handle.Get();
+  }
+  return std::nullopt;
+}
+
+std::optional<actor::ActorTask::State> ActorUiStateManager::GetActorTaskState(
+    TaskId id) {
+  if (ActorTask* task = actor_service_->GetTask(id)) {
+    return task->GetState();
+  }
+  if (auto it = stopped_task_info_.find(id); it != stopped_task_info_.end()) {
+    return it->second.final_state;
+  }
+  return std::nullopt;
 }
 
 }  // namespace actor::ui

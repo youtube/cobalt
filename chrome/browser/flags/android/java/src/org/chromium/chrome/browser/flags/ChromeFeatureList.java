@@ -378,7 +378,6 @@ public abstract class ChromeFeatureList {
     public static final String CONTROLS_VISIBILITY_FROM_NAVIGATIONS =
             "ControlsVisibilityFromNavigations";
     public static final String CORMORANT = "Cormorant";
-    public static final String CPA_SPEC_UPDATE = "CpaSpecUpdate";
     public static final String CROSS_DEVICE_TAB_PANE_ANDROID = "CrossDeviceTabPaneAndroid";
     public static final String DARKEN_WEBSITES_CHECKBOX_IN_THEMES_SETTING =
             "DarkenWebsitesCheckboxInThemesSetting";
@@ -666,7 +665,6 @@ public abstract class ChromeFeatureList {
     public static final String TOP_CONTROLS_REFACTOR = "TopControlsRefactor";
     public static final String TOP_CONTROLS_REFACTOR_V2 = "TopControlsRefactorV2";
     public static final String TOUCH_TO_SEARCH_CALLOUT = "TouchToSearchCallout";
-    public static final String TRACKING_PROTECTION_3PCD = "TrackingProtection3pcd";
     public static final String TRANSLATE_MESSAGE_UI = "TranslateMessageUI";
     public static final String TRANSLATE_TFLITE = "TFLiteLanguageDetectionEnabled";
     public static final String TRUSTED_WEB_ACTIVITY_CONTACTS_DELEGATION =
@@ -865,7 +863,6 @@ public abstract class ChromeFeatureList {
             newCachedFlag(COMMAND_LINE_ON_NON_ROOTED, false);
     public static final CachedFlag sContextMenuPictureInPictureAndroid =
             newCachedFlag(CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID, false);
-    public static final CachedFlag sCpaSpecUpdate = newCachedFlag(CPA_SPEC_UPDATE, true);
     public static final CachedFlag sCpaTabGroupingButton =
             newCachedFlag(
                     CONTEXTUAL_PAGE_ACTION_TAB_GROUPING,
@@ -1163,7 +1160,6 @@ public abstract class ChromeFeatureList {
                     sClearIntentWhenRecreated,
                     sCommandLineOnNonRooted,
                     sContextMenuPictureInPictureAndroid,
-                    sCpaSpecUpdate,
                     sCpaTabGroupingButton,
                     sCrossDeviceTabPaneAndroid,
                     sDesktopUAOnConnectedDisplay,

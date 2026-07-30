@@ -46,8 +46,7 @@ class ContextualCueingService;
 }
 namespace glic {
 
-BASE_FEATURE(kGlicHibernateAllOnMemoryPressure,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_DECLARE_FEATURE(kGlicHibernateAllOnMemoryPressure);
 
 BASE_DECLARE_FEATURE(kGlicHibernateOnMemoryUsage);
 
@@ -98,6 +97,12 @@ class GlicInstanceCoordinatorImpl
   // GlicWindowController implementation
   HostManager& host_manager() override;
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
+
+  // Creates a new conversation and pins the given tabs.
+  // This overrides any conversation that was already associated with any
+  // of the given tabs.
+  void CreateNewConversationForTabs(
+      const std::vector<tabs::TabInterface*>& tabs) override;
 
   // Toggles the side panel for the active tab if `browser` is provided,
   // otherwise toggles the floating window for the instance. Focus is given

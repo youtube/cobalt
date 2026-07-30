@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">ਮਿਆਦ ਸਮਾਪਤੀ ਦਾ ਮਹੀਨਾ</translation>
 <translation id="1150989369772528668">Calendar</translation>
 <translation id="1161663161838091892">ਜਾਰੀ ਰੱਖਣ ਲਈ ਟੈਬਾਂ ਅਤੇ ਇਤਿਹਾਸ ਨੂੰ ਸਿੰਕ ਕਰੋ</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} ਕ੍ਰੈਡਿਟ ਕਾਰਡ}one{{count} ਕ੍ਰੈਡਿਟ ਕਾਰਡ}other{{count} ਕ੍ਰੈਡਿਟ ਕਾਰਡ}}</translation>
 <translation id="1164891049599601209">ਭਰਮਾਊ ਸਾਈਟ 'ਤੇ ਦਾਖਲ ਕੀਤਾ</translation>
 <translation id="1165039591588034296">ਗੜਬੜ</translation>
 <translation id="1172898394251786223">ਅਗਲਾ ਖੇਤਰ</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">ਨਾ ਲੁਕਾਓ</translation>
 <translation id="1456545332132818232"><ph name="PRODUCT_NAME" /> ਨੂੰ ਮਿਲੀਆਂ ਉਤਪਾਦ ਸਮੀਖਿਆਵਾਂ, <ph name="DOMAIN" /> 'ਤੇ ਇਸ ਉਤਪਾਦ ਨੂੰ <ph name="MAX_STARS" /> ਵਿੱਚੋਂ <ph name="STARS" /> ਮਿਲੇ ਹਨ</translation>
 <translation id="1460751212339734034">ਸਮਾਂ ਬਚਾਓ, ਘੱਟ ਟਾਈਪ ਕਰੋ</translation>
+<translation id="1466035273550360103">ਕੋਈ ਖੁੱਲ੍ਹੀ ਟੈਬ ਨਹੀਂ</translation>
 <translation id="1469381646033328562">ਤੁਹਾਡੇ ਖਾਤੇ ਦਾ ਪ੍ਰਬੰਧਨ ਤੁਹਾਡੇ ਮਾਂ-ਪਿਓ ਵੱਲੋਂ ਕੀਤਾ ਜਾਂਦਾ ਹੈ।
 <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">ਬਦਲੀ ਗਈ</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">ਟੈਬਸ ਖੋਲ੍ਹੋ</translation>
 <translation id="1752547299766512813">ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰੋ</translation>
 <translation id="1764070164487214210">ਦਿਸ਼ਾਵਾਂ</translation>
+<translation id="1764511703783285459">ਹੋਰ ਪਾਸਵਰਡ ਪ੍ਰਬੰਧਕ ਨੇ ਕੋਈ ਵੀ ਪਾਸਵਰਡ ਜਾਂ ਪਾਸਕੀ ਸਾਂਝੀ ਨਹੀਂ ਕੀਤੀ</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">ਟੂਲ ਮੀਨੂ</translation>
 <translation id="1772468122139624049">ਟੈਬਾਂ ਨੂੰ ਰੀਲੋਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">ਤੁਹਾਡੀ ਤਬਦੀਲੀ ਨੂੰ ਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ।</translation>
 <translation id="3254806613790954367">ਤੁਹਾਡੇ ਸਾਰੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਤੁਹਾਡੀ ਆਖਰੀ ਖੁੱਲ੍ਹੀ ਟੈਬ</translation>
 <translation id="325717987950204592">"ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ" 'ਤੇ ਟੈਪ ਕਰੋ</translation>
-<translation id="3266338926702638258">ਇਸ ਉਤਪਾਦ ਲਈ ਕੀਮਤ ਦਾ ਇਤਿਹਾਸ ਦਿਖਾਓ</translation>
 <translation id="3272527697863656322">ਰੱਦ ਕਰੋ</translation>
 <translation id="3273510436356991673">ਆਪਣੀ ਹੋਮ ਸਕ੍ਰੀਨ ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
 <translation id="3277021493514034324">ਸਾਈਟ ਦਾ ਪਤਾ ਕਾਪੀ ਕੀਤਾ ਗਿਆ</translation>
@@ -917,6 +919,7 @@
 <translation id="4568230126482344545">"ਹਾਲੀਆ ਟੈਬਾਂ" ਨੂੰ ਲੁਕਾਓ</translation>
 <translation id="4578835633387306383">ਚਾਲੂ ਕਰੋ…</translation>
 <translation id="4580716718466706433">"Password Manager" 'ਤੇ ਜਾਓ</translation>
+<translation id="4585751637295612750">ਇਸਨੂੰ ਆਪਣੇ ਸਵਾਲ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰਨ ਲਈ ਇੱਕ ਨਵੀਂ ਟੈਬ ਖੋਲ੍ਹੋ</translation>
 <translation id="4587589328781138893">ਸਾਈਟਾਂ</translation>
 <translation id="4592672037257622855">{count,plural, =1{ਪੰਨੇ ਨੂੰ ਤੁਹਾਡੀ ਪੜ੍ਹਨ-ਸੂਚੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕੀਤਾ ਗਿਆ}one{{count} ਪੰਨੇ ਨੂੰ ਤੁਹਾਡੀ ਪੜ੍ਹਨ-ਸੂਚੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕੀਤਾ ਗਿਆ}other{{count} ਪੰਨਿਆਂ ਨੂੰ ਤੁਹਾਡੀ ਪੜ੍ਹਨ-ਸੂਚੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕੀਤਾ ਗਿਆ}}</translation>
 <translation id="459644946100970322">ਕੀ ਕੀਮਤ ਬਾਰੇ ਅਲਰਟਾਂ ਨੂੰ ਚਾਲੂ ਕਰਨਾ ਹੈ?</translation>
@@ -1070,6 +1073,7 @@
 <translation id="508645147179720015">ਨੋਟ-ਕਥਨ 1000 ਅੱਖਰ-ਚਿੰਨ੍ਹਾਂ ਤੋਂ ਵੱਧ ਦਾ ਹੈ</translation>
 <translation id="5087098519049306025">ਕੀਮਤ ਸੰਬੰਧੀ ਟਰੈਕਿੰਗ</translation>
 <translation id="5090832849094901128">ਇਸ ਪਾਸਵਰਡ ਨੂੰ ਮਿਟਾਉਣ ਨਾਲ <ph name="WEBSITE" /> 'ਤੇ ਤੁਹਾਡੇ ਖਾਤੇ ਨੂੰ ਮਿਟਾਇਆ ਨਹੀਂ ਜਾਵੇਗਾ।</translation>
+<translation id="510580293474170715">ਕੁਝ ਵੀ ਆਯਾਤ ਨਹੀਂ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="5113960131843706315">ਤੁਹਾਡੀਆਂ ਚੀਜ਼ਾਂ ਪ੍ਰਾਪਤ ਕੀਤੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ…</translation>
 <translation id="5118462200606189584">ਖਾਤਾ ਸ਼ਾਮਲ ਕਰੋ…</translation>
 <translation id="5118764316110575523">ਬੰਦ</translation>
@@ -1449,6 +1453,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6410390304316730527">ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਿੰਗ ਅਜਿਹੇ ਹਮਲਾਵਾਰਾਂ ਤੋਂ ਤੁਹਾਡੀ ਸੁਰੱਖਿਆ ਕਰਦੀ ਹੈ ਜੋ ਖਰਾਬ ਸਾਫ਼ਟਵੇਅਰ ਨੂੰ ਸਥਾਪਤ ਕਰਨ ਜਾਂ ਪਾਸਵਰਡ, ਫ਼ੋਨ ਨੰਬਰ, ਜਾਂ ਕ੍ਰੈਡਿਟ ਕਾਰਡਾਂ ਵਰਗੀ ਨਿੱਜੀ ਜਾਣਕਾਰੀ ਦਾ ਖੁਲਾਸਾ ਕਰਨ ਵਰਗੇ ਖਤਰਨਾਕ ਕੰਮ ਕਰਕੇ ਤੁਹਾਡੇ ਨਾਲ ਚਾਲਬਾਜ਼ੀ ਕਰ ਸਕਦੇ ਹਨ। ਜੇ ਤੁਸੀਂ ਇਸਨੂੰ ਬੰਦ ਕਰਦੇ ਹੋ, ਤਾਂ ਅਣਪਛਾਤੀਆਂ ਅਤੇ ਅਪ੍ਰਸਿੱਧ ਸਾਈਟਾਂ 'ਤੇ ਬ੍ਰਾਊਜ਼ ਕਰਦੇ ਸਮੇਂ ਸਾਵਧਾਨ ਰਹੋ।</translation>
 <translation id="6410883413783534063">ਇੱਕੋ ਵੇਲੇ ਵੱਖ-ਵੱਖ ਪੰਨਿਆਂ 'ਤੇ ਜਾਣ ਲਈ ਟੈਬਾਂ ਖੋਲ੍ਹੋ</translation>
 <translation id="6418346271604475326">PDF ਤਿਆਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
+<translation id="6420292512900923139">ਤੁਹਾਡੇ ਡਾਟੇ ਨੂੰ ਆਯਾਤ ਕਰਨ ਵਿੱਚ ਸਮੱਸਿਆ ਆਈ</translation>
 <translation id="6421038304268477484">ਅਨੁਵਾਦ ਕੀਤੀ ਲਿਖਤ</translation>
 <translation id="6429213933892582367">ਪਾਸਵਰਡ ਵਿਕਲਪ ਖੋਲ੍ਹੋ</translation>
 <translation id="6435236283694032571">ਪੜ੍ਹਨ-ਸੂਚੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ</translation>
@@ -1487,6 +1492,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">ਚੋਣਾਂ</translation>
 <translation id="6550891580932862748">ਇਸ ਮੋਡ ਵਿੱਚ ਤੁਹਾਨੂੰ ਖਤਰਨਾਕ ਵੈੱਬਸਾਈਟਾਂ, ਡਾਊਨਲੋਡਾਂ ਅਤੇ ਐਕਸਟੈਂਸ਼ਨਾਂ ਤੋਂ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਰੱਖਿਆ ਜਾਂਦਾ। Google ਦੇ ਦੂਜੇ ਉਤਪਾਦਾਂ ਵਿੱਚ ਤੁਹਾਡੀਆਂ ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਪ੍ਰਭਾਵਿਤ ਨਹੀਂ ਹੋਣਗੀਆਂ।</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">ਮੁੜ-ਓਹੀ ਕਰੋ</translation>
 <translation id="6559301491397835130">{count,plural, =1{ਬੁੱਕਮਾਰਕ ਨੂੰ "{title}" ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ। ਇਹ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ।}one{ਬੁੱਕਮਾਰਕ ਨੂੰ "{title}" ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ। ਇਹ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ।}other{ਬੁੱਕਮਾਰਕਾਂ ਨੂੰ "{title}" ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ। ਉਨ੍ਹਾਂ ਨੂੰ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ।}}</translation>
 <translation id="656065428026159829">ਹੋਰ ਦੇਖੋ</translation>
@@ -1563,6 +1569,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6807287147325542056">ਹੋਰ ਐਪਾਂ ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤੇ ਪਾਸਵਰਡ</translation>
 <translation id="681368974849482173">ਆਈਟਮ ਬਣਾਈ</translation>
 <translation id="6825078212112407882">{count,plural, =1{ਤੁਹਾਡੇ Google ਖਾਤੇ, {email} ਵਿੱਚ ਬੁੱਕਮਾਰਕ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}one{ਬੁੱਕਮਾਰਕ ਨੂੰ ਤੁਹਾਡੇ Google ਖਾਤੇ, {email} {count} ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}other{ਬੁੱਕਮਾਰਕਾਂ ਨੂੰ ਤੁਹਾਡੇ Google ਖਾਤੇ, {email} {count} ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}}</translation>
+<translation id="6826004672264649705">ਫ਼ਿਲਹਾਲ ਇਸ ਉਤਪਾਦ ਨੂੰ ਟਰੈਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ। ਕੀਮਤ ਦਾ ਇਤਿਹਾਸ ਦੇਖਣ ਲਈ ਖੋਲ੍ਹੋ</translation>
 <translation id="6830728435402077660">ਸੁਰੱਖਿਅਤ ਨਹੀਂ</translation>
 <translation id="6831043979455480757">ਅਨੁਵਾਦ ਕਰੋ</translation>
 <translation id="6842136130964845393">ਇਹ ਪੱਕਾ ਕਰਨ ਲਈ ਕਿ ਤੁਸੀਂ ਆਪਣੇ ਰੱਖਿਅਤ ਕੀਤੇ ਪਾਸਵਰਡਾਂ ਤੱਕ ਹਮੇਸ਼ਾਂ ਪਹੁੰਚ ਕਰ ਸਕੋ, ਆਪਣੀ ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ</translation>

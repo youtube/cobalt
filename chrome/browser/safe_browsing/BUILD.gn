@@ -108,6 +108,10 @@ static_library("safe_browsing") {
   }
 
   if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [
+      "security_settings_bundle_toast_helper.cc",
+      "security_settings_bundle_toast_helper.h",
+    ]
     deps += [
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/toasts",
@@ -314,7 +318,6 @@ static_library("safe_browsing") {
       sources += [
         "chrome_safe_browsing_hats_delegate.cc",
         "chrome_safe_browsing_hats_delegate.h",
-        "cloud_content_scanning/binary_upload_service.h",
         "cloud_content_scanning/cloud_binary_upload_service.cc",
         "cloud_content_scanning/cloud_binary_upload_service.h",
         "cloud_content_scanning/cloud_binary_upload_service_factory.cc",
@@ -664,7 +667,10 @@ source_set("unit_tests") {
     deps += [ "android:test_support" ]
   }
   if (is_win || is_mac || is_linux || is_chromeos) {
-    sources += [ "safe_browsing_pref_change_handler_unittest.cc" ]
+    sources += [
+      "safe_browsing_pref_change_handler_unittest.cc",
+      "security_settings_bundle_toast_helper_unittest.cc",
+    ]
 
     deps += [
       "//chrome/browser/sync",

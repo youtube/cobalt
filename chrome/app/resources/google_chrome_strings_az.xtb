@@ -83,6 +83,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="1874309113135274312">Google Chrome Beta (mDNS-In)</translation>
 <translation id="1877026089748256423">Chrome'un vaxtı keçib</translation>
 <translation id="1880677175115548835">Mətn seçin</translation>
+<translation id="1896602904211344018">Chrome tətbiqini əldə edin</translation>
 <translation id="1919130412786645364">Chrome girişinə icazə verin</translation>
 <translation id="1953553007165777902">Endirilir... <ph name="MINUTE" /> dəqiqə qalıb</translation>
 <translation id="1979600810166324878">iOS üçün Chrome-da Qabaqcıl Güvənli Baxış ilə yolda daha təhlükəsiz olun</translation>
@@ -269,6 +270,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3889417619312448367">Google Chrome'u sistemdən silin</translation>
 <translation id="3892148308691398805">Mətni kopyalayın</translation>
 <translation id="3906096710440765802">Parolları, əlfəcinləri və daha çoxunu bütün cihazlarda əldə etmək üçün Chrome-a daxil olun</translation>
+<translation id="3921132130819999051">Chrome-a sizin üçün axtarış etmək imkanı verin</translation>
 <translation id="3941890832296813527">Quraşdırma xətası: Quraşdırıcı fayl adı yanlışdır və ya dəstəklənmir.</translation>
 <translation id="395904275706073188">Qorunan səhifələri oxumaq mümkün deyil. Fərqli səhifə yoxlayın.</translation>
 <translation id="3968962723676998462">Chrome datasını hesabınızda (<ph name="ACCOUNT_EMAIL" />) istifadə etmək və yadda saxlamaq üçün parol ifadəsini daxil edin</translation>
@@ -310,6 +312,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="4334294535648607276">Endirmə tamamlandı.</translation>
 <translation id="4337324600316876133">Google Chrome güncəlləmələri əldə etmək üçün macOS 12 və ya yeni versiya tələb olunur. Bu kompüter macOS 11 istifadə edir.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> Chrome'a əlavə edildi</translation>
+<translation id="4344128547036991536">Google Linzanı açdığınız zaman səhifə başlığı, URL və kontent, o cümlədən PDF sənədləri avtomatik olaraq Google-a göndəriləcək. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Fərdiləşdirmə üçün Chrome-u Veb və Tətbiq fəaliyyətinə daxil edin</translation>
 <translation id="436060642166082913">Chrome bu endirməni blokladı. Çünki fayl şəxsi və sosial şəbəkə hesablarını zədələyə bilər</translation>
 <translation id="4367027658822022112">Asan giriş üçün Google Linzanı bərkidə bilərsiniz; yan panelin yuxarısındakı Bərkitmə düyməsinə klikləyin</translation>
@@ -373,6 +376,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="5163087008893166964">Chrome'a xoş gəlmisiniz; yeni brauzer pəncərəsi açılıb</translation>
 <translation id="5166439563123238795">Chrome əllərinizi izləmək icazəsi tələb edir</translation>
 <translation id="5167819546851111585">Bu gün nə düşünürsünüz?</translation>
+<translation id="5169778651486082413">Telefonda Chrome ilə parollardan istifadə edin</translation>
 <translation id="5170938038195470297">Profiliniz yeni versiya Google Chrome'dan olduğu üçün istifadə edilə bilməz.
 
 Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstərin və ya yeni Chrome versiyası işlədin.</translation>
@@ -400,7 +404,6 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="5430073640787465221">Tərcih faylınız zədələnib və ya yanlışdır.  Google Chrome ayarlarınızı bərpa edə bilmir.</translation>
 <translation id="5465210843490471889"><ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /> ilə istifadə etmək üçün Chrome profili seçin</translation>
 <translation id="5468572406162360320">Bu funksiyaları təkmilləşdirmək üçün Chrome interaksiyaları Google-a göndərir. Bu datanı insan redaktorlar oxuya, emal edə və ona annotasiya əlavə edə bilər.</translation>
-<translation id="5510398294750420479">Yolda olduğunuz zaman əlavə qoruma əldə etmək üçün telefonunuza Chrome endirin</translation>
 <translation id="5524890928877629608">axtarış sahəsinin yuxarı sol küncü: <ph name="LEFT" />% sol, <ph name="TOP" />% yuxarı</translation>
 <translation id="5530733413481476019">Chrome'u sürətli edin</translation>
 <translation id="5550137307985173298">Chrome-un görünüşünü dəyişmək üçün Yeni tab səhifəsində Chrome-u fərdiləşdirin düyməsinə klikləyin</translation>
@@ -456,6 +459,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6008161919456049856">Google Hesabınızda saxladığınız parollarınız, ödəniş metodlarınız və ünvanlarınız bu cihazdan silinəcək. Onları Chrome-da yenidən istifadə etmək üçün təkrar daxil olun.</translation>
 <translation id="6009821354356307391">Əlavə sual soruşun</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />Chrome alətləri ilə<ph name="END_LINK" /> təhlükəsiz nəzər sala və nəzarət edə bilərsiniz</translation>
+<translation id="6018578474045062808">Telefonda Chrome ilə Google Linzanı sınayın</translation>
 <translation id="6022659036123304283">Chrome'u özünüzküləşdirin</translation>
 <translation id="6025087594896450715">Google Chrome <ph name="REMAINING_TIME" /> sonra yenidən başladılacaq</translation>
 <translation id="6040143037577758943">Qapat</translation>
@@ -478,6 +482,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">Bu tab əlavə resurslardan istifadə edir. Performansı təkmilləşdirmək üçün Chrome-a onu deaktiv etmək imkanı verin.</translation>
 <translation id="6182736845697986886">Yeniləmə serverində daxili xəta səbəbindən quraşdırma alınmadı.</translation>
+<translation id="6183773856988300112">Chrome-da Gemini tablarınızda işləmək və ona verdiyiniz tapşırıqları yerinə yetirmək üçün avtomatik axtarışdan istifadə edir. <ph name="LINK_BEGIN" />Ətraflı məlumat<ph name="LINK_END" /></translation>
 <translation id="6192058120268468905">Chrome-dakı Hesabınız</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> Chrome-un iş prinsipini dəyişdirə biləcək artırma əlavə etdi.
 
@@ -504,6 +509,8 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6418662306461808273">Mövcud Chrome profilinə keçirilsin?</translation>
 <translation id="6426623519983252346">Növbəti dəfə Chrome iOS-u açdığınız zaman <ph name="FEATURE_NAME" /> tətbiqini sınamaq üçün göstəriş görəcəksiniz.</translation>
 <translation id="6434035853014503219">Chrome-u defolt brauzer kimi seçdiyiniz üçün təşəkkür edirik!</translation>
+<translation id="6438015621983209660">Telefonda Chrome ilə qabaqcıl güvənli baxışı genişləndirin</translation>
+<translation id="6442774133615368941">Chrome iOS tətbiqində kamera ilə alış-veriş edin, tərcümə edin və gördüklərinizi müəyyənləşdirin</translation>
 <translation id="6473905796280459355">Chrome haqqında səhifəsinə keçin</translation>
 <translation id="6481963882741794338">Fərdiləşdirmə və digər məqsədlər üçün Chrome və digər Google xidmətlərini əlaqələndirin</translation>
 <translation id="648319183876919572">Qabaqcıl Güvənli Baxış təhlükəli veb-sayt və endirmələrə qarşı daha yaxşı qoruyur</translation>
@@ -641,6 +648,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="7832314606810669113">Əlfəcinləri və digər məlumatları bütün cihazlarınızda əldə etmək üçün Chrome-a daxil olun. Daxil olduqdan sonra bu əlfəcin Google Hesabınızda yadda saxlanılacaq.</translation>
 <translation id="7845233973568007926">Quraşdırdığınız üçün təşəkkür edirik. <ph name="BUNDLE_NAME" /> istifadə etməzdən əvvəl kompüterinizi yenidən başlatmalısınız.</translation>
 <translation id="7849037457735762883">Qaldığınız yerdən davam edin: Chrome hər dəfə yenidən başladıldıqda tablarınızı bərpa edə bilər. Bunu aktiv etmək üçün keçin:</translation>
+<translation id="7869620795354551924">Yadda saxlanmış parolları istifadə etmək üçün QR kodunu skanlayın, iOS üçün Chrome endirin və Google Hesabına daxil olun</translation>
 <translation id="7872446069773932638">Endirilir... <ph name="SECONDS" /> saniyə qalıb</translation>
 <translation id="7886087451482920026">Google Linza ilə mətn seçin</translation>
 <translation id="7887929410013642057">Sİ rejimi qısayolları həmişə göstərilsin</translation>
@@ -727,6 +735,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="878572486461146056">Quraşdırma xətası: Şəbəkə administratoru quraşdırmanın qarşısını alan Qrup Siyasəti tətbiq edib: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796919761992612392">Chrome-u f&amp;ərdiləşdirin</translation>
 <translation id="8798550110818026746">Təşkilat əlfəcin, tarixçə və parollar kimi axtarış datasını görə və idarə edə bilər. Digər Chrome profillərindəki axtarış datasını görə bilməz</translation>
+<translation id="8813277370772331957">Sonra xatırladın</translation>
 <translation id="8821043148920470810">Google Chrome güncəlləmələrini əldə etmək üçün Windows 10 və ya daha yeni versiya tələb olunur. Bu kompüter Windows 7 istifadə edir.</translation>
 <translation id="8823341990149967727">Chrome'un vaxtı keçib</translation>
 <translation id="8834965163890861871">Google Chrome parolları redaktə etməyə çalışır. Buna icazə vermək üçün Windows parolunuzu yazın.</translation>

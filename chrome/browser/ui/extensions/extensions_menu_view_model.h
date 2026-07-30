@@ -177,9 +177,16 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
     ControlState toggle;
   };
 
-  // Holds the information about how the extension's menu item should look like.
-  // This will be used by the platform delegate as needed.
-  struct MenuItemState {
+  // Holds the information about how the extension's menu entry should look
+  // like. This will be used by the platform delegate as needed.
+  struct MenuEntryState {
+    MenuEntryState();
+    MenuEntryState(const MenuEntryState&);
+    MenuEntryState& operator=(const MenuEntryState&);
+    ~MenuEntryState();
+
+    // The state for the context menu button.
+    ControlState context_menu_button;
     // The state for the site access toggle.
     ControlState site_access_toggle;
     // The state for the site permissions button.
@@ -230,6 +237,12 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
   // `extension_id`.
   bool CanShowSitePermissionsPage(const extensions::ExtensionId& extension_id);
 
+  // Returns the state for the extension's context menu button.
+  ControlState GetContextMenuButtonState(
+      const extensions::ExtensionId& extension_id);
+  ControlState GetContextMenuButtonState(
+      ExtensionActionViewModel* action_model);
+
   // Returns the site access permissions state for an extension. This will crash
   // if called when the user cannot modify the extension site permissions, as
   // this method would compute invalid values.
@@ -242,7 +255,7 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
       const extensions::ExtensionId& extension_id);
 
   // Returns the menu item state for an extension.
-  MenuItemState GetMenuItemState(const extensions::ExtensionId& extension_id);
+  MenuEntryState GetMenuEntryState(const extensions::ExtensionId& extension_id);
 
   // Returns the optional section to display in the menu.
   OptionalSection GetOptionalSection();

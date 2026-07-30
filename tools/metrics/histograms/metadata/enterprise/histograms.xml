@@ -133,6 +133,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="Enterprise_SkyVaultAction">
+  <variant name="Camera" summary="camera"/>
   <variant name="Download" summary="download"/>
   <variant name="Migration" summary="migration"/>
   <variant name="ScreenCapture" summary="screen capture"/>
@@ -745,7 +746,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DevicePolicyInvalidations2"
-    enum="EnterprisePolicyInvalidations" expires_after="2026-04-26">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-06-28">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -1419,7 +1420,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.CaptureModeInitBlocked" enum="BooleanBlocked"
-    expires_after="2026-02-10">
+    expires_after="2027-02-10">
   <owner>poromov@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1429,7 +1430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.CaptureModeInitWarned" enum="BooleanWarned"
-    expires_after="2026-02-10">
+    expires_after="2027-02-10">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1510,7 +1511,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.Errors.DaemonInit"
-    enum="EnterpriseDlpPolicyCrOSDaemonInitError" expires_after="2026-02-10">
+    enum="EnterpriseDlpPolicyCrOSDaemonInitError" expires_after="2027-02-10">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1540,7 +1541,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.Errors.FilesPolicySetup" enum="Boolean"
-    expires_after="2026-04-26">
+    expires_after="2026-06-28">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1586,7 +1587,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.FileActionBlockReviewed"
-    enum="EnterpriseDlpPolicyFileAction" expires_after="2026-02-10">
+    enum="EnterpriseDlpPolicyFileAction" expires_after="2027-02-10">
   <owner>ayaelattar@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1616,7 +1617,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.FileActionWarnReviewed"
-    enum="EnterpriseDlpPolicyFileAction" expires_after="2026-02-10">
+    enum="EnterpriseDlpPolicyFileAction" expires_after="2027-02-10">
   <owner>ayaelattar@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1626,7 +1627,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.FileActionWarnTimedOut"
-    enum="EnterpriseDlpPolicyFileAction" expires_after="2026-02-10">
+    enum="EnterpriseDlpPolicyFileAction" expires_after="2027-02-10">
   <owner>ayaelattar@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1656,7 +1657,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.FilesDaemonStarted" enum="Boolean"
-    expires_after="2026-04-26">
+    expires_after="2026-06-28">
   <owner>poromov@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1703,7 +1704,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.PrintingWarned" enum="BooleanWarned"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1713,7 +1714,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.PrintingWarnProceeded" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1723,7 +1724,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.PrintingWarnSilentProceeded" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1833,7 +1834,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ScreenShareWarned" enum="BooleanWarned"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1843,7 +1844,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ScreenShareWarnProceeded" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1853,7 +1854,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ScreenShareWarnSilentProceeded" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1875,7 +1876,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ScreenshotWarned" enum="BooleanWarned"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1885,7 +1886,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ScreenshotWarnProceeded" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1907,7 +1908,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ScreenshotWarnSilentProceeded" enum="Boolean"
-    expires_after="2026-02-01">
+    expires_after="2027-02-01">
   <owner>aidazolic@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2862,7 +2863,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Policies" enum="EnterprisePolicies"
-    expires_after="2026-04-26">
+    expires_after="2026-06-28">
   <owner>vsavu@google.com</owner>
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
@@ -3213,7 +3214,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.ResumableRequest.{ResumableRequestCheckType}Check.{ContentAnalysisRequestType}.Duration"
-    units="ms" expires_after="2026-04-26">
+    units="ms" expires_after="2026-06-28">
   <owner>nancylanxiao@google.com</owner>
   <owner>domfc@chromium.org</owner>
   <owner>cbe-cep-eng@google.com</owner>
@@ -3852,7 +3853,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.UserPolicyChromeOS.ChildUser.OAuthTokenError"
-    enum="GoogleServiceAuthError" expires_after="2026-04-26">
+    enum="GoogleServiceAuthError" expires_after="2026-06-28">
   <owner>longbowei@google.com</owner>
   <owner>zhangwenyu@google.com</owner>
   <owner>michaelpg@chromium.org</owner>
@@ -3874,7 +3875,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Enterprise.UserPolicyChromeOS.ReregistrationResult"
     enum="EnterpriseUserPolicyChromeOSReregistrationResult"
-    expires_after="2026-04-26">
+    expires_after="2026-06-28">
   <owner>hendrich@chromium.org</owner>
   <owner>rbock@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
@@ -3981,7 +3982,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.{Page}PromotionBannerAction"
-    enum="PromotionBannerAction" expires_after="2026-04-26">
+    enum="PromotionBannerAction" expires_after="2026-06-28">
   <owner>austinzzr@chromium.org</owner>
   <owner>esalma@google.com</owner>
   <summary>

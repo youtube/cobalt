@@ -63,6 +63,7 @@ import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarVisibilityProvider.B
 import org.chromium.chrome.browser.browser_controls.BottomOverscrollHandler;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.collaboration.CollaborationControllerDelegateFactory;
 import org.chromium.chrome.browser.collaboration.CollaborationControllerDelegateImpl;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
@@ -1548,7 +1549,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (!DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)) return;
 
         mOnTabStripHeightChangedCallback = (height) -> updateTopControlsHeight();
-        mToolbarManager.getTabStripHeightSupplier().addObserver(mOnTabStripHeightChangedCallback);
+
+        if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()) {
+            mToolbarManager
+                    .getTabStripHeightSupplier()
+                    .addObserver(mOnTabStripHeightChangedCallback);
+        }
     }
 
     @SuppressWarnings("NewApi") // OS version check is done via helper method.
@@ -1598,8 +1604,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mInstantMessageDelegateImpl =
                                     InstantMessageDelegateFactory.getForProfile(originalProfile);
                             TabGroupModelFilter tabGroupModelFilter =
-                                    selector.getTabGroupModelFilterProvider()
-                                            .getTabGroupModelFilter(/* isIncognito= */ false);
+                                    selector.getTabGroupModelFilter(/* isIncognito= */ false);
                             DataSharingNotificationManager dataSharingNotificationManager =
                                     new DataSharingNotificationManager(mActivity);
                             mInstantMessageDelegateImpl.attachWindow(
@@ -1622,10 +1627,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @Override
             public void openTabGroup(@Nullable Token tabGroupId) {
                 TabGroupModelFilter filter =
-                        mTabModelSelectorSupplier
-                                .get()
-                                .getTabGroupModelFilterProvider()
-                                .getTabGroupModelFilter(false);
+                        mTabModelSelectorSupplier.get().getTabGroupModelFilter(false);
                 if (!filter.tabGroupExists(tabGroupId)) {
                     // This method is only supposed to be called when the tab group is in the local
                     // model. However it's possible that something has recently changed. In which

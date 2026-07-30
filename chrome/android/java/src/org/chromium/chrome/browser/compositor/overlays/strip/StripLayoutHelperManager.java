@@ -85,19 +85,18 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
+import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.browser.tabstrip.TabStripSceneLayerHolder;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
-import org.chromium.chrome.browser.toolbar.top.tab_strip.StripVisibilityState;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -253,6 +252,9 @@ public class StripLayoutHelperManager
      * the desktop windowing mode, to determine the tab strip background color.
      */
     private boolean mIsTopResumedActivity;
+
+    private final SettableNonNullObservableSupplier<Boolean> mStaticLayoutNeedsOffsetTagSupplier =
+            ObservableSuppliers.createNonNull(false);
 
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
 
@@ -762,9 +764,7 @@ public class StripLayoutHelperManager
         mIncognitoHelper.destroy();
         mNormalHelper.destroy();
         if (mTabModelSelector != null) {
-            mTabModelSelector
-                    .getTabGroupModelFilterProvider()
-                    .removeTabGroupModelFilterObserver(mTabModelObserver);
+            mTabModelSelector.removeTabGroupModelFilterObserver(mTabModelObserver);
 
             mTabModelSelector.getCurrentTabModelSupplier().removeObserver(mCurrentTabModelObserver);
             mTabModelSelectorTabModelObserver.destroy();
@@ -1180,13 +1180,22 @@ public class StripLayoutHelperManager
 
     @Override
     public void updateOffsetTagsInfo(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+        // LINT.IfChange(updateOffsetTagsInfo)
         if (ChromeFeatureList.sBrowserControlsInViz.isEnabled() && offsetTagsInfo != null) {
             // Use the content OffsetTag here, because the tab strip and content are part of
-            // the same subtree and move together with the same offset.
+            // the same subtree and move together with the same offset. We need to release the
+            // content offset tag from the static layout first before adding it to the tab strip.
+            mStaticLayoutNeedsOffsetTagSupplier.set(false);
             mTabStripTreeProvider.updateOffsetTag(offsetTagsInfo.getContentOffsetTag());
         } else {
             mTabStripTreeProvider.updateOffsetTag(null);
+            mStaticLayoutNeedsOffsetTagSupplier.set(true);
         }
+        // LINT.ThenChange(chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java:updateOffsetTag)
+    }
+
+    public NonNullObservableSupplier<Boolean> getLayoutNeedOffsetTagSupplier() {
+        return mStaticLayoutNeedsOffsetTagSupplier;
     }
 
     @Override
@@ -1416,9 +1425,7 @@ public class StripLayoutHelperManager
                         updateTitleForTab(tab);
                     }
                 };
-        modelSelector
-                .getTabGroupModelFilterProvider()
-                .addTabGroupModelFilterObserver(mTabModelObserver);
+        modelSelector.addTabGroupModelFilterObserver(mTabModelObserver);
 
         mTabModelSelector = modelSelector;
 
@@ -1451,10 +1458,10 @@ public class StripLayoutHelperManager
                 mTabModelSelector.getModel(true),
                 tabCreatorManager.getTabCreator(true),
                 tabStateInitialized);
-        TabGroupModelFilterProvider provider = mTabModelSelector.getTabGroupModelFilterProvider();
-        mNormalHelper.setTabGroupModelFilter(assumeNonNull(provider.getTabGroupModelFilter(false)));
+        mNormalHelper.setTabGroupModelFilter(
+                assumeNonNull(mTabModelSelector.getTabGroupModelFilter(false)));
         mIncognitoHelper.setTabGroupModelFilter(
-                assumeNonNull(provider.getTabGroupModelFilter(true)));
+                assumeNonNull(mTabModelSelector.getTabGroupModelFilter(true)));
         tabModelSwitched(mTabModelSelector.isIncognitoSelected());
         // Manually called on initialization, since the logic in #tabModelSwitched only runs if the
         // Incognito state actually changes. Since mIncognito defaults to false, it may not actually
@@ -1604,7 +1611,9 @@ public class StripLayoutHelperManager
                             BrowserControlsOffsetTagsInfo oldOffsetTagsInfo,
                             BrowserControlsOffsetTagsInfo offsetTagsInfo,
                             @BrowserControlsState int constraints) {
-                        updateOffsetTagsInfo(offsetTagsInfo);
+                        if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()) {
+                            updateOffsetTagsInfo(offsetTagsInfo);
+                        }
                     }
 
                     @Override

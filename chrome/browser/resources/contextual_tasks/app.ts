@@ -12,6 +12,7 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {Uuid} from 'chrome://resources/mojo/mojo/public/mojom/base/uuid.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -20,6 +21,7 @@ import type {Tab} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {PostMessageHandler} from './post_message_handler.js';
+import type {ZeroStateOverlayElement} from './zero_state_overlay.js';
 
 type ChromeEventFunctionType<T> =
     T extends ChromeEvent<infer ListenerType>? ListenerType : never;
@@ -32,6 +34,7 @@ export interface ContextualTasksAppElement {
   $: {
     threadFrame: chrome.webviewTag.WebView,
     composebox: ContextualTasksComposeboxElement,
+    zeroStateOverlay: ZeroStateOverlayElement,
   };
 }
 
@@ -125,11 +128,13 @@ export class ContextualTasksAppElement extends CrLitElement {
         reflect: true,
       },
       isAiPage_: {type: Boolean, reflect: true},
+      isLensOverlayShowing_: {type: Boolean},
     };
   }
 
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
-  protected accessor isAiPage_: boolean = false;
+  protected accessor isAiPage_: boolean = true;
+  protected accessor isLensOverlayShowing_: boolean = false;
   // Indicates if in tab mode. Most start in a tab.
   protected accessor isShownInTab_: boolean = true;
   protected accessor darkMode_: boolean = loadTimeData.getBoolean('darkMode');
@@ -139,6 +144,11 @@ export class ContextualTasksAppElement extends CrLitElement {
   protected accessor showComposebox_: boolean = true;
   protected accessor isErrorPageVisible_: boolean = false;
   protected accessor isZeroState_: boolean = false;
+
+  protected friendlyZeroStateSubtitle: string =
+      loadTimeData.getString('friendlyZeroStateSubtitle');
+  protected friendlyZeroStateTitle: string =
+      loadTimeData.getString('friendlyZeroStateTitle');
   private listenerIds_: number[] = [];
   // The OAuth token to use for embedded page requests. Null if not yet set.
   // Can be empty if the user is not signed in or the token couldn't be fetched.
@@ -162,6 +172,8 @@ export class ContextualTasksAppElement extends CrLitElement {
         'ContextualTasks.WebUI.UserAction.OpenNewThread', true);
     const {url} = await this.browserProxy_.handler.getThreadUrl();
     this.$.threadFrame.src = url.url;
+    this.$.composebox.startExpandAnimation();
+    this.$.zeroStateOverlay.startOverlayAnimation();
     this.$.composebox.clearInputAndFocus();
   }
 
@@ -176,6 +188,9 @@ export class ContextualTasksAppElement extends CrLitElement {
         this.threadTitle_ = title;
         updateTitleInUrl(title);
         document.title = title || loadTimeData.getString('title');
+      }),
+      callbackRouter.onAiPageStatusChanged.addListener((isAiPage: boolean) => {
+        this.isAiPage_ = isAiPage;
       }),
       callbackRouter.postMessageToWebview.addListener(
           this.postMessageToWebview.bind(this)),
@@ -198,6 +213,10 @@ export class ContextualTasksAppElement extends CrLitElement {
       callbackRouter.onZeroStateChange.addListener((isZeroState: boolean) => {
         this.isZeroState_ = isZeroState;
       }),
+      callbackRouter.onLensOverlayStateChanged.addListener(
+          (isOverlayShowing: boolean) => {
+            this.isLensOverlayShowing_ = isOverlayShowing;
+          }),
     ];
 
     this.updateSidePanelState();
@@ -226,6 +245,12 @@ export class ContextualTasksAppElement extends CrLitElement {
       threadUrl = url.url;
       this.$.composebox.clearInputAndFocus();
     }
+
+    // Check if the initial render should be zero state.
+    const threadUrlAsUrl = new URL(threadUrl);
+    const {isZeroState} = await this.browserProxy_.handler.isZeroState(
+        {url: threadUrlAsUrl.href} as Url);
+    this.isZeroState_ = isZeroState;
 
     // The thread URL is considered pending (not loaded immediately in the
     // webview) until oauth tokens are received from the WebUI controller. This

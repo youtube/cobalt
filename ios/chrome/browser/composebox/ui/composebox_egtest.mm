@@ -4,6 +4,7 @@
 
 #import <XCTest/XCTest.h>
 
+#import "components/omnibox/browser/aim_eligibility_service_features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -28,6 +29,12 @@ id<GREYMatcher> ComposeboxClearButtonMatcher() {
       grey_sufficientlyVisible(), nil);
 }
 
+// A long text used to ensure the composebox is expanded when it is on a compact
+// mode.
+NSString* kLongText =
+    @"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
+    @"tempor incididunt ut labore et dolore magna aliqua.";
+
 }  // namespace
 
 @interface ComposeboxTestCase : ChromeTestCase
@@ -38,6 +45,9 @@ id<GREYMatcher> ComposeboxClearButtonMatcher() {
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
   config.features_enabled.push_back(kComposeboxIOS);
+  // Only rely on local conditions for AIM eligibility, so disable the
+  // server-side checks.
+  config.features_disabled.push_back(omnibox::kAimServerEligibilityEnabled);
   return config;
 }
 
@@ -91,9 +101,9 @@ id<GREYMatcher> ComposeboxClearButtonMatcher() {
   // Wait for the composebox to be visible.
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:ComposeboxMatcher()];
 
-  // Type some text.
+  // Type some long text that expands the composebox.
   [[EarlGrey selectElementWithMatcher:ComposeboxMatcher()]
-      performAction:grey_typeText(@"test")];
+      performAction:grey_typeText(kLongText)];
 
   // Send button is visible.
   [[EarlGrey

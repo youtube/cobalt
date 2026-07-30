@@ -15,8 +15,11 @@
 class AuthenticationService;
 @class GeminiConfiguration;
 @class GeminiPageContext;
+@class GeminiSettingsAction;
 @class GeminiSettingsMetadata;
 @protocol BWGGatewayProtocol;
+
+typedef NS_ENUM(NSInteger, GeminiSettingsContext);
 
 using BWGEligibilityCallback = void (^)(BOOL eligible);
 
@@ -78,6 +81,19 @@ enum class BWGPageContextAttachmentState {
   kEnterpriseDisabled,
 };
 
+// Enum representing the Gemini view state.
+// This needs to stay in sync with GCRGeminiViewState (and its SDK counterpart).
+enum class GeminiViewState {
+  // The Gemini view state is unknown.
+  kUnknown,
+  // The Gemini view is hidden.
+  kHidden,
+  // The Gemini view is collapsed (minimized) into a circle.
+  kCollapsed,
+  // The Gemini view is expanded.
+  kExpanded,
+};
+
 // Starts the overlay experience with the given configuration.
 void StartBwgOverlay(GeminiConfiguration* gemini_configuration);
 
@@ -110,10 +126,17 @@ void UpdatePageContext(GeminiPageContext* gemini_page_context);
 NSArray<GeminiSettingsMetadata*>* GetEligibleSettings(
     AuthenticationService* auth_service);
 
-// Updates Gemini overlay offset. A positive `offset` will move the overlay
-// towards the top of the viewport while a negative `offset` will move the
-// overlay towards the bottom and even below the viewport.
-void UpdateOverlayOffset(CGFloat offset);
+// Returns the settings action for a given settings context.
+GeminiSettingsAction* ActionForSettingsContext(GeminiSettingsContext context);
+
+// Updates Gemini overlay offset with a specific `opacity`. A positive `offset`
+// will move the overlay towards the top of the viewport while a negative
+// `offset` will move the overlay towards the bottom and even below the
+// viewport.
+void UpdateOverlayOffsetWithOpacity(CGFloat offset, CGFloat opacity);
+
+// Updates Gemini floaty view state.
+void UpdateGeminiViewState(GeminiViewState view_state);
 
 }  // namespace ios::provider
 

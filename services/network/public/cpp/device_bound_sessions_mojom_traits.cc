@@ -5,7 +5,12 @@
 #include "services/network/public/cpp/device_bound_sessions_mojom_traits.h"
 
 #include "components/unexportable_keys/unexportable_key_id.h"
+#include "net/cookies/cookie_constants.h"
+#include "net/device_bound_sessions/cookie_craving_display.h"
+#include "net/device_bound_sessions/inclusion_result.h"
+#include "net/device_bound_sessions/session_inclusion_rules_display.h"
 #include "net/device_bound_sessions/session_params.h"
+#include "services/network/public/cpp/cookie_manager_mojom_traits.h"
 #include "services/network/public/cpp/schemeful_site_mojom_traits.h"
 #include "url/gurl.h"
 #include "url/mojom/url_gurl_mojom_traits.h"
@@ -122,6 +127,168 @@ bool StructTraits<network::mojom::DeviceBoundSessionParamsDataView,
       std::move(allowed_refresh_initiators));
 
   return true;
+}
+
+// static
+const std::string&
+StructTraits<network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+             net::device_bound_sessions::CookieCravingDisplay>::
+    name(const net::device_bound_sessions::CookieCravingDisplay& r) {
+  return r.name;
+}
+
+// static
+const std::string&
+StructTraits<network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+             net::device_bound_sessions::CookieCravingDisplay>::
+    domain(const net::device_bound_sessions::CookieCravingDisplay& r) {
+  return r.domain;
+}
+
+// static
+const std::string&
+StructTraits<network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+             net::device_bound_sessions::CookieCravingDisplay>::
+    path(const net::device_bound_sessions::CookieCravingDisplay& r) {
+  return r.path;
+}
+
+// static
+bool StructTraits<
+    network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+    net::device_bound_sessions::CookieCravingDisplay>::
+    secure(const net::device_bound_sessions::CookieCravingDisplay& r) {
+  return r.secure;
+}
+
+// static
+bool StructTraits<
+    network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+    net::device_bound_sessions::CookieCravingDisplay>::
+    http_only(const net::device_bound_sessions::CookieCravingDisplay& r) {
+  return r.http_only;
+}
+
+// static
+net::CookieSameSite
+StructTraits<network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+             net::device_bound_sessions::CookieCravingDisplay>::
+    same_site(const net::device_bound_sessions::CookieCravingDisplay& r) {
+  return r.same_site;
+}
+
+// static
+bool StructTraits<
+    network::mojom::DeviceBoundSessionCookieCravingDisplayDataView,
+    net::device_bound_sessions::CookieCravingDisplay>::
+    Read(network::mojom::DeviceBoundSessionCookieCravingDisplayDataView data,
+         net::device_bound_sessions::CookieCravingDisplay* out) {
+  if (!data.ReadName(&out->name) || !data.ReadDomain(&out->domain) ||
+      !data.ReadPath(&out->path) || !data.ReadSameSite(&out->same_site)) {
+    return false;
+  }
+  out->secure = data.secure();
+  out->http_only = data.http_only();
+  return true;
+}
+
+// static
+network::mojom::DeviceBoundSessionInclusionResult
+EnumTraits<network::mojom::DeviceBoundSessionInclusionResult,
+           net::device_bound_sessions::InclusionResult>::
+    ToMojom(net::device_bound_sessions::InclusionResult inclusion_result) {
+  switch (inclusion_result) {
+    case net::device_bound_sessions::InclusionResult::kExclude:
+      return network::mojom::DeviceBoundSessionInclusionResult::kExclude;
+    case net::device_bound_sessions::InclusionResult::kInclude:
+      return network::mojom::DeviceBoundSessionInclusionResult::kInclude;
+  }
+}
+
+// static
+bool EnumTraits<network::mojom::DeviceBoundSessionInclusionResult,
+                net::device_bound_sessions::InclusionResult>::
+    FromMojom(network::mojom::DeviceBoundSessionInclusionResult input,
+              net::device_bound_sessions::InclusionResult* output) {
+  switch (input) {
+    case network::mojom::DeviceBoundSessionInclusionResult::kExclude:
+      *output = net::device_bound_sessions::InclusionResult::kExclude;
+      return true;
+    case network::mojom::DeviceBoundSessionInclusionResult::kInclude:
+      *output = net::device_bound_sessions::InclusionResult::kInclude;
+      return true;
+  }
+  return false;
+}
+
+// static
+net::device_bound_sessions::InclusionResult
+StructTraits<network::mojom::DeviceBoundSessionUrlRuleDisplayDataView,
+             net::device_bound_sessions::UrlRuleDisplay>::
+    rule_type(const net::device_bound_sessions::UrlRuleDisplay& r) {
+  return r.rule_type;
+}
+
+// static
+const std::string&
+StructTraits<network::mojom::DeviceBoundSessionUrlRuleDisplayDataView,
+             net::device_bound_sessions::UrlRuleDisplay>::
+    host_pattern(const net::device_bound_sessions::UrlRuleDisplay& r) {
+  return r.host_pattern;
+}
+
+// static
+const std::string&
+StructTraits<network::mojom::DeviceBoundSessionUrlRuleDisplayDataView,
+             net::device_bound_sessions::UrlRuleDisplay>::
+    path_prefix(const net::device_bound_sessions::UrlRuleDisplay& r) {
+  return r.path_prefix;
+}
+
+// static
+bool StructTraits<network::mojom::DeviceBoundSessionUrlRuleDisplayDataView,
+                  net::device_bound_sessions::UrlRuleDisplay>::
+    Read(network::mojom::DeviceBoundSessionUrlRuleDisplayDataView data,
+         net::device_bound_sessions::UrlRuleDisplay* out) {
+  return data.ReadRuleType(&out->rule_type) &&
+         data.ReadHostPattern(&out->host_pattern) &&
+         data.ReadPathPrefix(&out->path_prefix);
+}
+
+// static
+const std::string&
+StructTraits<network::mojom::DeviceBoundSessionInclusionRulesDisplayDataView,
+             net::device_bound_sessions::SessionInclusionRulesDisplay>::
+    origin(const net::device_bound_sessions::SessionInclusionRulesDisplay& r) {
+  return r.origin;
+}
+
+// static
+bool StructTraits<
+    network::mojom::DeviceBoundSessionInclusionRulesDisplayDataView,
+    net::device_bound_sessions::SessionInclusionRulesDisplay>::
+    include_site(
+        const net::device_bound_sessions::SessionInclusionRulesDisplay& r) {
+  return r.include_site;
+}
+
+// static
+const std::vector<net::device_bound_sessions::UrlRuleDisplay>&
+StructTraits<network::mojom::DeviceBoundSessionInclusionRulesDisplayDataView,
+             net::device_bound_sessions::SessionInclusionRulesDisplay>::
+    url_rules(
+        const net::device_bound_sessions::SessionInclusionRulesDisplay& r) {
+  return r.url_rules;
+}
+
+// static
+bool StructTraits<
+    network::mojom::DeviceBoundSessionInclusionRulesDisplayDataView,
+    net::device_bound_sessions::SessionInclusionRulesDisplay>::
+    Read(network::mojom::DeviceBoundSessionInclusionRulesDisplayDataView data,
+         net::device_bound_sessions::SessionInclusionRulesDisplay* out) {
+  out->include_site = data.include_site();
+  return data.ReadUrlRules(&out->url_rules) && data.ReadOrigin(&out->origin);
 }
 
 }  // namespace mojo

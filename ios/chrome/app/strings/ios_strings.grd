@@ -333,7 +333,7 @@
         Microphone
       </message>
       <message name="IDS_IOS_AI_HUB_OPEN_PRICE_TRACKING_ACCESSIBILITY_LABEL" desc="The accessibility label for the button to open price tracking in the AI hub.">
-        Show price history for this product
+        Currently tracking this product. Open to see price history
       </message>
       <message name="IDS_IOS_AI_HUB_OPEN_TRANSLATE_SETTINGS_ACCESSIBILITY_LABEL" desc="The accessibility label for the button to open translate settings in the AI hub.">
         Open Translate settings
@@ -1474,6 +1474,12 @@
       </message>
       <message name="IDS_IOS_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE" desc="Title for the Composebox tab picker when no tabs are selected.">
         Add recent tabs
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_TAB_PICKER_EMPTY_STATE_SUBTITLE" desc="Subtitle for the empty state view in the composebox tab picker.">
+        Open a new tab to add it to your question
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_TAB_PICKER_EMPTY_STATE_TITLE" desc="Title for the empty state view in the composebox tab picker.">
+        No open tabs
       </message>
       <message name="IDS_IOS_COMPOSEBOX_UNABLE_TO_ADD_ATTACHMENT" desc="Message displayed in a snackbar when a file upload fails. [iOS only].">
         Unable to add attachments

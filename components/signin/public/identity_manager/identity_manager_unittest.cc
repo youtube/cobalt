@@ -83,7 +83,7 @@ class CustomFakeOAuth2AccessTokenManager : public FakeOAuth2AccessTokenManager {
 
   void set_on_access_token_invalidated_info(
       CoreAccountId expected_account_id_to_invalidate,
-      std::set<std::string> expected_scopes_to_invalidate,
+      const ScopeSet& expected_scopes_to_invalidate,
       std::string expected_access_token_to_invalidate,
       base::OnceClosure callback) {
     expected_account_id_to_invalidate_ = expected_account_id_to_invalidate;
@@ -115,7 +115,7 @@ class CustomFakeOAuth2AccessTokenManager : public FakeOAuth2AccessTokenManager {
   }
 
   CoreAccountId expected_account_id_to_invalidate_;
-  std::set<std::string> expected_scopes_to_invalidate_;
+  ScopeSet expected_scopes_to_invalidate_;
   std::string expected_access_token_to_invalidate_;
   base::OnceClosure on_access_token_invalidated_callback_;
 };
@@ -142,7 +142,7 @@ class CustomFakeProfileOAuth2TokenService
 
   void set_on_access_token_invalidated_info(
       CoreAccountId expected_account_id_to_invalidate,
-      std::set<std::string> expected_scopes_to_invalidate,
+      const ScopeSet& expected_scopes_to_invalidate,
       std::string expected_access_token_to_invalidate,
       base::OnceClosure callback) {
     GetCustomAccessTokenManager()->set_on_access_token_invalidated_info(
@@ -2446,7 +2446,7 @@ TEST_F(IdentityManagerTest, RefreshAccountInfoIfStale) {
   identity_manager()->GetAccountFetcherService()->OnNetworkInitialized();
   AccountInfo account_info =
       MakeAccountAvailable(identity_manager(), kTestEmail2);
-  identity_manager()->RefreshAccountInfoIfStale(account_info.account_id);
+  identity_manager()->RefreshAccountInfoIfStale(account_info.GetAccountId());
 
   SimulateSuccessfulFetchOfAccountInfo(
       identity_manager(), account_info.account_id, account_info.email,
@@ -2455,14 +2455,14 @@ TEST_F(IdentityManagerTest, RefreshAccountInfoIfStale) {
 
   const AccountInfo& refreshed_account_info =
       identity_manager_observer()->AccountFromAccountUpdatedCallback();
-  EXPECT_EQ(account_info.account_id, refreshed_account_info.account_id);
-  EXPECT_EQ(account_info.email, refreshed_account_info.email);
-  EXPECT_EQ(account_info.gaia, refreshed_account_info.gaia);
-  EXPECT_EQ(kTestHostedDomain, refreshed_account_info.GetHostedDomain());
-  EXPECT_EQ(kTestFullName, refreshed_account_info.full_name);
-  EXPECT_EQ(kTestGivenName, refreshed_account_info.given_name);
-  EXPECT_EQ(kTestLocale, refreshed_account_info.locale);
-  EXPECT_EQ(kTestPictureUrl, refreshed_account_info.picture_url);
+  EXPECT_EQ(refreshed_account_info.GetAccountId(), account_info.GetAccountId());
+  EXPECT_EQ(refreshed_account_info.GetEmail(), account_info.GetEmail());
+  EXPECT_EQ(refreshed_account_info.GetGaiaId(), account_info.GetGaiaId());
+  EXPECT_EQ(refreshed_account_info.GetHostedDomain(), kTestHostedDomain);
+  EXPECT_EQ(refreshed_account_info.GetFullName(), kTestFullName);
+  EXPECT_EQ(refreshed_account_info.GetGivenName(), kTestGivenName);
+  EXPECT_EQ(refreshed_account_info.GetLocale(), kTestLocale);
+  EXPECT_EQ(refreshed_account_info.GetAvatarUrl(), kTestPictureUrl);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

@@ -4,9 +4,13 @@
 
 package org.chromium.chrome.browser.keyboard_accessory.bar_component;
 
+import androidx.annotation.IntDef;
 import androidx.annotation.Px;
 
 import org.chromium.build.annotations.NullMarked;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * Encapsulates the styling properties for a keyboard accessory view.
@@ -26,12 +30,48 @@ public class KeyboardAccessoryStyle {
     private final int mVerticalOffset;
     private final int mMaxWidth;
 
-    public KeyboardAccessoryStyle(
+    @IntDef({
+        NotchPosition.TOP,
+        NotchPosition.BOTTOM,
+        NotchPosition.HIDDEN,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface NotchPosition {
+        int TOP = 0;
+        int BOTTOM = 1;
+        int HIDDEN = 2;
+    }
+
+    private KeyboardAccessoryStyle(
             boolean isDocked, @Px int horizontalOffset, @Px int verticalOffset, @Px int maxWidth) {
         this.mIsDocked = isDocked;
         this.mHorizontalOffset = horizontalOffset;
         this.mVerticalOffset = verticalOffset;
         this.mMaxWidth = maxWidth;
+    }
+
+    /**
+     * Creates a style for a docked keyboard accessory.
+     *
+     * @param verticalOffset The vertical offset in pixels from the bottom.
+     * @return A new {@link KeyboardAccessoryStyle} instance for a docked accessory.
+     */
+    public static KeyboardAccessoryStyle createDockedKeyboardAccessoryStyle(
+            @Px int verticalOffset) {
+        return new KeyboardAccessoryStyle(true, 0, verticalOffset, 0);
+    }
+
+    /**
+     * Creates a style for an undocked (floating) keyboard accessory.
+     *
+     * @param horizontalOffset The horizontal offset in pixels from the left.
+     * @param verticalOffset The vertical offset in pixels from the top.
+     * @param maxWidth The maximum width in pixels. 0 means no max width.
+     * @return A new {@link KeyboardAccessoryStyle} instance for an undocked accessory.
+     */
+    public static KeyboardAccessoryStyle createUndockedKeyboardAccessoryStyle(
+            @Px int horizontalOffset, @Px int verticalOffset, @Px int maxWidth) {
+        return new KeyboardAccessoryStyle(false, horizontalOffset, verticalOffset, maxWidth);
     }
 
     /**

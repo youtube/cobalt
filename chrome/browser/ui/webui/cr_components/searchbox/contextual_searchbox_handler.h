@@ -35,7 +35,6 @@ class Profile;
 class SkBitmap;
 
 namespace contextual_tasks {
-class ContextualTasksService;
 
 #if !BUILDFLAG(IS_ANDROID)
 class ContextualTasksContextService;
@@ -188,11 +187,13 @@ class ContextualSearchboxHandler
 
   // Returns suggest inputs from the contextual search session, or nullopt if
   // none exists.
-  std::optional<lens::proto::LensOverlaySuggestInputs> GetSuggestInputs() const;
+  std::optional<lens::proto::LensOverlaySuggestInputs> GetSuggestInputs();
 
   // Returns the contextual session session handle, or nullptr if none exists.
-  contextual_search::ContextualSearchSessionHandle* GetContextualSessionHandle()
-      const;
+  // This function also resets the context controller that is being observed for
+  // file upload status updates if different from the one that's current.
+  contextual_search::ContextualSearchSessionHandle*
+  GetContextualSessionHandle();
 
  private:
   // Helper to get the correct number of tab suggestions. Virtual so it
@@ -240,12 +241,10 @@ class ContextualSearchboxHandler
       contextual_tasks_context_service_;
 #endif
 
-  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
-
-  base::ScopedObservation<contextual_search::ContextualSearchContextController,
-                          contextual_search::ContextualSearchContextController::
-                              FileUploadStatusObserver>
-      file_upload_status_observer_{this};
+  // The context controller this searchbox is listening to for file upload
+  // status updates.
+  base::WeakPtr<contextual_search::ContextualSearchContextController>
+      context_controller_;
 
   std::optional<lens::ContextualInputData> context_input_data_;
 

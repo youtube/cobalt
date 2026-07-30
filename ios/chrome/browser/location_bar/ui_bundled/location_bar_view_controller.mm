@@ -55,7 +55,7 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_type.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_type.h"
 #import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
@@ -221,11 +221,7 @@ UILabel* OmniboxTextHiddenLabel() {
   if (placeholderType == _placeholderType) {
     return;
   }
-  if (IsDiamondPrototypeEnabled()) {
-    _placeholderType = LocationBarPlaceholderType::kNone;
-  } else {
-    _placeholderType = placeholderType;
-  }
+  _placeholderType = placeholderType;
   if (self.isViewLoaded) {
     [self updatePlaceholderView];
   }
@@ -701,10 +697,6 @@ UILabel* OmniboxTextHiddenLabel() {
     state = kNoButton;
   }
 
-  if (IsDiamondPrototypeEnabled()) {
-    state = kNoButton;
-  }
-
   switch (state) {
     case kNoButton: {
       self.locationBarSteadyView.trailingButton.hidden = YES;
@@ -843,19 +835,6 @@ UILabel* OmniboxTextHiddenLabel() {
 - (UIMenu*)contextMenuUIMenu:(NSArray<UIMenuElement*>*)suggestedActions {
   NSMutableArray<UIMenuElement*>* menuElements = [[NSMutableArray alloc] init];
   __weak __typeof__(self) weakSelf = self;
-
-  if (IsDiamondPrototypeEnabled() && !self.locationBarSteadyView.hidden) {
-    UIImage* image =
-        DefaultSymbolWithPointSize(kShareSymbol, kSymbolActionPointSize);
-    UIAction* copyAction = [UIAction
-        actionWithTitle:l10n_util::GetNSString(IDS_IOS_SHARE_BUTTON_LABEL)
-                  image:image
-             identifier:nil
-                handler:^(UIAction* action) {
-                  [weakSelf.delegate locationBarShareTapped];
-                }];
-    [menuElements addObject:copyAction];
-  }
 
   UIImage* pasteImage = nil;
   if (IsBottomOmniboxAvailable()) {

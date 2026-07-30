@@ -26,7 +26,7 @@
 #include "chrome/browser/ui/views/extensions/extension_action_delegate_desktop.h"
 #include "chrome/browser/ui/views/extensions/extension_view_utils.h"
 #include "chrome/browser/ui/views/extensions/extensions_container_views.h"
-#include "chrome/browser/ui/views/extensions/extensions_menu_item_view.h"
+#include "chrome/browser/ui/views/extensions/extensions_menu_entry_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_main_page_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_site_permissions_page_view.h"
 #include "chrome/grit/generated_resources.h"
@@ -226,11 +226,12 @@ void ExtensionsMenuDelegateDesktop::OnToolbarPinnedActionsChanged() {
     return;
   }
 
-  std::vector<ExtensionMenuItemView*> menu_items = main_page->GetMenuItems();
-  for (auto* menu_item : menu_items) {
-    bool is_action_pinned =
-        toolbar_model_->IsActionPinned(menu_item->view_model()->GetId());
-    menu_item->UpdateContextMenuButton(is_action_pinned);
+  std::vector<ExtensionsMenuEntryView*> menu_entries =
+      main_page->GetMenuEntries();
+  for (auto* menu_entry : menu_entries) {
+    auto button_state =
+        menu_model_->GetContextMenuButtonState(menu_entry->extension_id());
+    menu_entry->UpdateContextMenuButton(button_state);
   }
 }
 
@@ -404,14 +405,15 @@ void ExtensionsMenuDelegateDesktop::UpdateMainPage(
       break;
   }
 
-  // Update menu items.
+  // Update menu entries.
   // TODO(crbug.com/40879945): Reorder the extensions after updating them, since
   // their names can change.
-  std::vector<ExtensionMenuItemView*> menu_items = main_page->GetMenuItems();
-  for (auto* menu_item : menu_items) {
-    ExtensionsMenuViewModel::MenuItemState menu_item_state =
-        menu_model_->GetMenuItemState(menu_item->view_model()->GetId());
-    menu_item->Update(menu_item_state);
+  std::vector<ExtensionsMenuEntryView*> menu_entries =
+      main_page->GetMenuEntries();
+  for (auto* menu_entry : menu_entries) {
+    ExtensionsMenuViewModel::MenuEntryState menu_item_state =
+        menu_model_->GetMenuEntryState(menu_entry->extension_id());
+    menu_entry->Update(menu_item_state);
   }
 }
 
@@ -464,9 +466,9 @@ void ExtensionsMenuDelegateDesktop::InsertMenuItemMainPage(
     ExtensionsMenuMainPageView* main_page,
     ExtensionActionViewModel* action_model,
     int index) {
-  ExtensionsMenuViewModel::MenuItemState menu_item =
-      menu_model_->GetMenuItemState(action_model->GetId());
-  main_page->CreateAndInsertMenuItem(action_model, menu_item, index);
+  ExtensionsMenuViewModel::MenuEntryState menu_item =
+      menu_model_->GetMenuEntryState(action_model->GetId());
+  main_page->CreateAndInsertMenuEntry(action_model, menu_item, index);
 }
 
 void ExtensionsMenuDelegateDesktop::AddOrUpdateExtensionRequestingAccess(

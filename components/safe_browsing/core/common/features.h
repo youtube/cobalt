@@ -221,14 +221,6 @@ BASE_DECLARE_FEATURE(kExtendedReportingRemovePrefDependencyIos);
 // sent by the server.
 BASE_DECLARE_FEATURE(kExtensionTelemetryConfiguration);
 
-// Enables collection of telemetry signal whenever an extension invokes the
-// declarativeNetRequest actions.
-BASE_DECLARE_FEATURE(kExtensionTelemetryDeclarativeNetRequestActionSignal);
-
-// Allows the Extension Telemetry Service to include file data of extensions
-// specified in the --load-extension commandline switch in telemetry reports.
-BASE_DECLARE_FEATURE(kExtensionTelemetryFileDataForCommandLineExtensions);
-
 // Enables the search hijacking signal in extension telemetry.
 BASE_DECLARE_FEATURE(kExtensionTelemetrySearchHijackingSignal);
 // The default interval between heuristic checks.

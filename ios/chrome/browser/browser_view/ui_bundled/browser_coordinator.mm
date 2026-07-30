@@ -43,6 +43,7 @@
 #import "components/trusted_vault/trusted_vault_server_constants.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper_browser_presentation_provider.h"
 #import "ios/chrome/browser/app_store_rating/model/features.h"
+#import "ios/chrome/browser/authentication/signin/non_modal_promo/coordinator/non_modal_signin_promo_coordinator.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
@@ -52,7 +53,6 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_presenter.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_promo/coordinator/non_modal_signin_promo_coordinator.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_edit_profile_coordinator.h"
@@ -170,6 +170,7 @@
 #import "ios/chrome/browser/price_notifications/ui_bundled/price_notifications_view_coordinator.h"
 #import "ios/chrome/browser/print/coordinator/print_coordinator.h"
 #import "ios/chrome/browser/promos_manager/coordinator/promos_manager_coordinator.h"
+#import "ios/chrome/browser/promos_manager/model/app_store_review_swift.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/push_notification/coordinator/notifications_opt_in_coordinator.h"
 #import "ios/chrome/browser/push_notification/coordinator/notifications_opt_in_coordinator_delegate.h"
@@ -315,8 +316,8 @@
 #import "ios/chrome/browser/tips_notifications/coordinator/enhanced_safe_browsing_promo_coordinator.h"
 #import "ios/chrome/browser/tips_notifications/coordinator/lens_promo_coordinator.h"
 #import "ios/chrome/browser/tips_notifications/coordinator/search_what_you_see_promo_coordinator.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/accessory/toolbar_accessory_presenter.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/toolbar_coordinator.h"
+#import "ios/chrome/browser/toolbar/coordinator/toolbar_coordinator.h"
+#import "ios/chrome/browser/toolbar/legacy/ui_bundled/accessory/toolbar_accessory_presenter.h"
 #import "ios/chrome/browser/translate/model/chrome_ios_translate_client.h"
 #import "ios/chrome/browser/unit_conversion/ui_bundled/unit_conversion_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -3233,7 +3234,14 @@ const char kChromeAppStoreUrl[] =
 
 - (void)showAppStoreReviewPrompt {
   if (IsAppStoreRatingEnabled()) {
-    [SKStoreReviewController requestReviewInScene:self.sceneState.scene];
+    if (@available(iOS 18.0, *)) {
+      [AppStoreReviewAdapter requestReviewInScene:self.sceneState.scene];
+    }
+#if !defined(__IPHONE_18_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_18_0
+    else {
+      [SKStoreReviewController requestReviewInScene:self.sceneState.scene];
+    }
+#endif
 
     // Apple doesn't tell whether the app store review window will show or
     // provide a callback for when it is dismissed, so alert the coordinator
@@ -4807,7 +4815,7 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - NonModalSignInPromoCommands
 
-- (void)showNonModalSignInPromoWithType:(SignInPromoType)promoType {
+- (void)showNonModalSignInPromoWithType:(NonModalSignInPromoType)promoType {
   if (!self.nonModalSignInPromoCoordinator) {
     self.nonModalSignInPromoCoordinator =
         [[NonModalSignInPromoCoordinator alloc]
