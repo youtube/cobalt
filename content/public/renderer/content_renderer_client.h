@@ -36,6 +36,10 @@
 #include "ui/base/page_transition_types.h"
 #include "v8/include/v8-forward.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/renderer_factory_traits.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "media/base/speech_recognition_client.h"
 #endif
@@ -475,6 +479,22 @@ class CONTENT_EXPORT ContentRendererClient {
   CreateCastStreamingResourceProvider();
 #endif
 
+<<<<<<< HEAD
+=======
+  // Creates a WebLinkPreviewTriggerer if an embedder wants to observe events
+  // and trigger preview. It is allowed to return nullptr.
+  //
+  // See blink::WebLinkPreviewTriggerer for more details.
+  virtual std::unique_ptr<blink::WebLinkPreviewTriggerer>
+  CreateLinkPreviewTriggerer();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // This is used for StarboardRenderer to acquire customizations
+  // as MojoRenderer from cobalt_content_renderer_client.cc.
+  virtual void GetStarboardRendererFactoryTraits(
+      media::RendererFactoryTraits* renderer_factory_traits);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content

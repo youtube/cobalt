@@ -1,0 +1,19 @@
+name: "lz4"
+description:
+  "Only the lib/ subdirectory is maintained to avoid keeping GPLv2 licensed"
+  "code in our repository. This repository does not have any local changes."
+
+third_party {
+  identifier {
+    type: "Git"
+    value: "https://github.com/lz4/lz4"
+    closest_version: "v1.9.3"
+    version: "unknown"
+  }
+  last_upgrade_date {
+    year: 2020
+    month: 11
+    day: 15
+  }
+  license_type: NOTICE
+}

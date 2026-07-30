@@ -556,10 +556,17 @@ source_set("browser_sources") {
     sources += [ "color_chooser.h" ]
   }
 
+<<<<<<< HEAD
   if (is_linux || is_mac) {
     sources += [
       "cdm_helper.cc",
       "cdm_helper.h",
+=======
+  if (is_cobalt) {
+    sources += [
+      "media_player_utils.cc",
+      "media_player_utils.h",
+>>>>>>> parent of 941d08eedca (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     ]
   }
 
@@ -614,6 +621,14 @@ source_set("browser_sources") {
     "//ui/base/dragdrop/mojom:mojom_headers",
     "//ui/base/mojom:ui_base_types",
   ]
+
+  if (is_cobalt) {
+    public_deps -= [
+      "//services/on_device_model/public/cpp",
+      "//services/on_device_model/public/mojom",
+    ]
+  }
+
   deps = [
     "//cc",
     "//components/input",
@@ -642,6 +657,14 @@ source_set("browser_sources") {
     "//ui/gl",
     "//ui/shell_dialogs",
   ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//components/language_detection/content/browser",
+      "//components/language_detection/content/common",
+      "//components/language_detection/core/browser:language_detection_model_service",
+    ]
+  }
 
   allow_circular_includes_from = [
     # This target is a pair with content / browser.They always go together and

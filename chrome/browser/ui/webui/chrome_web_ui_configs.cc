@@ -106,7 +106,9 @@
 #include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
-#include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals_ui.h"
 #include "chrome/browser/ui/webui/profile_internals/profile_internals_ui.h"
@@ -349,8 +351,10 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<NewTabPageThirdPartyUIConfig>());
   map.AddWebUIConfig(std::make_unique<NewTabUIConfig>());
   map.AddWebUIConfig(std::make_unique<OmniboxPopupUIConfig>());
+#if !BUILDFLAG(IS_COBALT)
   map.AddWebUIConfig(
       std::make_unique<on_device_internals::OnDeviceInternalsUIConfig>());
+#endif  // !BUILDFLAG(IS_COBALT)
   map.AddWebUIConfig(std::make_unique<PasswordManagerUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<private_ai::PrivateAiInternalsUIConfig>());

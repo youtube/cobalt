@@ -1,0 +1,13 @@
+# IMPORTANT: Remember to also update requirements.txt when updating this file.
+# Run pip-compile inside the CI image (ghcr.io/youtube/cobalt/linux:main,
+# Python 3.11), so the pins install where the workflow runs:
+#
+#   pip-compile --allow-unsafe --generate-hashes --strip-extras \
+#     --output-file=cobalt/devinfra/rebase/requirements.txt \\
+#     cobalt/devinfra/rebase/requirements.in
+#
+
+google-genai>=1.0.0
+google-auth>=2.20.0
+google-cloud-aiplatform[reasoningengine]>=1.75.0
+anthropic[vertex]>=0.45.0

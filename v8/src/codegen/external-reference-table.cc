@@ -10,7 +10,8 @@
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
 
-#if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
+#include "build/build_config.h"
+#if defined(DEBUG) && defined(V8_OS_LINUX) && !BUILDFLAG(IS_STARBOARD) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
 #include <execinfo.h>
 
