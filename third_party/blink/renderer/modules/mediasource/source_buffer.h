@@ -34,6 +34,11 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
+#include "base/time/time.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/stream_parser.h"
 #include "third_party/blink/public/platform/web_source_buffer_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
@@ -112,6 +117,12 @@ class SourceBuffer final : public EventTarget,
   AudioTrackList& audioTracks();
   VideoTrackList& videoTracks();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Cobalt-specific method that returns the highest presentation
+  // timestamp written to the Renderer.
+  double GetWriteHead(ExceptionState& exception_state) const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // "_Locked" requires these be called while in the scope of callback of
   // |source_|'s attachment's RunExclusively(). Other methods without "_Locked"
   // may also require the same, since they can be called from within these
@@ -156,7 +167,20 @@ class SourceBuffer final : public EventTarget,
 
   bool PrepareAppend(double media_time, size_t new_data_size, ExceptionState&);
   bool EvictCodedFrames(double media_time, size_t new_data_size);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Takes a reference on `buffer`'s v8::BackingStore and returns a runner that
+  // drops it when destroyed, so that the stream parser can borrow the appended
+  // bytes instead of copying them.
+  base::ScopedClosureRunner RetainAppendedArrayBuffer(DOMArrayBuffer* buffer);
+
+  // `release_runner` keeps the appended bytes alive for as long as the stream
+  // parser needs them. A null runner means the parser must copy them.
+  void AppendBufferInternal(base::span<const unsigned char>,
+                            base::ScopedClosureRunner release_runner,
+                            ExceptionState&);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendBufferInternal(base::span<const unsigned char>, ExceptionState&);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendEncodedChunksAsyncPart();
   void AppendBufferAsyncPart();
   void AppendError(MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
@@ -193,10 +217,18 @@ class SourceBuffer final : public EventTarget,
       size_t size,
       ExceptionState* exception_state,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void AppendBufferInternal_Locked(
+      base::span<const unsigned char>,
+      base::ScopedClosureRunner release_runner,
+      ExceptionState*,
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendBufferInternal_Locked(
       base::span<const unsigned char>,
       ExceptionState*,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendEncodedChunksAsyncPart_Locked(
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
   void AppendBufferAsyncPart_Locked(
@@ -228,6 +260,38 @@ class SourceBuffer final : public EventTarget,
   void RemovePlaceholderCrossThreadTracks(
       scoped_refptr<MediaSourceAttachmentSupplement> attachment,
       MediaSourceTracer* tracer);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // During video startup, the pipeline will wait until the initialization
+  // segment is parsed before creating the SbPlayer, as SbPlayerCreate()
+  // requires audio and video configuration.
+  //
+  // MediaSource spec requires all append operations to be asynchronous (as
+  // implemented in AppendBufferAsyncPart() above), which introduces a delay for
+  // at least a few tens of milliseconds on Android TV, and slows down the
+  // startup as the parsing of initialization segment blocks SbPlayerCreate().
+  //
+  // The following functions try to append the first segment (i.e. the
+  // initialization segment) synchronously to avoid the delay.  This doesn't
+  // conform to the MediaSource spec, so the implementation carefully fires the
+  // events asynchronously to minimize the behavior changes.
+  void AppendBufferSyncPart();
+  void AppendBufferSyncPart_Locked(
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+  void AppendBufferSyncPartSucceeded();
+  void AppendBufferSyncPartSucceeded_Locked(
+      MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
+  void AppendBufferSyncPartFailed();
+  void AppendBufferSyncPartFailed_Locked(
+      MediaSourceAttachmentSupplement::ExclusiveKey passkey);
+
+  void LogFirstSegmentAppendDelay();
+
+  const bool append_first_segment_synchronously_;
+  bool first_segment_appended_ = false;
+  bool first_segment_appended_logged_ = false;
+  base::TimeTicks first_segment_append_start_time_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<WebSourceBuffer> web_source_buffer_;
 

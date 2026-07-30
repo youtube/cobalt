@@ -761,7 +761,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
     std::move(callback).Run();
   }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   void GetAddressMapCacheLinux(
       GetAddressMapCacheLinuxCallback callback) override {
     const net::AddressMapOwnerLinux* address_map_owner =
@@ -769,7 +769,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
     std::move(callback).Run(address_map_owner->GetAddressMap(),
                             address_map_owner->GetOnlineLinks());
   }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
   void AllowsGSSAPILibraryLoad(
       AllowsGSSAPILibraryLoadCallback callback) override {

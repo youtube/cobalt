@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <array>
 #include <memory>
@@ -33,11 +34,19 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/mediastream/sub_capture_target.h"
+<<<<<<< HEAD
 #include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_playback_stats.h"
+=======
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+>>>>>>> parent of 67f2d478fd8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/modules/webaudio/audio_playout_stats.h"
 #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_node.h"
-#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/scheduler/public/non_main_thread.h"
@@ -60,7 +69,10 @@ constexpr char kFakeAudioOutput2[] = "fake_audio_output_2";
 constexpr char kInvalidAudioOutput[] = "INVALID_AUDIO_OUTPUT";
 constexpr char kSecurityOrigin[] = "https://example.com";
 constexpr char kTestData[] = "simple_div.html";
+
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 constexpr char kDefaultDeviceId[] = "";
+#endif
 
 bool web_audio_device_paused_;
 
@@ -298,11 +310,13 @@ class AudioContextTestPlatform : public TestingPlatformSupport {
   size_t AudioHardwareBufferSize() override { return 128; }
 };
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 String GetAecDevice(ExecutionContext* execution_context) {
   return PeerConnectionDependencyFactory::From(*execution_context)
       .GetWebRtcAudioDevice()
       ->GetOutputDeviceForAecForTesting();
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 }  // namespace
 
@@ -1596,6 +1610,7 @@ TEST_F(AudioContextTest, SetSinkIdSuspended) {
                   .get_platform_destination_is_playing_for_testing());
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 TEST_F(AudioContextTest, AecConstructor) {
   // Constructing AudioContexts with different sinkId values should update the
   // acoustic echo cancellation output device.
@@ -1789,6 +1804,7 @@ TEST_F(AudioContextTest, AecSetSinkIdAfterConstructor) {
   FlushMediaDevicesDispatcherHost();
   EXPECT_EQ(GetAecDevice(execution_context), kFakeAudioOutput2);
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 TEST_F(AudioContextTest, InterruptionWhileRunning) {
   // If an interruption occurs while the AudioContext is running, the context

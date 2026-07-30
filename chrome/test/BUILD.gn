@@ -1713,6 +1713,7 @@ source_set("platform_browser_tests") {
       "//chrome/browser/prefetch",
       "//chrome/browser/prefs",
       "//chrome/browser/prefs:util",
+      "//chrome/browser/preloading:prefs",
       "//chrome/browser/profiles/keep_alive",
       "//chrome/browser/reading_list",
       "//chrome/browser/sessions",
@@ -1729,6 +1730,8 @@ source_set("platform_browser_tests") {
       "//components/bookmarks/managed",
       "//components/embedder_support",
       "//components/enterprise/browser/promotion",
+      "//components/infobars/content",
+      "//components/javascript_dialogs",
       "//components/media_device_salt",
       "//components/privacy_sandbox:privacy_sandbox_settings_headers",
       "//components/proxy_config",
@@ -6391,6 +6394,7 @@ if (!is_android) {
   }
 }
 
+if (!is_starboard) {
 if (!is_android) {
   performance_test_suite_template("performance_test_suite") {
   }
@@ -6403,8 +6407,11 @@ if (!is_android) {
     }
   }
 }
+} else {
+  group("performance_test_suite") {}
+}
 
-if (!is_android) {
+if (!is_android && !is_starboard) {
   script_test("crossbench_smoketests") {
     script = "//testing/scripts/run_performance_tests.py"
 
