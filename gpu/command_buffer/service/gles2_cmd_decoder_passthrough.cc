@@ -929,12 +929,26 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // feature_info_->feature_flags().angle_robust_resource_initialization and
   // api()->glIsEnabledFn(GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE)
 
+#if BUILDFLAG(IS_COBALT)
+#define FAIL_INIT_IF_NOT(feature, message)                       \
+  if (!(feature)) {                                              \
+    Destroy(true);                                               \
+    LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
+    return gpu::ContextResult::kFatalFailure;                    \
+  } else {                                                       \
+    /* Cobalt: Clear any GL_INVALID_ENUM or other GL errors     */ \
+    /* generated when querying unsupported ANGLE extension      */ \
+    /* enums on native GL contexts.                             */ \
+    while (glGetError() != GL_NO_ERROR) {}                       \
+  }
+#else
 #define FAIL_INIT_IF_NOT(feature, message)                       \
   if (!(feature)) {                                              \
     Destroy(true);                                               \
     LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
     return gpu::ContextResult::kFatalFailure;                    \
   }
+#endif
 
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_robust_client_memory,
                    "missing GL_ANGLE_robust_client_memory");
@@ -946,22 +960,8 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_client_arrays,
                    "missing GL_ANGLE_client_arrays");
 
-#if BUILDFLAG(IS_COBALT)
-  // Cobalt: We require GL_CLIENT_ARRAYS_ANGLE to be disabled (GL_FALSE) to proceed.
-  // However, if the GL_ANGLE_client_arrays extension is not supported by the platform's
-  // GL context (e.g., when Cobalt runs on native GL without ANGLE), calling glIsEnabled
-  // with the GL_CLIENT_ARRAYS_ANGLE enum is invalid. While it returns GL_FALSE (passing the check),
-  // it also pollutes the GL state with a GL_INVALID_ENUM error, which causes crashes later during
-  // strict error checks (e.g. in IsGL_REDSupportedOnFBOs).
-  // Thus, we only query it if the extension is actually supported.
-  if (feature_info_->feature_flags().angle_client_arrays) {
-    FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
-                     "GL_ANGLE_client_arrays shouldn't be enabled");
-  }
-#else
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
-#endif
 
 #if BUILDFLAG(IS_STARBOARD)
   // Cobalt on some platforms (like RDK) runs on native GL without ANGLE compatibility,
