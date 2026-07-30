@@ -158,11 +158,12 @@ sk_sp<SkImageFilterCache> SkImageFilterCache::Create(size_t maxBytes) {
 
 sk_sp<SkImageFilterCache> SkImageFilterCache::Get(CreateIfNecessary createIfNecessary) {
     static SkOnce once;
-    static SkImageFilterCache* cache = nullptr;
+    static sk_sp<SkImageFilterCache> cache;
 
     if (createIfNecessary == CreateIfNecessary::kNo) {
-        return sk_ref_sp(cache);
+        return cache;
     }
-    once([] { cache = SkImageFilterCache::Create(kDefaultCacheSize).release(); });
-    return sk_ref_sp(cache);
+
+    once([]{ cache = SkImageFilterCache::Create(kDefaultCacheSize); });
+    return cache;
 }
